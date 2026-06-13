@@ -44,4 +44,12 @@ return [
         'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
     ],
 
+    // Tide payment links. Card details are never stored — we only generate and
+    // store the hosted payment link. Falls back to a placeholder link when no
+    // API key is configured.
+    'tide' => [
+        'key' => env('TIDE_API_KEY'),
+        'base_url' => env('TIDE_BASE_URL', 'https://pay.tide.co'),
+    ],
+
 ];

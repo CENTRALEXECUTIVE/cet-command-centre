@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\TrackingLink;
+use App\Services\DriverLocationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -28,5 +30,27 @@ class TrackingController extends Controller
         $link->forceFill(['last_viewed_at' => now()])->save();
 
         return view('tracking.show', ['booking' => $link->booking]);
+    }
+
+    /** JSON feed the tracking page polls for the driver's live position. */
+    public function location(string $token, DriverLocationService $locations): JsonResponse
+    {
+        $link = TrackingLink::with('booking')->where('token', $token)->first();
+
+        if (! $link || ($link->expires_at && $link->expires_at->isPast())) {
+            return response()->json(['available' => false], 410);
+        }
+
+        $booking = $link->booking;
+        $position = $booking ? $locations->latestForBooking($booking) : null;
+
+        return response()->json([
+            'available' => (bool) $position,
+            'status' => $booking?->status->value,
+            'status_label' => $booking?->status->label(),
+            'latitude' => $position?->latitude,
+            'longitude' => $position?->longitude,
+            'updated_at' => $position?->captured_at?->toIso8601String(),
+        ]);
     }
 }

@@ -51,15 +51,41 @@ Delivered and tested:
   instant booking confirmation plus scheduled 24h and 2h reminders, delivered by
   the `cet:send-due-messages` scheduled command.
 
+## Phase 3 — Tracking, audit, compliance & payments
+
+- **GPS tracking** (`DriverLocationService`): the driver app pings every 5
+  minutes **only while on an active job**; pings are stored against that job and
+  the server tells the app to stop once the job ends (location off when not
+  working). Retained ≤90 days and pruned by `cet:prune-gps`.
+- **Live tracking map feed**: the public tracking page polls a token-protected
+  JSON endpoint for the driver's latest position.
+- **Full audit trail** (`LogsActivity` trait): every create/update/delete on
+  bookings and customers is logged with user, IP, user agent and before/after
+  values; surfaced on the booking page alongside the status/GPS history.
+- **Fleet & compliance tracker** (`ComplianceService`): syncs MOT, insurance,
+  PHV vehicle licence, compliance test, PHV badge and DBS dates; classifies
+  valid / due-soon / expired; sends automated WhatsApp renewal reminders via
+  `cet:check-compliance`. Admin dashboard at `/compliance`.
+- **Payments** (`PaymentService` + `TideService`): card bookings auto-generate a
+  Tide hosted payment link (no card data stored), cash is flagged separately,
+  and account bookings are auto-invoiced with VAT by `InvoiceService` /
+  `cet:generate-invoices`. Invoices viewable per role at `/invoices`.
+
+### Scheduled commands
+
+`cet:send-due-messages` (every minute) · `cet:prune-gps` (daily) ·
+`cet:check-compliance` (daily) · `cet:generate-invoices` (monthly).
+
 ### Test coverage
 
 ```bash
 php artisan test
 ```
 
-34 passing tests across authentication, the rotation engine (all rules), booking
+47 passing tests across authentication, the rotation engine (all rules), booking
 creation/validation, the despatch board, the driver app (incl. GPS capture &
-tracking), and WhatsApp confirmations/reminders.
+tracking), WhatsApp confirmations/reminders, GPS storage/prune, the audit trail,
+the compliance tracker, and Tide payments + VAT invoicing.
 
 ---
 

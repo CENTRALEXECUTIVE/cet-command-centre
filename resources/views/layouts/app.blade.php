@@ -27,6 +27,10 @@
             <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') ? 'active' : '' }}">Bookings</a>
             @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
                 <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New Booking</a>
+                <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
+            @endif
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
             @endif
             <form method="POST" action="{{ route('logout') }}" style="display:inline">
                 @csrf

@@ -43,4 +43,18 @@ return [
         'jobs' => 100,
         'revenue' => 14000,
     ],
+
+    // UK VAT rate applied to corporate account invoices.
+    'vat_rate' => 0.20,
+
+    // GPS ping cadence while a driver is on an active job.
+    'gps_ping_seconds' => 300, // every 5 minutes
+
+    // Compliance: how many days before expiry an item becomes "due soon" and a
+    // WhatsApp renewal reminder is sent.
+    'compliance_warn_days' => 30,
+
+    // Operations number that receives compliance/ops alerts (falls back to the
+    // directors' own numbers, then to the log transport).
+    'ops_whatsapp' => env('CET_OPS_WHATSAPP', ''),
 ];

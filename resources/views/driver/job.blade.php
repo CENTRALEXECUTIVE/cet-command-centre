@@ -30,6 +30,12 @@
         </table>
     </div>
 
+    {{-- GPS pinger config — tracking is active only while the job is active. --}}
+    <div id="gps-config"
+         data-active="{{ $booking->status->isActive() ? '1' : '0' }}"
+         data-url="{{ route('driver.locations.store') }}"
+         data-interval="{{ (int) config('cet.gps_ping_seconds', 300) }}" hidden></div>
+
     @php $next = $booking->status->nextStatuses(); @endphp
     @if(!empty($next))
         <div class="tap-actions">
@@ -73,6 +79,34 @@
                 }, { enableHighAccuracy: true, timeout: 5000 });
             });
         });
+
+        // GPS ping loop: while on an active job, send the driver's position
+        // every interval. The server stores nothing once the job is no longer
+        // active and replies tracking:false, which stops the loop.
+        (function () {
+            var cfg = document.getElementById('gps-config');
+            if (!cfg || cfg.dataset.active !== '1' || !navigator.geolocation) return;
+            var token = document.querySelector('meta[name="csrf-token"]').content;
+            var interval = (parseInt(cfg.dataset.interval, 10) || 300) * 1000;
+
+            function ping() {
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    fetch(cfg.dataset.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+                        body: JSON.stringify({
+                            lat: pos.coords.latitude, lng: pos.coords.longitude,
+                            heading: pos.coords.heading, speed: pos.coords.speed, accuracy: pos.coords.accuracy
+                        })
+                    }).then(function (r) { return r.json(); }).then(function (data) {
+                        if (data && data.tracking === false) { clearInterval(timer); }
+                    }).catch(function () {});
+                }, function () {}, { enableHighAccuracy: true, timeout: 10000 });
+            }
+
+            ping();
+            var timer = setInterval(ping, interval);
+        })();
     </script>
     @endverbatim
 @endsection

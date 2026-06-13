@@ -55,5 +55,63 @@
         </div>
     @endif
 
+    @if($booking->payments->isNotEmpty())
+        <div class="card">
+            <h2>Payment</h2>
+            <table>
+                @foreach($booking->payments as $payment)
+                    <tr>
+                        <th>{{ ucfirst($payment->method) }}</th>
+                        <td>
+                            £{{ number_format($payment->amount, 2) }} ·
+                            <span class="badge badge-{{ $payment->status === 'paid' ? 'complete' : 'pending' }}">{{ ucfirst(str_replace('_',' ',$payment->status)) }}</span>
+                            @if($payment->tide_payment_link)
+                                · <a href="{{ $payment->tide_payment_link }}" target="_blank" rel="noopener">Tide payment link</a>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
+
+    @if($booking->statusHistory->isNotEmpty())
+        <div class="card">
+            <h2>Status History</h2>
+            <table>
+                <thead><tr><th>When</th><th>Change</th><th>By</th><th>GPS</th></tr></thead>
+                <tbody>
+                    @foreach($booking->statusHistory->sortByDesc('created_at') as $h)
+                        <tr>
+                            <td>{{ $h->created_at?->format('d M H:i:s') }}</td>
+                            <td>{{ $h->from_status ?? '—' }} → <strong>{{ $h->to_status }}</strong></td>
+                            <td>{{ $h->changedBy?->name ?? 'System' }}</td>
+                            <td class="mono">{{ $h->gps_latitude ? $h->gps_latitude.', '.$h->gps_longitude : '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    @if($auditLogs->isNotEmpty())
+        <div class="card">
+            <h2>Audit Trail</h2>
+            <table>
+                <thead><tr><th>When</th><th>Action</th><th>By</th><th>Changed</th></tr></thead>
+                <tbody>
+                    @foreach($auditLogs as $log)
+                        <tr>
+                            <td>{{ $log->created_at?->format('d M H:i:s') }}</td>
+                            <td>{{ ucfirst($log->action) }}</td>
+                            <td>{{ $log->user?->name ?? 'System' }}</td>
+                            <td class="mono" style="font-size:11px">{{ $log->new_values ? implode(', ', array_keys($log->new_values)) : '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
     <a href="{{ route('bookings.index') }}" class="btn btn-ghost">← Back to bookings</a>
 @endsection

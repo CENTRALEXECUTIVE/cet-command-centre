@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\Messaging\BookingNotifier;
+use App\Services\Payments\PaymentService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,7 @@ class BookingService
         private readonly RotationService $rotation,
         private readonly CalendarEventBuilder $calendar,
         private readonly BookingNotifier $notifier,
+        private readonly PaymentService $payments,
     ) {}
 
     /**
@@ -56,6 +58,9 @@ class BookingService
             }
 
             $this->calendar->buildFor($outbound->refresh());
+
+            // Payment: Tide link for card, cash flagged, account left to invoice.
+            $this->payments->createForBooking($outbound);
 
             // Automated WhatsApp: instant confirmation + 24h/2h reminders.
             $outbound->loadMissing(['customer', 'vehicleType']);

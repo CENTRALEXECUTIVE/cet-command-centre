@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DespatchController;
 use App\Http\Controllers\Driver\JobController;
+use App\Http\Controllers\Driver\LocationController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,10 +56,24 @@ Route::middleware('auth')->group(function () {
         Route::get('jobs', [JobController::class, 'index'])->name('jobs');
         Route::get('jobs/{booking}', [JobController::class, 'show'])->name('job');
         Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
+        // GPS ping — only stored while on an active job.
+        Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
     });
+
+    // ----- Fleet & compliance + invoices (admin) -------------------------
+    Route::middleware('role:admin')->group(function () {
+        Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
+    });
+
+    // Invoices — admins (all) and corporate clients (own account).
+    Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
 });
 
 // ----- Public live tracking (token in URL, no login) ---------------------
 Route::get('track/{token}', [TrackingController::class, 'show'])
     ->middleware('throttle:60,1')
     ->name('track');
+Route::get('track/{token}/location', [TrackingController::class, 'location'])
+    ->middleware('throttle:120,1')
+    ->name('track.location');

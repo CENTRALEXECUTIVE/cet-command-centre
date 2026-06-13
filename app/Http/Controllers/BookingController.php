@@ -55,9 +55,17 @@ class BookingController extends Controller
             abort(403);
         }
 
-        $booking->load(['customer', 'vehicleType', 'driver', 'stops', 'corporateAccount', 'calendarEvent', 'statusHistory']);
+        $booking->load([
+            'customer', 'vehicleType', 'driver', 'stops', 'corporateAccount',
+            'calendarEvent', 'statusHistory.changedBy', 'payments',
+        ]);
 
-        return view('bookings.show', compact('booking'));
+        // Audit trail (admins only) — full change history for the booking.
+        $auditLogs = $request->user()->isAdmin()
+            ? $booking->auditLogs()->with('user')->latest('created_at')->get()
+            : collect();
+
+        return view('bookings.show', compact('booking', 'auditLogs'));
     }
 
     /** @return array<string, mixed> */

@@ -27,9 +27,35 @@
                 <tr><th>Driver</th><td>{{ $booking->driver?->name ?? 'Allocated' }}</td></tr>
             </table>
 
-            <p class="hint" style="margin-top:20px">A live map will appear here as your driver approaches.</p>
+            <p class="hint" style="margin-top:20px" id="live-status">A live map will appear here as your driver approaches.</p>
         </div>
         <p class="site-footer" style="border:none">Central Executive Transfers Ltd · Operator Licence {{ config('cet.company.operator_licence') }}</p>
     </main>
+
+    <div id="track-config" data-url="{{ route('track.location', $booking->trackingLink?->token ?? '') }}" hidden></div>
+    @verbatim
+    <script>
+        // Poll the driver's live position every 20 seconds.
+        (function () {
+            var cfg = document.getElementById('track-config');
+            var status = document.getElementById('live-status');
+            if (!cfg || !cfg.dataset.url) return;
+
+            function poll() {
+                fetch(cfg.dataset.url, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data && data.available) {
+                            var t = new Date(data.updated_at).toLocaleTimeString();
+                            status.textContent = 'Driver location updated at ' + t +
+                                ' (' + Number(data.latitude).toFixed(4) + ', ' + Number(data.longitude).toFixed(4) + ').';
+                        }
+                    }).catch(function () {});
+            }
+            poll();
+            setInterval(poll, 20000);
+        })();
+    </script>
+    @endverbatim
 </body>
 </html>
