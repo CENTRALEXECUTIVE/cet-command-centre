@@ -4,12 +4,14 @@ namespace App\Services\Payments;
 
 use App\Enums\BookingStatus;
 use App\Enums\PaymentMethod;
+use App\Mail\InvoiceMail;
 use App\Models\Booking;
 use App\Models\CorporateAccount;
 use App\Models\Invoice;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Generates VAT invoices for corporate account bookings. Completed account
@@ -75,8 +77,22 @@ class InvoiceService
                 $booking->update(['payment_status' => 'invoiced']);
             }
 
+            $this->email($invoice->load(['corporateAccount', 'items']));
+
             return $invoice;
         });
+    }
+
+    /** Auto-email the VAT invoice to the corporate account's billing address. */
+    public function email(Invoice $invoice): void
+    {
+        $to = $invoice->corporateAccount?->billing_email;
+        if (blank($to)) {
+            return;
+        }
+
+        Mail::to($to)->send(new InvoiceMail($invoice));
+        $invoice->update(['emailed_at' => now()]);
     }
 
     private function nextNumber(): string

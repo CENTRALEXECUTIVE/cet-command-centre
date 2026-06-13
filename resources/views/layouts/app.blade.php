@@ -31,6 +31,11 @@
             @endif
             @if(auth()->user()->isAdmin())
                 <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
+                <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Reports</a>
+                <a href="{{ route('reports.ads') }}" class="{{ request()->routeIs('reports.ads') ? 'active' : '' }}">Ads</a>
+            @endif
+            @if(auth()->user()->isCorporateClient())
+                <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">Account</a>
             @endif
             <form method="POST" action="{{ route('logout') }}" style="display:inline">
                 @csrf

@@ -10,7 +10,7 @@ class Invoice extends Model
 {
     protected $fillable = [
         'invoice_number', 'corporate_account_id', 'period_start', 'period_end',
-        'subtotal', 'vat_amount', 'total', 'status', 'issued_at', 'due_at', 'paid_at', 'pdf_path',
+        'subtotal', 'vat_amount', 'total', 'status', 'issued_at', 'due_at', 'paid_at', 'emailed_at', 'pdf_path',
     ];
 
     protected function casts(): array
@@ -21,6 +21,7 @@ class Invoice extends Model
             'issued_at' => 'date',
             'due_at' => 'date',
             'paid_at' => 'date',
+            'emailed_at' => 'datetime',
             'subtotal' => 'decimal:2',
             'vat_amount' => 'decimal:2',
             'total' => 'decimal:2',

@@ -134,9 +134,12 @@ class BookingStatusService
             $this->notifier->sendTrackingLink($booking, route('track', $link->token));
         }
 
-        // Hook points for later phases:
-        // - Complete → schedule the 30-minute review request (Phase 4)
-        // - Cancelled → trigger waiting-list fill (Phase 5)
+        // Review request 30 minutes after completion (delivered by the scheduler).
+        if ($to === BookingStatus::Complete) {
+            $this->notifier->scheduleReviewRequest($booking);
+        }
+
+        // Hook point for Phase 5: Cancelled → trigger waiting-list fill.
     }
 
     private function ensureTrackingLink(Booking $booking): TrackingLink

@@ -69,6 +69,26 @@ class BookingNotifier
         }
     }
 
+    /** Queues the review request for ~30 minutes after job completion. */
+    public function scheduleReviewRequest(Booking $booking): ?Message
+    {
+        $to = $booking->customer?->phone;
+        if (blank($to)) {
+            return null;
+        }
+
+        $delay = (int) config('cet.review_delay_minutes', 30);
+        $body = "Thanks for travelling with Central Executive Transfers, {$this->firstName($booking)}!"
+            ."\nWe'd love a quick review: ".config('cet.review_url')
+            ."\nRef: {$booking->reference}";
+
+        return $this->whatsApp->send($to, $body, [
+            'type' => 'review_request',
+            'booking' => $booking,
+            'scheduled_for' => now()->addMinutes($delay),
+        ]);
+    }
+
     /** Sent when the driver goes En Route, including the live tracking link. */
     public function sendTrackingLink(Booking $booking, string $url): ?Message
     {

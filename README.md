@@ -76,16 +76,32 @@ Delivered and tested:
 `cet:send-due-messages` (every minute) · `cet:prune-gps` (daily) ·
 `cet:check-compliance` (daily) · `cet:generate-invoices` (monthly).
 
+## Phase 4 — Portal, reports, ads & reviews
+
+- **Corporate portal** (`/account`): per-account booking history, spend totals
+  and cost-code visibility, scoped so each client sees only their own account.
+- **Auto-emailed VAT invoices**: `InvoiceService` emails the `InvoiceMail`
+  markdown invoice to the account's billing address on generation and stamps
+  `emailed_at`.
+- **Revenue reports** (`ReportService`, `/reports/revenue`): earnings by driver,
+  bookings by vehicle type, top routes, and period-over-period comparison.
+- **Google Ads dashboard** (`AdsDashboardService`, `/reports/ads`): live ROAS,
+  spend vs revenue, and the budget trigger alerts (40 conversions, 100 jobs,
+  £14,000 revenue).
+- **Automated review requests**: a WhatsApp review request is scheduled 30
+  minutes after a job is marked Complete and delivered by the scheduler.
+
 ### Test coverage
 
 ```bash
 php artisan test
 ```
 
-47 passing tests across authentication, the rotation engine (all rules), booking
+55 passing tests across authentication, the rotation engine (all rules), booking
 creation/validation, the despatch board, the driver app (incl. GPS capture &
 tracking), WhatsApp confirmations/reminders, GPS storage/prune, the audit trail,
-the compliance tracker, and Tide payments + VAT invoicing.
+the compliance tracker, Tide payments + VAT invoicing, the corporate portal,
+revenue reports, the Google Ads dashboard, and automated review requests.
 
 ---
 

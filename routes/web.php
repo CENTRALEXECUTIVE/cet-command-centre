@@ -3,11 +3,13 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ComplianceController;
+use App\Http\Controllers\CorporateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DespatchController;
 use App\Http\Controllers\Driver\JobController;
 use App\Http\Controllers\Driver\LocationController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
@@ -60,9 +62,16 @@ Route::middleware('auth')->group(function () {
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
     });
 
-    // ----- Fleet & compliance + invoices (admin) -------------------------
+    // ----- Fleet & compliance + reports (admin) --------------------------
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
+        Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
+        Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
+    });
+
+    // Corporate portal — account statement (clients see own; admins all theirs).
+    Route::middleware('role:corporate_client,admin')->group(function () {
+        Route::get('account', [CorporateController::class, 'statement'])->name('corporate.statement');
     });
 
     // Invoices — admins (all) and corporate clients (own account).

@@ -57,4 +57,10 @@ return [
     // Operations number that receives compliance/ops alerts (falls back to the
     // directors' own numbers, then to the log transport).
     'ops_whatsapp' => env('CET_OPS_WHATSAPP', ''),
+
+    // Minutes after a job is marked complete before the review request is sent.
+    'review_delay_minutes' => 30,
+
+    // Public link customers are sent to leave a review.
+    'review_url' => env('CET_REVIEW_URL', 'https://g.page/r/central-executive-transfers/review'),
 ];
