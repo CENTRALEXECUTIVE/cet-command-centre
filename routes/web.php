@@ -3,6 +3,9 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DespatchController;
+use App\Http\Controllers\Driver\JobController;
+use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 // Public landing → send to login (or dashboard if already authenticated).
@@ -36,4 +39,24 @@ Route::middleware('auth')->group(function () {
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
     Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
+
+    // ----- Despatch board (admin) ----------------------------------------
+    Route::middleware('role:admin')->group(function () {
+        Route::get('despatch', [DespatchController::class, 'index'])->name('despatch.board');
+        Route::post('despatch/{booking}/allocate', [DespatchController::class, 'allocate'])->name('despatch.allocate');
+        Route::post('despatch/{booking}/auto-allocate', [DespatchController::class, 'autoAllocate'])->name('despatch.auto-allocate');
+        Route::post('despatch/{booking}/status', [DespatchController::class, 'updateStatus'])->name('despatch.status');
+    });
+
+    // ----- Driver mobile app (driver) ------------------------------------
+    Route::middleware('role:driver,admin')->prefix('driver')->name('driver.')->group(function () {
+        Route::get('jobs', [JobController::class, 'index'])->name('jobs');
+        Route::get('jobs/{booking}', [JobController::class, 'show'])->name('job');
+        Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
+    });
 });
+
+// ----- Public live tracking (token in URL, no login) ---------------------
+Route::get('track/{token}', [TrackingController::class, 'show'])
+    ->middleware('throttle:60,1')
+    ->name('track');

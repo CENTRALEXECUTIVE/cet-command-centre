@@ -9,6 +9,7 @@ use App\Models\Consent;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\VehicleType;
+use App\Services\Messaging\BookingNotifier;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,7 @@ class BookingService
     public function __construct(
         private readonly RotationService $rotation,
         private readonly CalendarEventBuilder $calendar,
+        private readonly BookingNotifier $notifier,
     ) {}
 
     /**
@@ -54,6 +56,11 @@ class BookingService
             }
 
             $this->calendar->buildFor($outbound->refresh());
+
+            // Automated WhatsApp: instant confirmation + 24h/2h reminders.
+            $outbound->loadMissing(['customer', 'vehicleType']);
+            $this->notifier->sendConfirmation($outbound);
+            $this->notifier->scheduleReminders($outbound);
 
             return $outbound;
         });

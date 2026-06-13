@@ -34,14 +34,32 @@ Delivered and tested:
   formatted **calendar event** (bold title, 💰/👀 emoji, +1h end, notification
   offsets) and runs rotation allocation.
 
+## Phase 2 — Despatch & driver operations
+
+- **Live despatch board** (admin): day view with status columns, one-tap manual
+  driver allocation, one-tap rotation auto-allocate, and one-tap status changes
+  across the full lifecycle (`App\Services\BookingStatusService`).
+- **Driver mobile app** (mobile browser, no app store): Today / Tomorrow / This
+  Week filters and large one-tap status buttons that capture the driver's GPS
+  position at each change.
+- **Status engine** with a single source-of-truth transition map on the
+  `BookingStatus` enum, full audit trail (actor + GPS at every transition), and
+  role-scoped permissions (drivers act only on their own jobs).
+- **Live tracking link** generated and WhatsApp'd to the customer the moment the
+  driver goes En Route; public token-based page (`/track/{token}`).
+- **Automated WhatsApp** (Twilio, with a log fallback when unconfigured):
+  instant booking confirmation plus scheduled 24h and 2h reminders, delivered by
+  the `cet:send-due-messages` scheduled command.
+
 ### Test coverage
 
 ```bash
 php artisan test
 ```
 
-22 passing tests across authentication, the rotation engine (all rules), and
-booking creation/validation.
+34 passing tests across authentication, the rotation engine (all rules), booking
+creation/validation, the despatch board, the driver app (incl. GPS capture &
+tracking), and WhatsApp confirmations/reminders.
 
 ---
 

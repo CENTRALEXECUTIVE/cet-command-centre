@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    // WhatsApp via Twilio. When the SID/token are absent (local/test), the
+    // messaging layer falls back to a "log" transport so the flow still works
+    // and every message is recorded in the messages table.
+    'twilio' => [
+        'sid' => env('TWILIO_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+    ],
+
 ];

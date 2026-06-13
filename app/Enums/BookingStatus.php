@@ -36,6 +36,34 @@ enum BookingStatus: string
         return in_array($this, [self::Accepted, self::EnRoute, self::Collected], true);
     }
 
+    public function isTerminal(): bool
+    {
+        return in_array($this, [self::Complete, self::Cancelled, self::NoShow], true);
+    }
+
+    /**
+     * The legal next statuses from here — the single source of truth for the
+     * despatch board, driver app and status engine.
+     *
+     * @return array<int, self>
+     */
+    public function nextStatuses(): array
+    {
+        return match ($this) {
+            self::Pending => [self::Allocated, self::Cancelled],
+            self::Allocated => [self::Accepted, self::Pending, self::Cancelled, self::NoShow],
+            self::Accepted => [self::EnRoute, self::Cancelled, self::NoShow],
+            self::EnRoute => [self::Collected, self::Cancelled, self::NoShow],
+            self::Collected => [self::Complete, self::Cancelled],
+            self::Complete, self::Cancelled, self::NoShow => [],
+        };
+    }
+
+    public function canTransitionTo(self $to): bool
+    {
+        return in_array($to, $this->nextStatuses(), true);
+    }
+
     /** @return array<int, string> */
     public static function values(): array
     {

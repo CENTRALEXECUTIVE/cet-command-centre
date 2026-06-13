@@ -18,6 +18,12 @@
         </a>
         <nav class="topnav">
             <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">Despatch</a>
+            @endif
+            @if(auth()->user()->isAdmin() || auth()->user()->isDriver())
+                <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.*') ? 'active' : '' }}">My Jobs</a>
+            @endif
             <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') ? 'active' : '' }}">Bookings</a>
             @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
                 <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New Booking</a>

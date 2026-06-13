@@ -151,3 +151,36 @@ tr:last-child td { border-bottom: none; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .right { text-align: right; }
 .mt-0 { margin-top: 0; } .mb-0 { margin-bottom: 0; }
+
+/* ----- Despatch board (Phase 2) ----- */
+.board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 14px; overflow-x: auto; }
+@media (max-width: 900px) { .board { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .board { grid-template-columns: 1fr; } }
+.board-col { background: #efefee; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+.board-col h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); display: flex; justify-content: space-between; }
+.board-col h3 .count { background: var(--black); color: var(--gold); border-radius: 999px; padding: 0 8px; font-size: 11px; }
+.job-card { background: var(--white); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.job-card .time { font-weight: 700; font-size: 15px; }
+.job-card .ref { font-size: 11px; color: var(--muted); }
+.job-card .meta { font-size: 12.5px; color: #444; margin: 6px 0; }
+.job-card .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.job-card .actions form { display: inline; }
+.btn-xs { padding: 5px 10px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; background: var(--black); color: #fff; font-weight: 600; }
+.btn-xs.gold { background: var(--gold); color: var(--black); }
+.btn-xs.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+.inline-select { padding: 6px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--line); }
+.toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+
+/* ----- Driver app (mobile-first) ----- */
+.filters { display: flex; gap: 8px; margin-bottom: 18px; }
+.filters a { flex: 1; text-align: center; padding: 10px; border-radius: 8px; background: var(--white); border: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--ink); }
+.filters a.active { background: var(--gold); color: var(--black); border-color: var(--gold); }
+.job-tile { display: block; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; color: var(--ink); }
+.job-tile:hover { text-decoration: none; box-shadow: var(--shadow); }
+.job-tile .top { display: flex; justify-content: space-between; align-items: center; }
+.job-tile .big-time { font-size: 20px; font-weight: 800; }
+.tap-actions { display: grid; gap: 10px; margin-top: 16px; }
+.tap-actions button { padding: 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
+.tap-accept { background: #1d4ed8; color: #fff; } .tap-go { background: var(--gold); color: var(--black); }
+.tap-collect { background: #5b2bc7; color: #fff; } .tap-complete { background: var(--green); color: #fff; }
+.tap-cancel { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; }

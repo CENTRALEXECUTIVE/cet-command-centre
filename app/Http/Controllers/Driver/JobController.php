@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Http\Controllers\Driver;
+
+use App\Enums\BookingStatus;
+use App\Http\Controllers\Controller;
+use App\Models\Booking;
+use App\Services\BookingStatusService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+/**
+ * Driver mobile app (mobile-browser, no app store). Today / tomorrow / this
+ * week filters and one-tap status updates that capture the driver's GPS
+ * position at the moment of each change.
+ */
+class JobController extends Controller
+{
+    public function __construct(private readonly BookingStatusService $status) {}
+
+    public function index(Request $request): View
+    {
+        $filter = $request->query('filter', 'today');
+        $driverId = $request->user()->id;
+
+        [$from, $to, $label] = match ($filter) {
+            'tomorrow' => [today()->addDay()->startOfDay(), today()->addDay()->endOfDay(), 'Tomorrow'],
+            'week' => [today()->startOfDay(), today()->endOfWeek(), 'This Week'],
+            default => [today()->startOfDay(), today()->endOfDay(), 'Today'],
+        };
+
+        $jobs = Booking::with(['customer', 'vehicleType', 'airport'])
+            ->forDriver($driverId)
+            ->whereBetween('pickup_at', [$from, $to])
+            ->whereNotIn('status', [BookingStatus::Cancelled->value])
+            ->orderBy('pickup_at')
+            ->get();
+
+        return view('driver.jobs', compact('jobs', 'filter', 'label'));
+    }
+
+    public function show(Request $request, Booking $booking): View
+    {
+        $this->authoriseOwnership($request, $booking);
+        $booking->load(['customer', 'vehicleType', 'airport', 'stops']);
+
+        return view('driver.job', compact('booking'));
+    }
+
+    public function updateStatus(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::in(BookingStatus::values())],
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180'],
+        ]);
+
+        try {
+            $this->status->transition(
+                $booking,
+                BookingStatus::from($data['status']),
+                $request->user(),
+                lat: $data['lat'] ?? null,
+                lng: $data['lng'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['status' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
+    }
+
+    private function authoriseOwnership(Request $request, Booking $booking): void
+    {
+        abort_unless($booking->driver_id === $request->user()->id, 403);
+    }
+}
