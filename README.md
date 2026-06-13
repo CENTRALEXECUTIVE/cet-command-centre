@@ -91,17 +91,33 @@ Delivered and tested:
 - **Automated review requests**: a WhatsApp review request is scheduled 30
   minutes after a job is marked Complete and delivered by the scheduler.
 
+## Phase 5 (in progress) — AI pricing engine
+
+- **AI pricing engine** built on **claude-opus-4-8** (`AiPricingEngine`): a
+  transparent rule-based fare (`PricingRuleEngine` — base + distance + time +
+  airport surcharge + night band + bank-holiday surcharge, floored at a minimum)
+  is reviewed by Claude for demand/context, with the AI price clamped to a safe
+  band (−25% / +50%) and a full fallback to the rule price when the AI is
+  unavailable. Distance via Google Distance Matrix (`DistanceService`) or
+  operator-supplied values. Quote → confirmed booking prefill at `/quotes`.
+
+> Remaining Phase 5 (needs third-party credentials / a live deployment to verify
+> end-to-end): flight-delay monitoring, missed-call auto-WhatsApp, waiting list,
+> and Twilio number masking.
+
 ### Test coverage
 
 ```bash
 php artisan test
 ```
 
-55 passing tests across authentication, the rotation engine (all rules), booking
+62 passing tests across authentication, the rotation engine (all rules), booking
 creation/validation, the despatch board, the driver app (incl. GPS capture &
 tracking), WhatsApp confirmations/reminders, GPS storage/prune, the audit trail,
 the compliance tracker, Tide payments + VAT invoicing, the corporate portal,
-revenue reports, the Google Ads dashboard, and automated review requests.
+revenue reports, the Google Ads dashboard, automated review requests, and the AI
+pricing engine (rule maths, night/bank-holiday surcharges, AI clamping &
+fallback).
 
 ---
 

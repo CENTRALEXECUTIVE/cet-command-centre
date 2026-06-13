@@ -6,6 +6,7 @@ use App\Http\Requests\StoreBookingRequest;
 use App\Models\Airport;
 use App\Models\Booking;
 use App\Models\CorporateAccount;
+use App\Models\Quote;
 use App\Models\VehicleType;
 use App\Services\BookingService;
 use Illuminate\Http\RedirectResponse;
@@ -35,12 +36,25 @@ class BookingController extends Controller
 
     public function create(Request $request): View
     {
-        return view('bookings.create', $this->formData($request));
+        // Optionally prefill from an AI quote (quote=ID) so a quote converts to
+        // a confirmed booking in seconds.
+        $quote = $request->filled('quote')
+            ? Quote::with('vehicleType')->find($request->integer('quote'))
+            : null;
+
+        return view('bookings.create', $this->formData($request) + ['quote' => $quote]);
     }
 
     public function store(StoreBookingRequest $request): RedirectResponse
     {
         $booking = $this->bookings->createFromForm($request->validated(), $request->user());
+
+        // Link the originating quote, if this booking came from one.
+        if ($request->filled('quote_id')) {
+            Quote::where('id', $request->integer('quote_id'))
+                ->whereNull('converted_booking_id')
+                ->update(['converted_booking_id' => $booking->id]);
+        }
 
         return redirect()
             ->route('bookings.show', $booking)

@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             AirportSeeder::class,
             RotationSeeder::class,
             CorporateSeeder::class,
+            PricingSeeder::class,
             SettingSeeder::class,
         ]);
     }

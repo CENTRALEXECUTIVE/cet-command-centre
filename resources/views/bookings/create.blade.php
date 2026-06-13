@@ -11,8 +11,16 @@
         </div>
     @endif
 
+    @if($quote)
+        <div class="alert alert-success">
+            Prefilled from quote <span class="mono">{{ $quote->reference }}</span> —
+            £{{ number_format($quote->price, 2) }}{{ $quote->ai_generated ? ' (AI priced)' : '' }}.
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('bookings.store') }}">
         @csrf
+        @if($quote)<input type="hidden" name="quote_id" value="{{ $quote->id }}">@endif
 
         <fieldset>
             <legend>Passenger</legend>
@@ -49,7 +57,7 @@
             <div class="grid grid-2">
                 <div class="field">
                     <label for="pickup_at">Pickup date &amp; time <span class="req">*</span></label>
-                    <input id="pickup_at" type="datetime-local" name="pickup_at" value="{{ old('pickup_at') }}" required>
+                    <input id="pickup_at" type="datetime-local" name="pickup_at" value="{{ old('pickup_at', $quote?->pickup_at?->format('Y-m-d\TH:i')) }}" required>
                     @error('pickup_at') <div class="error">{{ $message }}</div> @enderror
                 </div>
                 <div class="field" id="return_field">
@@ -62,12 +70,12 @@
             <div class="grid grid-2">
                 <div class="field">
                     <label for="pickup_address">Pickup address <span class="req">*</span></label>
-                    <textarea id="pickup_address" name="pickup_address" required>{{ old('pickup_address') }}</textarea>
+                    <textarea id="pickup_address" name="pickup_address" required>{{ old('pickup_address', $quote?->pickup_address) }}</textarea>
                     @error('pickup_address') <div class="error">{{ $message }}</div> @enderror
                 </div>
                 <div class="field">
                     <label for="destination_address">Destination address <span class="req">*</span></label>
-                    <textarea id="destination_address" name="destination_address" required>{{ old('destination_address') }}</textarea>
+                    <textarea id="destination_address" name="destination_address" required>{{ old('destination_address', $quote?->destination_address) }}</textarea>
                     @error('destination_address') <div class="error">{{ $message }}</div> @enderror
                 </div>
             </div>
@@ -104,7 +112,7 @@
                     <select id="vehicle_type_id" name="vehicle_type_id" required>
                         <option value="">— Select —</option>
                         @foreach($vehicleTypes as $vt)
-                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id')==$vt->id)>
+                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id', $quote?->vehicle_type_id)==$vt->id)>
                                 {{ $vt->name }} (up to {{ $vt->passenger_capacity }})
                             </option>
                         @endforeach
@@ -175,7 +183,7 @@
                 </div>
                 <div class="field">
                     <label for="quoted_price">Quoted price (£)</label>
-                    <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price') }}">
+                    <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price', $quote?->price) }}">
                     @error('quoted_price') <div class="error">{{ $message }}</div> @enderror
                 </div>
             </div>

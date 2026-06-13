@@ -9,6 +9,7 @@ use App\Http\Controllers\DespatchController;
 use App\Http\Controllers\Driver\JobController;
 use App\Http\Controllers\Driver\LocationController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
@@ -34,12 +35,16 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
 Route::middleware('auth')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Bookings — admins and corporate clients can create; drivers view only.
+    // Bookings + AI quotes — admins and corporate clients.
     Route::middleware('role:admin,corporate_client')->group(function () {
         Route::get('bookings/create', [BookingController::class, 'create'])->name('bookings.create');
         Route::post('bookings', [BookingController::class, 'store'])
             ->middleware('throttle:30,1')
             ->name('bookings.store');
+
+        Route::get('quotes/create', [QuoteController::class, 'create'])->name('quotes.create');
+        Route::post('quotes', [QuoteController::class, 'store'])->middleware('throttle:30,1')->name('quotes.store');
+        Route::get('quotes/{quote}', [QuoteController::class, 'show'])->name('quotes.show');
     });
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');

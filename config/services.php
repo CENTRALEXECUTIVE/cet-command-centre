@@ -52,4 +52,17 @@ return [
         'base_url' => env('TIDE_BASE_URL', 'https://pay.tide.co'),
     ],
 
+    // Anthropic Claude — powers the AI pricing engine and other AI features.
+    // The model is pinned to claude-opus-4-8 via config/cet.php (ai_model).
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
+        'version' => env('ANTHROPIC_VERSION', '2023-06-01'),
+    ],
+
+    // Google Maps Distance Matrix — distance/duration for quoting.
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
 ];
