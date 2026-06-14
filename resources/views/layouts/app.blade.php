@@ -35,6 +35,7 @@
                 <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting List</a>
                 <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Reports</a>
                 <a href="{{ route('reports.ads') }}" class="{{ request()->routeIs('reports.ads') ? 'active' : '' }}">Ads</a>
+                <a href="{{ route('gdpr.erasure') }}" class="{{ request()->routeIs('gdpr.*') ? 'active' : '' }}">GDPR</a>
             @endif
             @if(auth()->user()->isCorporateClient())
                 <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">Account</a>

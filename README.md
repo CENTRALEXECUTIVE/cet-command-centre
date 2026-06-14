@@ -199,11 +199,22 @@ Seeded logins (password = `CET_SEED_PASSWORD`, default `ChangeMe!2026`):
 
 ## GDPR & security
 
-UK GDPR throughout: encrypted-at-rest/in-transit deployment, least-privilege
-RBAC, full audit log, right-to-erasure workflow, consent capture at every
-collection point, ICO number on customer-facing pages, GPS retained ≤90 days
-then auto-deleted, bcrypt password hashing, login/form rate limiting, and
-card-details-never-stored (Tide payment links only).
+UK GDPR throughout: HTTPS forced in production, least-privilege RBAC, full audit
+log, consent capture at every collection point, ICO number on customer-facing
+pages, GPS retained ≤90 days then auto-deleted, bcrypt password hashing,
+login/form rate limiting, and card-details-never-stored (Tide payment links only).
+
+**Right to erasure** (`/gdpr/erasure`, admin): a two-step workflow
+(`DataErasureService`) anonymises and soft-deletes a customer, redacts their
+messages/bookings PII, deletes addresses/GPS/waiting-list, withdraws consent,
+and **purges PII-bearing audit logs** while leaving one clean erasure record and
+the anonymised booking financials for accounting.
+
+## Deployment
+
+See **`docs/DEPLOYMENT.md`** for the full GoDaddy cPanel runbook (MySQL setup,
+`.env`, data import, cache commands, scheduler/queue cron, integration webhooks,
+smoke test, rollback, and the go-live GDPR checklist).
 
 ---
 

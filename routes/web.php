@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DespatchController;
 use App\Http\Controllers\Driver\JobController;
 use App\Http\Controllers\Driver\LocationController;
+use App\Http\Controllers\ErasureController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
@@ -76,6 +77,11 @@ Route::middleware('auth')->group(function () {
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
         Route::get('waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
         Route::post('waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
+
+        // GDPR right-to-erasure.
+        Route::get('gdpr/erasure', [ErasureController::class, 'index'])->name('gdpr.erasure');
+        Route::post('gdpr/erasure', [ErasureController::class, 'store'])->name('gdpr.erasure.store');
+        Route::post('gdpr/erasure/{erasureRequest}/process', [ErasureController::class, 'process'])->name('gdpr.erasure.process');
     });
 
     // Corporate portal — account statement (clients see own; admins all theirs).
