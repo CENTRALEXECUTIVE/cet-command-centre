@@ -101,6 +101,13 @@ Delivered and tested:
   unavailable. Distance via Google Distance Matrix (`DistanceService`) or
   operator-supplied values. Quote → confirmed booking prefill at `/quotes`.
 
+- **Fixed-price matrix** (`FixedPriceService`) — how CET actually prices its core
+  airport/port work. A fixed fare for an (origin zone → destination, per vehicle
+  type) is **authoritative** over distance/time pricing. Zones resolve from an
+  explicit selection or the pickup postcode's outward code. Load the full matrix
+  from an ETO CSV export with `php artisan cet:import-fixed-prices <file.csv>`;
+  a verified starter subset is seeded.
+
 > Remaining Phase 5 (needs third-party credentials / a live deployment to verify
 > end-to-end): flight-delay monitoring, missed-call auto-WhatsApp, waiting list,
 > and Twilio number masking.

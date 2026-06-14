@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FixedPrice;
+use App\Models\PricingZone;
 use App\Models\Quote;
 use App\Models\VehicleType;
 use App\Services\Pricing\AiPricingEngine;
@@ -22,6 +24,9 @@ class QuoteController extends Controller
     {
         return view('quotes.create', [
             'vehicleTypes' => VehicleType::where('is_active', true)->orderBy('sort_order')->get(),
+            'zones' => PricingZone::where('is_active', true)->orderBy('name')->get(),
+            'destinations' => FixedPrice::where('is_active', true)
+                ->orderBy('destination')->distinct()->pluck('destination'),
         ]);
     }
 
@@ -35,6 +40,9 @@ class QuoteController extends Controller
             'is_airport' => ['nullable', 'boolean'],
             'distance_miles' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'duration_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            // Fixed-price matrix inputs.
+            'pricing_zone_id' => ['nullable', Rule::exists('pricing_zones', 'id')],
+            'pickup_postcode' => ['nullable', 'string', 'max:16'],
         ]);
 
         $quote = $this->engine->quote($data);

@@ -2,6 +2,8 @@
 
 namespace App\Services\Pricing;
 
+use App\Models\FixedPrice;
+use App\Models\PricingZone;
 use App\Models\Quote;
 use App\Models\VehicleType;
 use App\Services\Ai\AnthropicService;
@@ -23,18 +25,27 @@ class AiPricingEngine
         private readonly DistanceService $distance,
         private readonly PricingRuleEngine $rules,
         private readonly AnthropicService $ai,
+        private readonly FixedPriceService $fixedPrices,
     ) {}
 
     /**
      * @param  array<string, mixed>  $input
      *                                       Required: pickup_address, destination_address, vehicle_type_id, pickup_at
-     *                                       Optional: is_airport, distance_miles, duration_minutes, customer_id
+     *                                       Optional: is_airport, distance_miles, duration_minutes, customer_id,
+     *                                       pricing_zone_id, pickup_postcode, fixed_destination
      */
     public function quote(array $input): Quote
     {
         $vehicleType = VehicleType::findOrFail($input['vehicle_type_id']);
         $pickupAt = Carbon::parse($input['pickup_at']);
         $isAirport = (bool) ($input['is_airport'] ?? false);
+
+        // CET prices core airport/port work from a fixed-price matrix. When a
+        // fixed price matches the origin zone, destination and vehicle type it is
+        // authoritative — no distance maths or AI surge is applied.
+        if ($fixed = $this->matchFixedPrice($input, $vehicleType)) {
+            return $this->fixedQuote($input, $vehicleType, $pickupAt, $fixed);
+        }
 
         $distance = $this->distance->resolve(
             $input['pickup_address'],
@@ -67,6 +78,50 @@ class AiPricingEngine
                 'rule_breakdown' => $ruleResult['breakdown'],
                 'ai_rationale' => $ai['rationale'],
                 'model' => $ai['used'] ? $this->ai->model() : null,
+            ],
+            'expires_at' => now()->addHours(24),
+        ]);
+    }
+
+    /** Resolve a fixed price from an explicit zone (or the pickup postcode). */
+    private function matchFixedPrice(array $input, VehicleType $vehicleType): ?FixedPrice
+    {
+        $zone = null;
+        if (! empty($input['pricing_zone_id'])) {
+            $zone = PricingZone::find($input['pricing_zone_id']);
+        } elseif (! empty($input['pickup_postcode'])) {
+            $zone = $this->fixedPrices->zoneForPostcode($input['pickup_postcode']);
+        }
+
+        if (! $zone) {
+            return null;
+        }
+
+        $destination = $input['fixed_destination'] ?? $input['destination_address'];
+
+        return $this->fixedPrices->lookup($zone, $destination, $vehicleType);
+    }
+
+    private function fixedQuote(array $input, VehicleType $vehicleType, Carbon $pickupAt, FixedPrice $fixed): Quote
+    {
+        return Quote::create([
+            'reference' => 'QUO-'.strtoupper(bin2hex(random_bytes(3))),
+            'customer_id' => $input['customer_id'] ?? null,
+            'vehicle_type_id' => $vehicleType->id,
+            'pickup_address' => $input['pickup_address'],
+            'destination_address' => $input['destination_address'],
+            'distance_miles' => $input['distance_miles'] ?? null,
+            'duration_minutes' => $input['duration_minutes'] ?? null,
+            'pickup_at' => $pickupAt,
+            'price' => $fixed->price,
+            'ai_generated' => false,
+            'breakdown' => [
+                'source' => 'fixed_price',
+                'fixed_price_id' => $fixed->id,
+                'zone' => $fixed->pricingZone?->name,
+                'destination' => $fixed->destination,
+                'deposit' => (float) $fixed->deposit,
+                'both_ways' => $fixed->both_ways,
             ],
             'expires_at' => now()->addHours(24),
         ]);

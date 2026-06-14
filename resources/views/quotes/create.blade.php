@@ -11,6 +11,29 @@
 
     <form method="POST" action="{{ route('quotes.store') }}">
         @csrf
+        @if($zones->isNotEmpty())
+        <fieldset>
+            <legend>Fixed-price route <span class="muted" style="font-weight:400">(optional — overrides distance pricing)</span></legend>
+            <div class="grid grid-2">
+                <div class="field">
+                    <label for="pricing_zone_id">Origin zone</label>
+                    <select id="pricing_zone_id" name="pricing_zone_id">
+                        <option value="">— Use distance pricing —</option>
+                        @foreach($zones as $zone)
+                            <option value="{{ $zone->id }}" @selected(old('pricing_zone_id')==$zone->id)>{{ $zone->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="pickup_postcode">…or pickup postcode</label>
+                    <input id="pickup_postcode" name="pickup_postcode" value="{{ old('pickup_postcode') }}" placeholder="e.g. S20 1AA">
+                    <div class="hint">If the postcode maps to a zone, the fixed price is used.</div>
+                </div>
+            </div>
+            <p class="hint">Set the destination below to a known fixed destination (e.g. {{ $destinations->take(3)->join(', ') }}) to use the matrix price.</p>
+        </fieldset>
+        @endif
+
         <fieldset>
             <legend>Journey</legend>
             <div class="grid grid-2">
@@ -20,7 +43,10 @@
                 </div>
                 <div class="field">
                     <label for="destination_address">Destination address <span class="req">*</span></label>
-                    <textarea id="destination_address" name="destination_address" required>{{ old('destination_address') }}</textarea>
+                    <textarea id="destination_address" name="destination_address" list="destinations" required>{{ old('destination_address') }}</textarea>
+                    <datalist id="destinations">
+                        @foreach($destinations as $d)<option value="{{ $d }}">@endforeach
+                    </datalist>
                 </div>
             </div>
             <div class="grid grid-2">
