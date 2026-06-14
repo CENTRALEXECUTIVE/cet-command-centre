@@ -24,7 +24,7 @@ class Booking extends Model
         'flight_number', 'passengers', 'luggage', 'special_requests',
         'status', 'driver_id', 'vehicle_id', 'affected_rotation',
         'quoted_price', 'final_price', 'payment_method', 'payment_status',
-        'source', 'created_by', 'meta',
+        'source', 'source_system', 'external_reference', 'created_by', 'meta',
     ];
 
     protected function casts(): array

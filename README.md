@@ -118,6 +118,18 @@ Delivered and tested:
 > Remaining Phase 5 (needs third-party credentials / a live deployment to verify
 > end-to-end): flight-delay monitoring and Twilio number masking.
 
+## ETO data migration
+
+- **`cet:import-eto-bookings <export.csv> [--dry-run]`** imports historical
+  bookings from an ETO CSV export (`EtoBookingImporter`). Bookings are created
+  directly — no live side effects (WhatsApp/calendar/rotation) fire on
+  historical data — mapped to internal vehicle types, statuses and payment
+  methods, with airports auto-detected from the address and original timestamps
+  preserved. Rows are de-duplicated on the ETO reference (`external_reference` /
+  `source_system`), so re-running is safe, and "Request quote" rows are skipped.
+  Validated against the real export: 451 bookings imported, 6 quotes skipped, 0
+  errors, fully idempotent on re-run.
+
 ### Test coverage
 
 ```bash

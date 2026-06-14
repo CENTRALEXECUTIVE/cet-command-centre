@@ -1,0 +1,121 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\BookingStatus;
+use App\Models\Booking;
+use App\Services\Import\EtoBookingImporter;
+use Database\Seeders\AirportSeeder;
+use Database\Seeders\VehicleTypeSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class EtoBookingImportTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const HEADER = [
+        'Journey date', 'Passenger name', 'Reference number', 'Vehicle type', 'Status', 'Payments',
+        'Total', 'Vehicle', 'Source', 'Fleet operator', 'Fleet income', 'Driver', 'Driver income',
+        'Passenger charge', 'Service type', 'Service duration', 'Arrival flight number', 'Arrival time',
+        'Arriving from', 'Arrival ferry name', 'Arrival ferry time', 'Arrival ferry terminal',
+        'Departure flight number', 'Departure time', 'Departing to', 'Departure ferry name',
+        'Departure ferry time', 'Departure ferry terminal', 'Phone number', 'Pickup', 'Dropoff', 'Via',
+        'Waiting time', 'Email', 'Meet & Greet', 'Customer', 'Departments', 'Lead passenger name',
+        'Lead passenger email', 'Lead passenger phone number', 'Created at', 'Updated at', 'Currency',
+        'Tracking history',
+    ];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed([VehicleTypeSeeder::class, AirportSeeder::class]);
+    }
+
+    /** Build a semicolon CSV from row maps keyed by column name. */
+    private function csv(array $rows): string
+    {
+        $lines = [implode(';', array_map(fn ($h) => '"'.$h.'"', self::HEADER))];
+        foreach ($rows as $row) {
+            $cells = array_map(fn ($h) => '"'.($row[$h] ?? ' ').'"', self::HEADER);
+            $lines[] = implode(';', $cells);
+        }
+        $path = tempnam(sys_get_temp_dir(), 'eto').'.csv';
+        file_put_contents($path, implode("\n", $lines));
+
+        return $path;
+    }
+
+    public function test_imports_bookings_and_skips_quotes(): void
+    {
+        $path = $this->csv([
+            [
+                'Journey date' => '24/03/2025 22:05', 'Passenger name' => 'Michael Tarulli',
+                'Reference number' => 'ZWR6MM', 'Vehicle type' => 'Executive', 'Status' => 'Completed',
+                'Payments' => 'Paid, Stripe, 200', 'Total' => '200.00',
+                'Phone number' => '+16102120858', 'Email' => 'mt@example.com',
+                'Pickup' => 'Manchester Airport (MAN), Terminal 3, Manchester, UK',
+                'Dropoff' => 'Radisson Blu Hotel, Sheffield, UK',
+                'Arrival flight number' => 'BA123', 'Created at' => '21/03/2025 01:44',
+            ],
+            [
+                'Journey date' => '25/03/2025 09:00', 'Passenger name' => 'Jane Doe',
+                'Reference number' => 'QUOTE1', 'Vehicle type' => '8 Seater', 'Status' => 'Request quote',
+                'Total' => '0.00',
+            ],
+        ]);
+
+        $stats = app(EtoBookingImporter::class)->import($path);
+
+        $this->assertEquals(1, $stats['imported']);
+        $this->assertEquals(1, $stats['skipped']);
+        $this->assertEmpty($stats['errors']);
+
+        $booking = Booking::where('external_reference', 'ZWR6MM')->first();
+        $this->assertNotNull($booking);
+        $this->assertEquals('eto', $booking->source_system);
+        $this->assertEquals(BookingStatus::Complete, $booking->status);
+        $this->assertEquals(200.00, (float) $booking->final_price);
+        $this->assertEquals('executive', $booking->vehicleType->slug);
+        $this->assertEquals('MAN', $booking->airport->code); // detected from "(MAN)"
+        $this->assertEquals('BA123', $booking->flight_number);
+        $this->assertEquals('24/03/2025', $booking->pickup_at->format('d/m/Y'));
+        @unlink($path);
+    }
+
+    public function test_reimport_is_idempotent(): void
+    {
+        $rows = [[
+            'Journey date' => '24/03/2025 22:05', 'Passenger name' => 'Michael Tarulli',
+            'Reference number' => 'ZWR6MM', 'Vehicle type' => 'Executive', 'Status' => 'Completed',
+            'Total' => '200.00', 'Phone number' => '+16102120858',
+        ]];
+
+        $importer = app(EtoBookingImporter::class);
+        $first = $importer->import($this->csv($rows));
+        $second = $importer->import($this->csv($rows));
+
+        $this->assertEquals(1, $first['imported']);
+        $this->assertEquals(0, $second['imported']);
+        $this->assertEquals(1, $second['duplicates']);
+        $this->assertEquals(1, Booking::where('external_reference', 'ZWR6MM')->count());
+    }
+
+    public function test_vehicle_and_payment_mapping(): void
+    {
+        $path = $this->csv([[
+            'Journey date' => '01/05/2025 06:00', 'Passenger name' => 'Cash Customer',
+            'Reference number' => 'CASH1', 'Vehicle type' => 'Executive 8 Seater', 'Status' => 'Confirmed',
+            'Payments' => 'Pending, Cash, 90', 'Total' => '90.00', 'Phone number' => '07700900001',
+        ]]);
+
+        app(EtoBookingImporter::class)->import($path);
+        $booking = Booking::where('external_reference', 'CASH1')->first();
+
+        $this->assertEquals('v-class', $booking->vehicleType->slug); // "Executive 8 Seater" = V-Class
+        $this->assertEquals('cash', $booking->payment_method->value);
+        $this->assertEquals('balance_remaining', $booking->payment_status);
+        $this->assertEquals(BookingStatus::Pending, $booking->status); // Confirmed → pending
+        @unlink($path);
+    }
+}
