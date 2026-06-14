@@ -79,14 +79,24 @@ class RotationEngineTest extends TestCase
         $this->assertEquals($this->maj->id, $state->next_driver_id);
     }
 
-    public function test_man_is_next_for_maj(): void
+    public function test_lba_is_next_for_maj(): void
     {
-        // Seeded: MAN next = MAJ.
-        $booking = $this->makeBooking($this->executive, 'MAN');
+        // Seeded: LBA next = MAJ.
+        $booking = $this->makeBooking($this->executive, 'LBA');
 
         $driver = $this->rotation->allocate($booking);
 
         $this->assertTrue($driver->is($this->maj));
+    }
+
+    public function test_man_is_now_next_for_abdi(): void
+    {
+        // MAN moved to ABDI in the current rotation state.
+        $booking = $this->makeBooking($this->executive, 'MAN');
+
+        $driver = $this->rotation->allocate($booking);
+
+        $this->assertTrue($driver->is($this->abdi));
     }
 
     public function test_non_rotation_vehicle_does_not_allocate_or_advance(): void

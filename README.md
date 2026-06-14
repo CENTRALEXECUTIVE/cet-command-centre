@@ -129,6 +129,10 @@ Delivered and tested:
   `source_system`), so re-running is safe, and "Request quote" rows are skipped.
   Validated against the real export: 451 bookings imported, 6 quotes skipped, 0
   errors, fully idempotent on re-run.
+- **ETO zone KML builder** (`tools/zones/`): generates a single ETO-importable
+  KML of all pricing zones from real ONS-derived postcode boundaries (Doogal),
+  with council-boundary rules encoded — no hand-drawn coordinates. See
+  `tools/zones/README.md` (needs network access to doogal.co.uk to fetch).
 
 ### Test coverage
 
