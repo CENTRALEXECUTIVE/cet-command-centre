@@ -12,6 +12,8 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\WaitingListController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Public landing → send to login (or dashboard if already authenticated).
@@ -67,11 +69,13 @@ Route::middleware('auth')->group(function () {
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
     });
 
-    // ----- Fleet & compliance + reports (admin) --------------------------
+    // ----- Fleet & compliance + reports + waiting list (admin) -----------
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
+        Route::get('waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
+        Route::post('waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
     });
 
     // Corporate portal — account statement (clients see own; admins all theirs).
@@ -83,6 +87,11 @@ Route::middleware('auth')->group(function () {
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
 });
+
+// ----- Inbound webhooks (secret-guarded, no login) -----------------------
+Route::post('webhooks/missed-call', [WebhookController::class, 'missedCall'])
+    ->middleware('throttle:60,1')
+    ->name('webhooks.missed-call');
 
 // ----- Public live tracking (token in URL, no login) ---------------------
 Route::get('track/{token}', [TrackingController::class, 'show'])

@@ -63,4 +63,7 @@ return [
 
     // Public link customers are sent to leave a review.
     'review_url' => env('CET_REVIEW_URL', 'https://g.page/r/central-executive-transfers/review'),
+
+    // Shared secret guarding inbound webhooks (e.g. Twilio missed-call).
+    'webhook_secret' => env('CET_WEBHOOK_SECRET', ''),
 ];

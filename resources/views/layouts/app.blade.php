@@ -32,6 +32,7 @@
             @endif
             @if(auth()->user()->isAdmin())
                 <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
+                <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting List</a>
                 <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Reports</a>
                 <a href="{{ route('reports.ads') }}" class="{{ request()->routeIs('reports.ads') ? 'active' : '' }}">Ads</a>
             @endif

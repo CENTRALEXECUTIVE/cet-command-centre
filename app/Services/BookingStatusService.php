@@ -26,6 +26,7 @@ class BookingStatusService
     public function __construct(
         private readonly RotationService $rotation,
         private readonly BookingNotifier $notifier,
+        private readonly WaitingListService $waitingList,
     ) {}
 
     public function canTransition(BookingStatus $from, BookingStatus $to): bool
@@ -139,7 +140,10 @@ class BookingStatusService
             $this->notifier->scheduleReviewRequest($booking);
         }
 
-        // Hook point for Phase 5: Cancelled → trigger waiting-list fill.
+        // A cancellation frees capacity — notify the waiting list.
+        if ($to === BookingStatus::Cancelled) {
+            $this->waitingList->notifyForCancellation($booking);
+        }
     }
 
     private function ensureTrackingLink(Booking $booking): TrackingLink

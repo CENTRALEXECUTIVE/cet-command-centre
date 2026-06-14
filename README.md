@@ -108,9 +108,15 @@ Delivered and tested:
   from an ETO CSV export with `php artisan cet:import-fixed-prices <file.csv>`;
   a verified starter subset is seeded.
 
+- **Waiting list** (`WaitingListService`): when a booking is cancelled, every
+  customer waiting for that date (and matching vehicle type) is auto-notified by
+  WhatsApp that a slot has opened. Admin management at `/waiting-list`.
+- **Missed-call auto-response** (`MissedCallService`): a secret-guarded
+  `webhooks/missed-call` endpoint logs the call and instantly WhatsApps the
+  caller so no booking is lost; known callers are linked to their customer.
+
 > Remaining Phase 5 (needs third-party credentials / a live deployment to verify
-> end-to-end): flight-delay monitoring, missed-call auto-WhatsApp, waiting list,
-> and Twilio number masking.
+> end-to-end): flight-delay monitoring and Twilio number masking.
 
 ### Test coverage
 
