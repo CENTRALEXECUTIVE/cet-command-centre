@@ -27,5 +27,6 @@
         </table>
     </div>
 
+    <a href="{{ route('invoices.pdf', $invoice) }}" target="_blank" class="btn btn-primary">Download PDF</a>
     <a href="{{ route('invoices.index') }}" class="btn btn-ghost">← All invoices</a>
 @endsection

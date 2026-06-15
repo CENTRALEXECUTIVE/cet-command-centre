@@ -63,5 +63,7 @@
         @endif
         <a href="#">Privacy Notice</a> &middot; Your data is processed under UK GDPR.
     </footer>
+
+    @include('partials.cookie-consent')
 </body>
 </html>

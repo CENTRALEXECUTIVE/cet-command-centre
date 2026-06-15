@@ -17,9 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
         ]);
 
-        // Inbound webhooks are authenticated by a shared secret, not CSRF.
+        // Inbound webhooks (shared-secret auth) and the public cookie-consent
+        // beacon are exempt from CSRF.
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
+            'consent/cookies',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

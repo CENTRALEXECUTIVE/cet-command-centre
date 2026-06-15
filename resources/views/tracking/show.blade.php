@@ -7,6 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    {{-- Leaflet + OpenStreetMap tiles — no API key required --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <header class="topbar">
@@ -27,7 +30,8 @@
                 <tr><th>Driver</th><td>{{ $booking->driver?->name ?? 'Allocated' }}</td></tr>
             </table>
 
-            <p class="hint" style="margin-top:20px" id="live-status">A live map will appear here as your driver approaches.</p>
+            <div id="map" style="height:300px;border-radius:10px;margin-top:20px;display:none"></div>
+            <p class="hint" style="margin-top:14px" id="live-status">A live map will appear here as your driver approaches.</p>
         </div>
         <p class="site-footer" style="border:none">Central Executive Transfers Ltd · Operator Licence {{ config('cet.company.operator_licence') }}</p>
     </main>
@@ -35,20 +39,37 @@
     <div id="track-config" data-url="{{ route('track.location', $booking->trackingLink?->token ?? '') }}" hidden></div>
     @verbatim
     <script>
-        // Poll the driver's live position every 20 seconds.
+        // Poll the driver's live position every 20s and plot it on the map.
         (function () {
             var cfg = document.getElementById('track-config');
             var status = document.getElementById('live-status');
+            var mapEl = document.getElementById('map');
             if (!cfg || !cfg.dataset.url) return;
+            var map = null, marker = null;
+
+            function show(lat, lng, t) {
+                if (typeof L === 'undefined') return;
+                if (!map) {
+                    mapEl.style.display = 'block';
+                    map = L.map('map').setView([lat, lng], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap', maxZoom: 18
+                    }).addTo(map);
+                    marker = L.marker([lat, lng]).addTo(map);
+                } else {
+                    marker.setLatLng([lat, lng]);
+                    map.panTo([lat, lng]);
+                }
+                status.textContent = 'Driver location updated at ' + t + '.';
+            }
 
             function poll() {
                 fetch(cfg.dataset.url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
                         if (data && data.available) {
-                            var t = new Date(data.updated_at).toLocaleTimeString();
-                            status.textContent = 'Driver location updated at ' + t +
-                                ' (' + Number(data.latitude).toFixed(4) + ', ' + Number(data.longitude).toFixed(4) + ').';
+                            show(Number(data.latitude), Number(data.longitude),
+                                 new Date(data.updated_at).toLocaleTimeString());
                         }
                     }).catch(function () {});
             }
@@ -57,5 +78,6 @@
         })();
     </script>
     @endverbatim
+    @include('partials.cookie-consent')
 </body>
 </html>

@@ -83,15 +83,18 @@ class InvoiceService
         });
     }
 
-    /** Auto-email the VAT invoice to the corporate account's billing address. */
+    /** Auto-email the VAT invoice (with PDF attached) to the account. */
     public function email(Invoice $invoice): void
     {
+        // Always render and store the PDF, even if there is no billing email.
+        app(InvoicePdf::class)->store($invoice);
+
         $to = $invoice->corporateAccount?->billing_email;
         if (blank($to)) {
             return;
         }
 
-        Mail::to($to)->send(new InvoiceMail($invoice));
+        Mail::to($to)->send(new InvoiceMail($invoice->fresh()));
         $invoice->update(['emailed_at' => now()]);
     }
 

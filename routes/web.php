@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ComplianceController;
+use App\Http\Controllers\ConsentController;
 use App\Http\Controllers\CorporateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DespatchController;
@@ -92,7 +93,13 @@ Route::middleware('auth')->group(function () {
     // Invoices — admins (all) and corporate clients (own account).
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'download'])->name('invoices.pdf');
 });
+
+// ----- Public consent capture (cookie banner) ----------------------------
+Route::post('consent/cookies', [ConsentController::class, 'cookies'])
+    ->middleware('throttle:60,1')
+    ->name('consent.cookies');
 
 // ----- Inbound webhooks (secret-guarded, no login) -----------------------
 Route::post('webhooks/missed-call', [WebhookController::class, 'missedCall'])
