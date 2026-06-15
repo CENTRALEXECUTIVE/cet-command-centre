@@ -19,7 +19,8 @@ class IngestOutlook extends Command
     public function handle(OutlookBookingService $outlook): int
     {
         $stats = $outlook->ingest();
-        $this->info("Processed {$stats['processed']}, created {$stats['created']}, skipped {$stats['skipped']}.");
+        $this->info("Processed {$stats['processed']} — created {$stats['created']}, updated {$stats['updated']}, "
+            ."cancelled {$stats['cancelled']}, skipped {$stats['skipped']}.");
 
         return self::SUCCESS;
     }

@@ -3,6 +3,7 @@
 namespace App\Services\Calendar;
 
 use App\Models\CalendarEvent;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -67,14 +68,68 @@ class GoogleCalendarService
     }
 
     /**
-     * Obtain an access token from the service-account credentials. Returns null
-     * here until the signing implementation/credentials are supplied.
+     * Obtain an access token from the service-account credentials via a signed
+     * JWT (RS256) — no extra packages. The credentials value may be a path to
+     * the service-account JSON or the JSON itself. Cached for ~50 minutes.
+     *
+     * The target calendar (config cet.calendar_id) must be shared with the
+     * service account's client_email, with "Make changes to events" permission.
      */
     protected function accessToken(): ?string
     {
-        // Integration point: exchange the service-account JWT for an access
-        // token (or use a stored OAuth refresh token). Left for live credentials.
-        return null;
+        return Cache::remember('google_calendar_token', 3000, function () {
+            $creds = $this->credentials();
+            if (! $creds || empty($creds['client_email']) || empty($creds['private_key'])) {
+                return null;
+            }
+
+            $tokenUri = $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token';
+            $now = time();
+            $claims = [
+                'iss' => $creds['client_email'],
+                'scope' => 'https://www.googleapis.com/auth/calendar',
+                'aud' => $tokenUri,
+                'iat' => $now,
+                'exp' => $now + 3600,
+            ];
+
+            $segments = [
+                $this->base64Url(json_encode(['alg' => 'RS256', 'typ' => 'JWT'])),
+                $this->base64Url(json_encode($claims)),
+            ];
+            $signingInput = implode('.', $segments);
+
+            $signature = '';
+            if (! openssl_sign($signingInput, $signature, $creds['private_key'], 'sha256WithRSAEncryption')) {
+                return null;
+            }
+            $jwt = $signingInput.'.'.$this->base64Url($signature);
+
+            $response = Http::asForm()->post($tokenUri, [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt,
+            ]);
+
+            return $response->successful() ? $response->json('access_token') : null;
+        });
+    }
+
+    /** @return array<string, mixed>|null */
+    private function credentials(): ?array
+    {
+        $value = config('services.google_calendar.credentials');
+        if (blank($value)) {
+            return null;
+        }
+        $json = (is_string($value) && is_readable($value)) ? file_get_contents($value) : $value;
+        $decoded = json_decode((string) $json, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function base64Url(string $data): string
+    {
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 
     private function markFailed(CalendarEvent $event, string $reason): bool
