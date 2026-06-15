@@ -121,10 +121,18 @@ invoices) and a database queue. In cPanel → **Cron Jobs** add:
 
 ## 7. Integrations to point at the live URL
 
-- **Twilio** (WhatsApp + missed-call): set the missed-call webhook to
-  `https://centralexecutivetransfers.co.uk/webhooks/missed-call?secret=<CET_WEBHOOK_SECRET>`.
-- **Google Calendar / Maps / Anthropic / Tide**: keys in `.env` only.
+- **Twilio missed-call** webhook:
+  `https://centralexecutivetransfers.co.uk/webhooks/missed-call?secret=<CET_WEBHOOK_SECRET>`
+- **Twilio number-masking** voice webhook (on the `TWILIO_PROXY_NUMBER`):
+  `https://centralexecutivetransfers.co.uk/webhooks/voice?secret=<CET_WEBHOOK_SECRET>`
+- **Google Calendar / Maps / Anthropic / Tide / Flight API / Google Ads /
+  MS Graph**: keys in `.env` only. Each integration no-ops safely until its key
+  is set, so you can switch them on one at a time and verify.
 - **Tracking links** are public at `/track/{token}` — ensure HTTPS works.
+
+Every scheduled job is driven by the single `schedule:run` cron in §6 — no extra
+cron entries are needed for `check-flights`, `sync-ads`, `sync-calendar`,
+`ingest-outlook`, etc. Run `php artisan schedule:list` to confirm all eight.
 
 ---
 
