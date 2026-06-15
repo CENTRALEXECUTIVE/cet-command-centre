@@ -8,6 +8,8 @@ use App\Models\Booking;
 use App\Models\CorporateAccount;
 use App\Models\Customer;
 use App\Models\DriverProfile;
+use App\Models\Keyword;
+use App\Models\SeoPage;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleType;
@@ -132,6 +134,26 @@ class DemoSeeder extends Seeder
             ['customer_id' => $waiter->id, 'desired_date' => now()->addDays(2)->toDateString()],
             ['vehicle_type_id' => $exec->id, 'desired_time_window' => 'morning', 'status' => 'waiting']
         );
+
+        // Marketing demo data.
+        $keywords = [
+            ['keyword' => 'sheffield airport transfers', 'match_type' => 'phrase', 'campaign' => 'Airport Transfers', 'clicks' => 320, 'impressions' => 5400, 'conversions' => 28, 'cost' => 410.50, 'max_cpc' => 1.80],
+            ['keyword' => 'executive chauffeur sheffield', 'match_type' => 'exact', 'campaign' => 'Executive', 'clicks' => 140, 'impressions' => 2100, 'conversions' => 12, 'cost' => 233.00, 'max_cpc' => 2.20],
+            ['keyword' => 'manchester airport taxi', 'match_type' => 'broad', 'campaign' => 'Airport Transfers', 'status' => 'paused', 'clicks' => 90, 'impressions' => 3300, 'conversions' => 3, 'cost' => 150.00, 'max_cpc' => 1.20],
+            ['keyword' => 'minibus hire sheffield', 'match_type' => 'phrase', 'campaign' => 'Minibus', 'clicks' => 65, 'impressions' => 1500, 'conversions' => 6, 'cost' => 88.40, 'max_cpc' => 1.40],
+        ];
+        foreach ($keywords as $k) {
+            Keyword::updateOrCreate(['keyword' => $k['keyword']], $k);
+        }
+
+        $pages = [
+            ['path' => '/airport-transfers-sheffield', 'title' => 'Sheffield Airport Transfers | Central Executive Transfers', 'target_keyword' => 'sheffield airport transfers', 'current_rank' => 4, 'monthly_searches' => 1900, 'meta_description' => 'Reliable executive airport transfers from Sheffield to Manchester, Leeds Bradford, Heathrow and more.'],
+            ['path' => '/executive-chauffeur', 'title' => 'Executive Chauffeur Hire | CET', 'target_keyword' => 'executive chauffeur sheffield', 'current_rank' => 7, 'monthly_searches' => 720],
+            ['path' => '/', 'title' => 'Central Executive Transfers — Sheffield Chauffeur & Airport Transfers', 'target_keyword' => 'sheffield chauffeur', 'current_rank' => 9, 'monthly_searches' => 480],
+        ];
+        foreach ($pages as $p) {
+            SeoPage::updateOrCreate(['path' => $p['path']], $p);
+        }
 
         $this->command->info('Demo data seeded: '.Booking::count().' bookings, '.Customer::count().' customers.');
     }

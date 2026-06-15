@@ -188,3 +188,40 @@ tr:last-child td { border-bottom: none; }
 /* ----- New driver statuses (Phase: iCabbi-style) ----- */
 .badge-arrived { background: #fde2c8; color: #9a4b00; }
 .tap-arrive { background: #b25e00; color: #fff; }
+
+/* ===== ETO-style left sidebar shell (overrides earlier topbar) ===== */
+.app-shell { display: flex; min-height: 100vh; }
+.sidebar { width: 240px; background: #0b0b0b; color: #cfcfcf; position: fixed; top: 0; bottom: 0; left: 0; overflow-y: auto; z-index: 50; }
+.side-brand { display: flex; align-items: center; gap: 10px; padding: 18px 20px; color: #fff; font-weight: 800; font-size: 14px; letter-spacing: .3px; border-bottom: 1px solid #1c1c1c; }
+.side-brand:hover { text-decoration: none; }
+.side-brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
+.side-brand .gold { color: var(--gold); }
+.side-nav { padding: 6px 0 48px; }
+.nav-group { margin-top: 14px; }
+.nav-group-title { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #6f6f6f; padding: 6px 20px; }
+.side-nav a { display: block; padding: 9px 20px; color: #cfcfcf; font-size: 14px; border-left: 3px solid transparent; }
+.side-nav a:hover { background: #161616; color: #fff; text-decoration: none; }
+.side-nav a.active { color: var(--gold); border-left-color: var(--gold); background: #161616; font-weight: 600; }
+
+.content-area { margin-left: 240px; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* Repurpose .topbar as a thin white header inside the content area */
+.topbar { background: #fff; height: 60px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+.topbar-title { font-weight: 700; font-size: 16px; color: var(--ink); }
+.topbar-user { display: flex; align-items: center; gap: 14px; }
+.topbar-user .who { font-size: 13px; color: var(--muted); }
+.topbar-user .role { background: #f0f0ef; border-radius: 999px; padding: 2px 8px; font-size: 11px; margin-left: 4px; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 28px 24px 16px; width: 100%; }
+.site-footer { border-top: 1px solid var(--line); margin-top: 32px; }
+
+.nav-burger { display: none; font-size: 22px; cursor: pointer; color: var(--ink); }
+.nav-scrim { display: none; }
+
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); transition: transform .2s ease; width: 260px; box-shadow: 2px 0 18px rgba(0,0,0,.35); }
+  .content-area { margin-left: 0; }
+  .nav-burger { display: block; }
+  .nav-toggle-cb:checked ~ .app-shell .sidebar { transform: translateX(0); }
+  .nav-toggle-cb:checked ~ .app-shell .nav-scrim { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
+}

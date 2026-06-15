@@ -12,6 +12,7 @@ use App\Http\Controllers\Driver\LocationController;
 use App\Http\Controllers\ErasureController;
 use App\Http\Controllers\FixedPriceController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TrackingController;
@@ -80,6 +81,15 @@ Route::middleware('auth')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
+
+        // Marketing — Google Ads dashboard, keywords, SEO.
+        Route::get('marketing/ads', [ReportController::class, 'ads'])->name('marketing.ads');
+        Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
+        Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');
+        Route::delete('marketing/keywords/{keyword}', [MarketingController::class, 'destroyKeyword'])->name('marketing.keywords.destroy');
+        Route::get('marketing/seo', [MarketingController::class, 'seo'])->name('marketing.seo');
+        Route::post('marketing/seo', [MarketingController::class, 'storeSeo'])->name('marketing.seo.store');
+        Route::delete('marketing/seo/{seoPage}', [MarketingController::class, 'destroySeo'])->name('marketing.seo.destroy');
         Route::get('pricing', [FixedPriceController::class, 'index'])->name('pricing.index');
         Route::post('pricing', [FixedPriceController::class, 'store'])->name('pricing.store');
         Route::delete('pricing', [FixedPriceController::class, 'destroy'])->name('pricing.destroy');

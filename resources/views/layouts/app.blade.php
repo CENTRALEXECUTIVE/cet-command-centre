@@ -11,60 +11,94 @@
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
-    <header class="topbar">
-        <a href="{{ route('dashboard') }}" class="brand">
+@php $u = auth()->user(); @endphp
+<input type="checkbox" id="nav-toggle" class="nav-toggle-cb" hidden>
+<div class="app-shell">
+    <aside class="sidebar">
+        <a href="{{ route('dashboard') }}" class="side-brand">
             <span class="dot"></span>
-            <span>CENTRAL <span class="gold">EXECUTIVE</span> TRANSFERS</span>
+            <span>CENTRAL <span class="gold">EXECUTIVE</span></span>
         </a>
-        <nav class="topnav">
-            <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
-            @if(auth()->user()->isAdmin())
-                <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">Despatch</a>
+
+        <nav class="side-nav">
+            <div class="nav-group">
+                <div class="nav-group-title">Operations</div>
+                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
+                @if($u->isAdmin())
+                    <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">Despatch board</a>
+                @endif
+                @if($u->isAdmin() || $u->isDriver())
+                    <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.*') ? 'active' : '' }}">My jobs</a>
+                @endif
+                <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">Bookings</a>
+            </div>
+
+            @if($u->isAdmin() || $u->isCorporateClient())
+                <div class="nav-group">
+                    <div class="nav-group-title">Sales</div>
+                    <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
+                    <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New booking</a>
+                    <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
+                    @if($u->isAdmin())
+                        <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>
+                    @endif
+                    @if($u->isCorporateClient())
+                        <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">My account</a>
+                    @endif
+                </div>
             @endif
-            @if(auth()->user()->isAdmin() || auth()->user()->isDriver())
-                <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.*') ? 'active' : '' }}">My Jobs</a>
+
+            @if($u->isAdmin())
+                <div class="nav-group">
+                    <div class="nav-group-title">Marketing</div>
+                    <a href="{{ route('marketing.ads') }}" class="{{ request()->routeIs('marketing.ads') ? 'active' : '' }}">Google Ads</a>
+                    <a href="{{ route('marketing.keywords') }}" class="{{ request()->routeIs('marketing.keywords*') ? 'active' : '' }}">Keywords</a>
+                    <a href="{{ route('marketing.seo') }}" class="{{ request()->routeIs('marketing.seo*') ? 'active' : '' }}">SEO</a>
+                    <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Revenue reports</a>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-title">Fleet &amp; admin</div>
+                    <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
+                    <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting list</a>
+                    <a href="{{ route('gdpr.erasure') }}" class="{{ request()->routeIs('gdpr.*') ? 'active' : '' }}">GDPR</a>
+                </div>
             @endif
-            <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') ? 'active' : '' }}">Bookings</a>
-            @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
-                <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">Quote</a>
-                <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New Booking</a>
-                <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
-            @endif
-            @if(auth()->user()->isAdmin())
-                <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
-                <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting List</a>
-                <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>
-                <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Reports</a>
-                <a href="{{ route('reports.ads') }}" class="{{ request()->routeIs('reports.ads') ? 'active' : '' }}">Ads</a>
-                <a href="{{ route('gdpr.erasure') }}" class="{{ request()->routeIs('gdpr.*') ? 'active' : '' }}">GDPR</a>
-            @endif
-            @if(auth()->user()->isCorporateClient())
-                <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">Account</a>
-            @endif
-            <form method="POST" action="{{ route('logout') }}" style="display:inline">
-                @csrf
-                <button type="submit" class="btn btn-ghost" style="padding:6px 14px;font-size:13px">Sign out</button>
-            </form>
         </nav>
-    </header>
+    </aside>
 
-    <main class="container">
-        @if(session('status'))
-            <div class="alert alert-success">{{ session('status') }}</div>
-        @endif
+    <div class="content-area">
+        <header class="topbar">
+            <label for="nav-toggle" class="nav-burger" aria-label="Menu">&#9776;</label>
+            <div class="topbar-title">@yield('title', 'CET Command Centre')</div>
+            <div class="topbar-user">
+                <span class="who">{{ $u->name }} <span class="role">{{ $u->role->label() }}</span></span>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-ghost" style="padding:6px 14px;font-size:13px">Sign out</button>
+                </form>
+            </div>
+        </header>
 
-        @yield('content')
-    </main>
+        <main class="container">
+            @if(session('status'))
+                <div class="alert alert-success">{{ session('status') }}</div>
+            @endif
 
-    <footer class="site-footer">
-        {{ config('cet.company.name') }} &middot; Company No. {{ config('cet.company.number') }} &middot;
-        Operator Licence {{ config('cet.company.operator_licence') }} ({{ config('cet.company.licensing_authority') }})<br>
-        @if(config('cet.ico_registration_number'))
-            <span class="ico">ICO Registration: {{ config('cet.ico_registration_number') }}</span> &middot;
-        @endif
-        <a href="#">Privacy Notice</a> &middot; Your data is processed under UK GDPR.
-    </footer>
+            @yield('content')
 
-    @include('partials.cookie-consent')
+            <footer class="site-footer">
+                {{ config('cet.company.name') }} &middot; Company No. {{ config('cet.company.number') }} &middot;
+                Operator Licence {{ config('cet.company.operator_licence') }}
+                @if(config('cet.ico_registration_number')) &middot; ICO {{ config('cet.ico_registration_number') }} @endif
+                &middot; UK GDPR
+            </footer>
+        </main>
+    </div>
+
+    <label for="nav-toggle" class="nav-scrim"></label>
+</div>
+
+@include('partials.cookie-consent')
 </body>
 </html>
