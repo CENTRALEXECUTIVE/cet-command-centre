@@ -25,3 +25,9 @@ Schedule::command('cet:check-flights')->everyFifteenMinutes()->withoutOverlappin
 
 // Google Ads metrics sync (when API configured), daily.
 Schedule::command('cet:sync-ads')->dailyAt('05:00');
+
+// Push pending booking events to Google Calendar, every 5 minutes.
+Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping();
+
+// Parse Outlook booking emails into bookings, every 5 minutes.
+Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();

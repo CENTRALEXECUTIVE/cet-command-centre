@@ -115,8 +115,28 @@ Delivered and tested:
   `webhooks/missed-call` endpoint logs the call and instantly WhatsApps the
   caller so no booking is lost; known callers are linked to their customer.
 
-> Remaining Phase 5 (needs third-party credentials / a live deployment to verify
-> end-to-end): flight-delay monitoring and Twilio number masking.
+- **Flight-delay monitoring** (`FlightMonitorService`): checks live arrival
+  status for airport pickups and auto-adjusts the pickup time + notifies the
+  customer on a delay (`cet:check-flights`).
+- **Number masking** (`MaskingService`, `/webhooks/voice`): customer and driver
+  connect through CET's virtual number via a Twilio voice webhook — neither sees
+  the other's real number.
+- **Microsoft Graph** (`OutlookBookingService`): unread Outlook booking emails
+  are parsed by claude-opus-4-8 into bookings (`cet:ingest-outlook`).
+- **Google Calendar push** (`GoogleCalendarService`): formatted booking events
+  are pushed to the company calendar (`cet:sync-calendar`).
+- **Google Ads sync** (`AdsSyncService`): daily metrics into the ads dashboard
+  via API or CSV (`cet:sync-ads`).
+
+> Every integration above is built behind an interface with a safe fallback
+> (log/stub/no-op) and is unit-tested; each goes live by adding its credentials
+> to `.env` — no code changes required.
+
+### Scheduled commands (full set)
+
+`send-due-messages` (minute) · `prune-gps` (daily) · `check-compliance` (daily) ·
+`generate-invoices` (monthly) · `check-flights` (15 min) · `sync-ads` (daily) ·
+`sync-calendar` (5 min) · `ingest-outlook` (5 min).
 
 ## ETO data migration
 

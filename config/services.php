@@ -82,4 +82,17 @@ return [
         'proxy_number' => env('TWILIO_PROXY_NUMBER'),
     ],
 
+    // Google Calendar — booking events pushed to the company calendar.
+    'google_calendar' => [
+        'credentials' => env('GOOGLE_CALENDAR_CREDENTIALS'),
+    ],
+
+    // Microsoft Graph — parse Outlook booking emails into bookings.
+    'microsoft_graph' => [
+        'client_id' => env('MS_GRAPH_CLIENT_ID'),
+        'client_secret' => env('MS_GRAPH_CLIENT_SECRET'),
+        'tenant_id' => env('MS_GRAPH_TENANT_ID'),
+        'mailbox' => env('MS_GRAPH_MAILBOX', 'bookings@centralexecutivetransfers.co.uk'),
+    ],
+
 ];
