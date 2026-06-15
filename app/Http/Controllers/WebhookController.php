@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Services\MissedCallService;
+use App\Services\Telephony\MaskingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * Inbound webhooks from telephony (e.g. Twilio). Guarded by a shared secret in
@@ -12,7 +14,25 @@ use Illuminate\Http\Request;
  */
 class WebhookController extends Controller
 {
-    public function __construct(private readonly MissedCallService $missedCalls) {}
+    public function __construct(
+        private readonly MissedCallService $missedCalls,
+        private readonly MaskingService $masking,
+    ) {}
+
+    /**
+     * Twilio voice webhook for number masking — bridges the caller to the other
+     * party on their active job. Returns TwiML.
+     */
+    public function voice(Request $request): Response
+    {
+        $this->authoriseWebhook($request);
+
+        $from = $request->input('From') ?? $request->input('from');
+        $counterpart = $from ? $this->masking->counterpartFor($from) : null;
+
+        return response($this->masking->dialTwiml($counterpart), 200)
+            ->header('Content-Type', 'text/xml');
+    }
 
     public function missedCall(Request $request): JsonResponse
     {

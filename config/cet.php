@@ -66,4 +66,7 @@ return [
 
     // Shared secret guarding inbound webhooks (e.g. Twilio missed-call).
     'webhook_secret' => env('CET_WEBHOOK_SECRET', ''),
+
+    // Flight delay (minutes) that triggers an automatic pickup adjustment.
+    'flight_delay_threshold' => 15,
 ];

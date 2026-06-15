@@ -65,4 +65,21 @@ return [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    // Flight status API (e.g. AviationStack) — delay monitoring.
+    'flight' => [
+        'key' => env('FLIGHT_API_KEY'),
+        'base_url' => env('FLIGHT_API_BASE_URL', 'https://api.aviationstack.com/v1'),
+    ],
+
+    // Google Ads — daily spend/conversion sync for the ads dashboard.
+    'google_ads' => [
+        'developer_token' => env('GOOGLE_ADS_DEVELOPER_TOKEN'),
+        'customer_id' => env('GOOGLE_ADS_CUSTOMER_ID'),
+    ],
+
+    // Twilio number masking virtual number (customer & driver connect via this).
+    'twilio_masking' => [
+        'proxy_number' => env('TWILIO_PROXY_NUMBER'),
+    ],
+
 ];

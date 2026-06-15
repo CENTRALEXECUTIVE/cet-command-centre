@@ -17,7 +17,7 @@ class AdMetric extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
+            'date' => 'date:Y-m-d',
             'spend' => 'decimal:2',
             'revenue' => 'decimal:2',
             'roas' => 'decimal:2',
