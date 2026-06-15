@@ -21,7 +21,7 @@ use InvalidArgumentException;
 class BookingStatusService
 {
     /** Transitions a driver may perform on their own job. */
-    private const DRIVER_ALLOWED = ['accepted', 'en_route', 'collected', 'complete', 'no_show'];
+    private const DRIVER_ALLOWED = ['accepted', 'en_route', 'arrived', 'collected', 'complete', 'no_show'];
 
     public function __construct(
         private readonly RotationService $rotation,
@@ -62,6 +62,27 @@ class BookingStatusService
             }
 
             return $booking->refresh();
+        });
+    }
+
+    /**
+     * Driver declines an offered (allocated) job: it returns to the pending pool
+     * and the driver is cleared so the office (or rotation) can re-offer it.
+     */
+    public function declineJob(Booking $booking, User $driver): Booking
+    {
+        return DB::transaction(function () use ($booking, $driver) {
+            $note = "Declined by {$driver->name}";
+            $booking->statusHistory()->create([
+                'from_status' => $booking->status->value,
+                'to_status' => BookingStatus::Pending->value,
+                'changed_by' => $driver->id,
+                'note' => $note,
+                'created_at' => now(),
+            ]);
+            $booking->forceFill(['status' => BookingStatus::Pending->value, 'driver_id' => null])->save();
+
+            return $booking;
         });
     }
 
@@ -133,6 +154,11 @@ class BookingStatusService
         if ($to === BookingStatus::EnRoute) {
             $link = $this->ensureTrackingLink($booking);
             $this->notifier->sendTrackingLink($booking, route('track', $link->token));
+        }
+
+        // "Your driver has arrived" — sent when the driver marks Arrived.
+        if ($to === BookingStatus::Arrived) {
+            $this->notifier->sendArrived($booking);
         }
 
         // Review request 30 minutes after completion (delivered by the scheduler).

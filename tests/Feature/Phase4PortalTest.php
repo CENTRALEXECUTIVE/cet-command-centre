@@ -90,6 +90,7 @@ class Phase4PortalTest extends TestCase
         $status->transition($booking, BookingStatus::Allocated, $admin);
         $status->transition($booking->fresh(), BookingStatus::Accepted, $admin);
         $status->transition($booking->fresh(), BookingStatus::EnRoute, $admin);
+        $status->transition($booking->fresh(), BookingStatus::Arrived, $admin);
         $status->transition($booking->fresh(), BookingStatus::Collected, $admin);
         $status->transition($booking->fresh(), BookingStatus::Complete, $admin);
 

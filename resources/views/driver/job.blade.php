@@ -13,6 +13,22 @@
         <div class="alert alert-error">{{ $errors->first() }}</div>
     @endif
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    {{-- One-tap navigation: opens the driver's own Google/Waze/Apple Maps app. --}}
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+        <a class="btn btn-dark" style="flex:1;text-align:center"
+           href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->pickup_address) }}"
+           target="_blank" rel="noopener">🧭 Navigate to pickup</a>
+        <a class="btn btn-ghost" style="flex:1;text-align:center"
+           href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->destination_address) }}"
+           target="_blank" rel="noopener">Navigate to drop-off</a>
+    </div>
+
+    <div id="job-map" style="height:220px;border-radius:10px;margin-bottom:16px;display:none"></div>
+    <div id="map-cfg" data-pickup="{{ $booking->pickup_address }}" data-dropoff="{{ $booking->destination_address }}" hidden></div>
+
     <div class="card">
         <table>
             <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
@@ -43,8 +59,13 @@
                 @php
                     $class = match($status->value) {
                         'accepted' => 'tap-accept', 'en_route' => 'tap-go',
-                        'collected' => 'tap-collect', 'complete' => 'tap-complete',
+                        'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
+                        'complete' => 'tap-complete',
                         default => 'tap-cancel',
+                    };
+                    $btnLabel = match($status->value) {
+                        'en_route' => 'On My Way', 'collected' => 'Passenger On Board',
+                        'complete' => 'Completed', default => $status->label(),
                     };
                 @endphp
                 <form method="POST" action="{{ route('driver.job.status', $booking) }}" class="status-form">
@@ -52,7 +73,7 @@
                     <input type="hidden" name="status" value="{{ $status->value }}">
                     <input type="hidden" name="lat" class="lat-input">
                     <input type="hidden" name="lng" class="lng-input">
-                    <button type="submit" class="{{ $class }}" style="width:100%">{{ $status->label() }}</button>
+                    <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
                 </form>
             @endforeach
         </div>
@@ -106,6 +127,41 @@
 
             ping();
             var timer = setInterval(ping, interval);
+        })();
+
+        // Job map: geocode the pickup/drop-off via free OpenStreetMap (Nominatim)
+        // and drop pins, plus the driver's live position. Best-effort.
+        (function () {
+            var cfg = document.getElementById('map-cfg');
+            var el = document.getElementById('job-map');
+            if (!cfg || !el || typeof L === 'undefined') return;
+            var map, bounds = [];
+
+            function ensureMap(lat, lng) {
+                if (!map) {
+                    el.style.display = 'block';
+                    map = L.map('job-map').setView([lat, lng], 12);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap', maxZoom: 18
+                    }).addTo(map);
+                }
+            }
+            function pin(address, label) {
+                if (!address) return;
+                fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address),
+                      { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (!d || !d.length) return;
+                        var lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
+                        ensureMap(lat, lng);
+                        L.marker([lat, lng]).addTo(map).bindPopup(label);
+                        bounds.push([lat, lng]);
+                        if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
+                    }).catch(function () {});
+            }
+            pin(cfg.dataset.pickup, 'Pickup');
+            pin(cfg.dataset.dropoff, 'Drop-off');
         })();
     </script>
     @endverbatim

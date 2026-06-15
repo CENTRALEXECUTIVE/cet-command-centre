@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Services\BookingStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -73,6 +74,45 @@ class JobController extends Controller
         }
 
         return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
+    }
+
+    /** Driver declines an offered job — it returns to the office pool. */
+    public function decline(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+        $this->status->declineJob($booking, $request->user());
+
+        return redirect()->route('driver.jobs')->with('status', 'Job declined and returned to the office.');
+    }
+
+    /** Driver earnings — completed jobs and income for today / this week. */
+    public function earnings(Request $request): View
+    {
+        $driverId = $request->user()->id;
+        $revenue = 'COALESCE(final_price, quoted_price, 0)';
+
+        $base = Booking::forDriver($driverId)->where('status', BookingStatus::Complete->value);
+
+        return view('driver.earnings', [
+            'today' => [
+                'jobs' => (clone $base)->whereDate('pickup_at', today())->count(),
+                'earnings' => (float) (clone $base)->whereDate('pickup_at', today())->sum(DB::raw($revenue)),
+            ],
+            'week' => [
+                'jobs' => (clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])->count(),
+                'earnings' => (float) (clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])->sum(DB::raw($revenue)),
+            ],
+            'recent' => (clone $base)->with('vehicleType')->orderByDesc('pickup_at')->limit(20)->get(),
+        ]);
+    }
+
+    /** JSON: count of offered (allocated, unaccepted) jobs — for live polling. */
+    public function offersCount(Request $request)
+    {
+        return response()->json([
+            'offers' => Booking::forDriver($request->user()->id)
+                ->where('status', BookingStatus::Allocated->value)->count(),
+        ]);
     }
 
     private function authoriseOwnership(Request $request, Booking $booking): void

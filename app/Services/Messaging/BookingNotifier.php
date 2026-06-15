@@ -89,6 +89,21 @@ class BookingNotifier
         ]);
     }
 
+    /** Sent when the driver marks Arrived at the pickup. */
+    public function sendArrived(Booking $booking): ?Message
+    {
+        $to = $booking->customer?->phone;
+        if (blank($to)) {
+            return null;
+        }
+
+        $driver = $booking->driver?->name ? " ({$booking->driver->name})" : '';
+        $body = "Your Central Executive Transfers driver{$driver} has arrived at the pickup point. "
+            ."Ref: {$booking->reference}";
+
+        return $this->whatsApp->send($to, $body, ['type' => 'custom', 'booking' => $booking]);
+    }
+
     /** Sent when the driver goes En Route, including the live tracking link. */
     public function sendTrackingLink(Booking $booking, string $url): ?Message
     {

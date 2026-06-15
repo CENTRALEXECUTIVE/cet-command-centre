@@ -65,8 +65,11 @@ Route::middleware('auth')->group(function () {
     // ----- Driver mobile app (driver) ------------------------------------
     Route::middleware('role:driver,admin')->prefix('driver')->name('driver.')->group(function () {
         Route::get('jobs', [JobController::class, 'index'])->name('jobs');
+        Route::get('jobs/offers-count', [JobController::class, 'offersCount'])->name('offers-count');
+        Route::get('earnings', [JobController::class, 'earnings'])->name('earnings');
         Route::get('jobs/{booking}', [JobController::class, 'show'])->name('job');
         Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
+        Route::post('jobs/{booking}/decline', [JobController::class, 'decline'])->name('job.decline');
         // GPS ping — only stored while on an active job.
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
     });

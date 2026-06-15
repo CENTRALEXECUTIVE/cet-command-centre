@@ -3,16 +3,18 @@
 namespace App\Enums;
 
 /**
- * Live job lifecycle used by the despatch board and driver app.
+ * Live job lifecycle used by the despatch board and driver app — the iCabbi
+ * cadence: allocated → accepted → en route → arrived → POB → completed.
  */
 enum BookingStatus: string
 {
     case Pending = 'pending';       // Created, not yet allocated
-    case Allocated = 'allocated';   // Driver assigned
+    case Allocated = 'allocated';   // Offered/assigned to a driver
     case Accepted = 'accepted';     // Driver accepted the job
     case EnRoute = 'en_route';      // Driver on the way — tracking link sent
-    case Collected = 'collected';   // Passenger on board
-    case Complete = 'complete';     // Job finished — review request timer starts
+    case Arrived = 'arrived';       // Driver at the pickup, waiting for passenger
+    case Collected = 'collected';   // Passenger on board (POB)
+    case Complete = 'complete';     // Dropped off / job completed — review timer starts
     case Cancelled = 'cancelled';
     case NoShow = 'no_show';
 
@@ -23,8 +25,9 @@ enum BookingStatus: string
             self::Allocated => 'Allocated',
             self::Accepted => 'Accepted',
             self::EnRoute => 'En Route',
-            self::Collected => 'Collected',
-            self::Complete => 'Complete',
+            self::Arrived => 'Arrived',
+            self::Collected => 'On Board',
+            self::Complete => 'Completed',
             self::Cancelled => 'Cancelled',
             self::NoShow => 'No Show',
         };
@@ -33,7 +36,7 @@ enum BookingStatus: string
     /** Statuses considered an active job (driver location tracked). */
     public function isActive(): bool
     {
-        return in_array($this, [self::Accepted, self::EnRoute, self::Collected], true);
+        return in_array($this, [self::Accepted, self::EnRoute, self::Arrived, self::Collected], true);
     }
 
     public function isTerminal(): bool
@@ -53,7 +56,8 @@ enum BookingStatus: string
             self::Pending => [self::Allocated, self::Cancelled],
             self::Allocated => [self::Accepted, self::Pending, self::Cancelled, self::NoShow],
             self::Accepted => [self::EnRoute, self::Cancelled, self::NoShow],
-            self::EnRoute => [self::Collected, self::Cancelled, self::NoShow],
+            self::EnRoute => [self::Arrived, self::Cancelled, self::NoShow],
+            self::Arrived => [self::Collected, self::Cancelled, self::NoShow],
             self::Collected => [self::Complete, self::Cancelled],
             self::Complete, self::Cancelled, self::NoShow => [],
         };

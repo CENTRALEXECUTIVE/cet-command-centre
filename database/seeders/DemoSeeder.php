@@ -85,6 +85,7 @@ class DemoSeeder extends Seeder
             [BookingStatus::Allocated, $maj, 'Tom Clarke', 'LBA'],
             [BookingStatus::Accepted, $abdi, 'James Watson', 'MAN'],
             [BookingStatus::EnRoute, $abdi, 'Geoff Bowen', 'LHR'],
+            [BookingStatus::Arrived, $maj, 'Lucy Hall', 'BHX'],
             [BookingStatus::Collected, $maj, 'Sarah Hughes', 'BHX'],
             [BookingStatus::Complete, $abdi, 'Anna Webb', 'LHR'],
         ];

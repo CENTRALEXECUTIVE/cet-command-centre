@@ -184,3 +184,7 @@ tr:last-child td { border-bottom: none; }
 .tap-accept { background: #1d4ed8; color: #fff; } .tap-go { background: var(--gold); color: var(--black); }
 .tap-collect { background: #5b2bc7; color: #fff; } .tap-complete { background: var(--green); color: #fff; }
 .tap-cancel { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; }
+
+/* ----- New driver statuses (Phase: iCabbi-style) ----- */
+.badge-arrived { background: #fde2c8; color: #9a4b00; }
+.tap-arrive { background: #b25e00; color: #fff; }
