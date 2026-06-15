@@ -10,6 +10,7 @@ use App\Http\Controllers\DespatchController;
 use App\Http\Controllers\Driver\JobController;
 use App\Http\Controllers\Driver\LocationController;
 use App\Http\Controllers\ErasureController;
+use App\Http\Controllers\FixedPriceController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
@@ -79,6 +80,9 @@ Route::middleware('auth')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
+        Route::get('pricing', [FixedPriceController::class, 'index'])->name('pricing.index');
+        Route::post('pricing', [FixedPriceController::class, 'store'])->name('pricing.store');
+        Route::delete('pricing', [FixedPriceController::class, 'destroy'])->name('pricing.destroy');
         Route::get('waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
         Route::post('waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
 

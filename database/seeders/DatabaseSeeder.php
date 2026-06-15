@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RotationSeeder::class,
             CorporateSeeder::class,
             PricingSeeder::class,
+            PricingZoneSeeder::class,
             FixedPriceSeeder::class,
             SettingSeeder::class,
         ]);

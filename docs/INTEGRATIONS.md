@@ -103,9 +103,14 @@ Check it's registered: `php artisan schedule:list` (should list 8 jobs).
 ---
 
 ## Load your real data for the trial
-- **Fixed prices**: `php artisan cet:import-fixed-prices storage/app/fixed_prices.csv`
+- **Fixed prices**: enter/confirm them in the admin **Pricing** screen
+  (`/pricing`) — a row per zone → destination with a fare per vehicle type,
+  mirroring the ETO Fixed Prices screen. (A CSV import also exists if you ever
+  export one: `php artisan cet:import-fixed-prices file.csv`.)
+- **Zones**: already seeded from the zone brief (postcode → zone), so postcode
+  pricing works out of the box. The separate Doogal KML (see `tools/zones`) is
+  only needed if you also want to import zone polygons into ETO.
 - **Historical bookings**: `php artisan cet:import-eto-bookings storage/app/eto_bookings.csv`
-- **Zones** (postcode → zone) once you have the Doogal KML built (see `tools/zones`).
 
 ## Where messages/errors show during the trial
 - Outgoing messages/emails (when a key is blank) and any errors:
