@@ -6,59 +6,90 @@ demo data, so nothing affects `centralexecutivetransfers.co.uk`.
 
 ---
 
-## A. Stand up a private staging copy (GoDaddy cPanel)
+## A. Stand up a private staging copy (GoDaddy cPanel + Terminal)
 
-> Full detail is in `docs/DEPLOYMENT.md`. This is the short, staging-only version.
+Follow top to bottom. ~20 minutes. Nothing here touches your live site.
 
-1. **Subdomain**: in cPanel → *Domains* → create `staging.centralexecutivetransfers.co.uk`
-   and set its **document root to the app's `public/` folder**.
-2. **Database**: cPanel → *MySQL Databases* → create a NEW db + user
-   (e.g. `..._cet_staging`) — keep it separate from live.
-3. **Code**: clone the repo (or upload a zip and Extract) into `~/cet-staging`,
-   then in cPanel *Terminal*:
-   ```bash
-   cd ~/cet-staging
-   composer install --no-dev --optimize-autoloader
-   cp .env.example .env
-   php artisan key:generate
-   ```
-4. **.env** (staging values — keep it clearly NOT production):
-   ```
-   APP_ENV=staging
-   APP_DEBUG=true
-   APP_URL=https://staging.centralexecutivetransfers.co.uk
-   DB_DATABASE=..._cet_staging
-   DB_USERNAME=...   DB_PASSWORD=...
-   # Leave integration keys BLANK for now — everything safely no-ops/logs.
-   MAIL_MAILER=log
-   ```
-   > With keys blank: WhatsApp/email/Tide/AI/flights all **log instead of sending**,
-   > so you can test end-to-end without messaging real customers or taking payment.
-5. **Build the test data**:
-   ```bash
-   php artisan migrate --force
-   php artisan db:seed --force                                   # base data
-   php artisan db:seed --class="Database\Seeders\DemoSeeder" --force   # demo bookings, invoice, ads, etc.
-   php artisan storage:link
-   php artisan config:cache && php artisan route:cache && php artisan view:cache
-   ```
-6. Open `https://staging.centralexecutivetransfers.co.uk` and sign in.
+### 1. In cPanel (point & click)
+- **PHP version**: *MultiPHP Manager* → set the account to **PHP 8.2 or 8.3**.
+- **Subdomain**: *Domains* → *Create A New Domain* → `staging.centralexecutivetransfers.co.uk`.
+  Set its **Document Root** to: `cet-staging/public`  ← type exactly this.
+- **Database**: *MySQL Databases* → create database `..._cetstaging`, create a user
+  with a strong password, then **Add User To Database** with *All Privileges*.
+  Write down the **database name, username, password**.
 
-**Logins** (password = your `CET_SEED_PASSWORD`, default `ChangeMe!2026`):
+### 2. Open Terminal (cPanel → *Terminal*) and get the code
+Check PHP is 8.2+ first:
+```bash
+php -v        # if this shows PHP 7.x, use the full path below instead of "php":
+              # /opt/cpanel/ea-php83/root/usr/bin/php
+```
+Get the code onto the server (the project lives on a feature branch):
+```bash
+cd ~
+git clone https://github.com/centralexecutive/cet-command-centre.git cet-staging
+cd cet-staging
+git checkout claude/cet-command-centre-phase-1-e0jtio
+```
+> **If git asks for a login**, paste a GitHub *Personal Access Token* as the
+> password, **or** skip git: on GitHub open the branch → *Code ▸ Download ZIP*,
+> upload it via cPanel *File Manager* into `cet-staging`, and *Extract* it there.
+
+### 3. Install dependencies
+```bash
+composer install --no-dev --optimize-autoloader
+```
+> No `composer` command? Run:
+> `php -r "copy('https://getcomposer.org/installer','c.php');" && php c.php && php composer.phar install --no-dev --optimize-autoloader`
+
+### 4. Configure
+```bash
+cp .env.example .env
+php artisan key:generate
+nano .env        # edit the values below, then Ctrl+O, Enter, Ctrl+X to save
+```
+Set these in `.env` (leave every integration key BLANK for now):
+```
+APP_ENV=staging
+APP_DEBUG=true
+APP_URL=https://staging.centralexecutivetransfers.co.uk
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_DATABASE=..._cetstaging
+DB_USERNAME=...
+DB_PASSWORD=...
+MAIL_MAILER=log
+CET_SEED_PASSWORD=ChooseATestPassword1!
+```
+> Blank keys = WhatsApp / email / Tide / AI / flights all **log instead of
+> sending**, so you test everything without messaging real customers or charging.
+
+### 5. Build the database + demo data
+```bash
+php artisan migrate --force
+php artisan db:seed --force
+php artisan db:seed --class="Database\Seeders\DemoSeeder" --force
+php artisan storage:link
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+```
+
+### 6. Open it
+Go to **https://staging.centralexecutivetransfers.co.uk** and sign in.
+
+**Logins** (password = the `CET_SEED_PASSWORD` you set above):
 | Role | Email |
 |------|-------|
 | Admin (Abdi) | abdi@centralexecutivetransfers.co.uk |
 | Admin (Maj) | maj@centralexecutivetransfers.co.uk |
 | Corporate client | bookings@jeld-wen.example |
 
-> No cPanel Terminal? Use the **zip + Extract** route in `docs/DEPLOYMENT.md`,
-> run Composer locally before uploading, and ask your host to enable Terminal —
-> or tell me and I'll give a no-CLI variant.
-
-To wipe and start the demo again at any time:
+To reset the demo at any time:
 `php artisan migrate:fresh --seed --force && php artisan db:seed --class="Database\Seeders\DemoSeeder" --force`
 
+> Stuck on any step? Copy the exact error text to me and I'll tell you the fix.
+
 ---
+
 
 ## B. Walk through everything (test checklist)
 
