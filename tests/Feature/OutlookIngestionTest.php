@@ -107,6 +107,7 @@ class OutlookIngestionTest extends TestCase
         $this->app->instance(GraphMailClient::class, $mail);
 
         $ai = Mockery::mock(AnthropicService::class);
+        $ai->shouldReceive('configured')->andReturn(true);
         $ai->shouldReceive('completeJson')->andReturn($this->parsed());
         $this->app->instance(AnthropicService::class, $ai);
 
@@ -116,9 +117,75 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals(1, Booking::where('external_reference', 'ZWR6MM')->count());
     }
 
+    public function test_real_eto_email_parses_free_without_ai(): void
+    {
+        // No Anthropic key configured — the deterministic ETO parser must handle
+        // a real booking email on its own (zero cost).
+        config(['services.anthropic.key' => null]);
+
+        $body = <<<'EML'
+        New booking CWJB1S has been created.
+
+        Journey
+        Date & time:	22/06/2026 11:45
+        Time zone:	UTC+1 London
+        Pickup:	Manchester Airport (MAN), Terminal 2, Manchester, UK
+        Arrival flight number:	U22050
+        Arrival time:	11:45
+        Meet & Greet:	Required
+        Dropoff:	North Lakes Hotel & Spa, Ullswater Road, Penrith, UK
+        Vehicle type:	Executive
+        Passengers:	1
+        Hand luggage:	1
+        Customer
+        Name:	Jackie Donoghue
+        Email:	JDonoghue@jeldwen.com
+        Lead passenger
+        Name:	Christian Michel
+        Phone number:	+447741612887
+        Email:	JDonoghue@jeldwen.com
+        Reservation
+        Reference number:	CWJB1S
+        Booking date:	18/06/2026 11:00
+        Summary:	Journey £300
+        Total:	£310
+        EML;
+
+        $svc = app(OutlookBookingService::class);
+        $parsed = $svc->parse('New booking CWJB1S has been created.', $body, 'noreply@easytaxioffice.co.uk');
+
+        $this->assertNotNull($parsed);
+        $this->assertEquals('CWJB1S', $parsed['reference']);
+        $this->assertEquals('Christian Michel', $parsed['customer_name']); // lead passenger
+        $this->assertEquals('+447741612887', $parsed['customer_phone']);
+        $this->assertEquals('2026-06-22 11:45', $parsed['pickup_at']);
+        $this->assertStringContainsString('Manchester Airport (MAN)', $parsed['pickup_address']);
+        $this->assertStringContainsString('North Lakes Hotel', $parsed['destination_address']);
+        $this->assertEquals('U22050', $parsed['flight_number']);
+
+        $result = $svc->upsertFromParsed($parsed);
+        $this->assertEquals('created', $result['action']);
+
+        $booking = Booking::where('external_reference', 'CWJB1S')->first();
+        $this->assertEquals('MAN', $booking->airport->code);
+        $this->assertEquals('11:45', $booking->pickup_at->format('H:i'));
+
+        // Same reference, amended time → updates, no duplicate.
+        $amended = str_replace(['has been created', '11:45'], ['has been amended', '13:30'], $body);
+        $result2 = $svc->upsertFromParsed($svc->parse('Booking CWJB1S has been amended.', $amended, null));
+        $this->assertEquals('updated', $result2['action']);
+        $this->assertEquals(1, Booking::where('external_reference', 'CWJB1S')->count());
+
+        // Cancellation email cancels it.
+        $cancel = $svc->parse('Booking CWJB1S has been cancelled.', 'Booking CWJB1S has been cancelled.', null);
+        $this->assertTrue($cancel['cancelled']);
+        $this->assertEquals('cancelled', $svc->upsertFromParsed($cancel)['action']);
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);
+        $ai->shouldReceive('configured')->andReturn(true);
         $ai->shouldReceive('completeJson')->andReturn(['is_booking' => false]);
         $this->app->instance(AnthropicService::class, $ai);
 

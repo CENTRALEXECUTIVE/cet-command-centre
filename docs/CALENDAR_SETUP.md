@@ -38,11 +38,16 @@ MS_GRAPH_MAILBOX=admin@centralexecutivetransfers.co.uk
 > Make sure ETO's booking/amendment/cancellation emails actually arrive in that
 > mailbox (forward/rule if needed).
 
-## 2. Anthropic — understand the email (claude-opus-4-8)
-1. **console.anthropic.com** → API keys → create a key.
-2. `.env` `ANTHROPIC_API_KEY=sk-ant-...`
-(Needed because the system reads the email and extracts the reference, time,
-addresses, vehicle, etc.)
+## 2. Anthropic — OPTIONAL (the email reading is free without it)
+ETO emails arrive in a fixed template, so the system reads them directly — the
+reference, time, pickup/dropoff, vehicle, flight and lead-passenger phone are all
+parsed for free, with **no API key and no cost**. **You can skip this step.**
+
+Only add a key if you later want the AI as a backup for an unusual email the
+template parser can't read:
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
 
 ## 3. Google Calendar — write the events
 In **console.cloud.google.com** (signed in as the Google account that owns the

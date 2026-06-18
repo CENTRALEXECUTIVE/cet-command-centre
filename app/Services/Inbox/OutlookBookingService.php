@@ -32,6 +32,7 @@ class OutlookBookingService
     public function __construct(
         private readonly GraphMailClient $mail,
         private readonly AnthropicService $ai,
+        private readonly EtoEmailParser $etoParser,
         private readonly FixedPriceService $fixedPrices,
         private readonly CalendarEventBuilder $calendarBuilder,
         private readonly GoogleCalendarService $googleCalendar,
@@ -68,6 +69,17 @@ class OutlookBookingService
      */
     public function parse(string $subject, string $body, ?string $from = null): ?array
     {
+        // Free, deterministic path first: ETO emails are a fixed template, so we
+        // read them directly — no AI, no cost. The AI below is only an optional
+        // fallback for the rare email this can't read, and only if a key is set.
+        if ($parsed = $this->etoParser->parse($subject, $body, $from)) {
+            return $parsed;
+        }
+
+        if (! $this->ai->configured()) {
+            return null;
+        }
+
         $system = 'You extract chauffeur booking details from EasyTaxiOffice (ETO) booking emails for '
             .'Central Executive Transfers. Times are UK local time (Europe/London). Respond ONLY with JSON. '
             .'If the email is not a booking/amendment/cancellation, respond {"is_booking": false}. Otherwise: '
