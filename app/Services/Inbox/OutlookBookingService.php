@@ -138,13 +138,10 @@ class OutlookBookingService
 
         $paymentStatus = strtolower((string) ($parsed['payment_status'] ?? 'pending'));
 
-        // Import rule: only bring in bookings that show some payment (full,
-        // deposit or partial). A brand-new booking that is still entirely
-        // Pending is left unread for a human; an existing booking still updates.
-        if (! $existing && $paymentStatus === 'pending') {
-            return null;
-        }
-
+        // Every confirmed ETO booking is imported, even when still "Pending Pay
+        // now": it lands marked 👀 (full balance outstanding). When payment
+        // arrives, the same reference updates this booking to paid and the emoji
+        // clears — no duplicate.
         $vehicleType = $this->resolveVehicleType($parsed['vehicle_type'] ?? null);
         // Email times are UK local; the app runs in Europe/London, so parse in
         // the app timezone (config APP_TIMEZONE=Europe/London in production).
@@ -227,12 +224,13 @@ class OutlookBookingService
             'journey_label' => $label,
             'meet_and_greet' => $meetGreet,
             'child_seat' => ! empty($parsed['child_seat']),
+            'stops' => $parsed['stops'] ?? [],
             'payment_text' => $parsed['payment_text'] ?? null,
             'payment_method_label' => $parsed['payment_method'] ?? null,
             'total_amount' => $parsed['total_amount'] ?? null,
             'booker_name' => $parsed['booker_name'] ?? null,
             'contact_no' => $parsed['customer_phone'] ?? null,
-        ], fn ($v) => $v !== null);
+        ], fn ($v) => $v !== null && $v !== []);
     }
 
     /** Build the formatted calendar event and push it to Google (best-effort). */

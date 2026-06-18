@@ -108,7 +108,9 @@ class EtoEmailParser
             'pickup_at' => $pickupAt,
             'passengers' => (int) ($this->getFlat($fields, 'passengers') ?: 1),
             'luggage' => (int) ($this->getFlat($fields, 'hand luggage')
+                ?? $this->getFlat($fields, 'suitcases')
                 ?? $this->getFlat($fields, 'luggage') ?? 0),
+            'stops' => $this->stops($body),
             'vehicle_type' => $this->getFlat($fields, 'vehicle type'),
             'flight_number' => $flight,
             'meet_and_greet' => $meetGreet,
@@ -159,6 +161,21 @@ class EtoEmailParser
             'total' => $total,
             'text' => trim($payments) ?: null,
         ];
+    }
+
+    /**
+     * Intermediate "Via" stops, which ETO lists between Pickup and Dropoff (one
+     * per line, the first carrying the "Via:" label).
+     *
+     * @return list<string>
+     */
+    private function stops(string $body): array
+    {
+        if (! preg_match('/\bVia:\s*(.+?)\n\s*(?:Dropoff|Drop-off|Vehicle type|Passengers)\b/is', $body, $m)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', preg_split('/\n/', $m[1]))));
     }
 
     private function money(?string $value): ?float

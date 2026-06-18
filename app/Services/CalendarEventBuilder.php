@@ -117,6 +117,9 @@ class CalendarEventBuilder
         $add('Passengers', (string) $booking->passengers);
         $add('Luggage', (string) $booking->luggage);
         $add('Pickup Location', $booking->pickup_address);
+        foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
+            $add('Stop '.($i + 1), $stop);
+        }
         $add('Flight Number', $booking->flight_number);
         if (! empty($meta['meet_and_greet'])) {
             $add('Meet & Greet', 'Required');

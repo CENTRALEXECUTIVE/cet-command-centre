@@ -257,12 +257,54 @@ class OutlookIngestionTest extends TestCase
         ]))['booking']->calendarEvent;
         $this->assertStringContainsString('🚼', $child->title);
 
-        // Import rule: brand-new booking still fully Pending is skipped.
-        $skipped = $svc->upsertFromParsed($this->parsed([
-            'reference' => 'PEND01', 'payment_status' => 'pending',
+        // Pending ("Pay now") bookings ARE imported, marked 👀 (full balance out).
+        $pending = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'PEND01', 'payment_status' => 'pending', 'payment_method' => 'Square',
         ]));
-        $this->assertNull($skipped);
-        $this->assertEquals(0, Booking::where('external_reference', 'PEND01')->count());
+        $this->assertEquals('created', $pending['action']);
+        $this->assertStringContainsString('👀', $pending['booking']->calendarEvent->title);
+
+        // Then payment arrives for the same reference → updates, 👀 clears.
+        $paid = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'PEND01', 'payment_status' => 'paid', 'payment_method' => 'Square',
+        ]));
+        $this->assertEquals('updated', $paid['action']);
+        $this->assertEquals(1, Booking::where('external_reference', 'PEND01')->count());
+        $this->assertStringNotContainsString('👀', $paid['booking']->calendarEvent->title);
+    }
+
+    public function test_via_stops_and_suitcases_are_captured(): void
+    {
+        config(['services.anthropic.key' => null]);
+
+        $body = <<<'EML'
+        New booking URTBYO has been created.
+        Journey
+        Date & time: 19/06/2026 15:55
+        Pickup: East Midlands Airport (EMA), Castle Donington, Derby, UK
+        Via: 54 Larch Avenue, Wickersley, Rotherham, UK
+        28 Batworth Drive, Sheffield S5 8XX, UK
+        Dropoff: 136 Sandford Grove Road, Nether Edge, Sheffield, UK
+        Vehicle type: Executive 8 Seater
+        Passengers: 4
+        Suitcases: 4
+        Reference number: URTBYO
+        Total: £215
+        Payments: £215 (Square) - Pending Pay now
+        EML;
+
+        $svc = app(OutlookBookingService::class);
+        $parsed = $svc->parse('New booking URTBYO', $body, null);
+
+        $this->assertEquals(['54 Larch Avenue, Wickersley, Rotherham, UK', '28 Batworth Drive, Sheffield S5 8XX, UK'], $parsed['stops']);
+
+        $booking = $svc->upsertFromParsed($parsed)['booking'];
+        $this->assertEquals(4, $booking->luggage); // from "Suitcases"
+        $this->assertEquals('v-class', $booking->vehicleType->slug); // Executive 8 Seater → V Class
+        $event = $booking->calendarEvent;
+        $this->assertStringContainsString('*Stop 1:* 54 Larch Avenue', $event->description);
+        $this->assertStringContainsString('*Stop 2:* 28 Batworth Drive', $event->description);
+        $this->assertStringContainsString('👀', $event->title); // pending → balance outstanding
     }
 
     public function test_html_eto_email_is_converted_and_parsed(): void
