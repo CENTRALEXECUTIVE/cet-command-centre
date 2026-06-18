@@ -51,7 +51,7 @@ class GraphMailClient
             return collect($response->json('value', []))->map(fn ($m) => [
                 'id' => $m['id'],
                 'subject' => $m['subject'] ?? '',
-                'body' => strip_tags($m['body']['content'] ?? ''),
+                'body' => $this->bodyToText($m['body'] ?? []),
                 'from' => $m['from']['emailAddress']['address'] ?? null,
             ])->all();
         } catch (\Throwable $e) {
@@ -59,6 +59,72 @@ class GraphMailClient
 
             return [];
         }
+    }
+
+    /**
+     * Convert a Graph message body to plain text while PRESERVING the line and
+     * cell structure ETO uses (label/value rows in an HTML table). A naive
+     * strip_tags() collapses everything onto one line and the parser then can't
+     * find the fields — so we turn row/line breaks into newlines and cell breaks
+     * into a separator before stripping the remaining tags.
+     *
+     * @param  array<string, mixed>  $body
+     */
+    public function bodyToText(array $body): string
+    {
+        $content = (string) ($body['content'] ?? '');
+
+        if (strcasecmp($body['contentType'] ?? 'text', 'html') !== 0 && ! preg_match('/<[a-z]/i', $content)) {
+            return trim($content); // already plain text
+        }
+
+        // Block/line boundaries → newlines; table cell boundaries → colon+space
+        // so "Pickup</td><td>Manchester" becomes "Pickup: Manchester".
+        $content = preg_replace('#</(p|div|tr|h[1-6]|li|table)>#i', "\n", $content);
+        $content = preg_replace('#<br\s*/?>#i', "\n", $content);
+        $content = preg_replace('#</t[dh]>\s*<t[dh][^>]*>#i', ': ', $content);
+        $content = preg_replace('#</?(td|th)[^>]*>#i', ' ', $content);
+
+        $text = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = str_replace("\xC2\xA0", ' ', $text);          // non-breaking spaces
+        $text = preg_replace('/[ \t]+/', ' ', $text);          // collapse runs of spaces/tabs
+        $text = preg_replace('/:[ \t]*:/', ':', $text);        // "Label:" + cell sep → avoid "::"
+        $text = preg_replace('/ *\n */', "\n", $text);          // trim around newlines
+        $text = preg_replace('/\n{2,}/', "\n", $text);          // collapse blank lines
+
+        return trim($text);
+    }
+
+    /**
+     * Raw unread messages (incl. body contentType and the converted text) for the
+     * cet:dump-email diagnostic. Does not mark anything read.
+     *
+     * @return array<int, array{subject:string, contentType:string, raw:string, text:string}>
+     */
+    public function fetchUnreadRaw(int $limit = 25): array
+    {
+        if (! $this->configured()) {
+            return [];
+        }
+        $token = $this->accessToken();
+        if (! $token) {
+            return [];
+        }
+        $mailbox = rawurlencode((string) config('services.microsoft_graph.mailbox'));
+        $response = Http::withToken($token)->get(
+            "https://graph.microsoft.com/v1.0/users/{$mailbox}/mailFolders/inbox/messages",
+            ['$filter' => 'isRead eq false', '$top' => $limit, '$select' => 'id,subject,body,from']
+        );
+        if (! $response->successful()) {
+            return [];
+        }
+
+        return collect($response->json('value', []))->map(fn ($m) => [
+            'subject' => $m['subject'] ?? '',
+            'contentType' => $m['body']['contentType'] ?? '',
+            'raw' => (string) ($m['body']['content'] ?? ''),
+            'text' => $this->bodyToText($m['body'] ?? []),
+        ])->all();
     }
 
     public function markRead(string $messageId): void

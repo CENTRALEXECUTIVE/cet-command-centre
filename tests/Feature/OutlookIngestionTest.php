@@ -265,6 +265,41 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals(0, Booking::where('external_reference', 'PEND01')->count());
     }
 
+    public function test_html_eto_email_is_converted_and_parsed(): void
+    {
+        config(['services.anthropic.key' => null]);
+
+        // A real ETO email is an HTML table — naive strip_tags() would collapse
+        // it onto one line and the parser would skip it. bodyToText must keep
+        // the label/value structure.
+        $html = '<html><body><p>New booking URTBYO has been created.</p>'
+            .'<table>'
+            .'<tr><td>Date &amp; time:</td><td>22/06/2026 09:30</td></tr>'
+            .'<tr><td>Pickup:</td><td>Leeds Bradford Airport (LBA), Leeds, UK</td></tr>'
+            .'<tr><td>Dropoff:</td><td>Glebe Road, Sheffield S10 1FB, UK</td></tr>'
+            .'<tr><td>Vehicle type:</td><td>Executive</td></tr>'
+            .'<tr><td>Passengers:</td><td>2</td></tr>'
+            .'<tr><td>Name:</td><td>Steven Dickinson</td></tr>'
+            .'<tr><td>Phone number:</td><td>+447770602920</td></tr>'
+            .'<tr><td>Reference number:</td><td>URTBYO</td></tr>'
+            .'<tr><td>Total:</td><td>£120</td></tr>'
+            .'<tr><td>Payments:</td><td>£120 (Square) - Paid</td></tr>'
+            .'</table></body></html>';
+
+        $text = app(\App\Services\Inbox\GraphMailClient::class)
+            ->bodyToText(['contentType' => 'html', 'content' => $html]);
+
+        $parsed = app(OutlookBookingService::class)->parse('New booking URTBYO has been created.', $text, null);
+
+        $this->assertNotNull($parsed, 'HTML ETO email should parse');
+        $this->assertEquals('URTBYO', $parsed['reference']);
+        $this->assertEquals('2026-06-22 09:30', $parsed['pickup_at']);
+        $this->assertEquals('paid', $parsed['payment_status']);
+
+        $booking = app(OutlookBookingService::class)->upsertFromParsed($parsed)['booking'];
+        $this->assertEquals('LBA', $booking->airport->code);
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);
