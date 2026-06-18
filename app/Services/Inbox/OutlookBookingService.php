@@ -209,11 +209,44 @@ class OutlookBookingService
             ?? VehicleType::where('slug', 'executive')->firstOrFail();
     }
 
+    /**
+     * Airport name/postcode aliases — ETO emails don't always include the IATA
+     * code in brackets (e.g. "Manchester Airport M90 1QX"), so match on the
+     * airport name or its postcode-area prefix as well.
+     *
+     * @var array<string, list<string>>
+     */
+    private const AIRPORT_ALIASES = [
+        'MAN' => ['manchester airport', 'm90'],
+        'LHR' => ['heathrow', 'tw6'],
+        'LGW' => ['gatwick', 'rh6'],
+        'STN' => ['stansted', 'cm24'],
+        'EMA' => ['east midlands airport', 'nottingham east midlands', 'de74'],
+        'LBA' => ['leeds bradford', 'ls19'],
+        'BHX' => ['birmingham airport', 'b26'],
+        'LPL' => ['liverpool john lennon', 'liverpool airport', 'l24'],
+        'HUY' => ['humberside airport', 'dn39'],
+    ];
+
     private function detectAirport(array $parsed): ?int
     {
         $haystack = ($parsed['pickup_address'] ?? '').' '.($parsed['destination_address'] ?? '');
+
+        // Preferred: an explicit IATA code in brackets, e.g. "(MAN)".
         if (preg_match('/\(([A-Z]{3})\)/', $haystack, $m)) {
-            return Airport::where('code', $m[1])->value('id');
+            if ($id = Airport::where('code', $m[1])->value('id')) {
+                return $id;
+            }
+        }
+
+        // Fallback: recognise the airport by name or postcode area.
+        $needle = strtolower($haystack);
+        foreach (self::AIRPORT_ALIASES as $code => $aliases) {
+            foreach ($aliases as $alias) {
+                if (str_contains($needle, $alias)) {
+                    return Airport::where('code', $code)->value('id');
+                }
+            }
         }
 
         return null;

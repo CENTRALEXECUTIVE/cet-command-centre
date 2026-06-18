@@ -182,6 +182,49 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals('cancelled', $svc->upsertFromParsed($cancel)['action']);
     }
 
+    public function test_eto_email_without_iata_code_or_lead_passenger(): void
+    {
+        config(['services.anthropic.key' => null]);
+
+        $body = <<<'EML'
+        New booking CH9BQQ has been created.
+
+        Journey
+        Date & time:	22/06/2026 22:15
+        Time zone:	UTC+1 London
+        Pickup:	Manchester Airport M90 1QX
+        Arrival flight number:	RK2899
+        Meet & Greet:	Required
+        Dropoff:	Glebe Road, Sheffield S10 1FB, UK
+        Vehicle type:	Executive
+        Passengers:	2
+        Hand luggage:	2
+        Comments:	The flight arrives at Terminal 3
+        Customer
+        Name:	Steven Dickinson
+        Phone number:	+447770602920
+        Email:	dickys10@icloud.com
+        Reservation
+        Reference number:	CH9BQQ
+        Booking date:	17/06/2026 11:34
+        Total:	£110
+        EML;
+
+        $svc = app(OutlookBookingService::class);
+        $parsed = $svc->parse('New booking CH9BQQ has been created.', $body, 'noreply@easytaxioffice.co.uk');
+
+        $this->assertEquals('CH9BQQ', $parsed['reference']);
+        $this->assertEquals('Steven Dickinson', $parsed['customer_name']); // no lead passenger → customer
+        $this->assertEquals('+447770602920', $parsed['customer_phone']);
+        $this->assertEquals('2026-06-22 22:15', $parsed['pickup_at']);
+        $this->assertEquals('RK2899', $parsed['flight_number']);
+
+        $booking = $svc->upsertFromParsed($parsed)['booking'];
+        // Airport detected from the name + postcode despite no "(MAN)" code.
+        $this->assertEquals('MAN', $booking->airport->code);
+        $this->assertEquals('22:15', $booking->pickup_at->format('H:i'));
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);
