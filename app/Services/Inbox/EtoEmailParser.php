@@ -85,6 +85,16 @@ class EtoEmailParser
             ?? $this->getFlat($fields, 'email')
             ?? $from;
 
+        $flight = $this->getFlat($fields, 'arrival flight number')
+            ?? $this->getFlat($fields, 'departure flight number')
+            ?? $this->getFlat($fields, 'flight number');
+        $meetGreet = $this->isYes($this->getFlat($fields, 'meet & greet') ?? $this->getFlat($fields, 'meet and greet'));
+        $notes = $this->getFlat($fields, 'comments') ?? $this->getFlat($fields, 'notes');
+        $payment = $this->payment($fields);
+
+        // Child/booster/infant seat anywhere in the email → 🚼.
+        $childSeat = (bool) preg_match('/\b(child|baby|infant|booster)\s*seat|car\s*seat\b/i', $body);
+
         return [
             'is_booking' => true,
             'cancelled' => false,
@@ -92,14 +102,77 @@ class EtoEmailParser
             'customer_name' => $name ?? 'ETO customer',
             'customer_phone' => $phone,
             'customer_email' => $email,
+            'booker_name' => $this->get($fields, 'customer', 'name'),
             'pickup_address' => $pickup,
             'destination_address' => $dropoff,
             'pickup_at' => $pickupAt,
             'passengers' => (int) ($this->getFlat($fields, 'passengers') ?: 1),
+            'luggage' => (int) ($this->getFlat($fields, 'hand luggage')
+                ?? $this->getFlat($fields, 'luggage') ?? 0),
             'vehicle_type' => $this->getFlat($fields, 'vehicle type'),
-            'flight_number' => $this->getFlat($fields, 'arrival flight number')
-                ?? $this->getFlat($fields, 'flight number'),
+            'flight_number' => $flight,
+            'meet_and_greet' => $meetGreet,
+            'child_seat' => $childSeat,
+            'notes' => $notes,
+            'payment_status' => $payment['status'],
+            'payment_method' => $payment['method'],
+            'payment_text' => $payment['text'],
+            'total_amount' => $payment['total'],
         ];
+    }
+
+    /**
+     * Read the ETO payment lines, e.g.
+     *   Total:    £110
+     *   Payments: £110 (Square) - Paid
+     * Returns the status (paid|deposit|partial|pending), the method label
+     * (Square/Stripe/Cash/Card), the gross total, and a display string.
+     *
+     * @param array{sections: array<string, array<string, string>>, flat: array<string, string>} $fields
+     * @return array{status: string, method: string|null, total: float|null, text: string|null}
+     */
+    private function payment(array $fields): array
+    {
+        $payments = $this->getFlat($fields, 'payments') ?? '';
+        $total = $this->money($this->getFlat($fields, 'total'));
+
+        $status = 'pending';
+        if (preg_match('/\b(paid|deposit|part(?:ial(?:ly)?)?\s*paid?|partial)\b/i', $payments, $m)) {
+            $word = strtolower($m[1]);
+            $status = str_starts_with($word, 'paid') ? 'paid'
+                : (str_starts_with($word, 'deposit') ? 'deposit' : 'partial');
+        } elseif (preg_match('/\bpending\b/i', $payments)) {
+            $status = 'pending';
+        }
+
+        // Method in brackets, e.g. "(Square)", "(Stripe)", "(Cash)".
+        $method = null;
+        if (preg_match('/\(([A-Za-z ]+)\)/', $payments, $m)) {
+            $method = trim($m[1]);
+        } elseif (stripos($payments, 'cash') !== false) {
+            $method = 'Cash';
+        }
+
+        return [
+            'status' => $status,
+            'method' => $method,
+            'total' => $total,
+            'text' => trim($payments) ?: null,
+        ];
+    }
+
+    private function money(?string $value): ?float
+    {
+        if ($value && preg_match('/([\d,]+(?:\.\d{2})?)/', $value, $m)) {
+            return (float) str_replace(',', '', $m[1]);
+        }
+
+        return null;
+    }
+
+    private function isYes(?string $value): bool
+    {
+        return $value !== null && preg_match('/\b(required|yes|true|y)\b/i', $value) === 1;
     }
 
     /** created | amended | cancelled | null, from the email headline/subject. */

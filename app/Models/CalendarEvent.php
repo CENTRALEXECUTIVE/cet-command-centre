@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CalendarEvent extends Model
 {
     protected $fillable = [
-        'booking_id', 'calendar_id', 'google_event_id', 'title', 'location',
+        'booking_id', 'calendar_id', 'google_event_id', 'title', 'location', 'description',
         'start_at', 'end_at', 'timezone', 'payment_emoji', 'notifications',
         'sync_status', 'synced_at', 'sync_error',
     ];

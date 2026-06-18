@@ -33,6 +33,7 @@ class OutlookIngestionTest extends TestCase
             'customer_phone' => '07700900123', 'pickup_address' => 'Manchester Airport (MAN), Terminal 3',
             'destination_address' => 'Radisson Blu Hotel, Sheffield', 'pickup_at' => '2026-07-01 14:00',
             'passengers' => 2, 'vehicle_type' => 'Executive', 'flight_number' => 'BA123',
+            'payment_status' => 'paid', 'payment_method' => 'Square', 'payment_text' => '£300 (Square) - Paid',
         ], $overrides);
     }
 
@@ -149,6 +150,7 @@ class OutlookIngestionTest extends TestCase
         Booking date:	18/06/2026 11:00
         Summary:	Journey £300
         Total:	£310
+        Payments:	£310 (Square) - Paid
         EML;
 
         $svc = app(OutlookBookingService::class);
@@ -208,6 +210,7 @@ class OutlookIngestionTest extends TestCase
         Reference number:	CH9BQQ
         Booking date:	17/06/2026 11:34
         Total:	£110
+        Payments:	£110 (Square) - Paid
         EML;
 
         $svc = app(OutlookBookingService::class);
@@ -223,6 +226,43 @@ class OutlookIngestionTest extends TestCase
         // Airport detected from the name + postcode despite no "(MAN)" code.
         $this->assertEquals('MAN', $booking->airport->code);
         $this->assertEquals('22:15', $booking->pickup_at->format('H:i'));
+    }
+
+    public function test_description_emoji_and_import_rules(): void
+    {
+        $svc = app(OutlookBookingService::class);
+
+        // Fully paid card booking → no money emoji, formatted description.
+        $event = $svc->upsertFromParsed($this->parsed([
+            'meet_and_greet' => true, 'notes' => 'Flight at Terminal 3',
+        ]))['booking']->calendarEvent;
+
+        $this->assertStringNotContainsString('👀', $event->title);
+        $this->assertStringNotContainsString('💰', $event->title);
+        $this->assertStringContainsString('📑 Booking Confirmation', $event->description);
+        $this->assertStringContainsString('*Booking Reference:* ZWR6MM', $event->description);
+        $this->assertStringContainsString('*Meet & Greet:* Required', $event->description);
+        $this->assertStringContainsString('Arrival (Meet & Greet)', $event->description);
+
+        // Deposit (balance remaining) on card → 👀 + 3-day push.
+        $deposit = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'DEP123', 'payment_status' => 'deposit', 'payment_method' => 'Stripe',
+        ]))['booking']->calendarEvent;
+        $this->assertStringContainsString('👀', $deposit->title);
+        $this->assertContains(['method' => 'popup', 'minutes' => 4320], $deposit->notifications);
+
+        // Child seat anywhere → 🚼.
+        $child = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'KID999', 'child_seat' => true,
+        ]))['booking']->calendarEvent;
+        $this->assertStringContainsString('🚼', $child->title);
+
+        // Import rule: brand-new booking still fully Pending is skipped.
+        $skipped = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'PEND01', 'payment_status' => 'pending',
+        ]));
+        $this->assertNull($skipped);
+        $this->assertEquals(0, Booking::where('external_reference', 'PEND01')->count());
     }
 
     public function test_non_booking_email_is_skipped(): void

@@ -38,6 +38,7 @@ class GoogleCalendarService
             $payload = [
                 'summary' => $event->title,
                 'location' => $event->location,
+                'description' => $event->description,
                 'start' => ['dateTime' => $event->start_at->toRfc3339String(), 'timeZone' => $event->timezone],
                 'end' => ['dateTime' => $event->end_at->toRfc3339String(), 'timeZone' => $event->timezone],
                 'reminders' => ['useDefault' => false, 'overrides' => $event->notifications ?? []],
@@ -51,8 +52,16 @@ class GoogleCalendarService
                 : Http::withToken($token)->post($base, $payload);
 
             if ($response->successful()) {
+                $eventId = $response->json('id', $event->google_event_id);
+
+                // Rule: after every add, confirm it's actually in the calendar by
+                // reading the event straight back from Google before marking synced.
+                if (! $this->confirmInCalendar($token, $base, $eventId)) {
+                    return $this->markFailed($event, 'Event written but not confirmed present in calendar.');
+                }
+
                 $event->update([
-                    'google_event_id' => $response->json('id', $event->google_event_id),
+                    'google_event_id' => $eventId,
                     'sync_status' => 'synced',
                     'synced_at' => now(),
                     'sync_error' => null,
@@ -65,6 +74,21 @@ class GoogleCalendarService
         } catch (\Throwable $e) {
             return $this->markFailed($event, $e->getMessage());
         }
+    }
+
+    /**
+     * Read the event back from Google to confirm the add/update actually landed
+     * (status is "confirmed", not cancelled). Returns false if it can't be found.
+     */
+    protected function confirmInCalendar(string $token, string $base, ?string $eventId): bool
+    {
+        if (! $eventId) {
+            return false;
+        }
+
+        $check = Http::withToken($token)->get("{$base}/{$eventId}");
+
+        return $check->successful() && $check->json('status') !== 'cancelled';
     }
 
     /**

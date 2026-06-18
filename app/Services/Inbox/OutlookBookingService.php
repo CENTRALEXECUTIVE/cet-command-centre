@@ -136,23 +136,38 @@ class OutlookBookingService
             return ['booking' => $existing, 'action' => 'cancelled'];
         }
 
+        $paymentStatus = strtolower((string) ($parsed['payment_status'] ?? 'pending'));
+
+        // Import rule: only bring in bookings that show some payment (full,
+        // deposit or partial). A brand-new booking that is still entirely
+        // Pending is left unread for a human; an existing booking still updates.
+        if (! $existing && $paymentStatus === 'pending') {
+            return null;
+        }
+
         $vehicleType = $this->resolveVehicleType($parsed['vehicle_type'] ?? null);
         // Email times are UK local; the app runs in Europe/London, so parse in
         // the app timezone (config APP_TIMEZONE=Europe/London in production).
         $pickupAt = Carbon::parse($parsed['pickup_at']);
 
-        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt) {
+        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus) {
             $customer = $this->resolveCustomer($parsed);
+            $airportId = $this->detectAirport($parsed);
 
             $fields = [
                 'customer_id' => $customer->id,
                 'vehicle_type_id' => $vehicleType->id,
-                'airport_id' => $this->detectAirport($parsed),
+                'airport_id' => $airportId,
                 'pickup_at' => $pickupAt,
                 'pickup_address' => $parsed['pickup_address'],
                 'destination_address' => $parsed['destination_address'],
                 'flight_number' => $parsed['flight_number'] ?? null,
                 'passengers' => (int) ($parsed['passengers'] ?? 1),
+                'luggage' => (int) ($parsed['luggage'] ?? 0),
+                'special_requests' => $parsed['notes'] ?? null,
+                'payment_status' => $paymentStatus,
+                'payment_method' => $this->paymentMethod($parsed['payment_method'] ?? null),
+                'meta' => $this->meta($parsed, $airportId),
             ];
 
             if ($existing) {
@@ -165,7 +180,6 @@ class OutlookBookingService
                     'source_system' => 'eto',
                     'external_reference' => $reference,
                     'status' => BookingStatus::Pending->value,
-                    'payment_method' => 'card',
                     'source' => 'outlook',
                 ]);
                 $action = 'created';
@@ -175,6 +189,50 @@ class OutlookBookingService
 
             return ['booking' => $booking, 'action' => $action];
         });
+    }
+
+    /** Map the ETO payment label (Square/Stripe/Cash/Card) to our method enum. */
+    private function paymentMethod(?string $label): string
+    {
+        return $label && stripos($label, 'cash') !== false ? 'cash' : 'card';
+    }
+
+    /**
+     * Extra ETO details the calendar description needs, stored on the booking's
+     * meta. journey_label drives the "Departure / Arrival / Transfer" heading.
+     *
+     * @param  array<string, mixed>  $parsed
+     * @return array<string, mixed>
+     */
+    private function meta(array $parsed, ?int $airportId): array
+    {
+        $pickup = strtolower($parsed['pickup_address'] ?? '');
+        $dropoff = strtolower($parsed['destination_address'] ?? '');
+        $meetGreet = ! empty($parsed['meet_and_greet']);
+
+        // Airport in the PICKUP → an arrival (meeting an inbound flight);
+        // airport in the DROPOFF → a departure; otherwise a point-to-point transfer.
+        $pickupIsAirport = $airportId && str_contains($pickup, 'airport');
+        $dropoffIsAirport = str_contains($dropoff, 'airport');
+
+        if ($pickupIsAirport) {
+            $label = $meetGreet ? 'Arrival (Meet & Greet)' : 'Arrival';
+        } elseif ($dropoffIsAirport || $airportId) {
+            $label = 'Departure';
+        } else {
+            $label = 'Transfer';
+        }
+
+        return array_filter([
+            'journey_label' => $label,
+            'meet_and_greet' => $meetGreet,
+            'child_seat' => ! empty($parsed['child_seat']),
+            'payment_text' => $parsed['payment_text'] ?? null,
+            'payment_method_label' => $parsed['payment_method'] ?? null,
+            'total_amount' => $parsed['total_amount'] ?? null,
+            'booker_name' => $parsed['booker_name'] ?? null,
+            'contact_no' => $parsed['customer_phone'] ?? null,
+        ], fn ($v) => $v !== null);
     }
 
     /** Build the formatted calendar event and push it to Google (best-effort). */
