@@ -97,6 +97,34 @@ class GoogleCalendarService
     }
 
     /**
+     * Remove an event from Google Calendar (used when cleaning up demo/removed
+     * bookings). Treats "already gone" (404/410) as success.
+     */
+    public function delete(CalendarEvent $event): bool
+    {
+        if (! $this->configured() || ! $event->google_event_id) {
+            return false;
+        }
+
+        try {
+            $token = $this->accessToken();
+            if (! $token) {
+                return false;
+            }
+            $calendarId = rawurlencode($event->calendar_id);
+            $response = Http::withToken($token)->delete(
+                "https://www.googleapis.com/calendar/v3/calendars/{$calendarId}/events/{$event->google_event_id}"
+            );
+
+            return $response->successful() || in_array($response->status(), [404, 410], true);
+        } catch (\Throwable $e) {
+            Log::warning('Google Calendar delete failed', ['event' => $event->id, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
      * Step-by-step check used by `cet:test-calendar`: read the key file → sign a
      * JWT → get a token → read the target calendar. Reports the real Google error
      * at whichever step fails. Reveals no private key.

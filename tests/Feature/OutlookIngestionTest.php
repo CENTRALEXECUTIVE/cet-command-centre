@@ -374,6 +374,28 @@ class OutlookIngestionTest extends TestCase
         $this->assertStringContainsString('(V CLASS)', $vclass->calendarEvent->title);
     }
 
+    public function test_remove_demo_deletes_non_eto_only(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed(['reference' => 'KEEP01'])); // real ETO → kept
+
+        // A demo booking (no source_system) → removed.
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->first();
+        $cust = \App\Models\Customer::create(['name' => 'Demo Person', 'phone' => '07000000000']);
+        Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $cust->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->addDay(),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'status' => 'pending',
+            'payment_method' => 'card', 'source' => 'phone',
+        ]);
+
+        $this->assertEquals(2, Booking::count());
+        $this->artisan('cet:remove-demo')->assertSuccessful();
+
+        $this->assertEquals(1, Booking::count());
+        $this->assertNotNull(Booking::where('external_reference', 'KEEP01')->first());
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);
