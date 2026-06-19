@@ -159,7 +159,11 @@ class GoogleCalendarService
             }
             foreach ($resp->json('items', []) as $item) {
                 $creator = strtolower($item['creator']['email'] ?? '');
-                if (! empty($item['id']) && $creator === $serviceEmail) {
+                $summary = (string) ($item['summary'] ?? '');
+                // Ours = created by the service account, OR in our title format
+                // (*Name AIRPORT (TAG)*) — catches orphans regardless of creator.
+                $isOurs = $creator === $serviceEmail || str_starts_with(trim($summary), '*');
+                if (! empty($item['id']) && $isOurs) {
                     $ids[] = $item['id'];
                 }
             }
