@@ -74,8 +74,12 @@ class ImportEtoCalendar extends Command
             $parsed = $this->toParsed($row['data'], $row['dt'], $row['cancel']);
             // Backfill leaves rotation untouched — these jobs are unassigned in
             // ETO and you allocate drivers manually; the pointer stays as seeded.
-            $result = $svc->upsertFromParsed($parsed, allocateRotation: false);
-            $result ? $stats[$result['action']]++ : $stats['skipped']++;
+            try {
+                $result = $svc->upsertFromParsed($parsed, allocateRotation: false);
+                $result ? $stats[$result['action']]++ : $stats['skipped']++;
+            } catch (\Illuminate\Database\QueryException $e) {
+                $stats['skipped']++; // reference already exists (unique index) — no duplicate
+            }
         }
 
         $this->info("Imported {$stats['created']}, updated {$stats['updated']}, cancelled {$stats['cancelled']}, "

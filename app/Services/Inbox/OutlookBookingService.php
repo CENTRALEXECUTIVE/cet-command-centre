@@ -80,8 +80,17 @@ class OutlookBookingService
                 continue;
             }
 
-            $result = $this->upsertFromParsed($parsed);
-            $result ? $stats[$result['action']]++ : $stats['skipped']++;
+            try {
+                $result = $this->upsertFromParsed($parsed);
+                $result ? $stats[$result['action']]++ : $stats['skipped']++;
+            } catch (\Illuminate\Database\QueryException $e) {
+                // A concurrent run already created this reference (unique index) —
+                // not a duplicate on the calendar, just skip it this pass.
+                $stats['skipped']++;
+                \Illuminate\Support\Facades\Log::warning('Ingest upsert skipped (likely concurrent create)', [
+                    'reference' => $reference, 'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $stats;
