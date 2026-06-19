@@ -415,7 +415,9 @@ class OutlookIngestionTest extends TestCase
 
         $this->artisan('cet:import-eto-calendar', ['path' => $path])->assertSuccessful();
 
-        $this->assertNotNull(Booking::where('external_reference', 'NEW001')->first(), 'upcoming confirmed paid imported');
+        $new = Booking::where('external_reference', 'NEW001')->first();
+        $this->assertNotNull($new, 'upcoming confirmed paid imported');
+        $this->assertNull($new->driver_id, 'backfill must NOT auto-assign a driver / advance rotation');
         $this->assertNull(Booking::where('external_reference', 'QUOTE1')->first(), 'quote skipped');
         $this->assertNull(Booking::where('external_reference', 'NOPAY1')->first(), 'no-payment skipped');
         $this->assertNull(Booking::where('external_reference', 'PAST01')->first(), 'past skipped');

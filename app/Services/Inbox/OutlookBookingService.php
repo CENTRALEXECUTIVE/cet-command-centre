@@ -117,9 +117,12 @@ class OutlookBookingService
      * calendar event.
      *
      * @param  array<string, mixed>  $parsed
+     * @param  bool  $allocateRotation  Allocate the rotation driver on create
+     *   (true for the live email feed). A bulk CSV backfill passes false so it
+     *   leaves the rotation pointer untouched — those jobs are assigned manually.
      * @return array{booking: Booking, action: 'created'|'updated'|'cancelled'}|null
      */
-    public function upsertFromParsed(array $parsed): ?array
+    public function upsertFromParsed(array $parsed, bool $allocateRotation = true): ?array
     {
         $reference = $parsed['reference'] ?? null;
 
@@ -149,7 +152,7 @@ class OutlookBookingService
         // the app timezone (config APP_TIMEZONE=Europe/London in production).
         $pickupAt = Carbon::parse($parsed['pickup_at']);
 
-        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus) {
+        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus, $allocateRotation) {
             $customer = $this->resolveCustomer($parsed);
             $airportId = $this->detectAirport($parsed);
 
@@ -187,7 +190,10 @@ class OutlookBookingService
                 // jobs only — the title then shows the driver, not the vehicle.
                 // No-op for non-rotation vehicles (V Class, Minibus, etc.) and
                 // only on create, so amendment emails never re-advance rotation.
-                $this->rotation->allocate($booking);
+                // Skipped for bulk backfill so it doesn't disturb the pointer.
+                if ($allocateRotation) {
+                    $this->rotation->allocate($booking);
+                }
             }
 
             $this->pushCalendar($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));
