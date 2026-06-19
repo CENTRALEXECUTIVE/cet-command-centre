@@ -45,15 +45,20 @@ class EtoEmailParser
             return null;
         }
 
+        // A quote request is NOT a booking — it must never reach the calendar.
+        if (preg_match('/\bquote\b/i', $subject) || preg_match('/\b(request(?:ed)? a quote|quote request|new quote|quotation)\b/i', $text)) {
+            return null;
+        }
+
         $action = $this->detectAction($text);
         $fields = $this->fieldsBySection($body);
         $reference = $this->get($fields, 'reservation', 'reference number')
             ?? $this->getFlat($fields, 'reference number')
             ?? $this->headlineReference($text);
 
-        // Not an ETO booking email if we can find neither an action nor a
-        // reference + the tell-tale "Reference number"/"Pickup" rows.
-        if (! $reference || (! $action && ! $this->getFlat($fields, 'pickup'))) {
+        // Only a confirmed booking notification (created / amended / cancelled)
+        // is imported. No action (e.g. a quote or other mail) → not a booking.
+        if (! $reference || ! $action) {
             return null;
         }
 

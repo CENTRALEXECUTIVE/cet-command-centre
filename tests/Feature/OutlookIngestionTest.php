@@ -515,6 +515,24 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals('Abdirazak Hassan', $c->driver->name);
     }
 
+    public function test_quote_requests_are_never_imported(): void
+    {
+        config(['services.anthropic.key' => null]);
+        $svc = app(OutlookBookingService::class);
+
+        // Quote email with full journey details but quote wording → NOT a booking.
+        $quote = "New quote request QUOTE1\nDate & time: 31/12/2030 14:00\n"
+            ."Pickup: Manchester Airport (MAN)\nDropoff: Sheffield\n"
+            ."Vehicle type: Executive\nReference number: QUOTE1";
+        $this->assertNull($svc->parse('Quote request QUOTE1', $quote, null));
+
+        // A confirmed booking with the same details IS imported.
+        $ok = "New booking REAL01 has been created.\nDate & time: 31/12/2030 14:00\n"
+            ."Pickup: Manchester Airport (MAN)\nDropoff: Sheffield\n"
+            ."Vehicle type: Executive\nReference number: REAL01\nPayments: £100 (Square) - Paid";
+        $this->assertNotNull($svc->parse('New booking REAL01', $ok, null));
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);
