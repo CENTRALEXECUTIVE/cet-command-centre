@@ -472,6 +472,31 @@ class OutlookIngestionTest extends TestCase
         @unlink($path);
     }
 
+    public function test_paired_outbound_return_share_driver_rotation_moves_once(): void
+    {
+        $this->seed(\Database\Seeders\RotationSeeder::class);
+        $svc = app(OutlookBookingService::class);
+
+        // Outbound 'a' from LBA (MAJ is next there).
+        $a = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'PAIR01a', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+        ]))['booking'];
+        // Return 'b' back to LBA.
+        $b = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'PAIR01b', 'pickup_address' => 'Sheffield', 'destination_address' => 'Leeds Bradford Airport (LBA)',
+        ]))['booking'];
+
+        $this->assertEquals('Majid Ali', $a->driver->name);
+        $this->assertEquals($a->driver_id, $b->fresh()->driver_id, 'return leg shares the outbound driver');
+        $this->assertTrue($b->fresh()->is_return_leg);
+
+        // Only ONE advance: the next standalone LBA job goes to ABDI.
+        $c = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'SOLO99', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+        ]))['booking'];
+        $this->assertEquals('Abdirazak Hassan', $c->driver->name);
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);

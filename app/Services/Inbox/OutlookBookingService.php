@@ -62,10 +62,9 @@ class OutlookBookingService
             }
         }
 
-        // Process in journey (pickup) order so the rotation assigns ABDI/MAJ in
-        // the correct sequence even when several arrive together. Cancellations
-        // (no pickup) sort last.
-        usort($parsedList, fn ($a, $b) => $this->sortKey($a) <=> $this->sortKey($b));
+        // Process in BOOKING order — oldest email first (fetchRecent returns
+        // newest-first). First booked → first driver in the rotation.
+        $parsedList = array_reverse($parsedList);
 
         foreach ($parsedList as $parsed) {
             $reference = $parsed['reference'] ?? null;
@@ -85,12 +84,6 @@ class OutlookBookingService
         }
 
         return $stats;
-    }
-
-    /** Sort key for journey order; cancellations / undated sort to the end. */
-    private function sortKey(array $parsed): int
-    {
-        return isset($parsed['pickup_at']) ? (strtotime($parsed['pickup_at']) ?: PHP_INT_MAX) : PHP_INT_MAX;
     }
 
     /**
@@ -216,12 +209,11 @@ class OutlookBookingService
                 $action = 'created';
 
                 // Allocate the rotation driver (ABDI/MAJ) for Executive saloon
-                // jobs only — the title then shows the driver, not the vehicle.
-                // No-op for non-rotation vehicles (V Class, Minibus, etc.) and
-                // only on create, so amendment emails never re-advance rotation.
-                // Skipped for bulk backfill so it doesn't disturb the pointer.
+                // jobs only — paired outbound/return share a driver and advance
+                // the rotation once. No-op for non-rotation vehicles, only on
+                // create. Skipped for bulk backfill so it doesn't disturb the pointer.
                 if ($allocateRotation) {
-                    $this->rotation->allocate($booking);
+                    $this->allocateDriver($booking, $reference);
                 }
             }
 
@@ -301,6 +293,58 @@ class OutlookBookingService
             && strtolower((string) $existing->payment_status) === strtolower((string) ($parsed['payment_status'] ?? 'pending'))
             && trim((string) $existing->pickup_address) === trim((string) ($parsed['pickup_address'] ?? ''))
             && trim((string) $existing->destination_address) === trim((string) ($parsed['destination_address'] ?? ''));
+    }
+
+    /**
+     * Assign the rotation driver for a new Executive saloon job, honouring paired
+     * outbound/return bookings. ETO marks the two legs with a trailing lowercase
+     * 'a' (outbound) / 'b' (return) on the same base reference; both legs get the
+     * SAME driver and the rotation advances only ONCE.
+     */
+    private function allocateDriver(Booking $booking, ?string $reference): void
+    {
+        $sibling = $this->pairedSibling($reference);
+        if (! $sibling) {
+            $this->rotation->allocate($booking); // standalone — normal rotation
+
+            return;
+        }
+
+        $isReturn = $reference !== null && str_ends_with($reference, 'b');
+
+        if ($sibling->driver_id) {
+            // The other leg already has the driver → match it, do NOT advance.
+            $booking->forceFill([
+                'driver_id' => $sibling->driver_id,
+                'is_return_leg' => $isReturn,
+                'linked_booking_id' => $sibling->id,
+                'journey_type' => 'return',
+            ])->save();
+        } else {
+            // First leg seen → normal rotation (advances once); the other matches.
+            $this->rotation->allocate($booking);
+            $booking->forceFill([
+                'is_return_leg' => $isReturn,
+                'linked_booking_id' => $sibling->id,
+                'journey_type' => 'return',
+            ])->save();
+        }
+
+        $sibling->forceFill(['linked_booking_id' => $booking->id, 'journey_type' => 'return'])->save();
+    }
+
+    /** The other leg of a paired ETO booking (…a ↔ …b), if it exists. */
+    private function pairedSibling(?string $reference): ?Booking
+    {
+        if (! $reference || ! preg_match('/^([A-Za-z0-9]{4,})([ab])$/', $reference, $m)) {
+            return null;
+        }
+        $base = $m[1];
+
+        return Booking::where('source_system', 'eto')
+            ->whereIn('external_reference', [$base.'a', $base.'b'])
+            ->where('external_reference', '!=', $reference)
+            ->first();
     }
 
     /** Build the formatted calendar event and push it to Google (best-effort). */
