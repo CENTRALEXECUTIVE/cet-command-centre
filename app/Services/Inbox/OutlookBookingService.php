@@ -305,7 +305,11 @@ class OutlookBookingService
         return $sameTime
             && strtolower((string) $existing->payment_status) === strtolower((string) ($parsed['payment_status'] ?? 'pending'))
             && trim((string) $existing->pickup_address) === trim((string) ($parsed['pickup_address'] ?? ''))
-            && trim((string) $existing->destination_address) === trim((string) ($parsed['destination_address'] ?? ''));
+            && trim((string) $existing->destination_address) === trim((string) ($parsed['destination_address'] ?? ''))
+            // Passenger/luggage too, so an email enriches a booking that came from
+            // the CSV with placeholder counts (the email is the real source).
+            && (int) $existing->passengers === (int) ($parsed['passengers'] ?? 1)
+            && (int) $existing->luggage === (int) ($parsed['luggage'] ?? 0);
     }
 
     /**
