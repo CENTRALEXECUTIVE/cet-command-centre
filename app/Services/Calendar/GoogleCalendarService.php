@@ -54,18 +54,23 @@ class GoogleCalendarService
             if ($response->successful()) {
                 $eventId = $response->json('id', $event->google_event_id);
 
-                // Rule: after every add, confirm it's actually in the calendar by
-                // reading the event straight back from Google before marking synced.
-                if (! $this->confirmInCalendar($token, $base, $eventId)) {
-                    return $this->markFailed($event, 'Event written but not confirmed present in calendar.');
-                }
-
+                // Store the Google event id IMMEDIATELY. Critical for no-duplicates:
+                // a later email for the same reference (e.g. payment now Paid) must
+                // UPDATE this same event (PUT), never create a second one. We save
+                // the id even if the confirmation read-back below hiccups.
                 $event->update([
                     'google_event_id' => $eventId,
                     'sync_status' => 'synced',
                     'synced_at' => now(),
                     'sync_error' => null,
                 ]);
+
+                // Rule: confirm it's actually in the calendar by reading it back.
+                if (! $this->confirmInCalendar($token, $base, $eventId)) {
+                    Log::warning('Google Calendar event written but not confirmed on read-back', [
+                        'event' => $event->id, 'google_event_id' => $eventId,
+                    ]);
+                }
 
                 return true;
             }

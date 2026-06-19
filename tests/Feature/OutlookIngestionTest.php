@@ -304,6 +304,11 @@ class OutlookIngestionTest extends TestCase
         $event = $booking->calendarEvent;
         $this->assertStringContainsString('*Stop 1:* 54 Larch Avenue', $event->description);
         $this->assertStringContainsString('*Stop 2:* 28 Batworth Drive', $event->description);
+        // Order: Pickup → Stops → Drop-off (contiguous), drop-off straight after stops.
+        $pickupPos = strpos($event->description, '*Pickup Location:*');
+        $stop2Pos = strpos($event->description, '*Stop 2:*');
+        $dropPos = strpos($event->description, '*Drop-off Location:*');
+        $this->assertTrue($pickupPos < $stop2Pos && $stop2Pos < $dropPos, 'Pickup → Stops → Drop-off order');
         $this->assertStringContainsString('👀', $event->title); // pending → balance outstanding
     }
 
@@ -340,6 +345,33 @@ class OutlookIngestionTest extends TestCase
 
         $booking = app(OutlookBookingService::class)->upsertFromParsed($parsed)['booking'];
         $this->assertEquals('LBA', $booking->airport->code);
+    }
+
+    public function test_executive_jobs_get_rotation_driver_per_airport(): void
+    {
+        $this->seed(\Database\Seeders\RotationSeeder::class);
+        $svc = app(OutlookBookingService::class);
+
+        // MAN → ABDI; tag is the callsign (ABDI), not the full first name.
+        $man = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'MAN001', 'pickup_address' => 'Manchester Airport (MAN)',
+        ]))['booking'];
+        $this->assertEquals('Abdirazak Hassan', $man->driver->name);
+        $this->assertStringContainsString('(ABDI)', $man->calendarEvent->title);
+
+        // LBA → MAJ.
+        $lba = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'LBA001', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+        ]))['booking'];
+        $this->assertEquals('Majid Ali', $lba->driver->name);
+        $this->assertStringContainsString('(MAJ)', $lba->calendarEvent->title);
+
+        // Non-rotation vehicle (Executive 8 Seater → V Class) keeps no driver; tag = V CLASS.
+        $vclass = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'VC001', 'vehicle_type' => 'Executive 8 Seater',
+        ]))['booking'];
+        $this->assertNull($vclass->driver);
+        $this->assertStringContainsString('(V CLASS)', $vclass->calendarEvent->title);
     }
 
     public function test_non_booking_email_is_skipped(): void

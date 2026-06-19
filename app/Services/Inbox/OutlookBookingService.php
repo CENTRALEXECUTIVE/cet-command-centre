@@ -11,6 +11,7 @@ use App\Services\Ai\AnthropicService;
 use App\Services\Calendar\GoogleCalendarService;
 use App\Services\CalendarEventBuilder;
 use App\Services\Pricing\FixedPriceService;
+use App\Services\RotationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +37,7 @@ class OutlookBookingService
         private readonly FixedPriceService $fixedPrices,
         private readonly CalendarEventBuilder $calendarBuilder,
         private readonly GoogleCalendarService $googleCalendar,
+        private readonly RotationService $rotation,
     ) {}
 
     /**
@@ -180,6 +182,12 @@ class OutlookBookingService
                     'source' => 'outlook',
                 ]);
                 $action = 'created';
+
+                // Allocate the rotation driver (ABDI/MAJ) for Executive saloon
+                // jobs only — the title then shows the driver, not the vehicle.
+                // No-op for non-rotation vehicles (V Class, Minibus, etc.) and
+                // only on create, so amendment emails never re-advance rotation.
+                $this->rotation->allocate($booking);
             }
 
             $this->pushCalendar($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));

@@ -69,9 +69,12 @@ class CalendarEventBuilder
 
     private function tag(Booking $booking): string
     {
-        // Executive/rotation jobs are tagged with the assigned driver's first name.
+        // Executive/rotation jobs are tagged with the driver's callsign — the
+        // email local-part (abdi@… → ABDI, maj@… → MAJ).
         if ($booking->vehicleType?->affects_rotation && $booking->driver) {
-            return Str::upper(Str::before($booking->driver->name, ' '));
+            $callsign = Str::before((string) $booking->driver->email, '@');
+
+            return Str::upper($callsign !== '' ? $callsign : Str::before($booking->driver->name, ' '));
         }
 
         $slug = $booking->vehicleType?->slug;
@@ -120,11 +123,11 @@ class CalendarEventBuilder
         foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
             $add('Stop '.($i + 1), $stop);
         }
+        $add('Drop-off Location', $booking->destination_address);
         $add('Flight Number', $booking->flight_number);
         if (! empty($meta['meet_and_greet'])) {
             $add('Meet & Greet', 'Required');
         }
-        $add('Drop-off Location', $booking->destination_address);
         $add('Vehicle Type', $booking->vehicleType?->name);
         $add('Payment', $meta['payment_text'] ?? $this->paymentLabel($booking));
         $add('Booking Reference', $booking->external_reference ?? $booking->reference);
