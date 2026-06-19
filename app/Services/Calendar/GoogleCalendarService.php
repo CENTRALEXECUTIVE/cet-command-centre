@@ -92,6 +92,71 @@ class GoogleCalendarService
     }
 
     /**
+     * Step-by-step check used by `cet:test-calendar`: read the key file → sign a
+     * JWT → get a token → read the target calendar. Reports the real Google error
+     * at whichever step fails. Reveals no private key.
+     *
+     * @return array<string, mixed>
+     */
+    public function diagnose(string $calendarId): array
+    {
+        $out = ['configured' => $this->configured(), 'calendar_id' => $calendarId];
+        if (! $this->configured()) {
+            return $out + ['result' => 'GOOGLE_CALENDAR_CREDENTIALS is not set in .env.'];
+        }
+
+        $creds = $this->credentials();
+        $out['key_file_readable'] = $creds !== null;
+        if (! $creds) {
+            return $out + ['result' => 'The google-calendar.json key file is missing, unreadable, or not valid JSON.'];
+        }
+        $out['client_email'] = $creds['client_email'] ?? null;
+        $out['has_private_key'] = ! empty($creds['private_key']);
+
+        $tokenUri = $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token';
+        $now = time();
+        $claims = [
+            'iss' => $creds['client_email'] ?? '',
+            'scope' => 'https://www.googleapis.com/auth/calendar',
+            'aud' => $tokenUri,
+            'iat' => $now,
+            'exp' => $now + 3600,
+        ];
+        $signingInput = $this->base64Url(json_encode(['alg' => 'RS256', 'typ' => 'JWT']))
+            .'.'.$this->base64Url(json_encode($claims));
+        $signature = '';
+        if (! openssl_sign($signingInput, $signature, $creds['private_key'] ?? '', 'sha256WithRSAEncryption')) {
+            return $out + ['result' => 'Signing failed — the private_key in the key file is invalid.', 'openssl' => openssl_error_string()];
+        }
+        $jwt = $signingInput.'.'.$this->base64Url($signature);
+
+        $tokenResponse = Http::asForm()->post($tokenUri, [
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion' => $jwt,
+        ]);
+        $out['token_http'] = $tokenResponse->status();
+        if (! $tokenResponse->successful()) {
+            return $out + [
+                'token_error' => $tokenResponse->json('error_description') ?? substr($tokenResponse->body(), 0, 300),
+                'result' => 'Google rejected the token request (often: Calendar API not enabled, or server clock is wrong).',
+            ];
+        }
+
+        $cal = Http::withToken($tokenResponse->json('access_token'))
+            ->get('https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId));
+        $out['calendar_http'] = $cal->status();
+        if (! $cal->successful()) {
+            return $out + [
+                'calendar_error' => substr($cal->body(), 0, 300),
+                'result' => 'Token works, but the calendar is not accessible — share '
+                    .($creds['client_email'] ?? 'the service account').' on the calendar with "Make changes to events", and check CET_CALENDAR_ID.',
+            ];
+        }
+
+        return $out + ['result' => 'Google Calendar fully working — events will sync.'];
+    }
+
+    /**
      * Obtain an access token from the service-account credentials via a signed
      * JWT (RS256) — no extra packages. The credentials value may be a path to
      * the service-account JSON or the JSON itself. Cached for ~50 minutes.
