@@ -396,6 +396,53 @@ class OutlookIngestionTest extends TestCase
         $this->assertNotNull(Booking::where('external_reference', 'KEEP01')->first());
     }
 
+    public function test_csv_backfill_imports_upcoming_only_and_dedups(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        // Already on the calendar (by reference) — must be replaced, not duplicated.
+        $svc->upsertFromParsed($this->parsed(['reference' => 'EXIST1', 'pickup_address' => 'Manchester Airport (MAN)']));
+
+        $h = '"Journey date";"Passenger name";"Reference number";"Vehicle type";"Status";"Payments";"Total";"Arrival flight number";"Departure flight number";"Phone number";"Pickup";"Dropoff";"Via";"Email";"Meet & Greet";"Customer";"Lead passenger name";"Lead passenger email";"Lead passenger phone number"';
+        $rows = [
+            '"31/12/2030 14:00";"Bob Smith";"NEW001";"Executive";"Confirmed";"Paid, Square, 120";"120";"";"";"07700900111";"Manchester Airport (MAN), T1";"Sheffield S1";"";"bob@x.com";"Yes";"Acme";"";"";""',
+            '"31/12/2030 15:00";"Q";"QUOTE1";"Executive";"Request quote";" ";"100";"";"";"";"A";"B";"";"";"No";"";"";"";""',
+            '"31/12/2030 16:00";"N";"NOPAY1";"Executive";"Confirmed";" ";"100";"";"";"";"A";"B";"";"";"No";"";"";"";""',
+            '"01/01/2020 09:00";"O";"PAST01";"Executive";"Confirmed";"Paid, Square, 90";"90";"";"";"";"A";"B";"";"";"No";"";"";"";""',
+            '"31/12/2030 17:00";"James Watson";"EXIST1";"Executive";"Confirmed";"Paid, Square, 200";"200";"";"";"07700900123";"Manchester Airport (MAN)";"Sheffield";"";"";"No";"";"";"";""',
+        ];
+        $path = tempnam(sys_get_temp_dir(), 'eto').'.csv';
+        file_put_contents($path, $h."\n".implode("\n", $rows)."\n");
+
+        $this->artisan('cet:import-eto-calendar', ['path' => $path])->assertSuccessful();
+
+        $this->assertNotNull(Booking::where('external_reference', 'NEW001')->first(), 'upcoming confirmed paid imported');
+        $this->assertNull(Booking::where('external_reference', 'QUOTE1')->first(), 'quote skipped');
+        $this->assertNull(Booking::where('external_reference', 'NOPAY1')->first(), 'no-payment skipped');
+        $this->assertNull(Booking::where('external_reference', 'PAST01')->first(), 'past skipped');
+        $this->assertEquals(1, Booking::where('external_reference', 'EXIST1')->count(), 'existing reference not duplicated');
+
+        @unlink($path);
+    }
+
+    public function test_csv_backfill_payment_text_and_pending_emoji(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $h = '"Journey date";"Passenger name";"Reference number";"Vehicle type";"Status";"Payments";"Total";"Arrival flight number";"Departure flight number";"Phone number";"Pickup";"Dropoff";"Via";"Email";"Meet & Greet";"Customer";"Lead passenger name";"Lead passenger email";"Lead passenger phone number"';
+        $row = '"31/12/2030 09:30";"Giles Coke";"NU9999";"Executive";"Confirmed";"Paid, Square, 9.52 | Pending, Cash, 90.48";"100";"";"";"07700900222";"20 Whirlow Grange Ave, Sheffield";"Leeds Bradford Airport (LBA)";"";"";"No";"";"";"";""';
+        $path = tempnam(sys_get_temp_dir(), 'eto').'.csv';
+        file_put_contents($path, $h."\n".$row."\n");
+
+        $this->artisan('cet:import-eto-calendar', ['path' => $path])->assertSuccessful();
+
+        $booking = Booking::where('external_reference', 'NU9999')->first();
+        $this->assertNotNull($booking);
+        // Cash balance outstanding → 💰 on the title.
+        $this->assertStringContainsString('💰', $booking->calendarEvent->title);
+        $this->assertStringContainsString('£90.48 (Cash) - Pending', $booking->calendarEvent->description);
+
+        @unlink($path);
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);
