@@ -47,18 +47,34 @@ class OutlookBookingService
     {
         $stats = ['processed' => 0, 'created' => 0, 'updated' => 0, 'cancelled' => 0, 'skipped' => 0];
 
-        foreach ($this->mail->fetchUnread() as $message) {
+        // Scan recent READ and UNREAD emails — read/unread is irrelevant; the
+        // booking reference decides what happens. An email a human opened still
+        // gets added if it's not on the calendar. Emails are NOT marked read, so
+        // the operator keeps their own read/unread view.
+        foreach ($this->mail->fetchRecent() as $message) {
             $stats['processed']++;
             $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
 
-            $result = $parsed ? $this->upsertFromParsed($parsed) : null;
+            if (! $parsed) {
+                $stats['skipped']++; // not a booking / unparseable
 
-            if ($result) {
-                $stats[$result['action']]++;
-                $this->mail->markRead($message['id']);
-            } else {
-                $stats['skipped']++; // not a booking / unparseable — left unread for a human
+                continue;
             }
+
+            $reference = $parsed['reference'] ?? null;
+            $existing = $reference
+                ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+                : null;
+
+            // Already on the calendar and nothing changed → leave it (no re-push).
+            if ($existing && $this->alreadyCurrent($existing, $parsed)) {
+                $stats['skipped']++;
+
+                continue;
+            }
+
+            $result = $this->upsertFromParsed($parsed);
+            $result ? $stats[$result['action']]++ : $stats['skipped']++;
         }
 
         return $stats;
@@ -245,6 +261,33 @@ class OutlookBookingService
             'booker_name' => $parsed['booker_name'] ?? null,
             'contact_no' => $parsed['customer_phone'] ?? null,
         ], fn ($v) => $v !== null && $v !== []);
+    }
+
+    /**
+     * Is this booking already correctly on the calendar for what the email says?
+     * If so we skip it (no needless re-push). Returns false whenever something
+     * material changed — a cancellation, a payment update, or amended time/route
+     * — so those still flow through.
+     *
+     * @param  array<string, mixed>  $parsed
+     */
+    private function alreadyCurrent(Booking $existing, array $parsed): bool
+    {
+        if (! empty($parsed['cancelled'])) {
+            return $existing->status === BookingStatus::Cancelled;
+        }
+
+        $event = $existing->calendarEvent;
+        if (! $event || $event->sync_status !== 'synced') {
+            return false; // not on the calendar yet (or failed) → (re)push
+        }
+
+        $sameTime = $existing->pickup_at?->format('Y-m-d H:i') === Carbon::parse($parsed['pickup_at'])->format('Y-m-d H:i');
+
+        return $sameTime
+            && strtolower((string) $existing->payment_status) === strtolower((string) ($parsed['payment_status'] ?? 'pending'))
+            && trim((string) $existing->pickup_address) === trim((string) ($parsed['pickup_address'] ?? ''))
+            && trim((string) $existing->destination_address) === trim((string) ($parsed['destination_address'] ?? ''));
     }
 
     /** Build the formatted calendar event and push it to Google (best-effort). */

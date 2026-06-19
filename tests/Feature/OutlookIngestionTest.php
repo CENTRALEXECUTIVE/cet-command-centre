@@ -97,14 +97,41 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals(BookingStatus::Cancelled, Booking::where('external_reference', 'ZWR6MM')->first()->status);
     }
 
+    public function test_read_emails_are_scanned_added_then_skipped_when_current(): void
+    {
+        config(['services.anthropic.key' => null]);
+        $body = "New booking RDONLY has been created.\n"
+            ."Date & time: 31/12/2030 14:00\nPickup: Manchester Airport (MAN)\n"
+            ."Dropoff: Radisson Blu, Sheffield\nVehicle type: Executive\n"
+            ."Reference number: RDONLY\nTotal: £100\nPayments: £100 (Square) - Paid";
+
+        $mail = Mockery::mock(GraphMailClient::class);
+        $mail->shouldReceive('fetchRecent')->andReturn([[
+            'id' => 'm1', 'subject' => 'New booking RDONLY', 'from' => 'eto@x', 'body' => $body,
+        ]]);
+        $this->app->instance(GraphMailClient::class, $mail);
+
+        // First run: an already-READ email not on the calendar is still added.
+        $stats = app(OutlookBookingService::class)->ingest();
+        $this->assertEquals(1, $stats['created']);
+        $booking = Booking::where('external_reference', 'RDONLY')->first();
+        $this->assertNotNull($booking);
+
+        // Pretend it synced to Google, then run again: nothing changed → skipped.
+        $booking->calendarEvent->update(['sync_status' => 'synced']);
+        $stats2 = app(OutlookBookingService::class)->ingest();
+        $this->assertEquals(0, $stats2['created']);
+        $this->assertEquals(1, $stats2['skipped']);
+        $this->assertEquals(1, Booking::where('external_reference', 'RDONLY')->count());
+    }
+
     public function test_full_pipeline_creates_via_mocked_email_and_ai(): void
     {
         $mail = Mockery::mock(GraphMailClient::class);
-        $mail->shouldReceive('fetchUnread')->andReturn([[
+        $mail->shouldReceive('fetchRecent')->andReturn([[
             'id' => 'm1', 'subject' => 'New booking ZWR6MM', 'from' => 'eto@easytaxioffice.co.uk',
             'body' => 'Booking reference ZWR6MM, James Watson, Manchester Airport to Sheffield 01/07/2026 14:00',
         ]]);
-        $mail->shouldReceive('markRead')->with('m1')->once();
         $this->app->instance(GraphMailClient::class, $mail);
 
         $ai = Mockery::mock(AnthropicService::class);

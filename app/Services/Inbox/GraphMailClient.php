@@ -19,6 +19,59 @@ class GraphMailClient
     }
 
     /**
+     * Fetch recent inbox messages — BOTH read and unread — within a date window.
+     * The booking pipeline relies on the booking reference (not read/unread
+     * status) to decide what to do, so an email opened/read by a human is still
+     * picked up and put on the calendar if it isn't there yet.
+     *
+     * @return array<int, array{id:string, subject:string, body:string, from:?string}>
+     */
+    public function fetchRecent(int $days = 30, int $limit = 100): array
+    {
+        if (! $this->configured()) {
+            return [];
+        }
+
+        try {
+            $token = $this->accessToken();
+            if (! $token) {
+                return [];
+            }
+
+            $since = now()->subDays($days)->utc()->format('Y-m-d\TH:i:s\Z');
+            $mailbox = rawurlencode((string) config('services.microsoft_graph.mailbox'));
+            $response = Http::withToken($token)->get(
+                "https://graph.microsoft.com/v1.0/users/{$mailbox}/mailFolders/inbox/messages",
+                [
+                    '$filter' => "receivedDateTime ge {$since}",
+                    '$orderby' => 'receivedDateTime desc',
+                    '$top' => $limit,
+                    '$select' => 'id,subject,body,from',
+                ]
+            );
+
+            if (! $response->successful()) {
+                Log::warning('Graph fetchRecent HTTP error', [
+                    'status' => $response->status(), 'body' => substr($response->body(), 0, 500),
+                ]);
+
+                return [];
+            }
+
+            return collect($response->json('value', []))->map(fn ($m) => [
+                'id' => $m['id'],
+                'subject' => $m['subject'] ?? '',
+                'body' => $this->bodyToText($m['body'] ?? []),
+                'from' => $m['from']['emailAddress']['address'] ?? null,
+            ])->all();
+        } catch (\Throwable $e) {
+            Log::warning('Graph fetchRecent failed', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
      * @return array<int, array{id:string, subject:string, body:string, from:?string}>
      */
     public function fetchUnread(int $limit = 25): array
