@@ -472,6 +472,24 @@ class OutlookIngestionTest extends TestCase
         @unlink($path);
     }
 
+    public function test_verify_calendar_fixes_missing_bookings(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        // A booking whose calendar push never synced (e.g. caught before creds set).
+        $booking = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'MISS01', 'pickup_at' => now()->addDays(3)->format('Y-m-d H:i'),
+        ]))['booking'];
+        $booking->calendarEvent->update(['sync_status' => 'failed']);
+
+        // Google still unconfigured here → it stays "missing" but is reported, not lost.
+        $this->artisan('cet:verify-calendar')
+            ->expectsOutputToContain('still missing')
+            ->assertSuccessful();
+
+        // It remains a pending/failed event (not silently dropped) for the next retry.
+        $this->assertNotEquals('synced', $booking->calendarEvent->fresh()->sync_status);
+    }
+
     public function test_paired_outbound_return_share_driver_rotation_moves_once(): void
     {
         $this->seed(\Database\Seeders\RotationSeeder::class);

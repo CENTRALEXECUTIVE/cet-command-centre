@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Models\Airport;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\RotationLog;
 use App\Models\VehicleType;
 use App\Services\Ai\AnthropicService;
 use App\Services\Calendar\GoogleCalendarService;
@@ -320,6 +321,16 @@ class OutlookBookingService
                 'linked_booking_id' => $sibling->id,
                 'journey_type' => 'return',
             ])->save();
+
+            // Audit the paired assignment so the driver-order history is complete.
+            RotationLog::create([
+                'airport_id' => $booking->airport_id,
+                'vehicle_type_id' => $booking->vehicle_type_id,
+                'booking_id' => $booking->id,
+                'from_driver_id' => null,
+                'to_driver_id' => $sibling->driver_id,
+                'reason' => 'paired_same_driver',
+            ]);
         } else {
             // First leg seen → normal rotation (advances once); the other matches.
             $this->rotation->allocate($booking);
