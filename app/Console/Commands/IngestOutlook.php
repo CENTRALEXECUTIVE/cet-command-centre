@@ -12,13 +12,13 @@ use Illuminate\Console\Command;
  */
 class IngestOutlook extends Command
 {
-    protected $signature = 'cet:ingest-outlook';
+    protected $signature = 'cet:ingest-outlook {--days=30 : days of inbox history to scan} {--no-rotate : do not auto-assign rotation (for bulk backfill)}';
 
     protected $description = 'Parse Outlook booking emails into bookings';
 
     public function handle(OutlookBookingService $outlook): int
     {
-        $stats = $outlook->ingest();
+        $stats = $outlook->ingest((int) $this->option('days'), ! $this->option('no-rotate'));
         $this->info("Processed {$stats['processed']} — created {$stats['created']}, updated {$stats['updated']}, "
             ."cancelled {$stats['cancelled']}, skipped {$stats['skipped']}.");
 

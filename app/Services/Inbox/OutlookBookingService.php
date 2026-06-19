@@ -42,9 +42,12 @@ class OutlookBookingService
     ) {}
 
     /**
+     * @param  int  $days  How many days of inbox history to scan.
+     * @param  bool  $allocateRotation  Auto-assign ABDI/MAJ (true for the live
+     *   feed). A bulk backfill passes false and applies drivers from the list.
      * @return array{processed:int, created:int, updated:int, cancelled:int, skipped:int}
      */
-    public function ingest(): array
+    public function ingest(int $days = 30, bool $allocateRotation = true): array
     {
         $stats = ['processed' => 0, 'created' => 0, 'updated' => 0, 'cancelled' => 0, 'skipped' => 0];
 
@@ -53,7 +56,7 @@ class OutlookBookingService
         // gets added if it's not on the calendar. Emails are NOT marked read, so
         // the operator keeps their own read/unread view.
         $parsedList = [];
-        foreach ($this->mail->fetchRecent() as $message) {
+        foreach ($this->mail->fetchRecent($days) as $message) {
             $stats['processed']++;
             $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
             if ($parsed) {
@@ -81,7 +84,7 @@ class OutlookBookingService
             }
 
             try {
-                $result = $this->upsertFromParsed($parsed);
+                $result = $this->upsertFromParsed($parsed, $allocateRotation);
                 $result ? $stats[$result['action']]++ : $stats['skipped']++;
             } catch (\Illuminate\Database\QueryException $e) {
                 // A concurrent run already created this reference (unique index) —

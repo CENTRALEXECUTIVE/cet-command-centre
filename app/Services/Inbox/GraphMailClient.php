@@ -26,7 +26,7 @@ class GraphMailClient
      *
      * @return array<int, array{id:string, subject:string, body:string, from:?string}>
      */
-    public function fetchRecent(int $days = 30, int $limit = 100): array
+    public function fetchRecent(int $days = 30, int $limit = 500): array
     {
         if (! $this->configured()) {
             return [];
