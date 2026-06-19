@@ -51,16 +51,23 @@ class OutlookBookingService
         // booking reference decides what happens. An email a human opened still
         // gets added if it's not on the calendar. Emails are NOT marked read, so
         // the operator keeps their own read/unread view.
+        $parsedList = [];
         foreach ($this->mail->fetchRecent() as $message) {
             $stats['processed']++;
             $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
-
-            if (! $parsed) {
+            if ($parsed) {
+                $parsedList[] = $parsed;
+            } else {
                 $stats['skipped']++; // not a booking / unparseable
-
-                continue;
             }
+        }
 
+        // Process in journey (pickup) order so the rotation assigns ABDI/MAJ in
+        // the correct sequence even when several arrive together. Cancellations
+        // (no pickup) sort last.
+        usort($parsedList, fn ($a, $b) => $this->sortKey($a) <=> $this->sortKey($b));
+
+        foreach ($parsedList as $parsed) {
             $reference = $parsed['reference'] ?? null;
             $existing = $reference
                 ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
@@ -78,6 +85,12 @@ class OutlookBookingService
         }
 
         return $stats;
+    }
+
+    /** Sort key for journey order; cancellations / undated sort to the end. */
+    private function sortKey(array $parsed): int
+    {
+        return isset($parsed['pickup_at']) ? (strtotime($parsed['pickup_at']) ?: PHP_INT_MAX) : PHP_INT_MAX;
     }
 
     /**
