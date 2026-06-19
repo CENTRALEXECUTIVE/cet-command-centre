@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  */
 class ImportEtoCalendar extends Command
 {
-    protected $signature = 'cet:import-eto-calendar {path} {--all : include past jobs too}';
+    protected $signature = 'cet:import-eto-calendar {path} {--all : include past jobs too} {--rotate : auto-assign ABDI/MAJ rotation}';
 
     protected $description = 'Backfill the calendar from an ETO CSV (reference-keyed, no duplicates)';
 
@@ -62,20 +62,24 @@ class ImportEtoCalendar extends Command
                 continue; // past job
             }
 
-            $rows[] = ['dt' => $dt, 'data' => $d, 'cancel' => $isCancel];
+            $booked = $this->parseDate($d['Created at'] ?? '') ?? $dt;
+            $rows[] = ['dt' => $dt, 'booked' => $booked, 'data' => $d, 'cancel' => $isCancel];
         }
         fclose($handle);
 
-        // Journey order so rotation assigns ABDI/MAJ correctly.
-        usort($rows, fn ($a, $b) => $a['dt'] <=> $b['dt']);
+        // BOOKING order (when each was booked) so rotation assigns correctly —
+        // first booked gets the next driver, then alternates.
+        usort($rows, fn ($a, $b) => $a['booked'] <=> $b['booked']);
+
+        // --rotate assigns ABDI/MAJ per the rotation (paired legs share a driver);
+        // without it the jobs come in unassigned for manual allocation.
+        $allocate = (bool) $this->option('rotate');
 
         $stats = ['created' => 0, 'updated' => 0, 'cancelled' => 0, 'skipped' => 0];
         foreach ($rows as $row) {
             $parsed = $this->toParsed($row['data'], $row['dt'], $row['cancel']);
-            // Backfill leaves rotation untouched — these jobs are unassigned in
-            // ETO and you allocate drivers manually; the pointer stays as seeded.
             try {
-                $result = $svc->upsertFromParsed($parsed, allocateRotation: false);
+                $result = $svc->upsertFromParsed($parsed, allocateRotation: $allocate);
                 $result ? $stats[$result['action']]++ : $stats['skipped']++;
             } catch (\Illuminate\Database\QueryException $e) {
                 $stats['skipped']++; // reference already exists (unique index) — no duplicate
