@@ -125,6 +125,59 @@ class GoogleCalendarService
     }
 
     /**
+     * Delete EVERY event this system created on the calendar (matched by the
+     * service-account being the event creator), regardless of whether we still
+     * track its id — this removes orphaned duplicates left by earlier runs.
+     * Personal events created by a human are left untouched.
+     */
+    public function purgeOwnEvents(string $calendarId): int
+    {
+        if (! $this->configured()) {
+            return 0;
+        }
+        $token = $this->accessToken();
+        $creds = $this->credentials();
+        if (! $token || empty($creds['client_email'])) {
+            return 0;
+        }
+
+        $serviceEmail = strtolower($creds['client_email']);
+        $base = 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId).'/events';
+
+        // Collect every event id created by the service account (paginated).
+        $ids = [];
+        $pageToken = null;
+        do {
+            $resp = Http::withToken($token)->get($base, array_filter([
+                'maxResults' => 2500,
+                'singleEvents' => 'true',
+                'showDeleted' => 'false',
+                'pageToken' => $pageToken,
+            ]));
+            if (! $resp->successful()) {
+                break;
+            }
+            foreach ($resp->json('items', []) as $item) {
+                $creator = strtolower($item['creator']['email'] ?? '');
+                if (! empty($item['id']) && $creator === $serviceEmail) {
+                    $ids[] = $item['id'];
+                }
+            }
+            $pageToken = $resp->json('nextPageToken');
+        } while ($pageToken);
+
+        $deleted = 0;
+        foreach (array_unique($ids) as $id) {
+            $d = Http::withToken($token)->delete("{$base}/".rawurlencode($id));
+            if ($d->successful() || in_array($d->status(), [404, 410], true)) {
+                $deleted++;
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
      * Step-by-step check used by `cet:test-calendar`: read the key file → sign a
      * JWT → get a token → read the target calendar. Reports the real Google error
      * at whichever step fails. Reveals no private key.
