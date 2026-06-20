@@ -57,7 +57,8 @@ class CalendarEventBuilder
     private function title(Booking $booking, ?string $moneyEmoji): string
     {
         $name = $booking->customer?->name ?? 'Customer';
-        $where = $booking->airport?->code
+        $where = $booking->meta['where']
+            ?? $booking->airport?->code
             ?? Str::upper(Str::words($booking->destination_address, 1, ''));
         $tag = $this->tag($booking);
 
@@ -69,6 +70,11 @@ class CalendarEventBuilder
 
     private function tag(Booking $booking): string
     {
+        // A curated import sets the exact driver tag (ABDI/MAJ/MINIBUS/V CLASS/…).
+        if (! empty($booking->meta['driver_tag'])) {
+            return Str::upper($booking->meta['driver_tag']);
+        }
+
         // Executive/rotation jobs are tagged with the driver's callsign — the
         // email local-part (abdi@… → ABDI, maj@… → MAJ).
         if ($booking->vehicleType?->affects_rotation && $booking->driver) {
@@ -88,6 +94,11 @@ class CalendarEventBuilder
      */
     private function paymentEmoji(Booking $booking): ?string
     {
+        // A curated import carries the exact emoji the operator set in Notes.
+        if (array_key_exists('money_emoji', $booking->meta ?? [])) {
+            return $booking->meta['money_emoji'] ?: null;
+        }
+
         if ($booking->is_return_leg || $booking->payment_status === 'paid') {
             return null;
         }
@@ -118,7 +129,7 @@ class CalendarEventBuilder
         $add('Customer Name', $booking->customer?->name);
         $add('Contact No', $booking->customer?->phone ?? ($meta['contact_no'] ?? null));
         $add('Passengers', (string) $booking->passengers);
-        $add('Luggage', (string) $booking->luggage);
+        $add('Luggage', $meta['luggage_text'] ?? (string) $booking->luggage);
         $add('Pickup Location', $booking->pickup_address);
         foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
             $add('Stop '.($i + 1), $stop);
