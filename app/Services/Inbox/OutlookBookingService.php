@@ -268,10 +268,19 @@ class OutlookBookingService
             $label = 'Transfer';
         }
 
+        $childSeats = (int) ($parsed['child_seats'] ?? 0);
+        $boosterSeats = (int) ($parsed['booster_seats'] ?? 0);
+
         return array_filter([
             'journey_label' => $label,
+            // Title location: airport code, else FREE ROAM (rule 8).
+            'where' => $this->airportCodeFor($parsed) ?? 'FREE ROAM',
+            // Always show the lead passenger, never the booker/company (rule 9).
+            'lead_name' => $parsed['customer_name'] ?? null,
             'meet_and_greet' => $meetGreet,
-            'child_seat' => ! empty($parsed['child_seat']),
+            'child_seat' => ! empty($parsed['child_seat']) || $childSeats > 0 || $boosterSeats > 0,
+            'child_seats' => $childSeats,
+            'booster_seats' => $boosterSeats,
             'stops' => $parsed['stops'] ?? [],
             'payment_text' => $parsed['payment_text'] ?? null,
             'payment_method_label' => $parsed['payment_method'] ?? null,
@@ -427,21 +436,30 @@ class OutlookBookingService
 
     private function detectAirport(array $parsed): ?int
     {
+        $code = $this->airportCodeFor($parsed);
+
+        return $code ? Airport::where('code', $code)->value('id') : null;
+    }
+
+    /**
+     * IATA code for the job from the addresses — a bracketed code, else an
+     * airport name or postcode area (covers airport-hotel jobs, rule 8).
+     *
+     * @param  array<string, mixed>  $parsed
+     */
+    private function airportCodeFor(array $parsed): ?string
+    {
         $haystack = ($parsed['pickup_address'] ?? '').' '.($parsed['destination_address'] ?? '');
 
-        // Preferred: an explicit IATA code in brackets, e.g. "(MAN)".
-        if (preg_match('/\(([A-Z]{3})\)/', $haystack, $m)) {
-            if ($id = Airport::where('code', $m[1])->value('id')) {
-                return $id;
-            }
+        if (preg_match('/\(([A-Z]{3})\)/', $haystack, $m) && Airport::where('code', $m[1])->exists()) {
+            return $m[1];
         }
 
-        // Fallback: recognise the airport by name or postcode area.
         $needle = strtolower($haystack);
         foreach (self::AIRPORT_ALIASES as $code => $aliases) {
             foreach ($aliases as $alias) {
                 if (str_contains($needle, $alias)) {
-                    return Airport::where('code', $code)->value('id');
+                    return $code;
                 }
             }
         }

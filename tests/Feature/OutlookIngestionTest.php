@@ -533,6 +533,29 @@ class OutlookIngestionTest extends TestCase
         $this->assertNotNull($svc->parse('New booking REAL01', $ok, null));
     }
 
+    public function test_live_email_applies_rules_leadname_freeroam_return_childseat(): void
+    {
+        $svc = app(OutlookBookingService::class);
+
+        // Free Roam transfer + child seat + lead passenger name.
+        $fr = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'FRX001', 'customer_name' => 'Jane Doe',
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Sheffield Station',
+            'child_seat' => true, 'child_seats' => 1,
+        ]))['booking'];
+        $this->assertStringContainsString('Jane Doe FREE ROAM', $fr->calendarEvent->title);
+        $this->assertStringContainsString('🚼', $fr->calendarEvent->title);
+        $this->assertStringContainsString('🚼', $fr->calendarEvent->description);
+        $this->assertStringContainsString('*Child Seats:* 1', $fr->calendarEvent->description);
+
+        // Paired outbound then return → "Return" suffix on the return leg's title.
+        $svc->upsertFromParsed($this->parsed(['reference' => 'PRZ9a', 'pickup_address' => 'Manchester Airport (MAN)']));
+        $rtn = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'PRZ9b', 'pickup_address' => 'Sheffield', 'destination_address' => 'Manchester Airport (MAN)',
+        ]))['booking'];
+        $this->assertStringContainsString('Return', $rtn->calendarEvent->title);
+    }
+
     public function test_non_booking_email_is_skipped(): void
     {
         $ai = Mockery::mock(AnthropicService::class);

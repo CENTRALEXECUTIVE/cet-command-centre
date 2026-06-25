@@ -98,12 +98,16 @@ class EtoEmailParser
         $payment = $this->payment($fields);
 
         // Child/booster/infant seat anywhere in the email → 🚼.
-        $childSeat = (bool) preg_match('/\b(child|baby|infant|booster)\s*seat|car\s*seat\b/i', $body);
+        $childSeats = $this->seatCount($body, 'child|baby|infant|car');
+        $boosterSeats = $this->seatCount($body, 'booster');
+        $childSeat = $childSeats > 0 || $boosterSeats > 0;
 
         return [
             'is_booking' => true,
             'cancelled' => false,
             'reference' => $reference,
+            'child_seats' => $childSeats,
+            'booster_seats' => $boosterSeats,
             'customer_name' => $name ?? 'ETO customer',
             'customer_phone' => $phone,
             'customer_email' => $email,
@@ -190,6 +194,16 @@ class EtoEmailParser
         }
 
         return null;
+    }
+
+    /** Count of a seat type in the email, e.g. "2 child seats" → 2, else 1 if mentioned. */
+    private function seatCount(string $body, string $types): int
+    {
+        if (preg_match('/(\d+)\s*(?:x\s*)?(?:'.$types.')\s*seat/i', $body, $m)) {
+            return (int) $m[1];
+        }
+
+        return preg_match('/\b(?:'.$types.')\s*seat/i', $body) ? 1 : 0;
     }
 
     private function isYes(?string $value): bool
