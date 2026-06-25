@@ -57,7 +57,8 @@ class ImportBookingsCsv extends Command
 
             $ref = $this->stripEmoji($get('Reference'));
             $notes = $get('Notes');
-            if ($ref === '' || stripos($notes, 'DELETED FROM CALENDAR') !== false) {
+            // Skip empties, "DELETED" rows, and known ETO test references (rule 12).
+            if ($ref === '' || in_array($ref, ['1T0OUV', 'MRHES3'], true) || stripos($notes, 'DELETED FROM CALENDAR') !== false) {
                 $stats['skipped']++;
 
                 continue;
@@ -89,9 +90,10 @@ class ImportBookingsCsv extends Command
             [$payMethod, $payStatus] = $this->payment($get('Payment Status'), $get('Payment Method'));
             $meetGreet = preg_match('/\b(yes|required|true)\b/i', $get('Meet & Greet')) === 1;
 
-            $airportCode = preg_match('/\(([A-Z]{3})\)/', $pickup.' '.$dropoff, $mm) ? $mm[1] : null;
+            $where = $this->airportCode($pickup.' '.$dropoff) ?: 'FREE ROAM';
             $meta = [
-                'where' => $airportCode ?: 'FREE ROAM',
+                'where' => $where,
+                'lead_name' => $name, // lead passenger — always shown, never the booker/company (rule 9)
                 'driver_tag' => $driverTag,
                 'luggage_text' => $this->luggageText($get('Suitcases'), $get('Hand Luggage')),
                 'stops' => $this->stops($get('Via')),
@@ -99,6 +101,8 @@ class ImportBookingsCsv extends Command
                 'payment_text' => $this->paymentText($get('Total'), $get('Payment Status'), $get('Payment Method')),
                 'money_emoji' => $this->moneyEmoji($notes, $payStatus, $payMethod, str_ends_with($ref, 'b')),
                 'child_seat' => $childSeat,
+                'child_seats' => (int) $get('Child Seats'),
+                'booster_seats' => (int) $get('Booster Seats'),
                 'meet_and_greet' => $meetGreet,
                 'contact_no' => $phone,
                 'booker_name' => $booker,
@@ -113,7 +117,7 @@ class ImportBookingsCsv extends Command
                 'pickup_at' => $pickupAt,
                 'pickup_address' => $pickup ?: 'Unknown',
                 'destination_address' => $dropoff ?: 'Unknown',
-                'flight_number' => $get('Flight Number') ?: null,
+                'flight_number' => $this->flightNumber($get('Flight Number')),
                 'passengers' => (int) ($get('Passengers') ?: 1),
                 'special_requests' => $this->cleanNotes($notes) ?: null,
                 'payment_status' => $payStatus,
@@ -193,13 +197,56 @@ class ImportBookingsCsv extends Command
         return VehicleType::where('slug', $slug)->first() ?? VehicleType::where('slug', 'executive')->firstOrFail();
     }
 
-    private function detectAirport(string $haystack): ?int
+    /** Airport name/area aliases — for the airport-hotel rule (rule 8). */
+    private const AIRPORT_ALIASES = [
+        'MAN' => ['manchester airport', 'm90'],
+        'LHR' => ['heathrow', 'tw6'],
+        'LGW' => ['gatwick', 'rh6'],
+        'STN' => ['stansted'],
+        'EMA' => ['east midlands airport', 'castle donington', 'de74'],
+        'LBA' => ['leeds bradford', 'ls19'],
+        'BHX' => ['birmingham airport', 'birmingham international', 'b26'],
+        'LPL' => ['liverpool john lennon', 'liverpool airport', 'l24'],
+        'HUY' => ['humberside airport', 'dn39'],
+    ];
+
+    /** IATA code for the job — bracketed code, else an airport name (hotels at airports). */
+    private function airportCode(string $haystack): ?string
     {
         if (preg_match('/\(([A-Z]{3})\)/', $haystack, $m)) {
-            return Airport::where('code', $m[1])->value('id');
+            return $m[1];
+        }
+        $needle = strtolower($haystack);
+        foreach (self::AIRPORT_ALIASES as $code => $aliases) {
+            foreach ($aliases as $alias) {
+                if (str_contains($needle, $alias)) {
+                    return $code;
+                }
+            }
         }
 
         return null;
+    }
+
+    private function detectAirport(string $haystack): ?int
+    {
+        $code = $this->airportCode($haystack);
+
+        return $code ? Airport::where('code', $code)->value('id') : null;
+    }
+
+    /** Strip spaces from flight codes (FR 5073 → FR5073); keep "Private Charter". */
+    private function flightNumber(string $flight): ?string
+    {
+        $flight = trim($flight);
+        if ($flight === '') {
+            return null;
+        }
+        if (stripos($flight, 'charter') !== false) {
+            return 'Private Charter';
+        }
+
+        return preg_replace('/\s+/', '', $flight);
     }
 
     private function parseDateTime(string $date, string $time): ?Carbon

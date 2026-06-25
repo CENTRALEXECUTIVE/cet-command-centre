@@ -56,7 +56,7 @@ class CalendarEventBuilder
     /** *[emoji(s) ]Customer AIRPORT (TAG)* */
     private function title(Booking $booking, ?string $moneyEmoji): string
     {
-        $name = $booking->customer?->name ?? 'Customer';
+        $name = $booking->meta['lead_name'] ?? $booking->customer?->name ?? 'Customer';
         $where = $booking->meta['where']
             ?? $booking->airport?->code
             ?? Str::upper(Str::words($booking->destination_address, 1, ''));
@@ -65,7 +65,10 @@ class CalendarEventBuilder
         $emojis = trim(($moneyEmoji ?? '').($this->hasChildSeat($booking) ? '🚼' : ''));
         $prefix = $emojis !== '' ? "$emojis " : '';
 
-        return "*{$prefix}{$name} {$where} ({$tag})*";
+        // Paired return legs carry a "Return" suffix (rule 4).
+        $return = $booking->is_return_leg ? ' Return' : '';
+
+        return "*{$prefix}{$name} {$where}{$return} ({$tag})*";
     }
 
     private function tag(Booking $booking): string
@@ -116,7 +119,9 @@ class CalendarEventBuilder
     {
         $meta = $booking->meta ?? [];
         $lines = [];
-        $lines[] = '📑 Booking Confirmation – '.($meta['journey_label'] ?? 'Transfer');
+        // 🚼 must appear in BOTH title and description (rule 5).
+        $childMark = $this->hasChildSeat($booking) ? ' 🚼' : '';
+        $lines[] = '📑 Booking Confirmation – '.($meta['journey_label'] ?? 'Transfer').$childMark;
         $lines[] = '';
 
         $add = function (string $label, ?string $value) use (&$lines): void {
@@ -126,10 +131,16 @@ class CalendarEventBuilder
         };
 
         $add('Date & Time', $booking->pickup_at?->format('D d M Y, H:i'));
-        $add('Customer Name', $booking->customer?->name);
-        $add('Contact No', $booking->customer?->phone ?? ($meta['contact_no'] ?? null));
+        $add('Customer Name', $meta['lead_name'] ?? $booking->customer?->name);
+        $add('Contact No', $meta['contact_no'] ?? $booking->customer?->phone);
         $add('Passengers', (string) $booking->passengers);
         $add('Luggage', $meta['luggage_text'] ?? (string) $booking->luggage);
+        if ((int) ($meta['child_seats'] ?? 0) > 0) {
+            $add('Child Seats', (string) $meta['child_seats']);
+        }
+        if ((int) ($meta['booster_seats'] ?? 0) > 0) {
+            $add('Booster Seats', (string) $meta['booster_seats']);
+        }
         $add('Pickup Location', $booking->pickup_address);
         foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
             $add('Stop '.($i + 1), $stop);

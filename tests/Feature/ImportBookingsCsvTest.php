@@ -66,4 +66,31 @@ class ImportBookingsCsvTest extends TestCase
         // No duplicates: each reference once.
         $this->assertEquals(Booking::count(), Booking::distinct('external_reference')->count('external_reference'));
     }
+
+    public function test_applies_new_rules_return_childseat_airporthotel_flight(): void
+    {
+        $this->artisan('cet:import-bookings-csv', ['path' => database_path('imports/bookings.csv')])
+            ->assertSuccessful();
+
+        // Return suffix on the paired arrival leg (AGSICRb = Jon Holden LHR Return).
+        $agb = Booking::where('external_reference', 'AGSICRb')->first();
+        $this->assertStringContainsString('LHR Return (MAJ)', $agb->calendarEvent->title);
+        // Outbound has no Return.
+        $aga = Booking::where('external_reference', 'AGSICRa')->first();
+        $this->assertStringNotContainsString('Return', $aga->calendarEvent->title);
+
+        // Child/booster seat: 🚼 in BOTH title and description + count lines (RJ6CHOa booster=1).
+        $rj = Booking::where('external_reference', 'RJ6CHOa')->first();
+        $this->assertStringContainsString('🚼', $rj->calendarEvent->title);
+        $this->assertStringContainsString('🚼', $rj->calendarEvent->description);
+        $this->assertStringContainsString('*Booster Seats:* 1', $rj->calendarEvent->description);
+
+        // Airport-hotel rule: Radisson Blu Manchester Airport → MAN (2YAQUG).
+        $ya = Booking::where('external_reference', '2YAQUG')->first();
+        $this->assertStringContainsString(' MAN ', $ya->calendarEvent->title);
+
+        // Flight number spaces stripped (JGLTHE "G44 TJD" → "G44TJD").
+        $jg = Booking::where('external_reference', 'JGLTHE')->first();
+        $this->assertEquals('G44TJD', $jg->flight_number);
+    }
 }
