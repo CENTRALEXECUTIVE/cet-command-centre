@@ -159,11 +159,12 @@ class GoogleCalendarService
             }
             foreach ($resp->json('items', []) as $item) {
                 $creator = strtolower($item['creator']['email'] ?? '');
-                $summary = (string) ($item['summary'] ?? '');
-                // Ours = created by the service account, OR in our title format
-                // (*Name AIRPORT (TAG)*) — catches orphans regardless of creator.
-                $isOurs = $creator === $serviceEmail || str_starts_with(trim($summary), '*');
-                if (! empty($item['id']) && $isOurs) {
+                // Ours = created by the service account ONLY. We must NOT match on
+                // the title format (*Name AIRPORT (TAG)*): the operator's own
+                // historical bookings use that exact bold style, and matching it
+                // here would delete real jobs. Use cet:purge-calendar --all for a
+                // deliberate full wipe.
+                if (! empty($item['id']) && $creator === $serviceEmail) {
                     $ids[] = $item['id'];
                 }
             }
@@ -177,6 +178,50 @@ class GoogleCalendarService
                 $deleted++;
             }
         }
+
+        return $deleted;
+    }
+
+    /**
+     * Delete EVERY event on the calendar, no matter who created it — a complete
+     * wipe used to restore the calendar to an exact known state from an export
+     * (cet:import-ics). Use with care; pairs with a full re-import afterwards.
+     */
+    public function purgeAllEvents(string $calendarId): int
+    {
+        if (! $this->configured()) {
+            return 0;
+        }
+        $token = $this->accessToken();
+        if (! $token) {
+            return 0;
+        }
+
+        $base = 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId).'/events';
+
+        $deleted = 0;
+        // Re-list from the first page each loop: deletions shrink the set, so we
+        // keep fetching+deleting until the calendar reports no more events.
+        do {
+            $resp = Http::withToken($token)->get($base, [
+                'maxResults' => 2500,
+                'singleEvents' => 'true',
+                'showDeleted' => 'false',
+            ]);
+            if (! $resp->successful()) {
+                break;
+            }
+            $items = $resp->json('items', []);
+            foreach ($items as $item) {
+                if (empty($item['id'])) {
+                    continue;
+                }
+                $d = Http::withToken($token)->delete("{$base}/".rawurlencode($item['id']));
+                if ($d->successful() || in_array($d->status(), [404, 410], true)) {
+                    $deleted++;
+                }
+            }
+        } while (! empty($items));
 
         return $deleted;
     }

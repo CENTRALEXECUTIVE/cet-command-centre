@@ -15,7 +15,7 @@ use Illuminate\Console\Command;
  */
 class PurgeCalendar extends Command
 {
-    protected $signature = 'cet:purge-calendar';
+    protected $signature = 'cet:purge-calendar {--all : delete EVERY event on the calendar (full wipe for an exact re-import), not just system-created ones}';
 
     protected $description = 'Delete all system-created Google Calendar events (removes orphan duplicates), then reset for a clean rebuild';
 
@@ -28,7 +28,9 @@ class PurgeCalendar extends Command
         }
 
         $calendarId = Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
-        $deleted = $calendar->purgeOwnEvents($calendarId);
+        $deleted = $this->option('all')
+            ? $calendar->purgeAllEvents($calendarId)
+            : $calendar->purgeOwnEvents($calendarId);
 
         // Forget the old Google ids so the rebuild POSTs fresh single copies.
         CalendarEvent::query()->update(['google_event_id' => null, 'sync_status' => 'pending']);
