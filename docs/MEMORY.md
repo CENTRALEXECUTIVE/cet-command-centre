@@ -40,6 +40,15 @@ Bookings are keyed on `external_reference` (unique index on
 second one. Old bookings that existed before automation are matched by
 reference and never duplicated.
 
+**Calendar-side guard (the permanent fix):** before adding any event, the
+sync searches the Google Calendar for an event whose description already
+carries the same `Booking Reference` and, if found, **updates that event in
+place** instead of posting a copy. This means it cannot duplicate events that
+were imported by hand or left by an earlier run — so the calendar never needs
+the "delete everything and re-add" dance again.
+Source of truth: `GoogleCalendarService::findEventIdByReference()` /
+`push()`; locked by `tests/Feature/CalendarDedupeTest.php`.
+
 ## Restore the calendar to the export ("the base")
 
 If the calendar ever needs returning to the known-good export, run **one**

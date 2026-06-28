@@ -47,6 +47,17 @@ class GoogleCalendarService
             $calendarId = rawurlencode($event->calendar_id);
             $base = "https://www.googleapis.com/calendar/v3/calendars/{$calendarId}/events";
 
+            // No id stored yet → before adding, check whether this exact booking
+            // (same reference) is ALREADY on the calendar — e.g. imported by hand
+            // or left by an earlier run. If so, adopt its id and UPDATE it rather
+            // than posting a second copy. This is what stops duplicates for good.
+            if (! $event->google_event_id) {
+                $existingId = $this->findEventIdByReference($token, $base, $event);
+                if ($existingId) {
+                    $event->google_event_id = $existingId;
+                }
+            }
+
             $response = $event->google_event_id
                 ? Http::withToken($token)->put("{$base}/{$event->google_event_id}", $payload)
                 : Http::withToken($token)->post($base, $payload);
@@ -79,6 +90,43 @@ class GoogleCalendarService
         } catch (\Throwable $e) {
             return $this->markFailed($event, $e->getMessage());
         }
+    }
+
+    /**
+     * Find an event already on the calendar that belongs to the SAME booking,
+     * matched by the booking reference printed in its description ("Booking
+     * Reference: XXX"). Catches events the operator imported by hand or that an
+     * earlier run created but we no longer track — so we update in place instead
+     * of creating a duplicate. Returns the Google event id, or null if none.
+     */
+    protected function findEventIdByReference(string $token, string $base, CalendarEvent $event): ?string
+    {
+        $ref = $event->booking?->external_reference ?: $event->booking?->reference;
+        if (blank($ref)) {
+            return null;
+        }
+
+        $resp = Http::withToken($token)->get($base, [
+            'q' => $ref,
+            'singleEvents' => 'true',
+            'showDeleted' => 'false',
+            'maxResults' => 50,
+        ]);
+        if (! $resp->successful()) {
+            return null;
+        }
+
+        foreach ($resp->json('items', []) as $item) {
+            $description = (string) ($item['description'] ?? '');
+            // Require the reference to appear as the booking reference, not just
+            // anywhere — avoids matching an unrelated event that mentions the code.
+            if (! empty($item['id'])
+                && preg_match('/Booking Reference:\*?\s*'.preg_quote($ref, '/').'\b/i', $description)) {
+                return $item['id'];
+            }
+        }
+
+        return null;
     }
 
     /**
