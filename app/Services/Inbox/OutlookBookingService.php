@@ -448,6 +448,7 @@ class OutlookBookingService
         'BHX' => ['birmingham airport', 'b26'],
         'LPL' => ['liverpool john lennon', 'liverpool airport', 'l24'],
         'HUY' => ['humberside airport', 'dn39'],
+        'LTN' => ['luton airport', 'london luton', 'lu2'],
     ];
 
     private function detectAirport(array $parsed): ?int

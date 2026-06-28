@@ -20,6 +20,7 @@ class AirportSeeder extends Seeder
             ['code' => 'MAN', 'name' => 'Manchester'],
             ['code' => 'LBA', 'name' => 'Leeds Bradford'],
             ['code' => 'BHX', 'name' => 'Birmingham'],
+            ['code' => 'LTN', 'name' => 'London Luton'],
         ];
 
         foreach ($airports as $airport) {

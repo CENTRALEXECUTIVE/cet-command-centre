@@ -390,12 +390,12 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals('Abdirazak Hassan', $man->driver->name);
         $this->assertStringContainsString('(ABDI)', $man->calendarEvent->title);
 
-        // LBA → MAJ.
-        $lba = $svc->upsertFromParsed($this->parsed([
-            'reference' => 'LBA001', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+        // EMA → MAJ.
+        $ema = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'EMA001', 'pickup_address' => 'East Midlands Airport (EMA)',
         ]))['booking'];
-        $this->assertEquals('Majid Ali', $lba->driver->name);
-        $this->assertStringContainsString('(MAJ)', $lba->calendarEvent->title);
+        $this->assertEquals('Majid Ali', $ema->driver->name);
+        $this->assertStringContainsString('(MAJ)', $ema->calendarEvent->title);
 
         // Non-rotation vehicle (Executive 8 Seater → V Class) keeps no driver; tag = V CLASS.
         $vclass = $svc->upsertFromParsed($this->parsed([
@@ -499,22 +499,22 @@ class OutlookIngestionTest extends TestCase
         $this->seed(\Database\Seeders\RotationSeeder::class);
         $svc = app(OutlookBookingService::class);
 
-        // Outbound 'a' from LBA (MAJ is next there).
+        // Outbound 'a' from EMA (MAJ is next there).
         $a = $svc->upsertFromParsed($this->parsed([
-            'reference' => 'PAIR01a', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+            'reference' => 'PAIR01a', 'pickup_address' => 'East Midlands Airport (EMA)',
         ]))['booking'];
-        // Return 'b' back to LBA.
+        // Return 'b' back to EMA.
         $b = $svc->upsertFromParsed($this->parsed([
-            'reference' => 'PAIR01b', 'pickup_address' => 'Sheffield', 'destination_address' => 'Leeds Bradford Airport (LBA)',
+            'reference' => 'PAIR01b', 'pickup_address' => 'Sheffield', 'destination_address' => 'East Midlands Airport (EMA)',
         ]))['booking'];
 
         $this->assertEquals('Majid Ali', $a->driver->name);
         $this->assertEquals($a->driver_id, $b->fresh()->driver_id, 'return leg shares the outbound driver');
         $this->assertTrue($b->fresh()->is_return_leg);
 
-        // Only ONE advance: the next standalone LBA job goes to ABDI.
+        // Only ONE advance: the next standalone EMA job goes to ABDI.
         $c = $svc->upsertFromParsed($this->parsed([
-            'reference' => 'SOLO99', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+            'reference' => 'SOLO99', 'pickup_address' => 'East Midlands Airport (EMA)',
         ]))['booking'];
         $this->assertEquals('Abdirazak Hassan', $c->driver->name);
     }
