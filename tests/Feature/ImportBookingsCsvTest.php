@@ -29,14 +29,14 @@ class ImportBookingsCsvTest extends TestCase
         $tsim = Booking::where('external_reference', 'TSIMKEa')->first();
         $this->assertNotNull($tsim);
         $this->assertEquals(4, $tsim->passengers);
-        $this->assertEquals('2 Suitcases + 1 Carry-on', $tsim->meta['luggage_text']);
+        $this->assertEquals('2 Suitcases + 1 Hand Luggage', $tsim->meta['luggage_text']);
         $this->assertEquals('Abdirazak Hassan', $tsim->driver->name);
 
         $event = $tsim->calendarEvent;
         $this->assertStringContainsString('Rebecca Warren', $event->title);
         $this->assertStringContainsString('(ABDI)', $event->title);
         $this->assertStringContainsString('*Passengers:* 4', $event->description);
-        $this->assertStringContainsString('*Luggage:* 2 Suitcases + 1 Carry-on', $event->description);
+        $this->assertStringContainsString('*Luggage:* 2 Suitcases + 1 Hand Luggage', $event->description);
 
         // NU1TZ2a: cash due → 💰 on the outbound.
         $nu = Booking::where('external_reference', 'NU1TZ2a')->first();

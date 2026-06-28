@@ -114,14 +114,21 @@ class CalendarEventBuilder
         return (bool) ($booking->meta['child_seat'] ?? false);
     }
 
+    /** Descriptive luggage from a bare count, never just a number. */
+    private function luggageText(int $count): string
+    {
+        return $count > 0 ? $count.' Hand Luggage' : 'None';
+    }
+
     /** The "📑 Booking Confirmation" body, bold labels on both sides. */
     private function description(Booking $booking): string
     {
         $meta = $booking->meta ?? [];
         $lines = [];
-        // 🚼 must appear in BOTH title and description (rule 5).
+        // Header wrapped in bold asterisks, exactly as the base format; 🚼 after
+        // it so a child seat shows in BOTH the title and the description.
         $childMark = $this->hasChildSeat($booking) ? ' 🚼' : '';
-        $lines[] = '📑 Booking Confirmation – '.($meta['journey_label'] ?? 'Transfer').$childMark;
+        $lines[] = '📑 *Booking Confirmation – '.($meta['journey_label'] ?? 'Transfer').'*'.$childMark;
         $lines[] = '';
 
         $add = function (string $label, ?string $value) use (&$lines): void {
@@ -130,11 +137,13 @@ class CalendarEventBuilder
             }
         };
 
-        $add('Date & Time', $booking->pickup_at?->format('D d M Y, H:i'));
+        // Date & Time must be DD/MM/YYYY – HH:MM (never "Thu 25 Jun 2026, …").
+        $add('Date & Time', $booking->pickup_at?->format('d/m/Y – H:i'));
         $add('Customer Name', $meta['lead_name'] ?? $booking->customer?->name);
         $add('Contact No', $meta['contact_no'] ?? $booking->customer?->phone);
         $add('Passengers', (string) $booking->passengers);
-        $add('Luggage', $meta['luggage_text'] ?? (string) $booking->luggage);
+        // Luggage must be descriptive, never a bare number.
+        $add('Luggage', $meta['luggage_text'] ?? $this->luggageText((int) $booking->luggage));
         if ((int) ($meta['child_seats'] ?? 0) > 0) {
             $add('Child Seats', (string) $meta['child_seats']);
         }

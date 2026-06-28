@@ -263,7 +263,7 @@ class ImportBookingsCsv extends Command
         return null;
     }
 
-    /** "2 Suitcases + 1 Carry-on" from separate counts. */
+    /** "2 Suitcases + 1 Hand Luggage" from separate counts. */
     private function luggageText(string $suitcases, string $hand): string
     {
         $parts = [];
@@ -271,7 +271,7 @@ class ImportBookingsCsv extends Command
             $parts[] = (int) $suitcases.' Suitcase'.((int) $suitcases > 1 ? 's' : '');
         }
         if ((int) $hand > 0) {
-            $parts[] = (int) $hand.' Carry-on'.((int) $hand > 1 ? 's' : '');
+            $parts[] = (int) $hand.' Hand Luggage';
         }
 
         return $parts ? implode(' + ', $parts) : 'None';

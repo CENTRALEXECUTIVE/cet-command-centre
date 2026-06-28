@@ -33,7 +33,8 @@ class OutlookIngestionTest extends TestCase
             'customer_phone' => '07700900123', 'pickup_address' => 'Manchester Airport (MAN), Terminal 3',
             'destination_address' => 'Radisson Blu Hotel, Sheffield', 'pickup_at' => '2026-07-01 14:00',
             'passengers' => 2, 'vehicle_type' => 'Executive', 'flight_number' => 'BA123',
-            'payment_status' => 'paid', 'payment_method' => 'Square', 'payment_text' => '£300 (Square) - Paid',
+            'payment_status' => 'paid', 'payment_method' => 'Square', 'payment_text' => 'Paid £300 (Square)',
+            'suitcases' => 2, 'hand_luggage' => 1,
         ], $overrides);
     }
 
@@ -266,7 +267,10 @@ class OutlookIngestionTest extends TestCase
 
         $this->assertStringNotContainsString('👀', $event->title);
         $this->assertStringNotContainsString('💰', $event->title);
-        $this->assertStringContainsString('📑 Booking Confirmation', $event->description);
+        $this->assertStringContainsString('📑 *Booking Confirmation', $event->description);
+        // Date format DD/MM/YYYY – HH:MM, and standard payment "Paid £X (Method)".
+        $this->assertStringContainsString('*Date & Time:* 01/07/2026 – 14:00', $event->description);
+        $this->assertStringContainsString('*Payment:* Paid £300 (Square)', $event->description);
         $this->assertStringContainsString('*Booking Reference:* ZWR6MM', $event->description);
         $this->assertStringContainsString('*Meet & Greet:* Required', $event->description);
         $this->assertStringContainsString('Arrival (Meet & Greet)', $event->description);

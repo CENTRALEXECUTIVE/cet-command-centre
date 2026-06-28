@@ -116,6 +116,9 @@ class EtoEmailParser
             'destination_address' => $dropoff,
             'pickup_at' => $pickupAt,
             'passengers' => (int) ($this->getFlat($fields, 'passengers') ?: 1),
+            'suitcases' => (int) ($this->getFlat($fields, 'suitcases') ?? 0),
+            'hand_luggage' => (int) ($this->getFlat($fields, 'hand luggage')
+                ?? $this->getFlat($fields, 'luggage') ?? 0),
             'luggage' => (int) ($this->getFlat($fields, 'hand luggage')
                 ?? $this->getFlat($fields, 'suitcases')
                 ?? $this->getFlat($fields, 'luggage') ?? 0),
@@ -164,11 +167,22 @@ class EtoEmailParser
             $method = 'Cash';
         }
 
+        // Standard display: "Paid £215 (Square)" — Paid first, no dashes.
+        $amount = $total !== null ? '£'.rtrim(rtrim(number_format($total, 2), '0'), '.') : '';
+        $methodPart = $method ? " ({$method})" : '';
+        if ($status === 'paid') {
+            $text = trim("Paid {$amount}{$methodPart}");
+        } elseif ($amount !== '') {
+            $text = trim("{$amount}{$methodPart} - ".ucfirst($status));
+        } else {
+            $text = trim($payments) ?: null;
+        }
+
         return [
             'status' => $status,
             'method' => $method,
             'total' => $total,
-            'text' => trim($payments) ?: null,
+            'text' => $text,
         ];
     }
 

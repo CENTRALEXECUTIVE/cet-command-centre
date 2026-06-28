@@ -236,6 +236,20 @@ class OutlookBookingService
         });
     }
 
+    /** "1 Suitcase + 1 Hand Luggage" — descriptive, never a bare number. */
+    private function luggageText(int $suitcases, int $hand): string
+    {
+        $parts = [];
+        if ($suitcases > 0) {
+            $parts[] = $suitcases.' Suitcase'.($suitcases > 1 ? 's' : '');
+        }
+        if ($hand > 0) {
+            $parts[] = $hand.' Hand Luggage';
+        }
+
+        return $parts ? implode(' + ', $parts) : 'None';
+    }
+
     /** Map the ETO payment label (Square/Stripe/Cash/Card) to our method enum. */
     private function paymentMethod(?string $label): string
     {
@@ -275,6 +289,8 @@ class OutlookBookingService
             'journey_label' => $label,
             // Title location: airport code, else FREE ROAM (rule 8).
             'where' => $this->airportCodeFor($parsed) ?? 'FREE ROAM',
+            // Descriptive luggage, never a bare number (e.g. "1 Suitcase + 1 Hand Luggage").
+            'luggage_text' => $this->luggageText((int) ($parsed['suitcases'] ?? 0), (int) ($parsed['hand_luggage'] ?? ($parsed['luggage'] ?? 0))),
             // Always show the lead passenger, never the booker/company (rule 9).
             'lead_name' => $parsed['customer_name'] ?? null,
             'meet_and_greet' => $meetGreet,
