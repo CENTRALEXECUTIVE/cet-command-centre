@@ -62,6 +62,18 @@ class ReportService
             ->get();
     }
 
+    /** Top customers by revenue. */
+    public function topCustomers(CarbonInterface $start, CarbonInterface $end, int $limit = 10): Collection
+    {
+        return $this->completed($start, $end)
+            ->selectRaw('customer_id, COUNT(*) as jobs, SUM('.self::REVENUE.') as revenue')
+            ->groupBy('customer_id')
+            ->with('customer:id,name')
+            ->orderByDesc('revenue')
+            ->limit($limit)
+            ->get();
+    }
+
     /** Top routes by volume (pickup → destination). */
     public function topRoutes(CarbonInterface $start, CarbonInterface $end, int $limit = 10): Collection
     {

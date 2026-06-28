@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function () {
     // ----- Fleet & compliance + reports + waiting list (admin) -----------
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
+        Route::get('review', [\App\Http\Controllers\ReviewController::class, 'index'])->name('review.index');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
 

@@ -25,6 +25,7 @@
                 <div class="nav-group-title">Operations</div>
                 <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
                 @if($u->isAdmin())
+                    <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') ? 'active' : '' }}">Review</a>
                     <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">Despatch board</a>
                 @endif
                 @if($u->isAdmin() || $u->isDriver())
