@@ -22,14 +22,6 @@ use Illuminate\Support\Str;
  */
 class CalendarEventBuilder
 {
-    /** slug => calendar TAG label for non-rotation vehicles. */
-    private const VEHICLE_TAG = [
-        'v-class' => 'V CLASS',
-        'minibus-8' => 'MINIBUS',
-        'minibus-8-xl' => 'MINIBUS',
-        'rolls-royce-ghost' => 'ROLLS ROYCE',
-        'estate' => 'ESTATE',
-    ];
 
     public function buildFor(Booking $booking): CalendarEvent
     {
@@ -71,24 +63,29 @@ class CalendarEventBuilder
         return "*{$prefix}{$name} {$where}{$return} ({$tag})*";
     }
 
+    /**
+     * The bracket tag is ALWAYS a person (rule 1) — ABDI, MAJ, COVER, or a named
+     * third-party driver — NEVER a vehicle type. Vehicle appears only on the
+     * "Vehicle Type" description line.
+     */
     private function tag(Booking $booking): string
     {
-        // A curated import sets the exact driver tag (ABDI/MAJ/MINIBUS/V CLASS/…).
+        // An explicit tag set by the operator/import wins (ABDI/MAJ/COVER/KASH…).
         if (! empty($booking->meta['driver_tag'])) {
             return Str::upper($booking->meta['driver_tag']);
         }
 
-        // Executive/rotation jobs are tagged with the driver's callsign — the
-        // email local-part (abdi@… → ABDI, maj@… → MAJ).
-        if ($booking->vehicleType?->affects_rotation && $booking->driver) {
+        // Otherwise the assigned driver's callsign — the email local-part
+        // (abdi@… → ABDI, maj@… → MAJ), else their first name.
+        if ($booking->driver) {
             $callsign = Str::before((string) $booking->driver->email, '@');
 
             return Str::upper($callsign !== '' ? $callsign : Str::before($booking->driver->name, ' '));
         }
 
-        $slug = $booking->vehicleType?->slug;
-
-        return self::VEHICLE_TAG[$slug] ?? Str::upper($booking->vehicleType?->name ?? 'TRANSFER');
+        // No driver yet → COVER (a person placeholder the operator overrides).
+        // Never fall back to the vehicle type — that is an error per rule 1.
+        return 'COVER';
     }
 
     /**
@@ -125,11 +122,15 @@ class CalendarEventBuilder
     {
         $meta = $booking->meta ?? [];
         $lines = [];
-        // Header wrapped in bold asterisks, exactly as the base format; 🚼 after
-        // it so a child seat shows in BOTH the title and the description.
+        // Header wrapped in bold asterisks; 🚼 after it so a child seat shows in
+        // BOTH the title and the description. Meet & Greet is appended inside the
+        // header (rule 5). NO blank line follows the header (rule 5 / rule 10).
         $childMark = $this->hasChildSeat($booking) ? ' 🚼' : '';
-        $lines[] = '📑 *Booking Confirmation – '.($meta['journey_label'] ?? 'Transfer').'*'.$childMark;
-        $lines[] = '';
+        $journey = $meta['journey_label'] ?? 'Transfer';
+        if (! empty($meta['meet_and_greet'])) {
+            $journey .= ' (Meet & Greet)';
+        }
+        $lines[] = '📑 *Booking Confirmation – '.$journey.'*'.$childMark;
 
         $add = function (string $label, ?string $value) use (&$lines): void {
             if (filled($value)) {
@@ -137,7 +138,8 @@ class CalendarEventBuilder
             }
         };
 
-        // Date & Time must be DD/MM/YYYY – HH:MM (never "Thu 25 Jun 2026, …").
+        // Field order per rule 5: Date, Customer, Contact, Passengers, Luggage,
+        // Flight, Meet & Greet, Pickup, Drop-off, Vehicle, Payment, Ref, Notes.
         $add('Date & Time', $booking->pickup_at?->format('d/m/Y – H:i'));
         $add('Customer Name', $meta['lead_name'] ?? $booking->customer?->name);
         $add('Contact No', $meta['contact_no'] ?? $booking->customer?->phone);
@@ -150,29 +152,48 @@ class CalendarEventBuilder
         if ((int) ($meta['booster_seats'] ?? 0) > 0) {
             $add('Booster Seats', (string) $meta['booster_seats']);
         }
+        $add('Flight Number', $booking->flight_number);
+        if (! empty($meta['meet_and_greet'])) {
+            $add('Meet & Greet', 'Required');
+        }
         $add('Pickup Location', $booking->pickup_address);
         foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
             $add('Stop '.($i + 1), $stop);
         }
         $add('Drop-off Location', $booking->destination_address);
-        $add('Flight Number', $booking->flight_number);
-        if (! empty($meta['meet_and_greet'])) {
-            $add('Meet & Greet', 'Required');
-        }
         $add('Vehicle Type', $booking->vehicleType?->name);
         $add('Payment', $meta['payment_text'] ?? $this->paymentLabel($booking));
         $add('Booking Reference', $booking->external_reference ?? $booking->reference);
-        $add('Notes', $booking->special_requests);
+        // Notes carry the booker (rule 3): "Booked by X". Any free-text request
+        // is appended after it.
+        $add('Notes', $this->notesLine($meta, $booking));
 
         return implode("\n", $lines);
     }
 
+    /** "Booked by X" (rule 3), plus any special request, with no leading dash. */
+    private function notesLine(array $meta, Booking $booking): ?string
+    {
+        $parts = [];
+        $bookedBy = $meta['booked_by'] ?? null;
+        $lead = $meta['lead_name'] ?? $booking->customer?->name;
+        if (filled($bookedBy) && $bookedBy !== $lead) {
+            $parts[] = "Booked by {$bookedBy}";
+        }
+        if (filled($booking->special_requests)) {
+            $parts[] = $booking->special_requests;
+        }
+
+        return $parts === [] ? null : implode('. ', $parts);
+    }
+
+    /** Payment fallback with NO dash (rule 6): "Paid (Card)" / "Pending (Account)". */
     private function paymentLabel(Booking $booking): string
     {
         $method = $booking->payment_method?->label() ?? 'Card';
         $status = ucfirst($booking->payment_status ?? 'pending');
 
-        return "{$method} – {$status}";
+        return "{$status} ({$method})";
     }
 
     /**

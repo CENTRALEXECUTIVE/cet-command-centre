@@ -44,6 +44,15 @@ Source of truth in code: `database/seeders/RotationSeeder.php`
 
 ## Calendar formatting (locked)
 
+**Authoritative spec: `docs/CET_CALENDAR_RULES.md`.** That file is the source of
+truth; the summary below must agree with it. Key points the code enforces:
+the title bracket is ALWAYS a person (ABDI/MAJ/COVER/named third party), NEVER a
+vehicle; no blank line after the 📑 header; no dash in payment text; the booker
+goes in Notes as "Booked by X"; ICS re-import stays DISABLED (rule 10 — it was
+the June corruption source, so the system writes the calendar via the API only,
+never round-trips through ICS).
+
+
 - Title in bold asterisks: `*[emoji ]Customer AIRPORT (TAG)*`; paired arrival
   leg adds ` Return`. TAG = driver callsign (ABDI/MAJ) for rotation jobs, else
   the vehicle label (V CLASS / MINIBUS / ROLLS ROYCE / ESTATE).
