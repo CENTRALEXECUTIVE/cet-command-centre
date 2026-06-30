@@ -69,8 +69,8 @@ class EtoEmailParser
         $pickupAt = $this->parseDateTime(
             $this->get($fields, 'journey', 'date & time') ?? $this->getFlat($fields, 'date & time')
         );
-        $pickup = $this->getFlat($fields, 'pickup');
-        $dropoff = $this->getFlat($fields, 'dropoff');
+        $pickup = $this->cleanAddress($this->getFlat($fields, 'pickup'));
+        $dropoff = $this->cleanAddress($this->getFlat($fields, 'dropoff'));
 
         // A new/amended booking needs the core journey details to be usable.
         if (! $pickupAt || ! $pickup || ! $dropoff) {
@@ -145,6 +145,19 @@ class EtoEmailParser
      * @param array{sections: array<string, array<string, string>>, flat: array<string, string>} $fields
      * @return array{status: string, method: string|null, total: float|null, text: string|null}
      */
+    /**
+     * Strip the trailing ", UK" / " UK" that ETO appends to addresses — a
+     * corruption fingerprint (rule 4/10). Leaves the rest of the address intact.
+     */
+    private function cleanAddress(?string $address): ?string
+    {
+        if ($address === null) {
+            return null;
+        }
+
+        return trim(preg_replace('/\s*,?\s*UK\s*$/i', '', trim($address))) ?: $address;
+    }
+
     private function payment(array $fields): array
     {
         $payments = $this->getFlat($fields, 'payments') ?? '';
