@@ -378,6 +378,61 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals('LBA', $booking->airport->code);
     }
 
+    public function test_deposit_plus_balance_both_paid_is_fully_paid_no_eyes(): void
+    {
+        // ETO splits payment across two lines. When BOTH are "Paid" the job is
+        // fully paid — it must NOT be flagged 👀 (the old parser saw "Deposit"
+        // first and wrongly marked it partial).
+        $html = '<html><body><table>'
+            .'<tr><td>Date &amp; time:</td><td>16/07/2026 15:15</td></tr>'
+            .'<tr><td>Pickup:</td><td>16 Haslehurst Road, Sheffield S2 5FW, UK</td></tr>'
+            .'<tr><td>Dropoff:</td><td>Manor Oaks Road, Sheffield, UK</td></tr>'
+            .'<tr><td>Vehicle type:</td><td>Luxury</td></tr>'
+            .'<tr><td>Passengers:</td><td>2</td></tr>'
+            .'<tr><td>Name:</td><td>Amy Tunnicliffe</td></tr>'
+            .'<tr><td>Phone number:</td><td>+447703719926</td></tr>'
+            .'<tr><td>Reference number:</td><td>YUUMOV</td></tr>'
+            .'<tr><td>Total:</td><td>£300</td></tr>'
+            .'<tr><td>Payments:</td><td>Deposit £150 (Square) - Paid Balance £150 (Square) - Paid</td></tr>'
+            .'</table></body></html>';
+
+        $text = app(\App\Services\Inbox\GraphMailClient::class)
+            ->bodyToText(['contentType' => 'html', 'content' => $html]);
+        $parsed = app(OutlookBookingService::class)->parse('New booking YUUMOV has been created.', $text, null);
+
+        $this->assertEquals('paid', $parsed['payment_status']);
+        $this->assertEquals('Paid £300 (Square)', $parsed['payment_text']);
+
+        $event = app(OutlookBookingService::class)->upsertFromParsed($parsed)['booking']->calendarEvent;
+        $this->assertStringNotContainsString('👀', $event->title);
+        $this->assertStringContainsString('Paid £300 (Square)', $event->description);
+    }
+
+    public function test_deposit_with_outstanding_balance_keeps_eyes(): void
+    {
+        // Deposit paid but balance still pending → genuinely partial → 👀.
+        $html = '<html><body><table>'
+            .'<tr><td>Date &amp; time:</td><td>16/07/2026 15:15</td></tr>'
+            .'<tr><td>Pickup:</td><td>16 Haslehurst Road, Sheffield S2 5FW</td></tr>'
+            .'<tr><td>Dropoff:</td><td>Manor Oaks Road, Sheffield</td></tr>'
+            .'<tr><td>Vehicle type:</td><td>Executive</td></tr>'
+            .'<tr><td>Passengers:</td><td>2</td></tr>'
+            .'<tr><td>Name:</td><td>Test Partial</td></tr>'
+            .'<tr><td>Phone number:</td><td>+447700000000</td></tr>'
+            .'<tr><td>Reference number:</td><td>PARTL1</td></tr>'
+            .'<tr><td>Total:</td><td>£300</td></tr>'
+            .'<tr><td>Payments:</td><td>Deposit £150 (Stripe) - Paid Balance £150 (Square) - Pending</td></tr>'
+            .'</table></body></html>';
+
+        $text = app(\App\Services\Inbox\GraphMailClient::class)
+            ->bodyToText(['contentType' => 'html', 'content' => $html]);
+        $parsed = app(OutlookBookingService::class)->parse('New booking PARTL1 has been created.', $text, null);
+
+        $this->assertEquals('deposit', $parsed['payment_status']);
+        $event = app(OutlookBookingService::class)->upsertFromParsed($parsed)['booking']->calendarEvent;
+        $this->assertStringContainsString('👀', $event->title);
+    }
+
     public function test_executive_jobs_get_rotation_driver_per_airport(): void
     {
         $this->seed(\Database\Seeders\RotationSeeder::class);

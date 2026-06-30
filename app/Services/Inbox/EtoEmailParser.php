@@ -150,30 +150,47 @@ class EtoEmailParser
         $payments = $this->getFlat($fields, 'payments') ?? '';
         $total = $this->money($this->getFlat($fields, 'total'));
 
-        $status = 'pending';
-        if (preg_match('/\b(paid|deposit|part(?:ial(?:ly)?)?\s*paid?|partial)\b/i', $payments, $m)) {
-            $word = strtolower($m[1]);
-            $status = str_starts_with($word, 'paid') ? 'paid'
-                : (str_starts_with($word, 'deposit') ? 'deposit' : 'partial');
-        } elseif (preg_match('/\bpending\b/i', $payments)) {
+        // ETO lists each part on its own line, e.g.
+        //   "Deposit £150 (Square) - Paid"
+        //   "Balance £150 (Square) - Paid"   → FULLY PAID (no balance owed)
+        // or "Balance £150 (Square) - Pending" → a real outstanding balance.
+        // The status hinges on whether anything is still OUTSTANDING, not on the
+        // first word seen — matching "Deposit" first wrongly flagged fully-paid
+        // jobs as partial (a false 👀 on the calendar).
+        $outstanding = (bool) preg_match('/\b(pending|due|outstanding|unpaid|owing|owed|to\s*pay|balance\s*remaining)\b/i', $payments);
+        $mentionsPaid = (bool) preg_match('/\bpaid\b/i', $payments);
+
+        if ($mentionsPaid && ! $outstanding) {
+            $status = 'paid'; // every part paid → fully paid
+        } elseif (preg_match('/\bdeposit\b/i', $payments) && $outstanding) {
+            $status = 'deposit'; // deposit taken, balance still owed
+        } elseif (preg_match('/\bpart(?:ial(?:ly)?)?\b/i', $payments) && $outstanding) {
+            $status = 'partial';
+        } elseif ($outstanding) {
+            $status = 'pending';
+        } elseif ($mentionsPaid) {
+            $status = 'paid';
+        } else {
             $status = 'pending';
         }
 
-        // Method in brackets, e.g. "(Square)", "(Stripe)", "(Cash)".
+        // Method(s) in brackets, e.g. "(Square)", "(Stripe)". A deposit+balance
+        // split paid by two methods → "Stripe + Square".
         $method = null;
-        if (preg_match('/\(([A-Za-z ]+)\)/', $payments, $m)) {
-            $method = trim($m[1]);
+        if (preg_match_all('/\(([A-Za-z][A-Za-z ]*)\)/', $payments, $mm)) {
+            $methods = array_values(array_unique(array_map('trim', $mm[1])));
+            $method = implode(' + ', $methods);
         } elseif (stripos($payments, 'cash') !== false) {
             $method = 'Cash';
         }
 
-        // Standard display: "Paid £215 (Square)" — Paid first, no dashes.
+        // Standard display: "Paid £215 (Square)" — Paid first, never a dash (rule 6).
         $amount = $total !== null ? '£'.rtrim(rtrim(number_format($total, 2), '0'), '.') : '';
         $methodPart = $method ? " ({$method})" : '';
         if ($status === 'paid') {
             $text = trim("Paid {$amount}{$methodPart}");
         } elseif ($amount !== '') {
-            $text = trim("{$amount}{$methodPart} - ".ucfirst($status));
+            $text = trim(ucfirst($status)." {$amount}{$methodPart}");
         } else {
             $text = trim($payments) ?: null;
         }
