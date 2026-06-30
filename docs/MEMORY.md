@@ -3,6 +3,32 @@
 This file is the single source of truth for the rules that must never drift.
 If anything below changes, update this file **and** the code it points to.
 
+## Calendar is PAUSED by default (safety switch)
+
+The system does **not** read or write the Google Calendar unless deliberately
+resumed. This is a hard guard so the calendar can never be touched by surprise.
+
+- Pause:  `php artisan cet:calendar-pause`
+- Resume: `php artisan cet:calendar-resume`  (then `cet:sync-calendar` to push
+  anything captured while paused)
+- Hard override: `CALENDAR_SYNC_ENABLED=false` in `.env` forces it OFF no matter
+  what the pause setting says.
+
+While paused: bookings still flow into the database from the email feed; they
+sit `pending` and are pushed only after resume. Source of truth:
+`GoogleCalendarService::active()` (default `Setting('calendar_paused', true)`),
+the scheduled calendar jobs `->skip()` in `routes/console.php`, and
+`tests/Feature/CalendarDedupeTest`.
+
+## The system does not store pre-automation bookings
+
+Old bookings that pre-date automation are **not** kept in the database. The
+operator manages the historical calendar themselves (their own ICS import).
+The system only tracks bookings created by the live email feed (source =
+`outlook`) from go-live onward. To clear imported historical rows from the DB
+**without touching the calendar**: `php artisan cet:forget-bookings`
+(removes source = `ics` / `import` only; leaves `outlook` live bookings alone).
+
 ## Driver rotation (current, live order)
 
 Executive saloon jobs only (Abdi ↔ Maj). Booking-order based: first booking →

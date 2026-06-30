@@ -85,6 +85,9 @@ return [
     // Google Calendar — booking events pushed to the company calendar.
     'google_calendar' => [
         'credentials' => env('GOOGLE_CALENDAR_CREDENTIALS'),
+        // Hard env override. When false, NOTHING reads or writes the calendar,
+        // regardless of the runtime pause setting. Leave unset for normal use.
+        'sync_enabled' => env('CALENDAR_SYNC_ENABLED', true),
     ],
 
     // Microsoft Graph — parse Outlook booking emails into bookings.

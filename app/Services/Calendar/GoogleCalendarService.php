@@ -3,6 +3,7 @@
 namespace App\Services\Calendar;
 
 use App\Models\CalendarEvent;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -21,10 +22,28 @@ class GoogleCalendarService
     }
 
     /**
+     * Whether the calendar may be touched at all. Paused by default — a hard
+     * safety switch so the system NEVER reads or writes the calendar unless it
+     * has been deliberately resumed (cet:calendar-resume). The env override
+     * CALENDAR_SYNC_ENABLED=false forces it off no matter what.
+     */
+    public function active(): bool
+    {
+        if (config('services.google_calendar.sync_enabled') === false) {
+            return false;
+        }
+
+        return ! Setting::get('calendar_paused', true); // default: PAUSED
+    }
+
+    /**
      * Sync one calendar event to Google. Returns true on success.
      */
     public function push(CalendarEvent $event): bool
     {
+        if (! $this->active()) {
+            return false; // calendar paused — leave the event pending, touch nothing
+        }
         if (! $this->configured()) {
             return false; // left pending until credentials are configured
         }
@@ -150,7 +169,7 @@ class GoogleCalendarService
      */
     public function delete(CalendarEvent $event): bool
     {
-        if (! $this->configured() || ! $event->google_event_id) {
+        if (! $this->active() || ! $this->configured() || ! $event->google_event_id) {
             return false;
         }
 
@@ -180,7 +199,7 @@ class GoogleCalendarService
      */
     public function purgeOwnEvents(string $calendarId): int
     {
-        if (! $this->configured()) {
+        if (! $this->active() || ! $this->configured()) {
             return 0;
         }
         $token = $this->accessToken();
@@ -237,7 +256,7 @@ class GoogleCalendarService
      */
     public function purgeAllEvents(string $calendarId): int
     {
-        if (! $this->configured()) {
+        if (! $this->active() || ! $this->configured()) {
             return 0;
         }
         $token = $this->accessToken();

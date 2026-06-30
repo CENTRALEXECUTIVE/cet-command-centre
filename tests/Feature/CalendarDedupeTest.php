@@ -29,6 +29,9 @@ class CalendarDedupeTest extends TestCase
             'private_key' => $privateKey,
             'token_uri' => 'https://oauth2.googleapis.com/token',
         ])]);
+
+        // This suite exercises real calendar writes, so lift the default pause.
+        \App\Models\Setting::set('calendar_paused', false, 'bool', 'calendar');
     }
 
     private function makeEvent(string $reference): CalendarEvent
@@ -92,6 +95,19 @@ class CalendarDedupeTest extends TestCase
         Http::assertSent(fn ($r) => $r->method() === 'PUT' && str_contains($r->url(), '/events/'.$existingId));
         // ...and never created a second copy.
         Http::assertNotSent(fn ($r) => $r->method() === 'POST' && str_contains($r->url(), '/calendar/v3/'));
+    }
+
+    public function test_push_does_nothing_while_calendar_is_paused(): void
+    {
+        \App\Models\Setting::set('calendar_paused', true, 'bool', 'calendar');
+        Http::fake(); // any HTTP call would be a failure
+
+        $event = $this->makeEvent('PAUSED1');
+        $ok = app(GoogleCalendarService::class)->push($event);
+
+        $this->assertFalse($ok);
+        $this->assertNull($event->fresh()->google_event_id);
+        Http::assertNothingSent();
     }
 
     public function test_push_creates_when_no_matching_event_exists(): void
