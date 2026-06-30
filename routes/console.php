@@ -26,14 +26,14 @@ Schedule::command('cet:check-flights')->everyFifteenMinutes()->withoutOverlappin
 // Google Ads metrics sync (when API configured), daily.
 Schedule::command('cet:sync-ads')->dailyAt('05:00');
 
-// ── Calendar: OFF. The operator manages the Google Calendar personally. ──
-// No calendar job is scheduled — nothing reads, writes, syncs, or verifies it.
-// The GoogleCalendarService kill-switch (paused by default) is a second guard.
-// To hand the calendar back to the system later, restore the cet:sync-calendar
-// and cet:verify-calendar schedules below and run cet:calendar-resume.
-//   Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping();
-//   Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
+// Push pending booking events to Google Calendar, every 5 minutes. This ADDS
+// new bookings in the correct format (CalendarEventBuilder) and matches existing
+// events by reference so it never duplicates. ICS import stays disabled (rule
+// 10 — the corruption source). Operator-driven edits/deletions are NOT done here.
+Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping();
 
-// Parse Outlook booking emails into bookings, every 5 minutes. (Captures emails
-// into the database only — it does NOT touch the calendar.)
+// Parse Outlook booking emails into bookings, every 5 minutes.
 Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();
+
+// Safety net: re-confirm every upcoming booking is on the calendar, hourly.
+Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();

@@ -10,10 +10,19 @@ system or the assistant — without the operator's explicit instruction naming
 the exact items AND a second re-confirmation immediately before acting.
 Read-only auditing is allowed; any write is not, until double-confirmed.
 
-## Calendar is PAUSED by default (safety switch)
+## Calendar automation is ON (auto-add new bookings; edits/deletes need approval)
 
-The system does **not** read or write the Google Calendar unless deliberately
-resumed. This is a hard guard so the calendar can never be touched by surprise.
+The operator has opted in: the system **auto-adds new bookings** to the calendar
+in the correct format (CalendarEventBuilder) and matches existing events by
+reference so it never duplicates. It does NOT delete or rewrite existing events
+on its own — operator-driven edits and deletions go through the human approval
+rule above. ICS import stays disabled (rule 10).
+
+## Calendar kill-switch (still available)
+
+`cet:calendar-pause` flips all calendar activity off; `cet:calendar-resume`
+turns it back on. `CALENDAR_SYNC_ENABLED=false` in `.env` is a hard override.
+Active by default now (the operator opted in).
 
 - Pause:  `php artisan cet:calendar-pause`
 - Resume: `php artisan cet:calendar-resume`  (then `cet:sync-calendar` to push

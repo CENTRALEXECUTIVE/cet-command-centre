@@ -33,7 +33,10 @@ class GoogleCalendarService
             return false;
         }
 
-        return ! Setting::get('calendar_paused', true); // default: PAUSED
+        // Active by default — the operator has opted in to auto-adding new
+        // bookings in the correct format. cet:calendar-pause flips it off; the
+        // CALENDAR_SYNC_ENABLED=false env override is the hard kill.
+        return ! Setting::get('calendar_paused', false);
     }
 
     /**
