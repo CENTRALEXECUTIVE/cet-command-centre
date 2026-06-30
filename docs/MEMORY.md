@@ -3,6 +3,13 @@
 This file is the single source of truth for the rules that must never drift.
 If anything below changes, update this file **and** the code it points to.
 
+## NEVER delete or edit calendar events without explicit, re-confirmed permission
+
+Hard rule. No calendar event may be deleted, edited, or overwritten — by the
+system or the assistant — without the operator's explicit instruction naming
+the exact items AND a second re-confirmation immediately before acting.
+Read-only auditing is allowed; any write is not, until double-confirmed.
+
 ## Calendar is PAUSED by default (safety switch)
 
 The system does **not** read or write the Google Calendar unless deliberately
