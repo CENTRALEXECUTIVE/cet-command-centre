@@ -26,17 +26,14 @@ Schedule::command('cet:check-flights')->everyFifteenMinutes()->withoutOverlappin
 // Google Ads metrics sync (when API configured), daily.
 Schedule::command('cet:sync-ads')->dailyAt('05:00');
 
-// Calendar kill-switch: skip ALL calendar jobs while paused (default: paused)
-// or when the hard env override CALENDAR_SYNC_ENABLED=false is set.
-$calendarPaused = fn () => config('services.google_calendar.sync_enabled') === false
-    || \App\Models\Setting::get('calendar_paused', true);
-
-// Push pending booking events to Google Calendar, every 5 minutes.
-Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping()->skip($calendarPaused);
+// ── Calendar: OFF. The operator manages the Google Calendar personally. ──
+// No calendar job is scheduled — nothing reads, writes, syncs, or verifies it.
+// The GoogleCalendarService kill-switch (paused by default) is a second guard.
+// To hand the calendar back to the system later, restore the cet:sync-calendar
+// and cet:verify-calendar schedules below and run cet:calendar-resume.
+//   Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping();
+//   Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
 
 // Parse Outlook booking emails into bookings, every 5 minutes. (Captures emails
-// into the database; the calendar push within is itself paused by the switch.)
+// into the database only — it does NOT touch the calendar.)
 Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();
-
-// Safety net: re-confirm every upcoming booking is on the calendar, hourly.
-Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping()->skip($calendarPaused);
