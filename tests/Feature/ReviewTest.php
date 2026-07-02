@@ -26,6 +26,10 @@ class ReviewTest extends TestCase
 
     public function test_admin_sees_review_with_revenue_vehicle_and_recommendations(): void
     {
+        // Pin to mid-month so the "this month" default window is deterministic
+        // (a booking 2 days ago can't fall into the previous month).
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-15 12:00:00'));
+
         $admin = User::factory()->admin()->create();
         $exec = VehicleType::where('slug', 'executive')->first();
         $customer = Customer::create(['name' => 'Acme Travel', 'phone' => '07700900111']);
