@@ -31,6 +31,34 @@ class AuthenticationTest extends TestCase
         $this->assertNotNull($user->fresh()->last_login_at);
     }
 
+    public function test_awaiting_allocation_counts_only_upcoming_jobs(): void
+    {
+        $this->seed([VehicleTypeSeeder::class]);
+        $admin = User::factory()->admin()->create();
+        $vt = \App\Models\VehicleType::first();
+        $customer = \App\Models\Customer::create(['name' => 'Test', 'phone' => '07000000000']);
+
+        $make = fn ($pickupAt) => \App\Models\Booking::create([
+            'reference' => \App\Models\Booking::generateReference(),
+            'customer_id' => $customer->id,
+            'vehicle_type_id' => $vt->id,
+            'pickup_at' => $pickupAt,
+            'pickup_address' => 'A',
+            'destination_address' => 'B',
+            'passengers' => 1,
+            'status' => 'pending',
+            'payment_method' => 'card',
+        ]);
+
+        $make(now()->subDays(5)); // past pending import → must NOT count
+        $make(now()->addDays(2)); // upcoming unallocated → must count
+
+        $response = $this->actingAs($admin)->get(route('dashboard'));
+
+        $response->assertOk();
+        $this->assertEquals(1, $response->viewData('pendingCount'), 'only the upcoming pending job counts');
+    }
+
     public function test_login_fails_with_wrong_password(): void
     {
         $user = User::factory()->admin()->create(['password' => 'correct-password']);

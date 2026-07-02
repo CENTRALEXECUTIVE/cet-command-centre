@@ -20,7 +20,12 @@ class DashboardController extends Controller
         if ($user->isAdmin()) {
             return view('dashboard.admin', [
                 'todayCount' => Booking::whereDate('pickup_at', today())->count(),
-                'pendingCount' => Booking::where('status', BookingStatus::Pending->value)->count(),
+                // "Awaiting allocation" = UPCOMING jobs with no driver yet. Past
+                // pending jobs (old imports that already happened) are excluded —
+                // otherwise the count balloons with history and is unactionable.
+                'pendingCount' => Booking::where('status', BookingStatus::Pending->value)
+                    ->where('pickup_at', '>=', today())
+                    ->count(),
                 'activeCount' => Booking::active()->count(),
                 'upcoming' => Booking::with(['customer', 'vehicleType', 'driver'])
                     ->where('pickup_at', '>=', now())
