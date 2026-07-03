@@ -71,18 +71,27 @@ class AdsSyncService
     {
         $rows = array_map('str_getcsv', file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
 
-        // Skip Google's title/preamble rows: the header is the first row that maps
-        // to a `date` column.
+        // Find the header (first row that maps to a `date` column OR to metrics),
+        // keeping the preamble rows so we can read the report's date range.
+        $preamble = [];
         $header = null;
         while (($row = array_shift($rows)) !== null) {
             $mapped = array_map(fn ($h) => self::COLUMN_ALIASES[strtolower(trim((string) $h))] ?? strtolower(trim((string) $h)), $row);
-            if (in_array('date', $mapped, true)) {
+            if (in_array('date', $mapped, true) || array_intersect(['spend', 'clicks', 'conversions', 'revenue'], $mapped)) {
                 $header = $mapped;
                 break;
             }
+            $preamble[] = implode(' ', $row);
         }
         if ($header === null) {
             return 0;
+        }
+
+        // A report WITHOUT a date column (e.g. broken down by keyword/campaign for
+        // the whole period) → aggregate every row into one period-total metric,
+        // dated to the range end read from the title.
+        if (! in_array('date', $header, true)) {
+            return $this->importPeriodTotal($rows, $header, implode(' ', $preamble)) ? 1 : 0;
         }
 
         $count = 0;
@@ -118,5 +127,56 @@ class AdsSyncService
     private function num(mixed $value): float
     {
         return (float) preg_replace('/[^0-9.\-]/', '', (string) $value);
+    }
+
+    /**
+     * Aggregate every data row of a no-date report into a single period-total
+     * AdMetric, dated to the range end from the report title (else today).
+     */
+    private function importPeriodTotal(array $rows, array $header, string $preamble): bool
+    {
+        $sum = ['spend' => 0.0, 'revenue' => 0.0, 'conversions' => 0.0, 'clicks' => 0.0, 'impressions' => 0.0];
+        $any = false;
+
+        foreach ($rows as $row) {
+            if (stripos(trim((string) ($row[0] ?? '')), 'total') === 0) {
+                continue; // Google's "Total: …" summary rows
+            }
+            $data = array_combine($header, array_pad($row, count($header), null));
+            foreach (array_keys($sum) as $field) {
+                $sum[$field] += $this->num($data[$field] ?? null);
+            }
+            $any = true;
+        }
+
+        if (! $any) {
+            return false;
+        }
+
+        $this->upsertDaily([
+            'date' => $this->periodEndDate($preamble),
+            'campaign' => 'Google Ads (period total)',
+            'spend' => $sum['spend'],
+            'revenue' => $sum['revenue'],
+            'conversions' => (int) round($sum['conversions']),
+            'clicks' => (int) $sum['clicks'],
+            'impressions' => (int) $sum['impressions'],
+        ]);
+
+        return true;
+    }
+
+    /** The last date mentioned in the report title/preamble (= range end), else today. */
+    private function periodEndDate(string $preamble): string
+    {
+        if (preg_match_all('/[A-Z][a-z]+ \d{1,2}, \d{4}/', $preamble, $m) && $m[0] !== []) {
+            try {
+                return Carbon::parse(end($m[0]))->toDateString();
+            } catch (\Throwable) {
+                // fall through
+            }
+        }
+
+        return Carbon::today()->toDateString();
     }
 }

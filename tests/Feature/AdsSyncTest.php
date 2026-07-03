@@ -68,4 +68,30 @@ class AdsSyncTest extends TestCase
         $this->assertEquals('1.57', $day1->roas);             // 1600 / 1017
         @unlink($path);
     }
+
+    public function test_imports_period_total_report_without_a_day_column(): void
+    {
+        // A keyword-level report (no Day column) → aggregated to one period metric,
+        // dated to the range end read from the title.
+        $csv = "Untitled report\n"
+            ."\"June 4, 2026 - July 3, 2026\"\n"
+            ."Campaign,Search keyword,Clicks,Cost,Conversions,Conv. value\n"
+            ."Airport,sheffield airport taxi,26,\"64.15\",5,\"1,150.00\"\n"
+            ."Airport,manchester taxi,10,25.64,1,210.00\n"
+            ."Total: Search keywords,,36,89.79,6,1360.00\n";
+        $path = tempnam(sys_get_temp_dir(), 'kw').'.csv';
+        file_put_contents($path, $csv);
+
+        $imported = app(AdsSyncService::class)->importCsv($path);
+
+        $this->assertEquals(1, $imported); // one aggregated row
+        $m = AdMetric::first();
+        $this->assertEquals('2026-07-03', $m->date->toDateString()); // range end
+        $this->assertEquals(89.79, (float) $m->spend);   // 64.15 + 25.64, Total row skipped
+        $this->assertEquals(1360.00, (float) $m->revenue);
+        $this->assertEquals(6, $m->conversions);
+        $this->assertEquals(36, $m->clicks);
+        $this->assertEquals('15.15', $m->roas);          // 1360 / 89.79
+        @unlink($path);
+    }
 }
