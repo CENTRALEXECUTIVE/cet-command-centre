@@ -50,6 +50,11 @@ class User extends Authenticatable
         return $this->hasOne(DriverProfile::class);
     }
 
+    public function driverDocuments(): HasMany
+    {
+        return $this->hasMany(DriverDocument::class);
+    }
+
     public function corporateAccounts(): BelongsToMany
     {
         return $this->belongsToMany(CorporateAccount::class)

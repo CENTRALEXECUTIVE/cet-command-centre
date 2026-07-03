@@ -29,7 +29,8 @@
                     <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">Despatch board</a>
                 @endif
                 @if($u->isAdmin() || $u->isDriver())
-                    <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.*') ? 'active' : '' }}">My jobs</a>
+                    <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.jobs') || request()->routeIs('driver.job') || request()->routeIs('driver.earnings') ? 'active' : '' }}">My jobs</a>
+                    <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">My documents</a>
                 @endif
                 <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">Bookings</a>
             </div>

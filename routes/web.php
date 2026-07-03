@@ -74,6 +74,12 @@ Route::middleware('auth')->group(function () {
         Route::post('jobs/{booking}/decline', [JobController::class, 'decline'])->name('job.decline');
         // GPS ping — only stored while on an active job.
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
+
+        // Vehicle & documents — days-left cards + upload.
+        Route::get('documents', [\App\Http\Controllers\Driver\DocumentController::class, 'index'])->name('documents');
+        Route::post('documents', [\App\Http\Controllers\Driver\DocumentController::class, 'store'])
+            ->middleware('throttle:20,1')->name('documents.store');
+        Route::get('documents/{document}/file', [\App\Http\Controllers\Driver\DocumentController::class, 'download'])->name('documents.file');
     });
 
     // ----- Fleet & compliance + reports + waiting list (admin) -----------
