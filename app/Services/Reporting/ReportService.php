@@ -28,6 +28,15 @@ class ReportService
     {
         return Booking::query()
             ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->where('pickup_at', '<=', now()) // revenue is earned only once a job has run
+            ->whereBetween('pickup_at', [$start, $end]);
+    }
+
+    /** Non-cancelled jobs in the period, INCLUDING future ones (for payment split). */
+    private function scheduled(CarbonInterface $start, CarbonInterface $end): Builder
+    {
+        return Booking::query()
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
             ->whereBetween('pickup_at', [$start, $end]);
     }
 
@@ -129,16 +138,30 @@ class ReportService
     }
 
     /**
-     * Money collected vs still to chase for the period: value of fully-paid jobs
-     * against jobs that are unpaid or only part-paid (valued at the full fare).
+     * Money collected vs genuinely still owed for the period.
+     *
+     * A job counts as COLLECTED if it's marked paid OR its pickup has already
+     * passed — because a job that has run has been paid (card up front, cash
+     * taken by the driver on the day). "Pending" only means money still to come
+     * on a FUTURE job (a cash fare the driver will collect on the pickup day), so
+     * OUTSTANDING is limited to not-yet-run, unpaid jobs.
      *
      * @return array{collected: float, outstanding: float}
      */
     public function paymentSplit(CarbonInterface $start, CarbonInterface $end): array
     {
-        $base = $this->completed($start, $end);
-        $collected = (float) (clone $base)->where('payment_status', 'paid')->sum(DB::raw(self::REVENUE));
-        $outstanding = (float) (clone $base)->where('payment_status', '!=', 'paid')->sum(DB::raw(self::REVENUE));
+        $now = now();
+        $base = $this->scheduled($start, $end); // include future jobs here
+
+        $collected = (float) (clone $base)
+            ->where(fn ($q) => $q->where('payment_status', 'paid')->orWhere('pickup_at', '<', $now))
+            ->sum(DB::raw(self::REVENUE));
+
+        // Unpaid AND still in the future = a cash fare yet to be collected.
+        $outstanding = (float) (clone $base)
+            ->where('payment_status', '!=', 'paid')
+            ->where('pickup_at', '>=', $now)
+            ->sum(DB::raw(self::REVENUE));
 
         return ['collected' => round($collected, 2), 'outstanding' => round($outstanding, 2)];
     }

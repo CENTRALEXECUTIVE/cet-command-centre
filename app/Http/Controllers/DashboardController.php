@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Setting;
 use App\Services\Calendar\CalendarStats;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -38,6 +40,7 @@ class DashboardController extends Controller
                         ->count(),
                 'activeCount' => Booking::active()->count(),
                 'upcoming' => $this->calendarStats->upcoming(10) ?? $this->upcomingFromDatabase(),
+                'reviewReminder' => $this->monthlyReviewDue(),
             ]);
         }
 
@@ -61,6 +64,23 @@ class DashboardController extends Controller
                 ->limit(20)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Whether the monthly review (run 4th-to-4th) is due — i.e. it's the 4th or
+     * later and no fresh ETO export has been imported since the most recent 4th.
+     * Reminds the operator to send over a new ETO CSV for the period's figures.
+     */
+    private function monthlyReviewDue(): bool
+    {
+        $now = now();
+        // The most recent "4th of the month at 00:00".
+        $mostRecent4th = ($now->day >= 4 ? $now->copy()->startOfMonth() : $now->copy()->subMonthNoOverflow()->startOfMonth())
+            ->addDays(3);
+
+        $last = Setting::get('last_eto_import_at');
+
+        return $last === null || Carbon::parse($last)->lt($mostRecent4th);
     }
 
     /**

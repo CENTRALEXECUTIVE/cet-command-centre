@@ -45,8 +45,8 @@
             <div class="l">Collected (paid)</div>
         </div>
         <div class="stat">
-            <div class="n" style="color:{{ $payments['outstanding'] > 0 ? '#b32020' : 'inherit' }}">£{{ number_format($payments['outstanding'], 2) }}</div>
-            <div class="l">Outstanding — to chase (unpaid/part-paid)</div>
+            <div class="n">£{{ number_format($payments['outstanding'], 2) }}</div>
+            <div class="l">Cash to collect — upcoming jobs (driver collects on the day)</div>
         </div>
         <div class="stat">
             <div class="n">{{ $cancellations['cancelled'] }} <span style="font-size:16px;font-weight:400">({{ $cancellations['rate_pct'] }}%)</span></div>

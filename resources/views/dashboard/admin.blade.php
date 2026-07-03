@@ -5,6 +5,14 @@
     <h1 class="page-title">Despatch Overview</h1>
     <p class="page-sub">Welcome back, {{ auth()->user()->name }}. Here is today at a glance.</p>
 
+    @if(!empty($reviewReminder))
+        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:20px">
+            <strong>🗓️ Monthly review due (4th–4th).</strong>
+            Export the latest bookings CSV from EasyTaxiOffice and upload it, then run the import to refresh this month's figures.
+            <a href="{{ route('review.index', ['preset' => 'last_month']) }}" style="margin-left:6px">Open last month's review →</a>
+        </div>
+    @endif
+
     <div class="grid grid-3" style="margin-bottom:24px">
         <div class="stat"><div class="n">{{ $todayCount }}</div><div class="l">Jobs Today</div></div>
         <div class="stat"><div class="n">{{ $pendingCount }}</div><div class="l">Awaiting Allocation</div></div>

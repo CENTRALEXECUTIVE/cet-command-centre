@@ -27,6 +27,11 @@ class ImportEtoBookings extends Command
         $dryRun = (bool) $this->option('dry-run');
         $stats = $importer->import($path, $dryRun);
 
+        // Record a real import so the monthly-review reminder clears.
+        if (! $dryRun) {
+            \App\Models\Setting::set('last_eto_import_at', now()->toDateTimeString(), 'string', 'eto');
+        }
+
         $this->table(['Outcome', 'Count'], [
             [$dryRun ? 'Would create (new)' : 'Created (new)', $stats['imported']],
             [$dryRun ? 'Would update (existing)' : 'Updated (existing financials)', $stats['updated'] ?? 0],

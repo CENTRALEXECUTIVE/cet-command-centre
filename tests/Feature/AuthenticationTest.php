@@ -59,6 +59,21 @@ class AuthenticationTest extends TestCase
         $this->assertEquals(1, $response->viewData('pendingCount'), 'only the upcoming pending job counts');
     }
 
+    public function test_monthly_review_reminder_shows_after_the_4th_and_clears_on_import(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-10 09:00:00')); // after the 4th
+        $admin = User::factory()->admin()->create();
+
+        // No ETO import recorded this cycle → reminder is due.
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()->assertSee('Monthly review due', false);
+
+        // A fresh import this month clears it.
+        \App\Models\Setting::set('last_eto_import_at', now()->toDateTimeString(), 'string', 'eto');
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()->assertDontSee('Monthly review due', false);
+    }
+
     public function test_login_fails_with_wrong_password(): void
     {
         $user = User::factory()->admin()->create(['password' => 'correct-password']);

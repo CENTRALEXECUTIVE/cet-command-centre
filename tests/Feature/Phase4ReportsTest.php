@@ -69,10 +69,15 @@ class Phase4ReportsTest extends TestCase
             'status' => BookingStatus::Cancelled->value, 'final_price' => 80,
             'pickup_at' => now()->subDays(4),
         ]);
+        // A FUTURE cash job, still pending → the only genuine "to collect".
+        Booking::factory()->forVehicleType($exec)->create([
+            'status' => BookingStatus::Pending->value, 'final_price' => 150,
+            'payment_status' => 'pending', 'pickup_at' => now()->addDays(5),
+        ]);
 
         $reports = app(ReportService::class);
         $start = now()->startOfMonth();
-        $end = now()->endOfDay();
+        $end = now()->addDays(10)->endOfDay();
 
         $monthly = $reports->monthlyRevenue($start, $end);
         $this->assertEquals(400.0, $monthly->firstWhere('month', now()->format('Y-m'))['revenue']);
@@ -84,8 +89,10 @@ class Phase4ReportsTest extends TestCase
         $this->assertEquals(33.3, $cancel['rate_pct']);
 
         $split = $reports->paymentSplit($start, $end);
-        $this->assertEquals(100.0, $split['collected']);    // the paid job
-        $this->assertEquals(300.0, $split['outstanding']);  // the part-paid job
+        // Both PAST jobs are collected (paid up front, or cash taken on the day):
+        $this->assertEquals(400.0, $split['collected']);
+        // Only the FUTURE unpaid cash job is still to collect:
+        $this->assertEquals(150.0, $split['outstanding']);
     }
 
     public function test_period_comparison_computes_change(): void
