@@ -8,8 +8,8 @@
     @if(!empty($reviewReminder))
         <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:20px">
             <strong>🗓️ Monthly review due (4th–4th).</strong>
-            Export the latest bookings CSV from EasyTaxiOffice and upload it, then run the import to refresh this month's figures.
-            <a href="{{ route('review.index', ['preset' => 'last_month']) }}" style="margin-left:6px">Open last month's review →</a>
+            Export the latest bookings from EasyTaxiOffice (and your Google Ads report), then drop them in to refresh this month's figures.
+            <a href="{{ route('imports.index') }}" style="margin-left:6px">Go to Imports →</a>
         </div>
     @endif
 

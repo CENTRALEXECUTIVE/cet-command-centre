@@ -86,6 +86,13 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
 
+        // In-app CSV imports (Google Ads report, ETO bookings export).
+        Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');
+        Route::post('imports/ads', [\App\Http\Controllers\Admin\ImportController::class, 'ads'])
+            ->middleware('throttle:20,1')->name('imports.ads');
+        Route::post('imports/eto', [\App\Http\Controllers\Admin\ImportController::class, 'eto'])
+            ->middleware('throttle:20,1')->name('imports.eto');
+
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
         Route::post('drivers', [\App\Http\Controllers\Admin\DriverController::class, 'store'])->name('drivers.store');
