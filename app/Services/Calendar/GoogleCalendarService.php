@@ -195,6 +195,48 @@ class GoogleCalendarService
     }
 
     /**
+     * READ-ONLY: list events between two instants (expanded to single events,
+     * ordered by start). Used to report figures straight from the calendar — the
+     * operator's source of truth — without changing anything. Returns raw Google
+     * event arrays, or [] if the calendar isn't configured/reachable.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function eventsBetween(string $calendarId, \DateTimeInterface $from, \DateTimeInterface $to): array
+    {
+        if (! $this->configured()) {
+            return [];
+        }
+        $token = $this->accessToken();
+        if (! $token) {
+            return [];
+        }
+
+        $base = 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId).'/events';
+        $events = [];
+        $pageToken = null;
+        do {
+            $resp = Http::withToken($token)->get($base, array_filter([
+                'timeMin' => $from->format(\DateTimeInterface::RFC3339),
+                'timeMax' => $to->format(\DateTimeInterface::RFC3339),
+                'singleEvents' => 'true',
+                'orderBy' => 'startTime',
+                'maxResults' => 2500,
+                'pageToken' => $pageToken,
+            ]));
+            if (! $resp->successful()) {
+                break;
+            }
+            foreach ($resp->json('items', []) as $item) {
+                $events[] = $item;
+            }
+            $pageToken = $resp->json('nextPageToken');
+        } while ($pageToken);
+
+        return $events;
+    }
+
+    /**
      * Delete EVERY event this system created on the calendar (matched by the
      * service-account being the event creator), regardless of whether we still
      * track its id — this removes orphaned duplicates left by earlier runs.

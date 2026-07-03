@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Services\Calendar\CalendarStats;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly CalendarStats $calendarStats) {}
+
     /**
      * Route each role to the appropriate landing view with a scoped data set
      * (principle of least privilege — each role only sees its own data).
@@ -18,14 +21,21 @@ class DashboardController extends Controller
         $user = $request->user();
 
         if ($user->isAdmin()) {
+            // Headline figures come STRAIGHT from the calendar (the operator's
+            // source of truth) so they always match it; fall back to the database
+            // when the calendar isn't reachable.
+            $calendar = $this->calendarStats->counts();
+
             return view('dashboard.admin', [
-                'todayCount' => Booking::whereDate('pickup_at', today())->count(),
+                'todayCount' => $calendar['jobsToday']
+                    ?? Booking::whereDate('pickup_at', today())->count(),
                 // "Awaiting allocation" = UPCOMING jobs with no driver yet. Past
                 // pending jobs (old imports that already happened) are excluded —
                 // otherwise the count balloons with history and is unactionable.
-                'pendingCount' => Booking::where('status', BookingStatus::Pending->value)
-                    ->where('pickup_at', '>=', today())
-                    ->count(),
+                'pendingCount' => $calendar['awaiting']
+                    ?? Booking::where('status', BookingStatus::Pending->value)
+                        ->where('pickup_at', '>=', today())
+                        ->count(),
                 'activeCount' => Booking::active()->count(),
                 'upcoming' => Booking::with(['customer', 'vehicleType', 'driver'])
                     ->where('pickup_at', '>=', now())
