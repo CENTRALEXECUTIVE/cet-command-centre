@@ -26,6 +26,12 @@ class Setting extends Model
         };
     }
 
+    /** Google Maps key: the in-app setting wins, else the .env value. */
+    public static function mapsKey(): ?string
+    {
+        return static::get('google_maps_key') ?: config('services.google_maps.key');
+    }
+
     public static function set(string $key, mixed $value, string $type = 'string', string $group = 'general'): void
     {
         $stored = $type === 'json' ? json_encode($value) : (string) $value;

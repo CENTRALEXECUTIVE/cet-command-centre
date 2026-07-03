@@ -37,7 +37,7 @@ class DistanceService
 
     public function configured(): bool
     {
-        return filled(config('services.google_maps.key'));
+        return filled(\App\Models\Setting::mapsKey());
     }
 
     /**
@@ -50,7 +50,7 @@ class DistanceService
                 'origins' => $pickup,
                 'destinations' => $destination,
                 'units' => 'imperial',
-                'key' => config('services.google_maps.key'),
+                'key' => \App\Models\Setting::mapsKey(),
             ]);
 
             $element = $response->json('rows.0.elements.0');
