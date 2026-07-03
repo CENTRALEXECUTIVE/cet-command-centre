@@ -28,8 +28,8 @@ class ImportEtoBookings extends Command
         $stats = $importer->import($path, $dryRun);
 
         $this->table(['Outcome', 'Count'], [
-            [$dryRun ? 'Would import' : 'Imported', $stats['imported']],
-            ['Duplicates (skipped)', $stats['duplicates']],
+            [$dryRun ? 'Would create (new)' : 'Created (new)', $stats['imported']],
+            [$dryRun ? 'Would update (existing)' : 'Updated (existing financials)', $stats['updated'] ?? 0],
             ['Skipped (quotes/other)', $stats['skipped']],
             ['Errors', count($stats['errors'])],
         ]);

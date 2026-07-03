@@ -96,9 +96,33 @@ class EtoBookingImportTest extends TestCase
         $second = $importer->import($this->csv($rows));
 
         $this->assertEquals(1, $first['imported']);
+        // Re-import updates the existing booking's financials in place — no new row.
         $this->assertEquals(0, $second['imported']);
-        $this->assertEquals(1, $second['duplicates']);
+        $this->assertEquals(1, $second['updated']);
         $this->assertEquals(1, Booking::where('external_reference', 'ZWR6MM')->count());
+    }
+
+    public function test_reimport_refreshes_financials_on_existing_booking(): void
+    {
+        // Booking already exists (e.g. from the calendar/live feed) with no price.
+        $existing = \App\Models\Booking::create([
+            'reference' => \App\Models\Booking::generateReference(),
+            'external_reference' => 'ZWR6MM', 'source_system' => 'eto',
+            'customer_id' => \App\Models\Customer::create(['name' => 'X', 'phone' => '07000000000'])->id,
+            'vehicle_type_id' => \App\Models\VehicleType::where('slug', 'executive')->first()->id,
+            'pickup_at' => now()->subDay(), 'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+
+        app(EtoBookingImporter::class)->import($this->csv([[
+            'Journey date' => '24/03/2025 22:05', 'Reference number' => 'ZWR6MM',
+            'Vehicle type' => 'Executive', 'Status' => 'Completed', 'Total' => '200.00',
+            'Payments' => 'Paid, Stripe, 200',
+        ]]));
+
+        $existing->refresh();
+        $this->assertEquals(200.00, (float) $existing->final_price); // financials filled
+        $this->assertEquals(BookingStatus::Complete, $existing->status); // marked complete
     }
 
     public function test_vehicle_and_payment_mapping(): void

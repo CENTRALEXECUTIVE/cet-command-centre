@@ -33,17 +33,17 @@ class EtoBookingImporter
     public function __construct(private readonly FixedPriceService $fixedPrices) {}
 
     /**
-     * @return array{imported:int, duplicates:int, skipped:int, errors:array<int,string>}
+     * @return array{imported:int, updated:int, duplicates:int, skipped:int, errors:array<int,string>}
      */
     public function import(string $path, bool $dryRun = false): array
     {
         $handle = fopen($path, 'r');
         if ($handle === false) {
-            return ['imported' => 0, 'duplicates' => 0, 'skipped' => 0, 'errors' => ["Cannot open {$path}"]];
+            return ['imported' => 0, 'updated' => 0, 'duplicates' => 0, 'skipped' => 0, 'errors' => ["Cannot open {$path}"]];
         }
 
         $header = null;
-        $stats = ['imported' => 0, 'duplicates' => 0, 'skipped' => 0, 'errors' => []];
+        $stats = ['imported' => 0, 'updated' => 0, 'duplicates' => 0, 'skipped' => 0, 'errors' => []];
         $line = 0;
 
         while (($row = fgetcsv($handle, 0, ';')) !== false) {
@@ -71,7 +71,7 @@ class EtoBookingImporter
         return $stats;
     }
 
-    /** @return 'imported'|'duplicates'|'skipped' */
+    /** @return 'imported'|'updated'|'duplicates'|'skipped' */
     private function importRow(array $data): string
     {
         $status = $this->mapStatus($data['Status'] ?? '');
@@ -80,8 +80,16 @@ class EtoBookingImporter
         }
 
         $reference = $this->clean($data['Reference number'] ?? '');
-        if ($reference && Booking::where('source_system', 'eto')->where('external_reference', $reference)->exists()) {
-            return 'duplicates';
+        $existing = $reference
+            ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+            : null;
+
+        // The ETO export is the authoritative FINANCIAL record. If we already
+        // have this booking (from the calendar/live feed), update its money and
+        // status figures from the export rather than skip it — but leave the
+        // calendar-sourced details (customer, addresses, driver, times) alone.
+        if ($existing) {
+            return $this->updateFinancials($existing, $data, $status);
         }
 
         return DB::transaction(function () use ($data, $status, $reference) {
@@ -89,6 +97,7 @@ class EtoBookingImporter
             $vehicleType = $this->resolveVehicleType($data['Vehicle type'] ?? '');
             $pickupAt = $this->parseDate($data['Journey date'] ?? '') ?? now();
             [$method, $paymentStatus] = $this->mapPayment($data['Payments'] ?? '', $status);
+            $total = $this->money($data['Total'] ?? null);
 
             $booking = new Booking([
                 'reference' => Booking::generateReference(),
@@ -101,10 +110,11 @@ class EtoBookingImporter
                 'pickup_address' => $this->decode($data['Pickup'] ?? '') ?: 'Unknown',
                 'destination_address' => $this->decode($data['Dropoff'] ?? '') ?: 'Unknown',
                 'flight_number' => $this->clean($data['Arrival flight number'] ?? '') ?: $this->clean($data['Departure flight number'] ?? '') ?: null,
-                'passengers' => 1,
+                'passengers' => max(1, (int) $this->clean($data['Passengers'] ?? '1')),
+                'luggage' => (int) $this->clean($data['Suitcases'] ?? '0') + (int) $this->clean($data['Hand luggage'] ?? '0'),
                 'status' => $status->value,
-                'quoted_price' => $this->money($data['Total'] ?? null),
-                'final_price' => $status === BookingStatus::Complete ? $this->money($data['Total'] ?? null) : null,
+                'quoted_price' => $total,
+                'final_price' => $status === BookingStatus::Complete ? $total : null,
                 'payment_method' => $method,
                 'payment_status' => $paymentStatus,
                 'source' => $this->mapSource($data['Source'] ?? ''),
@@ -117,6 +127,7 @@ class EtoBookingImporter
                     'eto_customer' => $this->clean($data['Customer'] ?? ''),
                     'eto_via' => $this->decode($data['Via'] ?? '') ?: null,
                     'eto_meet_greet' => $this->clean($data['Meet & Greet'] ?? ''),
+                    'total_amount' => $total,
                 ]),
             ]);
 
@@ -129,6 +140,39 @@ class EtoBookingImporter
         });
     }
 
+    /**
+     * Update only the financial + status figures on an existing booking from the
+     * authoritative ETO export. Never overwrites a price with a blank, and never
+     * touches customer/addresses/driver/pickup (the calendar owns those).
+     *
+     * @return 'updated'
+     */
+    private function updateFinancials(Booking $booking, array $data, BookingStatus $status): string
+    {
+        [, $paymentStatus] = $this->mapPayment($data['Payments'] ?? '', $status);
+        $total = $this->money($data['Total'] ?? null);
+
+        $fields = [
+            'status' => $status->value,
+            'payment_status' => $paymentStatus,
+            'meta' => array_merge($booking->meta ?? [], array_filter([
+                'eto_status' => $this->clean($data['Status'] ?? ''),
+                'eto_driver' => $this->clean($data['Driver'] ?? ''),
+                'total_amount' => $total,
+            ])),
+        ];
+        if ($total !== null) {
+            $fields['quoted_price'] = $total;
+            if ($status === BookingStatus::Complete) {
+                $fields['final_price'] = $total;
+            }
+        }
+
+        $booking->forceFill($fields)->save();
+
+        return 'updated';
+    }
+
     /** Dry-run validation: returns the outcome without writing. */
     private function validateRow(array $data): string
     {
@@ -138,7 +182,7 @@ class EtoBookingImporter
         }
         $reference = $this->clean($data['Reference number'] ?? '');
         if ($reference && Booking::where('source_system', 'eto')->where('external_reference', $reference)->exists()) {
-            return 'duplicates';
+            return 'updated'; // existing booking → financials will be refreshed
         }
         $this->resolveVehicleType($data['Vehicle type'] ?? ''); // throws if unmappable
 
@@ -149,7 +193,10 @@ class EtoBookingImporter
     {
         $phone = $this->clean($data['Phone number'] ?? '');
         $email = $this->clean($data['Email'] ?? '');
-        $name = $this->clean($data['Passenger name'] ?? '') ?: $this->clean($data['Lead passenger name'] ?? '') ?: 'Unknown';
+        $name = $this->clean($data['Lead passenger name'] ?? '')
+            ?: $this->clean($data['Passenger name'] ?? '')
+            ?: $this->clean($data['Customer'] ?? '')
+            ?: 'Unknown';
 
         $customer = Customer::query()
             ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
