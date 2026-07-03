@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Driver;
 
 use App\Http\Controllers\Controller;
 use App\Models\DriverDocument;
+use App\Services\Compliance\DriverDocumentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -19,23 +19,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DocumentController extends Controller
 {
+    public function __construct(private readonly DriverDocumentService $documents) {}
+
     public function index(Request $request): View
     {
         $user = $request->user();
-        $profile = $user->driverProfile;
-        $vehicle = $profile?->defaultVehicle;
-        $documents = $user->driverDocuments()->get()->keyBy('type');
-
-        $rows = [];
-        foreach (DriverDocument::TYPES as $type => $meta) {
-            $doc = $documents->get($type);
-            $expiry = $doc?->expiry_date ?? $this->existingExpiry($type, $profile, $vehicle);
-            $rows[] = $this->row($type, $meta, $doc, $expiry);
-        }
 
         return view('driver.documents', [
-            'vehicle' => $vehicle,
-            'rows' => $rows,
+            'vehicle' => $user->driverProfile?->defaultVehicle,
+            'rows' => $this->documents->rowsFor($user),
         ]);
     }
 
@@ -86,47 +78,5 @@ class DocumentController extends Controller
         abort_unless($document->file_path && Storage::disk('local')->exists($document->file_path), 404);
 
         return Storage::disk('local')->download($document->file_path, $document->file_name);
-    }
-
-    /** Existing expiry already on the driver/vehicle record (pre-upload display). */
-    private function existingExpiry(string $type, $profile, $vehicle): ?Carbon
-    {
-        return match ($type) {
-            'plate' => $vehicle?->phv_licence_expiry,
-            'mot' => $vehicle?->mot_expiry,
-            'insurance' => $vehicle?->insurance_expiry,
-            'badge' => $profile?->phv_badge_expiry,
-            'driving_licence' => $profile?->driving_licence_expiry,
-            'dbs' => $profile?->dbs_expiry,
-            default => null,
-        };
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function row(string $type, array $meta, ?DriverDocument $doc, ?Carbon $expiry): array
-    {
-        $days = $expiry ? (int) Carbon::today()->diffInDays($expiry, false) : null;
-
-        $status = match (true) {
-            $doc?->status === 'rejected' => 'rejected',
-            $doc && $doc->status === 'pending' => 'pending',
-            $days === null => $doc ? 'valid' : 'missing',
-            $days < 0 => 'expired',
-            $days <= DriverDocument::EXPIRING_SOON_DAYS => 'expiring',
-            default => 'valid',
-        };
-
-        return [
-            'type' => $type,
-            'label' => $meta['label'],
-            'subject' => $meta['subject'],
-            'expiry' => $expiry,
-            'days' => $days,
-            'status' => $status,
-            'hasFile' => (bool) $doc?->file_path,
-            'document' => $doc?->file_path ? $doc : null,
-        ];
     }
 }

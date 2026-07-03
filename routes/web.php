@@ -85,6 +85,13 @@ Route::middleware('auth')->group(function () {
     // ----- Fleet & compliance + reports + waiting list (admin) -----------
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
+
+        // Driver documents — verification queue + upload on behalf of a driver.
+        Route::get('driver-documents', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'index'])->name('driver-documents.index');
+        Route::get('driver-documents/{user}', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'show'])->name('driver-documents.show');
+        Route::post('driver-documents/{user}', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'store'])
+            ->middleware('throttle:30,1')->name('driver-documents.store');
+        Route::post('driver-document/{document}/review', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'review'])->name('driver-documents.review');
         Route::get('review', [\App\Http\Controllers\ReviewController::class, 'index'])->name('review.index');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
