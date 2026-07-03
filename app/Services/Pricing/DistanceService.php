@@ -46,22 +46,32 @@ class DistanceService
     private function queryGoogle(string $pickup, string $destination): ?array
     {
         try {
-            $response = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/distancematrix/json', [
-                'origins' => $pickup,
-                'destinations' => $destination,
-                'units' => 'imperial',
-                'key' => \App\Models\Setting::mapsKey(),
-            ]);
+            // Google's new Routes API (the legacy Distance Matrix is disabled for
+            // new projects). Ask only for distance + duration via the field mask.
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'X-Goog-Api-Key' => \App\Models\Setting::mapsKey(),
+                    'X-Goog-FieldMask' => 'routes.distanceMeters,routes.duration',
+                ])
+                ->post('https://routes.googleapis.com/directions/v2:computeRoutes', [
+                    'origin' => ['address' => $pickup],
+                    'destination' => ['address' => $destination],
+                    'travelMode' => 'DRIVE',
+                    'units' => 'IMPERIAL',
+                ]);
 
-            $element = $response->json('rows.0.elements.0');
-            if ($response->successful() && ($element['status'] ?? null) === 'OK') {
+            $route = $response->json('routes.0');
+            if ($response->successful() && ! empty($route['distanceMeters'])) {
                 return [
-                    'miles' => round(($element['distance']['value'] ?? 0) / 1609.34, 1),
-                    'minutes' => (int) round(($element['duration']['value'] ?? 0) / 60),
+                    'miles' => round(($route['distanceMeters'] ?? 0) / 1609.34, 1),
+                    // duration comes back as e.g. "1234s".
+                    'minutes' => (int) round(((int) rtrim((string) ($route['duration'] ?? '0s'), 's')) / 60),
                 ];
             }
+
+            Log::warning('Routes API returned no route', ['body' => substr($response->body(), 0, 300)]);
         } catch (\Throwable $e) {
-            Log::warning('Distance Matrix exception', ['error' => $e->getMessage()]);
+            Log::warning('Routes API exception', ['error' => $e->getMessage()]);
         }
 
         return null;
