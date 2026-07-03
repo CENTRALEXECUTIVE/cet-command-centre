@@ -50,6 +50,29 @@ class ReviewTest extends TestCase
             ->assertSee('Next steps');
     }
 
+    public function test_all_time_preset_includes_old_bookings_that_last_30_days_excludes(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-15 12:00:00'));
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Old Client Ltd', 'phone' => '07700900222']);
+
+        Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->subMonths(8),
+            'pickup_address' => 'Sheffield', 'destination_address' => 'Manchester Airport (MAN)',
+            'status' => BookingStatus::Complete->value, 'final_price' => 250, 'payment_method' => 'card',
+        ]);
+
+        // Default (last 30 days) → the 8-month-old job is out of range.
+        $this->actingAs($admin)->get(route('review.index'))
+            ->assertOk()->assertDontSee('Old Client Ltd');
+
+        // "All time" preset → it's included.
+        $this->actingAs($admin)->get(route('review.index', ['preset' => 'all']))
+            ->assertOk()->assertSee('Old Client Ltd');
+    }
+
     public function test_review_is_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

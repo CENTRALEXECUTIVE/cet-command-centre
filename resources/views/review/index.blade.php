@@ -5,10 +5,23 @@
     <h1 class="page-title">Business Review</h1>
     <p class="page-sub">{{ $start->format('d M Y') }} – {{ $end->format('d M Y') }}</p>
 
-    <form method="GET" action="{{ route('review.index') }}" class="toolbar">
+    @php
+        $presets = ['last30' => 'Last 30 days', 'last90' => 'Last 90 days', 'this_year' => 'This year', 'last_month' => 'Last month', 'all' => 'All time'];
+        $active = $activePreset ?? 'last30';
+    @endphp
+    <div class="toolbar" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        @foreach($presets as $key => $label)
+            <a href="{{ route('review.index', ['preset' => $key]) }}"
+               class="btn {{ $active === $key ? 'btn-dark' : 'btn-light' }}"
+               style="padding:8px 14px">{{ $label }}</a>
+        @endforeach
+    </div>
+
+    <form method="GET" action="{{ route('review.index') }}" class="toolbar" style="flex-wrap:wrap">
+        <span class="muted" style="align-self:center">Custom range:</span>
         <input type="date" name="start" value="{{ $start->toDateString() }}" style="width:auto">
         <input type="date" name="end" value="{{ $end->toDateString() }}" style="width:auto">
-        <button class="btn btn-dark" type="submit" style="padding:9px 16px">Apply</button>
+        <button class="btn {{ $active === 'custom' ? 'btn-dark' : 'btn-light' }}" type="submit" style="padding:9px 16px">Apply</button>
     </form>
 
     @php $c = $comparison['current']; @endphp
