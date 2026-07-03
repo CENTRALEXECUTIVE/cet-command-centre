@@ -13,7 +13,7 @@
 
     <div class="card">
         <h2>Next 10 Upcoming Jobs</h2>
-        @if($upcoming->isEmpty())
+        @if(empty($upcoming))
             <p class="muted mb-0">No upcoming bookings. <a href="{{ route('bookings.create') }}">Create one</a>.</p>
         @else
             <table>
@@ -21,14 +21,20 @@
                     <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Vehicle</th><th>Driver</th><th>Status</th></tr>
                 </thead>
                 <tbody>
-                    @foreach($upcoming as $b)
+                    @foreach($upcoming as $row)
                         <tr>
-                            <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a></td>
-                            <td>{{ $b->pickup_at->format('D d M, H:i') }}</td>
-                            <td>{{ $b->customer?->name }}</td>
-                            <td>{{ $b->vehicleType?->name }}</td>
-                            <td>{{ $b->driver?->name ?? '—' }}</td>
-                            <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
+                            <td>
+                                @if($row['url'])
+                                    <a href="{{ $row['url'] }}" class="mono">{{ $row['ref'] }}</a>
+                                @else
+                                    <span class="mono">{{ $row['ref'] }}</span>
+                                @endif
+                            </td>
+                            <td>{{ $row['pickup']->format('D d M, H:i') }}</td>
+                            <td>{{ $row['customer'] }}</td>
+                            <td>{{ $row['vehicle'] }}</td>
+                            <td>{{ $row['driver'] }}</td>
+                            <td><span class="badge badge-{{ \Illuminate\Support\Str::slug($row['status']) }}">{{ $row['status'] }}</span></td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -21,9 +21,9 @@ class DashboardController extends Controller
         $user = $request->user();
 
         if ($user->isAdmin()) {
-            // Headline figures come STRAIGHT from the calendar (the operator's
-            // source of truth) so they always match it; fall back to the database
-            // when the calendar isn't reachable.
+            // Headline figures AND the upcoming list come STRAIGHT from the
+            // calendar (the operator's source of truth) so they always match it;
+            // fall back to the database when the calendar isn't reachable.
             $calendar = $this->calendarStats->counts();
 
             return view('dashboard.admin', [
@@ -37,11 +37,7 @@ class DashboardController extends Controller
                         ->where('pickup_at', '>=', today())
                         ->count(),
                 'activeCount' => Booking::active()->count(),
-                'upcoming' => Booking::with(['customer', 'vehicleType', 'driver'])
-                    ->where('pickup_at', '>=', now())
-                    ->orderBy('pickup_at')
-                    ->limit(10)
-                    ->get(),
+                'upcoming' => $this->calendarStats->upcoming(10) ?? $this->upcomingFromDatabase(),
             ]);
         }
 
@@ -65,5 +61,30 @@ class DashboardController extends Controller
                 ->limit(20)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Upcoming jobs from the database, mapped to the SAME display rows the
+     * calendar produces — used only when the calendar can't be read.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function upcomingFromDatabase(): array
+    {
+        return Booking::with(['customer', 'vehicleType', 'driver'])
+            ->where('pickup_at', '>=', now())
+            ->orderBy('pickup_at')
+            ->limit(10)
+            ->get()
+            ->map(fn (Booking $b) => [
+                'ref' => $b->external_reference ?? $b->reference,
+                'pickup' => $b->pickup_at,
+                'customer' => $b->customer?->name,
+                'vehicle' => $b->vehicleType?->name ?? '—',
+                'driver' => $b->driver?->name ?? '—',
+                'status' => $b->status?->label() ?? 'Scheduled',
+                'url' => route('bookings.show', $b),
+            ])
+            ->all();
     }
 }
