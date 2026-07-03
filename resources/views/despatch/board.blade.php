@@ -9,6 +9,22 @@
         <div class="alert alert-error">{{ $errors->first() }}</div>
     @endif
 
+    @if(session('status'))
+        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:12px">{{ session('status') }}</div>
+    @endif
+
+    @if(isset($blockedDrivers) && $blockedDrivers->isNotEmpty())
+        <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:12px">
+            <strong>🚫 Cannot be dispatched (expired documents):</strong>
+            <ul style="margin:6px 0 0">
+                @foreach($blockedDrivers as $bd)
+                    <li>{{ $bd['name'] }} — {{ $bd['reason'] }}</li>
+                @endforeach
+            </ul>
+            <a href="{{ route('driver-documents.index') }}" style="font-size:13px">Update documents →</a>
+        </div>
+    @endif
+
     <div class="toolbar">
         <form method="GET" action="{{ route('despatch.board') }}" style="display:flex;gap:8px;align-items:center">
             <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()" style="width:auto">

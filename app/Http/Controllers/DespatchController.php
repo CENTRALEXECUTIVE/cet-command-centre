@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\User;
 use App\Services\BookingStatusService;
+use App\Services\Compliance\DriverComplianceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -19,7 +20,10 @@ use Illuminate\View\View;
  */
 class DespatchController extends Controller
 {
-    public function __construct(private readonly BookingStatusService $status) {}
+    public function __construct(
+        private readonly BookingStatusService $status,
+        private readonly DriverComplianceService $compliance,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -34,11 +38,18 @@ class DespatchController extends Controller
         $columns = collect(BookingStatus::cases())
             ->mapWithKeys(fn (BookingStatus $s) => [$s->value => $bookings->where('status', $s)->values()]);
 
+        $drivers = $this->drivers();
+        $blockedDrivers = $drivers
+            ->map(fn (User $d) => ['name' => $d->name, 'reason' => $this->compliance->blockReason($d)])
+            ->filter(fn ($d) => $d['reason'] !== null)
+            ->values();
+
         return view('despatch.board', [
             'date' => $date,
             'columns' => $columns,
             'statuses' => BookingStatus::cases(),
-            'drivers' => $this->drivers(),
+            'drivers' => $drivers,
+            'blockedDrivers' => $blockedDrivers,
             'totals' => [
                 'all' => $bookings->count(),
                 'unallocated' => $bookings->where('status', BookingStatus::Pending)->count(),
@@ -54,6 +65,15 @@ class DespatchController extends Controller
         ]);
 
         $driver = User::findOrFail($data['driver_id']);
+
+        // Compliance gate: never dispatch a driver with an expired required
+        // document (protects the operator licence).
+        if ($reason = $this->compliance->blockReason($driver)) {
+            throw ValidationException::withMessages([
+                'driver_id' => "Cannot allocate to {$driver->name}: {$reason}. Update the document first.",
+            ]);
+        }
+
         $this->status->allocateDriver($booking, $driver, $request->user());
 
         return back()->with('status', "{$booking->reference} allocated to {$driver->name}.");
@@ -62,6 +82,15 @@ class DespatchController extends Controller
     public function autoAllocate(Request $request, Booking $booking): RedirectResponse
     {
         $booking = $this->status->autoAllocate($booking, $request->user());
+
+        // If rotation landed on a non-compliant driver, undo it and flag — don't
+        // silently dispatch an expired driver.
+        if ($booking->driver && ($reason = $this->compliance->blockReason($booking->driver))) {
+            $blocked = $booking->driver->name;
+            $booking->forceFill(['driver_id' => null, 'status' => BookingStatus::Pending->value])->save();
+
+            return back()->with('status', "{$booking->reference}: {$blocked} is blocked ({$reason}). Left unallocated — allocate a compliant driver.");
+        }
 
         $message = $booking->driver
             ? "{$booking->reference} auto-allocated to {$booking->driver->name}."
