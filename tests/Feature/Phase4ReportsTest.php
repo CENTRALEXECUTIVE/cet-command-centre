@@ -51,6 +51,43 @@ class Phase4ReportsTest extends TestCase
         $this->assertEquals(150.0, (float) $byDriver->first()->revenue);
     }
 
+    public function test_monthly_cancellations_and_payment_split(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-15 12:00:00'));
+        $exec = VehicleType::where('slug', 'executive')->first();
+        // Two completed jobs earlier this month: one paid, one part-paid.
+        Booking::factory()->forVehicleType($exec)->create([
+            'status' => BookingStatus::Complete->value, 'final_price' => 100,
+            'payment_status' => 'paid', 'pickup_at' => now()->subDays(5),
+        ]);
+        Booking::factory()->forVehicleType($exec)->create([
+            'status' => BookingStatus::Complete->value, 'final_price' => 300,
+            'payment_status' => 'balance_remaining', 'pickup_at' => now()->subDays(3),
+        ]);
+        // One cancelled job.
+        Booking::factory()->forVehicleType($exec)->create([
+            'status' => BookingStatus::Cancelled->value, 'final_price' => 80,
+            'pickup_at' => now()->subDays(4),
+        ]);
+
+        $reports = app(ReportService::class);
+        $start = now()->startOfMonth();
+        $end = now()->endOfDay();
+
+        $monthly = $reports->monthlyRevenue($start, $end);
+        $this->assertEquals(400.0, $monthly->firstWhere('month', now()->format('Y-m'))['revenue']);
+        $this->assertEquals(2, $monthly->firstWhere('month', now()->format('Y-m'))['jobs']);
+
+        $cancel = $reports->cancellations($start, $end);
+        $this->assertEquals(1, $cancel['cancelled']);
+        $this->assertEquals(3, $cancel['total']); // 2 ran + 1 cancelled
+        $this->assertEquals(33.3, $cancel['rate_pct']);
+
+        $split = $reports->paymentSplit($start, $end);
+        $this->assertEquals(100.0, $split['collected']);    // the paid job
+        $this->assertEquals(300.0, $split['outstanding']);  // the part-paid job
+    }
+
     public function test_period_comparison_computes_change(): void
     {
         $this->completedJob(200);

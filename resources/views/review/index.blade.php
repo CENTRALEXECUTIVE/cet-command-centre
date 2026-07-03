@@ -39,6 +39,21 @@
         <div class="stat"><div class="n">£{{ number_format($c['average_fare'], 2) }}</div><div class="l">Average fare</div></div>
     </div>
 
+    <div class="grid grid-3" style="margin-bottom:24px">
+        <div class="stat">
+            <div class="n" style="color:#1f7a44">£{{ number_format($payments['collected'], 2) }}</div>
+            <div class="l">Collected (paid)</div>
+        </div>
+        <div class="stat">
+            <div class="n" style="color:{{ $payments['outstanding'] > 0 ? '#b32020' : 'inherit' }}">£{{ number_format($payments['outstanding'], 2) }}</div>
+            <div class="l">Outstanding — to chase (unpaid/part-paid)</div>
+        </div>
+        <div class="stat">
+            <div class="n">{{ $cancellations['cancelled'] }} <span style="font-size:16px;font-weight:400">({{ $cancellations['rate_pct'] }}%)</span></div>
+            <div class="l">Cancellations / no-shows</div>
+        </div>
+    </div>
+
     {{-- AI / business review --}}
     <div class="card" style="border-left:4px solid #FBBA2A">
         <h2>📋 Review &amp; recommendations
@@ -57,6 +72,26 @@
                 <ul>@forelse($insights['next_steps'] as $i)<li>{{ $i }}</li>@empty<li>—</li>@endforelse</ul>
             </div>
         </div>
+    </div>
+
+    {{-- Monthly revenue trend --}}
+    <div class="card">
+        <h2>Monthly revenue</h2>
+        @php $maxRev = max(1, (float) ($monthly->max('revenue') ?? 1)); @endphp
+        @forelse($monthly as $m)
+            <div style="display:flex;align-items:center;gap:12px;margin:6px 0">
+                <span style="width:72px;flex:none;color:var(--muted,#666);font-size:13px">{{ $m['label'] }}</span>
+                <span style="flex:1;background:rgba(128,128,128,.15);border-radius:5px;overflow:hidden">
+                    <span style="display:block;height:20px;border-radius:5px;background:#FBBA2A;width:{{ max(1, round($m['revenue'] / $maxRev * 100)) }}%"></span>
+                </span>
+                <span style="width:150px;flex:none;text-align:right;font-variant-numeric:tabular-nums">
+                    <strong>£{{ number_format($m['revenue'], 0) }}</strong>
+                    <span style="color:var(--muted,#888)">· {{ $m['jobs'] }} jobs</span>
+                </span>
+            </div>
+        @empty
+            <p class="muted mb-0">No completed jobs in this period.</p>
+        @endforelse
     </div>
 
     <div class="grid grid-2">

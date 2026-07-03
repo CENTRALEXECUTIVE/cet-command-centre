@@ -91,6 +91,58 @@ class ReportService
             ->get();
     }
 
+    /**
+     * Revenue and job count per calendar month across the period, in date order.
+     * Grouped in PHP so it's portable across MySQL and SQLite.
+     */
+    public function monthlyRevenue(CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        return $this->completed($start, $end)
+            ->selectRaw('pickup_at, '.self::REVENUE.' as revenue')
+            ->get()
+            ->groupBy(fn ($b) => $b->pickup_at->format('Y-m'))
+            ->map(fn ($group, $ym) => [
+                'month' => $ym,
+                'label' => \Illuminate\Support\Carbon::createFromFormat('Y-m', $ym)->format('M Y'),
+                'jobs' => $group->count(),
+                'revenue' => round((float) $group->sum('revenue'), 2),
+            ])
+            ->sortKeys()
+            ->values();
+    }
+
+    /** Cancellations/no-shows in the period, and the cancellation rate. */
+    public function cancellations(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $cancelled = Booking::query()
+            ->whereIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->whereBetween('pickup_at', [$start, $end])
+            ->count();
+        $ran = $this->completed($start, $end)->count();
+        $total = $cancelled + $ran;
+
+        return [
+            'cancelled' => $cancelled,
+            'total' => $total,
+            'rate_pct' => $total ? round(($cancelled / $total) * 100, 1) : 0.0,
+        ];
+    }
+
+    /**
+     * Money collected vs still to chase for the period: value of fully-paid jobs
+     * against jobs that are unpaid or only part-paid (valued at the full fare).
+     *
+     * @return array{collected: float, outstanding: float}
+     */
+    public function paymentSplit(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $base = $this->completed($start, $end);
+        $collected = (float) (clone $base)->where('payment_status', 'paid')->sum(DB::raw(self::REVENUE));
+        $outstanding = (float) (clone $base)->where('payment_status', '!=', 'paid')->sum(DB::raw(self::REVENUE));
+
+        return ['collected' => round($collected, 2), 'outstanding' => round($outstanding, 2)];
+    }
+
     /** Compare a period against the immediately preceding equal-length period. */
     public function comparison(CarbonInterface $start, CarbonInterface $end): array
     {

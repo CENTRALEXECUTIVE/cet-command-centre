@@ -32,6 +32,9 @@ class ReviewService
         $topCustomers = $this->reports->topCustomers($start, $end);
         $topRoutes = $this->reports->topRoutes($start, $end, 5);
         $byDriver = $this->reports->earningsByDriver($start, $end);
+        $monthly = $this->reports->monthlyRevenue($start, $end);
+        $cancellations = $this->reports->cancellations($start, $end);
+        $payments = $this->reports->paymentSplit($start, $end);
         $ads = $this->ads->forPeriod($start, $end);
 
         // Pipeline counts (not just completed) for the period.
@@ -48,6 +51,9 @@ class ReviewService
             'topCustomers' => $topCustomers,
             'topRoutes' => $topRoutes,
             'byDriver' => $byDriver,
+            'monthly' => $monthly,
+            'cancellations' => $cancellations,
+            'payments' => $payments,
             'ads' => $ads,
             'pipeline' => $pipeline,
         ];
