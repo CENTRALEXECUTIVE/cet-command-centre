@@ -5,6 +5,8 @@
     <h1 class="page-title">Driver Documents</h1>
     <p class="page-sub">Verify uploads, chase what's missing or expiring, and upload documents drivers send in.</p>
 
+    <a href="{{ route('drivers.create') }}" class="btn btn-primary" style="margin-bottom:14px">+ Add driver</a>
+
     @if(session('status'))
         <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">{{ session('status') }}</div>
     @endif

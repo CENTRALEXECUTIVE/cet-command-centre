@@ -86,6 +86,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
 
+        // Driver onboarding — create login + profile (+ vehicle).
+        Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
+        Route::post('drivers', [\App\Http\Controllers\Admin\DriverController::class, 'store'])->name('drivers.store');
+        Route::get('drivers/{user}/edit', [\App\Http\Controllers\Admin\DriverController::class, 'edit'])->name('drivers.edit');
+        Route::put('drivers/{user}', [\App\Http\Controllers\Admin\DriverController::class, 'update'])->name('drivers.update');
+
         // Driver documents — verification queue + upload on behalf of a driver.
         Route::get('driver-documents', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'index'])->name('driver-documents.index');
         Route::get('driver-documents/{user}', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'show'])->name('driver-documents.show');

@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Enums\UserRole;
+use App\Http\Controllers\Controller;
+use App\Models\DriverProfile;
+use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\VehicleType;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+/**
+ * Admin onboarding of drivers: create their login + driver profile (and,
+ * optionally, their vehicle) in one step, then send them to their documents
+ * page to add compliance files.
+ */
+class DriverController extends Controller
+{
+    public function create(): View
+    {
+        return view('admin.drivers.create', ['vehicleTypes' => VehicleType::orderBy('name')->get()]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'password' => ['nullable', 'string', 'min:8', 'max:72'],
+            'is_third_party' => ['nullable', 'boolean'],
+            // Optional vehicle.
+            'registration' => ['nullable', 'string', 'max:16'],
+            'make' => ['nullable', 'string', 'max:60'],
+            'model' => ['nullable', 'string', 'max:60'],
+            'colour' => ['nullable', 'string', 'max:40'],
+            'year' => ['nullable', 'integer', 'min:1990', 'max:2100'],
+            'vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')],
+        ]);
+
+        // Use the given password, or generate a shareable one to show once.
+        $plainPassword = $data['password'] ?? Str::password(12);
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => $plainPassword, // hashed by the model cast
+            'role' => UserRole::Driver->value,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $vehicleId = null;
+        if (! empty($data['registration'])) {
+            $vehicle = Vehicle::create([
+                'vehicle_type_id' => $data['vehicle_type_id'] ?? VehicleType::where('slug', 'executive')->value('id'),
+                'registration' => strtoupper($data['registration']),
+                'make' => $data['make'] ?? null,
+                'model' => $data['model'] ?? null,
+                'colour' => $data['colour'] ?? null,
+                'year' => $data['year'] ?? null,
+                'is_active' => true,
+            ]);
+            $vehicleId = $vehicle->id;
+        }
+
+        DriverProfile::create([
+            'user_id' => $user->id,
+            'is_third_party' => (bool) ($data['is_third_party'] ?? false),
+            'default_vehicle_id' => $vehicleId,
+            'is_available' => true,
+        ]);
+
+        return redirect()
+            ->route('driver-documents.show', $user)
+            ->with('status', "Driver {$user->name} created. Login: {$user->email} · password: {$plainPassword} (share it, then they can change it). Now add their documents below.");
+    }
+
+    public function edit(User $user): View
+    {
+        return view('admin.drivers.edit', ['driver' => $user]);
+    }
+
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'is_active' => ['nullable', 'boolean'],
+            'password' => ['nullable', 'string', 'min:8', 'max:72'],
+        ]);
+
+        $user->fill([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'is_active' => (bool) ($data['is_active'] ?? $user->is_active),
+        ]);
+        if (! empty($data['password'])) {
+            $user->password = $data['password'];
+        }
+        $user->save();
+
+        return redirect()->route('driver-documents.show', $user)->with('status', "{$user->name} updated.");
+    }
+}

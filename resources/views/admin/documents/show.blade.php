@@ -3,7 +3,9 @@
 
 @section('content')
     <p class="page-sub"><a href="{{ route('driver-documents.index') }}">← All drivers</a></p>
-    <h1 class="page-title">{{ $driver->name }} — Documents</h1>
+    <h1 class="page-title">{{ $driver->name }} — Documents
+        <a href="{{ route('drivers.edit', $driver) }}" class="btn btn-light" style="font-size:13px;padding:4px 12px;vertical-align:middle">Edit driver</a>
+    </h1>
     @if($vehicle)
         <p class="page-sub">{{ $vehicle->make }} {{ $vehicle->model }} · {{ $vehicle->registration }} · {{ $vehicle->colour }} · {{ $vehicle->year }}</p>
     @endif
