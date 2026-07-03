@@ -204,6 +204,11 @@ class OutlookBookingService
                 'special_requests' => $parsed['notes'] ?? null,
                 'payment_status' => $paymentStatus,
                 'payment_method' => $this->paymentMethod($parsed['payment_method'] ?? null),
+                // Store the fare in the money columns (not just meta) so revenue
+                // reporting works. The ETO total is the agreed fare; mark it as
+                // final once paid, otherwise it stands as the quoted price.
+                'quoted_price' => $parsed['total_amount'] ?? null,
+                'final_price' => $paymentStatus === 'paid' ? ($parsed['total_amount'] ?? null) : null,
                 'meta' => $this->meta($parsed, $airportId),
             ];
 

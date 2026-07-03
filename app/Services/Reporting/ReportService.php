@@ -18,10 +18,16 @@ class ReportService
 {
     private const REVENUE = 'COALESCE(final_price, quoted_price, 0)';
 
+    /**
+     * Revenue-earning jobs in the period: every booking whose pickup falls in the
+     * window and that WASN'T cancelled or a no-show. We deliberately don't require
+     * status = Complete — operators rarely hand-mark jobs complete, so a job that
+     * has run (pickup in the past, not cancelled) counts toward revenue.
+     */
     private function completed(CarbonInterface $start, CarbonInterface $end): Builder
     {
         return Booking::query()
-            ->where('status', BookingStatus::Complete->value)
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
             ->whereBetween('pickup_at', [$start, $end]);
     }
 
