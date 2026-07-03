@@ -44,4 +44,28 @@ class AdsSyncTest extends TestCase
         $this->assertEquals('5.00', AdMetric::whereDate('date', '2026-06-01')->first()->roas);
         @unlink($path);
     }
+
+    public function test_imports_native_google_ads_export(): void
+    {
+        // Mirrors a raw Google Ads download: title/preamble rows, native column
+        // names, currency symbols, thousands commas, and a Total summary row.
+        $csv = "\"Daily report (Jun 1, 2026-Jun 2, 2026)\"\n"
+            ."\n"
+            ."Day,Campaign,Cost,Clicks,Impr.,Conversions,Conv. value\n"
+            ."2026-06-01,Airport Transfers,\"£1,017.00\",320,\"12,500\",32,\"1,600.00\"\n"
+            ."2026-06-02,Airport Transfers,£90.50,40,900,3,150.00\n"
+            ."Total: ,,\"£1,107.50\",360,\"13,400\",35,\"1,750.00\"\n";
+        $path = tempnam(sys_get_temp_dir(), 'gads').'.csv';
+        file_put_contents($path, $csv);
+
+        $imported = app(AdsSyncService::class)->importCsv($path);
+
+        $this->assertEquals(2, $imported); // Total row skipped
+        $day1 = AdMetric::whereDate('date', '2026-06-01')->first();
+        $this->assertEquals(1017.00, (float) $day1->spend);   // £ and comma stripped
+        $this->assertEquals(12500, $day1->impressions);       // "12,500" parsed
+        $this->assertEquals(32, $day1->conversions);
+        $this->assertEquals('1.57', $day1->roas);             // 1600 / 1017
+        @unlink($path);
+    }
 }
