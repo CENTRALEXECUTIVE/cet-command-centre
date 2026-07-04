@@ -1,8 +1,8 @@
 @extends('layouts.app')
-@section('title', 'Despatch Board')
+@section('title', 'Dispatch Board')
 
 @section('content')
-    <h1 class="page-title">Despatch Board</h1>
+    <h1 class="page-title">Dispatch Board</h1>
     <p class="page-sub">{{ $date->format('l d F Y') }}</p>
 
     @if($errors->any())

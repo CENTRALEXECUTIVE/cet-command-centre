@@ -4,7 +4,7 @@
 @section('content')
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
         <div>
-            <h1 class="page-title" style="margin-bottom:2px">Despatch Overview</h1>
+            <h1 class="page-title" style="margin-bottom:2px">Dispatch Overview</h1>
             <p class="page-sub">{{ now()->format('l d F Y · H:i') }} · {{ auth()->user()->name }}</p>
         </div>
         <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="btn btn-light" style="padding:6px 14px">↻ Refresh</a>
@@ -53,7 +53,7 @@
     <div class="toolbar" style="gap:8px;flex-wrap:wrap;margin-bottom:20px">
         <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="padding:9px 16px">+ New Booking</a>
         <a href="{{ route('quotes.create') }}" class="btn btn-dark" style="padding:9px 16px">New Quote</a>
-        <a href="{{ route('despatch.board') }}" class="btn btn-light" style="padding:9px 16px">Despatch Board</a>
+        <a href="{{ route('despatch.board') }}" class="btn btn-light" style="padding:9px 16px">Dispatch Board</a>
         <a href="{{ route('bookings.index') }}" class="btn btn-light" style="padding:9px 16px">All Bookings</a>
         <a href="{{ route('review.index') }}" class="btn btn-light" style="padding:9px 16px">Review</a>
     </div>
@@ -61,7 +61,7 @@
     <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center">
             <h2 style="margin:0">Next 10 Upcoming Jobs</h2>
-            <a href="{{ route('despatch.board') }}" style="font-size:13px">Open despatch board →</a>
+            <a href="{{ route('despatch.board') }}" style="font-size:13px">Open dispatch board →</a>
         </div>
         @if(empty($upcoming))
             <p class="muted mb-0" style="margin-top:12px">No upcoming bookings. <a href="{{ route('bookings.create') }}">Create one</a>.</p>

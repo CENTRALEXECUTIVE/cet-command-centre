@@ -43,7 +43,7 @@ class DespatchBoardTest extends TestCase
         $admin = User::factory()->admin()->create();
         $this->pendingBooking();
 
-        $this->actingAs($admin)->get(route('despatch.board'))->assertOk()->assertSee('Despatch Board');
+        $this->actingAs($admin)->get(route('despatch.board'))->assertOk()->assertSee('Dispatch Board');
     }
 
     public function test_non_admin_cannot_view_the_board(): void
