@@ -5,14 +5,21 @@ namespace App\Http\Controllers;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Setting;
+use App\Models\User;
 use App\Services\Calendar\CalendarStats;
+use App\Services\Compliance\DriverComplianceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly CalendarStats $calendarStats) {}
+    public function __construct(
+        private readonly CalendarStats $calendarStats,
+        private readonly DriverComplianceService $compliance,
+    ) {}
 
     /**
      * Route each role to the appropriate landing view with a scoped data set
@@ -23,24 +30,35 @@ class DashboardController extends Controller
         $user = $request->user();
 
         if ($user->isAdmin()) {
+            // "Refresh now" busts the short calendar cache for live figures.
+            if ($request->boolean('refresh')) {
+                Cache::forget('calendar_stats_events');
+            }
+
             // Headline figures AND the upcoming list come STRAIGHT from the
             // calendar (the operator's source of truth) so they always match it;
             // fall back to the database when the calendar isn't reachable.
             $calendar = $this->calendarStats->counts();
+            $revenue = 'COALESCE(final_price, quoted_price, 0)';
 
             return view('dashboard.admin', [
                 'todayCount' => $calendar['jobsToday']
                     ?? Booking::whereDate('pickup_at', today())->count(),
-                // "Awaiting allocation" = UPCOMING jobs with no driver yet. Past
-                // pending jobs (old imports that already happened) are excluded —
-                // otherwise the count balloons with history and is unactionable.
                 'pendingCount' => $calendar['awaiting']
                     ?? Booking::where('status', BookingStatus::Pending->value)
                         ->where('pickup_at', '>=', today())
                         ->count(),
                 'activeCount' => Booking::active()->count(),
+                // Today's booked value (non-cancelled), and jobs booked for the week ahead.
+                'todayRevenue' => (float) Booking::whereDate('pickup_at', today())
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->sum(DB::raw($revenue)),
+                'weekCount' => Booking::whereBetween('pickup_at', [now()->startOfDay(), now()->addDays(7)->endOfDay()])
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->count(),
                 'upcoming' => $this->calendarStats->upcoming(10) ?? $this->upcomingFromDatabase(),
                 'reviewReminder' => $this->monthlyReviewDue(),
+                'complianceAlerts' => $this->complianceAlerts(),
             ]);
         }
 
@@ -64,6 +82,25 @@ class DashboardController extends Controller
                 ->limit(20)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Active drivers currently blocked by an expired document — surfaced on the
+     * dashboard so lapses are caught before they hit despatch.
+     *
+     * @return array<int, array{name: string, reason: string}>
+     */
+    private function complianceAlerts(): array
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereHas('driverProfile')
+            ->with('driverProfile.defaultVehicle')
+            ->get()
+            ->map(fn (User $d) => ['name' => $d->name, 'reason' => $this->compliance->blockReason($d)])
+            ->filter(fn ($a) => $a['reason'] !== null)
+            ->values()
+            ->all();
     }
 
     /**
