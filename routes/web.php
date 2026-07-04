@@ -55,6 +55,10 @@ Route::middleware('auth')->group(function () {
         // Address autocomplete (server-side proxy to Google Places).
         Route::get('places/autocomplete', [\App\Http\Controllers\PlacesController::class, 'autocomplete'])
             ->middleware('throttle:120,1')->name('places.autocomplete');
+
+        // Live fare estimate (fixed airport price / free-roam distance).
+        Route::get('pricing/estimate', [\App\Http\Controllers\PricingController::class, 'estimate'])
+            ->middleware('throttle:120,1')->name('pricing.estimate');
     });
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');

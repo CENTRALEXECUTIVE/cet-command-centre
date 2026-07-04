@@ -182,7 +182,7 @@
                     @error('payment_method') <div class="error">{{ $message }}</div> @enderror
                 </div>
                 <div class="field">
-                    <label for="quoted_price">Quoted price (£)</label>
+                    <label for="quoted_price">Quoted price (£) <span id="quote-note" class="muted" style="font-weight:400"></span></label>
                     <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price', $quote?->price) }}">
                     @error('quoted_price') <div class="error">{{ $message }}</div> @enderror
                 </div>
@@ -205,7 +205,10 @@
         <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
     </form>
 
-    <script>window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";</script>
+    <script>
+        window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
+        window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
+    </script>
     @verbatim
     <script>
         (function () {
@@ -269,6 +272,39 @@
                     attachPlaces(input);
                 });
             }
+
+            // ---- Auto-quote: fixed airport price / free-roam distance ----
+            var pickupEl = document.getElementById('pickup_address');
+            var destEl = document.getElementById('destination_address');
+            var vehEl = document.getElementById('vehicle_type_id');
+            var priceEl = document.getElementById('quoted_price');
+            var noteEl = document.getElementById('quote-note');
+            var quoteTimer = null, quoteEdited = false;
+            if (priceEl) priceEl.addEventListener('input', function () { quoteEdited = true; });
+
+            function refreshQuote() {
+                if (!pickupEl || !destEl || !vehEl || !priceEl) return;
+                var pickup = pickupEl.value.trim(), dest = destEl.value.trim(), veh = vehEl.value;
+                if (!pickup || !dest || !veh) return;
+                clearTimeout(quoteTimer);
+                quoteTimer = setTimeout(function () {
+                    noteEl.textContent = '· calculating…';
+                    var url = window.CET_ESTIMATE_URL + '?pickup=' + encodeURIComponent(pickup) +
+                        '&destination=' + encodeURIComponent(dest) + '&vehicle_type_id=' + encodeURIComponent(veh);
+                    fetch(url, { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            if (d.price == null) { noteEl.textContent = '· ' + (d.basis || 'price on request'); return; }
+                            noteEl.textContent = '· ' + d.basis;
+                            // Only auto-fill if the operator hasn't typed their own price.
+                            if (!quoteEdited || priceEl.value === '') { priceEl.value = Number(d.price).toFixed(2); quoteEdited = false; }
+                        })
+                        .catch(function () { noteEl.textContent = ''; });
+                }, 400);
+            }
+            [pickupEl, destEl, vehEl].forEach(function (el) {
+                if (el) { el.addEventListener('change', refreshQuote); el.addEventListener('blur', refreshQuote); }
+            });
 
             // Show the return field only for return journeys.
             var journey = document.getElementById('journey_type');
