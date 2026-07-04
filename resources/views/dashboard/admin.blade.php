@@ -40,10 +40,13 @@
             <div class="n" style="{{ $activeCount > 0 ? 'color:#1f7a44' : '' }}">{{ $activeCount }}</div><div class="l">Active Now →</div>
         </a>
     </div>
-    <div class="grid grid-2" style="margin-bottom:20px">
+    <div class="grid grid-3" style="margin-bottom:20px">
         <a class="stat" href="{{ route('review.index') }}" style="text-decoration:none;color:inherit;display:block">
             <div class="n">£{{ number_format($todayRevenue, 0) }}</div><div class="l">Today's booked value →</div>
         </a>
+        <div class="stat">
+            <div class="n" style="{{ $cashToday > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($cashToday, 0) }}</div><div class="l">💰 Cash to collect today</div>
+        </div>
         <div class="stat">
             <div class="n">{{ $weekCount }}</div><div class="l">Jobs booked · next 7 days</div>
         </div>
@@ -56,6 +59,41 @@
         <a href="{{ route('despatch.board') }}" class="btn btn-light" style="padding:9px 16px">Dispatch Board</a>
         <a href="{{ route('bookings.index') }}" class="btn btn-light" style="padding:9px 16px">All Bookings</a>
         <a href="{{ route('review.index') }}" class="btn btn-light" style="padding:9px 16px">Review</a>
+    </div>
+
+    {{-- Driver status strip --}}
+    @if(!empty($driverStatus))
+        @php $chip = ['available' => ['#1f7a44','🟢','Available'], 'on-job' => ['#2a6bb0','🔵','On a job'], 'blocked' => ['#b32020','🔴','Blocked'], 'off' => ['#888','⚪','Off']]; @endphp
+        <div class="card" style="margin-bottom:16px">
+            <h2 style="margin:0 0 10px">Drivers</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                @foreach($driverStatus as $d)
+                    @php $c = $chip[$d['status']]; @endphp
+                    <div title="{{ $d['reason'] ?? ($d['next'] ? 'Next: '.$d['next']->format('D H:i') : 'No upcoming jobs') }}"
+                         style="border:1px solid {{ $c[0] }}33;border-left:3px solid {{ $c[0] }};border-radius:8px;padding:8px 12px;min-width:150px">
+                        <div style="font-weight:600">{{ $c[1] }} {{ $d['name'] }}</div>
+                        <div class="muted" style="font-size:12px">{{ $c[2] }}@if($d['next']) · next {{ $d['next']->format('D H:i') }}@endif</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    {{-- Today's schedule --}}
+    <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 style="margin:0">Today's schedule</h2>
+            <a href="{{ route('jobs.day') }}" style="font-size:13px">Full detail →</a>
+        </div>
+        @forelse(array_slice($todaySchedule, 0, 12) as $j)
+            <div style="display:flex;gap:12px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.12)">
+                <span style="font-weight:700;width:48px;flex:none">{{ $j['pickup']->format('H:i') }}</span>
+                <span style="flex:1">{{ $j['customer'] }} <span class="muted">· {{ $j['vehicle'] }}</span></span>
+                <span class="muted" style="font-size:13px">{{ $j['driver'] }}</span>
+            </div>
+        @empty
+            <p class="muted mb-0" style="margin-top:10px">No jobs today.</p>
+        @endforelse
     </div>
 
     <div class="card">

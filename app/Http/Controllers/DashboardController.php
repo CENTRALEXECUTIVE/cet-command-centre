@@ -59,6 +59,14 @@ class DashboardController extends Controller
                 'upcoming' => $this->calendarStats->upcoming(10) ?? $this->upcomingFromDatabase(),
                 'reviewReminder' => $this->monthlyReviewDue(),
                 'complianceAlerts' => $this->complianceAlerts(),
+                'driverStatus' => $this->driverStatus(),
+                // Cash the drivers should collect today (cash jobs not yet paid).
+                'cashToday' => (float) Booking::whereDate('pickup_at', today())
+                    ->where('payment_method', 'cash')
+                    ->where('payment_status', '!=', 'paid')
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->sum(DB::raw($revenue)),
+                'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
             ]);
         }
 
@@ -82,6 +90,40 @@ class DashboardController extends Controller
                 ->limit(20)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Each active driver's live status for the dashboard strip: blocked (expired
+     * doc), on-job (a job in progress), available, or off — plus their next job.
+     *
+     * @return array<int, array{name: string, status: string, next: ?Carbon, reason: ?string}>
+     */
+    private function driverStatus(): array
+    {
+        $active = [BookingStatus::Accepted->value, BookingStatus::EnRoute->value, BookingStatus::Collected->value];
+
+        return User::query()
+            ->where('is_active', true)
+            ->whereHas('driverProfile')
+            ->with('driverProfile')
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $d) use ($active) {
+                $reason = $this->compliance->blockReason($d);
+                $onJob = Booking::where('driver_id', $d->id)->whereIn('status', $active)->exists();
+                $next = Booking::where('driver_id', $d->id)->where('pickup_at', '>=', now())
+                    ->orderBy('pickup_at')->value('pickup_at');
+
+                $status = match (true) {
+                    $reason !== null => 'blocked',
+                    $onJob => 'on-job',
+                    (bool) $d->driverProfile?->is_available => 'available',
+                    default => 'off',
+                };
+
+                return ['name' => $d->name, 'status' => $status, 'next' => $next, 'reason' => $reason];
+            })
+            ->all();
     }
 
     /**
