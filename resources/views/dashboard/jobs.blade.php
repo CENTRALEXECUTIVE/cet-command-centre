@@ -1,0 +1,47 @@
+@extends('layouts.app')
+@section('title', 'Jobs')
+
+@section('content')
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h1 class="page-title" style="margin-bottom:2px">
+            {{ $day->isToday() ? "Today's Jobs" : $day->format('l d F Y') }}
+            <span class="muted" style="font-weight:400;font-size:16px">· {{ count($jobs) }} job(s)</span>
+        </h1>
+        <div class="toolbar" style="gap:6px">
+            <a class="btn btn-light" href="{{ route('jobs.day', ['date' => $day->copy()->subDay()->toDateString()]) }}" style="padding:6px 12px">← Prev</a>
+            <form method="GET" action="{{ route('jobs.day') }}" style="display:inline">
+                <input type="date" name="date" value="{{ $day->toDateString() }}" onchange="this.form.submit()" style="width:auto">
+            </form>
+            <a class="btn btn-light" href="{{ route('jobs.day', ['date' => $day->copy()->addDay()->toDateString()]) }}" style="padding:6px 12px">Next →</a>
+        </div>
+    </div>
+    <p class="page-sub"><a href="{{ route('dashboard') }}">← Dashboard</a></p>
+
+    @forelse($jobs as $job)
+        <div class="card" style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+                <div>
+                    <span style="font-size:20px;font-weight:800">{{ $job['pickup']->format('H:i') }}</span>
+                    <span style="font-weight:700;margin-left:8px">{{ $job['title'] ?: $job['customer'] }}</span>
+                </div>
+                <div>
+                    <span class="badge badge-{{ \Illuminate\Support\Str::slug($job['status']) }}">{{ $job['status'] }}</span>
+                    @if($job['url'])<a href="{{ $job['url'] }}" style="font-size:13px;margin-left:8px">Open booking →</a>@endif
+                </div>
+            </div>
+
+            <div class="muted" style="font-size:13px;margin:4px 0 8px">
+                {{ $job['customer'] }} · {{ $job['vehicle'] }} · Driver: {{ $job['driver'] }}
+                @if($job['ref'] && $job['ref'] !== '—') · <span class="mono">{{ $job['ref'] }}</span> @endif
+            </div>
+
+            @if($job['description'])
+                <div style="white-space:pre-wrap;font-size:14px;line-height:1.55;background:rgba(128,128,128,.06);border-radius:8px;padding:12px">{{ trim(preg_replace('/[*]/', '', $job['description'])) }}</div>
+            @else
+                <div class="muted">Pickup: {{ $job['location'] }}</div>
+            @endif
+        </div>
+    @empty
+        <div class="card"><p class="muted mb-0">No jobs on this day.</p></div>
+    @endforelse
+@endsection

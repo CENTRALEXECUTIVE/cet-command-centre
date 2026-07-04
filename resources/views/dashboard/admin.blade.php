@@ -30,7 +30,7 @@
 
     {{-- Clickable stat tiles --}}
     <div class="grid grid-3" style="margin-bottom:14px">
-        <a class="stat" href="{{ route('despatch.board') }}" style="text-decoration:none;color:inherit;display:block">
+        <a class="stat" href="{{ route('jobs.day') }}" style="text-decoration:none;color:inherit;display:block">
             <div class="n">{{ $todayCount }}</div><div class="l">Jobs Today →</div>
         </a>
         <a class="stat" href="{{ route('despatch.board') }}" style="text-decoration:none;color:inherit;display:block">
@@ -77,10 +77,10 @@
                                 @if($row['url'])
                                     <a href="{{ $row['url'] }}" class="mono">{{ $row['ref'] }}</a>
                                 @else
-                                    <span class="mono">{{ $row['ref'] }}</span>
+                                    <a href="{{ route('jobs.day', ['date' => $row['pickup']->toDateString()]) }}" class="mono">{{ $row['ref'] }}</a>
                                 @endif
                             </td>
-                            <td>{{ $row['pickup']->format('D d M, H:i') }}</td>
+                            <td><a href="{{ route('jobs.day', ['date' => $row['pickup']->toDateString()]) }}" style="color:inherit">{{ $row['pickup']->format('D d M, H:i') }}</a></td>
                             <td>{{ $row['customer'] }}</td>
                             <td>{{ $row['vehicle'] }}</td>
                             <td>

@@ -40,6 +40,7 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
 // ----- Authenticated area ------------------------------------------------
 Route::middleware('auth')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('jobs/day', [DashboardController::class, 'day'])->name('jobs.day');
 
     // Bookings + AI quotes — admins and corporate clients.
     Route::middleware('role:admin,corporate_client')->group(function () {

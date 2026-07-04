@@ -84,6 +84,39 @@ class CalendarStats
         return array_map(fn ($row) => $this->row($row['event'], $row['start']), array_slice($upcoming, 0, $limit));
     }
 
+    /**
+     * Full detail for every job on a given day, straight from the calendar — the
+     * complete event description (all fields), plus a link to the booking where
+     * one exists. Null when the calendar can't be read.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function jobsOn(Carbon $day): ?array
+    {
+        $events = $this->bookingEvents();
+        if ($events === null) {
+            return null;
+        }
+
+        $jobs = [];
+        foreach ($events as $e) {
+            $start = $this->startOf($e);
+            if ($start !== null && $start->isSameDay($day)) {
+                $jobs[] = ['event' => $e, 'start' => $start];
+            }
+        }
+        usort($jobs, fn ($a, $b) => $a['start'] <=> $b['start']);
+
+        return array_map(function ($j) {
+            $row = $this->row($j['event'], $j['start']);
+            $row['title'] = trim((string) ($j['event']['summary'] ?? ''), '*');
+            $row['location'] = (string) ($j['event']['location'] ?? '');
+            $row['description'] = (string) ($j['event']['description'] ?? '');
+
+            return $row;
+        }, $jobs);
+    }
+
     /** Fetch + cache the calendar's booking events once (shared by counts/upcoming). */
     private function bookingEvents(): ?array
     {

@@ -85,6 +85,41 @@ class DashboardController extends Controller
     }
 
     /**
+     * A full-detail list of the jobs on a given day (default today), straight
+     * from the calendar — every field, so the operator sees exactly what each
+     * job is. Falls back to the database when the calendar can't be read.
+     */
+    public function day(Request $request): View
+    {
+        $day = ($request->date('date') ?? today())->startOfDay();
+        $jobs = $this->calendarStats->jobsOn($day) ?? $this->jobsFromDatabase($day);
+
+        return view('dashboard.jobs', ['day' => $day, 'jobs' => $jobs]);
+    }
+
+    /** Day's jobs from the database, mapped to the same detail rows. */
+    private function jobsFromDatabase(Carbon $day): array
+    {
+        return Booking::with(['customer', 'vehicleType', 'driver', 'calendarEvent'])
+            ->whereDate('pickup_at', $day)
+            ->orderBy('pickup_at')
+            ->get()
+            ->map(fn (Booking $b) => [
+                'ref' => $b->external_reference ?? $b->reference,
+                'pickup' => $b->pickup_at,
+                'customer' => $b->customer?->name,
+                'vehicle' => $b->vehicleType?->name ?? '—',
+                'driver' => $b->driver?->name ?? '—',
+                'status' => $b->status?->label() ?? 'Scheduled',
+                'url' => route('bookings.show', $b),
+                'title' => trim((string) ($b->calendarEvent?->title ?? ''), '*'),
+                'location' => $b->pickup_address,
+                'description' => (string) ($b->calendarEvent?->description ?? ''),
+            ])
+            ->all();
+    }
+
+    /**
      * Active drivers currently blocked by an expired document — surfaced on the
      * dashboard so lapses are caught before they hit despatch.
      *
