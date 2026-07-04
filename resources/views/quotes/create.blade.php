@@ -39,11 +39,11 @@
             <div class="grid grid-2">
                 <div class="field">
                     <label for="pickup_address">Pickup address <span class="req">*</span></label>
-                    <textarea id="pickup_address" name="pickup_address" required>{{ old('pickup_address') }}</textarea>
+                    <textarea id="pickup_address" name="pickup_address" data-places autocomplete="off" required>{{ old('pickup_address') }}</textarea>
                 </div>
                 <div class="field">
                     <label for="destination_address">Destination address <span class="req">*</span></label>
-                    <textarea id="destination_address" name="destination_address" list="destinations" required>{{ old('destination_address') }}</textarea>
+                    <textarea id="destination_address" name="destination_address" list="destinations" data-places autocomplete="off" required>{{ old('destination_address') }}</textarea>
                     <datalist id="destinations">
                         @foreach($destinations as $d)<option value="{{ $d }}">@endforeach
                     </datalist>
@@ -51,7 +51,7 @@
             </div>
             <div class="grid grid-2">
                 <div class="field">
-                    <label for="vehicle_type_id">Vehicle type <span class="req">*</span></label>
+                    <label for="vehicle_type_id">Vehicle type <span class="req">*</span> <span id="quote-note" class="muted" style="font-weight:400"></span></label>
                     <select id="vehicle_type_id" name="vehicle_type_id" required>
                         @foreach($vehicleTypes as $vt)
                             <option value="{{ $vt->id }}" @selected(old('vehicle_type_id')==$vt->id)>{{ $vt->name }}</option>
@@ -84,4 +84,10 @@
         </fieldset>
         <button type="submit" class="btn btn-primary">Generate Quote</button>
     </form>
+
+    <script>
+        window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
+        window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
+    </script>
+    <script src="{{ asset('js/cet-forms.js') }}"></script>
 @endsection

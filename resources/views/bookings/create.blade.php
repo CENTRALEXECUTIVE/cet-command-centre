@@ -209,55 +209,11 @@
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
     </script>
+    <script src="{{ asset('js/cet-forms.js') }}"></script>
     @verbatim
     <script>
         (function () {
-            // ---- Google address autocomplete (via the server-side proxy) ----
-            function attachPlaces(el) {
-                if (!el || el.dataset.placesReady) return;
-                el.dataset.placesReady = '1';
-                var box = el.parentElement;
-                box.style.position = 'relative';
-                var menu = document.createElement('div');
-                menu.className = 'places-menu';
-                menu.style.cssText = 'position:absolute;left:0;right:0;z-index:50;background:var(--card,#fff);border:1px solid rgba(128,128,128,.35);border-radius:6px;margin-top:2px;max-height:240px;overflow:auto;display:none;box-shadow:0 6px 20px rgba(0,0,0,.12)';
-                box.appendChild(menu);
-                var timer = null, controller = null;
-
-                function close() { menu.style.display = 'none'; menu.innerHTML = ''; }
-                function render(items) {
-                    menu.innerHTML = '';
-                    if (!items.length) { close(); return; }
-                    items.forEach(function (text) {
-                        var opt = document.createElement('div');
-                        opt.textContent = text;
-                        opt.style.cssText = 'padding:9px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(128,128,128,.12)';
-                        opt.addEventListener('mousedown', function (e) { e.preventDefault(); el.value = text; close(); });
-                        opt.addEventListener('mouseenter', function () { opt.style.background = 'rgba(251,186,42,.18)'; });
-                        opt.addEventListener('mouseleave', function () { opt.style.background = ''; });
-                        menu.appendChild(opt);
-                    });
-                    menu.style.display = 'block';
-                }
-                el.addEventListener('input', function () {
-                    var q = el.value.trim();
-                    clearTimeout(timer);
-                    if (q.length < 3) { close(); return; }
-                    timer = setTimeout(function () {
-                        if (controller) controller.abort();
-                        controller = new AbortController();
-                        fetch(window.CET_PLACES_URL + '?q=' + encodeURIComponent(q), { signal: controller.signal, headers: { 'Accept': 'application/json' } })
-                            .then(function (r) { return r.json(); })
-                            .then(function (d) { render(d.suggestions || []); })
-                            .catch(function () {});
-                    }, 250);
-                });
-                el.addEventListener('blur', function () { setTimeout(close, 150); });
-                el.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
-            }
-            document.querySelectorAll('[data-places]').forEach(attachPlaces);
-
-            // Add / remove via-stop inputs.
+            // Add via-stop inputs (autocomplete attaches via the shared helper).
             var addBtn = document.getElementById('add-stop');
             var wrap = document.getElementById('via-stops');
             if (addBtn) {
@@ -269,49 +225,13 @@
                     input.setAttribute('autocomplete', 'off');
                     input.style.marginBottom = '8px';
                     wrap.appendChild(input);
-                    attachPlaces(input);
+                    if (window.CETattachPlaces) window.CETattachPlaces(input);
                 });
             }
-
-            // ---- Auto-quote: fixed airport price / free-roam distance ----
-            var pickupEl = document.getElementById('pickup_address');
-            var destEl = document.getElementById('destination_address');
-            var vehEl = document.getElementById('vehicle_type_id');
-            var priceEl = document.getElementById('quoted_price');
-            var noteEl = document.getElementById('quote-note');
-            var quoteTimer = null, quoteEdited = false;
-            if (priceEl) priceEl.addEventListener('input', function () { quoteEdited = true; });
-
-            function refreshQuote() {
-                if (!pickupEl || !destEl || !vehEl || !priceEl) return;
-                var pickup = pickupEl.value.trim(), dest = destEl.value.trim(), veh = vehEl.value;
-                if (!pickup || !dest || !veh) return;
-                clearTimeout(quoteTimer);
-                quoteTimer = setTimeout(function () {
-                    noteEl.textContent = '· calculating…';
-                    var url = window.CET_ESTIMATE_URL + '?pickup=' + encodeURIComponent(pickup) +
-                        '&destination=' + encodeURIComponent(dest) + '&vehicle_type_id=' + encodeURIComponent(veh);
-                    fetch(url, { headers: { 'Accept': 'application/json' } })
-                        .then(function (r) { return r.json(); })
-                        .then(function (d) {
-                            if (d.price == null) { noteEl.textContent = '· ' + (d.basis || 'price on request'); return; }
-                            noteEl.textContent = '· ' + d.basis;
-                            // Only auto-fill if the operator hasn't typed their own price.
-                            if (!quoteEdited || priceEl.value === '') { priceEl.value = Number(d.price).toFixed(2); quoteEdited = false; }
-                        })
-                        .catch(function () { noteEl.textContent = ''; });
-                }, 400);
-            }
-            [pickupEl, destEl, vehEl].forEach(function (el) {
-                if (el) { el.addEventListener('change', refreshQuote); el.addEventListener('blur', refreshQuote); }
-            });
-
             // Show the return field only for return journeys.
             var journey = document.getElementById('journey_type');
             var returnField = document.getElementById('return_field');
-            function toggleReturn() {
-                returnField.style.display = journey.value === 'return' ? '' : 'none';
-            }
+            function toggleReturn() { returnField.style.display = journey.value === 'return' ? '' : 'none'; }
             if (journey) { journey.addEventListener('change', toggleReturn); toggleReturn(); }
         })();
     </script>
