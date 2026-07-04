@@ -3,17 +3,26 @@
  * server-side proxy) and live fare estimates (fixed airport price / free roam).
  * Auto-initialises from element IDs + [data-places]; needs window.CET_PLACES_URL
  * and window.CET_ESTIMATE_URL set before this script loads.
+ *
+ * The suggestion menu is attached to <body> with fixed positioning so it can
+ * never be clipped by a parent's overflow.
  */
 (function () {
     function attachPlaces(el) {
         if (!el || el.dataset.placesReady || !window.CET_PLACES_URL) return;
         el.dataset.placesReady = '1';
-        var box = el.parentElement;
-        box.style.position = 'relative';
+
         var menu = document.createElement('div');
-        menu.style.cssText = 'position:absolute;left:0;right:0;z-index:50;background:var(--card,#fff);border:1px solid rgba(128,128,128,.35);border-radius:6px;margin-top:2px;max-height:240px;overflow:auto;display:none;box-shadow:0 6px 20px rgba(0,0,0,.12)';
-        box.appendChild(menu);
+        menu.style.cssText = 'position:fixed;z-index:9999;background:#fff;color:#111;border:1px solid rgba(0,0,0,.2);border-radius:6px;max-height:260px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.18)';
+        document.body.appendChild(menu);
         var timer = null, controller = null;
+
+        function place() {
+            var r = el.getBoundingClientRect();
+            menu.style.left = r.left + 'px';
+            menu.style.top = (r.bottom + 2) + 'px';
+            menu.style.width = r.width + 'px';
+        }
         function close() { menu.style.display = 'none'; menu.innerHTML = ''; }
         function render(items) {
             menu.innerHTML = '';
@@ -21,12 +30,13 @@
             items.forEach(function (text) {
                 var opt = document.createElement('div');
                 opt.textContent = text;
-                opt.style.cssText = 'padding:9px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(128,128,128,.12)';
+                opt.style.cssText = 'padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(0,0,0,.08)';
                 opt.addEventListener('mousedown', function (e) { e.preventDefault(); el.value = text; close(); el.dispatchEvent(new Event('change')); });
-                opt.addEventListener('mouseenter', function () { opt.style.background = 'rgba(251,186,42,.18)'; });
+                opt.addEventListener('mouseenter', function () { opt.style.background = 'rgba(251,186,42,.22)'; });
                 opt.addEventListener('mouseleave', function () { opt.style.background = ''; });
                 menu.appendChild(opt);
             });
+            place();
             menu.style.display = 'block';
         }
         el.addEventListener('input', function () {
@@ -42,8 +52,10 @@
                     .catch(function () {});
             }, 250);
         });
-        el.addEventListener('blur', function () { setTimeout(close, 150); });
+        el.addEventListener('blur', function () { setTimeout(close, 200); });
         el.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+        window.addEventListener('scroll', function () { if (menu.style.display === 'block') place(); }, true);
+        window.addEventListener('resize', function () { if (menu.style.display === 'block') place(); });
     }
 
     function initAutoQuote() {
@@ -78,7 +90,7 @@
     function init() {
         document.querySelectorAll('[data-places]').forEach(attachPlaces);
         initAutoQuote();
-        window.CETattachPlaces = attachPlaces; // for dynamically-added inputs (via stops)
+        window.CETattachPlaces = attachPlaces;
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
