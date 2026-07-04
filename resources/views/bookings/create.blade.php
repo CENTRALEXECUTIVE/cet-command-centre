@@ -70,12 +70,12 @@
             <div class="grid grid-2">
                 <div class="field">
                     <label for="pickup_address">Pickup address <span class="req">*</span></label>
-                    <textarea id="pickup_address" name="pickup_address" required>{{ old('pickup_address', $quote?->pickup_address) }}</textarea>
+                    <textarea id="pickup_address" name="pickup_address" data-places autocomplete="off" required>{{ old('pickup_address', $quote?->pickup_address) }}</textarea>
                     @error('pickup_address') <div class="error">{{ $message }}</div> @enderror
                 </div>
                 <div class="field">
                     <label for="destination_address">Destination address <span class="req">*</span></label>
-                    <textarea id="destination_address" name="destination_address" required>{{ old('destination_address', $quote?->destination_address) }}</textarea>
+                    <textarea id="destination_address" name="destination_address" data-places autocomplete="off" required>{{ old('destination_address', $quote?->destination_address) }}</textarea>
                     @error('destination_address') <div class="error">{{ $message }}</div> @enderror
                 </div>
             </div>
@@ -85,7 +85,7 @@
                 <div id="via-stops">
                     @php $oldStops = old('via_stops', ['']); @endphp
                     @foreach($oldStops as $stop)
-                        <input name="via_stops[]" value="{{ $stop }}" placeholder="Add a stop along the way" style="margin-bottom:8px">
+                        <input name="via_stops[]" value="{{ $stop }}" data-places autocomplete="off" placeholder="Add a stop along the way" style="margin-bottom:8px">
                     @endforeach
                 </div>
                 <button type="button" class="btn btn-ghost" id="add-stop" style="padding:6px 14px;font-size:13px">+ Add stop</button>
@@ -205,9 +205,55 @@
         <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
     </form>
 
+    <script>window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";</script>
     @verbatim
     <script>
         (function () {
+            // ---- Google address autocomplete (via the server-side proxy) ----
+            function attachPlaces(el) {
+                if (!el || el.dataset.placesReady) return;
+                el.dataset.placesReady = '1';
+                var box = el.parentElement;
+                box.style.position = 'relative';
+                var menu = document.createElement('div');
+                menu.className = 'places-menu';
+                menu.style.cssText = 'position:absolute;left:0;right:0;z-index:50;background:var(--card,#fff);border:1px solid rgba(128,128,128,.35);border-radius:6px;margin-top:2px;max-height:240px;overflow:auto;display:none;box-shadow:0 6px 20px rgba(0,0,0,.12)';
+                box.appendChild(menu);
+                var timer = null, controller = null;
+
+                function close() { menu.style.display = 'none'; menu.innerHTML = ''; }
+                function render(items) {
+                    menu.innerHTML = '';
+                    if (!items.length) { close(); return; }
+                    items.forEach(function (text) {
+                        var opt = document.createElement('div');
+                        opt.textContent = text;
+                        opt.style.cssText = 'padding:9px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(128,128,128,.12)';
+                        opt.addEventListener('mousedown', function (e) { e.preventDefault(); el.value = text; close(); });
+                        opt.addEventListener('mouseenter', function () { opt.style.background = 'rgba(251,186,42,.18)'; });
+                        opt.addEventListener('mouseleave', function () { opt.style.background = ''; });
+                        menu.appendChild(opt);
+                    });
+                    menu.style.display = 'block';
+                }
+                el.addEventListener('input', function () {
+                    var q = el.value.trim();
+                    clearTimeout(timer);
+                    if (q.length < 3) { close(); return; }
+                    timer = setTimeout(function () {
+                        if (controller) controller.abort();
+                        controller = new AbortController();
+                        fetch(window.CET_PLACES_URL + '?q=' + encodeURIComponent(q), { signal: controller.signal, headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.json(); })
+                            .then(function (d) { render(d.suggestions || []); })
+                            .catch(function () {});
+                    }, 250);
+                });
+                el.addEventListener('blur', function () { setTimeout(close, 150); });
+                el.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+            }
+            document.querySelectorAll('[data-places]').forEach(attachPlaces);
+
             // Add / remove via-stop inputs.
             var addBtn = document.getElementById('add-stop');
             var wrap = document.getElementById('via-stops');
@@ -216,8 +262,11 @@
                     var input = document.createElement('input');
                     input.name = 'via_stops[]';
                     input.placeholder = 'Add a stop along the way';
+                    input.setAttribute('data-places', '');
+                    input.setAttribute('autocomplete', 'off');
                     input.style.marginBottom = '8px';
                     wrap.appendChild(input);
+                    attachPlaces(input);
                 });
             }
 

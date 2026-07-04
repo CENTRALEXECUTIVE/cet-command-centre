@@ -51,6 +51,10 @@ Route::middleware('auth')->group(function () {
         Route::get('quotes/create', [QuoteController::class, 'create'])->name('quotes.create');
         Route::post('quotes', [QuoteController::class, 'store'])->middleware('throttle:30,1')->name('quotes.store');
         Route::get('quotes/{quote}', [QuoteController::class, 'show'])->name('quotes.show');
+
+        // Address autocomplete (server-side proxy to Google Places).
+        Route::get('places/autocomplete', [\App\Http\Controllers\PlacesController::class, 'autocomplete'])
+            ->middleware('throttle:120,1')->name('places.autocomplete');
     });
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
