@@ -37,18 +37,42 @@ class PricingQuoteTest extends TestCase
         $this->assertNull($p->price('rolls-royce-ghost', 40));
     }
 
-    public function test_airport_run_uses_the_fixed_price(): void
+    public function test_airport_run_uses_the_fixed_price_both_ways(): void
     {
         $quotes = app(QuoteService::class);
         $exec = VehicleType::where('slug', 'executive')->first();
 
-        $man = $quotes->quote('81 Hallam Grange Road, Sheffield S10', 'Manchester Airport (MAN), T2', $exec);
+        // Drop-off is the airport.
+        $man = $quotes->quote('81 Hallam Grange Road, Sheffield S10 4BL', 'Manchester Airport (MAN), T2', $exec);
         $this->assertTrue($man['fixed']);
         $this->assertEquals(100.0, $man['price']);
-        $this->assertStringContainsString('MAN', $man['basis']);
 
-        $lhr = $quotes->quote('Sheffield S1', 'Heathrow Airport Terminal 5', $exec);
-        $this->assertEquals(290.0, $lhr['price']);
+        // Pickup is the airport (both ways = same price, zone from the other end).
+        $manReturn = $quotes->quote('Manchester Airport (MAN)', '81 Hallam Grange Road, Sheffield S10 4BL', $exec);
+        $this->assertEquals(100.0, $manReturn['price']);
+
+        $this->assertEquals(290.0, $quotes->quote('Sheffield S1 2HH', 'Heathrow Terminal 5', $exec)['price']);
+        $this->assertEquals(300.0, $quotes->quote('Sheffield S1', 'Central London', $exec)['price']);
+        $this->assertEquals(400.0, $quotes->quote('Sheffield S1', 'Port of Southampton', $exec)['price']);
+    }
+
+    public function test_zone_specific_prices(): void
+    {
+        $quotes = app(QuoteService::class);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        // East Midlands: £90 from S20/Chesterfield, £100 from general Sheffield.
+        $this->assertEquals(90.0, $quotes->quote('Sheffield S20 1AB', 'East Midlands Airport', $exec)['price']);
+        $this->assertEquals(90.0, $quotes->quote('Chesterfield S40 1AA', 'East Midlands Airport', $exec)['price']);
+        $this->assertEquals(100.0, $quotes->quote('Sheffield S10 4BL', 'East Midlands Airport', $exec)['price']);
+
+        // Birmingham: £140 from S20/Chesterfield, £150 from Sheffield/Rotherham.
+        $this->assertEquals(140.0, $quotes->quote('Sheffield S20 1AB', 'Birmingham Airport', $exec)['price']);
+        $this->assertEquals(150.0, $quotes->quote('Rotherham S60 1AA', 'Birmingham Airport', $exec)['price']);
+
+        // V Class (Executive 8 Seater) fixed column, Heathrow.
+        $vclass = VehicleType::where('slug', 'v-class')->first();
+        $this->assertEquals(450.0, $quotes->quote('Sheffield S1', 'Heathrow', $vclass)['price']);
     }
 
     public function test_free_roam_quote_uses_distance(): void
