@@ -14,7 +14,7 @@
         @method('PUT')
         <div class="card">
             <h2>🗺️ Google Maps</h2>
-            <p class="muted" style="margin-top:0">Powers the booking form's address dropdown and distance-based free-roam pricing. Enable <strong>Places API</strong>, <strong>Maps JavaScript API</strong> and <strong>Distance Matrix API</strong> in Google Cloud, then paste the API key here.</p>
+            <p class="muted" style="margin-top:0">Powers the booking form's address dropdown and distance-based free-roam pricing. In Google Cloud enable <strong>Places API (New)</strong> and <strong>Routes API</strong> (the legacy "Places API" and "Distance Matrix API" no longer work for new projects), then paste the API key here and press <strong>Save</strong> before testing.</p>
             <label>API key
                 <input type="text" name="google_maps_key" value="{{ $mapsKey }}" placeholder="AIza…" autocomplete="off" spellcheck="false">
             </label>
