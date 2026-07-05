@@ -225,3 +225,66 @@ tr:last-child td { border-bottom: none; }
   .nav-toggle-cb:checked ~ .app-shell .sidebar { transform: translateX(0); }
   .nav-toggle-cb:checked ~ .app-shell .nav-scrim { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
 }
+
+/* ===== ETO-style booking / quote forms ===== */
+.eto-form { max-width: 860px; }
+.eto-section {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.eto-section > .head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 18px;
+    background: var(--black);
+    color: #fff;
+    font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+}
+.eto-section > .head .ico { color: var(--gold); font-size: 15px; }
+.eto-section > .head .grow { flex: 1; }
+.eto-section > .body { padding: 18px; }
+.eto-section > .body .field:last-child { margin-bottom: 0; }
+.eto-section.collapsible > .head { cursor: pointer; user-select: none; }
+.eto-section.collapsible > .head .chev { transition: transform .15s; }
+.eto-section.collapsible.closed > .head .chev { transform: rotate(-90deg); }
+.eto-section.collapsible.closed > .body { display: none; }
+
+/* Location rows with a leading pin/marker, like ETO */
+.loc-row { display: flex; align-items: flex-start; gap: 10px; }
+.loc-row .pin { flex: none; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: 6px; font-size: 13px; color: #fff; }
+.loc-row .pin.pickup { background: var(--green); }
+.loc-row .pin.drop { background: var(--red); }
+.loc-row .pin.via { background: var(--muted); }
+.loc-row .grow { flex: 1; min-width: 0; }
+.loc-row textarea, .loc-row input { min-height: 46px; }
+
+/* Number stepper (passengers / luggage) */
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+.stepper button { width: 42px; height: 44px; border: none; background: #f4f4f3; font-size: 20px; font-weight: 700; cursor: pointer; color: var(--ink); line-height: 1; }
+.stepper button:hover { background: var(--gold); }
+.stepper input { width: 58px; text-align: center; border: none; border-left: 1px solid var(--line); border-right: 1px solid var(--line); border-radius: 0; height: 44px; font-weight: 700; font-size: 16px; }
+.stepper input:focus { box-shadow: none; }
+.stepper-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
+.stepper-field .lbl { font-size: 14px; font-weight: 600; color: #333; }
+.stepper-field .lbl .sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+
+/* Sticky total bar */
+.total-bar {
+    position: sticky; bottom: 0;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--black); color: #fff;
+    border-radius: var(--radius);
+    padding: 14px 20px; margin-top: 8px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.15);
+}
+.total-bar .total-label { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: #bdbdbd; }
+.total-bar .total-amount { font-size: 26px; font-weight: 800; color: var(--gold); line-height: 1.1; }
+.total-bar .total-amount .basis { display: block; font-size: 11px; font-weight: 400; letter-spacing: .3px; color: #9a9a9a; text-transform: none; }
+.total-bar .actions { display: flex; gap: 10px; }
+@media (max-width: 560px) {
+    .total-bar { flex-direction: column; align-items: stretch; }
+    .total-bar .actions { flex-direction: column; }
+}
