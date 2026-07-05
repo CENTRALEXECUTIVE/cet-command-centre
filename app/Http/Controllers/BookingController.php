@@ -12,6 +12,7 @@ use App\Models\Quote;
 use App\Models\VehicleType;
 use App\Services\BookingService;
 use App\Services\BookingStatusService;
+use App\Services\Messaging\BookingNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,7 @@ class BookingController extends Controller
     public function __construct(
         private readonly BookingService $bookings,
         private readonly BookingStatusService $status,
+        private readonly BookingNotifier $notifier,
     ) {}
 
     public function index(Request $request): View
@@ -148,10 +150,17 @@ class BookingController extends Controller
             'calendarEvent', 'statusHistory.changedBy', 'payments',
         ]);
 
-        // Customer comms thread (admins only).
-        $messages = $request->user()->isAdmin()
-            ? $booking->messages()->orderBy('created_at')->get()
-            : collect();
+        // Customer comms thread (admins only). Reminder wording is refreshed to
+        // the current driver/vehicle so the "Send on WhatsApp" text is up to date.
+        $messages = collect();
+        if ($request->user()->isAdmin()) {
+            $messages = $booking->messages()->orderBy('created_at')->get();
+            foreach ($messages as $m) {
+                if ($m->isReminder() && $m->status !== 'sent') {
+                    $m->body = $this->notifier->reminderBody($booking);
+                }
+            }
+        }
 
         $auditLogs = $request->user()->isAdmin()
             ? $booking->auditLogs()->with('user')->latest('created_at')->get()

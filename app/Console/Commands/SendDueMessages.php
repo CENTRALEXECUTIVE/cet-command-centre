@@ -8,18 +8,20 @@ use App\Services\Messaging\WhatsAppService;
 use Illuminate\Console\Command;
 
 /**
- * Delivers queued WhatsApp messages whose scheduled time has arrived — the
- * automated 24h and 2h booking reminders. Run on the scheduler every minute.
+ * Handles queued WhatsApp messages whose scheduled time has arrived. Run on the
+ * scheduler every minute.
  *
- * Reminder bodies are re-rendered at send time from the current booking so the
- * driver / vehicle details (which are often finalised after the reminder was
- * first queued) are always the latest.
+ * Pickup REMINDERS are not auto-delivered: the office sends them by hand from
+ * their own WhatsApp (the free, no-API flow), so this command just re-renders a
+ * due reminder's wording with the current driver/vehicle and leaves it queued as
+ * a task on the dashboard + booking. Any other scheduled message (e.g. the
+ * review request) is delivered as before.
  */
 class SendDueMessages extends Command
 {
     protected $signature = 'cet:send-due-messages';
 
-    protected $description = 'Deliver scheduled WhatsApp messages that are now due';
+    protected $description = 'Process scheduled WhatsApp messages that are now due';
 
     public function handle(WhatsAppService $whatsApp, BookingNotifier $notifier): int
     {
@@ -31,17 +33,22 @@ class SendDueMessages extends Command
             ->limit(200)
             ->get();
 
+        $delivered = 0;
         foreach ($due as $message) {
-            // Refresh reminder wording with the current driver/vehicle.
-            if (in_array($message->type, ['reminder_24h', 'reminder_2h'], true) && $message->booking) {
+            // Reminders wait for the operator to send them — just keep the
+            // wording fresh with the current driver/vehicle.
+            if ($message->isReminder() && $message->booking) {
                 $message->body = $notifier->reminderBody($message->booking);
                 $message->save();
+
+                continue;
             }
 
             $whatsApp->deliver($message);
+            $delivered++;
         }
 
-        $this->info("Delivered {$due->count()} due message(s).");
+        $this->info("Refreshed {$due->count()} due message(s); delivered {$delivered}.");
 
         return self::SUCCESS;
     }

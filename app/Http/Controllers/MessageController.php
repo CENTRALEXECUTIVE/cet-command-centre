@@ -50,4 +50,17 @@ class MessageController extends Controller
 
         return back()->with('status', 'Message resent.');
     }
+
+    /**
+     * Mark a message as sent by hand — used after the operator sends the
+     * pre-filled WhatsApp message from their own phone (the free, manual flow).
+     */
+    public function markSent(Request $request, Message $message): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $message->forceFill(['status' => 'sent', 'sent_at' => now()])->save();
+
+        return back()->with('status', 'Marked as sent.');
+    }
 }

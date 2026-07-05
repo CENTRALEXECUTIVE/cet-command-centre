@@ -60,7 +60,7 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertTrue($reminder->scheduled_for->isFuture());
     }
 
-    public function test_due_messages_command_delivers_queued_reminders(): void
+    public function test_due_reminders_stay_queued_for_manual_sending(): void
     {
         $booking = $this->makeBooking();
 
@@ -71,10 +71,29 @@ class WhatsAppMessagingTest extends TestCase
 
         $this->artisan('cet:send-due-messages')->assertSuccessful();
 
-        $this->assertEquals(
+        // Reminders are NOT auto-sent — the office sends them by hand, so they
+        // remain queued as tasks.
+        $this->assertGreaterThan(
             0,
-            Message::where('booking_id', $booking->id)->where('status', 'queued')->count()
+            Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->where('status', 'queued')->count()
         );
+    }
+
+    public function test_reminder_has_a_prefilled_whatsapp_link_and_can_be_marked_sent(): void
+    {
+        $booking = $this->makeBooking();
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+
+        // wa.me link carries the customer's intl number and the encoded body.
+        $link = $reminder->whatsAppLink();
+        $this->assertStringStartsWith('https://wa.me/447700900123?text=', $link);
+        $this->assertStringContainsString(rawurlencode('*Booking Reminder*'), $link);
+
+        // Operator marks it sent after sending from their own WhatsApp.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('messages.sent', $reminder))->assertRedirect();
+        $this->assertEquals('sent', $reminder->fresh()->status);
+        $this->assertNotNull($reminder->fresh()->sent_at);
     }
 
     public function test_24h_reminder_is_shifted_into_the_daytime_window(): void
@@ -156,7 +175,8 @@ class WhatsAppMessagingTest extends TestCase
             'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
         ], $admin);
 
-        // Force the queued 24h reminder due and deliver it (re-renders the body).
+        // Force the queued 24h reminder due; the command re-renders its body
+        // (with the current driver) but leaves it queued for manual sending.
         Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')
             ->update(['scheduled_for' => now()->subMinute()]);
         $this->artisan('cet:send-due-messages')->assertSuccessful();
@@ -167,7 +187,7 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringContainsString('at *13:15*', $reminder->body);
         $this->assertStringContainsString('*Driver details*', $reminder->body);
         $this->assertStringContainsString('*Central Executive Transfers*', $reminder->body);
-        $this->assertEquals('sent', $reminder->fresh()->status);
+        $this->assertEquals('queued', $reminder->fresh()->status);
     }
 
     public function test_explicit_callsign_overrides_the_login_name(): void

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Message;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Calendar\CalendarStats;
@@ -67,6 +68,7 @@ class DashboardController extends Controller
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->sum(DB::raw($revenue)),
                 'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
+                'remindersToSend' => $this->remindersToSend(),
             ]);
         }
 
@@ -90,6 +92,39 @@ class DashboardController extends Controller
                 ->limit(20)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Pickup reminders that are due to be sent by hand now — the office's
+     * "send these" worklist. A reminder is due once its scheduled time has passed
+     * and it hasn't been marked sent, for a booking that's still going ahead.
+     *
+     * @return array<int, array{ref: string, customer: ?string, pickup: Carbon, due: ?Carbon, url: string}>
+     */
+    private function remindersToSend(): array
+    {
+        return Message::query()
+            ->whereIn('type', ['reminder_24h', 'reminder_2h'])
+            ->where('status', 'queued')
+            ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '<=', now())
+            ->whereHas('booking', fn ($q) => $q->whereNotIn('status', [
+                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+            ])->where('pickup_at', '>=', now()))
+            ->with(['booking.customer'])
+            ->orderBy('scheduled_for')
+            ->get()
+            // One row per booking (the 24h and 2h could both be due).
+            ->unique('booking_id')
+            ->map(fn (Message $m) => [
+                'ref' => $m->booking->external_reference ?? $m->booking->reference,
+                'customer' => $m->booking->customer?->name,
+                'pickup' => $m->booking->pickup_at,
+                'due' => $m->scheduled_for,
+                'url' => route('bookings.show', $m->booking),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

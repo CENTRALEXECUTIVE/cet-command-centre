@@ -18,6 +18,21 @@
         </div>
     @endif
 
+    @if(!empty($remindersToSend))
+        <div class="card" style="border-left:4px solid #25D366;background:rgba(37,211,102,.07);margin-bottom:16px">
+            <strong>📲 {{ count($remindersToSend) }} pickup reminder{{ count($remindersToSend) == 1 ? '' : 's' }} to send now:</strong>
+            <div style="margin-top:8px">
+                @foreach($remindersToSend as $r)
+                    <div style="display:flex;gap:12px;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                        <span style="flex:1">{{ $r['customer'] ?? 'Customer' }} <span class="muted">· pickup {{ $r['pickup']->format('D d M, H:i') }}</span></span>
+                        <a href="{{ $r['url'] }}" class="btn" style="background:#25D366;color:#fff;padding:4px 12px;font-size:12px">Open &amp; send →</a>
+                    </div>
+                @endforeach
+            </div>
+            <p class="hint" style="margin:8px 0 0">Open the booking, tap "Send on WhatsApp", then "Mark sent".</p>
+        </div>
+    @endif
+
     @if(!empty($complianceAlerts))
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
             <strong>🚫 {{ count($complianceAlerts) }} driver(s) blocked — expired documents:</strong>

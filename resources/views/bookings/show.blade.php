@@ -128,30 +128,30 @@
         @endphp
         <div class="card">
             <h2>Customer Comms</h2>
-            @if(config('services.twilio.sid'))
-                <p class="hint" style="margin-top:-8px">Live channel connected — messages are delivered to the customer.</p>
-            @else
-                <p class="hint" style="margin-top:-8px">No channel connected yet — messages are composed and logged, not actually sent. Add a channel to go live.</p>
-            @endif
+            <p class="hint" style="margin-top:-8px">You send these from your own WhatsApp — the button opens WhatsApp with the number <em>and</em> the message ready. Hit send, then mark it done.</p>
 
             @forelse($messages as $m)
                 <div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,.12)">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
                         <strong style="font-size:13px">{{ ucfirst(str_replace('_',' ',$m->type)) }}</strong>
                         <span class="muted" style="font-size:12px">
-                            {{ $chan[$m->channel] ?? $m->channel }} ·
-                            <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ ucfirst($m->status) }}</span>
-                            @if($m->scheduled_for && $m->status === 'queued') · scheduled {{ $m->scheduled_for->format('d M H:i') }}
+                            <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ $m->status === 'queued' ? 'To send' : ucfirst($m->status) }}</span>
+                            @if($m->isReminder() && $m->scheduled_for && $m->status !== 'sent') · due {{ $m->scheduled_for->format('D d M, H:i') }}
                             @elseif($m->sent_at) · sent {{ $m->sent_at->format('d M H:i') }}@endif
                         </span>
                     </div>
-                    <div style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->body }}</div>
-                    @if(in_array($m->status, ['failed','queued']))
-                        <form method="POST" action="{{ route('messages.resend', $m) }}" style="margin-top:6px">
-                            @csrf
-                            <button class="btn btn-ghost" style="padding:4px 12px;font-size:12px">↻ Send now</button>
-                        </form>
-                    @endif
+                    <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->body }}</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                        @if($m->whatsAppLink())
+                            <a href="{{ $m->whatsAppLink() }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:5px 12px;font-size:12px">📲 Send on WhatsApp</a>
+                        @endif
+                        <button type="button" class="btn btn-ghost copy-msg" style="padding:5px 12px;font-size:12px">⧉ Copy</button>
+                        @if($m->status !== 'sent')
+                            <form method="POST" action="{{ route('messages.sent', $m) }}">@csrf
+                                <button class="btn btn-ghost" style="padding:5px 12px;font-size:12px">✓ Mark sent</button>
+                            </form>
+                        @endif
+                    </div>
                 </div>
             @empty
                 <p class="muted">No messages yet for this booking.</p>
@@ -187,4 +187,19 @@
     @endif
 
     <a href="{{ route('bookings.index') }}" class="btn btn-ghost">← Back to bookings</a>
+
+    @verbatim
+    <script>
+        document.querySelectorAll('.copy-msg').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var body = btn.closest('div').parentNode.querySelector('.msg-body');
+                var text = body ? body.textContent : '';
+                navigator.clipboard.writeText(text).then(function () {
+                    var old = btn.textContent; btn.textContent = '✓ Copied';
+                    setTimeout(function () { btn.textContent = old; }, 1500);
+                });
+            });
+        });
+    </script>
+    @endverbatim
 @endsection

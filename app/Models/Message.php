@@ -30,4 +30,42 @@ class Message extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    /** Is this one of the scheduled pickup reminders? */
+    public function isReminder(): bool
+    {
+        return in_array($this->type, ['reminder_24h', 'reminder_2h'], true);
+    }
+
+    /** The recipient number in international format (44…) for wa.me links. */
+    public function intlPhone(): ?string
+    {
+        $number = preg_replace('/[^0-9+]/', '', (string) $this->to_address);
+        if (blank($number)) {
+            return null;
+        }
+        if (str_starts_with($number, '+')) {
+            return substr($number, 1);
+        }
+        if (str_starts_with($number, '0')) {
+            return '44'.substr($number, 1);
+        }
+
+        return $number;
+    }
+
+    /**
+     * A click-to-send WhatsApp link: opens WhatsApp (app or web) with the
+     * recipient AND this message's text pre-filled, ready for the operator to
+     * send by hand — no API, no cost. Null if there's no usable phone number.
+     */
+    public function whatsAppLink(): ?string
+    {
+        $phone = $this->intlPhone();
+        if (! $phone) {
+            return null;
+        }
+
+        return 'https://wa.me/'.$phone.'?text='.rawurlencode((string) $this->body);
+    }
 }

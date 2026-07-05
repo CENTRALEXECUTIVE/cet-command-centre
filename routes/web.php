@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
+        Route::post('messages/{message}/sent', [\App\Http\Controllers\MessageController::class, 'markSent'])->middleware('throttle:60,1')->name('messages.sent');
     });
 
     Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
