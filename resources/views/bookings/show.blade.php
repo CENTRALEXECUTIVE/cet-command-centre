@@ -128,7 +128,7 @@
         @endphp
         <div class="card">
             <h2>Customer Comms</h2>
-            <p class="hint" style="margin-top:-8px">You send these from your own WhatsApp — the button opens WhatsApp with the number <em>and</em> the message ready. Hit send, then mark it done.</p>
+            <p class="hint" style="margin-top:-8px">The button opens WhatsApp with the number <em>and</em> message ready — hit send, then mark it done. <strong>Send from WhatsApp Business</strong> (use a device signed into the business number, so it goes from the right account).</p>
 
             @forelse($messages as $m)
                 <div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,.12)">

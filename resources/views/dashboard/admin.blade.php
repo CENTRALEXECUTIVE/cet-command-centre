@@ -29,7 +29,7 @@
                     </div>
                 @endforeach
             </div>
-            <p class="hint" style="margin:8px 0 0">Open the booking, tap "Send on WhatsApp", then "Mark sent".</p>
+            <p class="hint" style="margin:8px 0 0">Open the booking, tap "Send on WhatsApp" (from <strong>WhatsApp Business</strong>), then "Mark sent".</p>
         </div>
     @endif
 
