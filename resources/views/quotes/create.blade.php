@@ -86,8 +86,9 @@
     </form>
 
     <script>
+        window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=3"></script>
 @endsection
