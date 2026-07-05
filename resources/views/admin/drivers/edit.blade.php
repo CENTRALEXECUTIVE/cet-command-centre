@@ -49,6 +49,12 @@
         <div class="eto-section">
             <div class="head"><span class="ico">🪪</span> Driver Compliance</div>
             <div class="body">
+                <div class="field">
+                    <label for="callsign">Callsign / display name <span class="muted">(shown to customers)</span></label>
+                    <input id="callsign" name="callsign" value="{{ old('callsign', $profile?->callsign) }}" placeholder="e.g. Abdi, Kash, Maj">
+                    <div class="hint">This is the name on WhatsApp driver-details and the calendar tag. Leave blank to use the login name.</div>
+                </div>
+
                 <div class="checkbox-row" style="margin-bottom:14px">
                     <input id="is_third_party" type="checkbox" name="is_third_party" value="1" {{ old('is_third_party', $profile?->is_third_party) ? 'checked' : '' }}>
                     <label for="is_third_party">Third-party / cover driver (not a core CET driver)</label>

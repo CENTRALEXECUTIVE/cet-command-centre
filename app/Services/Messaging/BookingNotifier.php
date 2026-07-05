@@ -152,9 +152,16 @@ class BookingNotifier
         return implode("\n", $lines);
     }
 
-    /** The driver's callsign (e.g. abdi@… → "Abdi"), else their first name. */
+    /**
+     * The name shown to customers: the operator-set callsign if present, else the
+     * login local-part (abdi@… → "Abdi"), else the driver's first name.
+     */
     private function driverDisplayName(User $driver): string
     {
+        if (filled($driver->driverProfile?->callsign)) {
+            return $driver->driverProfile->callsign;
+        }
+
         $local = Str::before((string) $driver->email, '@');
 
         if ($local !== '' && ctype_alpha($local)) {

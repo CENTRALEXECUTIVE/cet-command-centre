@@ -75,9 +75,13 @@ class CalendarEventBuilder
             return Str::upper($booking->meta['driver_tag']);
         }
 
-        // Otherwise the assigned driver's callsign — the email local-part
-        // (abdi@… → ABDI, maj@… → MAJ), else their first name.
+        // Otherwise the assigned driver's callsign: the operator-set callsign,
+        // else the email local-part (abdi@… → ABDI), else their first name.
         if ($booking->driver) {
+            if (filled($booking->driver->driverProfile?->callsign)) {
+                return Str::upper($booking->driver->driverProfile->callsign);
+            }
+
             $callsign = Str::before((string) $booking->driver->email, '@');
 
             return Str::upper($callsign !== '' ? $callsign : Str::before($booking->driver->name, ' '));

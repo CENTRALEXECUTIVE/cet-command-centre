@@ -29,6 +29,9 @@
                 <label>Password
                     <input type="text" name="password" placeholder="Leave blank to auto-generate">
                 </label>
+                <label>Callsign / display name
+                    <input type="text" name="callsign" value="{{ old('callsign') }}" placeholder="e.g. Abdi (shown to customers)">
+                </label>
             </div>
             <label style="display:flex;gap:8px;align-items:center;margin-top:8px">
                 <input type="checkbox" name="is_third_party" value="1" style="width:auto" {{ old('is_third_party') ? 'checked' : '' }}>

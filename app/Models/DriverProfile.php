@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DriverProfile extends Model
 {
     protected $fillable = [
-        'user_id', 'is_third_party', 'phv_badge_number', 'phv_badge_expiry',
+        'user_id', 'callsign', 'is_third_party', 'phv_badge_number', 'phv_badge_expiry',
         'dbs_status', 'dbs_issue_date', 'dbs_expiry', 'driving_licence_number',
         'driving_licence_expiry', 'default_vehicle_id', 'is_available', 'notes',
     ];

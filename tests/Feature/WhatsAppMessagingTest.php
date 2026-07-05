@@ -134,7 +134,7 @@ class WhatsAppMessagingTest extends TestCase
 
         $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
         $this->assertNotNull($msg);
-        // Callsign from the email local-part, uppercased reg + colour/make/model.
+        // Falls back to the email local-part when no explicit callsign is set.
         $this->assertStringContainsString('Driver Name: Kash', $msg->body);
         $this->assertStringContainsString('Vehicle Reg: AB12 CDE', $msg->body);
         $this->assertStringContainsString('BLACK MERCEDES E-CLASS', $msg->body);
@@ -168,6 +168,20 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringContainsString('*Driver details*', $reminder->body);
         $this->assertStringContainsString('*Central Executive Transfers*', $reminder->body);
         $this->assertEquals('sent', $reminder->fresh()->status);
+    }
+
+    public function test_explicit_callsign_overrides_the_login_name(): void
+    {
+        $booking = $this->makeBooking();
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Majid Ali', 'email' => 'majid.ali@cet.test']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'callsign' => 'Maj']);
+
+        $admin = User::factory()->admin()->create();
+        app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
+
+        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
+        $this->assertStringContainsString('Driver Name: Maj', $msg->body);
+        $this->assertStringNotContainsString('Majid', $msg->body);
     }
 
     public function test_admin_can_send_a_custom_message(): void

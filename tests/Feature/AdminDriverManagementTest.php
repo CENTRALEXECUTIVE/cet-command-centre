@@ -91,6 +91,7 @@ class AdminDriverManagementTest extends TestCase
             'email' => $driver->email,
             'is_active' => 1,
             // Compliance
+            'callsign' => 'Kash',
             'phv_badge_number' => 'PHV-4471',
             'phv_badge_expiry' => '2027-03-01',
             'driving_licence_number' => 'KHAN901234AB9CD',
@@ -106,6 +107,7 @@ class AdminDriverManagementTest extends TestCase
         ])->assertRedirect();
 
         $profile = $driver->fresh()->driverProfile;
+        $this->assertEquals('Kash', $profile->callsign);
         $this->assertEquals('PHV-4471', $profile->phv_badge_number);
         $this->assertEquals('2027-03-01', $profile->phv_badge_expiry->format('Y-m-d'));
         $this->assertEquals('Enhanced — clear', $profile->dbs_status);

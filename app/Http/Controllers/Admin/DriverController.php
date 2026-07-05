@@ -33,6 +33,7 @@ class DriverController extends Controller
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
             'phone' => ['nullable', 'string', 'max:32'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],
+            'callsign' => ['nullable', 'string', 'max:40'],
             'is_third_party' => ['nullable', 'boolean'],
             // Optional vehicle.
             'registration' => ['nullable', 'string', 'max:16'],
@@ -72,6 +73,7 @@ class DriverController extends Controller
 
         DriverProfile::create([
             'user_id' => $user->id,
+            'callsign' => $data['callsign'] ?? null,
             'is_third_party' => (bool) ($data['is_third_party'] ?? false),
             'default_vehicle_id' => $vehicleId,
             'is_available' => true,
@@ -110,6 +112,7 @@ class DriverController extends Controller
             'is_active' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],
             // Driver profile / compliance.
+            'callsign' => ['nullable', 'string', 'max:40'],
             'is_third_party' => ['nullable', 'boolean'],
             'is_available' => ['nullable', 'boolean'],
             'phv_badge_number' => ['nullable', 'string', 'max:60'],
@@ -148,6 +151,7 @@ class DriverController extends Controller
 
         $profile = $user->driverProfile()->firstOrCreate(['user_id' => $user->id]);
         $profile->fill([
+            'callsign' => $data['callsign'] ?? null,
             'is_third_party' => (bool) ($data['is_third_party'] ?? false),
             'is_available' => (bool) ($data['is_available'] ?? false),
             'phv_badge_number' => $data['phv_badge_number'] ?? null,

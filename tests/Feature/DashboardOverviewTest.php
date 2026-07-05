@@ -31,7 +31,7 @@ class DashboardOverviewTest extends TestCase
 
         Booking::create([
             'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
-            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->addHours(3),
+            'vehicle_type_id' => $exec->id, 'pickup_at' => today()->addHours(12),
             'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
             'status' => 'pending', 'payment_method' => 'card', 'final_price' => 120,
         ]);
