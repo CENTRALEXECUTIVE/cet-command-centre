@@ -4,15 +4,24 @@ namespace App\Services\Messaging;
 
 use App\Models\Booking;
 use App\Models\Message;
+use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
  * Composes and dispatches the customer-facing WhatsApp messages tied to a
  * booking's lifecycle: confirmation on booking, reminders 24h and 2h before
  * pickup, and the live tracking link when the driver goes En Route.
+ *
+ * Reminder + driver-detail wording mirrors the exact WhatsApp text the office
+ * sends by hand (WhatsApp *bold*, a "• Driver details" block, and the
+ * "*Central Executive Transfers*" sign-off).
  */
 class BookingNotifier
 {
+    /** The sign-off appended to reminder / driver-detail messages. */
+    private const FOOTER = '*Central Executive Transfers*';
+
     public function __construct(private readonly WhatsAppService $whatsApp) {}
 
     /** Sent immediately when a booking is created. */
@@ -53,28 +62,106 @@ class BookingNotifier
         // ~24h reminder — clamped into the daytime window.
         $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
         if ($at24h->isFuture() && $at24h->lt($booking->pickup_at)) {
-            $this->queueReminder($booking, 'reminder_24h', $at24h, 'tomorrow');
+            $this->queueReminder($booking, 'reminder_24h', $at24h);
         }
 
         // 2h nudge — only if it naturally falls within waking hours.
         $at2h = $booking->pickup_at->copy()->subHours(2);
         if ($at2h->isFuture() && $this->withinSendWindow($at2h)) {
-            $this->queueReminder($booking, 'reminder_2h', $at2h, 'in 2 hours');
+            $this->queueReminder($booking, 'reminder_2h', $at2h);
         }
     }
 
-    private function queueReminder(Booking $booking, string $type, \Illuminate\Support\Carbon $when, string $window): void
+    private function queueReminder(Booking $booking, string $type, Carbon $when): void
     {
-        $body = "Reminder: your CET car ({$booking->vehicleType?->name}) is booked for "
-            ."{$booking->pickup_at->format('D d M, H:i')} ({$window})."
-            ."\nPickup: ".Str::limit($booking->pickup_address, 80)
-            ."\nRef: {$booking->reference}";
-
-        $this->whatsApp->send((string) $booking->customer?->phone, $body, [
+        $this->whatsApp->send((string) $booking->customer?->phone, $this->reminderBody($booking), [
             'type' => $type,
             'booking' => $booking,
             'scheduled_for' => $when,
         ]);
+    }
+
+    /**
+     * The exact office "Booking Reminder" wording, with the driver-detail block
+     * appended once a driver is allocated. Rendered at SEND time (by the delivery
+     * command) so the driver/car shown is always the current one.
+     */
+    public function reminderBody(Booking $booking): string
+    {
+        $lines = [
+            '*Booking Reminder*',
+            '',
+            'Hi '.$this->firstName($booking).',',
+            '',
+            'This is a reminder that your pick-up is scheduled for '
+                .$this->whenPhrase($booking->pickup_at).' at *'.$booking->pickup_at->format('H:i').'*',
+        ];
+
+        if ($block = $this->driverBlock($booking)) {
+            $lines[] = '';
+            $lines[] = $block;
+        }
+
+        $lines[] = '';
+        $lines[] = self::FOOTER;
+
+        return implode("\n", $lines);
+    }
+
+    /** "today" / "tomorrow" relative to now, else an ordinal date like "5th July". */
+    private function whenPhrase(Carbon $pickup): string
+    {
+        $date = $pickup->copy()->startOfDay();
+        $today = now()->startOfDay();
+
+        return match (true) {
+            $date->equalTo($today) => 'today',
+            $date->equalTo($today->copy()->addDay()) => 'tomorrow',
+            default => $pickup->format('jS F'),
+        };
+    }
+
+    /**
+     * The "• Driver details" block, or null if no driver is allocated. Uses the
+     * booking's vehicle, falling back to the driver's default vehicle.
+     */
+    private function driverBlock(Booking $booking): ?string
+    {
+        $driver = $booking->driver;
+        if (! $driver) {
+            return null;
+        }
+
+        $vehicle = $booking->vehicle ?? $driver->driverProfile?->defaultVehicle;
+        $makeModel = Str::upper(trim(implode(' ', array_filter([
+            $vehicle?->colour, $vehicle?->make, $vehicle?->model,
+        ]))));
+
+        $lines = ['*Driver details*'];
+        $lines[] = '• Driver Name: '.$this->driverDisplayName($driver);
+        if (filled($driver->phone)) {
+            $lines[] = '• Driver Contact Number: '.$driver->phone;
+        }
+        if (filled($vehicle?->registration)) {
+            $lines[] = '• Vehicle Reg: '.Str::upper($vehicle->registration);
+        }
+        if ($makeModel !== '') {
+            $lines[] = '• Vehicle Make & Model: '.$makeModel;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /** The driver's callsign (e.g. abdi@… → "Abdi"), else their first name. */
+    private function driverDisplayName(User $driver): string
+    {
+        $local = Str::before((string) $driver->email, '@');
+
+        if ($local !== '' && ctype_alpha($local)) {
+            return Str::ucfirst(Str::lower($local));
+        }
+
+        return Str::before($driver->name, ' ');
     }
 
     /** The daytime sending window [start, end] on the given day. */
@@ -142,24 +229,12 @@ class BookingNotifier
     public function sendDriverDetails(Booking $booking): ?Message
     {
         $to = $booking->customer?->phone;
-        $driver = $booking->driver;
-        if (blank($to) || ! $driver) {
+        $block = $this->driverBlock($booking);
+        if (blank($to) || ! $block) {
             return null;
         }
 
-        $vehicle = $booking->vehicle ?? $driver->driverProfile?->defaultVehicle;
-        $carParts = array_filter([
-            $vehicle?->colour,
-            trim(($vehicle?->make ?? '').' '.($vehicle?->model ?? '')) ?: null,
-        ]);
-        $car = $carParts ? implode(' ', $carParts) : $booking->vehicleType?->name;
-        $reg = $vehicle?->registration ? " ({$vehicle->registration})" : '';
-
-        $body = "Hi {$this->firstName($booking)}, your driver for booking {$booking->reference} is "
-            ."{$driver->name}."
-            .($car ? "\nCar: {$car}{$reg}." : '')
-            ."\nPickup: {$booking->pickup_at->format('D d M, H:i')}."
-            ."\nAny changes, just reply.";
+        $body = $block."\n\n".self::FOOTER;
 
         return $this->whatsApp->send($to, $body, [
             'type' => 'driver_details',

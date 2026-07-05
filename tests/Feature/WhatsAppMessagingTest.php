@@ -134,8 +134,40 @@ class WhatsAppMessagingTest extends TestCase
 
         $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
         $this->assertNotNull($msg);
-        $this->assertStringContainsString('Kash Khan', $msg->body);
-        $this->assertStringContainsString('AB12 CDE', $msg->body);
+        // Callsign from the email local-part, uppercased reg + colour/make/model.
+        $this->assertStringContainsString('Driver Name: Kash', $msg->body);
+        $this->assertStringContainsString('Vehicle Reg: AB12 CDE', $msg->body);
+        $this->assertStringContainsString('BLACK MERCEDES E-CLASS', $msg->body);
+        $this->assertStringContainsString('*Central Executive Transfers*', $msg->body);
+    }
+
+    public function test_reminder_uses_the_office_template_with_driver_details(): void
+    {
+        // Executive job → rotation allocates ABDI at creation, so the reminder
+        // rendered at send time carries the driver block.
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+        $pickup = now()->addDays(3)->setTime(13, 15);
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Louise Taylor', 'customer_phone' => '07700900321',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => $pickup->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        // Force the queued 24h reminder due and deliver it (re-renders the body).
+        Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')
+            ->update(['scheduled_for' => now()->subMinute()]);
+        $this->artisan('cet:send-due-messages')->assertSuccessful();
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertStringContainsString('*Booking Reminder*', $reminder->body);
+        $this->assertStringContainsString('Hi Louise,', $reminder->body);
+        $this->assertStringContainsString('at *13:15*', $reminder->body);
+        $this->assertStringContainsString('*Driver details*', $reminder->body);
+        $this->assertStringContainsString('*Central Executive Transfers*', $reminder->body);
+        $this->assertEquals('sent', $reminder->fresh()->status);
     }
 
     public function test_admin_can_send_a_custom_message(): void
