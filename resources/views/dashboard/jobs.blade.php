@@ -26,7 +26,11 @@
                 </div>
                 <div>
                     <span class="badge badge-{{ \Illuminate\Support\Str::slug($job['status']) }}">{{ $job['status'] }}</span>
-                    @if($job['url'])<a href="{{ $job['url'] }}" style="font-size:13px;margin-left:8px">Open booking →</a>@endif
+                    @if($job['url'])
+                        <a href="{{ $job['url'] }}" style="font-size:13px;margin-left:8px">Open booking →</a>
+                    @else
+                        <span class="muted" title="This job is on the calendar but not in the booking system, so it can't be opened or edited here yet." style="font-size:12px;margin-left:8px">calendar only</span>
+                    @endif
                 </div>
             </div>
 

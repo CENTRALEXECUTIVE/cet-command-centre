@@ -144,7 +144,11 @@ class CalendarStats
         $description = (string) ($event['description'] ?? '');
         $ref = $this->field($description, 'Booking Reference');
 
-        $booking = $ref ? Booking::where('external_reference', $ref)->first() : null;
+        // Match the calendar event to its booking by either the external (ETO)
+        // reference or our own reference, so more day-view jobs are openable.
+        $booking = $ref
+            ? Booking::where('external_reference', $ref)->orWhere('reference', $ref)->first()
+            : null;
 
         return [
             'ref' => $ref ?? '—',

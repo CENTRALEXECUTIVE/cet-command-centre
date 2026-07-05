@@ -204,6 +204,50 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('Majid', $msg->body);
     }
 
+    public function test_imported_booking_gets_a_reminder_when_opened(): void
+    {
+        // A booking created directly (like an ETO import) — no reminders queued.
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $customer = \App\Models\Customer::create(['name' => 'Philip Agerbech', 'phone' => '07700900444']);
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(), 'source_system' => 'eto',
+            'customer_id' => $customer->id, 'vehicle_type_id' => $executive->id,
+            'pickup_at' => now()->addDays(1)->setTime(9, 0),
+            'pickup_address' => 'Manchester Airport', 'destination_address' => 'Sheffield',
+            'passengers' => 2, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+
+        $this->assertEquals(0, $booking->messages()->count());
+
+        // Opening the booking backfills the reminder so it's ready to send.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('Send on WhatsApp');
+
+        $this->assertGreaterThan(0, $booking->messages()->where('type', 'reminder_24h')->count());
+    }
+
+    public function test_prepare_reminders_command_backfills_upcoming_bookings(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $customer = \App\Models\Customer::create(['name' => 'Backfill Bob', 'phone' => '07700900777']);
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => $customer->id, 'vehicle_type_id' => $executive->id,
+            'pickup_at' => now()->addDays(2)->setTime(10, 0),
+            'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+
+        $this->artisan('cet:prepare-reminders')->assertSuccessful();
+        $this->assertGreaterThan(0, $booking->messages()->where('type', 'reminder_24h')->count());
+
+        // Idempotent — running again doesn't duplicate.
+        $count = $booking->messages()->count();
+        $this->artisan('cet:prepare-reminders')->assertSuccessful();
+        $this->assertEquals($count, $booking->fresh()->messages()->count());
+    }
+
     public function test_admin_can_send_a_custom_message(): void
     {
         $booking = $this->makeBooking();

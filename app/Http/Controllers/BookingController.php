@@ -154,6 +154,12 @@ class BookingController extends Controller
         // the current driver/vehicle so the "Send on WhatsApp" text is up to date.
         $messages = collect();
         if ($request->user()->isAdmin()) {
+            // Backfill reminders for bookings that didn't go through the form
+            // (e.g. ETO imports) so a reminder is always ready to send.
+            if ($booking->pickup_at?->isFuture() && ! $booking->status->isTerminal()) {
+                $this->notifier->ensureReminders($booking);
+            }
+
             $messages = $booking->messages()->orderBy('created_at')->get();
             foreach ($messages as $m) {
                 if ($m->isReminder() && $m->status !== 'sent') {

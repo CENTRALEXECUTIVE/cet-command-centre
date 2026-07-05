@@ -11,6 +11,10 @@ Artisan::command('inspire', function () {
 // Deliver due WhatsApp reminders (24h / 2h before pickup).
 Schedule::command('cet:send-due-messages')->everyMinute()->withoutOverlapping();
 
+// Make sure every upcoming booking (incl. ETO imports) has a reminder prepared
+// and on the "to send" list. Runs a few times a day within the sending window.
+Schedule::command('cet:prepare-reminders')->twiceDaily(8, 14)->withoutOverlapping();
+
 // GDPR: prune GPS pings past the retention window, daily.
 Schedule::command('cet:prune-gps')->dailyAt('03:00');
 

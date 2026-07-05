@@ -59,17 +59,38 @@ class BookingNotifier
             return;
         }
 
-        // ~24h reminder — clamped into the daytime window.
-        $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
-        if ($at24h->isFuture() && $at24h->lt($booking->pickup_at)) {
-            $this->queueReminder($booking, 'reminder_24h', $at24h);
+        if (! $booking->pickup_at?->isFuture()) {
+            return;
         }
+
+        // ~24h reminder — clamped into the daytime window. If the ideal time has
+        // already passed (e.g. a job booked/imported inside 24h), make it due now
+        // so it lands on the "to send" list immediately.
+        $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
+        $this->queueReminder($booking, 'reminder_24h', $at24h->isPast() ? now() : $at24h);
 
         // 2h nudge — only if it naturally falls within waking hours.
         $at2h = $booking->pickup_at->copy()->subHours(2);
         if ($at2h->isFuture() && $this->withinSendWindow($at2h)) {
             $this->queueReminder($booking, 'reminder_2h', $at2h);
         }
+    }
+
+    /**
+     * Make sure a future booking has its reminder(s) prepared, without ever
+     * duplicating them. Used to backfill imported bookings (which don't go
+     * through the booking form) so every job shows a reminder ready to send.
+     */
+    public function ensureReminders(Booking $booking): void
+    {
+        if (blank($booking->customer?->phone) || ! $booking->pickup_at?->isFuture()) {
+            return;
+        }
+        if ($booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])->exists()) {
+            return;
+        }
+
+        $this->scheduleReminders($booking);
     }
 
     private function queueReminder(Booking $booking, string $type, Carbon $when): void
