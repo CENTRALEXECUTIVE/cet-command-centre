@@ -148,11 +148,16 @@ class BookingController extends Controller
             'calendarEvent', 'statusHistory.changedBy', 'payments',
         ]);
 
+        // Customer comms thread (admins only).
+        $messages = $request->user()->isAdmin()
+            ? $booking->messages()->orderBy('created_at')->get()
+            : collect();
+
         $auditLogs = $request->user()->isAdmin()
             ? $booking->auditLogs()->with('user')->latest('created_at')->get()
             : collect();
 
-        return compact('booking', 'auditLogs');
+        return compact('booking', 'auditLogs', 'messages');
     }
 
     /** @return array<string, mixed> */

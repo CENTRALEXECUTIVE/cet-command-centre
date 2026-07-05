@@ -64,11 +64,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
 
-    // Amend / cancel an existing booking (admin only).
+    // Amend / cancel an existing booking + customer comms (admin only).
     Route::middleware('role:admin')->group(function () {
         Route::get('bookings/{booking}/edit', [BookingController::class, 'edit'])->name('bookings.edit');
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+        Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
+        Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
     });
 
     Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');

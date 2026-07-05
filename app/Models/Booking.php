@@ -105,6 +105,11 @@ class Booking extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
     public function trackingLink(): HasOne
     {
         return $this->hasOne(TrackingLink::class);

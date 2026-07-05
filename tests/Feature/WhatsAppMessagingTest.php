@@ -76,4 +76,39 @@ class WhatsAppMessagingTest extends TestCase
             Message::where('booking_id', $booking->id)->where('status', 'queued')->count()
         );
     }
+
+    public function test_allocating_a_driver_sends_the_driver_details(): void
+    {
+        $booking = $this->makeBooking();
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Kash Khan', 'email' => 'kash@cet.test']);
+        $vehicle = \App\Models\Vehicle::create([
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'registration' => 'AB12 CDE', 'make' => 'Mercedes', 'model' => 'E-Class', 'colour' => 'Black', 'is_active' => true,
+        ]);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'default_vehicle_id' => $vehicle->id]);
+
+        $admin = User::factory()->admin()->create();
+        app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
+
+        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
+        $this->assertNotNull($msg);
+        $this->assertStringContainsString('Kash Khan', $msg->body);
+        $this->assertStringContainsString('AB12 CDE', $msg->body);
+    }
+
+    public function test_admin_can_send_a_custom_message(): void
+    {
+        $booking = $this->makeBooking();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.message', $booking), [
+            'body' => 'Your driver will be 5 minutes early.',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('messages', [
+            'booking_id' => $booking->id,
+            'type' => 'custom',
+            'body' => 'Your driver will be 5 minutes early.',
+        ]);
+    }
 }

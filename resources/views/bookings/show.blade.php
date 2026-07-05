@@ -121,6 +121,52 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin())
+        @php
+            $chan = ['whatsapp' => '🟢 WhatsApp', 'sms' => '💬 SMS', 'email' => '✉️ Email'];
+            $mstatus = ['sent' => 'complete', 'queued' => 'pending', 'failed' => 'cancelled'];
+        @endphp
+        <div class="card">
+            <h2>Customer Comms</h2>
+            @if(config('services.twilio.sid'))
+                <p class="hint" style="margin-top:-8px">Live channel connected — messages are delivered to the customer.</p>
+            @else
+                <p class="hint" style="margin-top:-8px">No channel connected yet — messages are composed and logged, not actually sent. Add a channel to go live.</p>
+            @endif
+
+            @forelse($messages as $m)
+                <div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,.12)">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+                        <strong style="font-size:13px">{{ ucfirst(str_replace('_',' ',$m->type)) }}</strong>
+                        <span class="muted" style="font-size:12px">
+                            {{ $chan[$m->channel] ?? $m->channel }} ·
+                            <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ ucfirst($m->status) }}</span>
+                            @if($m->scheduled_for && $m->status === 'queued') · scheduled {{ $m->scheduled_for->format('d M H:i') }}
+                            @elseif($m->sent_at) · sent {{ $m->sent_at->format('d M H:i') }}@endif
+                        </span>
+                    </div>
+                    <div style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->body }}</div>
+                    @if(in_array($m->status, ['failed','queued']))
+                        <form method="POST" action="{{ route('messages.resend', $m) }}" style="margin-top:6px">
+                            @csrf
+                            <button class="btn btn-ghost" style="padding:4px 12px;font-size:12px">↻ Send now</button>
+                        </form>
+                    @endif
+                </div>
+            @empty
+                <p class="muted">No messages yet for this booking.</p>
+            @endforelse
+
+            <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">
+                @csrf
+                <label for="body" style="font-weight:600">Send a message to {{ $booking->customer?->name ?? 'the customer' }}</label>
+                <textarea id="body" name="body" required placeholder="Type a message…" style="margin:6px 0 8px;min-height:70px">{{ old('body') }}</textarea>
+                <button type="submit" class="btn btn-dark" style="padding:8px 16px">Send</button>
+                <span class="hint">Goes to {{ $booking->customer?->phone ?? $booking->customer?->email ?? 'no contact on file' }}.</span>
+            </form>
+        </div>
+    @endif
+
     @if($auditLogs->isNotEmpty())
         <div class="card">
             <h2>Audit Trail</h2>

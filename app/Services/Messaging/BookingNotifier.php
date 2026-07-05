@@ -89,6 +89,39 @@ class BookingNotifier
         ]);
     }
 
+    /**
+     * "Here's your driver" — sent when a driver is allocated, giving the customer
+     * the driver's name and the car (make, colour, registration) so they know
+     * exactly who and what to look for. Skipped if no driver/number is set.
+     */
+    public function sendDriverDetails(Booking $booking): ?Message
+    {
+        $to = $booking->customer?->phone;
+        $driver = $booking->driver;
+        if (blank($to) || ! $driver) {
+            return null;
+        }
+
+        $vehicle = $booking->vehicle ?? $driver->driverProfile?->defaultVehicle;
+        $carParts = array_filter([
+            $vehicle?->colour,
+            trim(($vehicle?->make ?? '').' '.($vehicle?->model ?? '')) ?: null,
+        ]);
+        $car = $carParts ? implode(' ', $carParts) : $booking->vehicleType?->name;
+        $reg = $vehicle?->registration ? " ({$vehicle->registration})" : '';
+
+        $body = "Hi {$this->firstName($booking)}, your driver for booking {$booking->reference} is "
+            ."{$driver->name}."
+            .($car ? "\nCar: {$car}{$reg}." : '')
+            ."\nPickup: {$booking->pickup_at->format('D d M, H:i')}."
+            ."\nAny changes, just reply.";
+
+        return $this->whatsApp->send($to, $body, [
+            'type' => 'driver_details',
+            'booking' => $booking,
+        ]);
+    }
+
     /** Sent when the driver marks Arrived at the pickup. */
     public function sendArrived(Booking $booking): ?Message
     {

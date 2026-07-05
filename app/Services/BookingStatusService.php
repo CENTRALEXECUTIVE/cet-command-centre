@@ -151,6 +151,12 @@ class BookingStatusService
 
     private function fireSideEffects(Booking $booking, BookingStatus $to): void
     {
+        // "Here's your driver" the moment a driver is allocated. Force-reload the
+        // driver/vehicle relations so a stale (rotation-time) driver isn't used.
+        if ($to === BookingStatus::Allocated && $booking->driver_id) {
+            $this->notifier->sendDriverDetails($booking->load(['customer', 'driver.driverProfile.defaultVehicle', 'vehicle', 'vehicleType']));
+        }
+
         if ($to === BookingStatus::EnRoute) {
             $link = $this->ensureTrackingLink($booking);
             $this->notifier->sendTrackingLink($booking, route('track', $link->token));
