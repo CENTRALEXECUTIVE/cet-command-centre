@@ -61,6 +61,14 @@ return [
     // Minutes after a job is marked complete before the review request is sent.
     'review_delay_minutes' => 30,
 
+    // Customer messages are only sent during waking hours. A reminder whose
+    // ideal time falls outside this window is shifted to the nearest edge
+    // (before start → start; after end → end) so nothing lands overnight.
+    'send_window' => [
+        'start' => env('CET_SEND_WINDOW_START', '08:00'),
+        'end' => env('CET_SEND_WINDOW_END', '23:00'),
+    ],
+
     // Public link customers are sent to leave a review.
     'review_url' => env('CET_REVIEW_URL', 'https://g.page/r/central-executive-transfers/review'),
 

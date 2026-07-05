@@ -77,6 +77,48 @@ class WhatsAppMessagingTest extends TestCase
         );
     }
 
+    public function test_24h_reminder_is_shifted_into_the_daytime_window(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+
+        // Pickup at 07:00 in a few days → 24h mark is 07:00 (before 08:00),
+        // so the reminder must be shifted to 08:00 the same morning.
+        $pickup = now()->addDays(5)->setTime(7, 0);
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Early Bird', 'customer_phone' => '07700900555',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => $pickup->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertNotNull($reminder);
+        $this->assertEquals('08:00', $reminder->scheduled_for->format('H:i'));
+        $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
+    }
+
+    public function test_2h_reminder_is_skipped_when_it_falls_overnight(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+
+        // Pickup at 03:00 → 2h mark is 01:00, outside the window → no 2h nudge.
+        $pickup = now()->addDays(5)->setTime(3, 0);
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Night Owl', 'customer_phone' => '07700900556',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => $pickup->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $this->assertDatabaseMissing('messages', ['booking_id' => $booking->id, 'type' => 'reminder_2h']);
+        // The 24h reminder still exists (03:00 → 24h mark 03:00 → shifted to 08:00).
+        $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
+    }
+
     public function test_allocating_a_driver_sends_the_driver_details(): void
     {
         $booking = $this->makeBooking();

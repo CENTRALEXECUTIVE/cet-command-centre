@@ -37,7 +37,12 @@ class BookingNotifier
         ]);
     }
 
-    /** Queues the 24h and 2h reminders (scheduled, not sent immediately). */
+    /**
+     * Queues the ~24h and 2h reminders. The 24h reminder targets 24h before
+     * pickup but is shifted into the 08:00–23:00 sending window so it never
+     * lands overnight (matching how the office sends them by hand). The 2h nudge
+     * is only queued if it too falls inside the window.
+     */
     public function scheduleReminders(Booking $booking): void
     {
         $to = $booking->customer?->phone;
@@ -45,28 +50,68 @@ class BookingNotifier
             return;
         }
 
-        $reminders = [
-            'reminder_24h' => $booking->pickup_at->copy()->subDay(),
-            'reminder_2h' => $booking->pickup_at->copy()->subHours(2),
-        ];
-
-        foreach ($reminders as $type => $when) {
-            if ($when->isPast()) {
-                continue; // Booking is too close to schedule this reminder.
-            }
-
-            $window = $type === 'reminder_24h' ? 'tomorrow' : 'in 2 hours';
-            $body = "Reminder: your CET car ({$booking->vehicleType?->name}) is booked for "
-                ."{$booking->pickup_at->format('D d M, H:i')} ({$window})."
-                ."\nPickup: ".Str::limit($booking->pickup_address, 80)
-                ."\nRef: {$booking->reference}";
-
-            $this->whatsApp->send($to, $body, [
-                'type' => $type,
-                'booking' => $booking,
-                'scheduled_for' => $when,
-            ]);
+        // ~24h reminder — clamped into the daytime window.
+        $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
+        if ($at24h->isFuture() && $at24h->lt($booking->pickup_at)) {
+            $this->queueReminder($booking, 'reminder_24h', $at24h, 'tomorrow');
         }
+
+        // 2h nudge — only if it naturally falls within waking hours.
+        $at2h = $booking->pickup_at->copy()->subHours(2);
+        if ($at2h->isFuture() && $this->withinSendWindow($at2h)) {
+            $this->queueReminder($booking, 'reminder_2h', $at2h, 'in 2 hours');
+        }
+    }
+
+    private function queueReminder(Booking $booking, string $type, \Illuminate\Support\Carbon $when, string $window): void
+    {
+        $body = "Reminder: your CET car ({$booking->vehicleType?->name}) is booked for "
+            ."{$booking->pickup_at->format('D d M, H:i')} ({$window})."
+            ."\nPickup: ".Str::limit($booking->pickup_address, 80)
+            ."\nRef: {$booking->reference}";
+
+        $this->whatsApp->send((string) $booking->customer?->phone, $body, [
+            'type' => $type,
+            'booking' => $booking,
+            'scheduled_for' => $when,
+        ]);
+    }
+
+    /** The daytime sending window [start, end] on the given day. */
+    private function sendWindow(\Illuminate\Support\Carbon $day): array
+    {
+        [$sh, $sm] = array_pad(explode(':', (string) config('cet.send_window.start', '08:00')), 2, 0);
+        [$eh, $em] = array_pad(explode(':', (string) config('cet.send_window.end', '23:00')), 2, 0);
+
+        return [
+            $day->copy()->setTime((int) $sh, (int) $sm),
+            $day->copy()->setTime((int) $eh, (int) $em),
+        ];
+    }
+
+    private function withinSendWindow(\Illuminate\Support\Carbon $when): bool
+    {
+        [$start, $end] = $this->sendWindow($when);
+
+        return $when->betweenIncluded($start, $end);
+    }
+
+    /**
+     * Move a send time into the daytime window: before the start → the start of
+     * that same day; after the end → the end of that same day.
+     */
+    private function clampToSendWindow(\Illuminate\Support\Carbon $when): \Illuminate\Support\Carbon
+    {
+        [$start, $end] = $this->sendWindow($when);
+
+        if ($when->lt($start)) {
+            return $start;
+        }
+        if ($when->gt($end)) {
+            return $end;
+        }
+
+        return $when;
     }
 
     /** Queues the review request for ~30 minutes after job completion. */
