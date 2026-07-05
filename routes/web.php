@@ -63,6 +63,14 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
+
+    // Amend / cancel an existing booking (admin only).
+    Route::middleware('role:admin')->group(function () {
+        Route::get('bookings/{booking}/edit', [BookingController::class, 'edit'])->name('bookings.edit');
+        Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
+        Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+    });
+
     Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
 
     // ----- Despatch board (admin) ----------------------------------------

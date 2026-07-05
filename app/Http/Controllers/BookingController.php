@@ -2,20 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BookingStatus;
 use App\Http\Requests\StoreBookingRequest;
+use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Airport;
 use App\Models\Booking;
 use App\Models\CorporateAccount;
 use App\Models\Quote;
 use App\Models\VehicleType;
 use App\Services\BookingService;
+use App\Services\BookingStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class BookingController extends Controller
 {
-    public function __construct(private readonly BookingService $bookings) {}
+    public function __construct(
+        private readonly BookingService $bookings,
+        private readonly BookingStatusService $status,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -69,17 +76,83 @@ class BookingController extends Controller
             abort(403);
         }
 
+        return view('bookings.show', $this->showData($request, $booking));
+    }
+
+    public function edit(Request $request, Booking $booking): View|RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if ($booking->status->isTerminal()) {
+            return redirect()
+                ->route('bookings.show', $booking)
+                ->with('status', 'This booking is '.$booking->status->label().' and can no longer be edited.');
+        }
+
+        $booking->load(['customer', 'stops']);
+
+        return view('bookings.edit', $this->formData($request) + ['booking' => $booking]);
+    }
+
+    public function update(UpdateBookingRequest $request, Booking $booking): RedirectResponse
+    {
+        $this->bookings->updateFromForm($booking, $request->validated());
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Booking {$booking->reference} updated. If it's on the calendar, re-sync to push the change.");
+    }
+
+    /**
+     * Cancel a booking with a recorded reason. Uses the status engine so the
+     * transition is validated, audited and side-effects fire (waiting list).
+     * The calendar event is left in place — removing it from Google Calendar is
+     * a deliberate manual step for the operator.
+     */
+    public function cancel(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'cancellation_reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        try {
+            $this->status->transition(
+                $booking,
+                BookingStatus::Cancelled,
+                $request->user(),
+                note: 'Cancelled: '.$data['cancellation_reason'],
+            );
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['cancellation_reason' => $e->getMessage()]);
+        }
+
+        $booking->forceFill([
+            'meta' => array_merge($booking->meta ?? [], [
+                'cancellation_reason' => $data['cancellation_reason'],
+                'cancelled_at' => now()->toDateTimeString(),
+            ]),
+        ])->save();
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Booking {$booking->reference} cancelled. Remember to remove it from Google Calendar if it was pushed there.");
+    }
+
+    /** @return array<string, mixed> */
+    private function showData(Request $request, Booking $booking): array
+    {
         $booking->load([
             'customer', 'vehicleType', 'driver', 'stops', 'corporateAccount',
             'calendarEvent', 'statusHistory.changedBy', 'payments',
         ]);
 
-        // Audit trail (admins only) — full change history for the booking.
         $auditLogs = $request->user()->isAdmin()
             ? $booking->auditLogs()->with('user')->latest('created_at')->get()
             : collect();
 
-        return view('bookings.show', compact('booking', 'auditLogs'));
+        return compact('booking', 'auditLogs');
     }
 
     /** @return array<string, mixed> */

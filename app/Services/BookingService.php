@@ -71,6 +71,56 @@ class BookingService
         });
     }
 
+    /**
+     * Amend an existing booking from the edit form: update the customer's contact
+     * details, the booking's own fields and its via stops, then rebuild the
+     * calendar event (updateOrCreate keeps the same event and flags it for
+     * re-sync). The assigned driver and rotation are left untouched.
+     *
+     * @param  array<string, mixed>  $data  Validated UpdateBookingRequest data.
+     */
+    public function updateFromForm(Booking $booking, array $data): Booking
+    {
+        return DB::transaction(function () use ($booking, $data) {
+            // Keep the customer's contact details current.
+            if ($customer = $booking->customer) {
+                $customer->fill(array_filter([
+                    'name' => $data['customer_name'] ?? null,
+                    'phone' => $data['customer_phone'] ?? null,
+                    'email' => $data['customer_email'] ?? null,
+                ], fn ($v) => $v !== null && $v !== ''))->save();
+            }
+
+            $booking->fill([
+                'vehicle_type_id' => $data['vehicle_type_id'],
+                'airport_id' => $data['airport_id'] ?? null,
+                'pickup_at' => $data['pickup_at'],
+                'pickup_address' => $data['pickup_address'],
+                'destination_address' => $data['destination_address'],
+                'flight_number' => $data['flight_number'] ?? null,
+                'passengers' => $data['passengers'],
+                'luggage' => $data['luggage'] ?? 0,
+                'special_requests' => $data['special_requests'] ?? null,
+                'payment_method' => $data['payment_method'],
+                'payment_status' => $data['payment_status'] ?? $booking->payment_status,
+                'quoted_price' => $data['quoted_price'] ?? null,
+                'final_price' => $data['final_price'] ?? null,
+            ])->save();
+
+            // Re-sync via stops (outbound legs only) from the submitted list.
+            if (! $booking->is_return_leg) {
+                $booking->stops()->delete();
+                foreach (array_values(array_filter(Arr::get($data, 'via_stops', []) ?? [])) as $i => $address) {
+                    $booking->stops()->create(['sequence' => $i + 1, 'address' => $address]);
+                }
+            }
+
+            $this->calendar->buildFor($booking->refresh());
+
+            return $booking;
+        });
+    }
+
     private function resolveCustomer(array $data): Customer
     {
         $phone = $data['customer_phone'] ?? null;

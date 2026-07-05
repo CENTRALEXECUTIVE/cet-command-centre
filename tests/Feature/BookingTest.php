@@ -152,4 +152,83 @@ class BookingTest extends TestCase
 
         $this->actingAs($client)->get(route('bookings.show', $otherBooking))->assertForbidden();
     }
+
+    public function test_admin_can_amend_a_booking(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+        $vClass = VehicleType::where('slug', 'v-class')->first() ?? VehicleType::where('slug', 'executive')->first();
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => 'James Watson',
+            'customer_phone' => '07700900999',
+            'vehicle_type_id' => $vClass->id,
+            'pickup_at' => now()->addDays(4)->format('Y-m-d\TH:i'),
+            'pickup_address' => '1 New Street, Sheffield',
+            'destination_address' => 'Leeds Bradford Airport',
+            'via_stops' => ['Meadowhall Centre'],
+            'passengers' => 3,
+            'luggage' => 4,
+            'payment_method' => 'cash',
+            'quoted_price' => 145.50,
+        ])->assertRedirect(route('bookings.show', $booking));
+
+        $booking->refresh();
+        $this->assertEquals('1 New Street, Sheffield', $booking->pickup_address);
+        $this->assertEquals('Leeds Bradford Airport', $booking->destination_address);
+        $this->assertEquals(3, $booking->passengers);
+        $this->assertEquals('145.50', (string) $booking->quoted_price);
+        // Contact detail flowed to the customer record.
+        $this->assertEquals('07700900999', $booking->customer->phone);
+        // Via stop persisted.
+        $this->assertEquals('Meadowhall Centre', $booking->stops()->first()->address);
+        // Calendar event kept (updated in place, not duplicated).
+        $this->assertEquals(1, $booking->calendarEvent()->count());
+    }
+
+    public function test_admin_can_cancel_a_booking_with_a_reason(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        $this->actingAs($admin)->post(route('bookings.cancel', $booking), [
+            'cancellation_reason' => 'Customer no longer needs the car',
+        ])->assertRedirect(route('bookings.show', $booking));
+
+        $booking->refresh();
+        $this->assertEquals(\App\Enums\BookingStatus::Cancelled, $booking->status);
+        $this->assertEquals('Customer no longer needs the car', $booking->meta['cancellation_reason']);
+        // Transition recorded in the audit history.
+        $this->assertDatabaseHas('booking_status_histories', [
+            'booking_id' => $booking->id,
+            'to_status' => 'cancelled',
+        ]);
+    }
+
+    public function test_cancel_requires_a_reason(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        $this->actingAs($admin)->post(route('bookings.cancel', $booking), [])
+            ->assertSessionHasErrors('cancellation_reason');
+
+        $this->assertNotEquals(\App\Enums\BookingStatus::Cancelled, $booking->fresh()->status);
+    }
+
+    public function test_driver_cannot_edit_or_cancel_bookings(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        $driver = User::factory()->create(['role' => 'driver']);
+        $this->actingAs($driver)->get(route('bookings.edit', $booking))->assertForbidden();
+        $this->actingAs($driver)->post(route('bookings.cancel', $booking), [
+            'cancellation_reason' => 'nope',
+        ])->assertForbidden();
+    }
 }

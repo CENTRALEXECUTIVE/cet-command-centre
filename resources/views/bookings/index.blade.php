@@ -15,7 +15,7 @@
         @else
             <table>
                 <thead>
-                    <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Route</th><th>Vehicle</th><th>Driver</th><th>Pay</th><th>Status</th></tr>
+                    <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Route</th><th>Vehicle</th><th>Driver</th><th>Pay</th><th>Status</th>@if(auth()->user()->isAdmin())<th></th>@endif</tr>
                 </thead>
                 <tbody>
                     @foreach($bookings as $b)
@@ -28,6 +28,9 @@
                             <td>{{ $b->driver?->name ?? '—' }}</td>
                             <td>{{ $b->payment_method->emoji() ?? $b->payment_method->label() }}</td>
                             <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
+                            @if(auth()->user()->isAdmin())
+                                <td>@unless($b->status->isTerminal())<a href="{{ route('bookings.edit', $b) }}" title="Edit">✏️</a>@endunless</td>
+                            @endif
                         </tr>
                     @endforeach
                 </tbody>

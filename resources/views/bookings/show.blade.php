@@ -9,6 +9,33 @@
     <p class="page-sub">Created {{ $booking->created_at->format('D d M Y, H:i') }}
         @if($booking->createdBy) by {{ $booking->createdBy->name }} @endif</p>
 
+    @if(session('status'))
+        <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        <div class="toolbar" style="margin-bottom:16px">
+            <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
+            <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
+        </div>
+        <div id="cancel-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin-bottom:16px">
+            <form method="POST" action="{{ route('bookings.cancel', $booking) }}">
+                @csrf
+                <label for="cancellation_reason" style="font-weight:600">Reason for cancellation <span class="req">*</span></label>
+                <input id="cancellation_reason" name="cancellation_reason" required placeholder="e.g. Customer cancelled — no charge" style="margin:6px 0 10px">
+                <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Confirm cancellation</button>
+                <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('cancel-box').style.display='none'">Keep booking</button>
+                <p class="hint" style="margin:8px 0 0">The calendar event isn't removed automatically — take it off Google Calendar yourself if it was pushed there.</p>
+            </form>
+        </div>
+    @endif
+
+    @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
+        <div class="alert alert-error">Cancelled — {{ $booking->meta['cancellation_reason'] }}
+            @if(!empty($booking->meta['cancelled_at'])) <span class="muted">({{ \Illuminate\Support\Carbon::parse($booking->meta['cancelled_at'])->format('d M Y, H:i') }})</span>@endif
+        </div>
+    @endif
+
     <div class="grid grid-2">
         <div class="card">
             <h2>Journey</h2>
