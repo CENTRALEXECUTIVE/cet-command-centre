@@ -2,10 +2,18 @@
 @section('title', 'Drivers directory')
 
 @section('content')
-    <h1 class="page-title">Drivers directory</h1>
-    <p class="page-sub">The roster you pick from when preparing a reminder — your own and third-party/cover drivers.</p>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+        <div>
+            <h1 class="page-title" style="margin-bottom:2px">Drivers directory</h1>
+            <p class="page-sub">The roster you pick from for reminders — and assign to jobs on the dispatch board.</p>
+        </div>
+        <form method="POST" action="{{ route('cover-drivers.sync') }}">@csrf
+            <button class="btn btn-dark" style="padding:8px 14px">↻ Make all assignable</button>
+        </form>
+    </div>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
+    <p class="hint" style="margin-top:-6px">Numbers are stored as <strong>+44</strong>. Each driver here is also an assignable account — click <em>Make all assignable</em> once to sync the whole list.</p>
     @if($errors->any())<div class="alert alert-error">{{ $errors->first() }}</div>@endif
 
     <div class="card">

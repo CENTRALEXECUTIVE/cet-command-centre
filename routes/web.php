@@ -95,6 +95,7 @@ Route::middleware('auth')->group(function () {
         // Drivers directory (roster picked from when preparing reminders).
         Route::get('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'index'])->name('cover-drivers.index');
         Route::post('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'store'])->name('cover-drivers.store');
+        Route::post('cover-drivers/sync', [\App\Http\Controllers\CoverDriverController::class, 'sync'])->middleware('throttle:6,1')->name('cover-drivers.sync');
         Route::put('cover-drivers/{coverDriver}', [\App\Http\Controllers\CoverDriverController::class, 'update'])->name('cover-drivers.update');
         Route::delete('cover-drivers/{coverDriver}', [\App\Http\Controllers\CoverDriverController::class, 'destroy'])->name('cover-drivers.destroy');
 

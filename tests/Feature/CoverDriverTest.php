@@ -59,4 +59,34 @@ class CoverDriverTest extends TestCase
         $driver = User::factory()->create(['role' => 'driver']);
         $this->actingAs($driver)->get(route('cover-drivers.index'))->assertForbidden();
     }
+
+    public function test_added_driver_gets_a_plus44_number_and_is_assignable(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('cover-drivers.store'), [
+            'name' => 'Zayn', 'phone' => '07123 456789', 'vehicle_reg' => 'zy21 abc', 'vehicle' => 'Black Mercedes S Class',
+        ])->assertRedirect();
+
+        $cover = CoverDriver::where('name', 'Zayn')->first();
+        $this->assertEquals('+44 7123 456789', $cover->phone);
+
+        // A real, assignable driver account was created and linked.
+        $this->assertNotNull($cover->user_id);
+        $user = User::find($cover->user_id);
+        $this->assertEquals('driver', $user->role->value);
+        $this->assertTrue($user->driverProfile()->exists());
+        $this->assertEquals('ZY21 ABC', $user->driverProfile->defaultVehicle->registration);
+    }
+
+    public function test_sync_makes_the_whole_roster_assignable(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $before = User::where('role', 'driver')->count();
+
+        $this->actingAs($admin)->post(route('cover-drivers.sync'))->assertRedirect();
+
+        $this->assertEquals(0, CoverDriver::whereNull('user_id')->count());
+        $this->assertGreaterThan($before, User::where('role', 'driver')->count());
+        $this->assertStringStartsWith('+44', CoverDriver::where('name', 'Kash')->value('phone'));
+    }
 }
