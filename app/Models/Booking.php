@@ -167,6 +167,16 @@ class Booking extends Model
         return self::flightSearchLink($this->flight_number);
     }
 
+    /**
+     * The name to display for this job — the LEAD PASSENGER (who's travelling)
+     * from meta['lead_name'] where set, else the customer/booker on the booking.
+     * Keeps the dispatch board and calendar showing the same person.
+     */
+    public function displayName(): string
+    {
+        return $this->meta['lead_name'] ?? $this->customer?->name ?? 'Customer';
+    }
+
     /** Generate the next unique booking reference, e.g. CET-2A4F9C. */
     public static function generateReference(): string
     {

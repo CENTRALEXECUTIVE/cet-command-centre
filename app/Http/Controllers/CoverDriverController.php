@@ -55,10 +55,12 @@ class CoverDriverController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        // Keep the driver account (it may be on past jobs) but stop it being
-        // offered — just deactivate it, then drop the directory entry.
+        // Deactivate ONLY a throwaway account (@cet-drivers.local) so removing a
+        // directory entry never knocks out a real rotation driver it was linked to.
         if ($coverDriver->user_id) {
-            \App\Models\User::where('id', $coverDriver->user_id)->update(['is_active' => false]);
+            \App\Models\User::where('id', $coverDriver->user_id)
+                ->where('email', 'like', '%@cet-drivers.local')
+                ->update(['is_active' => false]);
         }
         $coverDriver->delete();
 

@@ -45,7 +45,7 @@
                         <div class="time">{{ $b->pickup_at->format('H:i') }}
                             <span class="ref">{{ $b->reference }}</span></div>
                         <div class="meta">
-                            <strong>{{ $b->customer?->name }}</strong><br>
+                            <strong>{{ $b->displayName() }}</strong><br>
                             {{ $b->airport?->code ? $b->airport->code.' · ' : '' }}{{ $b->vehicleType?->name }}<br>
                             {{ \Illuminate\Support\Str::limit($b->pickup_address, 30) }}<br>
                             Driver: {{ $b->driver?->name ?? '—' }}
