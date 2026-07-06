@@ -36,6 +36,15 @@
     </script>
     @verbatim
     <script>
+    // Google calls this on an auth/API failure — turn its generic red error into
+    // an actionable message.
+    window.gm_authFailure = function () {
+        var el = document.getElementById('fleet-map');
+        if (el) el.innerHTML = '<div style="padding:28px;text-align:center;font-size:14px;color:#b32020">'
+            + 'The map needs the <strong>Maps JavaScript API</strong> enabled on your Google key.<br>'
+            + 'Google Cloud → APIs &amp; Services → Library → enable <strong>Maps JavaScript API</strong>, '
+            + 'then add it to the key’s API restrictions. The list below still works meanwhile.</div>';
+    };
     (function () {
         var map = null, markers = {};
 
