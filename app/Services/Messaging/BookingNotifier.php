@@ -319,13 +319,41 @@ class BookingNotifier
 
     /**
      * The greeting name — the LEAD PASSENGER (who's actually travelling), not the
-     * booker. Uses meta['lead_name'] when set (e.g. an ETO booking made by a PA),
-     * falling back to the customer on the booking.
+     * booker. Uses meta['lead_name'], then the name on the calendar event title
+     * (what the operator already sees), then the customer.
      */
     private function firstName(Booking $booking): string
     {
-        $lead = $booking->meta['lead_name'] ?? $booking->customer?->name ?? 'there';
+        $lead = $booking->meta['lead_name'] ?? null;
+        if (blank($lead)) {
+            $lead = $this->nameFromCalendarTitle($booking);
+        }
+        if (blank($lead)) {
+            $lead = $booking->customer?->name;
+        }
 
-        return Str::before(trim((string) $lead), ' ') ?: 'there';
+        return Str::before(trim((string) ($lead ?: 'there')), ' ') ?: 'there';
+    }
+
+    /**
+     * The passenger name from the calendar event title, e.g. "*Jo Brown EMA
+     * (COVER)*" → "Jo Brown". Strips the bold markers/emojis, the airport code
+     * and the driver tag.
+     */
+    private function nameFromCalendarTitle(Booking $booking): ?string
+    {
+        $title = $booking->calendarEvent?->title;
+        if (blank($title)) {
+            return null;
+        }
+
+        $name = trim(preg_replace('/[*👀💰🚼🚸✈️🛬]/u', '', Str::before($title, ' (')));
+        $name = trim((string) preg_replace(
+            '/\s+(MAN|LHR|LGW|STN|EMA|LBA|HUY|LPL|BHX|LTN|BRS|EDI|GLA|NCL|LCY|DSA|Free Roam|Return).*$/iu',
+            '',
+            $name
+        ));
+
+        return $name !== '' ? $name : null;
     }
 }

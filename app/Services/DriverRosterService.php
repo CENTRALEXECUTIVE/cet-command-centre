@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\UserRole;
+use App\Models\Booking;
 use App\Models\CoverDriver;
 use App\Models\DriverProfile;
 use App\Models\User;
@@ -46,17 +47,27 @@ class DriverRosterService
             return null;
         }
 
-        // Reuse the already-linked account, or an existing driver that clearly
-        // matches (so "Abdi"/"Majid" attach to the rotation drivers instead of
-        // creating duplicates); otherwise make a new no-login account.
-        $user = ($driver->user_id ? User::find($driver->user_id) : null)
-            ?? $this->findExistingDriver($driver->name);
+        // Prefer a REAL matching driver (rotation drivers etc.) so "Abdi"/"Majid"
+        // attach to them instead of duplicating; else the already-linked account;
+        // else a new no-login account.
+        $linked = $driver->user_id ? User::find($driver->user_id) : null;
+        $canonical = $this->findExistingDriver($driver->name);
+        $user = $canonical ?: $linked;
 
         if (! $user) {
             $user = new User(['email' => $this->emailFor($driver)]);
             $user->password = Str::password(20);
             $user->email_verified_at = now();
             $user->name = $driver->name;
+        }
+
+        // Clean up a now-redundant duplicate: if we switched to a real driver and
+        // the old linked account was a throwaway (@cet-drivers.local) with no
+        // jobs, remove it so it stops showing twice in the list.
+        if ($linked && $canonical && $linked->id !== $canonical->id
+            && $this->isSynthetic($linked) && ! Booking::where('driver_id', $linked->id)->exists()) {
+            optional($linked->driverProfile)->delete();
+            $linked->delete();
         }
 
         $user->fill([
@@ -100,11 +111,17 @@ class DriverRosterService
      * ("abdi@…"), callsign, or first name — so the roster attaches to it rather
      * than creating a duplicate. Null when there's no clear match.
      */
+    private function isSynthetic(User $user): bool
+    {
+        return str_ends_with((string) $user->email, '@cet-drivers.local');
+    }
+
     private function findExistingDriver(string $name): ?User
     {
         $lower = Str::lower(trim($name));
 
         return User::where('role', UserRole::Driver->value)
+            ->where('email', 'not like', '%@cet-drivers.local') // real drivers only
             ->whereHas('driverProfile')
             ->with('driverProfile')
             ->get()

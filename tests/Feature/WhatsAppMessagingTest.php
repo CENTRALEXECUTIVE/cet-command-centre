@@ -261,6 +261,17 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('Hi James', $body);
     }
 
+    public function test_reminder_greeting_falls_back_to_the_calendar_title(): void
+    {
+        $booking = $this->makeBooking(); // customer = James Watson, no lead_name
+        // The calendar event names the lead passenger (booked by someone else).
+        $booking->calendarEvent()->update(['title' => '*Jo Brown EMA (COVER)*']);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringContainsString('Hi Jo,', $body);
+        $this->assertStringNotContainsString('Hi James', $body);
+    }
+
     public function test_manual_driver_details_go_into_the_reminder(): void
     {
         $booking = $this->makeBooking();
