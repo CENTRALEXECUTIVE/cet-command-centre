@@ -11,7 +11,7 @@
         <div class="card" style="margin-bottom:16px">
             <h2 style="margin:0 0 4px">Data check <span class="muted" style="font-weight:400;font-size:13px">— what's behind the {{ number_format($dataHealth['jobs']) }} counted jobs</span></h2>
             <div class="grid grid-3" style="gap:10px;margin-top:10px">
-                <div class="stat"><div class="n">{{ number_format($dataHealth['jobs']) }}</div><div class="l">Counted jobs (ran, not cancelled)</div></div>
+                <div class="stat"><div class="n">{{ number_format($dataHealth['jobs']) }}</div><div class="l">Completed jobs (not cancelled)</div></div>
                 <div class="stat"><div class="n" style="{{ $dataHealth['no_price'] > 0 ? 'color:#b8860b' : '' }}">{{ number_format($dataHealth['no_price']) }}</div><div class="l">…with no fare (add £0)</div></div>
                 <div class="stat"><div class="n" style="{{ $dataHealth['duplicate_refs'] > 0 ? 'color:#b32020' : '' }}">{{ number_format($dataHealth['duplicate_refs']) }}</div><div class="l">Duplicate references</div></div>
                 <div class="stat"><div class="n">{{ number_format($dataHealth['return_legs']) }}</div><div class="l">Return legs (a return = 2 legs)</div></div>
@@ -56,28 +56,29 @@
     </form>
 
     @php $c = $comparison['current']; @endphp
+    <p class="muted" style="font-size:13px;margin:0 0 8px"><strong>Completed</strong> = trips already done (money taken). <strong>Booked</strong> = everything on the books, including trips still to come.</p>
     <div class="grid grid-3" style="margin-bottom:14px">
         <div class="stat">
             <div class="n">£{{ number_format($c['revenue'], 2) }}</div>
-            <div class="l">Earned — trips that have run
+            <div class="l">💷 Completed — money taken so far
                 @if(!is_null($comparison['revenue_change_pct']))
                     <span style="color:{{ $comparison['revenue_change_pct'] >= 0 ? '#1f7a44' : '#b32020' }}">
                         {{ $comparison['revenue_change_pct'] >= 0 ? '▲' : '▼' }} {{ abs($comparison['revenue_change_pct']) }}%</span>
                 @endif
             </div>
         </div>
-        <div class="stat"><div class="n">{{ $c['jobs'] }}</div><div class="l">Trips run</div></div>
+        <div class="stat"><div class="n">{{ $c['jobs'] }}</div><div class="l">Trips completed</div></div>
         <div class="stat"><div class="n">£{{ number_format($c['average_fare'], 2) }}</div><div class="l">Average fare</div></div>
     </div>
     <div class="grid grid-3" style="margin-bottom:24px">
         <div class="stat" style="border-color:var(--gold)">
             <div class="n">£{{ number_format($reserved['revenue'] ?? 0, 2) }}</div>
-            <div class="l">Reserved — all booked, incl. upcoming</div>
+            <div class="l">📖 Booked — total incl. upcoming</div>
         </div>
-        <div class="stat"><div class="n">{{ $reserved['jobs'] ?? 0 }}</div><div class="l">Jobs booked (incl. upcoming)</div></div>
+        <div class="stat"><div class="n">{{ $reserved['jobs'] ?? 0 }}</div><div class="l">Total trips booked</div></div>
         <div class="stat">
             <div class="n" style="color:#b8860b">£{{ number_format(max(0, ($reserved['revenue'] ?? 0) - $c['revenue']), 2) }}</div>
-            <div class="l">Still to come (booked, not yet run)</div>
+            <div class="l">Still to come (upcoming trips)</div>
         </div>
     </div>
 
@@ -118,7 +119,7 @@
 
     {{-- Monthly revenue trend --}}
     <div class="card">
-        <h2>Monthly revenue <span class="muted" style="font-weight:400;font-size:13px">— earned (run); booked shown when a month has upcoming jobs</span></h2>
+        <h2>Monthly revenue <span class="muted" style="font-weight:400;font-size:13px">— completed money; “booked” shown when a month still has upcoming trips</span></h2>
         @php $maxRev = max(1, (float) ($monthly->max('booked_revenue') ?? $monthly->max('revenue') ?? 1)); @endphp
         @forelse($monthly as $m)
             @php $hasUpcoming = ($m['booked_revenue'] ?? $m['revenue']) > $m['revenue'] + 0.01; @endphp
@@ -131,9 +132,9 @@
                 </span>
                 <span style="width:190px;flex:none;text-align:right;font-variant-numeric:tabular-nums">
                     <strong>£{{ number_format($m['revenue'], 0) }}</strong>
-                    <span style="color:var(--muted,#888)">· {{ $m['jobs'] }} run</span>
+                    <span style="color:var(--muted,#888)">· {{ $m['jobs'] }} done</span>
                     @if($hasUpcoming)
-                        <span style="display:block;font-size:12px;color:#b8860b">£{{ number_format($m['booked_revenue'], 0) }} booked · {{ $m['booked_jobs'] }} jobs</span>
+                        <span style="display:block;font-size:12px;color:#b8860b">£{{ number_format($m['booked_revenue'], 0) }} booked · {{ $m['booked_jobs'] }} trips</span>
                     @endif
                 </span>
             </div>
