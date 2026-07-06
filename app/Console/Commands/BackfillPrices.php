@@ -24,16 +24,22 @@ class BackfillPrices extends Command
 
     public function handle(): int
     {
-        $bookings = Booking::whereNull('quoted_price')
-            ->whereNull('final_price')
+        // Any booking with no USABLE fare — both money columns null or ≤ 0.
+        $noPrice = fn ($q) => $q->whereNull('quoted_price')->orWhere('quoted_price', '<=', 0);
+        $noFinal = fn ($q) => $q->whereNull('final_price')->orWhere('final_price', '<=', 0);
+
+        $bookings = Booking::where($noPrice)->where($noFinal)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
             ->with('calendarEvent')
             ->get();
 
         $filled = 0;
+        $unrecoverable = 0;
         $totalValue = 0.0;
         foreach ($bookings as $booking) {
             [$fare, $fullyPaid] = $this->fareFor($booking);
             if ($fare === null || $fare <= 0) {
+                $unrecoverable++; // no price anywhere in the system for this job
                 continue;
             }
 
@@ -49,6 +55,10 @@ class BackfillPrices extends Command
 
         $verb = $this->option('dry-run') ? 'Would fill' : 'Filled';
         $this->info("{$verb} prices on {$filled} booking(s), total fare value £".number_format($totalValue, 2).'.');
+        if ($unrecoverable > 0) {
+            $this->warn("{$unrecoverable} booking(s) still have NO price anywhere in the system — "
+                .'import the ETO export covering those dates to fill them (it updates existing bookings by reference).');
+        }
 
         return self::SUCCESS;
     }
