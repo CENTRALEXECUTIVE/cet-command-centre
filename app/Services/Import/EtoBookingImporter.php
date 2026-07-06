@@ -271,7 +271,9 @@ class EtoBookingImporter
         }
         foreach (['d/m/Y H:i', 'd/m/Y H:i:s', 'd/m/Y'] as $format) {
             try {
-                return Carbon::createFromFormat($format, $value);
+                // ETO exports times in UTC/GMT; convert to UK local (Europe/London)
+                // so BST pickups are stored (and shown) at the correct hour.
+                return Carbon::createFromFormat($format, $value, 'UTC')->setTimezone(config('app.timezone'));
             } catch (\Throwable) {
                 continue;
             }

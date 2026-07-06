@@ -142,4 +142,38 @@ class EtoBookingImportTest extends TestCase
         $this->assertEquals(BookingStatus::Pending, $booking->status); // Confirmed → pending
         @unlink($path);
     }
+
+    public function test_bst_times_are_converted_from_utc_to_uk_local(): void
+    {
+        config(['app.timezone' => 'Europe/London']); // production timezone
+
+        // A summer (BST) journey: ETO exports 14:10 UTC → pickup is 15:10 UK.
+        $path = $this->csv([[
+            'Journey date' => '15/07/2026 14:10', 'Passenger name' => 'BST Test',
+            'Reference number' => 'BST1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 100', 'Total' => '100.00', 'Phone number' => '07700900002',
+        ]]);
+        app(EtoBookingImporter::class)->import($path);
+
+        $booking = Booking::where('external_reference', 'BST1')->first();
+        $this->assertEquals('15:10', $booking->pickup_at->format('H:i'));
+        @unlink($path);
+    }
+
+    public function test_gmt_winter_times_are_left_unchanged(): void
+    {
+        config(['app.timezone' => 'Europe/London']);
+
+        // A winter (GMT) journey: 09:00 UTC == 09:00 UK, no shift.
+        $path = $this->csv([[
+            'Journey date' => '15/01/2026 09:00', 'Passenger name' => 'GMT Test',
+            'Reference number' => 'GMT1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 100', 'Total' => '100.00', 'Phone number' => '07700900003',
+        ]]);
+        app(EtoBookingImporter::class)->import($path);
+
+        $booking = Booking::where('external_reference', 'GMT1')->first();
+        $this->assertEquals('09:00', $booking->pickup_at->format('H:i'));
+        @unlink($path);
+    }
 }
