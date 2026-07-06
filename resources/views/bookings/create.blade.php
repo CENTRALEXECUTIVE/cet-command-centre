@@ -29,18 +29,18 @@
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="customer_name">Full name <span class="req">*</span></label>
-                        <input id="customer_name" name="customer_name" value="{{ old('customer_name') }}" required>
+                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $customer?->name) }}" required>
                         @error('customer_name') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field">
                         <label for="customer_phone">Mobile number</label>
-                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone') }}" placeholder="07…">
+                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $customer?->phone) }}" placeholder="07…">
                         @error('customer_phone') <div class="error">{{ $message }}</div> @enderror
                     </div>
                 </div>
                 <div class="field">
                     <label for="customer_email">Email address</label>
-                    <input id="customer_email" type="email" name="customer_email" value="{{ old('customer_email') }}">
+                    <input id="customer_email" type="email" name="customer_email" value="{{ old('customer_email', $customer?->email) }}">
                     <div class="hint">Provide a phone number or an email so we can send confirmations.</div>
                     @error('customer_email') <div class="error">{{ $message }}</div> @enderror
                 </div>
@@ -131,7 +131,7 @@
                     <select id="vehicle_type_id" name="vehicle_type_id" required>
                         <option value="">— Select —</option>
                         @foreach($vehicleTypes as $vt)
-                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id', $quote?->vehicle_type_id)==$vt->id)>
+                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id', $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id)==$vt->id)>
                                 {{ $vt->name }} (up to {{ $vt->passenger_capacity }})
                             </option>
                         @endforeach

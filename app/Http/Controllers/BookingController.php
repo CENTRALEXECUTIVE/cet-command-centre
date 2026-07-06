@@ -51,7 +51,12 @@ class BookingController extends Controller
             ? Quote::with('vehicleType')->find($request->integer('quote'))
             : null;
 
-        return view('bookings.create', $this->formData($request) + ['quote' => $quote]);
+        // Optionally prefill from a customer (rebook=… from the CRM).
+        $customer = $request->filled('customer')
+            ? \App\Models\Customer::with('preferredVehicleType')->find($request->integer('customer'))
+            : null;
+
+        return view('bookings.create', $this->formData($request) + ['quote' => $quote, 'customer' => $customer]);
     }
 
     public function store(StoreBookingRequest $request): RedirectResponse

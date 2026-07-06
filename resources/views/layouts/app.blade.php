@@ -33,6 +33,9 @@
                     <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">My documents</a>
                 @endif
                 <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">Bookings</a>
+                @if($u->isAdmin())
+                    <a href="{{ route('customers.index') }}" class="{{ request()->routeIs('customers.*') ? 'active' : '' }}">Customers</a>
+                @endif
             </div>
 
             @if($u->isAdmin() || $u->isCorporateClient())

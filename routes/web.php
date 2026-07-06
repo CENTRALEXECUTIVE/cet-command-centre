@@ -75,6 +75,13 @@ Route::middleware('auth')->group(function () {
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
         Route::post('messages/{message}/sent', [\App\Http\Controllers\MessageController::class, 'markSent'])->middleware('throttle:60,1')->name('messages.sent');
+
+        // Customer CRM.
+        Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');
+        Route::put('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'update'])->name('customers.update');
+        Route::post('customers/{customer}/addresses', [\App\Http\Controllers\CustomerController::class, 'storeAddress'])->name('customers.addresses.store');
+        Route::delete('customers/{customer}/addresses/{address}', [\App\Http\Controllers\CustomerController::class, 'destroyAddress'])->name('customers.addresses.destroy');
     });
 
     Route::get('bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');

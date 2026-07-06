@@ -57,7 +57,7 @@
         <div class="card">
             <h2>Service &amp; Payment</h2>
             <table>
-                <tr><th>Customer</th><td>{{ $booking->customer?->name }}</td></tr>
+                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->customer->name }}</a>@else{{ $booking->customer?->name }}@endif</td></tr>
                 <tr><th>Vehicle</th><td>{{ $booking->vehicleType?->name }}</td></tr>
                 <tr><th>Driver</th><td>{{ $booking->driver?->name ?? 'Awaiting allocation' }}</td></tr>
                 @if($booking->corporateAccount)

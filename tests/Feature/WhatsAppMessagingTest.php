@@ -34,7 +34,9 @@ class WhatsAppMessagingTest extends TestCase
             'customer_phone' => '07700900123',
             'vehicle_type_id' => $executive->id,
             'journey_type' => 'one_way',
-            'pickup_at' => now()->addDays(2)->format('Y-m-d H:i'),
+            // Pinned to 15:00 so the 24h/2h reminders always fall inside the
+            // 08:00–23:00 send window regardless of when the test runs.
+            'pickup_at' => now()->addDays(2)->setTime(15, 0)->format('Y-m-d H:i'),
             'pickup_address' => '12 Fargate, Sheffield',
             'destination_address' => 'Manchester Airport',
             'passengers' => 2,
