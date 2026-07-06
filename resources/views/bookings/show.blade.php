@@ -149,6 +149,38 @@
             <h2>Customer Comms</h2>
             <p class="hint" style="margin-top:-8px">The button opens WhatsApp with the number <em>and</em> message ready — hit send, then mark it done. <strong>Send from WhatsApp Business</strong> (use a device signed into the business number, so it goes from the right account).</p>
 
+            @php
+                $md = $booking->meta['driver_details'] ?? null;
+                $hasDriver = (is_array($md) && !empty($md['name'])) || $booking->driver;
+            @endphp
+            <details {{ $hasDriver ? '' : 'open' }} style="border:1px solid {{ $hasDriver ? 'var(--line)' : '#FBBA2A' }};border-radius:10px;padding:10px 14px;margin-bottom:14px;background:{{ $hasDriver ? 'transparent' : 'rgba(251,186,42,.06)' }}">
+                <summary style="cursor:pointer;font-weight:700;font-size:14px">🚗 Driver for this job
+                    @if($hasDriver)<span class="muted" style="font-weight:400">— {{ is_array($md) && !empty($md['name']) ? $md['name'] : $booking->driver?->name }} (tap to change)</span>
+                    @else<span class="badge badge-pending" style="margin-left:6px">add before sending</span>@endif
+                </summary>
+                <form method="POST" action="{{ route('bookings.driver-details', $booking) }}" style="margin-top:12px">
+                    @csrf
+                    <div class="field" style="margin-bottom:10px">
+                        <label for="driver-pick">Pick a saved driver <span class="muted">(optional — prefills the boxes)</span></label>
+                        <select id="driver-pick">
+                            <option value="">— Type a driver below, or pick one —</option>
+                            @foreach($jobDrivers as $d)
+                                <option value="{{ $loop->index }}"
+                                    data-name="{{ $d['name'] }}" data-phone="{{ $d['phone'] }}"
+                                    data-reg="{{ $d['reg'] }}" data-car="{{ $d['car'] }}">{{ $d['name'] }}@if($d['reg']) · {{ $d['reg'] }}@endif</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="field"><label for="d-name">Driver name <span class="req">*</span></label><input id="d-name" name="name" value="{{ old('name', $md['name'] ?? '') }}" required></div>
+                        <div class="field"><label for="d-phone">Contact number</label><input id="d-phone" name="phone" value="{{ old('phone', $md['phone'] ?? '') }}" placeholder="07…"></div>
+                        <div class="field"><label for="d-reg">Vehicle reg</label><input id="d-reg" name="reg" value="{{ old('reg', $md['reg'] ?? '') }}" style="text-transform:uppercase"></div>
+                        <div class="field"><label for="d-car">Make &amp; model</label><input id="d-car" name="car" value="{{ old('car', $md['car'] ?? '') }}" placeholder="e.g. Black Mercedes V Class"></div>
+                    </div>
+                    <button class="btn btn-primary" style="padding:7px 16px;font-size:13px">Save driver details</button>
+                </form>
+            </details>
+
             @forelse($messages as $m)
                 <div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,.12)">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
@@ -209,6 +241,19 @@
 
     @verbatim
     <script>
+        // Prefill the driver boxes when a saved driver is picked.
+        (function () {
+            var pick = document.getElementById('driver-pick');
+            if (!pick) return;
+            pick.addEventListener('change', function () {
+                var o = pick.options[pick.selectedIndex];
+                if (!o || !o.value) return;
+                document.getElementById('d-name').value = o.getAttribute('data-name') || '';
+                document.getElementById('d-phone').value = o.getAttribute('data-phone') || '';
+                document.getElementById('d-reg').value = o.getAttribute('data-reg') || '';
+                document.getElementById('d-car').value = o.getAttribute('data-car') || '';
+            });
+        })();
         document.querySelectorAll('.copy-msg').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var body = btn.closest('div').parentNode.querySelector('.msg-body');

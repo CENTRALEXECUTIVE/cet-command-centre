@@ -250,6 +250,25 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertEquals($count, $booking->fresh()->messages()->count());
     }
 
+    public function test_manual_driver_details_go_into_the_reminder(): void
+    {
+        $booking = $this->makeBooking();
+        $admin = User::factory()->admin()->create();
+
+        // Operator enters a third-party driver for this job.
+        $this->actingAs($admin)->post(route('bookings.driver-details', $booking), [
+            'name' => 'Kash', 'phone' => '07785 729671',
+            'reg' => 'am64 far', 'car' => 'Black Mercedes V Class',
+        ])->assertRedirect();
+
+        // The reminder now carries that driver block (reg uppercased).
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringContainsString('Driver Name: Kash', $body);
+        $this->assertStringContainsString('Driver Contact Number: 07785 729671', $body);
+        $this->assertStringContainsString('Vehicle Reg: AM64 FAR', $body);
+        $this->assertStringContainsString('BLACK MERCEDES V CLASS', $body);
+    }
+
     public function test_admin_can_send_a_custom_message(): void
     {
         $booking = $this->makeBooking();

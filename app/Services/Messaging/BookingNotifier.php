@@ -143,31 +143,46 @@ class BookingNotifier
     }
 
     /**
-     * The "• Driver details" block, or null if no driver is allocated. Uses the
-     * booking's vehicle, falling back to the driver's default vehicle.
+     * The "• Driver details" block, or null if no driver is known. Prefers the
+     * details the operator entered for this job (meta['driver_details'] — covers
+     * third-party drivers not in the system), then the assigned driver + vehicle.
      */
     private function driverBlock(Booking $booking): ?string
     {
+        // Operator-entered details for this specific job (any driver, incl. cover).
+        $manual = $booking->meta['driver_details'] ?? null;
+        if (is_array($manual) && filled($manual['name'] ?? null)) {
+            return $this->formatDriverBlock(
+                $manual['name'], $manual['phone'] ?? null, $manual['reg'] ?? null, $manual['car'] ?? null
+            );
+        }
+
         $driver = $booking->driver;
         if (! $driver) {
             return null;
         }
 
         $vehicle = $booking->vehicle ?? $driver->driverProfile?->defaultVehicle;
-        $makeModel = Str::upper(trim(implode(' ', array_filter([
-            $vehicle?->colour, $vehicle?->make, $vehicle?->model,
-        ]))));
+        $car = trim(implode(' ', array_filter([$vehicle?->colour, $vehicle?->make, $vehicle?->model])));
 
+        return $this->formatDriverBlock(
+            $this->driverDisplayName($driver), $driver->phone, $vehicle?->registration, $car
+        );
+    }
+
+    /** Format the WhatsApp "• Driver details" block from raw values. */
+    private function formatDriverBlock(?string $name, ?string $phone, ?string $reg, ?string $car): string
+    {
         $lines = ['*Driver details*'];
-        $lines[] = '• Driver Name: '.$this->driverDisplayName($driver);
-        if (filled($driver->phone)) {
-            $lines[] = '• Driver Contact Number: '.$driver->phone;
+        $lines[] = '• Driver Name: '.$name;
+        if (filled($phone)) {
+            $lines[] = '• Driver Contact Number: '.$phone;
         }
-        if (filled($vehicle?->registration)) {
-            $lines[] = '• Vehicle Reg: '.Str::upper($vehicle->registration);
+        if (filled($reg)) {
+            $lines[] = '• Vehicle Reg: '.Str::upper($reg);
         }
-        if ($makeModel !== '') {
-            $lines[] = '• Vehicle Make & Model: '.$makeModel;
+        if (filled($car)) {
+            $lines[] = '• Vehicle Make & Model: '.Str::upper($car);
         }
 
         return implode("\n", $lines);

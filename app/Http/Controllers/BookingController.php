@@ -177,7 +177,54 @@ class BookingController extends Controller
             ? $booking->auditLogs()->with('user')->latest('created_at')->get()
             : collect();
 
-        return compact('booking', 'auditLogs', 'messages');
+        // Saved drivers to prefill the "driver for this job" picker (admins only).
+        $jobDrivers = $request->user()->isAdmin()
+            ? \App\Models\User::where('is_active', true)->whereHas('driverProfile')
+                ->with('driverProfile.defaultVehicle')->orderBy('name')->get()
+                ->map(fn ($d) => [
+                    'name' => $d->driverProfile?->callsign ?: \Illuminate\Support\Str::before($d->name, ' '),
+                    'phone' => $d->phone,
+                    'reg' => $d->driverProfile?->defaultVehicle?->registration,
+                    'car' => trim(implode(' ', array_filter([
+                        $d->driverProfile?->defaultVehicle?->colour,
+                        $d->driverProfile?->defaultVehicle?->make,
+                        $d->driverProfile?->defaultVehicle?->model,
+                    ]))),
+                ])->values()
+            : collect();
+
+        return compact('booking', 'auditLogs', 'messages', 'jobDrivers');
+    }
+
+    /**
+     * Set the driver details shown on this job's reminder — an existing driver
+     * prefilled from the picker, or a third-party driver typed in by hand. Stored
+     * on the booking so the WhatsApp reminder includes the "• Driver details"
+     * block before the operator sends it.
+     */
+    public function setDriverDetails(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'reg' => ['nullable', 'string', 'max:16'],
+            'car' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $booking->forceFill([
+            'meta' => array_merge($booking->meta ?? [], [
+                'driver_details' => array_filter([
+                    'name' => $data['name'],
+                    'phone' => $data['phone'] ?? null,
+                    'reg' => $data['reg'] ? strtoupper($data['reg']) : null,
+                    'car' => $data['car'] ?? null,
+                ], fn ($v) => $v !== null && $v !== ''),
+            ]),
+        ])->save();
+
+        return back()->with('status', 'Driver details added — they now appear in the reminder below.');
     }
 
     /** @return array<string, mixed> */
