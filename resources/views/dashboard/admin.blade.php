@@ -19,17 +19,22 @@
     @endif
 
     @if(!empty($remindersToSend))
+        @php $dueCount = collect($remindersToSend)->where('is_due', true)->count(); @endphp
         <div class="card" style="border-left:4px solid #25D366;background:rgba(37,211,102,.07);margin-bottom:16px">
-            <strong>📲 {{ count($remindersToSend) }} pickup reminder{{ count($remindersToSend) == 1 ? '' : 's' }} to send now:</strong>
+            <strong>📲 Pickup reminders</strong>
+            <span class="muted" style="font-size:13px">— {{ $dueCount }} due now, {{ count($remindersToSend) - $dueCount }} upcoming</span>
             <div style="margin-top:8px">
                 @foreach($remindersToSend as $r)
                     <div style="display:flex;gap:12px;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                        <span style="width:64px;flex:none">
+                            @if($r['is_due'])<span class="badge badge-pending">Send</span>@else<span class="muted" style="font-size:12px">{{ $r['due']?->format('D H:i') }}</span>@endif
+                        </span>
                         <span style="flex:1">{{ $r['customer'] ?? 'Customer' }} <span class="muted">· pickup {{ $r['pickup']->format('D d M, H:i') }}</span></span>
-                        <a href="{{ $r['url'] }}" class="btn" style="background:#25D366;color:#fff;padding:4px 12px;font-size:12px">Open &amp; send →</a>
+                        <a href="{{ $r['url'] }}" class="btn" style="{{ $r['is_due'] ? 'background:#25D366;color:#fff' : '' }};padding:4px 12px;font-size:12px" @class(['btn-light' => ! $r['is_due']])>{{ $r['is_due'] ? 'Open & send →' : 'Open →' }}</a>
                     </div>
                 @endforeach
             </div>
-            <p class="hint" style="margin:8px 0 0">Open the booking, tap "Send on WhatsApp" (from <strong>WhatsApp Business</strong>), then "Mark sent".</p>
+            <p class="hint" style="margin:8px 0 0"><strong>Send</strong> = due now; the rest are coming up. Open the booking, tap "Send on WhatsApp" (from <strong>WhatsApp Business</strong>), then "Mark sent".</p>
         </div>
     @endif
 

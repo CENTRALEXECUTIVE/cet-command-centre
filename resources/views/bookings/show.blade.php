@@ -122,6 +122,45 @@
     @endif
 
     @if($booking->statusHistory->isNotEmpty())
+        @php
+            // The key milestones in order, first time each happened.
+            $milestones = [
+                'allocated' => ['🧭', 'Driver allocated'],
+                'accepted'  => ['✅', 'Driver accepted'],
+                'en_route'  => ['🚗', 'On the way'],
+                'arrived'   => ['📍', 'Arrived at pickup'],
+                'collected' => ['🧳', 'Passenger on board'],
+                'complete'  => ['🏁', 'Dropped off'],
+            ];
+            $firstOf = [];
+            foreach ($booking->statusHistory->sortBy('created_at') as $h) {
+                if (isset($milestones[$h->to_status]) && ! isset($firstOf[$h->to_status])) {
+                    $firstOf[$h->to_status] = $h;
+                }
+            }
+        @endphp
+        @if(!empty($firstOf))
+            <div class="card">
+                <h2>Job timeline</h2>
+                @foreach($milestones as $key => [$icon, $label])
+                    @php $h = $firstOf[$key] ?? null; @endphp
+                    <div style="display:flex;gap:12px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.1);{{ $h ? '' : 'opacity:.4' }}">
+                        <span style="width:26px;flex:none;text-align:center">{{ $icon }}</span>
+                        <span style="flex:1;font-weight:600">{{ $label }}</span>
+                        @if($h)
+                            <span style="font-variant-numeric:tabular-nums">{{ $h->created_at?->format('H:i') }}</span>
+                            <span class="muted" style="font-size:12px">{{ $h->created_at?->format('d M') }}</span>
+                            @if($h->gps_latitude)
+                                <a href="https://www.google.com/maps?q={{ $h->gps_latitude }},{{ $h->gps_longitude }}" target="_blank" rel="noopener" title="Where the driver was" style="font-size:13px">📍 map</a>
+                            @endif
+                        @else
+                            <span class="muted" style="font-size:13px">—</span>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
         <div class="card">
             <h2>Status History</h2>
             <table>

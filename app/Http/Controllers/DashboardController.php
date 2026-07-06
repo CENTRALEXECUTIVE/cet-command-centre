@@ -95,11 +95,11 @@ class DashboardController extends Controller
     }
 
     /**
-     * Pickup reminders that are due to be sent by hand now — the office's
-     * "send these" worklist. A reminder is due once its scheduled time has passed
-     * and it hasn't been marked sent, for a booking that's still going ahead.
+     * The reminder worklist for the dashboard — reminders due NOW plus the ones
+     * coming up over the next ~2 days, so the box is always populated and the
+     * office can send ahead. Each row is flagged due/upcoming.
      *
-     * @return array<int, array{ref: string, customer: ?string, pickup: Carbon, due: ?Carbon, url: string}>
+     * @return array<int, array{ref: string, customer: ?string, pickup: Carbon, due: ?Carbon, is_due: bool, url: string}>
      */
     private function remindersToSend(): array
     {
@@ -107,20 +107,22 @@ class DashboardController extends Controller
             ->whereIn('type', ['reminder_24h', 'reminder_2h'])
             ->where('status', 'queued')
             ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '<=', now())
+            ->where('scheduled_for', '<=', now()->addDays(2)) // due now + next 2 days
             ->whereHas('booking', fn ($q) => $q->whereNotIn('status', [
                 BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
             ])->where('pickup_at', '>=', now()))
             ->with(['booking.customer'])
             ->orderBy('scheduled_for')
             ->get()
-            // One row per booking (the 24h and 2h could both be due).
+            // One row per booking (the 24h and 2h could both be pending).
             ->unique('booking_id')
+            ->take(15)
             ->map(fn (Message $m) => [
                 'ref' => $m->booking->external_reference ?? $m->booking->reference,
-                'customer' => $m->booking->customer?->name,
+                'customer' => $m->booking->displayName(),
                 'pickup' => $m->booking->pickup_at,
                 'due' => $m->scheduled_for,
+                'is_due' => $m->scheduled_for->lte(now()),
                 'url' => route('bookings.show', $m->booking),
             ])
             ->values()
