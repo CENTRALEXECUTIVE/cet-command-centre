@@ -5,9 +5,10 @@ use App\Services\DriverRosterService;
 use Illuminate\Database\Migrations\Migration;
 
 /**
- * Reconcile the roster on deploy: merge throwaway "Abdi"/"Majid" accounts (made
- * by an earlier sync before de-dup existed) into the matching rotation drivers
- * and remove the duplicates, so each driver shows once. Skipped under testing.
+ * Final reconcile + prune of the driver roster: re-attach directory entries to
+ * the real rotation drivers and remove any leftover duplicate throwaway accounts
+ * a previous sync orphaned. Runs as its own migration so it reaches servers that
+ * already applied the earlier reconcile. Skipped under testing.
  */
 return new class extends Migration
 {
@@ -21,7 +22,6 @@ return new class extends Migration
         foreach (CoverDriver::all() as $driver) {
             $roster->ensureUser($driver);
         }
-        // Remove any leftover duplicate accounts no directory entry points to.
         $roster->pruneOrphanSyntheticDrivers();
     }
 

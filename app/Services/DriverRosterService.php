@@ -116,6 +116,33 @@ class DriverRosterService
         return str_ends_with((string) $user->email, '@cet-drivers.local');
     }
 
+    /**
+     * Remove throwaway driver accounts left over from an earlier sync that no
+     * directory entry points to any more (e.g. a duplicate "Abdi" once its
+     * directory row was re-attached to the real Abdirazak). Only deletes ones
+     * with no jobs.
+     */
+    public function pruneOrphanSyntheticDrivers(): int
+    {
+        $linkedIds = CoverDriver::whereNotNull('user_id')->pluck('user_id')->all();
+
+        $orphans = User::where('email', 'like', '%@cet-drivers.local')
+            ->whereNotIn('id', $linkedIds)
+            ->get();
+
+        $removed = 0;
+        foreach ($orphans as $orphan) {
+            if (Booking::where('driver_id', $orphan->id)->exists()) {
+                continue;
+            }
+            optional($orphan->driverProfile)->delete();
+            $orphan->delete();
+            $removed++;
+        }
+
+        return $removed;
+    }
+
     private function findExistingDriver(string $name): ?User
     {
         $lower = Str::lower(trim($name));

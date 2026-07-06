@@ -324,13 +324,11 @@ class BookingNotifier
      */
     private function firstName(Booking $booking): string
     {
-        $lead = $booking->meta['lead_name'] ?? null;
-        if (blank($lead)) {
-            $lead = $this->nameFromCalendarTitle($booking);
-        }
-        if (blank($lead)) {
-            $lead = $booking->customer?->name;
-        }
+        // Trust the calendar title first — it's the operator's source of truth
+        // and always leads with the passenger — then meta, then the customer.
+        $lead = $this->nameFromCalendarTitle($booking)
+            ?: ($booking->meta['lead_name'] ?? null)
+            ?: $booking->customer?->name;
 
         return Str::before(trim((string) ($lead ?: 'there')), ' ') ?: 'there';
     }

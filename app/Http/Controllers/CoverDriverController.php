@@ -77,6 +77,7 @@ class CoverDriverController extends Controller
             $this->roster->ensureUser($driver);
             $count++;
         }
+        $this->roster->pruneOrphanSyntheticDrivers();
 
         return back()->with('status', "{$count} driver(s) synced — they're now assignable on the dispatch board.");
     }

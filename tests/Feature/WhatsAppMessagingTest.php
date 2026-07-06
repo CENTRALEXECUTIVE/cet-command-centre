@@ -253,6 +253,7 @@ class WhatsAppMessagingTest extends TestCase
     public function test_reminder_greets_the_lead_passenger_not_the_booker(): void
     {
         $booking = $this->makeBooking(); // customer = James Watson
+        $booking->calendarEvent()->delete(); // no calendar event → meta is the source
         // A PA booked it for a different lead passenger.
         $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['lead_name' => 'Jo Brown'])])->save();
 
