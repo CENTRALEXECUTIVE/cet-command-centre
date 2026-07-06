@@ -89,4 +89,21 @@ class CoverDriverTest extends TestCase
         $this->assertGreaterThan($before, User::where('role', 'driver')->count());
         $this->assertStringStartsWith('+44', CoverDriver::where('name', 'Kash')->value('phone'));
     }
+
+    public function test_roster_reuses_an_existing_matching_driver_instead_of_duplicating(): void
+    {
+        // A rotation driver already exists whose login local-part is "abdi".
+        $abdi = User::factory()->create(['role' => 'driver', 'name' => 'Abdirazak Hassan', 'email' => 'abdi@cet.test']);
+        \App\Models\DriverProfile::create(['user_id' => $abdi->id]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('cover-drivers.sync'))->assertRedirect();
+
+        // The "Abdi" roster entry attaches to the existing account — no duplicate.
+        $this->assertEquals(1, User::where('name', 'like', '%Abdi%')->orWhere('email', 'like', 'abdi%')->count());
+        $cover = CoverDriver::where('name', 'Abdi')->first();
+        $this->assertEquals($abdi->id, $cover->user_id);
+        // Its callsign + vehicle are set from the roster.
+        $this->assertEquals('Abdi', $abdi->fresh()->driverProfile->callsign);
+    }
 }

@@ -46,15 +46,21 @@ class DriverRosterService
             return null;
         }
 
-        $email = $this->emailFor($driver);
-        $user = User::firstOrNew(['email' => $email]);
-        if (! $user->exists) {
+        // Reuse the already-linked account, or an existing driver that clearly
+        // matches (so "Abdi"/"Majid" attach to the rotation drivers instead of
+        // creating duplicates); otherwise make a new no-login account.
+        $user = ($driver->user_id ? User::find($driver->user_id) : null)
+            ?? $this->findExistingDriver($driver->name);
+
+        if (! $user) {
+            $user = new User(['email' => $this->emailFor($driver)]);
             $user->password = Str::password(20);
             $user->email_verified_at = now();
+            $user->name = $driver->name;
         }
+
         $user->fill([
-            'name' => $driver->name,
-            'phone' => $driver->phone,
+            'phone' => $driver->phone ?: $user->phone,
             'role' => UserRole::Driver->value,
             'is_active' => (bool) $driver->is_active,
         ])->save();
@@ -86,11 +92,29 @@ class DriverRosterService
 
     private function emailFor(CoverDriver $driver): string
     {
-        if ($driver->user_id && ($u = User::find($driver->user_id))) {
-            return $u->email;
-        }
-
         return Str::slug($driver->name.'-'.($driver->vehicle_reg ?: $driver->id)).'@cet-drivers.local';
+    }
+
+    /**
+     * An existing driver that plainly matches this name — by login local-part
+     * ("abdi@…"), callsign, or first name — so the roster attaches to it rather
+     * than creating a duplicate. Null when there's no clear match.
+     */
+    private function findExistingDriver(string $name): ?User
+    {
+        $lower = Str::lower(trim($name));
+
+        return User::where('role', UserRole::Driver->value)
+            ->whereHas('driverProfile')
+            ->with('driverProfile')
+            ->get()
+            ->first(function (User $u) use ($lower) {
+                $local = Str::lower(Str::before((string) $u->email, '@'));
+                $callsign = Str::lower((string) ($u->driverProfile?->callsign ?? ''));
+                $first = Str::lower(Str::before((string) $u->name, ' '));
+
+                return $local === $lower || $callsign === $lower || $first === $lower;
+            });
     }
 
     /** "Black Mercedes V Class" → [colour, make, model]. */
