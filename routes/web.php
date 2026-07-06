@@ -41,6 +41,9 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
 Route::middleware('auth')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('jobs/day', [DashboardController::class, 'day'])->name('jobs.day');
+    // Live fleet map (admin).
+    Route::get('fleet/map', [\App\Http\Controllers\FleetMapController::class, 'index'])->name('fleet.map');
+    Route::get('fleet/positions', [\App\Http\Controllers\FleetMapController::class, 'data'])->middleware('throttle:120,1')->name('fleet.positions');
     // Pull a calendar-only job into the booking system (admin only).
     Route::post('jobs/import', [\App\Http\Controllers\CalendarJobController::class, 'store'])
         ->middleware('role:admin', 'throttle:30,1')->name('jobs.import');
