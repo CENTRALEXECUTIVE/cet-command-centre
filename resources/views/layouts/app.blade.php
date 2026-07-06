@@ -35,6 +35,7 @@
                 @endif
                 <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">Bookings</a>
                 @if($u->isAdmin())
+                    <a href="{{ route('enquiries.index') }}" class="{{ request()->routeIs('enquiries.*') ? 'active' : '' }}">Enquiries</a>
                     <a href="{{ route('customers.index') }}" class="{{ request()->routeIs('customers.*') ? 'active' : '' }}">Customers</a>
                 @endif
             </div>

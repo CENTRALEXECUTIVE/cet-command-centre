@@ -63,11 +63,45 @@ class GraphMailClient
                 'subject' => $m['subject'] ?? '',
                 'body' => $this->bodyToText($m['body'] ?? []),
                 'from' => $m['from']['emailAddress']['address'] ?? null,
+                'from_name' => $m['from']['emailAddress']['name'] ?? null,
             ])->all();
         } catch (\Throwable $e) {
             Log::warning('Graph fetchRecent failed', ['error' => $e->getMessage()]);
 
             return [];
+        }
+    }
+
+    /**
+     * Send a threaded reply to a message via Graph (needs Mail.Send). Returns
+     * false when unconfigured or the send fails — the caller then falls back to
+     * a mailto/copy flow, so a reply is never lost.
+     */
+    public function sendReply(string $messageId, string $bodyText): bool
+    {
+        if (! $this->configured()) {
+            return false;
+        }
+        try {
+            $token = $this->accessToken();
+            if (! $token) {
+                return false;
+            }
+            $mailbox = rawurlencode((string) config('services.microsoft_graph.mailbox'));
+            $response = Http::withToken($token)->post(
+                "https://graph.microsoft.com/v1.0/users/{$mailbox}/messages/{$messageId}/reply",
+                ['comment' => $bodyText]
+            );
+
+            if (! $response->successful()) {
+                Log::warning('Graph sendReply HTTP error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 400)]);
+            }
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning('Graph sendReply failed', ['error' => $e->getMessage()]);
+
+            return false;
         }
     }
 

@@ -79,6 +79,14 @@ Route::middleware('auth')->group(function () {
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
         Route::post('messages/{message}/sent', [\App\Http\Controllers\MessageController::class, 'markSent'])->middleware('throttle:60,1')->name('messages.sent');
 
+        // Email enquiries inbox (Outlook → quote → draft reply).
+        Route::get('enquiries', [\App\Http\Controllers\EnquiryController::class, 'index'])->name('enquiries.index');
+        Route::post('enquiries/refresh', [\App\Http\Controllers\EnquiryController::class, 'refresh'])->middleware('throttle:10,1')->name('enquiries.refresh');
+        Route::get('enquiries/{enquiry}', [\App\Http\Controllers\EnquiryController::class, 'show'])->name('enquiries.show');
+        Route::put('enquiries/{enquiry}', [\App\Http\Controllers\EnquiryController::class, 'update'])->name('enquiries.update');
+        Route::post('enquiries/{enquiry}/send', [\App\Http\Controllers\EnquiryController::class, 'send'])->middleware('throttle:30,1')->name('enquiries.send');
+        Route::post('enquiries/{enquiry}/dismiss', [\App\Http\Controllers\EnquiryController::class, 'dismiss'])->name('enquiries.dismiss');
+
         // Payments — outstanding money + mark paid.
         Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments.index');
         Route::post('bookings/{booking}/paid', [\App\Http\Controllers\PaymentController::class, 'markPaid'])->name('payments.paid');

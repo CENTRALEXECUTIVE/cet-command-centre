@@ -39,5 +39,9 @@ Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping()
 // Parse Outlook booking emails into bookings, every 5 minutes.
 Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();
 
+// Turn Outlook customer enquiries into reviewable quotes + draft replies, every
+// 10 minutes (during the sending window).
+Schedule::command('cet:ingest-enquiries')->everyTenMinutes()->withoutOverlapping();
+
 // Safety net: re-confirm every upcoming booking is on the calendar, hourly.
 Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
