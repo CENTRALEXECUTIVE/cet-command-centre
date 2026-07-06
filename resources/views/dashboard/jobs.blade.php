@@ -44,6 +44,13 @@
                 {{ $job['customer'] }} · {{ $job['vehicle'] }} · Driver: {{ $job['driver'] }}
                 @if($job['ref'] && $job['ref'] !== '—') · <span class="mono">{{ $job['ref'] }}</span> @endif
             </div>
+            @if(!empty($job['flight']))
+                <div style="margin:0 0 8px">
+                    <span class="mono" style="font-size:13px">✈ {{ $job['flight'] }}</span>
+                    <a href="{{ \App\Models\Booking::flightRadarLink($job['flight']) }}" target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">Track on Flightradar24</a>
+                    <a href="{{ \App\Models\Booking::flightSearchLink($job['flight']) }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
+                </div>
+            @endif
 
             @if($job['description'])
                 <div style="white-space:pre-wrap;font-size:14px;line-height:1.55;background:rgba(128,128,128,.06);border-radius:8px;padding:12px">{{ trim(preg_replace('/[*]/', '', $job['description'])) }}</div>

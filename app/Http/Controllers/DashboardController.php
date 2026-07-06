@@ -193,6 +193,7 @@ class DashboardController extends Controller
                 'location' => $b->pickup_address,
                 'description' => (string) ($b->calendarEvent?->description ?? ''),
                 'event_id' => null,
+                'flight' => $b->flight_number,
             ])
             ->all();
     }

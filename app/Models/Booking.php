@@ -138,6 +138,35 @@ class Booking extends Model
 
     // ----- Helpers -------------------------------------------------------
 
+    /**
+     * Deep link that opens this flight on Flightradar24 (free, no API key) — the
+     * live tracker the office already uses. Null when there's no flight number.
+     */
+    public static function flightRadarLink(?string $flightNumber): ?string
+    {
+        $fn = strtolower(preg_replace('/\s+/', '', (string) $flightNumber));
+
+        return $fn !== '' ? 'https://www.flightradar24.com/data/flights/'.$fn : null;
+    }
+
+    /** Google live flight-status search (shows the status card) for a flight number. */
+    public static function flightSearchLink(?string $flightNumber): ?string
+    {
+        $fn = strtoupper(preg_replace('/\s+/', '', (string) $flightNumber));
+
+        return $fn !== '' ? 'https://www.google.com/search?q='.rawurlencode('flight '.$fn.' status') : null;
+    }
+
+    public function flightRadarUrl(): ?string
+    {
+        return self::flightRadarLink($this->flight_number);
+    }
+
+    public function flightSearchUrl(): ?string
+    {
+        return self::flightSearchLink($this->flight_number);
+    }
+
     /** Generate the next unique booking reference, e.g. CET-2A4F9C. */
     public static function generateReference(): string
     {

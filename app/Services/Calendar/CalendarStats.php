@@ -159,6 +159,7 @@ class CalendarStats
             'status' => $booking?->status?->label() ?? 'Scheduled',
             'url' => $booking ? route('bookings.show', $booking) : null,
             'event_id' => $event['id'] ?? null,
+            'flight' => $this->field($description, 'Flight Number'),
         ];
     }
 
