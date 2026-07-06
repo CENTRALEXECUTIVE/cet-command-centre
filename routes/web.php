@@ -92,6 +92,12 @@ Route::middleware('auth')->group(function () {
         Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments.index');
         Route::post('bookings/{booking}/paid', [\App\Http\Controllers\PaymentController::class, 'markPaid'])->name('payments.paid');
 
+        // Drivers directory (roster picked from when preparing reminders).
+        Route::get('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'index'])->name('cover-drivers.index');
+        Route::post('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'store'])->name('cover-drivers.store');
+        Route::put('cover-drivers/{coverDriver}', [\App\Http\Controllers\CoverDriverController::class, 'update'])->name('cover-drivers.update');
+        Route::delete('cover-drivers/{coverDriver}', [\App\Http\Controllers\CoverDriverController::class, 'destroy'])->name('cover-drivers.destroy');
+
         // Customer CRM.
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');

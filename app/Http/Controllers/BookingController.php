@@ -177,9 +177,15 @@ class BookingController extends Controller
             ? $booking->auditLogs()->with('user')->latest('created_at')->get()
             : collect();
 
-        // Saved drivers to prefill the "driver for this job" picker (admins only).
-        $jobDrivers = $request->user()->isAdmin()
-            ? \App\Models\User::where('is_active', true)->whereHas('driverProfile')
+        // Drivers to prefill the "driver for this job" picker (admins only):
+        // the cover-driver roster plus any system drivers not already in it.
+        $jobDrivers = collect();
+        if ($request->user()->isAdmin()) {
+            $cover = \App\Models\CoverDriver::where('is_active', true)->orderBy('name')->get()
+                ->map(fn ($d) => ['name' => $d->name, 'phone' => $d->phone, 'reg' => $d->vehicle_reg, 'car' => $d->vehicle]);
+
+            $seen = $cover->map(fn ($d) => strtolower($d['name']))->all();
+            $system = \App\Models\User::where('is_active', true)->whereHas('driverProfile')
                 ->with('driverProfile.defaultVehicle')->orderBy('name')->get()
                 ->map(fn ($d) => [
                     'name' => $d->driverProfile?->callsign ?: \Illuminate\Support\Str::before($d->name, ' '),
@@ -190,8 +196,11 @@ class BookingController extends Controller
                         $d->driverProfile?->defaultVehicle?->make,
                         $d->driverProfile?->defaultVehicle?->model,
                     ]))),
-                ])->values()
-            : collect();
+                ])
+                ->reject(fn ($d) => in_array(strtolower($d['name']), $seen, true));
+
+            $jobDrivers = $cover->concat($system)->values();
+        }
 
         return compact('booking', 'auditLogs', 'messages', 'jobDrivers');
     }
