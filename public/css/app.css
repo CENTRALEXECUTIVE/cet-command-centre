@@ -271,6 +271,28 @@ tr:last-child td { border-bottom: none; }
 .stepper-field .lbl { font-size: 14px; font-weight: 600; color: #333; }
 .stepper-field .lbl .sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 
+/* ----- Pagination (custom, replaces the Tailwind default) ----- */
+.pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 16px; }
+.pager-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 38px; height: 38px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 14px; font-weight: 600; color: var(--ink); background: var(--white);
+}
+.pager-btn:hover { text-decoration: none; border-color: var(--gold); }
+.pager-btn.active { background: var(--gold); color: var(--black); border-color: var(--gold); }
+.pager-btn.disabled { color: #bbb; background: #f6f6f5; cursor: default; }
+.pager-gap { padding: 0 4px; color: var(--muted); }
+
+/* ----- Mobile: keep wide tables inside their card, not the whole page ----- */
+@media (max-width: 720px) {
+    .table-scroll, .card > table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { font-size: 13px; }
+    th, td { padding: 9px 8px; }
+    .topbar-user .who { display: none; }        /* declutter the header */
+    .page-title { font-size: 20px; }
+}
+
 /* Sticky total bar */
 .total-bar {
     position: sticky; bottom: 0;
