@@ -22,7 +22,7 @@
                 </div>
                 <div class="ref mono" style="font-size:11px;color:var(--muted)">{{ $b->reference }}</div>
                 <div class="meta" style="margin-top:8px">
-                    <strong>{{ $b->customer?->name }}</strong> &middot; {{ $b->vehicleType?->name }}
+                    <strong>{{ $b->displayName() }}</strong> &middot; {{ $b->vehicleType?->name }}
                     {{ $b->airport?->code ? '· '.$b->airport->code : '' }}<br>
                     {{ \Illuminate\Support\Str::limit($b->pickup_address, 50) }}<br>
                     <span class="muted">→ {{ \Illuminate\Support\Str::limit($b->destination_address, 50) }}</span>

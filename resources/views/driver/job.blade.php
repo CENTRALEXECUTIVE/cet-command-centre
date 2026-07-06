@@ -4,7 +4,7 @@
 @section('content')
     <a href="{{ route('driver.jobs') }}" class="muted" style="font-size:13px">← All jobs</a>
     <h1 class="page-title" style="margin-top:8px">
-        {{ $booking->pickup_at->format('H:i') }} · {{ $booking->customer?->name }}
+        {{ $booking->pickup_at->format('H:i') }} · {{ $booking->displayName() }}
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
     </h1>
     <p class="page-sub">{{ $booking->reference }} · {{ $booking->vehicleType?->name }}</p>
