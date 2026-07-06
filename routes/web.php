@@ -76,6 +76,10 @@ Route::middleware('auth')->group(function () {
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
         Route::post('messages/{message}/sent', [\App\Http\Controllers\MessageController::class, 'markSent'])->middleware('throttle:60,1')->name('messages.sent');
 
+        // Payments — outstanding money + mark paid.
+        Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments.index');
+        Route::post('bookings/{booking}/paid', [\App\Http\Controllers\PaymentController::class, 'markPaid'])->name('payments.paid');
+
         // Customer CRM.
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');

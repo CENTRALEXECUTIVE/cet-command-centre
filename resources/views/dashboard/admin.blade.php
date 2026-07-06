@@ -59,9 +59,9 @@
         <a class="stat" href="{{ route('review.index') }}" style="text-decoration:none;color:inherit;display:block">
             <div class="n">£{{ number_format($todayRevenue, 0) }}</div><div class="l">Today's booked value →</div>
         </a>
-        <div class="stat">
-            <div class="n" style="{{ $cashToday > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($cashToday, 0) }}</div><div class="l">💰 Cash to collect today</div>
-        </div>
+        <a class="stat" href="{{ route('payments.index') }}" style="text-decoration:none;color:inherit;display:block">
+            <div class="n" style="{{ $cashToday > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($cashToday, 0) }}</div><div class="l">💰 Cash to collect today →</div>
+        </a>
         <div class="stat">
             <div class="n">{{ $weekCount }}</div><div class="l">Jobs booked · next 7 days</div>
         </div>

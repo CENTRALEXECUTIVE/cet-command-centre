@@ -45,6 +45,9 @@
                     <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New booking</a>
                     <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
                     @if($u->isAdmin())
+                        <a href="{{ route('payments.index') }}" class="{{ request()->routeIs('payments.*') ? 'active' : '' }}">Payments</a>
+                    @endif
+                    @if($u->isAdmin())
                         <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>
                     @endif
                     @if($u->isCorporateClient())

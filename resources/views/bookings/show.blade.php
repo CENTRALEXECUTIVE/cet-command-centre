@@ -64,9 +64,22 @@
                     <tr><th>Account</th><td>{{ $booking->corporateAccount->name }}</td></tr>
                     @if($booking->cost_code)<tr><th>Cost code</th><td>{{ $booking->cost_code }}</td></tr>@endif
                 @endif
-                <tr><th>Payment</th><td>{{ $booking->payment_method->emoji() }} {{ $booking->payment_method->label() }}</td></tr>
+                <tr><th>Payment</th><td>
+                    {{ $booking->payment_method->emoji() }} {{ $booking->payment_method->label() }}
+                    @if($booking->payment_status === 'paid')
+                        <span class="badge badge-complete">Paid</span>
+                    @else
+                        <span class="badge badge-pending">{{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+                    @endif
+                </td></tr>
                 @if($booking->quoted_price)<tr><th>Quoted</th><td>£{{ number_format($booking->quoted_price, 2) }}</td></tr>@endif
+                @if($booking->final_price)<tr><th>Final</th><td>£{{ number_format($booking->final_price, 2) }}</td></tr>@endif
             </table>
+            @if(auth()->user()->isAdmin() && $booking->payment_status !== 'paid' && ! $booking->status->isTerminal())
+                <form method="POST" action="{{ route('payments.paid', $booking) }}" style="margin-top:8px">@csrf
+                    <button class="btn btn-primary" style="padding:6px 14px;font-size:13px">Mark paid</button>
+                </form>
+            @endif
         </div>
     </div>
 
