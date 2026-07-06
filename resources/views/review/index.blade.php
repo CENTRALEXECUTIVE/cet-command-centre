@@ -56,18 +56,29 @@
     </form>
 
     @php $c = $comparison['current']; @endphp
-    <div class="grid grid-3" style="margin-bottom:24px">
+    <div class="grid grid-3" style="margin-bottom:14px">
         <div class="stat">
             <div class="n">£{{ number_format($c['revenue'], 2) }}</div>
-            <div class="l">Revenue
+            <div class="l">Earned — trips that have run
                 @if(!is_null($comparison['revenue_change_pct']))
                     <span style="color:{{ $comparison['revenue_change_pct'] >= 0 ? '#1f7a44' : '#b32020' }}">
                         {{ $comparison['revenue_change_pct'] >= 0 ? '▲' : '▼' }} {{ abs($comparison['revenue_change_pct']) }}%</span>
                 @endif
             </div>
         </div>
-        <div class="stat"><div class="n">{{ $c['jobs'] }}</div><div class="l">Completed jobs</div></div>
+        <div class="stat"><div class="n">{{ $c['jobs'] }}</div><div class="l">Trips run</div></div>
         <div class="stat"><div class="n">£{{ number_format($c['average_fare'], 2) }}</div><div class="l">Average fare</div></div>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:24px">
+        <div class="stat" style="border-color:var(--gold)">
+            <div class="n">£{{ number_format($reserved['revenue'] ?? 0, 2) }}</div>
+            <div class="l">Reserved — all booked, incl. upcoming</div>
+        </div>
+        <div class="stat"><div class="n">{{ $reserved['jobs'] ?? 0 }}</div><div class="l">Jobs booked (incl. upcoming)</div></div>
+        <div class="stat">
+            <div class="n" style="color:#b8860b">£{{ number_format(max(0, ($reserved['revenue'] ?? 0) - $c['revenue']), 2) }}</div>
+            <div class="l">Still to come (booked, not yet run)</div>
+        </div>
     </div>
 
     <div class="grid grid-3" style="margin-bottom:24px">
@@ -107,21 +118,27 @@
 
     {{-- Monthly revenue trend --}}
     <div class="card">
-        <h2>Monthly revenue</h2>
-        @php $maxRev = max(1, (float) ($monthly->max('revenue') ?? 1)); @endphp
+        <h2>Monthly revenue <span class="muted" style="font-weight:400;font-size:13px">— earned (run); booked shown when a month has upcoming jobs</span></h2>
+        @php $maxRev = max(1, (float) ($monthly->max('booked_revenue') ?? $monthly->max('revenue') ?? 1)); @endphp
         @forelse($monthly as $m)
+            @php $hasUpcoming = ($m['booked_revenue'] ?? $m['revenue']) > $m['revenue'] + 0.01; @endphp
             <div style="display:flex;align-items:center;gap:12px;margin:6px 0">
                 <span style="width:72px;flex:none;color:var(--muted,#666);font-size:13px">{{ $m['label'] }}</span>
-                <span style="flex:1;background:rgba(128,128,128,.15);border-radius:5px;overflow:hidden">
-                    <span style="display:block;height:20px;border-radius:5px;background:#FBBA2A;width:{{ max(1, round($m['revenue'] / $maxRev * 100)) }}%"></span>
+                <span style="flex:1;background:rgba(128,128,128,.15);border-radius:5px;overflow:hidden;position:relative">
+                    {{-- booked (lighter) behind, earned (gold) in front --}}
+                    <span style="position:absolute;inset:0;height:20px;border-radius:5px;background:rgba(251,186,42,.35);width:{{ max(1, round(($m['booked_revenue'] ?? $m['revenue']) / $maxRev * 100)) }}%"></span>
+                    <span style="display:block;height:20px;border-radius:5px;background:#FBBA2A;width:{{ max(1, round($m['revenue'] / $maxRev * 100)) }}%;position:relative"></span>
                 </span>
-                <span style="width:150px;flex:none;text-align:right;font-variant-numeric:tabular-nums">
+                <span style="width:190px;flex:none;text-align:right;font-variant-numeric:tabular-nums">
                     <strong>£{{ number_format($m['revenue'], 0) }}</strong>
-                    <span style="color:var(--muted,#888)">· {{ $m['jobs'] }} jobs</span>
+                    <span style="color:var(--muted,#888)">· {{ $m['jobs'] }} run</span>
+                    @if($hasUpcoming)
+                        <span style="display:block;font-size:12px;color:#b8860b">£{{ number_format($m['booked_revenue'], 0) }} booked · {{ $m['booked_jobs'] }} jobs</span>
+                    @endif
                 </span>
             </div>
         @empty
-            <p class="muted mb-0">No completed jobs in this period.</p>
+            <p class="muted mb-0">No jobs in this period.</p>
         @endforelse
     </div>
 

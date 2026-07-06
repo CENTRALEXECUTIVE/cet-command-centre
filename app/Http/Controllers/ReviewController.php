@@ -66,12 +66,14 @@ class ReviewController extends Controller
 
         [$start, $end] = match ($preset) {
             'last90' => [$now->copy()->subDays(89)->startOfDay(), $now->copy()->endOfDay()],
-            'this_year' => [$now->copy()->startOfYear(), $now->copy()->endOfDay()],
+            // Runs to year-end so upcoming (reserved) jobs are included; the
+            // earned figure still only counts trips that have actually run.
+            'this_year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
             'last_month' => [
                 $now->copy()->subMonthNoOverflow()->startOfMonth(),
                 $now->copy()->subMonthNoOverflow()->endOfMonth(),
             ],
-            'all' => [$this->earliestBooking($now), $now->copy()->endOfDay()],
+            'all' => [$this->earliestBooking($now), $now->copy()->endOfYear()],
             default => [$now->copy()->subDays(29)->startOfDay(), $now->copy()->endOfDay()],
         };
 

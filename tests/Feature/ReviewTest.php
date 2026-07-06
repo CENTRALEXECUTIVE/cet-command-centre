@@ -105,4 +105,27 @@ class ReviewTest extends TestCase
         $driver = User::factory()->create(['role' => 'driver']);
         $this->actingAs($driver)->post(route('review.backfill-prices'))->assertForbidden();
     }
+
+    public function test_reserved_includes_upcoming_jobs_but_earned_does_not(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->first();
+        $customer = \App\Models\Customer::create(['name' => 'Res Cust', 'phone' => '07700900098']);
+
+        $make = fn ($when, $price) => \App\Models\Booking::create([
+            'reference' => \App\Models\Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => $when,
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => 'pending', 'payment_method' => 'card', 'quoted_price' => $price,
+        ]);
+        $make(now()->subDays(2), 100);  // run → earned + reserved
+        $make(now()->addDays(2), 150);  // upcoming → reserved only
+
+        $res = $this->actingAs($admin)->get(route('review.index', ['preset' => 'this_year']))->assertOk();
+
+        // Earned counts only the job that has run; reserved counts both.
+        $this->assertEquals(100.0, $res->viewData('comparison')['current']['revenue']);
+        $this->assertEquals(250.0, $res->viewData('reserved')['revenue']);
+        $this->assertEquals(2, $res->viewData('reserved')['jobs']);
+    }
 }

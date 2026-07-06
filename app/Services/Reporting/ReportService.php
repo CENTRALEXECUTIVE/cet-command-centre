@@ -54,6 +54,23 @@ class ReportService
         ];
     }
 
+    /**
+     * Reserved (booked) figures: every non-cancelled job in the period INCLUDING
+     * upcoming ones — the full value of business on the books, vs summary()'s
+     * earned figure which only counts jobs that have already run.
+     *
+     * @return array{revenue: float, jobs: int}
+     */
+    public function reservedSummary(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $base = $this->scheduled($start, $end);
+
+        return [
+            'revenue' => round((float) (clone $base)->sum(DB::raw(self::REVENUE)), 2),
+            'jobs' => (clone $base)->count(),
+        ];
+    }
+
     /** Earnings and job count per driver. */
     public function earningsByDriver(CarbonInterface $start, CarbonInterface $end): Collection
     {
@@ -106,16 +123,26 @@ class ReportService
      */
     public function monthlyRevenue(CarbonInterface $start, CarbonInterface $end): Collection
     {
-        return $this->completed($start, $end)
+        $now = now();
+
+        // Pull ALL non-cancelled jobs (incl. upcoming) so each month can show both
+        // earned (run) and reserved (booked) figures.
+        return $this->scheduled($start, $end)
             ->selectRaw('pickup_at, '.self::REVENUE.' as revenue')
             ->get()
             ->groupBy(fn ($b) => $b->pickup_at->format('Y-m'))
-            ->map(fn ($group, $ym) => [
-                'month' => $ym,
-                'label' => \Illuminate\Support\Carbon::createFromFormat('Y-m', $ym)->format('M Y'),
-                'jobs' => $group->count(),
-                'revenue' => round((float) $group->sum('revenue'), 2),
-            ])
+            ->map(function ($group, $ym) use ($now) {
+                $earned = $group->filter(fn ($b) => $b->pickup_at->lte($now));
+
+                return [
+                    'month' => $ym,
+                    'label' => \Illuminate\Support\Carbon::createFromFormat('Y-m', $ym)->format('M Y'),
+                    'jobs' => $earned->count(),
+                    'revenue' => round((float) $earned->sum('revenue'), 2),
+                    'booked_jobs' => $group->count(),
+                    'booked_revenue' => round((float) $group->sum('revenue'), 2),
+                ];
+            })
             ->sortKeys()
             ->values();
     }
