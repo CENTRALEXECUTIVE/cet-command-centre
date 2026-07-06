@@ -175,6 +175,100 @@
         </div>
     </div>
 
+    {{-- ─────────── Google Ads analysis ─────────── --}}
+    @php $aa = $adsAnalysis ?? null; @endphp
+    @if($aa)
+        @php
+            $m = $aa['metrics'];
+            $rec = $aa['recommendation'];
+            $verdictColour = match($rec['verdict']) {
+                'Increase budget' => '#1f7a44',
+                'Reduce/optimise' => '#b32020',
+                default => '#b8860b',
+            };
+        @endphp
+        <div class="card">
+            <h2>Google Ads analysis</h2>
+
+            {{-- Recommendation --}}
+            <div style="border:1px solid {{ $verdictColour }}44;border-left:4px solid {{ $verdictColour }};border-radius:10px;padding:14px;margin-bottom:16px;background:rgba(0,0,0,.02)">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:16px;color:{{ $verdictColour }}">{{ $rec['verdict'] }}</strong>
+                    <span class="badge" style="background:{{ $verdictColour }};color:#fff">Budget: {{ $rec['budget'] }}</span>
+                </div>
+                <p style="margin:8px 0 0">{{ $rec['summary'] }}</p>
+                @if(!empty($rec['actions']))
+                    <ul style="margin:8px 0 0;padding-left:18px">
+                        @foreach($rec['actions'] as $a)<li style="margin:3px 0">{{ $a }}</li>@endforeach
+                    </ul>
+                @endif
+                <p class="hint" style="margin:8px 0 0">{{ $rec['source'] === 'ai' ? 'AI analysis · '.config('cet.ai_model') : 'Rule-based (add an Anthropic key for AI analysis)' }}</p>
+            </div>
+
+            {{-- Headline figures table --}}
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Spend</th><th>Revenue</th><th>ROAS</th><th>Conv.</th><th>Cost/conv.</th><th>Clicks</th><th>CTR</th><th>Avg CPC</th></tr></thead>
+                    <tbody><tr>
+                        <td>£{{ number_format($m['spend'], 2) }}</td>
+                        <td>£{{ number_format($m['revenue'], 2) }}</td>
+                        <td>{{ $m['roas'] ? $m['roas'].'×' : '—' }}</td>
+                        <td>{{ $m['conversions'] }}</td>
+                        <td>{{ $m['cost_per_conversion'] ? '£'.$m['cost_per_conversion'] : '—' }}</td>
+                        <td>{{ number_format($m['clicks']) }}</td>
+                        <td>{{ $m['ctr'] !== null ? $m['ctr'].'%' : '—' }}</td>
+                        <td>{{ $m['avg_cpc'] ? '£'.$m['avg_cpc'] : '—' }}</td>
+                    </tr></tbody>
+                </table>
+            </div>
+
+            {{-- Per campaign --}}
+            @if(!empty($aa['byCampaign']))
+                <h3 style="margin:18px 0 6px;font-size:14px">By campaign</h3>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>Campaign</th><th>Spend</th><th>Conv.</th><th>CPA</th><th>CTR</th><th>CPC</th></tr></thead>
+                        <tbody>
+                            @foreach($aa['byCampaign'] as $c)
+                                <tr>
+                                    <td>{{ $c['campaign'] }}</td>
+                                    <td>£{{ number_format($c['spend'], 2) }}</td>
+                                    <td>{{ $c['conversions'] }}</td>
+                                    <td>{{ $c['cpa'] ? '£'.$c['cpa'] : '—' }}</td>
+                                    <td>{{ $c['ctr'] !== null ? $c['ctr'].'%' : '—' }}</td>
+                                    <td>{{ $c['cpc'] ? '£'.$c['cpc'] : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+
+            {{-- Top keywords --}}
+            @if(!empty($aa['topKeywords']))
+                <h3 style="margin:18px 0 6px;font-size:14px">Top keywords by spend</h3>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>Keyword</th><th>Cost</th><th>Clicks</th><th>Conv.</th><th>CPA</th><th>CTR</th></tr></thead>
+                        <tbody>
+                            @foreach($aa['topKeywords'] as $k)
+                                <tr>
+                                    <td>{{ $k['keyword'] }}</td>
+                                    <td>£{{ number_format($k['cost'], 2) }}</td>
+                                    <td>{{ $k['clicks'] }}</td>
+                                    <td>{{ $k['conversions'] }}</td>
+                                    <td style="{{ $k['conversions'] == 0 && $k['cost'] > 0 ? 'color:#b32020' : '' }}">{{ $k['cpa'] ? '£'.$k['cpa'] : ($k['cost'] > 0 ? 'no conv.' : '—') }}</td>
+                                    <td>{{ $k['ctr'] !== null ? $k['ctr'].'%' : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="hint" style="margin-top:8px">Keywords in <span style="color:#b32020">red</span> spent money with no bookings — candidates to pause or add as negatives.</p>
+            @endif
+        </div>
+    @endif
+
     <div class="card">
         <h2>Booking pipeline (this period)</h2>
         <div class="toolbar" style="flex-wrap:wrap">

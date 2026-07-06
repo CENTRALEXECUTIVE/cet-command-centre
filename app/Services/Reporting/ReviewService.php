@@ -36,6 +36,7 @@ class ReviewService
         $cancellations = $this->reports->cancellations($start, $end);
         $payments = $this->reports->paymentSplit($start, $end);
         $ads = $this->ads->forPeriod($start, $end);
+        $adsAnalysis = $this->ads->analysis($start, $end);
         $dataHealth = $this->reports->dataHealth($start, $end);
         $reserved = $this->reports->reservedSummary($start, $end);
 
@@ -60,6 +61,7 @@ class ReviewService
             'pipeline' => $pipeline,
             'dataHealth' => $dataHealth,
             'reserved' => $reserved,
+            'adsAnalysis' => $adsAnalysis,
         ];
 
         $data['insights'] = $this->insights($data);
