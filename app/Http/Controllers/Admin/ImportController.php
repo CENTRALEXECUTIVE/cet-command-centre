@@ -50,10 +50,21 @@ class ImportController extends Controller
 
     private function validateCsv(Request $request): void
     {
+        // Give an Excel upload a clear, actionable message rather than a generic
+        // "wrong file" — ETO can export CSV, or the sheet can be saved as CSV.
+        $ext = strtolower((string) $request->file('file')?->getClientOriginalExtension());
+        if (in_array($ext, ['xlsx', 'xls'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'file' => 'That\'s an Excel file. In EasyTaxiOffice choose "Export as CSV", '
+                    .'or open the file and use File → Save As → CSV, then upload the .csv.',
+            ]);
+        }
+
         $request->validate([
             'file' => ['required', 'file', 'extensions:csv,txt', 'max:20480'], // 20 MB
         ], [
-            'file.extensions' => 'Please upload a .csv file (exported from Google Ads or ETO).',
+            'file.extensions' => 'Please upload a .csv file (exported from Google Ads or ETO). '
+                .'If yours is an Excel/.xlsx file, export or save it as CSV first.',
         ]);
     }
 }

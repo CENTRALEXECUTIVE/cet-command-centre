@@ -19,7 +19,7 @@
             <p class="muted" style="margin-top:0">Export from Google Ads (Campaigns or keyword report for the period), then drop the .csv here. Fills the Review's spend, clicks, conversions and ROAS.</p>
             <form method="POST" action="{{ route('imports.ads') }}" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:10px">
                 @csrf
-                <input type="file" name="file" accept=".csv,.txt" required>
+                <input type="file" name="file" required>
                 <button type="submit" class="btn btn-primary" style="align-self:flex-start">Import ads report</button>
             </form>
             <p class="muted" style="font-size:12px;margin-bottom:0">
@@ -33,7 +33,7 @@
             <p class="muted" style="margin-top:0">Export your bookings from EasyTaxiOffice, then drop the .csv here. Fills real fares/revenue and updates existing bookings. Keyed by reference — no duplicates, calendar untouched.</p>
             <form method="POST" action="{{ route('imports.eto') }}" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:10px">
                 @csrf
-                <input type="file" name="file" accept=".csv,.txt" required>
+                <input type="file" name="file" required>
                 <button type="submit" class="btn btn-primary" style="align-self:flex-start">Import ETO bookings</button>
             </form>
             <p class="muted" style="font-size:12px;margin-bottom:0">
