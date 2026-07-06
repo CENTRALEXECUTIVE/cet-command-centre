@@ -46,6 +46,21 @@ class DespatchBoardTest extends TestCase
         $this->actingAs($admin)->get(route('despatch.board'))->assertOk()->assertSee('Dispatch Board');
     }
 
+    public function test_driver_dropdown_shows_the_vehicle_reg_in_brackets(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->pendingBooking(['pickup_at' => today()->addHours(12)]);
+
+        // Give a driver a default vehicle so their reg shows in the picker.
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Kash', 'is_active' => true]);
+        $vehicle = \App\Models\Vehicle::create([
+            'vehicle_type_id' => $this->executive()->id, 'registration' => 'AM64 FAR', 'is_active' => true,
+        ]);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'default_vehicle_id' => $vehicle->id]);
+
+        $this->actingAs($admin)->get(route('despatch.board'))->assertOk()->assertSee("Kash (AM64 FAR)");
+    }
+
     public function test_non_admin_cannot_view_the_board(): void
     {
         $driver = User::factory()->driver()->create();

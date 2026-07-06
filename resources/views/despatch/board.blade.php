@@ -65,7 +65,8 @@
                                     <select name="driver_id" class="inline-select" required>
                                         <option value="">Driver…</option>
                                         @foreach($drivers as $d)
-                                            <option value="{{ $d->id }}">{{ $d->name }}</option>
+                                            @php $reg = $d->driverProfile?->defaultVehicle?->registration; @endphp
+                                            <option value="{{ $d->id }}">{{ $d->name }}@if($reg) ({{ $reg }})@endif</option>
                                         @endforeach
                                     </select>
                                     <button class="btn-xs" type="submit">Assign</button>

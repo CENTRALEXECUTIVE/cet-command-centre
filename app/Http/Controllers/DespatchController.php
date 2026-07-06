@@ -120,6 +120,7 @@ class DespatchController extends Controller
         return User::query()
             ->where('is_active', true)
             ->whereHas('driverProfile')
+            ->with('driverProfile.defaultVehicle')
             ->orderBy('name')
             ->get();
     }
