@@ -317,8 +317,15 @@ class BookingNotifier
         ]);
     }
 
+    /**
+     * The greeting name — the LEAD PASSENGER (who's actually travelling), not the
+     * booker. Uses meta['lead_name'] when set (e.g. an ETO booking made by a PA),
+     * falling back to the customer on the booking.
+     */
     private function firstName(Booking $booking): string
     {
-        return Str::before($booking->customer?->name ?? 'there', ' ');
+        $lead = $booking->meta['lead_name'] ?? $booking->customer?->name ?? 'there';
+
+        return Str::before(trim((string) $lead), ' ') ?: 'there';
     }
 }

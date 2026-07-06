@@ -167,7 +167,10 @@ class BookingController extends Controller
 
             $messages = $booking->messages()->orderBy('created_at')->get();
             foreach ($messages as $m) {
-                if ($m->isReminder() && $m->status !== 'sent') {
+                // Always show the current reminder wording — so a driver/passenger
+                // set or changed AFTER it was marked sent is reflected in the
+                // "Send on WhatsApp" text (you can re-send the updated version).
+                if ($m->isReminder()) {
                     $m->body = $this->notifier->reminderBody($booking);
                 }
             }

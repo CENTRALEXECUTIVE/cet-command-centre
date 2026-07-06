@@ -250,6 +250,17 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertEquals($count, $booking->fresh()->messages()->count());
     }
 
+    public function test_reminder_greets_the_lead_passenger_not_the_booker(): void
+    {
+        $booking = $this->makeBooking(); // customer = James Watson
+        // A PA booked it for a different lead passenger.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['lead_name' => 'Jo Brown'])])->save();
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringContainsString('Hi Jo,', $body);
+        $this->assertStringNotContainsString('Hi James', $body);
+    }
+
     public function test_manual_driver_details_go_into_the_reminder(): void
     {
         $booking = $this->makeBooking();
