@@ -50,7 +50,7 @@
                 @if($booking->flight_number)
                     <tr><th>Flight</th><td>
                         <span class="mono">{{ $booking->flight_number }}</span>
-                        <a href="{{ $booking->flightRadarUrl() }}" target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">✈ Flightradar24</a>
+                        <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">✈ Flightradar24</a>
                         <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                     </td></tr>
                 @endif
@@ -266,4 +266,5 @@
         });
     </script>
     @endverbatim
+    <script src="{{ asset('js/cet-flight.js') }}"></script>
 @endsection

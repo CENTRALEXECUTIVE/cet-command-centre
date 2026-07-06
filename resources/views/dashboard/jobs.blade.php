@@ -47,7 +47,7 @@
             @if(!empty($job['flight']))
                 <div style="margin:0 0 8px">
                     <span class="mono" style="font-size:13px">✈ {{ $job['flight'] }}</span>
-                    <a href="{{ \App\Models\Booking::flightRadarLink($job['flight']) }}" target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">Track on Flightradar24</a>
+                    <a href="{{ \App\Models\Booking::flightRadarLink($job['flight']) }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">Track on Flightradar24</a>
                     <a href="{{ \App\Models\Booking::flightSearchLink($job['flight']) }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                 </div>
             @endif
@@ -61,4 +61,5 @@
     @empty
         <div class="card"><p class="muted mb-0">No jobs on this day.</p></div>
     @endforelse
+    <script src="{{ asset('js/cet-flight.js') }}"></script>
 @endsection
