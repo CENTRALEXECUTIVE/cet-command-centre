@@ -7,34 +7,6 @@
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
-    @if(!empty($dataHealth))
-        <div class="card" style="margin-bottom:16px">
-            <h2 style="margin:0 0 4px">Data check <span class="muted" style="font-weight:400;font-size:13px">— what's behind the {{ number_format($dataHealth['jobs']) }} counted jobs</span></h2>
-            <div class="grid grid-3" style="gap:10px;margin-top:10px">
-                <div class="stat"><div class="n">{{ number_format($dataHealth['jobs']) }}</div><div class="l">Completed jobs (not cancelled)</div></div>
-                <div class="stat"><div class="n" style="{{ $dataHealth['no_price'] > 0 ? 'color:#b8860b' : '' }}">{{ number_format($dataHealth['no_price']) }}</div><div class="l">…with no fare (add £0)</div></div>
-                <div class="stat"><div class="n" style="{{ $dataHealth['duplicate_refs'] > 0 ? 'color:#b32020' : '' }}">{{ number_format($dataHealth['duplicate_refs']) }}</div><div class="l">Duplicate references</div></div>
-                <div class="stat"><div class="n">{{ number_format($dataHealth['return_legs']) }}</div><div class="l">Return legs (a return = 2 legs)</div></div>
-                <div class="stat"><div class="n">{{ number_format($dataHealth['excluded']) }}</div><div class="l">Excluded (cancelled / no-show)</div></div>
-            </div>
-            @if($dataHealth['duplicate_refs'] > 0)
-                <p class="hint" style="margin:10px 0 0;color:#b32020">{{ $dataHealth['duplicate_refs'] }} booking reference(s) appear more than once — likely duplicates inflating the count. Tell me and I'll add a de-dupe tool.</p>
-            @endif
-            @if($dataHealth['no_price'] > 0)
-                <p class="hint" style="margin:8px 0 0">{{ $dataHealth['no_price'] }} job(s) have no fare — use “Fix missing prices” below, then re-import the ETO export for anything still blank.</p>
-            @endif
-        </div>
-    @endif
-
-    <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.06);margin-bottom:16px">
-        <strong>Figures look low?</strong>
-        Some older jobs came in without a fare, so they count as jobs but add nothing to revenue.
-        <form method="POST" action="{{ route('review.backfill-prices', request()->only('preset','start','end')) }}" style="display:inline;margin-left:6px">
-            @csrf
-            <button class="btn btn-primary" style="padding:6px 14px;font-size:13px">Fix missing prices</button>
-        </form>
-        <p class="hint" style="margin:8px 0 0">Recovers fares stored on each job. If some can't be recovered, it'll say how many — then import the ETO export for those months from <a href="{{ route('imports.index') }}">Imports</a>.</p>
-    </div>
 
     @php
         $presets = ['last30' => 'Last 30 days', 'last90' => 'Last 90 days', 'this_year' => 'This year', 'last_month' => 'Last month', 'all' => 'All time'];
@@ -213,4 +185,31 @@
             @endforelse
         </div>
     </div>
+
+    {{-- Data & tools — tucked away; auto-opens only if something needs attention --}}
+    @if(!empty($dataHealth))
+        @php $needsAttention = ($dataHealth['no_price'] ?? 0) > 0 || ($dataHealth['duplicate_refs'] ?? 0) > 0; @endphp
+        <details class="card" {{ $needsAttention ? 'open' : '' }} style="margin-top:16px">
+            <summary style="cursor:pointer;font-weight:700;font-size:15px">🔧 Data &amp; tools @if($needsAttention)<span class="badge badge-pending" style="margin-left:6px">needs attention</span>@endif</summary>
+
+            <div class="grid grid-3" style="gap:10px;margin-top:14px">
+                <div class="stat"><div class="n">{{ number_format($dataHealth['jobs']) }}</div><div class="l">Completed jobs (not cancelled)</div></div>
+                <div class="stat"><div class="n" style="{{ $dataHealth['no_price'] > 0 ? 'color:#b8860b' : '' }}">{{ number_format($dataHealth['no_price']) }}</div><div class="l">…with no fare (add £0)</div></div>
+                <div class="stat"><div class="n" style="{{ $dataHealth['duplicate_refs'] > 0 ? 'color:#b32020' : '' }}">{{ number_format($dataHealth['duplicate_refs']) }}</div><div class="l">Duplicate references</div></div>
+                <div class="stat"><div class="n">{{ number_format($dataHealth['return_legs']) }}</div><div class="l">Return legs (a return = 2 legs)</div></div>
+                <div class="stat"><div class="n">{{ number_format($dataHealth['excluded']) }}</div><div class="l">Excluded (cancelled / no-show)</div></div>
+            </div>
+
+            <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+                <form method="POST" action="{{ route('review.backfill-prices', request()->only('preset','start','end')) }}" style="display:inline">
+                    @csrf
+                    <button class="btn btn-primary" style="padding:6px 14px;font-size:13px">Fix missing prices</button>
+                </form>
+                <span class="hint" style="margin-left:8px">Recovers fares onto jobs that came in without one. Anything left blank → re-import the ETO export from <a href="{{ route('imports.index') }}">Imports</a>.</span>
+                @if($dataHealth['duplicate_refs'] > 0)
+                    <p class="hint" style="margin:10px 0 0;color:#b32020">{{ $dataHealth['duplicate_refs'] }} booking reference(s) appear more than once — likely duplicates. Tell me and I'll add a de-dupe tool.</p>
+                @endif
+            </div>
+        </details>
+    @endif
 @endsection
