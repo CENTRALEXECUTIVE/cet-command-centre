@@ -192,6 +192,7 @@ class DashboardController extends Controller
                 'title' => trim((string) ($b->calendarEvent?->title ?? ''), '*'),
                 'location' => $b->pickup_address,
                 'description' => (string) ($b->calendarEvent?->description ?? ''),
+                'event_id' => null,
             ])
             ->all();
     }

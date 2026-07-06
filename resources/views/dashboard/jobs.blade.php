@@ -28,8 +28,14 @@
                     <span class="badge badge-{{ \Illuminate\Support\Str::slug($job['status']) }}">{{ $job['status'] }}</span>
                     @if($job['url'])
                         <a href="{{ $job['url'] }}" style="font-size:13px;margin-left:8px">Open booking →</a>
+                    @elseif(auth()->user()->isAdmin() && !empty($job['event_id']))
+                        <form method="POST" action="{{ route('jobs.import') }}" style="display:inline;margin-left:8px">
+                            @csrf
+                            <input type="hidden" name="event_id" value="{{ $job['event_id'] }}">
+                            <button class="btn btn-primary" style="padding:4px 12px;font-size:12px" title="Pull this calendar job into the system so you can edit it and message the customer">＋ Add to bookings</button>
+                        </form>
                     @else
-                        <span class="muted" title="This job is on the calendar but not in the booking system, so it can't be opened or edited here yet." style="font-size:12px;margin-left:8px">calendar only</span>
+                        <span class="muted" title="This job is on the calendar but not in the booking system." style="font-size:12px;margin-left:8px">calendar only</span>
                     @endif
                 </div>
             </div>

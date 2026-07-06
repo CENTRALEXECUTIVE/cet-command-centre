@@ -158,7 +158,55 @@ class CalendarStats
             'driver' => $this->allocatedTag($summary) ?? '—',
             'status' => $booking?->status?->label() ?? 'Scheduled',
             'url' => $booking ? route('bookings.show', $booking) : null,
+            'event_id' => $event['id'] ?? null,
         ];
+    }
+
+    /**
+     * Parse a specific calendar event (by its Google id) into the fields needed
+     * to create a booking from it — so a calendar-only job can be pulled into the
+     * system and then edited/messaged. Returns null if the event can't be read.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function eventToBookingData(string $eventId): ?array
+    {
+        foreach ($this->bookingEvents() ?? [] as $event) {
+            if (($event['id'] ?? null) !== $eventId) {
+                continue;
+            }
+
+            $summary = (string) ($event['summary'] ?? '');
+            $desc = (string) ($event['description'] ?? '');
+            $start = $this->startOf($event);
+            $endDt = $event['end']['dateTime'] ?? null;
+            $end = $endDt ? Carbon::parse($endDt)->setTimezone('Europe/London') : $start?->copy()->addHour();
+
+            return [
+                'event_id' => $eventId,
+                'calendar_id' => Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk'),
+                'title' => $summary,
+                'location' => (string) ($event['location'] ?? ''),
+                'description' => $desc,
+                'reference' => $this->field($desc, 'Booking Reference'),
+                'customer_name' => $this->field($desc, 'Customer Name') ?? $this->nameFromTitle($summary),
+                'customer_phone' => $this->field($desc, 'Contact No'),
+                'pickup_at' => $start,
+                'end_at' => $end,
+                'pickup_address' => $this->field($desc, 'Pickup Location') ?: (string) ($event['location'] ?? ''),
+                'destination_address' => $this->field($desc, 'Drop-off Location'),
+                'passengers' => max(1, (int) preg_replace('/\D/', '', (string) $this->field($desc, 'Passengers'))),
+                'luggage' => (int) preg_replace('/\D/', '', (string) $this->field($desc, 'Luggage')),
+                'luggage_text' => $this->field($desc, 'Luggage'),
+                'flight_number' => $this->field($desc, 'Flight Number'),
+                'vehicle_label' => $this->field($desc, 'Vehicle Type'),
+                'payment_text' => $this->field($desc, 'Payment'),
+                'notes' => $this->field($desc, 'Notes'),
+                'driver_tag' => $this->allocatedTag($summary),
+            ];
+        }
+
+        return null;
     }
 
     /** A CET booking event = timed event whose title is our format or that carries a reference. */
