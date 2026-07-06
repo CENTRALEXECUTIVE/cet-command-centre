@@ -80,6 +80,7 @@ Route::middleware('auth')->group(function () {
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');
         Route::put('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'update'])->name('customers.update');
+        Route::delete('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'destroy'])->name('customers.destroy');
         Route::post('customers/{customer}/addresses', [\App\Http\Controllers\CustomerController::class, 'storeAddress'])->name('customers.addresses.store');
         Route::delete('customers/{customer}/addresses/{address}', [\App\Http\Controllers\CustomerController::class, 'destroyAddress'])->name('customers.addresses.destroy');
     });

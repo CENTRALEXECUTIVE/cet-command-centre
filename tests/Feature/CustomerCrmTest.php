@@ -101,6 +101,19 @@ class CustomerCrmTest extends TestCase
             ->assertSee('07700900006');
     }
 
+    public function test_admin_can_remove_a_junk_customer(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::create(['name' => 'ABDI TEST', 'phone' => '07700900008']);
+
+        $this->actingAs($admin)->delete(route('customers.destroy', $customer))
+            ->assertRedirect(route('customers.index'));
+
+        // Soft-deleted: hidden from the directory but not gone.
+        $this->assertSoftDeleted('customers', ['id' => $customer->id]);
+        $this->actingAs($admin)->get(route('customers.index'))->assertDontSee('ABDI TEST');
+    }
+
     public function test_driver_cannot_access_customers(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

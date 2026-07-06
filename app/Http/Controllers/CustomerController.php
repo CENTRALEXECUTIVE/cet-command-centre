@@ -111,4 +111,16 @@ class CustomerController extends Controller
 
         return back()->with('status', 'Address removed.');
     }
+
+    /**
+     * Soft-delete a customer (import junk, test entries, non-people). Reversible —
+     * the record and its bookings are kept, just hidden from the directory.
+     */
+    public function destroy(Customer $customer): RedirectResponse
+    {
+        $customer->delete();
+
+        return redirect()->route('customers.index')
+            ->with('status', 'Customer removed from the directory. Their bookings are kept.');
+    }
 }
