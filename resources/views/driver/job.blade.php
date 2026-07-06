@@ -57,6 +57,13 @@
          data-url="{{ route('driver.locations.store') }}"
          data-interval="{{ (int) config('cet.gps_ping_seconds', 300) }}" hidden></div>
 
+    {{-- Live tracking status so the driver can SEE it's working. --}}
+    <div id="track-box" class="card" style="display:none;text-align:center;border-left:4px solid #1f7a44">
+        <div style="font-weight:700;font-size:15px"><span id="track-dot">🟡</span> <span id="track-label">Getting your location…</span></div>
+        <div class="muted" style="font-size:13px;margin-top:2px" id="track-last">The office can see you on the Live map.</div>
+        <button type="button" id="track-now" class="btn btn-light" style="margin-top:10px;padding:8px 16px">📍 Send my location now</button>
+    </div>
+
     @php $next = $booking->status->nextStatuses(); @endphp
     @if(!empty($next))
         <div class="tap-actions">
@@ -106,49 +113,20 @@
             });
         });
 
-        // GPS ping loop: while on an active job, send the driver's position
-        // every interval. The server stores nothing once the job is no longer
-        // active and replies tracking:false, which stops the loop.
-        (function () {
-            var cfg = document.getElementById('gps-config');
-            if (!cfg || cfg.dataset.active !== '1' || !navigator.geolocation) return;
-            var token = document.querySelector('meta[name="csrf-token"]').content;
-            var interval = (parseInt(cfg.dataset.interval, 10) || 300) * 1000;
-
-            function ping() {
-                navigator.geolocation.getCurrentPosition(function (pos) {
-                    fetch(cfg.dataset.url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            lat: pos.coords.latitude, lng: pos.coords.longitude,
-                            heading: pos.coords.heading, speed: pos.coords.speed, accuracy: pos.coords.accuracy
-                        })
-                    }).then(function (r) { return r.json(); }).then(function (data) {
-                        if (data && data.tracking === false) { clearInterval(timer); }
-                    }).catch(function () {});
-                }, function () {}, { enableHighAccuracy: true, timeout: 10000 });
-            }
-
-            ping();
-            var timer = setInterval(ping, interval);
-        })();
-
-        // Job map: geocode the pickup/drop-off via free OpenStreetMap (Nominatim)
-        // and drop pins, plus the driver's live position. Best-effort.
+        // ---- Job map (OpenStreetMap): pins for pickup/drop-off + a live "you" dot.
+        var CETmap = null, CETbounds = [], CETme = null;
         (function () {
             var cfg = document.getElementById('map-cfg');
             var el = document.getElementById('job-map');
             if (!cfg || !el || typeof L === 'undefined') return;
-            var map, bounds = [];
 
             function ensureMap(lat, lng) {
-                if (!map) {
+                if (!CETmap) {
                     el.style.display = 'block';
-                    map = L.map('job-map').setView([lat, lng], 12);
+                    CETmap = L.map('job-map').setView([lat, lng], 12);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; OpenStreetMap', maxZoom: 18
-                    }).addTo(map);
+                    }).addTo(CETmap);
                 }
             }
             function pin(address, label) {
@@ -160,13 +138,78 @@
                         if (!d || !d.length) return;
                         var lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
                         ensureMap(lat, lng);
-                        L.marker([lat, lng]).addTo(map).bindPopup(label);
-                        bounds.push([lat, lng]);
-                        if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
+                        L.marker([lat, lng]).addTo(CETmap).bindPopup(label);
+                        CETbounds.push([lat, lng]);
+                        if (CETbounds.length > 1) CETmap.fitBounds(CETbounds, { padding: [30, 30] });
                     }).catch(function () {});
             }
             pin(cfg.dataset.pickup, 'Pickup');
             pin(cfg.dataset.dropoff, 'Drop-off');
+
+            // Drop / move the driver's live position marker.
+            window.CETshowMe = function (lat, lng) {
+                ensureMap(lat, lng);
+                var icon = L.divIcon({ className: '', html: '<div style="background:#1d4ed8;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1d4ed8"></div>', iconSize: [16, 16] });
+                if (!CETme) { CETme = L.marker([lat, lng], { icon: icon, zIndexOffset: 1000 }).addTo(CETmap).bindPopup('You'); }
+                else { CETme.setLatLng([lat, lng]); }
+                CETmap.setView([lat, lng], 14);
+            };
+        })();
+
+        // ---- GPS ping loop with visible status. Sends the driver's position now
+        // and every interval while the job is active; the office sees it on the
+        // Live map. Stops when the server says the job is no longer active.
+        (function () {
+            var cfg = document.getElementById('gps-config');
+            var box = document.getElementById('track-box');
+            if (!cfg || cfg.dataset.active !== '1') return;
+            if (box) box.style.display = 'block';
+
+            var dot = document.getElementById('track-dot');
+            var label = document.getElementById('track-label');
+            var last = document.getElementById('track-last');
+            var nowBtn = document.getElementById('track-now');
+
+            if (!navigator.geolocation) {
+                if (label) label.textContent = 'This phone can’t share location.';
+                if (dot) dot.textContent = '🔴';
+                return;
+            }
+            var token = document.querySelector('meta[name="csrf-token"]').content;
+            var interval = (parseInt(cfg.dataset.interval, 10) || 300) * 1000;
+
+            function stamp() {
+                var d = new Date();
+                return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+            }
+            function ping() {
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    fetch(cfg.dataset.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+                        body: JSON.stringify({
+                            lat: pos.coords.latitude, lng: pos.coords.longitude,
+                            heading: pos.coords.heading, speed: pos.coords.speed, accuracy: pos.coords.accuracy
+                        })
+                    }).then(function (r) { return r.json(); }).then(function (data) {
+                        if (dot) dot.textContent = '🟢';
+                        if (label) label.textContent = 'Tracking on';
+                        if (last) last.textContent = 'Location sent at ' + stamp() + ' — office can see you.';
+                        if (window.CETshowMe) window.CETshowMe(pos.coords.latitude, pos.coords.longitude);
+                        if (data && data.tracking === false && window._cetTimer) { clearInterval(window._cetTimer); }
+                    }).catch(function () {
+                        if (last) last.textContent = 'Couldn’t reach the office — will retry.';
+                    });
+                }, function () {
+                    if (dot) dot.textContent = '🔴';
+                    if (label) label.textContent = 'Location permission needed';
+                    if (last) last.textContent = 'Allow location for this site, then tap “Send my location now”.';
+                }, { enableHighAccuracy: true, timeout: 10000 });
+            }
+
+            if (nowBtn) nowBtn.addEventListener('click', ping);
+            ping();
+            window._cetTimer = setInterval(ping, interval);
         })();
     </script>
     @endverbatim
