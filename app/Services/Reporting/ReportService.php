@@ -120,6 +120,43 @@ class ReportService
             ->values();
     }
 
+    /**
+     * A transparency breakdown of what's actually being counted in the period, so
+     * the headline job/revenue figures can be sanity-checked: how many counted
+     * jobs, how many are return legs (a return is two legs), how many have no
+     * fare, how many share a booking reference (possible duplicates), and how
+     * many were excluded as cancelled/no-show.
+     *
+     * @return array<string, int>
+     */
+    public function dataHealth(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $base = $this->completed($start, $end);
+
+        $noPrice = (clone $base)
+            ->where(fn ($q) => $q->whereNull('final_price')->orWhere('final_price', '<=', 0))
+            ->where(fn ($q) => $q->whereNull('quoted_price')->orWhere('quoted_price', '<=', 0))
+            ->count();
+
+        // Booking references that appear more than once in the window.
+        $dupeRefs = Booking::query()
+            ->whereBetween('pickup_at', [$start, $end])
+            ->whereNotNull('external_reference')
+            ->where('external_reference', '!=', '')
+            ->groupBy('external_reference')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('external_reference');
+
+        return [
+            'jobs' => (clone $base)->count(),
+            'return_legs' => (clone $base)->where('is_return_leg', true)->count(),
+            'no_price' => $noPrice,
+            'duplicate_refs' => $dupeRefs->count(),
+            'excluded' => Booking::whereIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                ->whereBetween('pickup_at', [$start, $end])->count(),
+        ];
+    }
+
     /** Cancellations/no-shows in the period, and the cancellation rate. */
     public function cancellations(CarbonInterface $start, CarbonInterface $end): array
     {

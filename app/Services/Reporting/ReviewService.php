@@ -36,6 +36,7 @@ class ReviewService
         $cancellations = $this->reports->cancellations($start, $end);
         $payments = $this->reports->paymentSplit($start, $end);
         $ads = $this->ads->forPeriod($start, $end);
+        $dataHealth = $this->reports->dataHealth($start, $end);
 
         // Pipeline counts (not just completed) for the period.
         $pipeline = Booking::whereBetween('pickup_at', [$start, $end])
@@ -56,6 +57,7 @@ class ReviewService
             'payments' => $payments,
             'ads' => $ads,
             'pipeline' => $pipeline,
+            'dataHealth' => $dataHealth,
         ];
 
         $data['insights'] = $this->insights($data);

@@ -190,7 +190,9 @@ class BookingService
             'luggage' => $data['luggage'] ?? 0,
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,
-            'quoted_price' => $data['quoted_price'] ?? null,
+            // The quoted price is the TOTAL for the journey — keep it on the
+            // outbound leg only so a return isn't double-counted in revenue.
+            'quoted_price' => $isReturn ? null : ($data['quoted_price'] ?? null),
             'payment_method' => $data['payment_method'] ?? PaymentMethod::Card->value,
             'source' => $creator?->isCorporateClient() ? 'portal' : 'phone',
             'created_by' => $creator?->id,

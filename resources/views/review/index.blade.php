@@ -7,6 +7,25 @@
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
+    @if(!empty($dataHealth))
+        <div class="card" style="margin-bottom:16px">
+            <h2 style="margin:0 0 4px">Data check <span class="muted" style="font-weight:400;font-size:13px">— what's behind the {{ number_format($dataHealth['jobs']) }} counted jobs</span></h2>
+            <div class="grid grid-3" style="gap:10px;margin-top:10px">
+                <div class="stat"><div class="n">{{ number_format($dataHealth['jobs']) }}</div><div class="l">Counted jobs (ran, not cancelled)</div></div>
+                <div class="stat"><div class="n" style="{{ $dataHealth['no_price'] > 0 ? 'color:#b8860b' : '' }}">{{ number_format($dataHealth['no_price']) }}</div><div class="l">…with no fare (add £0)</div></div>
+                <div class="stat"><div class="n" style="{{ $dataHealth['duplicate_refs'] > 0 ? 'color:#b32020' : '' }}">{{ number_format($dataHealth['duplicate_refs']) }}</div><div class="l">Duplicate references</div></div>
+                <div class="stat"><div class="n">{{ number_format($dataHealth['return_legs']) }}</div><div class="l">Return legs (a return = 2 legs)</div></div>
+                <div class="stat"><div class="n">{{ number_format($dataHealth['excluded']) }}</div><div class="l">Excluded (cancelled / no-show)</div></div>
+            </div>
+            @if($dataHealth['duplicate_refs'] > 0)
+                <p class="hint" style="margin:10px 0 0;color:#b32020">{{ $dataHealth['duplicate_refs'] }} booking reference(s) appear more than once — likely duplicates inflating the count. Tell me and I'll add a de-dupe tool.</p>
+            @endif
+            @if($dataHealth['no_price'] > 0)
+                <p class="hint" style="margin:8px 0 0">{{ $dataHealth['no_price'] }} job(s) have no fare — use “Fix missing prices” below, then re-import the ETO export for anything still blank.</p>
+            @endif
+        </div>
+    @endif
+
     <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.06);margin-bottom:16px">
         <strong>Figures look low?</strong>
         Some older jobs came in without a fare, so they count as jobs but add nothing to revenue.

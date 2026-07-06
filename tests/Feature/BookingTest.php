@@ -91,6 +91,25 @@ class BookingTest extends TestCase
         $this->assertEquals('Manchester Airport', $return->pickup_address);
     }
 
+    public function test_return_fare_is_not_double_counted(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'return',
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'quoted_price' => 100,
+        ]));
+
+        $outbound = Booking::where('is_return_leg', false)->first();
+        $return = Booking::where('is_return_leg', true)->first();
+
+        // The journey total sits on the outbound only — the return leg carries no
+        // fare, so revenue counts £100 once (not £200).
+        $this->assertEquals('100.00', (string) $outbound->quoted_price);
+        $this->assertNull($return->quoted_price);
+    }
+
     public function test_booking_requires_privacy_consent(): void
     {
         $admin = User::factory()->admin()->create();
