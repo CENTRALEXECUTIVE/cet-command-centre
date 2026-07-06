@@ -187,6 +187,30 @@ class BookingTest extends TestCase
         $this->assertEquals(1, $booking->calendarEvent()->count());
     }
 
+    public function test_editing_a_booking_does_not_touch_the_calendar(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        // Pretend the calendar event has already been pushed/settled.
+        $booking->calendarEvent->update(['sync_status' => 'synced']);
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => 'James Watson',
+            'customer_phone' => '07700900123',
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'pickup_at' => now()->addDays(5)->format('Y-m-d\TH:i'),
+            'pickup_address' => 'New pickup point',
+            'destination_address' => 'Manchester Airport',
+            'passengers' => 2,
+            'payment_method' => 'card',
+        ])->assertRedirect();
+
+        // The edit must NOT re-queue a calendar push — sync_status stays 'synced'.
+        $this->assertEquals('synced', $booking->calendarEvent->fresh()->sync_status);
+    }
+
     public function test_admin_can_cancel_a_booking_with_a_reason(): void
     {
         $admin = User::factory()->admin()->create();

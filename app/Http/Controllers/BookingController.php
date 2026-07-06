@@ -102,7 +102,7 @@ class BookingController extends Controller
 
         return redirect()
             ->route('bookings.show', $booking)
-            ->with('status', "Booking {$booking->reference} updated. If it's on the calendar, re-sync to push the change.");
+            ->with('status', "Booking {$booking->reference} updated. The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
     }
 
     /**

@@ -115,9 +115,11 @@ class BookingService
                 }
             }
 
-            $this->calendar->buildFor($booking->refresh());
+            // Deliberately DO NOT touch the calendar on an edit. New bookings are
+            // auto-added, but edits are the operator's to make on the calendar by
+            // hand — the system never pushes an amendment to Google.
 
-            return $booking;
+            return $booking->refresh();
         });
     }
 
