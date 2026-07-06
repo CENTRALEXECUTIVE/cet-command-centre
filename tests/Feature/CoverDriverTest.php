@@ -54,6 +54,22 @@ class CoverDriverTest extends TestCase
             ->assertOk()->assertSee('Kash')->assertSee('AM64 FAR');
     }
 
+    public function test_roster_merges_into_an_admin_director_and_keeps_admin_role(): void
+    {
+        // Abdi is a director: an ADMIN account that also drives (has a profile).
+        $abdi = User::factory()->create(['role' => 'admin', 'name' => 'Abdirazak Hassan', 'email' => 'abdi@cet.test']);
+        \App\Models\DriverProfile::create(['user_id' => $abdi->id]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('cover-drivers.sync'))->assertRedirect();
+
+        // The "Abdi" roster entry attached to the admin account — no clone.
+        $this->assertEquals(1, User::where('email', 'like', '%abdi%')->orWhere('name', 'like', '%Abdi%')->count());
+        $this->assertEquals('admin', $abdi->fresh()->role->value); // still an admin
+        $this->assertEquals('Abdi', $abdi->fresh()->driverProfile->callsign);
+        $this->assertEquals('LR69 HHP', $abdi->fresh()->driverProfile->defaultVehicle->registration);
+    }
+
     public function test_driver_cannot_access_the_directory(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

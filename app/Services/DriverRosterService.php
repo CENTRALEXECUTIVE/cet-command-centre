@@ -54,27 +54,34 @@ class DriverRosterService
         $canonical = $this->findExistingDriver($driver->name);
         $user = $canonical ?: $linked;
 
-        if (! $user) {
+        $isNew = ! $user || ! $user->exists;
+
+        if ($isNew) {
+            // Brand-new no-login driver account.
             $user = new User(['email' => $this->emailFor($driver)]);
+            $user->name = $driver->name;
+            $user->role = UserRole::Driver->value;
             $user->password = Str::password(20);
             $user->email_verified_at = now();
-            $user->name = $driver->name;
+            $user->is_active = (bool) $driver->is_active;
+            if (filled($driver->phone)) {
+                $user->phone = $driver->phone;
+            }
+            $user->save();
+        } elseif (blank($user->phone) && filled($driver->phone)) {
+            // Existing account (may be an admin/director who also drives) — DON'T
+            // touch their role, name, active flag or login; just fill a missing phone.
+            $user->forceFill(['phone' => $driver->phone])->save();
         }
 
         // Clean up a now-redundant duplicate: if we switched to a real driver and
         // the old linked account was a throwaway (@cet-drivers.local) with no
         // jobs, remove it so it stops showing twice in the list.
-        if ($linked && $canonical && $linked->id !== $canonical->id
+        if ($linked && $user && $linked->id !== $user->id
             && $this->isSynthetic($linked) && ! Booking::where('driver_id', $linked->id)->exists()) {
             optional($linked->driverProfile)->delete();
             $linked->delete();
         }
-
-        $user->fill([
-            'phone' => $driver->phone ?: $user->phone,
-            'role' => UserRole::Driver->value,
-            'is_active' => (bool) $driver->is_active,
-        ])->save();
 
         $vehicleId = null;
         if (filled($driver->vehicle_reg)) {
@@ -87,8 +94,13 @@ class DriverRosterService
             $vehicleId = $vehicle->id;
         }
 
+        // Set the callsign + vehicle so reminders/dispatch show "Abdi (LR69 HHP)".
         $profile = DriverProfile::firstOrNew(['user_id' => $user->id]);
-        $profile->fill(['callsign' => $driver->name, 'is_third_party' => true, 'is_available' => true]);
+        if (! $profile->exists) {
+            $profile->is_third_party = true;
+            $profile->is_available = true;
+        }
+        $profile->callsign = $driver->name;
         if ($vehicleId) {
             $profile->default_vehicle_id = $vehicleId;
         }
@@ -147,8 +159,9 @@ class DriverRosterService
     {
         $lower = Str::lower(trim($name));
 
-        return User::where('role', UserRole::Driver->value)
-            ->where('email', 'not like', '%@cet-drivers.local') // real drivers only
+        // Any real account with a driver profile — INCLUDING admin/directors who
+        // also drive (Abdi, Majid) — so the roster attaches to them, not a clone.
+        return User::where('email', 'not like', '%@cet-drivers.local')
             ->whereHas('driverProfile')
             ->with('driverProfile')
             ->get()

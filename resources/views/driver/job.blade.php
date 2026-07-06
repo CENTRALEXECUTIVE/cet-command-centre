@@ -64,7 +64,19 @@
         <button type="button" id="track-now" class="btn btn-light" style="margin-top:10px;padding:8px 16px">📍 Send my location now</button>
     </div>
 
-    @php $next = $booking->status->nextStatuses(); @endphp
+    {{-- Message the office on WhatsApp Business. --}}
+    <a href="https://wa.me/447405172435?text={{ rawurlencode('Re '.$booking->reference.' ('.$booking->displayName().'): ') }}" target="_blank" rel="noopener"
+       class="btn" style="display:block;background:#25D366;color:#fff;padding:12px;font-weight:700;border-radius:10px;margin-bottom:12px;text-align:center">
+        💬 Message the office
+    </a>
+
+    @php
+        $next = $booking->status->nextStatuses();
+        // Drivers can't cancel or mark no-show — only admins (Majid / the office).
+        if (! auth()->user()->isAdmin()) {
+            $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
+        }
+    @endphp
     @if(!empty($next))
         <div class="tap-actions">
             @foreach($next as $status)

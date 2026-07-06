@@ -20,8 +20,12 @@ use InvalidArgumentException;
  */
 class BookingStatusService
 {
-    /** Transitions a driver may perform on their own job. */
-    private const DRIVER_ALLOWED = ['accepted', 'en_route', 'arrived', 'collected', 'complete', 'no_show'];
+    /**
+     * Transitions a driver may perform on their own job. Cancelled and No-Show
+     * are deliberately EXCLUDED — only an admin (Majid / the office) can mark
+     * those.
+     */
+    private const DRIVER_ALLOWED = ['accepted', 'en_route', 'arrived', 'collected', 'complete'];
 
     public function __construct(
         private readonly RotationService $rotation,
