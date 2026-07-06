@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Services\Reporting\ReviewService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\View\View;
 
 /**
@@ -23,6 +25,22 @@ class ReviewController extends Controller
         [$start, $end, $preset] = $this->resolvePeriod($request);
 
         return view('review.index', $this->review->build($start, $end) + ['activePreset' => $preset]);
+    }
+
+    /**
+     * Recover fares onto older bookings that came in without a price, so revenue
+     * reads true — the in-app version of `cet:backfill-prices`. Reports back how
+     * many were filled and how many still have no price anywhere in the system.
+     */
+    public function backfillPrices(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        Artisan::call('cet:backfill-prices');
+        $out = trim(preg_replace('/\s+/', ' ', Artisan::output())) ?: 'Done.';
+
+        return redirect()->route('review.index', $request->only('preset', 'start', 'end'))
+            ->with('status', $out);
     }
 
     /**

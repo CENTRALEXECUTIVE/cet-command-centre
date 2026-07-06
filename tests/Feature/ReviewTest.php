@@ -78,4 +78,31 @@ class ReviewTest extends TestCase
         $driver = User::factory()->create(['role' => 'driver']);
         $this->actingAs($driver)->get(route('review.index'))->assertForbidden();
     }
+
+    public function test_fix_missing_prices_recovers_fares_from_meta(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->first();
+
+        $customer = \App\Models\Customer::create(['name' => 'Priced Cust', 'phone' => '07700900099']);
+        // A booking that ran with no price column set but a fare in meta.
+        $booking = \App\Models\Booking::create([
+            'reference' => \App\Models\Booking::generateReference(),
+            'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->subDays(2),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => 'complete', 'payment_method' => 'cash',
+            'meta' => ['total_amount' => 120],
+        ]);
+
+        $this->actingAs($admin)->post(route('review.backfill-prices'))->assertRedirect();
+
+        $this->assertEquals('120.00', (string) $booking->fresh()->quoted_price);
+    }
+
+    public function test_fix_missing_prices_is_admin_only(): void
+    {
+        $driver = User::factory()->create(['role' => 'driver']);
+        $this->actingAs($driver)->post(route('review.backfill-prices'))->assertForbidden();
+    }
 }

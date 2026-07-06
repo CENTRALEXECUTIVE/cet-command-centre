@@ -5,6 +5,18 @@
     <h1 class="page-title">Business Review</h1>
     <p class="page-sub">{{ $start->format('d M Y') }} – {{ $end->format('d M Y') }}</p>
 
+    @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
+
+    <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.06);margin-bottom:16px">
+        <strong>Figures look low?</strong>
+        Some older jobs came in without a fare, so they count as jobs but add nothing to revenue.
+        <form method="POST" action="{{ route('review.backfill-prices', request()->only('preset','start','end')) }}" style="display:inline;margin-left:6px">
+            @csrf
+            <button class="btn btn-primary" style="padding:6px 14px;font-size:13px">Fix missing prices</button>
+        </form>
+        <p class="hint" style="margin:8px 0 0">Recovers fares stored on each job. If some can't be recovered, it'll say how many — then import the ETO export for those months from <a href="{{ route('imports.index') }}">Imports</a>.</p>
+    </div>
+
     @php
         $presets = ['last30' => 'Last 30 days', 'last90' => 'Last 90 days', 'this_year' => 'This year', 'last_month' => 'Last month', 'all' => 'All time'];
         $active = $activePreset ?? 'last30';
