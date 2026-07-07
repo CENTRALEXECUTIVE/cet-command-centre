@@ -91,27 +91,26 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertArrayHasKey('Booking', $times);
     }
 
-    public function test_dashboard_auto_corrects_a_drifted_booking_time(): void
+    public function test_pages_do_not_silently_revert_a_booking_time(): void
     {
+        // A booking whose time differs from our stored calendar copy must NOT be
+        // auto-reverted just by viewing it — otherwise the operator can never fix
+        // a time in the app (e.g. after editing the live Google event).
         $admin = User::factory()->admin()->create();
         $day = now()->addDays(3);
-        // The real bug: booking AND the event slot are an hour late (19:45), but
-        // the printed description carries the true time (18:45). The description wins.
         $booking = $this->bookingWithEvent(
-            $day->format('Y-m-d').' 19:45:00',   // booking 19:45 (wrong)
-            $day->format('d/m/Y').' – 18:45',    // description 18:45 (the truth)
-            $day->format('Y-m-d').' 19:45:00'    // slot 19:45 (also wrong)
+            $day->format('Y-m-d').' 15:00:00',   // booking (operator-set) 15:00
+            $day->format('d/m/Y').' – 13:00',    // stored description 13:00 (stale)
+            $day->format('Y-m-d').' 13:00:00'    // stored slot 13:00 (stale)
         );
 
-        // Simply opening the dashboard corrects it — no button.
-        $this->actingAs($admin)->get(route('dashboard'))
-            ->assertOk()
-            ->assertSee('corrected to match the calendar');
+        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+        $this->actingAs($admin)->get(route('despatch.board', ['date' => $day->toDateString()]))->assertOk();
+        $this->actingAs($admin)->get(route('bookings.index'))->assertOk();
 
-        $booking = $booking->fresh(['calendarEvent']);
-        $this->assertEquals('18:45', $booking->pickup_at->format('H:i'));           // booking fixed
-        $this->assertEquals('18:45', $booking->calendarEvent->start_at->format('H:i')); // slot fixed
-        $this->assertSame([], $booking->pickupTimeMismatch());                       // and consistent
+        // Untouched by every page load — the operator's 15:00 stands.
+        $this->assertEquals('15:00', $booking->fresh()->pickup_at->format('H:i'));
     }
 
     public function test_fix_all_snaps_booking_times_to_the_calendar(): void

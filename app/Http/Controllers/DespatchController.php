@@ -23,22 +23,16 @@ class DespatchController extends Controller
     public function __construct(
         private readonly BookingStatusService $status,
         private readonly DriverComplianceService $compliance,
-        private readonly \App\Services\Calendar\CalendarTimeSync $timeSync,
     ) {}
 
     public function index(Request $request): View
     {
         $date = $request->date('date') ?? today();
 
-        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport', 'calendarEvent'])
+        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport'])
             ->whereDate('pickup_at', $date)
             ->orderBy('pickup_at')
             ->get();
-
-        // Keep the board matched to the calendar: snap any drifted time before we
-        // group/sort, so the board never shows an out-of-step pickup time.
-        $bookings->each(fn (Booking $b) => $this->timeSync->alignToCalendarSlot($b));
-        $bookings = $bookings->sortBy('pickup_at')->values();
 
         // Group by status for the board columns.
         $columns = collect(BookingStatus::cases())

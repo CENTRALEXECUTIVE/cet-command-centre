@@ -70,9 +70,7 @@ class DashboardController extends Controller
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->sum(DB::raw($revenue)),
                 'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
-                // Self-heal: snap any booking whose time drifted from the calendar
-                // back to the calendar time, automatically, before anything renders.
-                'correctedTimes' => $this->healTimesToCalendar(),
+                'correctedTimes' => session('correctedTimes', []),
                 'remindersToSend' => $this->remindersToSend(),
                 'timeMismatches' => $this->timeMismatches(),
             ]);
@@ -206,58 +204,35 @@ class DashboardController extends Controller
     }
 
     /**
-     * Self-healing: silently set any drifted booking's pickup time to its
-     * calendar slot, so the command centre always matches the calendar without
-     * anyone clicking anything. Stale reminders for a corrected booking are
-     * cleared so they regenerate at the right time. Returns what was corrected
-     * (for a brief note on the dashboard).
-     *
-     * @return array<int, array{ref: string, customer: ?string, url: string, from: ?string, to: string}>
-     */
-    private function healTimesToCalendar(): array
-    {
-        return $this->mismatchedBookings()
-            ->map(function (Booking $b) {
-                $from = $b->pickup_at?->format('D d M, H:i');
-                $to = $b->calendarEvent->start_at->format('D d M, H:i');
-
-                if (! $this->timeSync->alignToCalendarSlot($b)) {
-                    return null; // nothing to change (e.g. only a description quirk)
-                }
-
-                // Drop stale reminders so they're rebuilt with the corrected time.
-                $b->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
-                    ->where('status', 'queued')->delete();
-
-                return [
-                    'ref' => $b->external_reference ?? $b->reference,
-                    'customer' => $b->displayName(),
-                    'url' => route('bookings.show', $b),
-                    'from' => $from,
-                    'to' => $to,
-                ];
-            })
-            ->filter()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * One-click bulk fix: set every mismatched booking's pickup time to its
-     * calendar slot, so the command centre matches the calendar. Read-only
-     * against Google — it only corrects our booking records.
+     * One-click bulk fix (manual, admin-initiated): set every mismatched
+     * booking's pickup time to its calendar slot. Uses our stored copy of the
+     * calendar — for a time you changed directly on Google, use the per-booking
+     * "Match time to calendar" button, which reads the live calendar.
      */
     public function fixTimes(Request $request, \App\Services\Calendar\CalendarTimeSync $sync): \Illuminate\Http\RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $fixed = $this->mismatchedBookings()
-            ->filter(fn (Booking $b) => $sync->alignToCalendarSlot($b))
-            ->count();
+        $corrected = $this->mismatchedBookings()
+            ->map(function (Booking $b) use ($sync) {
+                $from = $b->pickup_at?->format('D d M, H:i');
+                $to = $b->calendarEvent->start_at->format('D d M, H:i');
+                if (! $sync->alignToCalendarSlot($b)) {
+                    return null;
+                }
+                $b->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
+                    ->where('status', 'queued')->delete();
 
-        return back()->with('status', $fixed > 0
-            ? "Fixed {$fixed} booking time(s) to match the calendar."
-            : 'All booking times already match the calendar.');
+                return ['ref' => $b->external_reference ?? $b->reference, 'customer' => $b->displayName(),
+                    'url' => route('bookings.show', $b), 'from' => $from, 'to' => $to];
+            })
+            ->filter()->values()->all();
+
+        return back()
+            ->with('correctedTimes', $corrected)
+            ->with('status', $corrected !== []
+                ? count($corrected).' booking time(s) matched to the calendar.'
+                : 'All booking times already match our copy of the calendar.');
     }
 
     /**

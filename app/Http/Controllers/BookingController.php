@@ -26,7 +26,7 @@ class BookingController extends Controller
         private readonly BookingNotifier $notifier,
     ) {}
 
-    public function index(Request $request, \App\Services\Calendar\CalendarTimeSync $timeSync): View
+    public function index(Request $request): View
     {
         $user = $request->user();
 
@@ -50,11 +50,6 @@ class BookingController extends Controller
         }
 
         $bookings = $query->paginate(20)->withQueryString();
-
-        // Keep the list matched to the calendar (admins only, current page).
-        if ($user->isAdmin()) {
-            $bookings->getCollection()->each(fn (Booking $b) => $timeSync->alignToCalendarSlot($b));
-        }
 
         return view('bookings.index', ['bookings' => $bookings, 'q' => $q]);
     }
@@ -91,19 +86,12 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} created successfully.");
     }
 
-    public function show(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $timeSync): View
+    public function show(Request $request, Booking $booking): View
     {
         // Authorisation: corporate clients can only view their own bookings.
         if ($request->user()->isCorporateClient()
             && ! $request->user()->corporateAccounts->pluck('id')->contains($booking->corporate_account_id)) {
             abort(403);
-        }
-
-        // Always show the calendar's time: snap this booking to its calendar slot
-        // if it has drifted, so the page never shows an out-of-step pickup time.
-        if ($request->user()->isAdmin() && $timeSync->alignToCalendarSlot($booking)) {
-            $booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
-                ->where('status', 'queued')->delete();
         }
 
         return view('bookings.show', $this->showData($request, $booking));
@@ -267,16 +255,25 @@ class BookingController extends Controller
      * for when the operator corrected the time on the calendar and the system
      * needs to catch up. Never edits the calendar.
      */
-    public function syncTime(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync): RedirectResponse
+    public function syncTime(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
         $result = $sync->pullTime($booking);
 
+        // A clear reason when the live read can't run — the usual cause of
+        // "I edited Google but nothing updates" is that the calendar API isn't
+        // connected on the server, so we can't read your live edit back.
+        $unavailable = ! $google->configured()
+            ? 'Google Calendar isn’t connected on the server, so live edits can’t be read. Connect it, or use “Edit booking” to set the time here.'
+            : (! $google->active()
+                ? 'Calendar sync is paused, so live edits can’t be read right now.'
+                : 'Couldn’t read this booking from the live calendar (the event may no longer be linked). Use “Edit booking” to set the time here.');
+
         return back()->with('status', match ($result['status']) {
             'updated' => "Pickup time updated to {$result['new']} to match the calendar (was {$result['old']}).",
-            'matches' => 'Pickup time already matches the calendar — nothing changed.',
-            default => 'Could not read this booking from the calendar (it may not be connected or the event isn’t linked).',
+            'matches' => 'The live calendar shows the same time already — nothing to change.',
+            default => $unavailable,
         });
     }
 

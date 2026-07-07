@@ -47,8 +47,8 @@
 
     @if(!empty($correctedTimes))
         <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin-bottom:16px">
-            <strong>✓ {{ count($correctedTimes) }} booking time(s) corrected to match the calendar</strong>
-            <span class="muted" style="font-size:13px">— done automatically; the calendar was not changed</span>
+            <strong>✓ {{ count($correctedTimes) }} booking time(s) matched to the calendar</strong>
+            <span class="muted" style="font-size:13px">— the calendar was not changed</span>
             <div style="margin-top:8px">
                 @foreach($correctedTimes as $tm)
                     <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
@@ -64,8 +64,8 @@
 
     @if(!empty($timeMismatches))
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
-            <strong>⏰ {{ count($timeMismatches) }} booking(s) where the calendar's own time and description disagree</strong>
-            <span class="muted" style="font-size:13px">— the booking now matches the calendar slot, but the printed time on the calendar differs; correct it on the calendar</span>
+            <strong>⏰ {{ count($timeMismatches) }} booking(s) don't match our copy of the calendar</strong>
+            <span class="muted" style="font-size:13px">— tap “Match times to calendar” (top right) to fix these; for a time you changed live on Google, open the booking and use “Match time to calendar”</span>
             <div style="margin-top:8px">
                 @foreach($timeMismatches as $tm)
                     <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
