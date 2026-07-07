@@ -167,6 +167,13 @@ Route::middleware('auth')->group(function () {
         // Driver rotation — read-only order + next-driver pointer + history.
         Route::get('rotation', [\App\Http\Controllers\Admin\RotationController::class, 'index'])->name('rotation.index');
 
+        // New booking from a pasted message — AI formats it, operator confirms → calendar.
+        Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
+        Route::post('intake/preview', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'preview'])
+            ->middleware('throttle:30,1')->name('intake.preview');
+        Route::post('intake/confirm', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'confirm'])
+            ->middleware('throttle:30,1')->name('intake.confirm');
+
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
         Route::post('drivers', [\App\Http\Controllers\Admin\DriverController::class, 'store'])->name('drivers.store');

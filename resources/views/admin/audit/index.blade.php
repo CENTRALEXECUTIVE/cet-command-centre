@@ -9,6 +9,15 @@
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.08);margin-bottom:16px">{{ $errors->first() }}</div>
     @endif
 
+    {{-- Format a booking you were sent, review it, then add it to the calendar. --}}
+    <div class="card" style="border-left:4px solid #FBBA2A;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+            <strong>📩 Got a new booking by message?</strong>
+            <div class="muted" style="font-size:13px">Paste it and it’s formatted into the CET calendar format for you to check — nothing goes on the calendar until you confirm.</div>
+        </div>
+        <a href="{{ route('intake.index') }}" class="btn btn-primary" style="white-space:nowrap">Paste a booking →</a>
+    </div>
+
     {{-- Look up and reconfirm a single booking without the CSV. --}}
     <div class="card" style="margin-bottom:16px">
         <h2 style="margin-top:0">🔍 Find & reconfirm one booking</h2>

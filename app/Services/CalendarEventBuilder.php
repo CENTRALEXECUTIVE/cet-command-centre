@@ -23,6 +23,23 @@ use Illuminate\Support\Str;
 class CalendarEventBuilder
 {
 
+    /**
+     * Build the CET title / location / description for a booking WITHOUT saving
+     * anything — used to preview a pasted booking before the operator confirms.
+     *
+     * @return array{title: string, location: ?string, description: string}
+     */
+    public function preview(Booking $booking): array
+    {
+        $moneyEmoji = $this->paymentEmoji($booking);
+
+        return [
+            'title' => $this->title($booking, $moneyEmoji),
+            'location' => $booking->pickup_address,
+            'description' => $this->description($booking),
+        ];
+    }
+
     public function buildFor(Booking $booking): CalendarEvent
     {
         $moneyEmoji = $this->paymentEmoji($booking);

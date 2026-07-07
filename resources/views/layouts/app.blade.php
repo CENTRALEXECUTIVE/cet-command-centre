@@ -45,6 +45,9 @@
                     <div class="nav-group-title">Sales</div>
                     <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
                     <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New booking</a>
+                    @if($u->isAdmin())
+                        <a href="{{ route('intake.index') }}" class="{{ request()->routeIs('intake.*') ? 'active' : '' }}">Paste a booking</a>
+                    @endif
                     <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
                     @if($u->isAdmin())
                         <a href="{{ route('payments.index') }}" class="{{ request()->routeIs('payments.*') ? 'active' : '' }}">Payments</a>
