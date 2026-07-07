@@ -42,7 +42,8 @@ class BookingIntakeService
             .'Return ONLY a JSON object. Times are UK local (Europe/London). Use 24-hour HH:MM. '
             .'Keys: lead_name, contact_no, email, pickup_at (YYYY-MM-DD HH:MM), pickup_address, '
             .'destination_address, where (short airport code or destination word for the title, e.g. MAN, LHR, Sheffield), '
-            .'flight_number, passengers (integer), luggage (integer), vehicle (one of: Executive, Estate, V Class, '
+            .'flight_number, passengers (integer), suitcases (integer, large/hold bags), '
+            .'hand_luggage (integer, cabin/small bags), vehicle (one of: Executive, Estate, V Class, '
             .'Minibus 8 Seater, Rolls Royce Ghost), payment (cash|card|account), paid (true|false), '
             .'booked_by, notes. Use empty string when a field is not present.';
 
@@ -72,7 +73,11 @@ class BookingIntakeService
             'where' => $get('where'),
             'flight_number' => $get('flight_number'),
             'passengers' => (int) ($get('passengers') ?: 1) ?: 1,
-            'luggage' => (int) ($get('luggage') ?: 0),
+            'suitcases' => (int) ($get('suitcases') ?: 0),
+            'hand_luggage' => (int) ($get('hand_luggage') ?: 0),
+            // Combined total kept in sync with the two counts (legacy fallback).
+            'luggage' => ((int) ($get('suitcases') ?: 0) + (int) ($get('hand_luggage') ?: 0))
+                ?: (int) ($get('luggage') ?: 0),
             'vehicle' => $get('vehicle') ?: 'Executive',
             'payment' => in_array($get('payment'), ['cash', 'card', 'account'], true) ? $get('payment') : 'card',
             'paid' => filter_var($in['paid'] ?? false, FILTER_VALIDATE_BOOL),
@@ -115,6 +120,8 @@ class BookingIntakeService
             'where' => $f['where'] ?: null,
             'contact_no' => $f['contact_no'] ?: null,
             'booked_by' => $f['booked_by'] ?: null,
+            'suitcases' => (int) ($f['suitcases'] ?? 0),
+            'hand_luggage' => (int) ($f['hand_luggage'] ?? 0),
         ]);
 
         return $booking;
@@ -171,6 +178,8 @@ class BookingIntakeService
                     'where' => $f['where'] ?: null,
                     'contact_no' => $f['contact_no'] ?: null,
                     'booked_by' => $f['booked_by'] ?: null,
+                    'suitcases' => (int) ($f['suitcases'] ?? 0),
+                    'hand_luggage' => (int) ($f['hand_luggage'] ?? 0),
                     'created_from' => 'pasted_message',
                 ]),
             ]);

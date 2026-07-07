@@ -177,6 +177,43 @@ class Booking extends Model
         return $this->meta['lead_name'] ?? $this->customer?->name ?? 'Customer';
     }
 
+    /**
+     * Luggage shown as a suitcases + hand-luggage breakdown, e.g.
+     * "2 suitcases · 1 hand luggage" — both counts matter to the driver and the
+     * vehicle choice. The discrete counts live in meta (populated by the ETO
+     * imports and the booking form); older bookings that only carry the combined
+     * `luggage` total fall back to "N bags".
+     */
+    public function luggageBreakdown(): string
+    {
+        $suitcases = (int) ($this->meta['suitcases'] ?? 0);
+        $hand = (int) ($this->meta['hand_luggage'] ?? 0);
+
+        if ($suitcases > 0 || $hand > 0) {
+            return $suitcases.' suitcase'.($suitcases === 1 ? '' : 's')
+                .' · '.$hand.' hand luggage';
+        }
+
+        $total = (int) $this->luggage;
+
+        return $total > 0 ? $total.' bag'.($total === 1 ? '' : 's') : 'No luggage';
+    }
+
+    /** Compact luggage for the bookings table, e.g. "2 case · 1 hand" or "—". */
+    public function luggageShort(): string
+    {
+        $suitcases = (int) ($this->meta['suitcases'] ?? 0);
+        $hand = (int) ($this->meta['hand_luggage'] ?? 0);
+
+        if ($suitcases > 0 || $hand > 0) {
+            return $suitcases.' case'.($suitcases === 1 ? '' : 's').' · '.$hand.' hand';
+        }
+
+        $total = (int) $this->luggage;
+
+        return $total > 0 ? $total.' bag'.($total === 1 ? '' : 's') : '—';
+    }
+
     /** Generate the next unique booking reference, e.g. CET-2A4F9C. */
     public static function generateReference(): string
     {

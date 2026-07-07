@@ -43,6 +43,8 @@ class UpdateBookingRequest extends FormRequest
             'flight_number' => ['nullable', 'string', 'max:32'],
             'passengers' => ['required', 'integer', 'min:1', 'max:16'],
             'luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'special_requests' => ['nullable', 'string', 'max:1000'],
 
             // Commercials

@@ -42,9 +42,13 @@ making changes.** Keep it up to date.
    a calendar event when the user names it explicitly and reconfirms.
 2. **Nothing auto-sends to customers.** All customer WhatsApp messages are
    manual via `wa.me` deep links the operator taps. No paid messaging API.
-3. **Timezone is UK / `Europe/London` (BST in summer).** ETO exports times in
-   UTC/GMT, so imports convert UTC → Europe/London
-   (`createFromFormat($fmt,$val,'UTC')->setTimezone(config('app.timezone'))`).
+3. **Timezone is UK / `Europe/London` (BST in summer).** ETO's journey times are
+   **already UK local** — the same clock shown on the ETO booking screen, the
+   confirmation email, and the calendar. Parse them in the app timezone
+   (`createFromFormat($fmt,$val,config('app.timezone'))`) — do **NOT** treat them
+   as UTC and add a BST hour. (An earlier UTC→London conversion in the CSV import
+   and ETO audit silently pushed summer pickups an hour late and made the audit
+   raise phantom "pickup time differs" flags; the email path was always correct.)
    Getting this wrong nearly sent a customer the wrong pickup time — treat time
    handling as high-risk.
 4. **Office WhatsApp Business number: `+447405172435`.** Drivers' "message the

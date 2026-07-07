@@ -40,7 +40,8 @@
                     <div class="field"><label>Where (title tag)</label><input name="fields[where]" value="{{ $fields['where'] }}" placeholder="MAN / LHR / Sheffield"></div>
                     <div class="field"><label>Flight number</label><input name="fields[flight_number]" value="{{ $fields['flight_number'] }}"></div>
                     <div class="field"><label>Passengers</label><input type="number" min="1" name="fields[passengers]" value="{{ $fields['passengers'] }}"></div>
-                    <div class="field"><label>Luggage</label><input type="number" min="0" name="fields[luggage]" value="{{ $fields['luggage'] }}"></div>
+                    <div class="field"><label>Suitcases</label><input type="number" min="0" name="fields[suitcases]" value="{{ $fields['suitcases'] }}"></div>
+                    <div class="field"><label>Hand luggage</label><input type="number" min="0" name="fields[hand_luggage]" value="{{ $fields['hand_luggage'] }}"></div>
                     <div class="field">
                         <label>Vehicle</label>
                         <select name="fields[vehicle]">

@@ -91,6 +91,8 @@ class BookingService
                 ], fn ($v) => $v !== null && $v !== ''))->save();
             }
 
+            [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
+
             $booking->fill([
                 'vehicle_type_id' => $data['vehicle_type_id'],
                 'airport_id' => $data['airport_id'] ?? null,
@@ -99,7 +101,11 @@ class BookingService
                 'destination_address' => $data['destination_address'],
                 'flight_number' => $data['flight_number'] ?? null,
                 'passengers' => $data['passengers'],
-                'luggage' => $data['luggage'] ?? 0,
+                'luggage' => $luggage,
+                'meta' => array_merge($booking->meta ?? [], [
+                    'suitcases' => $suitcases,
+                    'hand_luggage' => $handLuggage,
+                ]),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],
                 'payment_status' => $data['payment_status'] ?? $booking->payment_status,
@@ -162,6 +168,25 @@ class BookingService
         ]);
     }
 
+    /**
+     * Normalise luggage from the form into [suitcases, hand luggage, combined].
+     * The form now captures the two counts separately; the combined `luggage`
+     * column is kept in sync (falling back to a legacy single `luggage` field).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0:int,1:int,2:int}
+     */
+    private function luggageFrom(array $data): array
+    {
+        $suitcases = (int) ($data['suitcases'] ?? 0);
+        $handLuggage = (int) ($data['hand_luggage'] ?? 0);
+        $combined = ($suitcases > 0 || $handLuggage > 0)
+            ? $suitcases + $handLuggage
+            : (int) ($data['luggage'] ?? 0);
+
+        return [$suitcases, $handLuggage, $combined];
+    }
+
     private function buildLeg(array $data, Customer $customer, ?User $creator, bool $isReturn): Booking
     {
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
@@ -169,6 +194,8 @@ class BookingService
         $pickupAt = $isReturn ? $data['return_pickup_at'] : $data['pickup_at'];
         $pickupAddress = $isReturn ? $data['destination_address'] : $data['pickup_address'];
         $destinationAddress = $isReturn ? $data['pickup_address'] : $data['destination_address'];
+
+        [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
         $booking = Booking::create([
             'reference' => Booking::generateReference(),
@@ -187,7 +214,8 @@ class BookingService
             'destination_postcode' => $isReturn ? ($data['pickup_postcode'] ?? null) : ($data['destination_postcode'] ?? null),
             'flight_number' => $data['flight_number'] ?? null,
             'passengers' => $data['passengers'],
-            'luggage' => $data['luggage'] ?? 0,
+            'luggage' => $luggage,
+            'meta' => array_filter(['suitcases' => $suitcases, 'hand_luggage' => $handLuggage]),
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,
             // The quoted price is the TOTAL for the journey — keep it on the

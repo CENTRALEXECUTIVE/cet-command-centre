@@ -15,7 +15,7 @@
         @else
             <table>
                 <thead>
-                    <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Route</th><th>Vehicle</th><th>Driver</th><th>Pay</th><th>Status</th>@if(auth()->user()->isAdmin())<th></th>@endif</tr>
+                    <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Route</th><th>Vehicle</th><th>Luggage</th><th>Driver</th><th>Pay</th><th>Status</th>@if(auth()->user()->isAdmin())<th></th>@endif</tr>
                 </thead>
                 <tbody>
                     @foreach($bookings as $b)
@@ -25,6 +25,7 @@
                             <td>{{ $b->customer?->name }}</td>
                             <td>{{ Str::limit($b->pickup_address, 18) }} → {{ Str::limit($b->destination_address, 18) }}</td>
                             <td>{{ $b->vehicleType?->name }}</td>
+                            <td title="{{ $b->luggageBreakdown() }}">{{ $b->luggageShort() }}</td>
                             <td>{{ $b->driver?->name ?? '—' }}</td>
                             <td>{{ $b->payment_method->emoji() ?? $b->payment_method->label() }}</td>
                             <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>

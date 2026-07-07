@@ -72,6 +72,22 @@ class BookingTest extends TestCase
         $this->assertEquals('Abdirazak Hassan', $booking->driver->name);
     }
 
+    public function test_suitcases_and_hand_luggage_are_captured_separately(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'suitcases' => 3,
+            'hand_luggage' => 2,
+        ]));
+
+        $booking = Booking::first();
+        $this->assertEquals(3, $booking->meta['suitcases']);
+        $this->assertEquals(2, $booking->meta['hand_luggage']);
+        $this->assertEquals(5, $booking->luggage); // combined total kept in sync
+        $this->assertEquals('3 suitcases · 2 hand luggage', $booking->luggageBreakdown());
+    }
+
     public function test_return_journey_creates_two_linked_legs(): void
     {
         $admin = User::factory()->admin()->create();

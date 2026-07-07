@@ -296,6 +296,10 @@ class OutlookBookingService
             'where' => $this->airportCodeFor($parsed) ?? 'FREE ROAM',
             // Descriptive luggage, never a bare number (e.g. "1 Suitcase + 1 Hand Luggage").
             'luggage_text' => $this->luggageText((int) ($parsed['suitcases'] ?? 0), (int) ($parsed['hand_luggage'] ?? ($parsed['luggage'] ?? 0))),
+            // Discrete counts so the booking pages can show the suitcase / hand
+            // luggage split, not just the combined total.
+            'suitcases' => (int) ($parsed['suitcases'] ?? 0),
+            'hand_luggage' => (int) ($parsed['hand_luggage'] ?? ($parsed['luggage'] ?? 0)),
             // Always show the lead passenger, never the booker/company (rule 9).
             'lead_name' => $parsed['customer_name'] ?? null,
             'meet_and_greet' => $meetGreet,

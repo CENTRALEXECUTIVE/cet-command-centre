@@ -119,8 +119,12 @@
                         <input id="passengers" type="number" name="passengers" min="1" max="16" value="{{ old('passengers', $booking->passengers) }}" required>
                     </div>
                     <div class="field">
-                        <label for="luggage">Luggage items</label>
-                        <input id="luggage" type="number" name="luggage" min="0" max="30" value="{{ old('luggage', $booking->luggage) }}">
+                        <label for="suitcases">Suitcases</label>
+                        <input id="suitcases" type="number" name="suitcases" min="0" max="30" value="{{ old('suitcases', $booking->meta['suitcases'] ?? $booking->luggage) }}">
+                    </div>
+                    <div class="field">
+                        <label for="hand_luggage">Hand luggage</label>
+                        <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', $booking->meta['hand_luggage'] ?? 0) }}">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0">

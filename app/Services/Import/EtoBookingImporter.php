@@ -119,6 +119,8 @@ class EtoBookingImporter
                 'payment_status' => $paymentStatus,
                 'source' => $this->mapSource($data['Source'] ?? ''),
                 'meta' => array_filter([
+                    'suitcases' => (int) $this->clean($data['Suitcases'] ?? '0'),
+                    'hand_luggage' => (int) $this->clean($data['Hand luggage'] ?? '0'),
                     'eto_status' => $this->clean($data['Status'] ?? ''),
                     'eto_source' => $this->clean($data['Source'] ?? ''),
                     'eto_vehicle' => $this->clean($data['Vehicle type'] ?? ''),
@@ -156,6 +158,10 @@ class EtoBookingImporter
             'status' => $status->value,
             'payment_status' => $paymentStatus,
             'meta' => array_merge($booking->meta ?? [], array_filter([
+                // ETO is authoritative on luggage — backfill the breakdown so a
+                // re-import fills it in on bookings that came in via the calendar.
+                'suitcases' => (int) $this->clean($data['Suitcases'] ?? '0'),
+                'hand_luggage' => (int) $this->clean($data['Hand luggage'] ?? '0'),
                 'eto_status' => $this->clean($data['Status'] ?? ''),
                 'eto_driver' => $this->clean($data['Driver'] ?? ''),
                 'total_amount' => $total,
@@ -271,9 +277,12 @@ class EtoBookingImporter
         }
         foreach (['d/m/Y H:i', 'd/m/Y H:i:s', 'd/m/Y'] as $format) {
             try {
-                // ETO exports times in UTC/GMT; convert to UK local (Europe/London)
-                // so BST pickups are stored (and shown) at the correct hour.
-                return Carbon::createFromFormat($format, $value, 'UTC')->setTimezone(config('app.timezone'));
+                // ETO's journey times are already UK local (Europe/London) — the
+                // same clock shown on the ETO booking screen and the confirmation
+                // email. Parse in the app timezone so the stored hour matches ETO
+                // exactly; adding a UTC→BST hour here silently pushed summer
+                // pickups an hour late (rule 3 — time handling is high-risk).
+                return Carbon::createFromFormat($format, $value, config('app.timezone'));
             } catch (\Throwable) {
                 continue;
             }
