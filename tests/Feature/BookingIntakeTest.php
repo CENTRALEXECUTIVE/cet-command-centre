@@ -76,6 +76,10 @@ class BookingIntakeTest extends TestCase
         // App tz is UTC in tests; a UK-local "14:30" must stay 14:30, not shift.
         $booking = app(BookingIntakeService::class)->confirm($this->fields(['pickup_at' => '2026-07-12 14:30']), null);
         $this->assertSame('14:30', $booking->pickup_at->format('H:i'));
+
+        // The date-time picker submits an ISO "T" value — it must parse the same.
+        $picker = app(BookingIntakeService::class)->confirm($this->fields(['pickup_at' => '2026-07-12T14:30']), null);
+        $this->assertSame('14:30', $picker->pickup_at->format('H:i'));
     }
 
     public function test_admin_can_preview_and_confirm_through_pages(): void

@@ -241,7 +241,8 @@ class BookingIntakeService
         if ($value === '') {
             return null;
         }
-        foreach (['Y-m-d H:i', 'Y-m-d H:i:s', 'd/m/Y H:i', 'Y-m-d'] as $format) {
+        // 'Y-m-d\TH:i' covers the datetime-local picker on the intake form.
+        foreach (['Y-m-d H:i', 'Y-m-d\TH:i', 'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'd/m/Y H:i', 'Y-m-d'] as $format) {
             try {
                 return Carbon::createFromFormat($format, $value, config('app.timezone'));
             } catch (\Throwable) {
