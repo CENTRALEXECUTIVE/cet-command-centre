@@ -23,16 +23,22 @@ class DespatchController extends Controller
     public function __construct(
         private readonly BookingStatusService $status,
         private readonly DriverComplianceService $compliance,
+        private readonly \App\Services\Calendar\CalendarTimeSync $timeSync,
     ) {}
 
     public function index(Request $request): View
     {
         $date = $request->date('date') ?? today();
 
-        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport'])
+        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport', 'calendarEvent'])
             ->whereDate('pickup_at', $date)
             ->orderBy('pickup_at')
             ->get();
+
+        // Keep the board matched to the calendar: snap any drifted time before we
+        // group/sort, so the board never shows an out-of-step pickup time.
+        $bookings->each(fn (Booking $b) => $this->timeSync->alignToCalendarSlot($b));
+        $bookings = $bookings->sortBy('pickup_at')->values();
 
         // Group by status for the board columns.
         $columns = collect(BookingStatus::cases())
@@ -112,6 +118,26 @@ class DespatchController extends Controller
         }
 
         return back()->with('status', "{$booking->reference} → ".BookingStatus::from($data['status'])->label().'.');
+    }
+
+    /**
+     * Admin quick-close from the board: mark a job Completed / No Show /
+     * Cancelled in one tap, without stepping through the whole flow.
+     */
+    public function quickStatus(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::in([
+                BookingStatus::Complete->value, BookingStatus::NoShow->value, BookingStatus::Cancelled->value,
+            ])],
+        ]);
+
+        $to = BookingStatus::from($data['status']);
+        $this->status->forceTransition($booking, $to, $request->user());
+
+        return back()->with('status', "{$booking->reference} → {$to->label()}.");
     }
 
     /** @return Collection<int, User> */

@@ -43,9 +43,9 @@
                 @forelse($jobs as $b)
                     <div class="job-card">
                         <div class="time">{{ $b->pickup_at->format('H:i') }}
-                            <span class="ref">{{ $b->reference }}</span></div>
+                            <a href="{{ route('bookings.show', $b) }}" class="ref" title="Open booking">{{ $b->reference }}</a></div>
                         <div class="meta">
-                            <strong>{{ $b->displayName() }}</strong><br>
+                            <a href="{{ route('bookings.show', $b) }}" style="color:inherit"><strong>{{ $b->displayName() }}</strong></a><br>
                             {{ $b->airport?->code ? $b->airport->code.' · ' : '' }}{{ $b->vehicleType?->name }}<br>
                             {{ \Illuminate\Support\Str::limit($b->pickup_address, 30) }}<br>
                             {{ $b->passengers }} pax · {{ $b->luggageShort() }}<br>
@@ -77,9 +77,10 @@
                                 </form>
                             @endif
 
-                            {{-- Status transition buttons --}}
+                            {{-- Step-by-step status transition buttons --}}
                             @foreach($b->status->nextStatuses() as $next)
                                 @continue($next === \App\Enums\BookingStatus::Allocated && $status === \App\Enums\BookingStatus::Pending)
+                                @continue(in_array($next, [\App\Enums\BookingStatus::Complete, \App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow], true))
                                 <form method="POST" action="{{ route('despatch.status', $b) }}">
                                     @csrf
                                     <input type="hidden" name="status" value="{{ $next->value }}">
@@ -87,6 +88,24 @@
                                 </form>
                             @endforeach
                         </div>
+
+                        {{-- One-tap close-out (admin): jump straight to done/no-show/cancelled --}}
+                        @unless($b->status->isTerminal())
+                            <div class="actions" style="margin-top:4px">
+                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Mark {{ $b->reference }} completed?')">
+                                    @csrf<input type="hidden" name="status" value="complete">
+                                    <button class="btn-xs" style="background:#1f7a44;color:#fff" type="submit">✓ Completed</button>
+                                </form>
+                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Mark {{ $b->reference }} as no-show?')">
+                                    @csrf<input type="hidden" name="status" value="no_show">
+                                    <button class="btn-xs ghost" type="submit">No-show</button>
+                                </form>
+                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Cancel {{ $b->reference }}?')">
+                                    @csrf<input type="hidden" name="status" value="cancelled">
+                                    <button class="btn-xs ghost" style="color:#b32020" type="submit">Cancel</button>
+                                </form>
+                            </div>
+                        @endunless
                     </div>
                 @empty
                     <p class="muted" style="font-size:12px;margin:4px 0">—</p>

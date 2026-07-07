@@ -3,7 +3,11 @@
 
 @section('content')
     <h1 class="page-title">Bookings</h1>
-    <p class="page-sub">All journeys in the system.</p>
+    @if(!empty($q))
+        <p class="page-sub">Search results for “<strong>{{ $q }}</strong>” · {{ $bookings->total() }} found — <a href="{{ route('bookings.index') }}">clear</a></p>
+    @else
+        <p class="page-sub">All journeys in the system.</p>
+    @endif
 
     @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
         <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="margin-bottom:20px">+ New Booking</a>

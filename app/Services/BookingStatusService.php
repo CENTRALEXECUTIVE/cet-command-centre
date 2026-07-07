@@ -116,6 +116,37 @@ class BookingStatusService
 
         $this->authorise($booking, $to, $actor);
 
+        return $this->apply($booking, $from, $to, $actor, $lat, $lng, $note);
+    }
+
+    /**
+     * Admin override — set a booking straight to a status (e.g. Completed, No
+     * Show, Cancelled) from the dispatch board without walking every step of the
+     * flow. Still authorised (admins only), logged, and fires the same side
+     * effects (review request, waiting-list notify) as a normal transition.
+     */
+    public function forceTransition(Booking $booking, BookingStatus $to, User $actor, ?string $note = null): Booking
+    {
+        $from = $booking->status;
+        if ($from === $to) {
+            return $booking;
+        }
+
+        $this->authorise($booking, $to, $actor);
+
+        return $this->apply($booking, $from, $to, $actor, null, null, $note);
+    }
+
+    /** Persist the status change, record history and fire side effects. */
+    private function apply(
+        Booking $booking,
+        BookingStatus $from,
+        BookingStatus $to,
+        User $actor,
+        ?float $lat,
+        ?float $lng,
+        ?string $note,
+    ): Booking {
         return DB::transaction(function () use ($booking, $from, $to, $actor, $lat, $lng, $note) {
             $booking->forceFill(['status' => $to->value])->save();
 

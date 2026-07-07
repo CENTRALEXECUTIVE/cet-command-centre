@@ -26,11 +26,11 @@ class BookingController extends Controller
         private readonly BookingNotifier $notifier,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request, \App\Services\Calendar\CalendarTimeSync $timeSync): View
     {
         $user = $request->user();
 
-        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount'])
+        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent'])
             ->orderByDesc('pickup_at');
 
         // Corporate clients only ever see their own account's bookings.
@@ -38,9 +38,25 @@ class BookingController extends Controller
             $query->whereIn('corporate_account_id', $user->corporateAccounts->pluck('id'));
         }
 
-        return view('bookings.index', [
-            'bookings' => $query->paginate(20),
-        ]);
+        // Search — reference, ETO reference, customer name/phone, lead passenger.
+        $q = trim((string) $request->query('q'));
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('reference', 'like', "%{$q}%")
+                    ->orWhere('external_reference', 'like', "%{$q}%")
+                    ->orWhere('meta->lead_name', 'like', "%{$q}%")
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"));
+            });
+        }
+
+        $bookings = $query->paginate(20)->withQueryString();
+
+        // Keep the list matched to the calendar (admins only, current page).
+        if ($user->isAdmin()) {
+            $bookings->getCollection()->each(fn (Booking $b) => $timeSync->alignToCalendarSlot($b));
+        }
+
+        return view('bookings.index', ['bookings' => $bookings, 'q' => $q]);
     }
 
     public function create(Request $request): View

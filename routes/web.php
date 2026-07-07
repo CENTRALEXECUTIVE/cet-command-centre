@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
         Route::post('despatch/{booking}/allocate', [DespatchController::class, 'allocate'])->name('despatch.allocate');
         Route::post('despatch/{booking}/auto-allocate', [DespatchController::class, 'autoAllocate'])->name('despatch.auto-allocate');
         Route::post('despatch/{booking}/status', [DespatchController::class, 'updateStatus'])->name('despatch.status');
+        Route::post('despatch/{booking}/quick-status', [DespatchController::class, 'quickStatus'])->middleware('throttle:60,1')->name('despatch.quick-status');
     });
 
     // ----- Driver mobile app (driver) ------------------------------------

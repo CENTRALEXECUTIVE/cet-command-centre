@@ -91,6 +91,14 @@
         <header class="topbar">
             <label for="nav-toggle" class="nav-burger" aria-label="Menu">&#9776;</label>
             <div class="topbar-title">@yield('title', 'CET Command Centre')</div>
+            @if($u->isAdmin())
+                <form method="GET" action="{{ route('bookings.index') }}" role="search"
+                      style="flex:1;max-width:340px;margin:0 12px;min-width:110px">
+                    <input type="search" name="q" value="{{ request('q') }}" placeholder="🔍 Search bookings…"
+                           aria-label="Search bookings"
+                           style="width:100%;padding:7px 12px;border:1px solid rgba(128,128,128,.35);border-radius:8px;font-size:13px;background:rgba(255,255,255,.06);color:inherit">
+                </form>
+            @endif
             <div class="topbar-user">
                 <span class="who">{{ $u->name }} <span class="role">{{ $u->role->label() }}</span></span>
                 <form method="POST" action="{{ route('logout') }}">

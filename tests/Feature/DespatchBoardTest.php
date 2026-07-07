@@ -122,4 +122,34 @@ class DespatchBoardTest extends TestCase
 
         $this->assertEquals(BookingStatus::Pending, $booking->refresh()->status);
     }
+
+    public function test_admin_can_quick_complete_a_job_from_any_state(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->pendingBooking(['status' => BookingStatus::Accepted]);
+
+        // Straight to Completed in one tap, bypassing the step-by-step flow.
+        $this->actingAs($admin)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'complete'])
+            ->assertRedirect();
+
+        $this->assertEquals(BookingStatus::Complete, $booking->refresh()->status);
+    }
+
+    public function test_quick_status_only_allows_close_out_states_and_admins(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->create();
+        $booking = $this->pendingBooking(['status' => BookingStatus::Accepted]);
+
+        // Not a close-out state → rejected.
+        $this->actingAs($admin)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'en_route'])
+            ->assertSessionHasErrors('status');
+
+        // Non-admins can't quick-close.
+        $this->actingAs($driver)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'complete'])
+            ->assertForbidden();
+    }
 }

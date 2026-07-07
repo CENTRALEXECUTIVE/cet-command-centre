@@ -72,6 +72,17 @@ class BookingTest extends TestCase
         $this->assertEquals('Abdirazak Hassan', $booking->driver->name);
     }
 
+    public function test_bookings_list_can_be_searched(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $wanted = Booking::factory()->create(['external_reference' => 'FINDME1']);
+        $other = Booking::factory()->create(['external_reference' => 'NOPE222']);
+
+        $response = $this->actingAs($admin)->get(route('bookings.index', ['q' => 'FINDME1']))->assertOk();
+        $response->assertSee($wanted->reference);
+        $response->assertDontSee($other->reference);
+    }
+
     public function test_suitcases_and_hand_luggage_are_captured_separately(): void
     {
         $admin = User::factory()->admin()->create();
