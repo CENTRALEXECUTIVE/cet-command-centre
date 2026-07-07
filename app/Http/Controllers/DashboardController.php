@@ -20,6 +20,7 @@ class DashboardController extends Controller
     public function __construct(
         private readonly CalendarStats $calendarStats,
         private readonly DriverComplianceService $compliance,
+        private readonly \App\Services\Messaging\BookingNotifier $notifier,
     ) {}
 
     /**
@@ -104,6 +105,11 @@ class DashboardController extends Controller
      */
     private function remindersToSend(): array
     {
+        // Self-healing: make sure every upcoming job actually has its reminders
+        // queued, so tomorrow's always appear here even for imported bookings
+        // that never went through the booking form.
+        $this->backfillUpcomingReminders();
+
         return Message::query()
             ->whereIn('type', ['reminder_24h', 'reminder_2h'])
             ->where('status', 'queued')
@@ -128,6 +134,27 @@ class DashboardController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Queue the 24h/2h reminders for any upcoming, active booking that has a
+     * phone number but no reminder yet — so the dashboard's "to send" list is
+     * always complete, including tomorrow's jobs and imported bookings. Reminders
+     * are only QUEUED for manual sending here; nothing is sent to a customer.
+     */
+    private function backfillUpcomingReminders(): void
+    {
+        Booking::query()
+            ->whereNotIn('status', [
+                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+            ])
+            ->whereBetween('pickup_at', [now(), now()->addDays(3)])
+            ->whereHas('customer', fn ($q) => $q->whereNotNull('phone'))
+            ->whereDoesntHave('messages', fn ($q) => $q->whereIn('type', ['reminder_24h', 'reminder_2h']))
+            ->with('customer')
+            ->limit(100)
+            ->get()
+            ->each(fn (Booking $b) => $this->notifier->ensureReminders($b));
     }
 
     /**

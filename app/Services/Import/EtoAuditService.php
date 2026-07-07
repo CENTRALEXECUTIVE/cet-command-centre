@@ -161,11 +161,12 @@ class EtoAuditService
 
         // The following compare against the ETO export row — only when auditing a CSV.
         if ($row !== null) {
-            // Pickup time: catches timezone / edit drift against the ETO record.
             $csvAt = $this->parseDate($row['Journey date'] ?? '');
-            if ($csvAt && $booking->pickup_at && $csvAt->format('H:i') !== $booking->pickup_at->format('H:i')) {
-                $issues[] = 'Pickup time differs — ETO '.$csvAt->format('H:i').' vs system '.$booking->pickup_at->format('H:i');
-            }
+
+            // NOTE: we deliberately do NOT flag an ETO-vs-system time-of-day
+            // difference. What matters is that the calendar and the command centre
+            // agree (checked above against the event); a ±1h wobble against the ETO
+            // export is not an issue when those two match.
 
             // Pickup date: a full day off means it's on the wrong day on the calendar.
             if ($csvAt && $booking->pickup_at && $csvAt->format('Y-m-d') !== $booking->pickup_at->format('Y-m-d')) {

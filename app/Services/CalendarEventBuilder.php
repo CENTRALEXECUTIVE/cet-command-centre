@@ -132,10 +132,35 @@ class CalendarEventBuilder
         return (bool) ($booking->meta['child_seat'] ?? false);
     }
 
-    /** Descriptive luggage from a bare count, never just a number. */
-    private function luggageText(int $count): string
+    /**
+     * The descriptive luggage line for the calendar — the suitcase + hand-luggage
+     * split when we have it (from ETO or the booking form), so the calendar
+     * carries the real breakdown that the rest of the app mirrors back. Falls
+     * back to the pre-supplied text, then a bare count, then "None".
+     */
+    private function luggageText(Booking $booking): string
     {
-        return $count > 0 ? $count.' Hand Luggage' : 'None';
+        $meta = $booking->meta ?? [];
+        if (filled($meta['luggage_text'] ?? null)) {
+            return $meta['luggage_text'];
+        }
+
+        $suitcases = (int) ($meta['suitcases'] ?? 0);
+        $hand = (int) ($meta['hand_luggage'] ?? 0);
+        $parts = [];
+        if ($suitcases > 0) {
+            $parts[] = $suitcases.' Suitcase'.($suitcases > 1 ? 's' : '');
+        }
+        if ($hand > 0) {
+            $parts[] = $hand.' Hand Luggage';
+        }
+        if ($parts) {
+            return implode(' + ', $parts);
+        }
+
+        $total = (int) $booking->luggage;
+
+        return $total > 0 ? $total.' Hand Luggage' : 'None';
     }
 
     /** The "📑 Booking Confirmation" body, bold labels on both sides. */
@@ -166,7 +191,7 @@ class CalendarEventBuilder
         $add('Contact No', $meta['contact_no'] ?? $booking->customer?->phone);
         $add('Passengers', (string) $booking->passengers);
         // Luggage must be descriptive, never a bare number.
-        $add('Luggage', $meta['luggage_text'] ?? $this->luggageText((int) $booking->luggage));
+        $add('Luggage', $this->luggageText($booking));
         if ((int) ($meta['child_seats'] ?? 0) > 0) {
             $add('Child Seats', (string) $meta['child_seats']);
         }

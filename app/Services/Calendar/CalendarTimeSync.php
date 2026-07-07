@@ -33,11 +33,19 @@ class CalendarTimeSync
             return ['status' => 'unavailable', 'old' => null, 'new' => null];
         }
 
+        // Mirror the live description into our local copy too, so the luggage and
+        // other details shown in the command centre match the calendar. This
+        // updates OUR row only — it is never a write to Google.
+        if (filled($live['description'] ?? null)) {
+            $event->description = $live['description'];
+        }
+
         $calendarStart = $live['start'];
         $old = $booking->pickup_at;
 
         // Compare to the minute — Google may hand back seconds we don't store.
         if ($old && $old->format('Y-m-d H:i') === $calendarStart->format('Y-m-d H:i')) {
+            $event->save(); // persist any description refresh even when the time already matches
             return [
                 'status' => 'matches',
                 'old' => $old->format('D d M, H:i'),

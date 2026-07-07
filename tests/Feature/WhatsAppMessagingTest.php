@@ -120,6 +120,21 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
     }
 
+    public function test_dashboard_backfills_reminders_so_tomorrows_jobs_show(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // An imported-style booking (never went through the form) for tomorrow.
+        $booking = Booking::factory()->create(['pickup_at' => now()->addDay()->setTime(15, 0)]);
+        $booking->customer->update(['phone' => '07700900321']);
+
+        $this->assertDatabaseMissing('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
+
+        // Simply opening the dashboard prepares the reminder so it appears.
+        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+
+        $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
+    }
+
     public function test_late_night_reminder_is_pulled_back_to_the_ten_pm_edge(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

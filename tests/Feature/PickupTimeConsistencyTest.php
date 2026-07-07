@@ -32,6 +32,25 @@ class PickupTimeConsistencyTest extends TestCase
         return $booking->fresh(['calendarEvent']);
     }
 
+    public function test_luggage_is_mirrored_verbatim_from_the_calendar(): void
+    {
+        $booking = Booking::factory()->create(['luggage' => 0]); // booking itself says nothing
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_lug',
+            'title' => '*Test MAN (ESTATE)*',
+            'location' => 'Sheffield',
+            'description' => "📑 *Booking Confirmation – Departure*\n• *Luggage:* 2 Suitcases + 1 Hand Luggage\n• *Pickup Location:* Sheffield",
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        // The command centre shows exactly what's on the calendar.
+        $this->assertEquals('2 Suitcases + 1 Hand Luggage', $booking->fresh()->luggageBreakdown());
+        $this->assertEquals('2 Suitcases + 1 Hand Luggage', $booking->fresh()->luggageShort());
+    }
+
     public function test_no_mismatch_when_all_three_times_agree(): void
     {
         $booking = $this->bookingWithEvent('2026-07-15 06:45:00', '15/07/2026 – 06:45');

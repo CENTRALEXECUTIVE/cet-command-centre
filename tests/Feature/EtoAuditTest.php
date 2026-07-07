@@ -81,19 +81,23 @@ class EtoAuditTest extends TestCase
         $this->assertContains('Calendar title not in CET format', $issues);
     }
 
-    public function test_flags_pickup_time_drift(): void
+    public function test_flags_calendar_time_not_matching_the_booking(): void
     {
+        // What matters is that the calendar and the command centre agree. A ±1h
+        // wobble against the ETO export alone is deliberately NOT flagged.
         $booking = Booking::factory()->create([
             'external_reference' => 'TIMEXX',
-            'pickup_at' => '2025-03-24 21:05:00', // one hour off
+            'pickup_at' => '2025-03-24 21:05:00',
             'final_price' => 200,
         ]);
         CalendarEvent::create([
             'booking_id' => $booking->id,
             'google_event_id' => 'evt_3',
             'title' => '*Jo Manchester Airport (EXEC)*',
-            'start_at' => $booking->pickup_at,
-            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'location' => 'Manchester Airport',
+            'description' => '📑 Booking Confirmation',
+            'start_at' => '2025-03-24 22:05:00', // calendar disagrees with the booking
+            'end_at' => '2025-03-24 23:05:00',
             'sync_status' => 'synced',
         ]);
 
@@ -102,7 +106,36 @@ class EtoAuditTest extends TestCase
         );
 
         $this->assertSame(1, $report['counts']['flagged']);
-        $this->assertStringContainsString('Pickup time differs', implode(' ', $booking->fresh()->meta['audit_issues']));
+        $this->assertStringContainsString("doesn't match the booking", implode(' ', $booking->fresh()->meta['audit_issues']));
+    }
+
+    public function test_eto_time_of_day_difference_alone_is_not_flagged(): void
+    {
+        // Calendar + command centre both 21:05; ETO says 22:05. Not an issue.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'ETOTIM',
+            'pickup_at' => '2025-03-24 21:05:00',
+            'pickup_address' => '1 Test St, Sheffield',
+            'destination_address' => 'Manchester Airport',
+            'final_price' => 200,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_4',
+            'title' => '*Jo Manchester Airport (EXEC)*',
+            'location' => 'Manchester Airport',
+            'description' => '📑 Booking Confirmation',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        app(EtoAuditService::class)->audit(
+            $this->csvPath("24/03/2025 22:05;ETOTIM;Jo;Completed;200.00;\"Paid\"\n")
+        );
+
+        $issues = implode(' ', $booking->fresh()->meta['audit_issues'] ?? []);
+        $this->assertStringNotContainsString('time differs', $issues);
     }
 
     public function test_flags_location_dropped_off_the_calendar(): void

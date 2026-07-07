@@ -216,6 +216,11 @@ class Booking extends Model
      */
     public function luggageBreakdown(): string
     {
+        // The calendar is the source of truth — mirror its Luggage line verbatim.
+        if ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage')) {
+            return $fromCalendar;
+        }
+
         [$suitcases, $hand] = $this->luggageCounts();
 
         if ($suitcases !== null || $hand !== null) {
@@ -234,6 +239,11 @@ class Booking extends Model
     /** Compact luggage for the bookings table, e.g. "2 case · 1 hand" or "—". */
     public function luggageShort(): string
     {
+        // Mirror the calendar's Luggage line when there's an event.
+        if ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage')) {
+            return $fromCalendar;
+        }
+
         [$suitcases, $hand] = $this->luggageCounts();
 
         if ($suitcases !== null || $hand !== null) {

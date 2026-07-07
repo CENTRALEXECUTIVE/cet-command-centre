@@ -85,7 +85,8 @@ class BookingTest extends TestCase
         $this->assertEquals(3, $booking->meta['suitcases']);
         $this->assertEquals(2, $booking->meta['hand_luggage']);
         $this->assertEquals(5, $booking->luggage); // combined total kept in sync
-        $this->assertEquals('3 suitcases · 2 hand luggage', $booking->luggageBreakdown());
+        // The breakdown lands on the calendar and the booking mirrors it verbatim.
+        $this->assertEquals('3 Suitcases + 2 Hand Luggage', $booking->luggageBreakdown());
     }
 
     public function test_luggage_breakdown_reads_the_calendar_luggage_text_for_older_bookings(): void
