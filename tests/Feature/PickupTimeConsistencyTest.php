@@ -69,15 +69,23 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertArrayHasKey('Booking', $times);
     }
 
-    public function test_dashboard_notifies_the_office_of_a_time_mismatch(): void
+    public function test_dashboard_auto_corrects_a_drifted_booking_time(): void
     {
         $admin = User::factory()->admin()->create();
         $day = now()->addDays(3);
-        $this->bookingWithEvent($day->format('Y-m-d').' 06:45:00', $day->format('d/m/Y').' – 07:45');
+        // Booking sits an hour ahead of the calendar slot (the old drift).
+        $booking = $this->bookingWithEvent(
+            $day->format('Y-m-d').' 19:45:00',   // booking 19:45
+            $day->format('d/m/Y').' – 18:45',    // description 18:45
+            $day->format('Y-m-d').' 18:45:00'    // calendar slot 18:45
+        );
 
+        // Simply opening the dashboard corrects it — no button.
         $this->actingAs($admin)->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('pickup-time mismatch');
+            ->assertSee('corrected to match the calendar');
+
+        $this->assertEquals('18:45', $booking->fresh()->pickup_at->format('H:i'));
     }
 
     public function test_fix_all_snaps_booking_times_to_the_calendar(): void

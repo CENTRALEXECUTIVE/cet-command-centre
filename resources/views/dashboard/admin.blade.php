@@ -38,10 +38,27 @@
         </div>
     @endif
 
+    @if(!empty($correctedTimes))
+        <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin-bottom:16px">
+            <strong>✓ {{ count($correctedTimes) }} booking time(s) corrected to match the calendar</strong>
+            <span class="muted" style="font-size:13px">— done automatically; the calendar was not changed</span>
+            <div style="margin-top:8px">
+                @foreach($correctedTimes as $tm)
+                    <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                        <a href="{{ $tm['url'] }}" class="mono">{{ $tm['ref'] }}</a> <span class="muted">· {{ $tm['customer'] }}</span>
+                        <div style="font-size:12px;margin-top:2px">
+                            <span class="muted" style="text-decoration:line-through">{{ $tm['from'] }}</span> → <strong>{{ $tm['to'] }}</strong>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     @if(!empty($timeMismatches))
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
-            <strong>⏰ {{ count($timeMismatches) }} booking(s) with a pickup-time mismatch</strong>
-            <span class="muted" style="font-size:13px">— the booking, the calendar event and the calendar description don't all agree</span>
+            <strong>⏰ {{ count($timeMismatches) }} booking(s) where the calendar's own time and description disagree</strong>
+            <span class="muted" style="font-size:13px">— the booking now matches the calendar slot, but the printed time on the calendar differs; correct it on the calendar</span>
             <div style="margin-top:8px">
                 @foreach($timeMismatches as $tm)
                     <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
@@ -52,12 +69,6 @@
                     </div>
                 @endforeach
             </div>
-            <form method="POST" action="{{ route('dashboard.fix-times') }}" style="margin-top:10px"
-                  onsubmit="return confirm('Set all of these bookings to match their calendar time? The calendar itself is not changed.')">
-                @csrf
-                <button class="btn btn-primary" style="padding:7px 16px;font-size:13px">✓ Fix all to match the calendar</button>
-            </form>
-            <p class="hint" style="margin:8px 0 0">This sets each booking above to its calendar time in one go — the calendar is never edited.</p>
         </div>
     @endif
 

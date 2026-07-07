@@ -75,12 +75,19 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} created successfully.");
     }
 
-    public function show(Request $request, Booking $booking): View
+    public function show(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $timeSync): View
     {
         // Authorisation: corporate clients can only view their own bookings.
         if ($request->user()->isCorporateClient()
             && ! $request->user()->corporateAccounts->pluck('id')->contains($booking->corporate_account_id)) {
             abort(403);
+        }
+
+        // Always show the calendar's time: snap this booking to its calendar slot
+        // if it has drifted, so the page never shows an out-of-step pickup time.
+        if ($request->user()->isAdmin() && $timeSync->alignToCalendarSlot($booking)) {
+            $booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
+                ->where('status', 'queued')->delete();
         }
 
         return view('bookings.show', $this->showData($request, $booking));
