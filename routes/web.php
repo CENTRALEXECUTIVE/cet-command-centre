@@ -92,6 +92,14 @@ Route::middleware('auth')->group(function () {
         Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments.index');
         Route::post('bookings/{booking}/paid', [\App\Http\Controllers\PaymentController::class, 'markPaid'])->name('payments.paid');
 
+        // User management (admins; admin/super-admin creation is super-admin only).
+        Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
+        Route::get('users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('users.create');
+        Route::post('users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
+        Route::get('users/{user}/edit', [\App\Http\Controllers\Admin\UserController::class, 'edit'])->name('users.edit');
+        Route::put('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+
         // Drivers directory (roster picked from when preparing reminders).
         Route::get('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'index'])->name('cover-drivers.index');
         Route::post('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'store'])->name('cover-drivers.store');

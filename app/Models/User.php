@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_super_admin',
         'phone',
         'is_active',
         'last_login_at',
@@ -39,6 +40,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'is_super_admin' => 'boolean',
             'role' => UserRole::class,
         ];
     }
@@ -83,6 +85,12 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
+    }
+
+    /** A super admin can manage all users, including other admins. */
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin && $this->role === UserRole::Admin;
     }
 
     public function isDriver(): bool
