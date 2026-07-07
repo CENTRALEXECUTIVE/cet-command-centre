@@ -241,9 +241,11 @@
                         </span>
                     </div>
                     <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->body }}</div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-                        @if($m->whatsAppLink())
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+                        @if($m->whatsAppLink() && $m->isReadyToSend())
                             <a href="{{ $m->whatsAppLink() }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:5px 12px;font-size:12px">📲 Send on WhatsApp</a>
+                        @elseif($m->isReminder() && ! $m->isReadyToSend())
+                            <span class="muted" style="font-size:12px">🕗 Ready to send {{ $m->scheduled_for->format('D d M, H:i') }}</span>
                         @endif
                         <button type="button" class="btn btn-ghost copy-msg" style="padding:5px 12px;font-size:12px">⧉ Copy</button>
                         @if($m->status !== 'sent')

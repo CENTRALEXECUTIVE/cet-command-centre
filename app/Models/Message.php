@@ -37,6 +37,17 @@ class Message extends Model
         return in_array($this->type, ['reminder_24h', 'reminder_2h'], true);
     }
 
+    /**
+     * Should the manual "Send on WhatsApp" prompt be offered yet? A scheduled
+     * reminder stays hidden until its (windowed) send time arrives, so the
+     * office is never nudged to message a customer early or overnight. Anything
+     * else (confirmation, driver details, one-off messages) is always sendable.
+     */
+    public function isReadyToSend(): bool
+    {
+        return ! ($this->isReminder() && $this->scheduled_for && $this->scheduled_for->isFuture());
+    }
+
     /** The recipient number in international format (44…) for wa.me links. */
     public function intlPhone(): ?string
     {

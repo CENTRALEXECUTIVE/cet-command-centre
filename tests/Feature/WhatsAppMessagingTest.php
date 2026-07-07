@@ -142,6 +142,23 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
     }
 
+    public function test_reminder_is_not_offered_for_manual_send_until_its_window(): void
+    {
+        // Before its (windowed) send time a reminder must not show the manual
+        // "Send on WhatsApp" prompt — the office isn't nudged to message early.
+        $future = new Message(['type' => 'reminder_24h']);
+        $future->scheduled_for = now()->addHours(5);
+        $this->assertFalse($future->isReadyToSend());
+
+        // Once the send time has arrived it becomes sendable.
+        $due = new Message(['type' => 'reminder_24h']);
+        $due->scheduled_for = now()->subMinute();
+        $this->assertTrue($due->isReadyToSend());
+
+        // Non-reminder messages (confirmation, driver details…) are always sendable.
+        $this->assertTrue((new Message(['type' => 'confirmation']))->isReadyToSend());
+    }
+
     public function test_2h_reminder_is_skipped_when_it_falls_overnight(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
