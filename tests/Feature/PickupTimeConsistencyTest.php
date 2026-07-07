@@ -32,6 +32,28 @@ class PickupTimeConsistencyTest extends TestCase
         return $booking->fresh(['calendarEvent']);
     }
 
+    public function test_booking_page_shows_eto_reference_and_calendar_description(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['external_reference' => 'ETOREF9']);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_desc',
+            'title' => '*Test MAN (ESTATE)*',
+            'location' => 'Sheffield',
+            'description' => "📑 *Booking Confirmation – Departure*\n• *Booking Reference:* ETOREF9\n• *Luggage:* 2 Suitcases + 1 Hand Luggage",
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('ETOREF9')                       // the ETO reference is on the booking
+            ->assertSee('Full details (from the calendar)')
+            ->assertSee('2 Suitcases + 1 Hand Luggage'); // the calendar description is shown
+    }
+
     public function test_luggage_is_mirrored_verbatim_from_the_calendar(): void
     {
         $booking = Booking::factory()->create(['luggage' => 0]); // booking itself says nothing

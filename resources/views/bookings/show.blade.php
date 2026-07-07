@@ -6,7 +6,9 @@
         Booking <span class="mono">{{ $booking->reference }}</span>
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
     </h1>
-    <p class="page-sub">Created {{ $booking->created_at->format('D d M Y, H:i') }}
+    <p class="page-sub">
+        @if($booking->external_reference)ETO reference <span class="mono" style="font-weight:600">{{ $booking->external_reference }}</span> · @endif
+        Created {{ $booking->created_at->format('D d M Y, H:i') }}
         @if($booking->createdBy) by {{ $booking->createdBy->name }} @endif</p>
 
     @if(session('status'))
@@ -108,6 +110,12 @@
                 <tr><th>Start → End</th><td>{{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</td></tr>
                 <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
             </table>
+            @if(filled($booking->calendarEvent->description))
+                <div style="margin-top:12px">
+                    <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:4px">Full details (from the calendar)</div>
+                    <div style="white-space:pre-line;font-size:13px;line-height:1.55;background:rgba(128,128,128,.05);border-radius:8px;padding:12px">{{ str_replace('*', '', $booking->calendarEvent->description) }}</div>
+                </div>
+            @endif
             @if(auth()->user()->isAdmin() && $booking->calendarEvent->google_event_id)
                 <form method="POST" action="{{ route('bookings.sync-time', $booking) }}" style="margin-top:10px"
                       onsubmit="return confirm('Set this booking\'s pickup time to whatever is on the Google Calendar right now? The calendar itself is not changed.')">
