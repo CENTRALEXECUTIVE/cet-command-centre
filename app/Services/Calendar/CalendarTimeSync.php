@@ -15,23 +15,35 @@ class CalendarTimeSync
     public function __construct(private readonly GoogleCalendarService $google) {}
 
     /**
-     * Set the booking's pickup time to the calendar event's slot we already hold
-     * locally (which mirrors the calendar the operator sees). No Google call, so
-     * it's instant for the bulk "fix all". Returns true if it changed anything.
+     * Set the booking's pickup time to the calendar's authoritative time (the
+     * printed "Date & Time" where present, else the slot), and bring the local
+     * event slot into line with it too — so the booking, the slot and the printed
+     * time all agree at the correct hour. No Google call, so it's instant for the
+     * bulk/auto heal. Returns true when the booking's own time changed.
      */
     public function alignToCalendarSlot(Booking $booking): bool
     {
         $event = $booking->calendarEvent;
-        if (! $event || ! $event->start_at || ! $booking->pickup_at) {
+        if (! $event) {
             return false;
         }
-        if ($booking->pickup_at->format('Y-m-d H:i') === $event->start_at->format('Y-m-d H:i')) {
+        $target = $event->calendarPickupAt();
+        if (! $target || ! $booking->pickup_at) {
             return false;
         }
 
-        $booking->forceFill(['pickup_at' => $event->start_at])->save();
+        $bookingChanged = $booking->pickup_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i');
+        if ($bookingChanged) {
+            $booking->forceFill(['pickup_at' => $target])->save();
+        }
 
-        return true;
+        // Correct our local slot to the true time as well, so the "calendar's own
+        // time and description disagree" flag clears. This touches OUR row only.
+        if (! $event->start_at || $event->start_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i')) {
+            $event->forceFill(['start_at' => $target, 'end_at' => $target->copy()->addHour()])->save();
+        }
+
+        return $bookingChanged;
     }
 
     /**

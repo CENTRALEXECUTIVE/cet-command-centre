@@ -95,11 +95,12 @@ class PickupTimeConsistencyTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $day = now()->addDays(3);
-        // Booking sits an hour ahead of the calendar slot (the old drift).
+        // The real bug: booking AND the event slot are an hour late (19:45), but
+        // the printed description carries the true time (18:45). The description wins.
         $booking = $this->bookingWithEvent(
-            $day->format('Y-m-d').' 19:45:00',   // booking 19:45
-            $day->format('d/m/Y').' – 18:45',    // description 18:45
-            $day->format('Y-m-d').' 18:45:00'    // calendar slot 18:45
+            $day->format('Y-m-d').' 19:45:00',   // booking 19:45 (wrong)
+            $day->format('d/m/Y').' – 18:45',    // description 18:45 (the truth)
+            $day->format('Y-m-d').' 19:45:00'    // slot 19:45 (also wrong)
         );
 
         // Simply opening the dashboard corrects it — no button.
@@ -107,7 +108,10 @@ class PickupTimeConsistencyTest extends TestCase
             ->assertOk()
             ->assertSee('corrected to match the calendar');
 
-        $this->assertEquals('18:45', $booking->fresh()->pickup_at->format('H:i'));
+        $booking = $booking->fresh(['calendarEvent']);
+        $this->assertEquals('18:45', $booking->pickup_at->format('H:i'));           // booking fixed
+        $this->assertEquals('18:45', $booking->calendarEvent->start_at->format('H:i')); // slot fixed
+        $this->assertSame([], $booking->pickupTimeMismatch());                       // and consistent
     }
 
     public function test_fix_all_snaps_booking_times_to_the_calendar(): void
@@ -116,9 +120,9 @@ class PickupTimeConsistencyTest extends TestCase
         // Booking an hour ahead of its calendar slot (the old import drift).
         $day = now()->addDays(2);
         $booking = $this->bookingWithEvent(
-            $day->format('Y-m-d').' 19:45:00',              // booking says 19:45
-            $day->format('d/m/Y').' – 18:45',               // description 18:45
-            $day->format('Y-m-d').' 18:45:00'               // calendar slot 18:45 (the truth)
+            $day->format('Y-m-d').' 19:45:00',              // booking says 19:45 (wrong)
+            $day->format('d/m/Y').' – 18:45',               // description 18:45 (the truth)
+            $day->format('Y-m-d').' 19:45:00'               // slot 19:45 (also wrong)
         );
 
         $this->actingAs($admin)->post(route('dashboard.fix-times'))

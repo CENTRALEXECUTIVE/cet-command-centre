@@ -47,6 +47,18 @@ class CalendarEvent extends Model
     }
 
     /**
+     * The authoritative pickup time for this event: the time PRINTED in the
+     * description ("Date & Time") when present, else the event slot. The printed
+     * time is ETO's real local time and is trusted over the slot, because an ICS
+     * import once mis-read UTC-tagged slots an hour late while the printed text
+     * stayed correct — so where they disagree, the description wins.
+     */
+    public function calendarPickupAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->descriptionPickupAt() ?? $this->start_at;
+    }
+
+    /**
      * The pickup date+time printed INSIDE the description's Booking Confirmation
      * block ("• *Date & Time:* 15/07/2026 – 06:45"), or null when it isn't
      * present/parseable. Lets us confirm the printed time still agrees with the
