@@ -69,6 +69,7 @@ class DashboardController extends Controller
                     ->sum(DB::raw($revenue)),
                 'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
                 'remindersToSend' => $this->remindersToSend(),
+                'timeMismatches' => $this->timeMismatches(),
             ]);
         }
 
@@ -126,6 +127,39 @@ class DashboardController extends Controller
                 'url' => route('bookings.show', $m->booking),
             ])
             ->values()
+            ->all();
+    }
+
+    /**
+     * Upcoming bookings whose pickup time doesn't agree across the three places
+     * it appears — the booking (shown here and in the bookings list), the
+     * calendar event's slot, and the time printed in the event description — so
+     * the office is notified of any drift between the system and the calendar.
+     *
+     * @return array<int, array{ref: string, customer: ?string, url: string, times: array<string, string>}>
+     */
+    private function timeMismatches(): array
+    {
+        return Booking::query()
+            ->whereHas('calendarEvent', fn ($q) => $q->whereNotNull('google_event_id'))
+            ->whereNotIn('status', [
+                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+            ])
+            ->where('pickup_at', '>=', now()->startOfDay())
+            ->with(['calendarEvent', 'customer'])
+            ->orderBy('pickup_at')
+            ->limit(60)
+            ->get()
+            ->map(fn (Booking $b) => ['booking' => $b, 'times' => $b->pickupTimeMismatch()])
+            ->filter(fn (array $row) => $row['times'] !== [])
+            ->map(fn (array $row) => [
+                'ref' => $row['booking']->external_reference ?? $row['booking']->reference,
+                'customer' => $row['booking']->displayName(),
+                'url' => route('bookings.show', $row['booking']),
+                'times' => $row['times'],
+            ])
+            ->values()
+            ->take(15)
             ->all();
     }
 

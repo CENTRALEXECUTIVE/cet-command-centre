@@ -27,4 +27,23 @@ class CalendarEvent extends Model
     {
         return $this->belongsTo(Booking::class);
     }
+
+    /**
+     * The pickup date+time printed INSIDE the description's Booking Confirmation
+     * block ("• *Date & Time:* 15/07/2026 – 06:45"), or null when it isn't
+     * present/parseable. Lets us confirm the printed time still agrees with the
+     * event's actual slot and the booking.
+     */
+    public function descriptionPickupAt(): ?\Illuminate\Support\Carbon
+    {
+        if (! preg_match('#Date\s*&\s*Time:\*?\s*(\d{1,2}/\d{1,2}/\d{4})\s*[–—-]\s*(\d{1,2}:\d{2})#u', (string) $this->description, $m)) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::createFromFormat('d/m/Y H:i', $m[1].' '.$m[2], config('app.timezone'));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 }

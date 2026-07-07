@@ -144,6 +144,11 @@ class EtoAuditService
             if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
                 $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
             }
+            // The time PRINTED in the description must match the event's slot.
+            $descAt = $ev->descriptionPickupAt();
+            if ($descAt && $ev->start_at && $descAt->format('H:i') !== $ev->start_at->format('H:i')) {
+                $issues[] = 'Calendar description time ('.$descAt->format('H:i').') doesn\'t match the event slot ('.$ev->start_at->format('H:i').')';
+            }
         }
 
         // Addresses present on the booking itself (importer writes 'Unknown' when blank).

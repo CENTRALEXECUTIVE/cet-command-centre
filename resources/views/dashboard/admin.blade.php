@@ -38,6 +38,24 @@
         </div>
     @endif
 
+    @if(!empty($timeMismatches))
+        <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
+            <strong>⏰ {{ count($timeMismatches) }} booking(s) with a pickup-time mismatch</strong>
+            <span class="muted" style="font-size:13px">— the booking, the calendar event and the calendar description don't all agree</span>
+            <div style="margin-top:8px">
+                @foreach($timeMismatches as $tm)
+                    <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                        <a href="{{ $tm['url'] }}" class="mono">{{ $tm['ref'] }}</a> <span class="muted">· {{ $tm['customer'] }}</span>
+                        <div style="font-size:12px;margin-top:2px">
+                            @foreach($tm['times'] as $source => $time){{ $source }}: <strong>{{ $time }}</strong>@if(!$loop->last) <span class="muted">·</span> @endif @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            <p class="hint" style="margin:8px 0 0">Open the booking and tap <strong>Match time to calendar</strong> to bring it in line (the calendar is never edited).</p>
+        </div>
+    @endif
+
     @if(!empty($complianceAlerts))
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
             <strong>🚫 {{ count($complianceAlerts) }} driver(s) blocked — expired documents:</strong>

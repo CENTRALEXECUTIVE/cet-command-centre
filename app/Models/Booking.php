@@ -248,6 +248,36 @@ class Booking extends Model
         return $total > 0 ? $total.' bag'.($total === 1 ? '' : 's') : '—';
     }
 
+    /**
+     * Do the three pickup times agree — the booking (shown on the dashboard and
+     * bookings list), the calendar event's slot (start_at), and the time printed
+     * in the event's description? Returns each source's time for a notification
+     * when they differ, or [] when they match (or there's no linked event).
+     * Read-only — purely a consistency check.
+     *
+     * @return array<string, string>  e.g. ['Booking' => 'Wed 15 Jul, 07:45', ...]
+     */
+    public function pickupTimeMismatch(): array
+    {
+        $event = $this->calendarEvent;
+        if (! $event || blank($event->google_event_id)) {
+            return [];
+        }
+
+        $times = array_filter([
+            'Booking' => $this->pickup_at,
+            'Calendar event' => $event->start_at,
+            'Calendar description' => $event->descriptionPickupAt(),
+        ]);
+
+        $distinct = collect($times)->map(fn ($t) => $t->format('Y-m-d H:i'))->unique();
+        if ($distinct->count() <= 1) {
+            return [];
+        }
+
+        return collect($times)->map(fn ($t) => $t->format('D d M, H:i'))->all();
+    }
+
     /** Generate the next unique booking reference, e.g. CET-2A4F9C. */
     public static function generateReference(): string
     {
