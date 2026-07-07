@@ -99,6 +99,30 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   `Lead passenger name`, `Passenger name`, `Status`, `Total`, `Pickup`,
   `Dropoff`, `Payments`, `Vehicle type`, `Source`. Semicolon **or** comma
   delimited. "Request quote" rows are skipped.
+- The audit page also has a **search** (`?q=`) to reconfirm a single booking by
+  reference or customer name without a CSV, and lists results **newest-first**.
+
+## New booking from a message (paste → preview → confirm)
+
+- **`/intake`** (`Admin\BookingIntakeController` + `Services\BookingIntakeService`),
+  sidebar **Sales → Paste a booking** (also linked on the ETO audit page). The
+  operator pastes a booking message; the AI extracts the fields and a **non-saved
+  preview** of the exact CET title + details block is shown. NOTHING is created
+  and NOTHING touches the calendar until the operator reviews and confirms.
+- On confirm: creates customer + booking, allocates a rotation driver for
+  executive saloons, builds the calendar event, and pushes to Google **only when
+  the integration is live** (else left pending — never silently dropped). Pickup
+  time is UK-local so it doesn't shift. `CalendarEventBuilder::preview()` renders
+  the format without saving.
+
+## Driver rotation
+
+- **`/rotation`** (`Admin\RotationController`), sidebar **Fleet & admin → Driver
+  rotation** — read-only. Shows the order (Abdi → Maj), who's up next per airport
+  × executive vehicle type (from `RotationState`), and the `RotationLog` history.
+  The engine is `Services\RotationService` (allocate advances the pointer; return
+  legs keep the same driver; substitutes don't advance). Nothing on the page
+  changes the rotation.
 
 ## Other built areas (quick map)
 
