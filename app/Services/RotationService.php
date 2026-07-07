@@ -29,6 +29,52 @@ use Illuminate\Support\Facades\DB;
 class RotationService
 {
     /**
+     * A read-only snapshot of the rotation for the admin screen: the ordered
+     * rotation drivers, and for every airport × rotation vehicle type who is up
+     * next and when the pointer last moved. Nothing here advances anything.
+     *
+     * @return array{drivers: Collection<int, User>, rows: array<int, array<string, mixed>>}
+     */
+    public function overview(): array
+    {
+        $drivers = $this->rotationDrivers();
+        $first = $drivers->first();
+        $vehicleTypes = VehicleType::where('affects_rotation', true)->orderBy('name')->get();
+        $airports = Airport::where('is_active', true)->orderByDesc('is_general_pool')->orderBy('name')->get();
+
+        $states = RotationState::with('nextDriver')->get()
+            ->keyBy(fn ($s) => $s->airport_id.'-'.$s->vehicle_type_id);
+
+        $rows = [];
+        foreach ($airports as $airport) {
+            foreach ($vehicleTypes as $type) {
+                $state = $states->get($airport->id.'-'.$type->id);
+                // No pointer yet → the default first driver (ABDI) is up next.
+                $next = $state?->nextDriver ?? $first;
+                $rows[] = [
+                    'airport' => $airport,
+                    'vehicle_type' => $type,
+                    'next' => $next,
+                    'last_advanced_at' => $state?->last_advanced_at,
+                    'seeded' => (bool) $state,
+                ];
+            }
+        }
+
+        return ['drivers' => $drivers, 'rows' => $rows];
+    }
+
+    /**
+     * The ordered rotation drivers (Abdi, then Maj), public for display.
+     *
+     * @return Collection<int, User>
+     */
+    public function order(): Collection
+    {
+        return $this->rotationDrivers();
+    }
+
+    /**
      * Determine the driver who should take a job for the given airport and
      * vehicle type WITHOUT advancing the pointer. Returns null when the vehicle
      * type does not affect rotation (third-party / non-saloon work).

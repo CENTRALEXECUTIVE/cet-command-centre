@@ -72,6 +72,7 @@
                     <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
                     <a href="{{ route('driver-documents.index') }}" class="{{ request()->routeIs('driver-documents.*') ? 'active' : '' }}">Driver documents</a>
                     <a href="{{ route('cover-drivers.index') }}" class="{{ request()->routeIs('cover-drivers.*') ? 'active' : '' }}">Drivers directory</a>
+                    <a href="{{ route('rotation.index') }}" class="{{ request()->routeIs('rotation.*') ? 'active' : '' }}">Driver rotation</a>
                     <a href="{{ route('imports.index') }}" class="{{ request()->routeIs('imports.*') ? 'active' : '' }}">Imports</a>
                     <a href="{{ route('audit.index') }}" class="{{ request()->routeIs('audit.*') ? 'active' : '' }}">ETO audit</a>
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">Users</a>

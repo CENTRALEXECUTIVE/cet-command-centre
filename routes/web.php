@@ -164,6 +164,9 @@ Route::middleware('auth')->group(function () {
         Route::post('audit', [\App\Http\Controllers\Admin\AuditController::class, 'run'])
             ->middleware('throttle:20,1')->name('audit.run');
 
+        // Driver rotation — read-only order + next-driver pointer + history.
+        Route::get('rotation', [\App\Http\Controllers\Admin\RotationController::class, 'index'])->name('rotation.index');
+
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
         Route::post('drivers', [\App\Http\Controllers\Admin\DriverController::class, 'store'])->name('drivers.store');

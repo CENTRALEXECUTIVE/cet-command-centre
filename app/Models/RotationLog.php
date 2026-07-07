@@ -12,6 +12,11 @@ class RotationLog extends Model
         'from_driver_id', 'to_driver_id', 'reason',
     ];
 
+    public function booking(): BelongsTo
+    {
+        return $this->belongsTo(Booking::class);
+    }
+
     public function airport(): BelongsTo
     {
         return $this->belongsTo(Airport::class);
