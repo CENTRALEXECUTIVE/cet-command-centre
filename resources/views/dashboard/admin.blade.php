@@ -7,7 +7,14 @@
             <h1 class="page-title" style="margin-bottom:2px">Dispatch Overview</h1>
             <p class="page-sub">{{ now()->format('l d F Y · H:i') }} · {{ auth()->user()->name }}</p>
         </div>
-        <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="btn btn-light" style="padding:6px 14px">↻ Refresh</a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <form method="POST" action="{{ route('dashboard.fix-times') }}"
+                  onsubmit="return confirm('Match every booking to its calendar time now? The calendar itself is not changed.')">
+                @csrf
+                <button class="btn btn-light" style="padding:6px 14px">🗓 Match times to calendar</button>
+            </form>
+            <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="btn btn-light" style="padding:6px 14px">↻ Refresh</a>
+        </div>
     </div>
 
     @if(!empty($reviewReminder))
