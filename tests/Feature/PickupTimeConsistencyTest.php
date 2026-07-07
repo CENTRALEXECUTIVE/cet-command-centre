@@ -134,6 +134,27 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertSame([], $booking->fresh(['calendarEvent'])->pickupTimeMismatch());
     }
 
+    public function test_correcting_a_time_clears_the_stale_time_warning(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $day = now()->addDays(2);
+        $booking = $this->bookingWithEvent(
+            $day->format('Y-m-d').' 19:45:00',
+            $day->format('d/m/Y').' – 18:45',
+            $day->format('Y-m-d').' 19:45:00'
+        );
+        // A stale time warning plus an unrelated one already stored on the booking.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'audit_issues' => ["Calendar time (19:45) doesn't match the booking (18:45)", 'Drop-off address is missing/unknown'],
+        ])])->save();
+
+        $this->actingAs($admin)->post(route('dashboard.fix-times'))->assertRedirect();
+
+        $issues = $booking->fresh()->meta['audit_issues'];
+        $this->assertNotContains("Calendar time (19:45) doesn't match the booking (18:45)", $issues); // time warning gone
+        $this->assertContains('Drop-off address is missing/unknown', $issues);                        // real one kept
+    }
+
     public function test_only_admins_can_bulk_fix_times(): void
     {
         $driver = User::factory()->create();

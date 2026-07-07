@@ -33,17 +33,41 @@ class CalendarTimeSync
         }
 
         $bookingChanged = $booking->pickup_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i');
+        $slotChanged = ! $event->start_at || $event->start_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i');
+
         if ($bookingChanged) {
             $booking->forceFill(['pickup_at' => $target])->save();
         }
 
         // Correct our local slot to the true time as well, so the "calendar's own
         // time and description disagree" flag clears. This touches OUR row only.
-        if (! $event->start_at || $event->start_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i')) {
+        if ($slotChanged) {
             $event->forceFill(['start_at' => $target, 'end_at' => $target->copy()->addHour()])->save();
         }
 
+        // Drop any stale "one hour" time warnings now the time is correct, so the
+        // ⚠ clears immediately on every path (not only when the audit is re-run).
+        if ($bookingChanged || $slotChanged) {
+            $this->clearTimeWarnings($booking);
+        }
+
         return $bookingChanged;
+    }
+
+    /** Remove time-mismatch entries from a booking's stored audit issues. */
+    private function clearTimeWarnings(Booking $booking): void
+    {
+        $issues = $booking->meta['audit_issues'] ?? [];
+        if (! $issues) {
+            return;
+        }
+        $kept = array_values(array_filter($issues, fn ($i) => ! str_contains($i, "doesn't match the booking")
+            && ! str_contains($i, 'Calendar description time')
+            && ! str_contains($i, 'Calendar time')));
+
+        if (count($kept) !== count($issues)) {
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['audit_issues' => $kept])])->save();
+        }
     }
 
     /**
