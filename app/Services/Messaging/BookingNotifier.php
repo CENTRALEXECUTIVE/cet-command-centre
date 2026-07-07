@@ -48,9 +48,10 @@ class BookingNotifier
 
     /**
      * Queues the ~24h and 2h reminders. The 24h reminder targets 24h before
-     * pickup but is shifted into the 08:00–23:00 sending window so it never
-     * lands overnight (matching how the office sends them by hand). The 2h nudge
-     * is only queued if it too falls inside the window.
+     * pickup but is shifted into the 08:00–22:00 sending window so it never
+     * lands overnight (matching how the office sends them by hand) — a night
+     * pickup (e.g. 05:00) is reminded at 08:00 the day before, not at 05:00.
+     * The 2h nudge is only queued if it too falls inside the window.
      */
     public function scheduleReminders(Booking $booking): void
     {

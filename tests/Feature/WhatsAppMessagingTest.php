@@ -35,7 +35,7 @@ class WhatsAppMessagingTest extends TestCase
             'vehicle_type_id' => $executive->id,
             'journey_type' => 'one_way',
             // Pinned to 15:00 so the 24h/2h reminders always fall inside the
-            // 08:00–23:00 send window regardless of when the test runs.
+            // 08:00–22:00 send window regardless of when the test runs.
             'pickup_at' => now()->addDays(2)->setTime(15, 0)->format('Y-m-d H:i'),
             'pickup_address' => '12 Fargate, Sheffield',
             'destination_address' => 'Manchester Airport',
@@ -117,6 +117,28 @@ class WhatsAppMessagingTest extends TestCase
         $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
         $this->assertNotNull($reminder);
         $this->assertEquals('08:00', $reminder->scheduled_for->format('H:i'));
+        $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
+    }
+
+    public function test_late_night_reminder_is_pulled_back_to_the_ten_pm_edge(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+
+        // Pickup at 23:30 → 24h mark is 23:30 (after 22:00), so the reminder is
+        // pulled back to 22:00 the day before — never sent late at night.
+        $pickup = now()->addDays(5)->setTime(23, 30);
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Late Runner', 'customer_phone' => '07700900557',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => $pickup->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertNotNull($reminder);
+        $this->assertEquals('22:00', $reminder->scheduled_for->format('H:i'));
         $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
     }
 
