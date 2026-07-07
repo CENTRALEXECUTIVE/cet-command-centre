@@ -40,6 +40,7 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
 // ----- Authenticated area ------------------------------------------------
 Route::middleware('auth')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('dashboard/fix-times', [DashboardController::class, 'fixTimes'])->middleware('throttle:10,1')->name('dashboard.fix-times');
     Route::get('jobs/day', [DashboardController::class, 'day'])->name('jobs.day');
     // Live fleet map (admin).
     Route::get('fleet/map', [\App\Http\Controllers\FleetMapController::class, 'index'])->name('fleet.map');

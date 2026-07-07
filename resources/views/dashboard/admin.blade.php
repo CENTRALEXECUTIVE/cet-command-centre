@@ -52,7 +52,12 @@
                     </div>
                 @endforeach
             </div>
-            <p class="hint" style="margin:8px 0 0">Open the booking and tap <strong>Match time to calendar</strong> to bring it in line (the calendar is never edited).</p>
+            <form method="POST" action="{{ route('dashboard.fix-times') }}" style="margin-top:10px"
+                  onsubmit="return confirm('Set all of these bookings to match their calendar time? The calendar itself is not changed.')">
+                @csrf
+                <button class="btn btn-primary" style="padding:7px 16px;font-size:13px">✓ Fix all to match the calendar</button>
+            </form>
+            <p class="hint" style="margin:8px 0 0">This sets each booking above to its calendar time in one go — the calendar is never edited.</p>
         </div>
     @endif
 

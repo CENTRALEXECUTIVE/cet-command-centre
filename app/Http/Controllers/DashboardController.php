@@ -167,6 +167,26 @@ class DashboardController extends Controller
      */
     private function timeMismatches(): array
     {
+        return $this->mismatchedBookings()
+            ->map(fn (Booking $b) => [
+                'ref' => $b->external_reference ?? $b->reference,
+                'customer' => $b->displayName(),
+                'url' => route('bookings.show', $b),
+                'times' => $b->pickupTimeMismatch(),
+            ])
+            ->values()
+            ->take(15)
+            ->all();
+    }
+
+    /**
+     * Upcoming, active bookings whose pickup time doesn't agree with the calendar.
+     * Shared by the dashboard notification and the bulk "fix all" action.
+     *
+     * @return \Illuminate\Support\Collection<int, Booking>
+     */
+    private function mismatchedBookings(): \Illuminate\Support\Collection
+    {
         return Booking::query()
             ->whereHas('calendarEvent', fn ($q) => $q->whereNotNull('google_event_id'))
             ->whereNotIn('status', [
@@ -175,19 +195,28 @@ class DashboardController extends Controller
             ->where('pickup_at', '>=', now()->startOfDay())
             ->with(['calendarEvent', 'customer'])
             ->orderBy('pickup_at')
-            ->limit(60)
+            ->limit(200)
             ->get()
-            ->map(fn (Booking $b) => ['booking' => $b, 'times' => $b->pickupTimeMismatch()])
-            ->filter(fn (array $row) => $row['times'] !== [])
-            ->map(fn (array $row) => [
-                'ref' => $row['booking']->external_reference ?? $row['booking']->reference,
-                'customer' => $row['booking']->displayName(),
-                'url' => route('bookings.show', $row['booking']),
-                'times' => $row['times'],
-            ])
-            ->values()
-            ->take(15)
-            ->all();
+            ->filter(fn (Booking $b) => $b->pickupTimeMismatch() !== [])
+            ->values();
+    }
+
+    /**
+     * One-click bulk fix: set every mismatched booking's pickup time to its
+     * calendar slot, so the command centre matches the calendar. Read-only
+     * against Google — it only corrects our booking records.
+     */
+    public function fixTimes(Request $request, \App\Services\Calendar\CalendarTimeSync $sync): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $fixed = $this->mismatchedBookings()
+            ->filter(fn (Booking $b) => $sync->alignToCalendarSlot($b))
+            ->count();
+
+        return back()->with('status', $fixed > 0
+            ? "Fixed {$fixed} booking time(s) to match the calendar."
+            : 'All booking times already match the calendar.');
     }
 
     /**

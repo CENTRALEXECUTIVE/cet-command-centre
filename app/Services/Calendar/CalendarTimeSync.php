@@ -15,6 +15,26 @@ class CalendarTimeSync
     public function __construct(private readonly GoogleCalendarService $google) {}
 
     /**
+     * Set the booking's pickup time to the calendar event's slot we already hold
+     * locally (which mirrors the calendar the operator sees). No Google call, so
+     * it's instant for the bulk "fix all". Returns true if it changed anything.
+     */
+    public function alignToCalendarSlot(Booking $booking): bool
+    {
+        $event = $booking->calendarEvent;
+        if (! $event || ! $event->start_at || ! $booking->pickup_at) {
+            return false;
+        }
+        if ($booking->pickup_at->format('Y-m-d H:i') === $event->start_at->format('Y-m-d H:i')) {
+            return false;
+        }
+
+        $booking->forceFill(['pickup_at' => $event->start_at])->save();
+
+        return true;
+    }
+
+    /**
      * Set the booking's pickup time to the live calendar event's start time.
      * The local event copy is refreshed too (start/end) so the ETO audit stays
      * consistent — that is a change to OUR row, not a write to Google.

@@ -80,6 +80,32 @@ class PickupTimeConsistencyTest extends TestCase
             ->assertSee('pickup-time mismatch');
     }
 
+    public function test_fix_all_snaps_booking_times_to_the_calendar(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // Booking an hour ahead of its calendar slot (the old import drift).
+        $day = now()->addDays(2);
+        $booking = $this->bookingWithEvent(
+            $day->format('Y-m-d').' 19:45:00',              // booking says 19:45
+            $day->format('d/m/Y').' – 18:45',               // description 18:45
+            $day->format('Y-m-d').' 18:45:00'               // calendar slot 18:45 (the truth)
+        );
+
+        $this->actingAs($admin)->post(route('dashboard.fix-times'))
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertEquals('18:45', $booking->fresh()->pickup_at->format('H:i'));
+        // And the mismatch is now cleared.
+        $this->assertSame([], $booking->fresh(['calendarEvent'])->pickupTimeMismatch());
+    }
+
+    public function test_only_admins_can_bulk_fix_times(): void
+    {
+        $driver = User::factory()->create();
+        $this->actingAs($driver)->post(route('dashboard.fix-times'))->assertForbidden();
+    }
+
     public function test_audit_flags_a_description_time_that_does_not_match_the_slot(): void
     {
         $booking = $this->bookingWithEvent('2026-07-15 06:45:00', '15/07/2026 – 07:45');
