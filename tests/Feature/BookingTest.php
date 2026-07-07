@@ -88,6 +88,19 @@ class BookingTest extends TestCase
         $this->assertEquals('3 suitcases · 2 hand luggage', $booking->luggageBreakdown());
     }
 
+    public function test_luggage_breakdown_reads_the_calendar_luggage_text_for_older_bookings(): void
+    {
+        // An older booking with no discrete counts, but the descriptive text that
+        // built its calendar event — the split must still show, mirroring the calendar.
+        $booking = Booking::factory()->create([
+            'luggage' => 3,
+            'meta' => ['luggage_text' => '2 Suitcases + 1 Hand Luggage'],
+        ]);
+
+        $this->assertEquals('2 suitcases · 1 hand luggage', $booking->luggageBreakdown());
+        $this->assertEquals('2 cases · 1 hand', $booking->luggageShort());
+    }
+
     public function test_return_journey_creates_two_linked_legs(): void
     {
         $admin = User::factory()->admin()->create();

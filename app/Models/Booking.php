@@ -178,18 +178,50 @@ class Booking extends Model
     }
 
     /**
+     * Suitcase + hand-luggage counts, resolved from the most reliable source in
+     * turn: the discrete meta counts (new bookings + the form), then the
+     * descriptive "N Suitcases + N Hand Luggage" text that built the calendar
+     * event — so a booking made before the counts were stored still shows the
+     * exact split that's on its calendar. Returns [null, null] when unknown.
+     *
+     * @return array{0:?int,1:?int}
+     */
+    public function luggageCounts(): array
+    {
+        $suitcases = $this->meta['suitcases'] ?? null;
+        $hand = $this->meta['hand_luggage'] ?? null;
+        if ($suitcases !== null || $hand !== null) {
+            return [(int) $suitcases, (int) $hand];
+        }
+
+        // Fall back to the descriptive luggage text mirrored onto the calendar,
+        // e.g. "2 Suitcases + 1 Hand Luggage".
+        $text = (string) ($this->meta['luggage_text'] ?? '');
+        if ($text !== '' && strcasecmp(trim($text), 'None') !== 0) {
+            preg_match('/(\d+)\s*suitcase/i', $text, $s);
+            preg_match('/(\d+)\s*hand/i', $text, $h);
+            if ($s || $h) {
+                return [(int) ($s[1] ?? 0), (int) ($h[1] ?? 0)];
+            }
+        }
+
+        return [null, null];
+    }
+
+    /**
      * Luggage shown as a suitcases + hand-luggage breakdown, e.g.
      * "2 suitcases · 1 hand luggage" — both counts matter to the driver and the
-     * vehicle choice. The discrete counts live in meta (populated by the ETO
-     * imports and the booking form); older bookings that only carry the combined
-     * `luggage` total fall back to "N bags".
+     * vehicle choice. Falls back to the combined "N bags" total only when no
+     * breakdown is known anywhere.
      */
     public function luggageBreakdown(): string
     {
-        $suitcases = (int) ($this->meta['suitcases'] ?? 0);
-        $hand = (int) ($this->meta['hand_luggage'] ?? 0);
+        [$suitcases, $hand] = $this->luggageCounts();
 
-        if ($suitcases > 0 || $hand > 0) {
+        if ($suitcases !== null || $hand !== null) {
+            $suitcases = (int) $suitcases;
+            $hand = (int) $hand;
+
             return $suitcases.' suitcase'.($suitcases === 1 ? '' : 's')
                 .' · '.$hand.' hand luggage';
         }
@@ -202,10 +234,12 @@ class Booking extends Model
     /** Compact luggage for the bookings table, e.g. "2 case · 1 hand" or "—". */
     public function luggageShort(): string
     {
-        $suitcases = (int) ($this->meta['suitcases'] ?? 0);
-        $hand = (int) ($this->meta['hand_luggage'] ?? 0);
+        [$suitcases, $hand] = $this->luggageCounts();
 
-        if ($suitcases > 0 || $hand > 0) {
+        if ($suitcases !== null || $hand !== null) {
+            $suitcases = (int) $suitcases;
+            $hand = (int) $hand;
+
             return $suitcases.' case'.($suitcases === 1 ? '' : 's').' · '.$hand.' hand';
         }
 

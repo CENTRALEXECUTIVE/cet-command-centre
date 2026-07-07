@@ -48,6 +48,7 @@
                             <strong>{{ $b->displayName() }}</strong><br>
                             {{ $b->airport?->code ? $b->airport->code.' · ' : '' }}{{ $b->vehicleType?->name }}<br>
                             {{ \Illuminate\Support\Str::limit($b->pickup_address, 30) }}<br>
+                            {{ $b->passengers }} pax · {{ $b->luggageShort() }}<br>
                             Driver: {{ $b->driver?->name ?? '—' }}
                         </div>
 
