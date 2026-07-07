@@ -20,7 +20,7 @@
                 <tbody>
                     @foreach($bookings as $b)
                         <tr>
-                            <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a></td>
+                            <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a>@if(!empty($b->meta['audit_issues'])) <span title="Flagged by ETO audit — {{ implode('; ', $b->meta['audit_issues']) }}">⚠</span>@endif</td>
                             <td>{{ $b->pickup_at->format('d M H:i') }}</td>
                             <td>{{ $b->customer?->name }}</td>
                             <td>{{ Str::limit($b->pickup_address, 18) }} → {{ Str::limit($b->destination_address, 18) }}</td>

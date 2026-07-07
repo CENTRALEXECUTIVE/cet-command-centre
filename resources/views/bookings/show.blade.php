@@ -13,6 +13,15 @@
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
 
+    @if(auth()->user()->isAdmin() && !empty($booking->meta['audit_issues']))
+        <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
+            <strong>⚠ Flagged by the ETO audit{{ !empty($booking->meta['audited_at']) ? ' · '.\Illuminate\Support\Carbon::parse($booking->meta['audited_at'])->format('D d M, H:i') : '' }}</strong>
+            <ul style="margin:6px 0 0;padding-left:18px">
+                @foreach($booking->meta['audit_issues'] as $issue)<li>{{ $issue }}</li>@endforeach
+            </ul>
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         <div class="toolbar" style="margin-bottom:16px">
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>

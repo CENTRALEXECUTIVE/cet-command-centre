@@ -67,7 +67,8 @@ a:hover { text-decoration: underline; }
 .grid { display: grid; gap: 16px; }
 .grid-2 { grid-template-columns: 1fr 1fr; }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
-@media (max-width: 720px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 720px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .grid-4 { grid-template-columns: 1fr 1fr; } }
 
 /* ----- Stat tiles ----- */
 .stat { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }

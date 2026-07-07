@@ -159,6 +159,11 @@ Route::middleware('auth')->group(function () {
         Route::post('imports/eto', [\App\Http\Controllers\Admin\ImportController::class, 'eto'])
             ->middleware('throttle:20,1')->name('imports.eto');
 
+        // ETO reconciliation — reconfirm bookings against the calendar, one ref at a time.
+        Route::get('audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
+        Route::post('audit', [\App\Http\Controllers\Admin\AuditController::class, 'run'])
+            ->middleware('throttle:20,1')->name('audit.run');
+
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
         Route::post('drivers', [\App\Http\Controllers\Admin\DriverController::class, 'store'])->name('drivers.store');
