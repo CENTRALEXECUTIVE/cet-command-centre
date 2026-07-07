@@ -167,6 +167,54 @@ class EtoAuditTest extends TestCase
             ->assertSee('Flagged');
     }
 
+    public function test_search_by_reference_reconfirms_a_booking(): void
+    {
+        $booking = Booking::factory()->create([
+            'external_reference' => 'FINDME',
+            'pickup_at' => '2025-03-24 22:05:00',
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_s',
+            'title' => '*Jo Manchester Airport (EXEC)*',
+            'location' => '', // dropped — should be caught even without a CSV
+            'description' => '📑 Booking Confirmation…',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        $results = app(EtoAuditService::class)->search('FINDME');
+
+        $this->assertCount(1, $results);
+        $this->assertSame('flagged', $results[0]['status']);
+        $this->assertStringContainsString('Pickup location has dropped off', implode(' ', $results[0]['issues']));
+    }
+
+    public function test_search_by_customer_name(): void
+    {
+        $customer = \App\Models\Customer::factory()->create(['name' => 'Barbara Windsor']);
+        Booking::factory()->create([
+            'customer_id' => $customer->id,
+            'external_reference' => 'NAME01',
+            'pickup_at' => '2025-03-24 22:05:00',
+        ]);
+
+        $results = app(EtoAuditService::class)->search('Barbara');
+
+        $this->assertCount(1, $results);
+        $this->assertSame('NAME01', $results[0]['reference']);
+    }
+
+    public function test_search_page_shows_matches(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Booking::factory()->create(['external_reference' => 'PAGE01', 'pickup_at' => '2025-03-24 22:05:00']);
+
+        $this->actingAs($admin)->get(route('audit.index', ['q' => 'PAGE01']))
+            ->assertOk()->assertSee('PAGE01');
+    }
+
     public function test_non_admin_cannot_open_audit(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

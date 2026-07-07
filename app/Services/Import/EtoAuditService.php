@@ -39,16 +39,54 @@ class EtoAuditService
             $counts[$result['status']]++;
         }
 
-        // Flagged first, then missing, then OK — so problems are at the top.
-        usort($results, fn ($a, $b) => [$this->rank($a['status']), $a['pickup'] ?? '']
-            <=> [$this->rank($b['status']), $b['pickup'] ?? '']);
+        // Problems first, then newest bookings before older ones within each group.
+        usort($results, fn ($a, $b) => [$this->rank($a['status']), $this->stamp($b['pickup'])]
+            <=> [$this->rank($b['status']), $this->stamp($a['pickup'])]);
 
         return ['results' => $results, 'counts' => $counts];
+    }
+
+    /**
+     * Look a booking up by ETO reference OR customer/lead name and reconfirm it —
+     * the on-demand single-booking check (no CSV needed). Time/fare-vs-ETO checks
+     * are skipped (there's no ETO row), but every calendar/format/location check
+     * still runs. Newest matches first.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function search(string $query, bool $flag = true): array
+    {
+        $query = trim($query);
+        if ($query === '') {
+            return [];
+        }
+
+        $bookings = Booking::query()
+            ->with(['calendarEvent', 'customer'])
+            ->where(function ($q) use ($query) {
+                $q->where('external_reference', $query)
+                    ->orWhere('reference', $query)
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$query}%"))
+                    ->orWhere('meta->lead_name', 'like', "%{$query}%");
+            })
+            ->orderByDesc('pickup_at')
+            ->limit(25)
+            ->get();
+
+        return $bookings->map(fn (Booking $b) => $this->inspect($b, null, $flag,
+            $b->external_reference ?? $b->reference,
+            $b->meta['lead_name'] ?? $b->customer?->name ?? '—'))->all();
     }
 
     private function rank(string $status): int
     {
         return ['flagged' => 0, 'missing' => 1, 'ok' => 2][$status] ?? 3;
+    }
+
+    /** Sortable stamp for a pickup value (Carbon|string|null) — newest sorts first. */
+    private function stamp(mixed $pickup): string
+    {
+        return $pickup instanceof \DateTimeInterface ? $pickup->format('Y-m-d H:i') : (string) $pickup;
     }
 
     /** @return array<string, mixed> */
@@ -64,6 +102,19 @@ class EtoAuditService
             ];
         }
 
+        return $this->inspect($booking, $row, $flag, $ref, $name);
+    }
+
+    /**
+     * Run every check against a booking. $row is the matching ETO CSV row when
+     * auditing an export, or null for an on-demand search (time/fare-vs-ETO
+     * comparisons are then skipped — everything else still runs).
+     *
+     * @param  array<string, string>|null  $row
+     * @return array<string, mixed>
+     */
+    private function inspect(Booking $booking, ?array $row, bool $flag, string $ref, string $name): array
+    {
         $issues = [];
         $ev = $booking->calendarEvent;
         // Cancelled / no-show jobs are legitimately off the calendar — don't flag those.
@@ -103,20 +154,23 @@ class EtoAuditService
             $issues[] = 'Drop-off address is missing/unknown';
         }
 
-        // Pickup time: catches timezone / edit drift against the ETO record.
-        $csvAt = $this->parseDate($row['Journey date'] ?? '');
-        if ($csvAt && $booking->pickup_at && $csvAt->format('H:i') !== $booking->pickup_at->format('H:i')) {
-            $issues[] = 'Pickup time differs — ETO '.$csvAt->format('H:i').' vs system '.$booking->pickup_at->format('H:i');
-        }
+        // The following compare against the ETO export row — only when auditing a CSV.
+        if ($row !== null) {
+            // Pickup time: catches timezone / edit drift against the ETO record.
+            $csvAt = $this->parseDate($row['Journey date'] ?? '');
+            if ($csvAt && $booking->pickup_at && $csvAt->format('H:i') !== $booking->pickup_at->format('H:i')) {
+                $issues[] = 'Pickup time differs — ETO '.$csvAt->format('H:i').' vs system '.$booking->pickup_at->format('H:i');
+            }
 
-        // Pickup date: a full day off means it's on the wrong day on the calendar.
-        if ($csvAt && $booking->pickup_at && $csvAt->format('Y-m-d') !== $booking->pickup_at->format('Y-m-d')) {
-            $issues[] = 'Pickup date differs — ETO '.$csvAt->format('d/m/Y').' vs system '.$booking->pickup_at->format('d/m/Y');
-        }
+            // Pickup date: a full day off means it's on the wrong day on the calendar.
+            if ($csvAt && $booking->pickup_at && $csvAt->format('Y-m-d') !== $booking->pickup_at->format('Y-m-d')) {
+                $issues[] = 'Pickup date differs — ETO '.$csvAt->format('d/m/Y').' vs system '.$booking->pickup_at->format('d/m/Y');
+            }
 
-        $total = $this->money($row['Total'] ?? null);
-        if ($total > 0 && ! ($booking->final_price ?? $booking->quoted_price)) {
-            $issues[] = 'No fare stored (ETO £'.number_format($total, 2).')';
+            $total = $this->money($row['Total'] ?? null);
+            if ($total > 0 && ! ($booking->final_price ?? $booking->quoted_price)) {
+                $issues[] = 'No fare stored (ETO £'.number_format($total, 2).')';
+            }
         }
 
         if ($flag) {

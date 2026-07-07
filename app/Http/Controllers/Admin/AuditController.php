@@ -18,11 +18,18 @@ use Illuminate\View\View;
  */
 class AuditController extends Controller
 {
-    public function index(): View
+    public function index(Request $request, EtoAuditService $audit): View
     {
-        abort_unless(request()->user()->isAdmin(), 403);
+        abort_unless($request->user()->isAdmin(), 403);
 
-        return view('admin.audit.index');
+        // On-demand single-booking lookup by reference or customer name.
+        $query = trim((string) $request->query('q', ''));
+        $searchResults = $query !== '' ? $audit->search($query) : null;
+
+        return view('admin.audit.index', [
+            'query' => $query,
+            'searchResults' => $searchResults,
+        ]);
     }
 
     public function run(Request $request, EtoAuditService $audit): View

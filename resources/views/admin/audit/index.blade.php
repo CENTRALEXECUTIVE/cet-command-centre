@@ -9,6 +9,33 @@
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.08);margin-bottom:16px">{{ $errors->first() }}</div>
     @endif
 
+    {{-- Look up and reconfirm a single booking without the CSV. --}}
+    <div class="card" style="margin-bottom:16px">
+        <h2 style="margin-top:0">🔍 Find & reconfirm one booking</h2>
+        <p class="muted" style="margin-top:0">Type a reference number or customer name to pull up the booking and re-check it — on the calendar, correct format, location still on the event, addresses present.</p>
+        <form method="GET" action="{{ route('audit.index') }}" style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" name="q" value="{{ $query ?? '' }}" placeholder="ZWR6MM  or  Jo Smith" style="flex:1;min-width:200px" autofocus>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+
+        @isset($searchResults)
+            @if(count($searchResults))
+                <div class="table-scroll" style="margin-top:14px">
+                    <table>
+                        <thead><tr><th>Ref</th><th>Passenger</th><th>Pickup</th><th>Result</th></tr></thead>
+                        <tbody>
+                            @foreach($searchResults as $r)
+                                @include('admin.audit._row', ['r' => $r])
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="muted" style="margin:14px 0 0">No booking found for “{{ $query }}”. Try the exact reference, or part of the customer name.</p>
+            @endif
+        @endisset
+    </div>
+
     <div class="card">
         <h2 style="margin-top:0">🔎 Reconcile ETO bookings</h2>
         <p class="muted" style="margin-top:0">Export your bookings from EasyTaxiOffice, then drop the .csv here. Nothing is changed on the calendar — this only reads and reports.</p>
@@ -49,31 +76,13 @@
             @endif
 
             @if(count($results))
+                <p class="muted" style="font-size:12px;margin:0 0 8px">Newest bookings first. Problems are grouped at the top.</p>
                 <div class="table-scroll">
                     <table>
                         <thead><tr><th>Ref</th><th>Passenger</th><th>Pickup</th><th>Result</th></tr></thead>
                         <tbody>
                             @foreach($results as $r)
-                                <tr style="{{ $r['status'] === 'ok' ? 'opacity:.6' : '' }}">
-                                    <td style="white-space:nowrap">
-                                        @if($r['url'])<a href="{{ $r['url'] }}">{{ $r['reference'] }}</a>@else {{ $r['reference'] }} @endif
-                                    </td>
-                                    <td>{{ $r['name'] }}</td>
-                                    <td class="muted" style="white-space:nowrap">{{ $r['pickup']?->format('D d M · H:i') ?? '—' }}</td>
-                                    <td>
-                                        @if($r['status'] === 'ok')
-                                            <span style="color:#1f7a44">✓ OK</span>
-                                        @elseif($r['status'] === 'missing')
-                                            <span style="color:#b32020">✗ Not imported</span>
-                                            <div class="muted" style="font-size:12px">Import it via Imports → ETO bookings.</div>
-                                        @else
-                                            <span style="color:#b8860b;font-weight:600">⚠ Check</span>
-                                            <ul style="margin:4px 0 0;padding-left:18px;font-size:13px">
-                                                @foreach($r['issues'] as $issue)<li>{{ $issue }}</li>@endforeach
-                                            </ul>
-                                        @endif
-                                    </td>
-                                </tr>
+                                @include('admin.audit._row', ['r' => $r])
                             @endforeach
                         </tbody>
                     </table>
