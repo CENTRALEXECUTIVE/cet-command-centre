@@ -4,6 +4,7 @@ namespace App\Services\Calendar;
 
 use App\Models\CalendarEvent;
 use App\Models\Setting;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -164,6 +165,52 @@ class GoogleCalendarService
         $check = Http::withToken($token)->get("{$base}/{$eventId}");
 
         return $check->successful() && $check->json('status') !== 'cancelled';
+    }
+
+    /**
+     * READ-ONLY: fetch a tracked event from Google exactly as it stands on the
+     * calendar right now — including any time the operator corrected there by
+     * hand. Returns its start (in the app timezone) and description, or null if
+     * the calendar is inactive/unconfigured, the event isn't tracked, or it
+     * can't be read. NEVER writes to the calendar.
+     *
+     * @return array{start: Carbon, description: ?string}|null
+     */
+    public function readEvent(CalendarEvent $event): ?array
+    {
+        if (! $this->active() || ! $this->configured() || blank($event->google_event_id)) {
+            return null;
+        }
+
+        try {
+            $token = $this->accessToken();
+            if (! $token) {
+                return null;
+            }
+
+            $calendarId = rawurlencode($event->calendar_id);
+            $base = "https://www.googleapis.com/calendar/v3/calendars/{$calendarId}/events";
+            $resp = Http::withToken($token)->get("{$base}/{$event->google_event_id}");
+
+            if (! $resp->successful() || $resp->json('status') === 'cancelled') {
+                return null;
+            }
+
+            // Timed events carry start.dateTime; all-day events carry start.date.
+            $start = $resp->json('start.dateTime') ?? $resp->json('start.date');
+            if (! $start) {
+                return null;
+            }
+
+            return [
+                'start' => Carbon::parse($start)->setTimezone(config('app.timezone')),
+                'description' => $resp->json('description'),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Google Calendar read failed', ['event' => $event->id, 'error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     /**

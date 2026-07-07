@@ -108,6 +108,14 @@
                 <tr><th>Start → End</th><td>{{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</td></tr>
                 <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
             </table>
+            @if(auth()->user()->isAdmin() && $booking->calendarEvent->google_event_id)
+                <form method="POST" action="{{ route('bookings.sync-time', $booking) }}" style="margin-top:10px"
+                      onsubmit="return confirm('Set this booking\'s pickup time to whatever is on the Google Calendar right now? The calendar itself is not changed.')">
+                    @csrf
+                    <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px">🗓 Match time to calendar</button>
+                </form>
+                <p class="hint" style="margin:6px 0 0">Reads the live calendar (never edits it) and sets the pickup time to match — use it if you corrected the time on the calendar.</p>
+            @endif
         </div>
     @endif
 

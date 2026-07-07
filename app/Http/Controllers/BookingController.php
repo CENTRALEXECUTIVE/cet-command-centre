@@ -239,6 +239,24 @@ class BookingController extends Controller
         return back()->with('status', 'Driver details added — they now appear in the reminder below.');
     }
 
+    /**
+     * Match the booking's pickup time to the live calendar event (read-only) —
+     * for when the operator corrected the time on the calendar and the system
+     * needs to catch up. Never edits the calendar.
+     */
+    public function syncTime(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $result = $sync->pullTime($booking);
+
+        return back()->with('status', match ($result['status']) {
+            'updated' => "Pickup time updated to {$result['new']} to match the calendar (was {$result['old']}).",
+            'matches' => 'Pickup time already matches the calendar — nothing changed.',
+            default => 'Could not read this booking from the calendar (it may not be connected or the event isn’t linked).',
+        });
+    }
+
     /** @return array<string, mixed> */
     private function formData(Request $request): array
     {
