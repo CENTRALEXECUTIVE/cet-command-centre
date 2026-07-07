@@ -140,13 +140,18 @@ class PickupTimeConsistencyTest extends TestCase
         $this->actingAs($driver)->post(route('dashboard.fix-times'))->assertForbidden();
     }
 
-    public function test_audit_flags_a_description_time_that_does_not_match_the_slot(): void
+    public function test_audit_corrects_a_description_vs_slot_disagreement(): void
     {
+        // Slot 06:45 but the printed description says 07:45 — the description wins,
+        // and the audit brings the booking + slot to it, leaving no time warning.
         $booking = $this->bookingWithEvent('2026-07-15 06:45:00', '15/07/2026 – 07:45');
 
         app(EtoAuditService::class)->search($booking->reference);
 
-        $issues = $booking->fresh()->meta['audit_issues'] ?? [];
-        $this->assertTrue(collect($issues)->contains(fn ($i) => str_contains($i, 'description time')));
+        $booking = $booking->fresh(['calendarEvent']);
+        $this->assertEquals('07:45', $booking->pickup_at->format('H:i'));
+        $this->assertEquals('07:45', $booking->calendarEvent->start_at->format('H:i'));
+        $issues = $booking->meta['audit_issues'] ?? [];
+        $this->assertStringNotContainsString('description time', implode(' ', $issues));
     }
 }

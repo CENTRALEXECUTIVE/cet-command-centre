@@ -15,6 +15,8 @@ use Illuminate\Support\Str;
  */
 class EtoAuditService
 {
+    public function __construct(private readonly \App\Services\Calendar\CalendarTimeSync $timeSync) {}
+
     /**
      * @return array{results: array<int, array<string, mixed>>, counts: array<string, int>}
      */
@@ -140,7 +142,15 @@ class EtoAuditService
             if (blank($ev->description)) {
                 $issues[] = 'Booking details block missing from the calendar event';
             }
-            // Calendar time should match the booking's pickup time too.
+            // Calendar takes priority: correct the booking (and our local slot) to
+            // the calendar's true time as we reconcile, rather than just flagging a
+            // drift. After this the booking, the slot and the printed time agree,
+            // so no "one hour" warning is raised. (Read-only against Google.)
+            if ($flag && $this->timeSync->alignToCalendarSlot($booking)) {
+                $booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
+                    ->where('status', 'queued')->delete();
+            }
+            // Any residual disagreement is then genuinely worth flagging.
             if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
                 $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
             }

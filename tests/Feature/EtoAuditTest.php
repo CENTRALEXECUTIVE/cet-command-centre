@@ -81,13 +81,15 @@ class EtoAuditTest extends TestCase
         $this->assertContains('Calendar title not in CET format', $issues);
     }
 
-    public function test_flags_calendar_time_not_matching_the_booking(): void
+    public function test_audit_corrects_a_drifted_booking_time_to_the_calendar(): void
     {
-        // What matters is that the calendar and the command centre agree. A ±1h
-        // wobble against the ETO export alone is deliberately NOT flagged.
+        // The calendar takes priority — the audit should CORRECT the booking to
+        // the calendar time (not just flag it) and leave no time warning behind.
         $booking = Booking::factory()->create([
             'external_reference' => 'TIMEXX',
-            'pickup_at' => '2025-03-24 21:05:00',
+            'pickup_at' => '2025-03-24 21:05:00', // an hour off the calendar
+            'pickup_address' => '1 Test St, Sheffield',
+            'destination_address' => 'Manchester Airport',
             'final_price' => 200,
         ]);
         CalendarEvent::create([
@@ -96,17 +98,18 @@ class EtoAuditTest extends TestCase
             'title' => '*Jo Manchester Airport (EXEC)*',
             'location' => 'Manchester Airport',
             'description' => '📑 Booking Confirmation',
-            'start_at' => '2025-03-24 22:05:00', // calendar disagrees with the booking
+            'start_at' => '2025-03-24 22:05:00', // the calendar's time
             'end_at' => '2025-03-24 23:05:00',
             'sync_status' => 'synced',
         ]);
 
-        $report = app(EtoAuditService::class)->audit(
+        app(EtoAuditService::class)->audit(
             $this->csvPath("24/03/2025 22:05;TIMEXX;Jo;Completed;200.00;\"Paid\"\n")
         );
 
-        $this->assertSame(1, $report['counts']['flagged']);
-        $this->assertStringContainsString("doesn't match the booking", implode(' ', $booking->fresh()->meta['audit_issues']));
+        $booking = $booking->fresh();
+        $this->assertEquals('22:05', $booking->pickup_at->format('H:i')); // corrected to the calendar
+        $this->assertStringNotContainsString("doesn't match", implode(' ', $booking->meta['audit_issues'] ?? []));
     }
 
     public function test_eto_time_of_day_difference_alone_is_not_flagged(): void
