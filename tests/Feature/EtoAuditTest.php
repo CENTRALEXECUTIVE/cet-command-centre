@@ -39,6 +39,8 @@ class EtoAuditTest extends TestCase
             'booking_id' => $booking->id,
             'google_event_id' => 'evt_1',
             'title' => '*Jo Manchester Airport (EXEC)*',
+            'location' => 'Manchester Airport T3',
+            'description' => '📑 Booking Confirmation…',
             'start_at' => $booking->pickup_at,
             'end_at' => $booking->pickup_at->copy()->addHour(),
             'sync_status' => 'synced',
@@ -101,6 +103,32 @@ class EtoAuditTest extends TestCase
 
         $this->assertSame(1, $report['counts']['flagged']);
         $this->assertStringContainsString('Pickup time differs', implode(' ', $booking->fresh()->meta['audit_issues']));
+    }
+
+    public function test_flags_location_dropped_off_the_calendar(): void
+    {
+        $booking = Booking::factory()->create([
+            'external_reference' => 'NOLOCN',
+            'pickup_at' => '2025-03-24 22:05:00',
+            'final_price' => 200,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_4',
+            'title' => '*Jo Manchester Airport (EXEC)*',
+            'location' => '', // dropped off the event
+            'description' => '📑 Booking Confirmation…',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        $report = app(EtoAuditService::class)->audit(
+            $this->csvPath("24/03/2025 22:05;NOLOCN;Jo;Completed;200.00;\"Paid\"\n")
+        );
+
+        $this->assertSame(1, $report['counts']['flagged']);
+        $this->assertStringContainsString('Pickup location has dropped off', implode(' ', $booking->fresh()->meta['audit_issues']));
     }
 
     public function test_reference_not_in_system_is_missing(): void

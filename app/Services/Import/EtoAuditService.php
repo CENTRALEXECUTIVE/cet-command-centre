@@ -80,12 +80,38 @@ class EtoAuditService
             if (! $this->titleOk($ev->title)) {
                 $issues[] = 'Calendar title not in CET format';
             }
+            // The location field IS the pickup — if it's dropped off the event
+            // the driver has no address on the calendar. This is the big one.
+            if (blank($ev->location)) {
+                $issues[] = 'Pickup location has dropped off the calendar event';
+            }
+            // The "Booking Confirmation" body (contact, flight, drop-off, ref…).
+            if (blank($ev->description)) {
+                $issues[] = 'Booking details block missing from the calendar event';
+            }
+            // Calendar time should match the booking's pickup time too.
+            if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
+                $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
+            }
+        }
+
+        // Addresses present on the booking itself (importer writes 'Unknown' when blank).
+        if ($liveJob && $this->addressMissing($booking->pickup_address)) {
+            $issues[] = 'Pickup address is missing/unknown';
+        }
+        if ($liveJob && $this->addressMissing($booking->destination_address)) {
+            $issues[] = 'Drop-off address is missing/unknown';
         }
 
         // Pickup time: catches timezone / edit drift against the ETO record.
         $csvAt = $this->parseDate($row['Journey date'] ?? '');
         if ($csvAt && $booking->pickup_at && $csvAt->format('H:i') !== $booking->pickup_at->format('H:i')) {
             $issues[] = 'Pickup time differs — ETO '.$csvAt->format('H:i').' vs system '.$booking->pickup_at->format('H:i');
+        }
+
+        // Pickup date: a full day off means it's on the wrong day on the calendar.
+        if ($csvAt && $booking->pickup_at && $csvAt->format('Y-m-d') !== $booking->pickup_at->format('Y-m-d')) {
+            $issues[] = 'Pickup date differs — ETO '.$csvAt->format('d/m/Y').' vs system '.$booking->pickup_at->format('d/m/Y');
         }
 
         $total = $this->money($row['Total'] ?? null);
@@ -111,6 +137,14 @@ class EtoAuditService
     private function titleOk(?string $title): bool
     {
         return (bool) preg_match('/^\*.+\([^)]+\)\*$/u', trim((string) $title));
+    }
+
+    /** Blank, or the importer's "Unknown" placeholder for an absent address. */
+    private function addressMissing(?string $address): bool
+    {
+        $a = Str::lower(trim((string) $address));
+
+        return $a === '' || $a === 'unknown';
     }
 
     private function isBookingRow(string $status): bool

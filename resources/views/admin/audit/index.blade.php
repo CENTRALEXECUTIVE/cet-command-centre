@@ -18,6 +18,19 @@
             <button type="submit" class="btn btn-primary" style="align-self:flex-start">Run audit</button>
         </form>
         <p class="muted" style="font-size:12px;margin-bottom:0">🔒 The file is read on the spot and never stored — it holds customer details.</p>
+        <details style="margin-top:12px">
+            <summary style="cursor:pointer;font-weight:600">What each booking is checked for</summary>
+            <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.7">
+                <li>It exists in Command Centre (matched on ETO reference)</li>
+                <li>It's on the calendar with a synced event <span class="muted">(cancelled/no-shows skipped)</span></li>
+                <li>The calendar title is in CET format — <span class="mono">*Name WHERE (TAG)*</span></li>
+                <li><strong>The pickup location hasn't dropped off the calendar event</strong></li>
+                <li>The booking details block is still on the event</li>
+                <li>The pickup <strong>date &amp; time</strong> match ETO and the calendar</li>
+                <li>Pickup &amp; drop-off addresses are present (not blank/“Unknown”)</li>
+                <li>A fare is stored when ETO shows a total</li>
+            </ul>
+        </details>
     </div>
 
     @isset($counts)
