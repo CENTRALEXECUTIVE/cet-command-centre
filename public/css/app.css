@@ -204,6 +204,17 @@ tr:last-child td { border-bottom: none; }
 .side-nav a:hover { background: #161616; color: #fff; text-decoration: none; }
 .side-nav a.active { color: var(--gold); border-left-color: var(--gold); background: #161616; font-weight: 600; }
 
+/* Collapsible sidebar groups — daily links stay on top, the rest fold away. */
+.nav-fold { margin-top: 10px; }
+.nav-fold summary { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    color: #6f6f6f; padding: 8px 20px; cursor: pointer; list-style: none;
+    user-select: none; display: flex; align-items: center; gap: 6px; }
+.nav-fold summary::-webkit-details-marker { display: none; }
+.nav-fold summary::before { content: '▸'; font-size: 10px; transition: transform .15s; }
+.nav-fold[open] summary::before { transform: rotate(90deg); }
+.nav-fold summary:hover { color: #bbb; }
+.nav-fold a { padding-left: 30px; font-size: 13.5px; }
+
 .content-area { margin-left: 240px; flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 /* Repurpose .topbar as a thin white header inside the content area */

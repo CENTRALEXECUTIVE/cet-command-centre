@@ -22,68 +22,82 @@
         </a>
 
         <nav class="side-nav">
+            {{-- Daily essentials — always visible, no clutter. Everything else
+                 folds into groups below (auto-open on the section you're in). --}}
             <div class="nav-group">
-                <div class="nav-group-title">Operations</div>
-                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
+                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">🏠 Dashboard</a>
                 @if($u->isAdmin())
-                    <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') ? 'active' : '' }}">Review</a>
-                    <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">Dispatch board</a>
-                    <a href="{{ route('fleet.map') }}" class="{{ request()->routeIs('fleet.*') ? 'active' : '' }}">Live map</a>
+                    <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">🚦 Dispatch board</a>
+                    <a href="{{ route('fleet.map') }}" class="{{ request()->routeIs('fleet.*') ? 'active' : '' }}">🗺 Live map</a>
+                @endif
+                <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">📋 Bookings</a>
+                @if($u->isAdmin() || $u->isCorporateClient())
+                    <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">➕ New booking</a>
+                @endif
+                @if($u->isAdmin())
+                    <a href="{{ route('intake.index') }}" class="{{ request()->routeIs('intake.*') ? 'active' : '' }}">📥 Paste a booking</a>
                 @endif
                 @if($u->isAdmin() || $u->isDriver())
-                    <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.jobs') || request()->routeIs('driver.job') || request()->routeIs('driver.earnings') ? 'active' : '' }}">My jobs</a>
-                    <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">My documents</a>
+                    <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.jobs') || request()->routeIs('driver.job') || request()->routeIs('driver.earnings') ? 'active' : '' }}">🚘 My jobs</a>
                 @endif
-                <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">Bookings</a>
-                @if($u->isAdmin())
-                    <a href="{{ route('enquiries.index') }}" class="{{ request()->routeIs('enquiries.*') ? 'active' : '' }}">Enquiries</a>
-                    <a href="{{ route('customers.index') }}" class="{{ request()->routeIs('customers.*') ? 'active' : '' }}">Customers</a>
+                @if($u->isDriver() && ! $u->isAdmin())
+                    <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">📄 My documents</a>
                 @endif
             </div>
 
-            @if($u->isAdmin() || $u->isCorporateClient())
+            @if($u->isCorporateClient())
                 <div class="nav-group">
-                    <div class="nav-group-title">Sales</div>
                     <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
-                    <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">New booking</a>
-                    @if($u->isAdmin())
-                        <a href="{{ route('intake.index') }}" class="{{ request()->routeIs('intake.*') ? 'active' : '' }}">Paste a booking</a>
-                    @endif
                     <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
-                    @if($u->isAdmin())
-                        <a href="{{ route('payments.index') }}" class="{{ request()->routeIs('payments.*') ? 'active' : '' }}">Payments</a>
-                    @endif
-                    @if($u->isAdmin())
-                        <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>
-                    @endif
-                    @if($u->isCorporateClient())
-                        <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">My account</a>
-                    @endif
+                    <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">My account</a>
                 </div>
             @endif
 
             @if($u->isAdmin())
-                <div class="nav-group">
-                    <div class="nav-group-title">Marketing</div>
+                @php
+                    $inSales = request()->routeIs('quotes.*', 'enquiries.*', 'customers.*', 'invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
+                    $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*');
+                    $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'driver.documents*');
+                    $inAdmin = request()->routeIs('imports.*', 'audit.*', 'users.*', 'settings.*', 'gdpr.*');
+                @endphp
+
+                <details class="nav-fold" @if($inSales) open @endif>
+                    <summary>Sales &amp; customers</summary>
+                    <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
+                    <a href="{{ route('enquiries.index') }}" class="{{ request()->routeIs('enquiries.*') ? 'active' : '' }}">Enquiries</a>
+                    <a href="{{ route('customers.index') }}" class="{{ request()->routeIs('customers.*') ? 'active' : '' }}">Customers</a>
+                    <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
+                    <a href="{{ route('payments.index') }}" class="{{ request()->routeIs('payments.*') ? 'active' : '' }}">Payments</a>
+                    <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>
+                    <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting list</a>
+                </details>
+
+                <details class="nav-fold" @if($inMarketing) open @endif>
+                    <summary>Marketing &amp; reports</summary>
+                    <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') ? 'active' : '' }}">Review</a>
                     <a href="{{ route('marketing.ads') }}" class="{{ request()->routeIs('marketing.ads') ? 'active' : '' }}">Google Ads</a>
                     <a href="{{ route('marketing.keywords') }}" class="{{ request()->routeIs('marketing.keywords*') ? 'active' : '' }}">Keywords</a>
                     <a href="{{ route('marketing.seo') }}" class="{{ request()->routeIs('marketing.seo*') ? 'active' : '' }}">SEO</a>
                     <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Revenue reports</a>
-                </div>
+                </details>
 
-                <div class="nav-group">
-                    <div class="nav-group-title">Fleet &amp; admin</div>
+                <details class="nav-fold" @if($inFleet) open @endif>
+                    <summary>Fleet &amp; drivers</summary>
                     <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
                     <a href="{{ route('driver-documents.index') }}" class="{{ request()->routeIs('driver-documents.*') ? 'active' : '' }}">Driver documents</a>
                     <a href="{{ route('cover-drivers.index') }}" class="{{ request()->routeIs('cover-drivers.*') ? 'active' : '' }}">Drivers directory</a>
                     <a href="{{ route('rotation.index') }}" class="{{ request()->routeIs('rotation.*') ? 'active' : '' }}">Driver rotation</a>
+                    <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">My documents</a>
+                </details>
+
+                <details class="nav-fold" @if($inAdmin) open @endif>
+                    <summary>Admin &amp; data</summary>
                     <a href="{{ route('imports.index') }}" class="{{ request()->routeIs('imports.*') ? 'active' : '' }}">Imports</a>
                     <a href="{{ route('audit.index') }}" class="{{ request()->routeIs('audit.*') ? 'active' : '' }}">ETO audit</a>
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">Users</a>
                     <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">Settings</a>
-                    <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting list</a>
                     <a href="{{ route('gdpr.erasure') }}" class="{{ request()->routeIs('gdpr.*') ? 'active' : '' }}">GDPR</a>
-                </div>
+                </details>
             @endif
         </nav>
     </aside>

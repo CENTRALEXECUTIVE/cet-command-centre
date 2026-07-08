@@ -32,9 +32,10 @@
         <div class="stat" style="padding:10px 16px"><strong>{{ $totals['all'] }}</strong> jobs &middot;
             <strong>{{ $totals['unallocated'] }}</strong> unallocated &middot;
             <strong>{{ $totals['active'] }}</strong> active</div>
+        <span class="muted" style="font-size:12px" id="board-refreshed">Live — updates every 60s</span>
     </div>
 
-    <div class="board">
+    <div class="board" id="live-board">
         @foreach($statuses as $status)
             @php $jobs = $columns[$status->value]; @endphp
             <div class="board-col">
@@ -113,4 +114,41 @@
             </div>
         @endforeach
     </div>
+
+    @verbatim
+    <script>
+        // Live board: refetch this page every 60s and swap in the new columns,
+        // so driver status changes appear without anyone pressing reload.
+        // Skipped while a menu/field is in use or the tab is hidden, so it
+        // never yanks a form out from under the operator.
+        (function () {
+            var board = document.getElementById('live-board');
+            var stamp = document.getElementById('board-refreshed');
+            if (!board) return;
+
+            function busy() {
+                var el = document.activeElement;
+                return el && board.contains(el) && (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'BUTTON');
+            }
+            function refresh() {
+                if (document.hidden || busy()) return;
+                fetch(window.location.href, { headers: { 'X-Requested-With': 'fetch' } })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        var fresh = doc.getElementById('live-board');
+                        if (fresh) {
+                            board.innerHTML = fresh.innerHTML;
+                            if (stamp) {
+                                var d = new Date();
+                                stamp.textContent = 'Live — updated ' +
+                                    ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+                            }
+                        }
+                    }).catch(function () {});
+            }
+            setInterval(refresh, 60000);
+        })();
+    </script>
+    @endverbatim
 @endsection
