@@ -113,6 +113,34 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertEquals('15:00', $booking->fresh()->pickup_at->format('H:i'));
     }
 
+    public function test_booking_page_follows_the_live_calendar_when_connected(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $day = now()->addDays(4);
+        // Booking + stored copy say 15:00, but the LIVE Google event now says 17:30.
+        $booking = $this->bookingWithEvent(
+            $day->format('Y-m-d').' 15:00:00',
+            $day->format('d/m/Y').' – 15:00',
+            $day->format('Y-m-d').' 15:00:00'
+        );
+        $liveStart = $day->copy()->setTime(17, 30);
+
+        // Pretend Google Calendar is connected and the live event reads 17:30.
+        $google = \Mockery::mock(\App\Services\Calendar\GoogleCalendarService::class);
+        $google->shouldReceive('configured')->andReturnTrue();
+        $google->shouldReceive('active')->andReturnTrue();
+        $google->shouldReceive('readEvent')->andReturn([
+            'start' => $liveStart->copy(),
+            'description' => '',
+        ]);
+        $this->instance(\App\Services\Calendar\GoogleCalendarService::class, $google);
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+
+        // The page silently matched the live calendar — 17:30 now shows.
+        $this->assertEquals('17:30', $booking->fresh()->pickup_at->format('H:i'));
+    }
+
     public function test_fix_all_snaps_booking_times_to_the_calendar(): void
     {
         $admin = User::factory()->admin()->create();

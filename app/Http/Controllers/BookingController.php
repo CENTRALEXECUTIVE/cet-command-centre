@@ -24,6 +24,8 @@ class BookingController extends Controller
         private readonly BookingService $bookings,
         private readonly BookingStatusService $status,
         private readonly BookingNotifier $notifier,
+        private readonly \App\Services\Calendar\GoogleCalendarService $google,
+        private readonly \App\Services\Calendar\CalendarTimeSync $timeSync,
     ) {}
 
     public function index(Request $request): View
@@ -94,7 +96,40 @@ class BookingController extends Controller
             abort(403);
         }
 
+        // Auto-follow the live calendar: when Google Calendar is connected, reading
+        // this booking silently matches its time to the live event (the operator's
+        // source of truth) so a time changed directly on Google shows here without
+        // any button. Read-only — it never writes to Google. A no-op until the
+        // credentials are configured on the server, and failures are swallowed so
+        // the page always renders.
+        $this->autoFollowCalendar($booking);
+
         return view('bookings.show', $this->showData($request, $booking));
+    }
+
+    /**
+     * If the live Google Calendar is reachable, pull this single booking's time
+     * from its live event so the page reflects any edit made directly on Google.
+     * Silent and best-effort: skipped entirely when the calendar isn't connected,
+     * and any read error leaves our stored copy untouched.
+     */
+    private function autoFollowCalendar(Booking $booking): void
+    {
+        if (! $this->google->configured() || ! $this->google->active()) {
+            return; // not connected — the manual "Match time to calendar" button still works
+        }
+        if (blank($booking->calendarEvent?->google_event_id)) {
+            return;
+        }
+
+        try {
+            $this->timeSync->pullTime($booking);
+        } catch (\Throwable $e) {
+            // Never let a calendar read break the booking page.
+            \Illuminate\Support\Facades\Log::warning('Auto-follow calendar read failed', [
+                'booking' => $booking->id, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function edit(Request $request, Booking $booking): View|RedirectResponse
