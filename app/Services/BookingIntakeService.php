@@ -27,17 +27,26 @@ class BookingIntakeService
         private readonly CalendarEventBuilder $calendar,
         private readonly RotationService $rotation,
         private readonly GoogleCalendarService $google,
+        private readonly \App\Services\Intake\FreeIntakeParser $freeParser,
     ) {}
 
     /**
-     * Extract booking fields from free text with the AI. Returns a normalised
-     * field array (empty strings where nothing was found) so the operator always
-     * gets an editable form, even when the AI is unavailable.
+     * Extract booking fields from pasted free text. The FREE deterministic
+     * parser runs first and handles the formats the office actually pastes
+     * (calendar blocks, ETO emails, labelled messages) at zero cost. The AI is
+     * only consulted when the free parse found too little AND the operator has
+     * explicitly enabled it (config cet.intake_use_ai) — by default nothing
+     * here ever costs money.
      *
      * @return array<string, mixed>
      */
     public function parse(string $text): array
     {
+        $free = $this->freeParser->parse($text);
+        if ($this->freeParser->foundEssentials($free) || ! config('cet.intake_use_ai', false) || ! $this->ai->configured()) {
+            return $this->normalise($free);
+        }
+
         $system = 'You extract UK executive-taxi booking details from a pasted message. '
             .'Return ONLY a JSON object. Times are UK local (Europe/London). Use 24-hour HH:MM. '
             .'Keys: lead_name, contact_no, email, pickup_at (YYYY-MM-DD HH:MM), pickup_address, '
@@ -49,7 +58,15 @@ class BookingIntakeService
 
         $parsed = $this->ai->completeJson("Message:\n\n".$text, $system, ['max_tokens' => 800]) ?? [];
 
-        return $this->normalise($parsed);
+        // Merge: AI fills only the gaps the free parser couldn't.
+        $merged = $this->normalise($parsed);
+        foreach ($this->normalise($free) as $key => $value) {
+            if ($value !== '' && $value !== 0 && $value !== false) {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
     }
 
     /**

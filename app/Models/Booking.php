@@ -340,6 +340,48 @@ class Booking extends Model
     }
 
     /**
+     * ---- Payroll (driver pay per job) --------------------------------------
+     * Stored in meta['payroll'] so no migration is needed:
+     *   ['pay' => 45.00, 'paid' => 20.00, 'history' => [{amount, at, by, note}]]
+     */
+
+    /** What this job pays the driver, or null when not set yet. */
+    public function driverPay(): ?float
+    {
+        $pay = $this->meta['payroll']['pay'] ?? null;
+
+        return $pay !== null ? (float) $pay : null;
+    }
+
+    /** How much of the driver's pay has been handed over so far. */
+    public function driverPaidAmount(): float
+    {
+        return (float) ($this->meta['payroll']['paid'] ?? 0);
+    }
+
+    /** What's still owed to the driver for this job (never negative). */
+    public function driverPayRemaining(): ?float
+    {
+        $pay = $this->driverPay();
+
+        return $pay === null ? null : max(0, round($pay - $this->driverPaidAmount(), 2));
+    }
+
+    /** @return array<int, array{amount: float, at: string, by: ?string, note: ?string}> */
+    public function driverPayHistory(): array
+    {
+        return $this->meta['payroll']['history'] ?? [];
+    }
+
+    /** The name payroll groups by — assigned driver, else the manual job driver. */
+    public function payrollDriverName(): string
+    {
+        return $this->driver?->name
+            ?? ($this->meta['driver_details']['name'] ?? null)
+            ?? 'Unassigned';
+    }
+
+    /**
      * The driver name shown on the PUBLIC tracking page — first name/callsign
      * only, never the full name (privacy: the customer needs "Abdi is on the
      * way", not the driver's full identity).

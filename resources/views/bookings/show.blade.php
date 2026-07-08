@@ -107,6 +107,71 @@
         </div>
     </div>
 
+    @if(auth()->user()->isAdmin())
+        @php $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining(); @endphp
+        <div class="card" @if($left !== null && $left > 0) style="border-left:4px solid #FBBA2A" @endif>
+            <h2>Driver payroll — {{ $booking->payrollDriverName() }}</h2>
+            @if($pay === null)
+                <p class="muted" style="margin:0 0 10px">No driver pay set for this job yet.</p>
+            @else
+                <table style="max-width:420px">
+                    <tr><th>Job pays</th><td>£{{ number_format($pay, 2) }}</td></tr>
+                    <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
+                    <tr><th>Remaining</th><td>
+                        @if($left > 0)
+                            <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
+                        @else
+                            <span class="badge badge-complete">Paid in full</span>
+                        @endif
+                    </td></tr>
+                </table>
+            @endif
+
+            <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end">
+                    @csrf
+                    <input type="hidden" name="action" value="set">
+                    <div class="field" style="margin:0">
+                        <label for="pay-amount" style="font-size:12px">Job pays the driver (£)</label>
+                        <input id="pay-amount" name="amount" type="number" step="0.01" min="0" value="{{ $pay }}" required style="width:130px">
+                    </div>
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Set pay</button>
+                </form>
+
+                @if($pay !== null && $left > 0)
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                        @csrf
+                        <input type="hidden" name="action" value="record">
+                        <div class="field" style="margin:0">
+                            <label for="paid-amount" style="font-size:12px">Record payment (£)</label>
+                            <input id="paid-amount" name="amount" type="number" step="0.01" min="0.01" value="{{ $left }}" required style="width:130px">
+                        </div>
+                        <div class="field" style="margin:0">
+                            <label for="paid-note" style="font-size:12px">Note (optional)</label>
+                            <input id="paid-note" name="note" placeholder="e.g. bank transfer" style="width:170px">
+                        </div>
+                        <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">✓ Record paid</button>
+                    </form>
+                @endif
+            </div>
+
+            @if($booking->driverPayHistory() !== [])
+                <details style="margin-top:10px">
+                    <summary class="muted" style="font-size:12px;cursor:pointer">Payment history</summary>
+                    @foreach(array_reverse($booking->driverPayHistory()) as $h)
+                        <div style="font-size:13px;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                            £{{ number_format($h['amount'], 2) }}
+                            <span class="muted">· {{ \Illuminate\Support\Carbon::parse($h['at'])->format('D d M Y, H:i') }}
+                            @if(!empty($h['by'])) · by {{ $h['by'] }}@endif
+                            @if(!empty($h['note'])) · {{ $h['note'] }}@endif</span>
+                        </div>
+                    @endforeach
+                </details>
+            @endif
+            <p class="hint" style="margin:10px 0 0">Full monthly view per driver: <a href="{{ route('payroll.index') }}">Payroll</a>.</p>
+        </div>
+    @endif
+
     @if($booking->calendarEvent)
         <div class="card">
             <h2>Calendar Event</h2>

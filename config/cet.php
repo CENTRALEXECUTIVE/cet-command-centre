@@ -71,6 +71,11 @@ return [
         'end' => env('CET_SEND_WINDOW_END', '22:00'),
     ],
 
+    // "Paste a booking": the free deterministic parser always runs first and
+    // costs nothing. Set true ONLY if you also want the paid AI to fill gaps
+    // on messy unstructured messages (uses the Anthropic API = costs money).
+    'intake_use_ai' => env('CET_INTAKE_USE_AI', false),
+
     // Public link customers are sent to leave a review (the Google review page).
     'review_url' => env('CET_REVIEW_URL', 'https://g.page/r/CYo2748zMiu5EBM/review'),
 

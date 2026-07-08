@@ -6,27 +6,20 @@
     <h1 class="page-title">Check the booking</h1>
     <p class="page-sub">This is how it will look on the calendar. Fix anything that’s wrong, press <strong>Update preview</strong> to re-check, then <strong>Confirm</strong> when you’re happy.</p>
 
-    @unless($aiAvailable)
-        <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
-            <strong>AI reader isn’t connected.</strong> The fields below weren’t auto-filled — type them in and the preview still builds correctly. To turn on auto-fill from a pasted message, add the Anthropic API key on the server (<span class="mono">ANTHROPIC_API_KEY</span>).
-        </div>
-    @endunless
-
     @if($errors->any())
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.08);margin-bottom:16px"><ul style="margin:0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     @endif
 
-    @if($aiAvailable)
-        {{-- Paste (or re-paste) the message and let the AI fill the fields in place. --}}
-        <details class="card" style="margin-bottom:16px">
-            <summary style="cursor:pointer;font-weight:600">📋 Paste the message to auto-fill the fields</summary>
-            <form method="POST" action="{{ route('intake.preview') }}" style="margin-top:10px">
-                @csrf
-                <textarea name="raw" rows="4" placeholder="Paste the booking message here…" style="width:100%" required></textarea>
-                <button type="submit" class="btn btn-ghost" style="margin-top:8px">↻ Read &amp; fill the fields</button>
-            </form>
-        </details>
-    @endif
+    {{-- Paste (or re-paste) the message — the free parser fills the fields
+         instantly (no AI, no cost). --}}
+    <details class="card" style="margin-bottom:16px">
+        <summary style="cursor:pointer;font-weight:600">📋 Paste the message to auto-fill the fields</summary>
+        <form method="POST" action="{{ route('intake.preview') }}" style="margin-top:10px">
+            @csrf
+            <textarea name="raw" rows="4" placeholder="Paste the booking message here…" style="width:100%" required></textarea>
+            <button type="submit" class="btn btn-ghost" style="margin-top:8px">↻ Read &amp; fill the fields</button>
+        </form>
+    </details>
 
     {{-- The calendar preview exactly as it will be written. --}}
     <div class="card" style="border-left:4px solid #FBBA2A">

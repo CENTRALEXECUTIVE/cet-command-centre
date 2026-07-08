@@ -288,6 +288,44 @@ class BookingController extends Controller
     }
 
     /**
+     * Payroll on a job (admin only): set what the job pays the driver, or
+     * record money handed over — so the office always knows who's been paid,
+     * how much, and what's still owed. Stored on the booking's meta (no
+     * migration) with a timestamped history of every payment.
+     */
+    public function payroll(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'action' => ['required', 'in:set,record'],
+            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'note' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+
+        if ($data['action'] === 'set') {
+            $payroll['pay'] = round((float) $data['amount'], 2);
+            $status = 'Driver pay set to £'.number_format($payroll['pay'], 2).'.';
+        } else {
+            $amount = round((float) $data['amount'], 2);
+            $payroll['paid'] = round(((float) ($payroll['paid'] ?? 0)) + $amount, 2);
+            $payroll['history'][] = [
+                'amount' => $amount,
+                'at' => now()->toDateTimeString(),
+                'by' => $request->user()->name,
+                'note' => $data['note'] ?? null,
+            ];
+            $status = '£'.number_format($amount, 2).' recorded as paid to '.$booking->payrollDriverName().'.';
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
+
+        return back()->with('status', $status);
+    }
+
+    /**
      * Match the booking's pickup time to the live calendar event (read-only) —
      * for when the operator corrected the time on the calendar and the system
      * needs to catch up. Never edits the calendar.

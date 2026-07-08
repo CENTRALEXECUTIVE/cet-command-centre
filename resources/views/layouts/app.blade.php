@@ -57,7 +57,7 @@
                 @php
                     $inSales = request()->routeIs('quotes.*', 'enquiries.*', 'customers.*', 'invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
                     $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*');
-                    $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'driver.documents*');
+                    $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'driver.documents*', 'payroll.*');
                     $inAdmin = request()->routeIs('imports.*', 'audit.*', 'users.*', 'settings.*', 'gdpr.*');
                 @endphp
 
@@ -87,6 +87,7 @@
                     <a href="{{ route('driver-documents.index') }}" class="{{ request()->routeIs('driver-documents.*') ? 'active' : '' }}">Driver documents</a>
                     <a href="{{ route('cover-drivers.index') }}" class="{{ request()->routeIs('cover-drivers.*') ? 'active' : '' }}">Drivers directory</a>
                     <a href="{{ route('rotation.index') }}" class="{{ request()->routeIs('rotation.*') ? 'active' : '' }}">Driver rotation</a>
+                    <a href="{{ route('payroll.index') }}" class="{{ request()->routeIs('payroll.*') ? 'active' : '' }}">Payroll</a>
                     <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">My documents</a>
                 </details>
 

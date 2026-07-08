@@ -11,9 +11,10 @@ use Illuminate\View\View;
 
 /**
  * "New booking from a message" — the operator pastes the booking text they were
- * sent, the AI formats it into the exact CET calendar format, and a preview is
- * shown. NOTHING is created and NOTHING touches the calendar until the operator
- * reviews the preview and presses Confirm.
+ * sent, the FREE deterministic parser (no AI cost) formats it into the exact
+ * CET calendar format, and a preview is shown. NOTHING is created and NOTHING
+ * touches the calendar until the operator reviews the preview and presses
+ * Confirm.
  */
 class BookingIntakeController extends Controller
 {
@@ -45,7 +46,8 @@ class BookingIntakeController extends Controller
             'fields' => $fields,
             'preview' => $intake->preview($fields),
             'vehicleTypes' => $this->vehicleTypes(),
-            'aiAvailable' => app(\App\Services\Ai\AnthropicService::class)->configured(),
+            // The paste box is always available — parsing is free (no AI).
+            'aiAvailable' => true,
         ]);
     }
 
