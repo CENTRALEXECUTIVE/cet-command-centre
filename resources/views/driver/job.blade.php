@@ -60,11 +60,17 @@
          data-url="{{ route('driver.locations.store') }}"
          data-interval="{{ (int) config('cet.gps_ping_seconds', 300) }}" hidden></div>
 
-    {{-- Live tracking status so the driver can SEE it's working. --}}
+    {{-- Live tracking status so the driver can SEE it's working, with a clear
+         start/stop control. Sharing only ever runs while THIS job is active and
+         stops automatically when it completes/cancels. --}}
     <div id="track-box" class="card" style="display:none;text-align:center;border-left:4px solid #1f7a44">
         <div style="font-weight:700;font-size:15px"><span id="track-dot">🟡</span> <span id="track-label">Getting your location…</span></div>
         <div class="muted" style="font-size:13px;margin-top:2px" id="track-last">The office can see you on the Live map.</div>
-        <button type="button" id="track-now" class="btn btn-light" style="margin-top:10px;padding:8px 16px">📍 Send my location now</button>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap">
+            <button type="button" id="track-now" class="btn btn-light" style="padding:8px 16px">📍 Send my location now</button>
+            <button type="button" id="track-toggle" class="btn btn-ghost" style="padding:8px 16px">⏸ Stop sharing</button>
+        </div>
+        <p class="hint" style="margin:8px 0 0">Location is shared only while this job is active — it stops on its own when the job is completed or cancelled.</p>
     </div>
 
     {{-- Message the office on WhatsApp Business. --}}
@@ -184,20 +190,30 @@
             var label = document.getElementById('track-label');
             var last = document.getElementById('track-last');
             var nowBtn = document.getElementById('track-now');
+            var toggleBtn = document.getElementById('track-toggle');
 
             if (!navigator.geolocation) {
                 if (label) label.textContent = 'This phone can’t share location.';
                 if (dot) dot.textContent = '🔴';
+                if (toggleBtn) toggleBtn.style.display = 'none';
                 return;
             }
             var token = document.querySelector('meta[name="csrf-token"]').content;
             var interval = (parseInt(cfg.dataset.interval, 10) || 300) * 1000;
+            var sharing = true;
+            var staleWatch = null;
+            var lastSentAt = 0;
 
             function stamp() {
                 var d = new Date();
                 return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
             }
+            function stopLoop() {
+                if (window._cetTimer) { clearInterval(window._cetTimer); window._cetTimer = null; }
+                if (staleWatch) { clearInterval(staleWatch); staleWatch = null; }
+            }
             function ping() {
+                if (!sharing) return;
                 navigator.geolocation.getCurrentPosition(function (pos) {
                     fetch(cfg.dataset.url, {
                         method: 'POST',
@@ -207,11 +223,19 @@
                             heading: pos.coords.heading, speed: pos.coords.speed, accuracy: pos.coords.accuracy
                         })
                     }).then(function (r) { return r.json(); }).then(function (data) {
+                        lastSentAt = Date.now();
                         if (dot) dot.textContent = '🟢';
                         if (label) label.textContent = 'Tracking on';
                         if (last) last.textContent = 'Location sent at ' + stamp() + ' — office can see you.';
                         if (window.CETshowMe) window.CETshowMe(pos.coords.latitude, pos.coords.longitude);
-                        if (data && data.tracking === false && window._cetTimer) { clearInterval(window._cetTimer); }
+                        // Job no longer active → the server says stop, so stop.
+                        if (data && data.tracking === false) {
+                            stopLoop();
+                            if (label) label.textContent = 'Tracking finished';
+                            if (last) last.textContent = 'This job is no longer active, so location sharing has stopped.';
+                            if (dot) dot.textContent = '⚪';
+                            if (toggleBtn) toggleBtn.style.display = 'none';
+                        }
                     }).catch(function () {
                         if (last) last.textContent = 'Couldn’t reach the office — will retry.';
                     });
@@ -222,9 +246,34 @@
                 }, { enableHighAccuracy: true, timeout: 10000 });
             }
 
-            if (nowBtn) nowBtn.addEventListener('click', ping);
+            // Driver-controlled start/stop. Stopping pauses pings immediately;
+            // starting resumes them (and sends one straight away).
+            if (toggleBtn) toggleBtn.addEventListener('click', function () {
+                sharing = !sharing;
+                if (sharing) {
+                    toggleBtn.textContent = '⏸ Stop sharing';
+                    if (label) label.textContent = 'Tracking on';
+                    if (dot) dot.textContent = '🟢';
+                    ping();
+                } else {
+                    toggleBtn.textContent = '▶ Start sharing';
+                    if (label) label.textContent = 'Sharing paused';
+                    if (dot) dot.textContent = '⚪';
+                    if (last) last.textContent = 'The office can’t see your location while paused.';
+                }
+            });
+
+            if (nowBtn) nowBtn.addEventListener('click', function () { sharing = true; toggleBtn.textContent = '⏸ Stop sharing'; ping(); });
             ping();
             window._cetTimer = setInterval(ping, interval);
+
+            // Warn the driver if no fix has gone out for over two intervals.
+            staleWatch = setInterval(function () {
+                if (sharing && lastSentAt && Date.now() - lastSentAt > interval * 2) {
+                    if (dot) dot.textContent = '🟡';
+                    if (last) last.textContent = 'No location sent for a while — check signal/GPS.';
+                }
+            }, 60000);
         })();
     </script>
     @endverbatim

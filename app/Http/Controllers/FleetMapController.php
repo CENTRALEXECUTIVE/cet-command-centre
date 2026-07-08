@@ -69,6 +69,9 @@ class FleetMapController extends Controller
             }
 
             $seen[] = $b->driver_id;
+            // Stale = no ping for over two intervals (plus a minute's grace) —
+            // flagged so the office spots a driver whose GPS has gone quiet.
+            $staleAfter = ((int) config('cet.gps_ping_seconds', 300)) * 2 + 60;
             $out[] = [
                 'driver' => $b->driver->driverProfile?->callsign ?: $b->driver->name,
                 'lat' => (float) $loc->latitude,
@@ -79,6 +82,7 @@ class FleetMapController extends Controller
                 'ref' => $b->reference,
                 'url' => route('bookings.show', $b),
                 'ago' => $loc->captured_at?->diffForHumans(),
+                'stale' => $loc->captured_at !== null && $loc->captured_at->lt(now()->subSeconds($staleAfter)),
             ];
         }
 

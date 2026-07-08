@@ -312,6 +312,27 @@ class BookingNotifier
         ]);
     }
 
+    /**
+     * Sent when the driver marks Passenger On Board — reassures the booker
+     * (often not the passenger, e.g. a company booking a client's transfer)
+     * that the journey is underway.
+     */
+    public function sendPassengerOnBoard(Booking $booking): ?Message
+    {
+        $to = $booking->customer?->phone;
+        if (blank($to)) {
+            return null;
+        }
+
+        $body = 'Passenger on board — your Central Executive Transfers journey is underway. '
+            ."Ref: {$booking->reference}";
+
+        return $this->whatsApp->send($to, $body, [
+            'type' => 'custom',
+            'booking' => $booking,
+        ]);
+    }
+
     /** Sent when the driver marks Arrived at the pickup. */
     public function sendArrived(Booking $booking): ?Message
     {

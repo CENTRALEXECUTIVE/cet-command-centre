@@ -25,6 +25,18 @@ Route::get('/', function () {
     return redirect()->route(auth()->check() ? 'dashboard' : 'login');
 });
 
+// ----- PWA assets ----------------------------------------------------------
+// Served as static files by the webserver in production; these routes make
+// them available under any server config (and in tests). No auth — the
+// manifest/worker/offline page contain no data.
+Route::get('manifest.webmanifest', fn () => response()->file(
+    public_path('manifest.webmanifest'), ['Content-Type' => 'application/manifest+json']
+))->name('pwa.manifest');
+Route::get('sw.js', fn () => response()->file(
+    public_path('sw.js'), ['Content-Type' => 'application/javascript', 'Service-Worker-Allowed' => '/']
+))->name('pwa.sw');
+Route::get('offline.html', fn () => response()->file(public_path('offline.html')))->name('pwa.offline');
+
 // ----- Authentication ----------------------------------------------------
 // Login is rate limited at the form-request level (5 attempts / email+IP).
 Route::middleware('guest')->group(function () {

@@ -143,6 +143,25 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   details*` bullets / `*Central Executive Transfers*`), sent manually, 08:00–23:00
   window, rendered at send time.
 
+## PWA / app experience
+
+- Installable app: `public/manifest.webmanifest`, `public/sw.js`,
+  `public/offline.html`, icons in `public/icons/` (regenerate with GD if the
+  brand changes). Head tags + SW registration live in `partials/pwa.blade.php`
+  (included by the app layout and the login page). Laravel routes serve the
+  three files too so tests/odd servers work; bump `CACHE_VERSION` in `sw.js`
+  when precached assets change.
+- **Privacy rule in the service worker: only static assets are cached — never
+  HTML/pages/booking data.** Offline navigation falls back to `offline.html`.
+- **Customer tracking** `/track/{token}`: public, throttled, token is the
+  secret. Shows driver FIRST name only (`Booking::driverPublicName()`), status
+  message (`trackingMessage()`), live map only while en_route/arrived/collected.
+  Terminal status caps the link expiry to +2h (`BookingStatusService`).
+- **Driver GPS**: pings only while on an active job (server rejects otherwise),
+  driver has a visible start/stop sharing toggle on the job screen, pruned
+  after 90 days (`cet:prune-gps`). Fleet map flags stale GPS (> 2× ping
+  interval) in red/faded.
+
 ## Handover to another Claude account
 
 Everything is in Git — nothing lives only in a chat. To continue elsewhere:

@@ -54,9 +54,15 @@
             count.textContent = drivers.length + ' driver' + (drivers.length === 1 ? '' : 's') + ' on the road';
             if (!drivers.length) { list.innerHTML = '<p class="muted mb-0">No drivers on a job right now.</p>'; return; }
             list.innerHTML = drivers.map(function (d) {
-                return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(128,128,128,.12)">'
+                // Stale GPS (no ping for a while) is highlighted so the office
+                // knows the position shown may be out of date.
+                var gps = d.stale
+                    ? '<span style="color:#b32020;font-size:12px;font-weight:600">⚠ GPS stale · ' + esc(d.ago || '') + '</span>'
+                    : '<span class="muted" style="font-size:12px">📍 ' + esc(d.ago || 'just now') + '</span>';
+                return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(128,128,128,.12)'
+                    + (d.stale ? ';background:rgba(179,32,32,.05)' : '') + '">'
                     + '<span style="font-weight:700;min-width:70px">' + esc(d.driver) + '</span>'
-                    + '<span style="flex:1">' + esc(d.customer || '—') + ' <span class="muted">→ ' + esc(d.destination || '') + '</span></span>'
+                    + '<span style="flex:1">' + esc(d.customer || '—') + ' <span class="muted">→ ' + esc(d.destination || '') + '</span><br>' + gps + '</span>'
                     + '<span class="badge badge-' + slug(d.status) + '">' + esc(d.status) + '</span>'
                     + '<a href="' + d.url + '" style="font-size:13px;margin-left:8px">Open →</a>'
                     + '</div>';
@@ -72,10 +78,11 @@
             drivers.forEach(function (d) {
                 var pos = { lat: d.lat, lng: d.lng };
                 live[d.ref] = true; any = true;
-                if (markers[d.ref]) { markers[d.ref].setPosition(pos); }
+                if (markers[d.ref]) { markers[d.ref].setPosition(pos); markers[d.ref].setOpacity(d.stale ? 0.45 : 1); }
                 else {
                     markers[d.ref] = new google.maps.Marker({
-                        position: pos, map: map, title: d.driver,
+                        position: pos, map: map, title: d.driver + (d.stale ? ' (GPS stale)' : ''),
+                        opacity: d.stale ? 0.45 : 1,
                         label: { text: d.driver.substring(0, 3).toUpperCase(), color: '#0b0b0b', fontSize: '11px', fontWeight: '700' }
                     });
                     var info = new google.maps.InfoWindow({

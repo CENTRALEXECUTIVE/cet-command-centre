@@ -202,6 +202,11 @@ class BookingStatusService
             $this->notifier->sendArrived($booking);
         }
 
+        // "Passenger on board" — journey underway, reassures the booker.
+        if ($to === BookingStatus::Collected) {
+            $this->notifier->sendPassengerOnBoard($booking);
+        }
+
         // Review request 30 minutes after completion (delivered by the scheduler).
         if ($to === BookingStatus::Complete) {
             $this->notifier->scheduleReviewRequest($booking);
@@ -210,6 +215,18 @@ class BookingStatusService
         // A cancellation frees capacity — notify the waiting list.
         if ($to === BookingStatus::Cancelled) {
             $this->waitingList->notifyForCancellation($booking);
+        }
+
+        // Job closed (complete / cancelled / no-show): wind the public tracking
+        // link down shortly after, so the customer sees the final status for a
+        // little while and then the link expires. GPS pings already stop on
+        // their own — the server rejects pings without an active job.
+        if ($to->isTerminal()) {
+            $link = $booking->trackingLink()->first();
+            $cutoff = now()->addHours(2);
+            if ($link && ($link->expires_at === null || $link->expires_at->gt($cutoff))) {
+                $link->forceFill(['expires_at' => $cutoff])->save();
+            }
         }
     }
 

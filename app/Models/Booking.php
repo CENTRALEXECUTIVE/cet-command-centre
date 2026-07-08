@@ -340,6 +340,40 @@ class Booking extends Model
     }
 
     /**
+     * The driver name shown on the PUBLIC tracking page — first name/callsign
+     * only, never the full name (privacy: the customer needs "Abdi is on the
+     * way", not the driver's full identity).
+     */
+    public function driverPublicName(): ?string
+    {
+        $driver = $this->driver;
+        if (! $driver) {
+            $manual = $this->meta['driver_details']['name'] ?? null;
+
+            return $manual ? \Illuminate\Support\Str::before(trim($manual), ' ') : null;
+        }
+
+        return $driver->driverProfile?->callsign
+            ?: \Illuminate\Support\Str::before(trim($driver->name), ' ');
+    }
+
+    /**
+     * The friendly journey message for the customer tracking page, keyed off
+     * the booking status. Deliberately vague on internals — status only.
+     */
+    public function trackingMessage(): string
+    {
+        return match ($this->status->value) {
+            'en_route' => 'Your driver is on the way',
+            'arrived' => 'Your driver has arrived at the pickup',
+            'collected' => 'Passenger on board — journey underway',
+            'complete' => 'Journey completed — thank you for travelling with us',
+            'cancelled', 'no_show' => 'This journey is closed',
+            default => $this->driver_id ? 'Your driver has been allocated' : 'Your booking is confirmed',
+        };
+    }
+
+    /**
      * Do the three pickup times agree — the booking (shown on the dashboard and
      * bookings list), the calendar event's slot (start_at), and the time printed
      * in the event's description? Returns each source's time for a notification
