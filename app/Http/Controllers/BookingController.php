@@ -108,25 +108,43 @@ class BookingController extends Controller
     }
 
     /**
-     * If the live Google Calendar is reachable, pull this single booking's time
-     * from its live event so the page reflects any edit made directly on Google.
-     * Silent and best-effort: skipped entirely when the calendar isn't connected,
-     * and any read error leaves our stored copy untouched.
+     * If the live Google Calendar is reachable, scan this booking against it so
+     * the page reflects the calendar exactly — including linking an ETO import
+     * to its event by reference on first view, then mirroring the time and the
+     * whole details block. Silent and best-effort: skipped when the calendar
+     * isn't connected, and any error leaves our stored copy untouched so the
+     * page always renders. The expensive match runs once per booking; after
+     * that it's a fast single-event read.
      */
     private function autoFollowCalendar(Booking $booking): void
     {
         if (! $this->google->configured() || ! $this->google->active()) {
-            return; // not connected — the manual "Match time to calendar" button still works
+            return; // not connected — the manual "Scan calendar" button still works
         }
-        if (blank($booking->calendarEvent?->google_event_id)) {
-            return;
+
+        $linked = filled($booking->calendarEvent?->google_event_id);
+        if (! $linked) {
+            // Only auto-SEARCH for bookings likely to be on the calendar (they
+            // carry a reference), and at most once every few minutes, so an
+            // unmatchable booking doesn't hit the API on every page view. The
+            // manual "Scan calendar" button always searches on demand.
+            if (blank($booking->external_reference)) {
+                return;
+            }
+            $lastTry = $booking->meta['calendar_scan_attempted_at'] ?? null;
+            if ($lastTry && \Illuminate\Support\Carbon::parse($lastTry)->gt(now()->subMinutes(10))) {
+                return;
+            }
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                'calendar_scan_attempted_at' => now()->toDateTimeString(),
+            ])])->save();
         }
 
         try {
-            $this->timeSync->pullTime($booking);
+            $this->timeSync->scan($booking);
         } catch (\Throwable $e) {
             // Never let a calendar read break the booking page.
-            \Illuminate\Support\Facades\Log::warning('Auto-follow calendar read failed', [
+            \Illuminate\Support\Facades\Log::warning('Auto-follow calendar scan failed', [
                 'booking' => $booking->id, 'error' => $e->getMessage(),
             ]);
         }
@@ -253,7 +271,13 @@ class BookingController extends Controller
             $jobDrivers = $cover->concat($system)->values();
         }
 
-        return compact('booking', 'auditLogs', 'messages', 'jobDrivers');
+        // Whether the live calendar can be scanned for this booking — used to
+        // show the "Scan calendar" button even for ETO imports that don't yet
+        // have a stored event id (the scan matches them by reference).
+        $canScan = $request->user()->isAdmin()
+            && $this->google->configured() && $this->google->active();
+
+        return compact('booking', 'auditLogs', 'messages', 'jobDrivers', 'canScan');
     }
 
     /**
@@ -342,7 +366,9 @@ class BookingController extends Controller
                 ? 'Google Calendar isn’t connected on the server, so the live calendar can’t be read.'
                 : (! $google->active()
                     ? 'Calendar sync is paused, so the live calendar can’t be read right now.'
-                    : 'This booking isn’t linked to a live calendar event (no event id), so there’s nothing to scan against.');
+                    : 'Couldn’t find this booking on your Google Calendar. Check the event for '
+                        .($booking->external_reference ?: $booking->reference)
+                        .' is on the connected calendar and its reference is in the event details.');
 
             return back()->with('status', '⚠ Scan not possible: '.$why);
         }

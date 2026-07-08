@@ -3,6 +3,8 @@
 namespace App\Services\Calendar;
 
 use App\Models\Booking;
+use App\Models\CalendarEvent;
+use App\Models\Setting;
 
 /**
  * Pulls a booking's pickup time from the LIVE Google Calendar event so the
@@ -13,6 +15,61 @@ use App\Models\Booking;
 class CalendarTimeSync
 {
     public function __construct(private readonly GoogleCalendarService $google) {}
+
+    /** The calendar the events live on (Setting override, else the CET default). */
+    private function calendarId(): string
+    {
+        return (string) Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
+    }
+
+    /**
+     * Find the live Google event for a booking even when we never stored its id
+     * — by the ETO/booking reference printed in the event description — and make
+     * sure the booking has a linked CalendarEvent row carrying that id, so every
+     * later read/scan is a direct hit. Returns the linked event, or null when
+     * the calendar can't be read or no matching event exists.
+     */
+    private function ensureLinkedEvent(Booking $booking, ?array $candidateEvents = null): ?CalendarEvent
+    {
+        $event = $booking->calendarEvent;
+        if ($event && filled($event->google_event_id)) {
+            return $event; // already linked — nothing to find
+        }
+
+        if (! $this->google->configured() || ! $this->google->active()) {
+            return null;
+        }
+
+        $reference = $booking->external_reference ?: $booking->reference;
+        // Bulk sync passes a pre-fetched event list (calendar read once); the
+        // single-booking path fetches a window around the pickup date itself.
+        $match = $candidateEvents !== null
+            ? $this->google->matchIn($candidateEvents, $reference, $booking->displayName())
+            : $this->google->findEvent($this->calendarId(), $reference, $booking->displayName(), $booking->pickup_at ?? now());
+
+        if (! $match) {
+            return null;
+        }
+
+        // Create or fill the local shell with the live id + fields so the
+        // booking is permanently linked to its calendar event.
+        $event ??= new CalendarEvent(['booking_id' => $booking->id]);
+        $event->forceFill([
+            'booking_id' => $booking->id,
+            'calendar_id' => $this->calendarId(),
+            'google_event_id' => $match['id'],
+            'title' => $match['title'] ?? $event->title,
+            'location' => $match['location'] ?? $event->location,
+            'description' => $match['description'] ?? $event->description,
+            'start_at' => $match['start'],
+            'end_at' => $match['end'] ?: $match['start']->copy()->addHour(),
+            'sync_status' => 'synced',
+        ])->save();
+
+        $booking->setRelation('calendarEvent', $event);
+
+        return $event;
+    }
 
     /**
      * Set the booking's pickup time to the calendar's authoritative time (the
@@ -79,19 +136,43 @@ class CalendarTimeSync
      *
      * @return array{status: 'ok'|'unavailable', changes: array<string, array{from: ?string, to: ?string}>}
      */
-    public function scan(Booking $booking): array
+    public function scan(Booking $booking, ?array $candidateEvents = null): array
     {
-        $event = $booking->calendarEvent;
+        // Link the booking to its live event first — this is what makes the scan
+        // work for ETO imports that never had a stored google_event_id.
+        $event = $this->ensureLinkedEvent($booking, $candidateEvents);
         if (! $event || blank($event->google_event_id)) {
             return ['status' => 'unavailable', 'changes' => []];
         }
 
-        $live = $this->google->readEvent($event);
-        if (! $live) {
-            return ['status' => 'unavailable', 'changes' => []];
-        }
-
         $changes = [];
+
+        if ($event->wasRecentlyCreated) {
+            // Just matched from the live calendar — the row already carries the
+            // live data, so no second read is needed.
+            $changes['Calendar event'] = ['from' => 'not linked', 'to' => 'matched by reference'];
+            $live = [
+                'start' => $event->start_at,
+                'end' => $event->end_at,
+                'title' => $event->title,
+                'location' => $event->location,
+                'description' => $event->description,
+            ];
+        } else {
+            // Already linked: reuse the pre-fetched list (bulk sync) when it
+            // holds this event, else read the single event live.
+            $live = null;
+            foreach (($candidateEvents ?? []) as $e) {
+                if (($e['id'] ?? null) === $event->google_event_id) {
+                    $live = $this->google->normaliseEvent($e);
+                    break;
+                }
+            }
+            $live ??= $this->google->readEvent($event);
+            if (! $live) {
+                return ['status' => 'unavailable', 'changes' => []];
+            }
+        }
 
         // 1. Pickup time — the calendar's start is the truth.
         $liveStart = $live['start'];

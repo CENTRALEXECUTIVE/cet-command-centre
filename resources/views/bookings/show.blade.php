@@ -38,7 +38,7 @@
 
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         <div class="toolbar" style="margin-bottom:16px">
-            @if($booking->calendarEvent?->google_event_id)
+            @if(!empty($canScan))
                 <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}">
                     @csrf
                     <button class="btn btn-dark" style="padding:9px 16px">🔍 Scan calendar</button>
@@ -47,9 +47,9 @@
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
         </div>
-        @if($booking->calendarEvent?->google_event_id)
+        @if(!empty($canScan))
             <p class="hint" style="margin:-8px 0 16px">
-                <strong>Scan calendar</strong> reads the live Google event and makes this booking match it exactly — time, addresses, details, everything. Never changes the calendar.
+                <strong>Scan calendar</strong> finds this booking on your live Google Calendar (by its reference), then makes it match exactly — time, addresses, and the full details block. Never changes the calendar.
                 @if(!empty($booking->meta['calendar_scanned_at']))
                     · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
                 @endif

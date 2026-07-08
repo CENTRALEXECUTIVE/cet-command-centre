@@ -218,6 +218,86 @@ class GoogleCalendarService
     }
 
     /**
+     * READ-ONLY: find the LIVE calendar event that belongs to a booking, even
+     * when we never stored its id — by matching the ETO/booking reference that
+     * is printed in the event description, then (fallback) a same-window event
+     * whose title/description carries the lead passenger's name. Searches a
+     * window around the expected date so a wrong stored TIME never hides it.
+     *
+     * @return array{id: string, start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     */
+    public function findEvent(string $calendarId, ?string $reference, ?string $name, \DateTimeInterface $near): ?array
+    {
+        if (! $this->active() || ! $this->configured()) {
+            return null;
+        }
+
+        $from = Carbon::parse($near)->subDays(3)->startOfDay();
+        $to = Carbon::parse($near)->addDays(3)->endOfDay();
+
+        return $this->matchIn($this->eventsBetween($calendarId, $from, $to), $reference, $name);
+    }
+
+    /**
+     * Pick the event that matches a booking from an already-fetched list (used
+     * by the bulk sync so the calendar is read once, not per booking).
+     *
+     * @param  array<int, array<string, mixed>>  $events
+     * @return array{id: string, start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     */
+    public function matchIn(array $events, ?string $reference, ?string $name): ?array
+    {
+        $ref = strtoupper(trim((string) $reference));
+        $needleName = strtolower(trim((string) $name));
+
+        // 1. Reference in the description — unique and authoritative.
+        if ($ref !== '') {
+            foreach ($events as $e) {
+                $haystack = strtoupper(($e['description'] ?? '').' '.($e['summary'] ?? ''));
+                if (str_contains($haystack, $ref)) {
+                    return $this->normaliseEvent($e);
+                }
+            }
+        }
+
+        // 2. Fallback: the lead name in the title/description.
+        if ($needleName !== '') {
+            foreach ($events as $e) {
+                $haystack = strtolower(($e['summary'] ?? '').' '.($e['description'] ?? ''));
+                if (str_contains($haystack, $needleName)) {
+                    return $this->normaliseEvent($e);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalise a raw Google event item into our shape (start/end in app tz).
+     *
+     * @param  array<string, mixed>  $e
+     * @return array{id: string, start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     */
+    public function normaliseEvent(array $e): ?array
+    {
+        $start = $e['start']['dateTime'] ?? $e['start']['date'] ?? null;
+        if (! $start || empty($e['id'])) {
+            return null;
+        }
+        $end = $e['end']['dateTime'] ?? $e['end']['date'] ?? null;
+
+        return [
+            'id' => $e['id'],
+            'start' => Carbon::parse($start)->setTimezone(config('app.timezone')),
+            'end' => $end ? Carbon::parse($end)->setTimezone(config('app.timezone')) : null,
+            'title' => $e['summary'] ?? null,
+            'location' => $e['location'] ?? null,
+            'description' => $e['description'] ?? null,
+        ];
+    }
+
+    /**
      * Remove an event from Google Calendar (used when cleaning up demo/removed
      * bookings). Treats "already gone" (404/410) as success.
      */

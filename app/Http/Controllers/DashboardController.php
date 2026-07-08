@@ -249,7 +249,7 @@ class DashboardController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         if ($google->configured() && $google->active()) {
-            return $this->liveCalendarSync($sync);
+            return $this->liveCalendarSync($sync, $google);
         }
 
         $corrected = $this->mismatchedBookings()
@@ -275,27 +275,36 @@ class DashboardController extends Controller
     }
 
     /**
-     * Scan upcoming linked bookings against the live Google Calendar (one read
-     * per booking, capped so the button stays quick) and mirror each one.
+     * Scan upcoming bookings against the live Google Calendar and mirror each
+     * one. Includes bookings that were never linked to a stored event (e.g. ETO
+     * imports) — the scan matches them to the live event by reference and links
+     * them, so "sync" fixes those too, not just already-linked bookings.
      */
-    private function liveCalendarSync(\App\Services\Calendar\CalendarTimeSync $sync): \Illuminate\Http\RedirectResponse
+    private function liveCalendarSync(\App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): \Illuminate\Http\RedirectResponse
     {
+        $from = now()->startOfDay();
+        $to = now()->addDays(14)->endOfDay();
+
         $bookings = Booking::query()
-            ->whereHas('calendarEvent', fn ($q) => $q->whereNotNull('google_event_id'))
             ->whereNotIn('status', [
                 BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
             ])
-            ->whereBetween('pickup_at', [now()->startOfDay(), now()->addDays(14)->endOfDay()])
+            ->whereBetween('pickup_at', [$from, $to])
             ->with(['calendarEvent', 'customer'])
             ->orderBy('pickup_at')
             ->limit(60)
             ->get();
 
+        // Read the live calendar ONCE for the whole window, then match every
+        // booking against it in memory — one API call, not one per booking.
+        $calendarId = (string) \App\Models\Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
+        $events = $google->eventsBetween($calendarId, $from->copy()->subDays(3), $to->copy()->addDays(3));
+
         $corrected = [];
         $scanned = 0;
         foreach ($bookings as $b) {
-            $from = $b->pickup_at?->format('D d M, H:i');
-            $result = $sync->scan($b);
+            $wasAt = $b->pickup_at?->format('D d M, H:i');
+            $result = $sync->scan($b, $events);
             if ($result['status'] !== 'ok') {
                 continue;
             }
@@ -314,7 +323,7 @@ class DashboardController extends Controller
                 'ref' => $b->external_reference ?? $b->reference,
                 'customer' => $b->displayName(),
                 'url' => route('bookings.show', $b),
-                'from' => isset($result['changes']['Pickup time']) ? $from : 'details',
+                'from' => isset($result['changes']['Pickup time']) ? $wasAt : 'details',
                 'to' => $result['changes']['Pickup time']['to'] ?? 'refreshed from the calendar',
             ];
         }
