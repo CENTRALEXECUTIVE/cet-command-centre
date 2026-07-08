@@ -54,6 +54,51 @@ class IntakeNextDriverTest extends TestCase
             ->assertSee('rotation only moves when you press Confirm');
     }
 
+    public function test_operator_can_correct_a_rotation_pointer_and_the_preview_follows(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $intake = app(BookingIntakeService::class);
+        $rotation = app(\App\Services\RotationService::class);
+
+        $airport = \App\Models\Airport::where('code', 'MAN')->firstOrFail();
+        $vehicleType = \App\Models\VehicleType::where('affects_rotation', true)->firstOrFail();
+
+        $before = $intake->nextDriver(['vehicle' => $vehicleType->name, 'where' => 'MAN']);
+        // Flip the pointer to the OTHER rotation driver via the new control.
+        $other = $rotation->order()->firstWhere('name', '!=', $before['name']);
+        $this->assertNotNull($other, 'There should be two rotation drivers.');
+
+        $this->actingAs($admin)->post(route('rotation.set-next'), [
+            'airport_id' => $airport->id,
+            'vehicle_type_id' => $vehicleType->id,
+            'driver_id' => $other->id,
+        ])->assertRedirect()->assertSessionHas('status');
+
+        // The paste-a-booking preview now names the corrected driver.
+        $after = $intake->nextDriver(['vehicle' => $vehicleType->name, 'where' => 'MAN']);
+        $this->assertSame($other->name, $after['name']);
+
+        // And it's logged as a manual override.
+        $this->assertDatabaseHas('rotation_logs', [
+            'airport_id' => $airport->id,
+            'to_driver_id' => $other->id,
+            'reason' => 'manual_override',
+        ]);
+    }
+
+    public function test_only_admins_can_set_the_pointer(): void
+    {
+        $driver = User::factory()->driver()->create();
+        $airport = \App\Models\Airport::where('code', 'MAN')->firstOrFail();
+        $vehicleType = \App\Models\VehicleType::where('affects_rotation', true)->firstOrFail();
+
+        $this->actingAs($driver)->post(route('rotation.set-next'), [
+            'airport_id' => $airport->id,
+            'vehicle_type_id' => $vehicleType->id,
+            'driver_id' => $driver->id,
+        ])->assertForbidden();
+    }
+
     public function test_non_rotation_vehicles_say_allocate_manually(): void
     {
         $next = app(BookingIntakeService::class)->nextDriver([

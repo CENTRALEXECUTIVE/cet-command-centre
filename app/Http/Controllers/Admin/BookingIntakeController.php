@@ -75,7 +75,7 @@ class BookingIntakeController extends Controller
         $booking = $intake->confirm($data['fields'], $request->user());
 
         return redirect()->route('bookings.show', $booking)
-            ->with('status', 'Booking created and added to the calendar. Review it below.');
+            ->with('status', 'Booking created — the calendar event is queued and appears on Google within ~5 minutes (the sync also checks by reference so it never creates a duplicate). Review it below.');
     }
 
     /** @return \Illuminate\Support\Collection<int, VehicleType> */

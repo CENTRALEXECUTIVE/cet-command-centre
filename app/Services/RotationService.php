@@ -170,6 +170,32 @@ class RotationService
         $this->log($booking, $currentDriver, $next, 'advance');
     }
 
+    /**
+     * Operator override: set who is UP NEXT for an airport × vehicle type,
+     * e.g. to bring the pointers in line with the real-world order after a
+     * migration. Logged as a manual override; nothing else moves.
+     */
+    public function setNextDriver(Airport $airport, VehicleType $vehicleType, User $driver): void
+    {
+        $state = RotationState::firstOrNew([
+            'airport_id' => $airport->id,
+            'vehicle_type_id' => $vehicleType->id,
+        ]);
+        $from = $state->nextDriver;
+        $state->next_driver_id = $driver->id;
+        $state->last_advanced_at = now();
+        $state->save();
+
+        RotationLog::create([
+            'airport_id' => $airport->id,
+            'vehicle_type_id' => $vehicleType->id,
+            'booking_id' => null,
+            'from_driver_id' => $from?->id,
+            'to_driver_id' => $driver->id,
+            'reason' => 'manual_override',
+        ]);
+    }
+
     protected function assignDriver(Booking $booking, ?User $driver, bool $advancedRotation): void
     {
         $booking->forceFill([

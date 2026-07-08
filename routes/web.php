@@ -184,6 +184,7 @@ Route::middleware('auth')->group(function () {
 
         // Driver rotation — read-only order + next-driver pointer + history.
         Route::get('rotation', [\App\Http\Controllers\Admin\RotationController::class, 'index'])->name('rotation.index');
+        Route::post('rotation/next', [\App\Http\Controllers\Admin\RotationController::class, 'setNext'])->middleware('throttle:30,1')->name('rotation.set-next');
 
         // New booking from a pasted message — AI formats it, operator confirms → calendar.
         Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
