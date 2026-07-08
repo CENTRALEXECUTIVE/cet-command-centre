@@ -369,6 +369,9 @@ class BookingController extends Controller
                 $why = 'Google Calendar isn’t connected on the server.';
             } elseif (! $google->active()) {
                 $why = 'Calendar sync is paused right now.';
+            } elseif (! empty($diag['token_error'])) {
+                // The precise reason Google/the server refused a token.
+                $why = $diag['token_error'];
             } elseif (empty($diag['read'])) {
                 $why = 'Couldn’t read your Google Calendar (a temporary Google error or the calendar isn’t shared with the service account). Try again in a moment.';
             } else {

@@ -239,6 +239,7 @@ class GoogleCalendarService
         $token = $this->accessToken();
         if (! $token) {
             $diag['reason'] = 'no_token';
+            $diag['token_error'] = $this->tokenError;
 
             return ['event' => null, 'diag' => $diag];
         }
@@ -645,43 +646,97 @@ class GoogleCalendarService
      * The target calendar (config cet.calendar_id) must be shared with the
      * service account's client_email, with "Make changes to events" permission.
      */
+    /** Human-readable reason the last token fetch failed (for diagnostics). */
+    public ?string $tokenError = null;
+
     protected function accessToken(): ?string
     {
-        return Cache::remember('google_calendar_token', 3000, function () {
-            $creds = $this->credentials();
-            if (! $creds || empty($creds['client_email']) || empty($creds['private_key'])) {
-                return null;
-            }
+        // Use a cached token when we have one — but NEVER cache a failure, so a
+        // transient error doesn't lock the calendar out for the cache lifetime.
+        if ($cached = Cache::get('google_calendar_token')) {
+            return $cached;
+        }
 
-            $tokenUri = $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token';
-            $now = time();
-            $claims = [
-                'iss' => $creds['client_email'],
-                'scope' => 'https://www.googleapis.com/auth/calendar',
-                'aud' => $tokenUri,
-                'iat' => $now,
-                'exp' => $now + 3600,
-            ];
+        $token = $this->requestToken();
+        if ($token) {
+            Cache::put('google_calendar_token', $token, 3000);
+        }
 
-            $segments = [
-                $this->base64Url(json_encode(['alg' => 'RS256', 'typ' => 'JWT'])),
-                $this->base64Url(json_encode($claims)),
-            ];
-            $signingInput = implode('.', $segments);
+        return $token;
+    }
 
-            $signature = '';
-            if (! openssl_sign($signingInput, $signature, $creds['private_key'], 'sha256WithRSAEncryption')) {
-                return null;
-            }
-            $jwt = $signingInput.'.'.$this->base64Url($signature);
+    /** Fetch a fresh access token, recording a precise failure reason. */
+    private function requestToken(): ?string
+    {
+        $this->tokenError = null;
 
+        $value = config('services.google_calendar.credentials');
+        if (blank($value)) {
+            $this->tokenError = 'No credentials configured (GOOGLE_CALENDAR_CREDENTIALS is empty).';
+
+            return null;
+        }
+        // Distinguish "path given but not readable by the web user" — a common
+        // cPanel cause where the shell can read the key but PHP-FPM cannot.
+        if (is_string($value) && ! str_starts_with(trim($value), '{') && ! is_readable($value)) {
+            $this->tokenError = "Key file not readable by the web server at {$value} (check the path and file permissions — chmod 644).";
+
+            return null;
+        }
+
+        $creds = $this->credentials();
+        if (! $creds || empty($creds['client_email']) || empty($creds['private_key'])) {
+            $this->tokenError = 'Credentials file is not valid JSON, or is missing client_email/private_key.';
+
+            return null;
+        }
+
+        $tokenUri = $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token';
+        $now = time();
+        $claims = [
+            'iss' => $creds['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/calendar',
+            'aud' => $tokenUri,
+            'iat' => $now,
+            'exp' => $now + 3600,
+        ];
+
+        $signingInput = $this->base64Url(json_encode(['alg' => 'RS256', 'typ' => 'JWT']))
+            .'.'.$this->base64Url(json_encode($claims));
+
+        $signature = '';
+        if (! openssl_sign($signingInput, $signature, $creds['private_key'], 'sha256WithRSAEncryption')) {
+            $this->tokenError = 'Could not sign the token (the private key in the JSON is invalid).';
+
+            return null;
+        }
+        $jwt = $signingInput.'.'.$this->base64Url($signature);
+
+        try {
             $response = Http::asForm()->post($tokenUri, [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => $jwt,
             ]);
+        } catch (\Throwable $e) {
+            $this->tokenError = 'Network error reaching Google: '.$e->getMessage();
 
-            return $response->successful() ? $response->json('access_token') : null;
-        });
+            return null;
+        }
+
+        if ($response->successful() && $response->json('access_token')) {
+            return $response->json('access_token');
+        }
+
+        // Google's own error — invalid_grant almost always means the server
+        // clock is wrong (the signed times are out of tolerance).
+        $err = (string) ($response->json('error') ?: $response->status());
+        $desc = (string) $response->json('error_description');
+        $hint = str_contains($err.$desc, 'invalid_grant')
+            ? ' — this usually means the SERVER CLOCK is wrong; sync the server time.'
+            : '';
+        $this->tokenError = "Google rejected the token request (HTTP {$response->status()}: {$err}){$hint}";
+
+        return null;
     }
 
     /** @return array<string, mixed>|null */
