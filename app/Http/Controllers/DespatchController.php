@@ -29,7 +29,7 @@ class DespatchController extends Controller
     {
         $date = $request->date('date') ?? today();
 
-        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport'])
+        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport', 'calendarEvent'])
             ->whereDate('pickup_at', $date)
             ->orderBy('pickup_at')
             ->get();

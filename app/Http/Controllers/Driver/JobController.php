@@ -46,7 +46,7 @@ class JobController extends Controller
     public function show(Request $request, Booking $booking): View
     {
         $this->authoriseOwnership($request, $booking);
-        $booking->load(['customer', 'vehicleType', 'airport', 'stops']);
+        $booking->load(['customer', 'vehicleType', 'airport', 'stops', 'calendarEvent']);
 
         return view('driver.job', compact('booking'));
     }

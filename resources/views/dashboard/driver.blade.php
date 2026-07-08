@@ -20,7 +20,7 @@
                             <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a></td>
                             <td>{{ \Illuminate\Support\Str::limit($b->pickup_address, 40) }}</td>
                             <td>{{ \Illuminate\Support\Str::limit($b->destination_address, 40) }}</td>
-                            <td>{{ $b->passengers }}</td>
+                            <td>{{ $b->passengerCount() }}</td>
                             <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
                         </tr>
                     @endforeach

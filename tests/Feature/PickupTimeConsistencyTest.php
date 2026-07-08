@@ -73,6 +73,31 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertEquals('2 Suitcases + 1 Hand Luggage', $booking->fresh()->luggageShort());
     }
 
+    public function test_passenger_count_is_mirrored_from_the_calendar(): void
+    {
+        // Booking column says 1, but the calendar says 5 passengers — the
+        // calendar is the source of truth, so the page shows 5.
+        $booking = Booking::factory()->create(['passengers' => 1]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_pax',
+            'title' => '*Test MAN (MINIBUS)*',
+            'location' => 'Manchester Airport',
+            'description' => "📑 *Booking Confirmation – Arrival*\n• *Passengers:* 5\n• *Luggage:* 8 Suitcases + 4 Hand Luggage",
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        $this->assertSame(5, $booking->fresh(['calendarEvent'])->passengerCount());
+    }
+
+    public function test_passenger_count_falls_back_to_the_booking_without_a_calendar(): void
+    {
+        $booking = Booking::factory()->create(['passengers' => 3]);
+        $this->assertSame(3, $booking->passengerCount());
+    }
+
     public function test_no_mismatch_when_all_three_times_agree(): void
     {
         $booking = $this->bookingWithEvent('2026-07-15 06:45:00', '15/07/2026 – 06:45');

@@ -43,7 +43,7 @@
                     <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:4px 12px;font-size:13px;margin-left:6px">✈ Track flight</a>
                 </td></tr>
             @endif
-            <tr><th>Passengers</th><td>{{ $booking->passengers }}</td></tr>
+            <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
             <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
             @if($booking->customer?->phone)
                 <tr><th>Contact</th><td><a href="tel:{{ $booking->customer->phone }}">{{ $booking->customer->phone }}</a></td></tr>

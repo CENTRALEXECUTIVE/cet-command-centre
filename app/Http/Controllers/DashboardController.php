@@ -79,7 +79,7 @@ class DashboardController extends Controller
 
         if ($user->isDriver()) {
             return view('dashboard.driver', [
-                'todayJobs' => Booking::with(['customer', 'vehicleType'])
+                'todayJobs' => Booking::with(['customer', 'vehicleType', 'calendarEvent'])
                     ->forDriver($user->id)
                     ->whereDate('pickup_at', today())
                     ->orderBy('pickup_at')

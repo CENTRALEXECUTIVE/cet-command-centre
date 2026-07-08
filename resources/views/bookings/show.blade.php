@@ -65,7 +65,7 @@
                         <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                     </td></tr>
                 @endif
-                <tr><th>Passengers</th><td>{{ $booking->passengers }}</td></tr>
+                <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
                 <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                 <tr><th>Type</th><td>{{ ucfirst(str_replace('_',' ',$booking->journey_type)) }}{{ $booking->is_return_leg ? ' (return leg)' : '' }}</td></tr>
                 @if($booking->special_requests)<tr><th>Notes</th><td>{{ $booking->special_requests }}</td></tr>@endif

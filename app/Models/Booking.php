@@ -259,6 +259,22 @@ class Booking extends Model
     }
 
     /**
+     * The passenger count to show — the calendar is the source of truth, so its
+     * "Passengers" line wins where there's a linked event, falling back to the
+     * booking's own column. Keeps the booking page from disagreeing with the
+     * calendar details shown right below it.
+     */
+    public function passengerCount(): ?int
+    {
+        $fromCalendar = $this->calendarEvent?->descriptionValue('Passengers');
+        if ($fromCalendar !== null && preg_match('/\d+/', $fromCalendar, $m)) {
+            return (int) $m[0];
+        }
+
+        return $this->passengers !== null ? (int) $this->passengers : null;
+    }
+
+    /**
      * Do the three pickup times agree — the booking (shown on the dashboard and
      * bookings list), the calendar event's slot (start_at), and the time printed
      * in the event's description? Returns each source's time for a notification
