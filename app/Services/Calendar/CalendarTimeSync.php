@@ -32,23 +32,24 @@ class CalendarTimeSync
      * later read/scan is a direct hit. Returns the linked event, or null when
      * the calendar can't be read or no matching event exists.
      */
-    private function ensureLinkedEvent(Booking $booking, ?array $candidateEvents = null): ?CalendarEvent
+    /**
+     * Find the LIVE event for a booking, reference first — ALWAYS. The booking
+     * reference printed on the calendar event is the source of truth; a stored
+     * google_event_id is only a hint and is NEVER trusted over a reference
+     * match. This is what fixes the "two events for one booking" trap: if our
+     * stored id points at a stale duplicate (e.g. one our own push created)
+     * while the operator maintains a different event, the reference match wins
+     * and the booking is re-linked to the real event.
+     *
+     * @return array{live: ?array<string,mixed>, relinked: bool}
+     */
+    private function resolveLiveEvent(Booking $booking, ?array $candidateEvents): array
     {
         $event = $booking->calendarEvent;
-        if ($event && filled($event->google_event_id)) {
-            return $event; // already linked — nothing to find
-        }
-
-        if (! $this->google->configured() || ! $this->google->active()) {
-            return null;
-        }
-
         $reference = $booking->external_reference ?: $booking->reference;
-        // Bulk sync passes a pre-fetched event list (calendar read once) and we
-        // match in memory first. Whether bulk or single, we ALWAYS fall back to
-        // Google's own full-text search (q=) across the whole calendar when the
-        // in-memory list didn't have it — so the bulk sync is exactly as reliable
-        // as a single-booking scan, not limited to a fragile date window.
+
+        // 1. Reference-first: in-memory candidates (bulk), then Google's own
+        //    full-text search across the whole calendar.
         $match = null;
         if ($candidateEvents !== null) {
             $match = $this->google->matchIn($candidateEvents, $reference, $booking->displayName());
@@ -62,28 +63,24 @@ class CalendarTimeSync
             $this->lastDiag = $found['diag'];
         }
 
-        if (! $match) {
-            return null;
+        if ($match) {
+            $relinked = $event !== null
+                && filled($event->google_event_id)
+                && $event->google_event_id !== $match['id'];
+
+            return ['live' => $match, 'relinked' => $relinked];
         }
 
-        // Create or fill the local shell with the live id + fields so the
-        // booking is permanently linked to its calendar event.
-        $event ??= new CalendarEvent(['booking_id' => $booking->id]);
-        $event->forceFill([
-            'booking_id' => $booking->id,
-            'calendar_id' => $this->calendarId(),
-            'google_event_id' => $match['id'],
-            'title' => $match['title'] ?? $event->title,
-            'location' => $match['location'] ?? $event->location,
-            'description' => $match['description'] ?? $event->description,
-            'start_at' => $match['start'],
-            'end_at' => $match['end'] ?: $match['start']->copy()->addHour(),
-            'sync_status' => 'synced',
-        ])->save();
+        // 2. No reference match anywhere — fall back to the stored id (the
+        //    event may simply not carry the reference in its text).
+        if ($event && filled($event->google_event_id)) {
+            $live = $this->google->readEvent($event);
+            if ($live) {
+                return ['live' => $live + ['id' => $event->google_event_id], 'relinked' => false];
+            }
+        }
 
-        $booking->setRelation('calendarEvent', $event);
-
-        return $event;
+        return ['live' => null, 'relinked' => false];
     }
 
     /**
@@ -155,10 +152,17 @@ class CalendarTimeSync
     {
         $this->lastDiag = [];
 
-        // Link the booking to its live event first — this is what makes the scan
-        // work for ETO imports that never had a stored google_event_id.
-        $event = $this->ensureLinkedEvent($booking, $candidateEvents);
-        if (! $event || blank($event->google_event_id)) {
+        if (! $this->google->configured() || ! $this->google->active()) {
+            $this->flagUnverified($booking);
+
+            return ['status' => 'unavailable', 'changes' => [], 'diag' => $this->lastDiag];
+        }
+
+        // Reference-first live lookup — a stored event id is never trusted over
+        // the event that actually carries this booking's reference.
+        ['live' => $live, 'relinked' => $relinked] = $this->resolveLiveEvent($booking, $candidateEvents);
+
+        if (! $live) {
             // Couldn't confirm against the LIVE calendar. Never present the
             // stored copy as verified — flag it so a stale time (e.g. an edit
             // made on the calendar) is visibly UNVERIFIED, not silently trusted.
@@ -168,32 +172,32 @@ class CalendarTimeSync
         }
 
         $changes = [];
+        $event = $booking->calendarEvent;
 
-        if ($event->wasRecentlyCreated) {
-            // Just matched from the live calendar — the row already carries the
-            // live data, so no second read is needed.
+        if (! $event) {
+            $event = new CalendarEvent(['booking_id' => $booking->id]);
+            $event->forceFill([
+                'booking_id' => $booking->id,
+                'calendar_id' => $this->calendarId(),
+                'google_event_id' => $live['id'],
+                'title' => $live['title'] ?? '',
+                'location' => $live['location'] ?? null,
+                'description' => $live['description'] ?? null,
+                'start_at' => $live['start'],
+                'end_at' => ($live['end'] ?? null) ?: $live['start']->copy()->addHour(),
+                'sync_status' => 'synced',
+            ])->save();
+            $booking->setRelation('calendarEvent', $event);
             $changes['Calendar event'] = ['from' => 'not linked', 'to' => 'matched by reference'];
-            $live = [
-                'start' => $event->start_at,
-                'end' => $event->end_at,
-                'title' => $event->title,
-                'location' => $event->location,
-                'description' => $event->description,
+        } elseif ($relinked) {
+            // The stored id pointed at a DIFFERENT event than the one carrying
+            // this booking's reference — e.g. a stale duplicate. The reference
+            // event wins; tell the operator so they can bin the duplicate.
+            $changes['Calendar event'] = [
+                'from' => 'was linked to a different event (possible duplicate on the calendar — remove the old one by hand)',
+                'to' => 'now linked to the event carrying '.($booking->external_reference ?: $booking->reference),
             ];
-        } else {
-            // Already linked: reuse the pre-fetched list (bulk sync) when it
-            // holds this event, else read the single event live.
-            $live = null;
-            foreach (($candidateEvents ?? []) as $e) {
-                if (($e['id'] ?? null) === $event->google_event_id) {
-                    $live = $this->google->normaliseEvent($e);
-                    break;
-                }
-            }
-            $live ??= $this->google->readEvent($event);
-            if (! $live) {
-                return ['status' => 'unavailable', 'changes' => []];
-            }
+            $event->forceFill(['google_event_id' => $live['id'], 'sync_status' => 'synced'])->save();
         }
 
         // 1. Pickup time — the calendar's start is the truth.

@@ -219,9 +219,14 @@ class PickupTimeConsistencyTest extends TestCase
         $liveStart = $day->copy()->setTime(17, 30);
 
         // Pretend Google Calendar is connected and the live event reads 17:30.
+        // The scan is reference-first, so no-match there falls back to reading
+        // the stored event id — which returns the live 17:30.
         $google = \Mockery::mock(\App\Services\Calendar\GoogleCalendarService::class);
         $google->shouldReceive('configured')->andReturnTrue();
         $google->shouldReceive('active')->andReturnTrue();
+        $google->shouldReceive('findEventWithDiagnostics')->andReturn([
+            'event' => null, 'diag' => ['read' => true, 'ref_hits' => 0, 'name_hits' => 0],
+        ]);
         $google->shouldReceive('readEvent')->andReturn([
             'start' => $liveStart->copy(),
             'description' => '',

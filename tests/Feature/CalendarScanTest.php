@@ -156,6 +156,32 @@ class CalendarScanTest extends TestCase
         $this->assertSame('5 Suitcases + 0 Hand Luggage', $booking->luggageBreakdown());
     }
 
+    public function test_scan_relinks_a_booking_stuck_on_a_stale_duplicate_event(): void
+    {
+        // WAYNE'S EXACT PRODUCTION BUG: the booking is linked to one event (our
+        // own earlier push, still saying 13:00), but the event the operator
+        // actually maintains — carrying the booking reference and the corrected
+        // 16:45 — is a DIFFERENT event. The reference match must win and the
+        // booking must re-link + correct, never trust the stale stored id.
+        $admin = User::factory()->admin()->create();
+        $booking = $this->linkedBooking(); // linked to evt_live... give it a stale id:
+        $booking->calendarEvent->forceFill(['google_event_id' => 'evt_stale_duplicate'])->save();
+        $booking = $booking->fresh(['calendarEvent']);
+
+        // The reference search finds the REAL event (different id, 16:45).
+        $this->mockGoogle(findResult: ['event' => $this->live('16:45'), 'diag' => ['read' => true, 'matched' => 'reference']]);
+
+        $this->actingAs($admin)
+            ->post(route('bookings.scan-calendar', $booking))
+            ->assertRedirect()
+            ->assertSessionHas('scanChanges');
+
+        $booking = $booking->fresh(['calendarEvent']);
+        $this->assertSame('evt_live', $booking->calendarEvent->google_event_id, 'Must re-link to the event carrying the reference.');
+        $this->assertSame('16:45', $booking->pickup_at->format('H:i'));
+        $this->assertSame('*Wayne Bellamy MAN Return (MEHTZ)*', $booking->calendarEvent->title);
+    }
+
     public function test_scan_reports_a_perfect_match_without_changing_anything(): void
     {
         $admin = User::factory()->admin()->create();
