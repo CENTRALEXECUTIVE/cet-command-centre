@@ -85,22 +85,25 @@ class JobController extends Controller
         return redirect()->route('driver.jobs')->with('status', 'Job declined and returned to the office.');
     }
 
-    /** Driver earnings — completed jobs and income for today / this week. */
+    /**
+     * Driver earnings — completed jobs and THEIR PAY (from the payroll set per
+     * job), never the customer fare. Drivers must not see booking prices.
+     */
     public function earnings(Request $request): View
     {
         $driverId = $request->user()->id;
-        $revenue = 'COALESCE(final_price, quoted_price, 0)';
 
         $base = Booking::forDriver($driverId)->where('status', BookingStatus::Complete->value);
+        $pay = fn ($q) => (float) $q->get()->sum(fn (Booking $b) => $b->driverPay() ?? 0);
 
         return view('driver.earnings', [
             'today' => [
                 'jobs' => (clone $base)->whereDate('pickup_at', today())->count(),
-                'earnings' => (float) (clone $base)->whereDate('pickup_at', today())->sum(DB::raw($revenue)),
+                'earnings' => $pay((clone $base)->whereDate('pickup_at', today())),
             ],
             'week' => [
                 'jobs' => (clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])->count(),
-                'earnings' => (float) (clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])->sum(DB::raw($revenue)),
+                'earnings' => $pay((clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])),
             ],
             'recent' => (clone $base)->with('vehicleType')->orderByDesc('pickup_at')->limit(20)->get(),
         ]);

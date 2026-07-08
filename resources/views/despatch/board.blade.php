@@ -106,6 +106,37 @@
                                     <button class="btn-xs ghost" style="color:#b32020" type="submit">Cancel</button>
                                 </form>
                             </div>
+
+                            {{-- Admin override: fix a wrong tap (wind the status back to any
+                                 step) and re-tie/un-tie the driver at any stage. --}}
+                            <details style="margin-top:6px">
+                                <summary class="muted" style="font-size:11px;cursor:pointer">⚙ Fix status / driver</summary>
+                                <div class="actions" style="margin-top:6px">
+                                    <form method="POST" action="{{ route('despatch.quick-status', $b) }}" style="display:flex;gap:4px"
+                                          onsubmit="return confirm('Override {{ $b->reference }} to the selected status?')">
+                                        @csrf
+                                        <select name="status" class="inline-select">
+                                            @foreach($statuses as $s)
+                                                <option value="{{ $s->value }}" @selected($s === $b->status)>{{ $s->label() }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button class="btn-xs ghost" type="submit">Set status</button>
+                                    </form>
+                                </div>
+                                <div class="actions" style="margin-top:4px">
+                                    <form method="POST" action="{{ route('despatch.reassign', $b) }}" style="display:flex;gap:4px">
+                                        @csrf
+                                        <select name="driver_id" class="inline-select">
+                                            <option value="">— no driver —</option>
+                                            @foreach($drivers as $d)
+                                                <option value="{{ $d->id }}" @selected($b->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button class="btn-xs ghost" type="submit">Move driver</button>
+                                    </form>
+                                </div>
+                                <p class="muted" style="font-size:11px;margin:4px 0 0">“— no driver —” unties the job and puts it back in Unallocated.</p>
+                            </details>
                         @endunless
                     </div>
                 @empty

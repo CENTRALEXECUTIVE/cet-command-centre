@@ -28,9 +28,15 @@ class BookingController extends Controller
         private readonly \App\Services\Calendar\CalendarTimeSync $timeSync,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $user = $request->user();
+
+        // Drivers never see the bookings area — their world is My jobs, which
+        // shows only their own assigned work (and no prices).
+        if ($user->isDriver() && ! $user->isAdmin()) {
+            return redirect()->route('driver.jobs');
+        }
 
         $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent'])
             ->orderByDesc('pickup_at');
@@ -88,8 +94,16 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} created successfully.");
     }
 
-    public function show(Request $request, Booking $booking): View
+    public function show(Request $request, Booking $booking): View|RedirectResponse
     {
+        // Drivers never see the full booking (prices, payment, comms) — they get
+        // the driver job screen, and only for their own job.
+        if ($request->user()->isDriver() && ! $request->user()->isAdmin()) {
+            return $booking->driver_id === $request->user()->id
+                ? redirect()->route('driver.job', $booking)
+                : redirect()->route('driver.jobs');
+        }
+
         // Authorisation: corporate clients can only view their own bookings.
         if ($request->user()->isCorporateClient()
             && ! $request->user()->corporateAccounts->pluck('id')->contains($booking->corporate_account_id)) {

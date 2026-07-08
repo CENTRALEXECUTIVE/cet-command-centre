@@ -30,7 +30,9 @@
                     <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">🚦 Dispatch board</a>
                     <a href="{{ route('fleet.map') }}" class="{{ request()->routeIs('fleet.*') ? 'active' : '' }}">🗺 Live map</a>
                 @endif
-                <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">📋 Bookings</a>
+                @if($u->isAdmin() || $u->isCorporateClient())
+                    <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index') || request()->routeIs('bookings.show') ? 'active' : '' }}">📋 Bookings</a>
+                @endif
                 @if($u->isAdmin() || $u->isCorporateClient())
                     <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">➕ New booking</a>
                 @endif

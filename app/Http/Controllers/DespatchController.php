@@ -115,23 +115,79 @@ class DespatchController extends Controller
     }
 
     /**
-     * Admin quick-close from the board: mark a job Completed / No Show /
-     * Cancelled in one tap, without stepping through the whole flow.
+     * Admin override from the board: set a job to ANY status in one tap —
+     * quick-close (Completed / No Show / Cancelled) or wind it BACK when a
+     * driver taps the wrong button (e.g. En Route by accident → back to
+     * Accepted). Bypasses the normal step order, still logged with the actor.
      */
     public function quickStatus(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'status' => ['required', Rule::in([
-                BookingStatus::Complete->value, BookingStatus::NoShow->value, BookingStatus::Cancelled->value,
-            ])],
+            'status' => ['required', Rule::in(BookingStatus::values())],
         ]);
 
         $to = BookingStatus::from($data['status']);
-        $this->status->forceTransition($booking, $to, $request->user());
+        $this->status->forceTransition($booking, $to, $request->user(), note: 'Admin override from the dispatch board');
 
         return back()->with('status', "{$booking->reference} → {$to->label()}.");
+    }
+
+    /**
+     * Admin re-tie / un-tie: move a job to a different driver at ANY stage, or
+     * remove the driver entirely (job returns to Pending for reallocation).
+     * Compliance-gated and written to the booking's history.
+     */
+    public function reassign(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'driver_id' => ['nullable', Rule::exists('users', 'id')],
+        ]);
+
+        $from = $booking->driver?->name ?? 'unassigned';
+
+        // Un-tie: clear the driver and put the job back in the pending pool.
+        if (blank($data['driver_id'])) {
+            $booking->statusHistory()->create([
+                'from_status' => $booking->status->value,
+                'to_status' => BookingStatus::Pending->value,
+                'changed_by' => $request->user()->id,
+                'note' => "Driver removed (was {$from})",
+                'created_at' => now(),
+            ]);
+            $booking->forceFill(['driver_id' => null, 'status' => BookingStatus::Pending->value])->save();
+
+            return back()->with('status', "{$booking->reference}: driver removed — back in Unallocated.");
+        }
+
+        $driver = User::findOrFail($data['driver_id']);
+
+        // Never dispatch a driver with expired documents.
+        if ($reason = $this->compliance->blockReason($driver)) {
+            throw ValidationException::withMessages([
+                'driver_id' => "Cannot reassign to {$driver->name}: {$reason}. Update the document first.",
+            ]);
+        }
+
+        if ($booking->status === BookingStatus::Pending) {
+            // From the pool this is just a normal allocation.
+            $this->status->allocateDriver($booking, $driver, $request->user());
+        } else {
+            // Mid-flow swap: keep the job's current status, change the person.
+            $booking->statusHistory()->create([
+                'from_status' => $booking->status->value,
+                'to_status' => $booking->status->value,
+                'changed_by' => $request->user()->id,
+                'note' => "Reassigned from {$from} to {$driver->name}",
+                'created_at' => now(),
+            ]);
+            $booking->forceFill(['driver_id' => $driver->id])->save();
+        }
+
+        return back()->with('status', "{$booking->reference} reassigned to {$driver->name}.");
     }
 
     /** @return Collection<int, User> */
