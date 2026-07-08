@@ -204,8 +204,8 @@ class GoogleCalendarService
             $end = $resp->json('end.dateTime') ?? $resp->json('end.date');
 
             return [
-                'start' => Carbon::parse($start)->setTimezone(config('app.timezone')),
-                'end' => $end ? Carbon::parse($end)->setTimezone(config('app.timezone')) : null,
+                'start' => $this->calendarTime($start),
+                'end' => $end ? $this->calendarTime($end) : null,
                 'title' => $resp->json('summary'),
                 'location' => $resp->json('location'),
                 'description' => $resp->json('description'),
@@ -219,23 +219,111 @@ class GoogleCalendarService
 
     /**
      * READ-ONLY: find the LIVE calendar event that belongs to a booking, even
-     * when we never stored its id — by matching the ETO/booking reference that
-     * is printed in the event description, then (fallback) a same-window event
-     * whose title/description carries the lead passenger's name. Searches a
-     * window around the expected date so a wrong stored TIME never hides it.
+     * when we never stored its id. Uses Google's own full-text search (q=) so
+     * it looks across the WHOLE calendar — not a fragile time window — matching
+     * the ETO/booking reference in the event, then (fallback) the lead name.
+     * Returns the matched event, plus a diagnostic of what was searched/found
+     * so a failure can always be explained.
      *
-     * @return array{id: string, start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     * @return array{event: ?array<string,mixed>, diag: array<string,mixed>}
      */
-    public function findEvent(string $calendarId, ?string $reference, ?string $name, \DateTimeInterface $near): ?array
+    public function findEventWithDiagnostics(string $calendarId, ?string $reference, ?string $name, \DateTimeInterface $near): array
     {
+        $diag = ['reference' => $reference, 'name' => $name, 'read' => false, 'ref_hits' => 0, 'name_hits' => 0];
+
         if (! $this->active() || ! $this->configured()) {
-            return null;
+            $diag['reason'] = 'not_connected';
+
+            return ['event' => null, 'diag' => $diag];
+        }
+        $token = $this->accessToken();
+        if (! $token) {
+            $diag['reason'] = 'no_token';
+
+            return ['event' => null, 'diag' => $diag];
         }
 
-        $from = Carbon::parse($near)->subDays(3)->startOfDay();
-        $to = Carbon::parse($near)->addDays(3)->endOfDay();
+        $base = 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId).'/events';
+        // A wide window so a moved time/day can't hide the event, but bounded
+        // so a huge calendar stays fast.
+        $timeMin = Carbon::parse($near)->subDays(31)->startOfDay();
+        $timeMax = Carbon::parse($near)->addDays(31)->endOfDay();
 
-        return $this->matchIn($this->eventsBetween($calendarId, $from, $to), $reference, $name);
+        $ref = trim((string) $reference);
+        if ($ref !== '') {
+            $items = $this->searchEvents($token, $base, $ref, $timeMin, $timeMax);
+            $diag['read'] = true;
+            $diag['ref_hits'] = count($items);
+            // Strict: the reference is the "Booking Reference" line.
+            foreach ($items as $item) {
+                if (! empty($item['id'])
+                    && preg_match('/Booking Reference:\*?\s*'.preg_quote($ref, '/').'\b/i', (string) ($item['description'] ?? ''))) {
+                    $diag['matched'] = 'reference';
+
+                    return ['event' => $this->normaliseEvent($item), 'diag' => $diag];
+                }
+            }
+            // Loose: the reference anywhere in the event text.
+            if ($m = $this->matchIn($items, $ref, null)) {
+                $diag['matched'] = 'reference_loose';
+
+                return ['event' => $m, 'diag' => $diag];
+            }
+        }
+
+        $needle = trim((string) $name);
+        if ($needle !== '') {
+            $items = $this->searchEvents($token, $base, $needle, $timeMin, $timeMax);
+            $diag['read'] = true;
+            $diag['name_hits'] = count($items);
+            if ($m = $this->matchIn($items, null, $needle)) {
+                $diag['matched'] = 'name';
+
+                return ['event' => $m, 'diag' => $diag];
+            }
+        }
+
+        $diag['reason'] = 'no_match';
+
+        return ['event' => null, 'diag' => $diag];
+    }
+
+    /** Convenience wrapper returning just the event (or null). */
+    public function findEvent(string $calendarId, ?string $reference, ?string $name, \DateTimeInterface $near): ?array
+    {
+        return $this->findEventWithDiagnostics($calendarId, $reference, $name, $near)['event'];
+    }
+
+    /**
+     * Google Calendar full-text event search (q=) within a time window. Returns
+     * the raw event items across all pages.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function searchEvents(string $token, string $base, string $query, \DateTimeInterface $timeMin, \DateTimeInterface $timeMax): array
+    {
+        $items = [];
+        $pageToken = null;
+        do {
+            $resp = Http::withToken($token)->get($base, array_filter([
+                'q' => $query,
+                'singleEvents' => 'true',
+                'showDeleted' => 'false',
+                'timeMin' => $timeMin->format(\DateTimeInterface::RFC3339),
+                'timeMax' => $timeMax->format(\DateTimeInterface::RFC3339),
+                'maxResults' => 250,
+                'pageToken' => $pageToken,
+            ]));
+            if (! $resp->successful()) {
+                break;
+            }
+            foreach ($resp->json('items', []) as $item) {
+                $items[] = $item;
+            }
+            $pageToken = $resp->json('nextPageToken');
+        } while ($pageToken);
+
+        return $items;
     }
 
     /**
@@ -289,12 +377,27 @@ class GoogleCalendarService
 
         return [
             'id' => $e['id'],
-            'start' => Carbon::parse($start)->setTimezone(config('app.timezone')),
-            'end' => $end ? Carbon::parse($end)->setTimezone(config('app.timezone')) : null,
+            'start' => $this->calendarTime($start),
+            'end' => $end ? $this->calendarTime($end) : null,
             'title' => $e['summary'] ?? null,
             'location' => $e['location'] ?? null,
             'description' => $e['description'] ?? null,
         ];
+    }
+
+    /**
+     * Convert a Google event time to the UK wall-clock the operator sees on the
+     * calendar, represented in the app timezone — so a 16:45 BST event reads as
+     * 16:45, never shifted to 15:45 by a UTC app timezone. Google returns an
+     * absolute instant (e.g. "…T16:45:00+01:00"); we take its Europe/London
+     * wall-clock and rebuild it in the app tz, matching how ETO local times are
+     * stored (rule 3 — never treat UK-local times as UTC).
+     */
+    private function calendarTime(string $googleDateTime): Carbon
+    {
+        $london = Carbon::parse($googleDateTime)->setTimezone('Europe/London');
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $london->format('Y-m-d H:i:s'), config('app.timezone'));
     }
 
     /**

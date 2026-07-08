@@ -67,6 +67,12 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin() && !empty($booking->meta['calendar_unverified']))
+        <div class="alert alert-error" style="margin-bottom:16px">
+            ⚠ <strong>Not verified against the live calendar.</strong> The time and details below are from our stored copy and <strong>may be out of date</strong> if the event was changed on Google Calendar. Tap <strong>🔍 Scan calendar</strong> above to pull the live version.
+        </div>
+    @endif
+
     @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
         <div class="alert alert-error">Cancelled — {{ $booking->meta['cancellation_reason'] }}
             @if(!empty($booking->meta['cancelled_at'])) <span class="muted">({{ \Illuminate\Support\Carbon::parse($booking->meta['cancelled_at'])->format('d M Y, H:i') }})</span>@endif

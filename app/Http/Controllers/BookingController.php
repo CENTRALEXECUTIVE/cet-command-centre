@@ -362,15 +362,24 @@ class BookingController extends Controller
         $result = $sync->scan($booking);
 
         if ($result['status'] !== 'ok') {
-            $why = ! $google->configured()
-                ? 'Google Calendar isn’t connected on the server, so the live calendar can’t be read.'
-                : (! $google->active()
-                    ? 'Calendar sync is paused, so the live calendar can’t be read right now.'
-                    : 'Couldn’t find this booking on your Google Calendar. Check the event for '
-                        .($booking->external_reference ?: $booking->reference)
-                        .' is on the connected calendar and its reference is in the event details.');
+            $ref = $booking->external_reference ?: $booking->reference;
+            $diag = $result['diag'] ?? [];
 
-            return back()->with('status', '⚠ Scan not possible: '.$why);
+            if (! $google->configured()) {
+                $why = 'Google Calendar isn’t connected on the server.';
+            } elseif (! $google->active()) {
+                $why = 'Calendar sync is paused right now.';
+            } elseif (empty($diag['read'])) {
+                $why = 'Couldn’t read your Google Calendar (a temporary Google error or the calendar isn’t shared with the service account). Try again in a moment.';
+            } else {
+                // We DID read the calendar but found no matching event.
+                $hits = (int) ($diag['ref_hits'] ?? 0) + (int) ($diag['name_hits'] ?? 0);
+                $why = $hits > 0
+                    ? "Read your calendar and found {$hits} event(s) mentioning “{$ref}” or the customer, but none had “Booking Reference: {$ref}” in the details. Check the reference on the calendar event matches."
+                    : "Searched your calendar for “{$ref}” and the customer name but found no matching event. Check the event is on {$this->calendarLabel()} and its reference is in the details.";
+            }
+
+            return back()->with('status', '⚠ Scan couldn’t verify against the live calendar: '.$why);
         }
 
         if ($result['changes'] === []) {
@@ -380,6 +389,12 @@ class BookingController extends Controller
         return back()
             ->with('status', '🗓 Scanned the live calendar — '.count($result['changes']).' thing(s) corrected to match it.')
             ->with('scanChanges', $result['changes']);
+    }
+
+    /** The calendar name for messages (Setting override, else the CET default). */
+    private function calendarLabel(): string
+    {
+        return (string) \App\Models\Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
     }
 
     /**

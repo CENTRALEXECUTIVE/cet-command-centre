@@ -14,6 +14,9 @@ use App\Models\Setting;
  */
 class CalendarTimeSync
 {
+    /** Diagnostics from the last live search, surfaced when a scan can't match. */
+    private array $lastDiag = [];
+
     public function __construct(private readonly GoogleCalendarService $google) {}
 
     /** The calendar the events live on (Setting override, else the CET default). */
@@ -42,10 +45,18 @@ class CalendarTimeSync
 
         $reference = $booking->external_reference ?: $booking->reference;
         // Bulk sync passes a pre-fetched event list (calendar read once); the
-        // single-booking path fetches a window around the pickup date itself.
-        $match = $candidateEvents !== null
-            ? $this->google->matchIn($candidateEvents, $reference, $booking->displayName())
-            : $this->google->findEvent($this->calendarId(), $reference, $booking->displayName(), $booking->pickup_at ?? now());
+        // single-booking path uses Google's own full-text search (q=) across the
+        // whole calendar — far more reliable than a fragile date window.
+        if ($candidateEvents !== null) {
+            $match = $this->google->matchIn($candidateEvents, $reference, $booking->displayName());
+            $this->lastDiag = ['read' => true, 'ref_hits' => count($candidateEvents), 'matched' => $match ? 'reference' : null];
+        } else {
+            $found = $this->google->findEventWithDiagnostics(
+                $this->calendarId(), $reference, $booking->displayName(), $booking->pickup_at ?? now()
+            );
+            $match = $found['event'];
+            $this->lastDiag = $found['diag'];
+        }
 
         if (! $match) {
             return null;
@@ -134,15 +145,22 @@ class CalendarTimeSync
      * — exactly into line with it. Returns a per-field report of what was
      * corrected so the operator sees precisely what was wrong.
      *
-     * @return array{status: 'ok'|'unavailable', changes: array<string, array{from: ?string, to: ?string}>}
+     * @return array{status: 'ok'|'unavailable', changes: array<string, array{from: ?string, to: ?string}>, diag: array<string,mixed>}
      */
     public function scan(Booking $booking, ?array $candidateEvents = null): array
     {
+        $this->lastDiag = [];
+
         // Link the booking to its live event first — this is what makes the scan
         // work for ETO imports that never had a stored google_event_id.
         $event = $this->ensureLinkedEvent($booking, $candidateEvents);
         if (! $event || blank($event->google_event_id)) {
-            return ['status' => 'unavailable', 'changes' => []];
+            // Couldn't confirm against the LIVE calendar. Never present the
+            // stored copy as verified — flag it so a stale time (e.g. an edit
+            // made on the calendar) is visibly UNVERIFIED, not silently trusted.
+            $this->flagUnverified($booking);
+
+            return ['status' => 'unavailable', 'changes' => [], 'diag' => $this->lastDiag];
         }
 
         $changes = [];
@@ -206,15 +224,35 @@ class CalendarTimeSync
             $event->forceFill($mirror)->save();
         }
 
-        // 3. Clear stale time warnings and stamp the verification.
+        // 3. Clear stale time warnings, drop the unverified flag, and stamp the
+        //    verification — the booking now provably matches the live calendar.
         if ($changes !== []) {
             $this->clearTimeWarnings($booking);
         }
-        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
-            'calendar_scanned_at' => now()->toDateTimeString(),
-        ])])->save();
+        $meta = array_merge($booking->meta ?? [], ['calendar_scanned_at' => now()->toDateTimeString()]);
+        unset($meta['calendar_unverified']);
+        $booking->forceFill(['meta' => $meta])->save();
 
-        return ['status' => 'ok', 'changes' => $changes];
+        return ['status' => 'ok', 'changes' => $changes, 'diag' => $this->lastDiag];
+    }
+
+    /**
+     * Mark that we could NOT confirm this booking against the live calendar, so
+     * the booking page can warn that the time/details shown are unverified (and
+     * may be stale) rather than presenting them as correct.
+     */
+    private function flagUnverified(Booking $booking): void
+    {
+        // Only flag bookings that are supposed to be on the calendar.
+        if (blank($booking->external_reference) && ! $booking->calendarEvent) {
+            return;
+        }
+        if (! empty($booking->meta['calendar_unverified'])) {
+            return; // already flagged
+        }
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'calendar_unverified' => now()->toDateTimeString(),
+        ])])->save();
     }
 
     /**
