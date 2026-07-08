@@ -46,8 +46,8 @@
                             <a href="{{ route('bookings.show', $b) }}" class="ref" title="Open booking">{{ $b->reference }}</a></div>
                         <div class="meta">
                             <a href="{{ route('bookings.show', $b) }}" style="color:inherit"><strong>{{ $b->displayName() }}</strong></a><br>
-                            {{ $b->airport?->code ? $b->airport->code.' · ' : '' }}{{ $b->vehicleType?->name }}<br>
-                            {{ \Illuminate\Support\Str::limit($b->pickup_address, 30) }}<br>
+                            {{ $b->airport?->code ? $b->airport->code.' · ' : '' }}{{ $b->displayVehicleType() }}<br>
+                            {{ \Illuminate\Support\Str::limit($b->displayPickupAddress(), 30) }}<br>
                             {{ $b->passengerCount() }} pax · {{ $b->luggageShort() }}<br>
                             Driver: {{ $b->driver?->name ?? '—' }}
                         </div>

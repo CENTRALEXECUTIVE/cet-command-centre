@@ -32,17 +32,19 @@
     <div class="card">
         <table>
             <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
-            <tr><th>From</th><td>{{ $booking->pickup_address }}</td></tr>
+            <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
             @foreach($booking->stops as $stop)
                 <tr><th>Via {{ $stop->sequence }}</th><td>{{ $stop->address }}</td></tr>
             @endforeach
-            <tr><th>To</th><td>{{ $booking->destination_address }}</td></tr>
-            @if($booking->flight_number)
+            <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
+            @if($booking->displayFlightNumber())
                 <tr><th>Flight</th><td>
-                    <span class="mono">{{ $booking->flight_number }}</span>
+                    <span class="mono">{{ $booking->displayFlightNumber() }}</span>
                     <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:4px 12px;font-size:13px;margin-left:6px">✈ Track flight</a>
                 </td></tr>
             @endif
+            @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif
+            <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
             <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
             <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
             @if($booking->customer?->phone)

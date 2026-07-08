@@ -52,19 +52,20 @@
             <h2>Journey</h2>
             <table>
                 <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M Y, H:i') }}</td></tr>
-                <tr><th>From</th><td>{{ $booking->pickup_address }}</td></tr>
+                <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
                 @foreach($booking->stops as $stop)
                     <tr><th>Via {{ $stop->sequence }}</th><td>{{ $stop->address }}</td></tr>
                 @endforeach
-                <tr><th>To</th><td>{{ $booking->destination_address }}</td></tr>
+                <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
                 @if($booking->airport)<tr><th>Airport</th><td>{{ $booking->airport->code }} — {{ $booking->airport->name }}</td></tr>@endif
-                @if($booking->flight_number)
+                @if($booking->displayFlightNumber())
                     <tr><th>Flight</th><td>
-                        <span class="mono">{{ $booking->flight_number }}</span>
+                        <span class="mono">{{ $booking->displayFlightNumber() }}</span>
                         <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">✈ Flightradar24</a>
                         <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                     </td></tr>
                 @endif
+                @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif
                 <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
                 <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                 <tr><th>Type</th><td>{{ ucfirst(str_replace('_',' ',$booking->journey_type)) }}{{ $booking->is_return_leg ? ' (return leg)' : '' }}</td></tr>
@@ -75,19 +76,24 @@
         <div class="card">
             <h2>Service &amp; Payment</h2>
             <table>
-                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->customer->name }}</a>@else{{ $booking->customer?->name }}@endif</td></tr>
-                <tr><th>Vehicle</th><td>{{ $booking->vehicleType?->name }}</td></tr>
+                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->displayCustomerName() }}</a>@else{{ $booking->displayCustomerName() }}@endif</td></tr>
+                @if($booking->displayContact())<tr><th>Contact</th><td>{{ $booking->displayContact() }}</td></tr>@endif
+                <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
                 <tr><th>Driver</th><td>{{ $booking->driver?->name ?? 'Awaiting allocation' }}</td></tr>
                 @if($booking->corporateAccount)
                     <tr><th>Account</th><td>{{ $booking->corporateAccount->name }}</td></tr>
                     @if($booking->cost_code)<tr><th>Cost code</th><td>{{ $booking->cost_code }}</td></tr>@endif
                 @endif
                 <tr><th>Payment</th><td>
-                    {{ $booking->payment_method->emoji() }} {{ $booking->payment_method->label() }}
-                    @if($booking->payment_status === 'paid')
-                        <span class="badge badge-complete">Paid</span>
+                    @if($booking->displayPayment())
+                        {{ $booking->displayPayment() }}
                     @else
-                        <span class="badge badge-pending">{{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+                        {{ $booking->payment_method->emoji() }} {{ $booking->payment_method->label() }}
+                        @if($booking->payment_status === 'paid')
+                            <span class="badge badge-complete">Paid</span>
+                        @else
+                            <span class="badge badge-pending">{{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+                        @endif
                     @endif
                 </td></tr>
                 @if($booking->quoted_price)<tr><th>Quoted</th><td>£{{ number_format($booking->quoted_price, 2) }}</td></tr>@endif

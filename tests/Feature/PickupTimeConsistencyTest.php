@@ -98,6 +98,74 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertSame(3, $booking->passengerCount());
     }
 
+    public function test_every_field_is_mirrored_from_the_calendar(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'pickup_address' => 'OLD PICKUP', 'destination_address' => 'OLD DROPOFF',
+            'flight_number' => 'XX0000', 'passengers' => 1,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_all',
+            'title' => '*Emma Cusworth MAN (MINIBUS)*',
+            'location' => 'Manchester Airport',
+            'description' => implode("\n", [
+                '📑 *Booking Confirmation – Arrival*',
+                '• *Date & Time:* 24/11/2026 – 07:30',
+                '• *Customer Name:* Emma Cusworth',
+                '• *Contact No:* +447501028381',
+                '• *Passengers:* 5',
+                '• *Luggage:* 8 Suitcases + 4 Hand Luggage',
+                '• *Pickup Location:* Manchester Airport (MAN), Terminal 2',
+                '• *Flight Number:* VS0074',
+                '• *Meet & Greet:* Yes',
+                '• *Drop-off Location:* 5 Moorbridge Crescent, Barnsley S73 0YA',
+                '• *Vehicle Type:* Minibus',
+                '• *Payment:* Paid £350 (Stripe)',
+                '• *Booking Reference:* DBJ6TRb',
+            ]),
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+        $booking = $booking->fresh(['calendarEvent']);
+
+        // The model mirrors every calendar line, not the stale booking columns.
+        $this->assertSame('Emma Cusworth', $booking->displayCustomerName());
+        $this->assertSame('+447501028381', $booking->displayContact());
+        $this->assertSame(5, $booking->passengerCount());
+        $this->assertSame('8 Suitcases + 4 Hand Luggage', $booking->luggageBreakdown());
+        $this->assertSame('Manchester Airport (MAN), Terminal 2', $booking->displayPickupAddress());
+        $this->assertSame('VS0074', $booking->displayFlightNumber());
+        $this->assertSame('Yes', $booking->displayMeetAndGreet());
+        $this->assertSame('5 Moorbridge Crescent, Barnsley S73 0YA', $booking->displayDropoffAddress());
+        $this->assertSame('Minibus', $booking->displayVehicleType());
+        $this->assertSame('Paid £350 (Stripe)', $booking->displayPayment());
+
+        // And the booking page renders the calendar's values, not the old ones.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('Emma Cusworth')
+            ->assertSee('Manchester Airport (MAN), Terminal 2')
+            ->assertSee('Minibus')
+            ->assertSee('Paid £350 (Stripe)')
+            ->assertDontSee('OLD PICKUP')
+            ->assertDontSee('OLD DROPOFF');
+    }
+
+    public function test_display_fields_fall_back_to_the_booking_without_a_calendar(): void
+    {
+        $booking = Booking::factory()->create([
+            'pickup_address' => 'Sheffield City Centre',
+            'destination_address' => 'Leeds Bradford Airport',
+        ]);
+
+        $this->assertSame('Sheffield City Centre', $booking->displayPickupAddress());
+        $this->assertSame('Leeds Bradford Airport', $booking->displayDropoffAddress());
+        $this->assertNull($booking->displayPayment());          // no calendar → structured payment shown
+        $this->assertNull($booking->displayMeetAndGreet());
+    }
+
     public function test_no_mismatch_when_all_three_times_agree(): void
     {
         $booking = $this->bookingWithEvent('2026-07-15 06:45:00', '15/07/2026 – 06:45');

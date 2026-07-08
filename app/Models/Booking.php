@@ -159,12 +159,12 @@ class Booking extends Model
 
     public function flightRadarUrl(): ?string
     {
-        return self::flightRadarLink($this->flight_number);
+        return self::flightRadarLink($this->displayFlightNumber());
     }
 
     public function flightSearchUrl(): ?string
     {
-        return self::flightSearchLink($this->flight_number);
+        return self::flightSearchLink($this->displayFlightNumber());
     }
 
     /**
@@ -272,6 +272,71 @@ class Booking extends Model
         }
 
         return $this->passengers !== null ? (int) $this->passengers : null;
+    }
+
+    /**
+     * A single field mirrored from the calendar description (the operator's
+     * source of truth), or null when there's no linked event or no such line.
+     * Underpins the display accessors below so every field on the booking page
+     * agrees with the "Full details (from the calendar)" block beneath it.
+     */
+    public function calendarField(string $label): ?string
+    {
+        return $this->calendarEvent?->descriptionValue($label);
+    }
+
+    /** Pickup address — the calendar's "Pickup Location" wins, else our own. */
+    public function displayPickupAddress(): ?string
+    {
+        return $this->calendarField('Pickup Location') ?: $this->pickup_address;
+    }
+
+    /** Drop-off address — the calendar's "Drop-off Location" wins, else our own. */
+    public function displayDropoffAddress(): ?string
+    {
+        return $this->calendarField('Drop-off Location') ?: $this->destination_address;
+    }
+
+    /** Flight number — the calendar's "Flight Number" wins, else our own. */
+    public function displayFlightNumber(): ?string
+    {
+        $flight = $this->calendarField('Flight Number') ?: $this->flight_number;
+
+        // The builder prints "N/A" where there's no flight — treat that as none.
+        return ($flight && strcasecmp(trim($flight), 'N/A') !== 0) ? $flight : null;
+    }
+
+    /** Vehicle type name — the calendar's "Vehicle Type" wins, else our own. */
+    public function displayVehicleType(): ?string
+    {
+        return $this->calendarField('Vehicle Type') ?: $this->vehicleType?->name;
+    }
+
+    /** Customer/lead name — the calendar's "Customer Name" wins, else our own. */
+    public function displayCustomerName(): ?string
+    {
+        return $this->calendarField('Customer Name') ?: $this->customer?->name;
+    }
+
+    /** Contact number — the calendar's "Contact No" wins, else the customer's. */
+    public function displayContact(): ?string
+    {
+        return $this->calendarField('Contact No') ?: $this->customer?->phone;
+    }
+
+    /** Meet & greet note as printed on the calendar, if present. */
+    public function displayMeetAndGreet(): ?string
+    {
+        return $this->calendarField('Meet & Greet');
+    }
+
+    /**
+     * Payment line exactly as printed on the calendar, e.g. "Paid £350 (Stripe)",
+     * or null so the booking's own structured payment fields are shown instead.
+     */
+    public function displayPayment(): ?string
+    {
+        return $this->calendarField('Payment');
     }
 
     /**

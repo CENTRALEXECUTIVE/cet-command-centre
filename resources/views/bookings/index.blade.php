@@ -34,9 +34,9 @@
                                 @endif
                             </td>
                             <td>{{ $b->pickup_at->format('d M H:i') }}</td>
-                            <td>{{ $b->customer?->name }}</td>
-                            <td>{{ Str::limit($b->pickup_address, 18) }} → {{ Str::limit($b->destination_address, 18) }}</td>
-                            <td>{{ $b->vehicleType?->name }}</td>
+                            <td>{{ $b->displayCustomerName() }}</td>
+                            <td>{{ Str::limit($b->displayPickupAddress(), 18) }} → {{ Str::limit($b->displayDropoffAddress(), 18) }}</td>
+                            <td>{{ $b->displayVehicleType() }}</td>
                             <td title="{{ $b->luggageBreakdown() }}">{{ $b->luggageShort() }}</td>
                             <td>{{ $b->driver?->name ?? '—' }}</td>
                             <td>{{ $b->payment_method->emoji() ?? $b->payment_method->label() }}</td>
