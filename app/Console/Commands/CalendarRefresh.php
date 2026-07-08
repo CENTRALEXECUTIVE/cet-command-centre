@@ -62,11 +62,12 @@ class CalendarRefresh extends Command
         }
 
         $corrected = 0;
-        $unmatched = 0;
+        $unmatched = [];
         foreach ($bookings as $booking) {
             $result = $sync->scan($booking, $events);
             if ($result['status'] !== 'ok') {
-                $unmatched++;
+                $unmatched[] = ($booking->external_reference ?: $booking->reference)
+                    .' ('.$booking->displayName().', '.$booking->pickup_at?->format('D d M H:i').')';
 
                 continue;
             }
@@ -80,7 +81,13 @@ class CalendarRefresh extends Command
             }
         }
 
-        $this->info("Refreshed {$bookings->count()} booking(s): {$corrected} corrected, {$unmatched} not found on the calendar.");
+        $this->info("Refreshed {$bookings->count()} booking(s): {$corrected} corrected, ".count($unmatched).' not found on the calendar.');
+        if ($unmatched !== []) {
+            $this->line('Not found on the calendar (no event with that reference — e.g. phone bookings not added to Google):');
+            foreach ($unmatched as $u) {
+                $this->line('  · '.$u);
+            }
+        }
 
         return self::SUCCESS;
     }

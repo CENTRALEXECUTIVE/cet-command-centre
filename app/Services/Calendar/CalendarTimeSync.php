@@ -44,13 +44,17 @@ class CalendarTimeSync
         }
 
         $reference = $booking->external_reference ?: $booking->reference;
-        // Bulk sync passes a pre-fetched event list (calendar read once); the
-        // single-booking path uses Google's own full-text search (q=) across the
-        // whole calendar — far more reliable than a fragile date window.
+        // Bulk sync passes a pre-fetched event list (calendar read once) and we
+        // match in memory first. Whether bulk or single, we ALWAYS fall back to
+        // Google's own full-text search (q=) across the whole calendar when the
+        // in-memory list didn't have it — so the bulk sync is exactly as reliable
+        // as a single-booking scan, not limited to a fragile date window.
+        $match = null;
         if ($candidateEvents !== null) {
             $match = $this->google->matchIn($candidateEvents, $reference, $booking->displayName());
             $this->lastDiag = ['read' => true, 'ref_hits' => count($candidateEvents), 'matched' => $match ? 'reference' : null];
-        } else {
+        }
+        if (! $match) {
             $found = $this->google->findEventWithDiagnostics(
                 $this->calendarId(), $reference, $booking->displayName(), $booking->pickup_at ?? now()
             );
