@@ -238,14 +238,19 @@ class DashboardController extends Controller
     }
 
     /**
-     * One-click bulk fix (manual, admin-initiated): set every mismatched
-     * booking's pickup time to its calendar slot. Uses our stored copy of the
-     * calendar — for a time you changed directly on Google, use the per-booking
-     * "Match time to calendar" button, which reads the live calendar.
+     * One-click calendar sync (manual, admin-initiated). With Google Calendar
+     * connected this scans every upcoming linked booking against the LIVE
+     * calendar and makes each one match it exactly (time + details — read-only
+     * on Google). Without the connection it falls back to aligning against our
+     * stored copy of the calendar.
      */
-    public function fixTimes(Request $request, \App\Services\Calendar\CalendarTimeSync $sync): \Illuminate\Http\RedirectResponse
+    public function fixTimes(Request $request, \App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): \Illuminate\Http\RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
+
+        if ($google->configured() && $google->active()) {
+            return $this->liveCalendarSync($sync);
+        }
 
         $corrected = $this->mismatchedBookings()
             ->map(function (Booking $b) use ($sync) {
@@ -267,6 +272,58 @@ class DashboardController extends Controller
             ->with('status', $corrected !== []
                 ? count($corrected).' booking time(s) matched to the calendar.'
                 : 'All booking times already match our copy of the calendar.');
+    }
+
+    /**
+     * Scan upcoming linked bookings against the live Google Calendar (one read
+     * per booking, capped so the button stays quick) and mirror each one.
+     */
+    private function liveCalendarSync(\App\Services\Calendar\CalendarTimeSync $sync): \Illuminate\Http\RedirectResponse
+    {
+        $bookings = Booking::query()
+            ->whereHas('calendarEvent', fn ($q) => $q->whereNotNull('google_event_id'))
+            ->whereNotIn('status', [
+                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+            ])
+            ->whereBetween('pickup_at', [now()->startOfDay(), now()->addDays(14)->endOfDay()])
+            ->with(['calendarEvent', 'customer'])
+            ->orderBy('pickup_at')
+            ->limit(60)
+            ->get();
+
+        $corrected = [];
+        $scanned = 0;
+        foreach ($bookings as $b) {
+            $from = $b->pickup_at?->format('D d M, H:i');
+            $result = $sync->scan($b);
+            if ($result['status'] !== 'ok') {
+                continue;
+            }
+            $scanned++;
+            if ($result['changes'] === []) {
+                continue;
+            }
+
+            // Reminders re-queue automatically with the corrected time.
+            if (isset($result['changes']['Pickup time'])) {
+                $b->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
+                    ->where('status', 'queued')->delete();
+            }
+
+            $corrected[] = [
+                'ref' => $b->external_reference ?? $b->reference,
+                'customer' => $b->displayName(),
+                'url' => route('bookings.show', $b),
+                'from' => isset($result['changes']['Pickup time']) ? $from : 'details',
+                'to' => $result['changes']['Pickup time']['to'] ?? 'refreshed from the calendar',
+            ];
+        }
+
+        return back()
+            ->with('correctedTimes', $corrected)
+            ->with('status', $corrected !== []
+                ? "Live calendar sync: {$scanned} upcoming booking(s) scanned, ".count($corrected).' corrected to match.'
+                : "Live calendar sync: {$scanned} upcoming booking(s) scanned — everything already matches the calendar.");
     }
 
     /**

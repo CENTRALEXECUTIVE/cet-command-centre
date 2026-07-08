@@ -260,6 +260,19 @@ class BookingNotifier
             return null;
         }
 
+        // Return journeys get ONE review for the whole trip, only after BOTH
+        // legs are completed — never a review mid-trip when just the outbound
+        // is done. One-way jobs are unaffected.
+        $sibling = $this->pairedLeg($booking);
+        if ($sibling) {
+            if ($sibling->status->value !== 'complete') {
+                return null; // other leg still to run — ask after the full trip
+            }
+            if ($sibling->messages()->where('type', 'review_request')->exists()) {
+                return null; // the pair already has its review request
+            }
+        }
+
         if ($booking->messages()->where('type', 'review_request')->exists()) {
             return null;
         }
@@ -272,6 +285,19 @@ class BookingNotifier
             'booking' => $booking,
             'scheduled_for' => $when->isPast() ? now() : $when,
         ]);
+    }
+
+    /**
+     * The other leg of a return pair (linked either direction), or null for a
+     * one-way job.
+     */
+    private function pairedLeg(Booking $booking): ?Booking
+    {
+        if ($booking->linked_booking_id) {
+            return Booking::find($booking->linked_booking_id);
+        }
+
+        return Booking::where('linked_booking_id', $booking->id)->first();
     }
 
     /**

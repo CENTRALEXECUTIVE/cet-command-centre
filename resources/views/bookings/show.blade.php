@@ -24,11 +24,37 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin() && session('scanChanges'))
+        <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin-bottom:16px">
+            <strong>Corrected to match the live calendar:</strong>
+            <table style="margin-top:6px;max-width:640px">
+                @foreach(session('scanChanges') as $field => $c)
+                    <tr><th style="white-space:nowrap">{{ $field }}</th>
+                        <td><span class="muted" style="text-decoration:line-through">{{ $c['from'] ?? '—' }}</span> → <strong>{{ $c['to'] }}</strong></td></tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         <div class="toolbar" style="margin-bottom:16px">
+            @if($booking->calendarEvent?->google_event_id)
+                <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}">
+                    @csrf
+                    <button class="btn btn-dark" style="padding:9px 16px">🔍 Scan calendar</button>
+                </form>
+            @endif
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
         </div>
+        @if($booking->calendarEvent?->google_event_id)
+            <p class="hint" style="margin:-8px 0 16px">
+                <strong>Scan calendar</strong> reads the live Google event and makes this booking match it exactly — time, addresses, details, everything. Never changes the calendar.
+                @if(!empty($booking->meta['calendar_scanned_at']))
+                    · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
+                @endif
+            </p>
+        @endif
         <div id="cancel-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin-bottom:16px">
             <form method="POST" action="{{ route('bookings.cancel', $booking) }}">
                 @csrf

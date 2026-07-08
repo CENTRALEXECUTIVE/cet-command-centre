@@ -71,6 +71,18 @@ return [
         'end' => env('CET_SEND_WINDOW_END', '22:00'),
     ],
 
+    // Quote extras (GBP) — mirrors the ETO Item Surcharge price list, so a CET
+    // quote matches what ETO would have charged. Editable via env if rates move.
+    'surcharges' => [
+        'meet_greet' => (float) env('CET_SURCHARGE_MEET_GREET', 10),
+        'child_seat' => (float) env('CET_SURCHARGE_CHILD_SEAT', 10),
+        'booster_seat' => (float) env('CET_SURCHARGE_BOOSTER_SEAT', 10),
+        'infant_seat' => (float) env('CET_SURCHARGE_INFANT_SEAT', 10),
+        'wheelchair' => (float) env('CET_SURCHARGE_WHEELCHAIR', 0),
+        'waiting_after_landing' => (float) env('CET_SURCHARGE_WAITING', 0),
+        'stopover' => (float) env('CET_SURCHARGE_STOPOVER', 10),
+    ],
+
     // "Paste a booking": the free deterministic parser always runs first and
     // costs nothing. Set true ONLY if you also want the paid AI to fill gaps
     // on messy unstructured messages (uses the Anthropic API = costs money).

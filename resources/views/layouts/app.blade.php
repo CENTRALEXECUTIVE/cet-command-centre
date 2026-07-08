@@ -112,7 +112,7 @@
                       style="flex:1;max-width:340px;margin:0 12px;min-width:110px">
                     <input type="search" name="q" value="{{ request('q') }}" placeholder="🔍 Search bookings…"
                            aria-label="Search bookings"
-                           style="width:100%;padding:7px 12px;border:1px solid rgba(128,128,128,.35);border-radius:8px;font-size:13px;background:rgba(255,255,255,.06);color:inherit">
+                           style="width:100%;padding:7px 12px;border:1px solid rgba(128,128,128,.4);border-radius:8px;font-size:13px;background:#fff;color:#111">
                 </form>
             @endif
             <div class="topbar-user">

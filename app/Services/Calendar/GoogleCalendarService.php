@@ -170,11 +170,11 @@ class GoogleCalendarService
     /**
      * READ-ONLY: fetch a tracked event from Google exactly as it stands on the
      * calendar right now — including any time the operator corrected there by
-     * hand. Returns its start (in the app timezone) and description, or null if
-     * the calendar is inactive/unconfigured, the event isn't tracked, or it
-     * can't be read. NEVER writes to the calendar.
+     * hand. Returns its start/end (in the app timezone), title, location and
+     * description, or null if the calendar is inactive/unconfigured, the event
+     * isn't tracked, or it can't be read. NEVER writes to the calendar.
      *
-     * @return array{start: Carbon, description: ?string}|null
+     * @return array{start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
      */
     public function readEvent(CalendarEvent $event): ?array
     {
@@ -201,9 +201,13 @@ class GoogleCalendarService
             if (! $start) {
                 return null;
             }
+            $end = $resp->json('end.dateTime') ?? $resp->json('end.date');
 
             return [
                 'start' => Carbon::parse($start)->setTimezone(config('app.timezone')),
+                'end' => $end ? Carbon::parse($end)->setTimezone(config('app.timezone')) : null,
+                'title' => $resp->json('summary'),
+                'location' => $resp->json('location'),
                 'description' => $resp->json('description'),
             ];
         } catch (\Throwable $e) {

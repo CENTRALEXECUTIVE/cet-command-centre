@@ -39,12 +39,13 @@ class AiPricingEngine
         $vehicleType = VehicleType::findOrFail($input['vehicle_type_id']);
         $pickupAt = Carbon::parse($input['pickup_at']);
         $isAirport = (bool) ($input['is_airport'] ?? false);
+        $extras = $this->extras($input);
 
         // CET prices core airport/port work from a fixed-price matrix. When a
         // fixed price matches the origin zone, destination and vehicle type it is
         // authoritative — no distance maths or AI surge is applied.
         if ($fixed = $this->matchFixedPrice($input, $vehicleType)) {
-            return $this->fixedQuote($input, $vehicleType, $pickupAt, $fixed);
+            return $this->fixedQuote($input, $vehicleType, $pickupAt, $fixed, $extras);
         }
 
         $distance = $this->distance->resolve(
@@ -59,7 +60,7 @@ class AiPricingEngine
 
         $ai = $this->reviewWithAi($vehicleType, $distance, $pickupAt, $isAirport, $rulePrice, $ruleResult['breakdown']);
 
-        $finalPrice = $ai['price'] ?? $rulePrice;
+        $finalPrice = ($ai['price'] ?? $rulePrice) + $extras['total'];
 
         return Quote::create([
             'reference' => 'QUO-'.strtoupper(bin2hex(random_bytes(3))),
@@ -76,11 +77,52 @@ class AiPricingEngine
                 'rule_price' => $rulePrice,
                 'distance_source' => $distance['source'],
                 'rule_breakdown' => $ruleResult['breakdown'],
+                'extras' => $extras['items'],
+                'extras_total' => $extras['total'],
+                'stopover_addresses' => trim((string) ($input['stopover_addresses'] ?? '')) ?: null,
                 'ai_rationale' => $ai['rationale'],
                 'model' => $ai['used'] ? $this->ai->model() : null,
             ],
             'expires_at' => now()->addHours(24),
         ]);
+    }
+
+    /**
+     * Itemised extras from the quote form, priced from the CET surcharge list
+     * (mirrors ETO's Item Surcharge settings): meet & greet, child/booster/
+     * infant seats, and stopovers (Via points).
+     *
+     * @return array{total: float, items: array<int, array{label: string, amount: float}>}
+     */
+    private function extras(array $input): array
+    {
+        $rates = (array) config('cet.surcharges', []);
+        $items = [];
+
+        $count = fn (string $key) => max(0, min(8, (int) ($input[$key] ?? 0)));
+
+        if (! empty($input['meet_greet'])) {
+            $items[] = ['label' => 'Meet & greet', 'amount' => (float) ($rates['meet_greet'] ?? 10)];
+        }
+        foreach ([
+            'child_seats' => ['Child seat', $rates['child_seat'] ?? 10],
+            'booster_seats' => ['Booster seat', $rates['booster_seat'] ?? 10],
+            'infant_seats' => ['Infant seat', $rates['infant_seat'] ?? 10],
+            'stopovers' => ['Stopover (via)', $rates['stopover'] ?? 10],
+        ] as $key => [$label, $rate]) {
+            $n = $count($key);
+            if ($n > 0) {
+                $items[] = [
+                    'label' => $n > 1 ? "{$label} × {$n}" : $label,
+                    'amount' => round($n * (float) $rate, 2),
+                ];
+            }
+        }
+
+        return [
+            'total' => round(array_sum(array_column($items, 'amount')), 2),
+            'items' => $items,
+        ];
     }
 
     /** Resolve a fixed price from an explicit zone (or the pickup postcode). */
@@ -102,7 +144,7 @@ class AiPricingEngine
         return $this->fixedPrices->lookup($zone, $destination, $vehicleType);
     }
 
-    private function fixedQuote(array $input, VehicleType $vehicleType, Carbon $pickupAt, FixedPrice $fixed): Quote
+    private function fixedQuote(array $input, VehicleType $vehicleType, Carbon $pickupAt, FixedPrice $fixed, array $extras): Quote
     {
         return Quote::create([
             'reference' => 'QUO-'.strtoupper(bin2hex(random_bytes(3))),
@@ -113,13 +155,17 @@ class AiPricingEngine
             'distance_miles' => $input['distance_miles'] ?? null,
             'duration_minutes' => $input['duration_minutes'] ?? null,
             'pickup_at' => $pickupAt,
-            'price' => $fixed->price,
+            'price' => round((float) $fixed->price + $extras['total'], 2),
             'ai_generated' => false,
             'breakdown' => [
                 'source' => 'fixed_price',
                 'fixed_price_id' => $fixed->id,
                 'zone' => $fixed->pricingZone?->name,
                 'destination' => $fixed->destination,
+                'base_price' => (float) $fixed->price,
+                'extras' => $extras['items'],
+                'extras_total' => $extras['total'],
+                'stopover_addresses' => trim((string) ($input['stopover_addresses'] ?? '')) ?: null,
                 'deposit' => (float) $fixed->deposit,
                 'both_ways' => $fixed->both_ways,
             ],

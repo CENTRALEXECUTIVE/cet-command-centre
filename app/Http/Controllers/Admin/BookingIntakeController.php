@@ -48,6 +48,9 @@ class BookingIntakeController extends Controller
             'vehicleTypes' => $this->vehicleTypes(),
             // The paste box is always available — parsing is free (no AI).
             'aiAvailable' => true,
+            // Who the rotation gives this job (read-only peek — nothing moves
+            // until Confirm), so the driver tag is known before it's created.
+            'nextDriver' => $intake->nextDriver($fields),
         ]);
     }
 

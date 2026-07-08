@@ -21,6 +21,18 @@
         </form>
     </details>
 
+    @if($nextDriver)
+        <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.06);margin-bottom:16px">
+            🚗 <strong>Next in rotation: {{ $nextDriver['tag'] }}</strong>
+            <span class="muted">({{ $nextDriver['name'] }})</span> —
+            confirming this booking allocates them and tags the calendar title <strong>({{ $nextDriver['tag'] }})</strong>, following the rotation rules. The rotation only moves when you press Confirm.
+        </div>
+    @elseif(($fields['vehicle'] ?? '') !== '')
+        <div class="card" style="border-left:4px solid #6f6f6f;background:rgba(128,128,128,.06);margin-bottom:16px">
+            🚗 This vehicle type is outside the driver rotation — allocate the driver manually after confirming.
+        </div>
+    @endif
+
     {{-- The calendar preview exactly as it will be written. --}}
     <div class="card" style="border-left:4px solid #FBBA2A">
         <h2 style="margin-top:0">📅 Calendar preview</h2>

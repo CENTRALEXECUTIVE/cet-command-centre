@@ -217,6 +217,33 @@ class BookingIntakeService
         });
     }
 
+    /**
+     * Peek (read-only — the pointer does NOT move) at who the rotation would
+     * give this job, so the operator sees the driver tag before confirming.
+     * Null for vehicles outside the rotation (allocated manually).
+     *
+     * @param  array<string, mixed>  $f
+     * @return array{name: string, tag: string}|null
+     */
+    public function nextDriver(array $f): ?array
+    {
+        $vehicleType = $this->resolveVehicleType($f['vehicle'] ?? '');
+        $airport = null;
+        if (! empty($f['where'])) {
+            $airport = \App\Models\Airport::where('code', strtoupper(trim((string) $f['where'])))->first();
+        }
+
+        $driver = $this->rotation->nextDriverFor($airport, $vehicleType);
+        if (! $driver) {
+            return null;
+        }
+
+        $tag = $driver->driverProfile?->callsign
+            ?: strtoupper(Str::before(trim($driver->name), ' '));
+
+        return ['name' => $driver->name, 'tag' => $tag];
+    }
+
     private function resolveCustomer(array $f): Customer
     {
         $phone = $f['contact_no'] ?: null;

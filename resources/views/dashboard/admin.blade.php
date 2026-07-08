@@ -9,9 +9,9 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <form method="POST" action="{{ route('dashboard.fix-times') }}"
-                  onsubmit="return confirm('Match every booking to its calendar time now? The calendar itself is not changed.')">
+                  onsubmit="return confirm('Sync every upcoming booking with the live calendar now? The calendar itself is never changed.')">
                 @csrf
-                <button class="btn btn-light" style="padding:6px 14px">🗓 Match times to calendar</button>
+                <button class="btn btn-light" style="padding:6px 14px">🗓 Sync with calendar</button>
             </form>
             <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="btn btn-light" style="padding:6px 14px">↻ Refresh</a>
         </div>
@@ -85,7 +85,7 @@
     @if(!empty($timeMismatches))
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
             <strong>⏰ {{ count($timeMismatches) }} booking(s) don't match our copy of the calendar</strong>
-            <span class="muted" style="font-size:13px">— tap “Match times to calendar” (top right) to fix these; for a time you changed live on Google, open the booking and use “Match time to calendar”</span>
+            <span class="muted" style="font-size:13px">— tap “Sync with calendar” (top right) to fix these against the live calendar</span>
             <div style="margin-top:8px">
                 @foreach($timeMismatches as $tm)
                     <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">

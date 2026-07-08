@@ -38,8 +38,17 @@
                 @if(($rb['airport_surcharge'] ?? 0) > 0)<tr><th>Airport</th><td class="right">£{{ number_format($rb['airport_surcharge'], 2) }}</td></tr>@endif
                 @if(($rb['night_uplift'] ?? 0) > 0)<tr><th>Night uplift</th><td class="right">£{{ number_format($rb['night_uplift'], 2) }}</td></tr>@endif
                 @if(($rb['bank_holiday']['uplift'] ?? 0) > 0)<tr><th>{{ $rb['bank_holiday']['name'] }}</th><td class="right">£{{ number_format($rb['bank_holiday']['uplift'], 2) }}</td></tr>@endif
-                <tr><th>Rule price</th><td class="right">£{{ number_format($quote->breakdown['rule_price'] ?? $quote->price, 2) }}</td></tr>
+                <tr><th>Rule price</th><td class="right">£{{ number_format($quote->breakdown['rule_price'] ?? $quote->breakdown['base_price'] ?? $quote->price, 2) }}</td></tr>
+                @foreach(($quote->breakdown['extras'] ?? []) as $extra)
+                    <tr><th>{{ $extra['label'] }}</th><td class="right">£{{ number_format($extra['amount'], 2) }}</td></tr>
+                @endforeach
+                @if(($quote->breakdown['extras_total'] ?? 0) > 0)
+                    <tr><th><strong>Total incl. extras</strong></th><td class="right"><strong>£{{ number_format($quote->price, 2) }}</strong></td></tr>
+                @endif
             </table>
+            @if($quote->breakdown['stopover_addresses'] ?? null)
+                <p class="hint" style="margin-top:8px"><strong>Stopovers:</strong> {{ $quote->breakdown['stopover_addresses'] }}</p>
+            @endif
             @if($quote->breakdown['ai_rationale'] ?? null)
                 <p class="hint" style="margin-top:12px"><strong>AI:</strong> {{ $quote->breakdown['ai_rationale'] }}</p>
             @endif

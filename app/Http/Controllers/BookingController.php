@@ -326,6 +326,37 @@ class BookingController extends Controller
     }
 
     /**
+     * Scan this booking against the LIVE Google Calendar: read the event as it
+     * stands right now and bring everything on our side — pickup time, title,
+     * pickup location, slot and the whole details block — exactly into line.
+     * Read-only on Google. Reports precisely what was corrected.
+     */
+    public function scanCalendar(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $result = $sync->scan($booking);
+
+        if ($result['status'] !== 'ok') {
+            $why = ! $google->configured()
+                ? 'Google Calendar isn’t connected on the server, so the live calendar can’t be read.'
+                : (! $google->active()
+                    ? 'Calendar sync is paused, so the live calendar can’t be read right now.'
+                    : 'This booking isn’t linked to a live calendar event (no event id), so there’s nothing to scan against.');
+
+            return back()->with('status', '⚠ Scan not possible: '.$why);
+        }
+
+        if ($result['changes'] === []) {
+            return back()->with('status', '✅ Scanned the live calendar — this booking matches it exactly. Nothing to correct.');
+        }
+
+        return back()
+            ->with('status', '🗓 Scanned the live calendar — '.count($result['changes']).' thing(s) corrected to match it.')
+            ->with('scanChanges', $result['changes']);
+    }
+
+    /**
      * Match the booking's pickup time to the live calendar event (read-only) —
      * for when the operator corrected the time on the calendar and the system
      * needs to catch up. Never edits the calendar.

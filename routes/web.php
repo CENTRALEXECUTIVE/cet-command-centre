@@ -91,6 +91,7 @@ Route::middleware('auth')->group(function () {
         Route::post('bookings/{booking}/driver-details', [BookingController::class, 'setDriverDetails'])->middleware('throttle:30,1')->name('bookings.driver-details');
         Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
         Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
+        Route::post('bookings/{booking}/scan-calendar', [BookingController::class, 'scanCalendar'])->middleware('throttle:30,1')->name('bookings.scan-calendar');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
