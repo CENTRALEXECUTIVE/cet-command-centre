@@ -183,6 +183,8 @@ class BookingController extends Controller
                 // "Send on WhatsApp" text (you can re-send the updated version).
                 if ($m->isReminder()) {
                     $m->body = $this->notifier->reminderBody($booking);
+                } elseif ($m->isReviewRequest()) {
+                    $m->body = $this->notifier->reviewBody($booking);
                 }
             }
         }

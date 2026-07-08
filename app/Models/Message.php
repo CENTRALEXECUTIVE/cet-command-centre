@@ -37,15 +37,32 @@ class Message extends Model
         return in_array($this->type, ['reminder_24h', 'reminder_2h'], true);
     }
 
+    /** Is this the post-journey "leave us a review" request? */
+    public function isReviewRequest(): bool
+    {
+        return $this->type === 'review_request';
+    }
+
+    /**
+     * A customer message the office sends BY HAND on a schedule — a pickup
+     * reminder or a post-journey review request. These are never auto-delivered;
+     * they wait as a task until their (windowed) send time and are then sent
+     * manually from WhatsApp Business.
+     */
+    public function isScheduledPrompt(): bool
+    {
+        return $this->isReminder() || $this->isReviewRequest();
+    }
+
     /**
      * Should the manual "Send on WhatsApp" prompt be offered yet? A scheduled
-     * reminder stays hidden until its (windowed) send time arrives, so the
+     * reminder/review stays hidden until its (windowed) send time arrives, so the
      * office is never nudged to message a customer early or overnight. Anything
      * else (confirmation, driver details, one-off messages) is always sendable.
      */
     public function isReadyToSend(): bool
     {
-        return ! ($this->isReminder() && $this->scheduled_for && $this->scheduled_for->isFuture());
+        return ! ($this->isScheduledPrompt() && $this->scheduled_for && $this->scheduled_for->isFuture());
     }
 
     /** The recipient number in international format (44…) for wa.me links. */

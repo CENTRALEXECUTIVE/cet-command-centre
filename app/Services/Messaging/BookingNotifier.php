@@ -245,7 +245,14 @@ class BookingNotifier
         return $when;
     }
 
-    /** Queues the review request for ~30 minutes after job completion. */
+    /**
+     * Queues the review request for ~30 minutes after job completion, clamped
+     * into the 08:00–22:00 window so it never lands overnight (a job completed
+     * late at night becomes a review to send at 08:00). Left QUEUED for the
+     * office to send by hand on WhatsApp — never auto-sent to the customer — so
+     * it appears as a task on the dashboard and the booking, exactly like a
+     * pickup reminder. No duplicates.
+     */
     public function scheduleReviewRequest(Booking $booking): ?Message
     {
         $to = $booking->customer?->phone;
@@ -253,15 +260,34 @@ class BookingNotifier
             return null;
         }
 
-        $delay = (int) config('cet.review_delay_minutes', 30);
-        $body = "Thanks for travelling with Central Executive Transfers, {$this->firstName($booking)}!"
-            ."\nWe'd love a quick review: ".config('cet.review_url')
-            ."\nRef: {$booking->reference}";
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return null;
+        }
 
-        return $this->whatsApp->send($to, $body, [
+        $delay = (int) config('cet.review_delay_minutes', 30);
+        $when = $this->clampToSendWindow(now()->addMinutes($delay));
+
+        return $this->whatsApp->send($to, $this->reviewBody($booking), [
             'type' => 'review_request',
             'booking' => $booking,
-            'scheduled_for' => now()->addMinutes($delay),
+            'scheduled_for' => $when->isPast() ? now() : $when,
+        ]);
+    }
+
+    /**
+     * The exact office "leave us a review" wording, greeting the LEAD PASSENGER.
+     * Rendered fresh at send time so the name/link are always current.
+     */
+    public function reviewBody(Booking $booking): string
+    {
+        return implode("\n", [
+            'Hi '.$this->firstName($booking).', we hope you had a smooth journey with '.self::FOOTER.'!',
+            "We'd love to hear your feedback.",
+            'If you could take a moment to leave us a quick review, it really helps us improve our service and means a lot to us 🙏',
+            '👉 Google: '.config('cet.review_url'),
+            'Thank you for choosing us, and we look forward to assisting you again soon.',
+            self::FOOTER,
+            '🌐 '.config('cet.website'),
         ]);
     }
 

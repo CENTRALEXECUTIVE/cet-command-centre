@@ -262,6 +262,10 @@ class WhatsAppMessagingTest extends TestCase
 
     public function test_imported_booking_gets_a_reminder_when_opened(): void
     {
+        // Freeze at midday so the 24h reminder (due at 09:00 today) is already in
+        // the past and offered for manual sending, whatever time the suite runs.
+        \Illuminate\Support\Carbon::setTestNow('2026-07-15 12:00:00');
+
         // A booking created directly (like an ETO import) — no reminders queued.
         $executive = VehicleType::where('slug', 'executive')->first();
         $customer = \App\Models\Customer::create(['name' => 'Philip Agerbech', 'phone' => '07700900444']);
@@ -281,6 +285,8 @@ class WhatsAppMessagingTest extends TestCase
             ->assertSee('Send on WhatsApp');
 
         $this->assertGreaterThan(0, $booking->messages()->where('type', 'reminder_24h')->count());
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_prepare_reminders_command_backfills_upcoming_bookings(): void

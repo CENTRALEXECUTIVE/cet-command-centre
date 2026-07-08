@@ -71,8 +71,11 @@ return [
         'end' => env('CET_SEND_WINDOW_END', '22:00'),
     ],
 
-    // Public link customers are sent to leave a review.
-    'review_url' => env('CET_REVIEW_URL', 'https://g.page/r/central-executive-transfers/review'),
+    // Public link customers are sent to leave a review (the Google review page).
+    'review_url' => env('CET_REVIEW_URL', 'https://g.page/r/CYo2748zMiu5EBM/review'),
+
+    // Website shown in the review request sign-off.
+    'website' => env('CET_WEBSITE', 'www.centralexecutivetransfers.co.uk'),
 
     // Shared secret guarding inbound webhooks (e.g. Twilio missed-call).
     'webhook_secret' => env('CET_WEBHOOK_SECRET', ''),

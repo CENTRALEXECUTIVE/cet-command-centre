@@ -252,7 +252,7 @@
                         <strong style="font-size:13px">{{ ucfirst(str_replace('_',' ',$m->type)) }}</strong>
                         <span class="muted" style="font-size:12px">
                             <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ $m->status === 'queued' ? 'To send' : ucfirst($m->status) }}</span>
-                            @if($m->isReminder() && $m->scheduled_for && $m->status !== 'sent') · due {{ $m->scheduled_for->format('D d M, H:i') }}
+                            @if($m->isScheduledPrompt() && $m->scheduled_for && $m->status !== 'sent') · due {{ $m->scheduled_for->format('D d M, H:i') }}
                             @elseif($m->sent_at) · sent {{ $m->sent_at->format('d M H:i') }}@endif
                         </span>
                     </div>
@@ -260,7 +260,7 @@
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
                         @if($m->whatsAppLink() && $m->isReadyToSend())
                             <a href="{{ $m->whatsAppLink() }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:5px 12px;font-size:12px">📲 Send on WhatsApp</a>
-                        @elseif($m->isReminder() && ! $m->isReadyToSend())
+                        @elseif($m->isScheduledPrompt() && ! $m->isReadyToSend())
                             <span class="muted" style="font-size:12px">🕗 Ready to send {{ $m->scheduled_for->format('D d M, H:i') }}</span>
                         @endif
                         <button type="button" class="btn btn-ghost copy-msg" style="padding:5px 12px;font-size:12px">⧉ Copy</button>

@@ -45,6 +45,26 @@
         </div>
     @endif
 
+    @if(!empty($reviewsToSend))
+        @php $dueReviews = collect($reviewsToSend)->where('is_due', true)->count(); @endphp
+        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.09);margin-bottom:16px">
+            <strong>⭐ Review requests</strong>
+            <span class="muted" style="font-size:13px">— {{ $dueReviews }} due now, {{ count($reviewsToSend) - $dueReviews }} shortly</span>
+            <div style="margin-top:8px">
+                @foreach($reviewsToSend as $r)
+                    <div style="display:flex;gap:12px;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                        <span style="width:64px;flex:none">
+                            @if($r['is_due'])<span class="badge badge-pending">Send</span>@else<span class="muted" style="font-size:12px">{{ $r['due']?->format('D H:i') }}</span>@endif
+                        </span>
+                        <span style="flex:1">{{ $r['customer'] ?? 'Customer' }} <span class="muted">· journey {{ $r['pickup']->format('D d M, H:i') }}</span></span>
+                        <a href="{{ $r['url'] }}" class="btn" style="{{ $r['is_due'] ? 'background:#FBBA2A;color:#111' : '' }};padding:4px 12px;font-size:12px" @class(['btn-light' => ! $r['is_due']])>{{ $r['is_due'] ? 'Open & send →' : 'Open →' }}</a>
+                    </div>
+                @endforeach
+            </div>
+            <p class="hint" style="margin:8px 0 0">Sent after each completed journey. Open the booking, tap "Send on WhatsApp" (from <strong>WhatsApp Business</strong>), then "Mark sent".</p>
+        </div>
+    @endif
+
     @if(!empty($correctedTimes))
         <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin-bottom:16px">
             <strong>✓ {{ count($correctedTimes) }} booking time(s) matched to the calendar</strong>

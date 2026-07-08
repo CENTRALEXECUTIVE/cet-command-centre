@@ -72,6 +72,7 @@ class DashboardController extends Controller
                 'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
                 'correctedTimes' => session('correctedTimes', []),
                 'remindersToSend' => $this->remindersToSend(),
+                'reviewsToSend' => $this->reviewsToSend(),
                 'timeMismatches' => $this->timeMismatches(),
             ]);
         }
@@ -124,6 +125,39 @@ class DashboardController extends Controller
             ->orderBy('scheduled_for')
             ->get()
             // One row per booking (the 24h and 2h could both be pending).
+            ->unique('booking_id')
+            ->take(15)
+            ->map(fn (Message $m) => [
+                'ref' => $m->booking->external_reference ?? $m->booking->reference,
+                'customer' => $m->booking->displayName(),
+                'pickup' => $m->booking->pickup_at,
+                'due' => $m->scheduled_for,
+                'is_due' => $m->scheduled_for->lte(now()),
+                'url' => route('bookings.show', $m->booking),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The review worklist for the dashboard — post-journey "leave us a review"
+     * requests that are due to be sent by hand, plus any queued for later today.
+     * A completed job schedules one ~30 min after drop-off; it stays here until
+     * the office sends it and marks it sent.
+     *
+     * @return array<int, array{ref: string, customer: ?string, pickup: Carbon, due: ?Carbon, is_due: bool, url: string}>
+     */
+    private function reviewsToSend(): array
+    {
+        return Message::query()
+            ->where('type', 'review_request')
+            ->where('status', 'queued')
+            ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '<=', now()->addDay()) // due now + queued for later today
+            ->whereHas('booking')
+            ->with(['booking.customer'])
+            ->orderBy('scheduled_for')
+            ->get()
             ->unique('booking_id')
             ->take(15)
             ->map(fn (Message $m) => [
