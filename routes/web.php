@@ -156,6 +156,11 @@ Route::middleware('auth')->group(function () {
         // GPS ping — only stored while on an active job.
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
 
+        // Push notifications (new-job alerts to the driver's phone).
+        Route::get('push/key', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'key'])->name('push.key');
+        Route::post('push/subscribe', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'store'])->middleware('throttle:30,1')->name('push.subscribe');
+        Route::post('push/unsubscribe', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'destroy'])->middleware('throttle:30,1')->name('push.unsubscribe');
+
         // Vehicle & documents — days-left cards + upload.
         Route::get('documents', [\App\Http\Controllers\Driver\DocumentController::class, 'index'])->name('documents');
         Route::post('documents', [\App\Http\Controllers\Driver\DocumentController::class, 'store'])

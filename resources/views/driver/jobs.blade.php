@@ -6,6 +6,18 @@
     <p class="page-sub">{{ $label }} &middot; {{ auth()->user()->name }}
         &middot; <a href="{{ route('driver.earnings') }}">Earnings</a></p>
 
+    {{-- Push notifications opt-in — buzzes the phone when a new job is assigned. --}}
+    <div id="push-banner" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
+        <strong>🔔 Turn on job alerts</strong>
+        <p class="muted" style="margin:4px 0 10px;font-size:13px">Get a notification the moment the office gives you a job — even when the app is closed.</p>
+        <button type="button" id="push-enable" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Enable notifications</button>
+        <span id="push-state" class="muted" style="font-size:13px;margin-left:8px"></span>
+    </div>
+    <div id="push-cfg"
+         data-key-url="{{ route('driver.push.key') }}"
+         data-sub-url="{{ route('driver.push.subscribe') }}"
+         data-unsub-url="{{ route('driver.push.unsubscribe') }}" hidden></div>
+
     <div class="filters">
         <a href="{{ route('driver.jobs', ['filter' => 'today']) }}" class="{{ $filter === 'today' ? 'active' : '' }}">Today</a>
         <a href="{{ route('driver.jobs', ['filter' => 'tomorrow']) }}" class="{{ $filter === 'tomorrow' ? 'active' : '' }}">Tomorrow</a>
@@ -64,4 +76,5 @@
         })();
     </script>
     @endverbatim
+    <script src="{{ asset('js/cet-push.js') }}"></script>
 @endsection

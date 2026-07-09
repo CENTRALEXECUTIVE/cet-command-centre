@@ -153,6 +153,15 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   when precached assets change.
 - **Privacy rule in the service worker: only static assets are cached — never
   HTML/pages/booking data.** Offline navigation falls back to `offline.html`.
+- **Driver push notifications (Web Push, free):** `App\Services\Push\WebPushService`
+  (uses `minishlink/web-push` — run `composer install` after pulling). VAPID keys
+  live in `.env` (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, generated once with
+  `php artisan cet:make-vapid`); no-op until they're set. Drivers opt in from
+  **My jobs** (`public/js/cet-push.js` → `push_subscriptions` table). Allocating a
+  job pushes "New job — …" to the driver (`BookingStatusService`). `sw.js` has the
+  `push`/`notificationclick` handlers. iOS needs the app installed to the Home
+  Screen (16.4+); Android works either way. Push goes to DRIVERS (internal) — the
+  "nothing auto-sends to customers" rule is unaffected.
 - **Customer tracking** `/track/{token}`: public, throttled, token is the
   secret. Shows driver FIRST name only (`Booking::driverPublicName()`), status
   message (`trackingMessage()`), live map only while en_route/arrived/collected.

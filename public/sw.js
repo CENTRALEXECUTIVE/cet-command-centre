@@ -10,7 +10,7 @@
  *
  * Bump CACHE_VERSION whenever a precached asset changes so clients refresh.
  */
-const CACHE_VERSION = 'cet-static-v3';
+const CACHE_VERSION = 'cet-static-v4';
 
 const PRECACHE = [
     '/offline.html',
@@ -76,4 +76,34 @@ self.addEventListener('fetch', (event) => {
         );
     }
     // Everything else (JSON feeds, cross-origin tiles/fonts): straight to network.
+});
+
+/* ── Push notifications (driver new-job alerts) ─────────────────────────── */
+self.addEventListener('push', (event) => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; } catch (e) { data = {}; }
+    const title = data.title || 'Central Executive Transfers';
+    const options = {
+        body: data.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: data.tag || undefined,
+        renotify: !!data.tag,
+        data: { url: data.url || '/driver/jobs' },
+        vibrate: [80, 40, 80],
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const target = (event.notification.data && event.notification.data.url) || '/driver/jobs';
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+            for (const client of clients) {
+                if ('focus' in client) { client.navigate(target); return client.focus(); }
+            }
+            return self.clients.openWindow(target);
+        })
+    );
 });

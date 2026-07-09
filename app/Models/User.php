@@ -57,6 +57,12 @@ class User extends Authenticatable
         return $this->hasMany(DriverDocument::class);
     }
 
+    /** Devices this user has enabled push notifications on. */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
     public function corporateAccounts(): BelongsToMany
     {
         return $this->belongsToMany(CorporateAccount::class)

@@ -31,6 +31,7 @@ class BookingStatusService
         private readonly RotationService $rotation,
         private readonly BookingNotifier $notifier,
         private readonly WaitingListService $waitingList,
+        private readonly \App\Services\Push\WebPushService $push,
     ) {}
 
     public function canTransition(BookingStatus $from, BookingStatus $to): bool
@@ -190,6 +191,17 @@ class BookingStatusService
         // driver/vehicle relations so a stale (rotation-time) driver isn't used.
         if ($to === BookingStatus::Allocated && $booking->driver_id) {
             $this->notifier->sendDriverDetails($booking->load(['customer', 'driver.driverProfile.defaultVehicle', 'vehicle', 'vehicleType']));
+
+            // Buzz the driver's phone with the new job (even if the app is closed).
+            if ($booking->driver) {
+                $where = $booking->airport?->code ?: \Illuminate\Support\Str::before((string) $booking->pickup_address, ',');
+                $this->push->sendToUser(
+                    $booking->driver,
+                    'New job — '.$booking->pickup_at->format('D d M, H:i'),
+                    trim(($where ? $where.' · ' : '').$booking->displayName()),
+                    ['url' => route('driver.job', $booking), 'tag' => 'job-'.$booking->id],
+                );
+            }
         }
 
         if ($to === BookingStatus::EnRoute) {
