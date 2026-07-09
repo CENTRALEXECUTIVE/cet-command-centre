@@ -2,14 +2,37 @@
 @section('title', 'Booking ' . $booking->reference)
 
 @section('content')
-    <h1 class="page-title">
-        Booking <span class="mono">{{ $booking->reference }}</span>
-        <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
-    </h1>
-    <p class="page-sub">
-        @if($booking->external_reference)ETO reference <span class="mono" style="font-weight:600">{{ $booking->external_reference }}</span> · @endif
-        Created {{ $booking->created_at->format('D d M Y, H:i') }}
-        @if($booking->createdBy) by {{ $booking->createdBy->name }} @endif</p>
+    {{-- Hero: the four things the office needs at a glance — when, who,
+         where-code, and state — in the brand black/gold. --}}
+    <div class="booking-hero">
+        <div class="bh-top">
+            <div>
+                <div class="bh-when">{{ $booking->pickup_at->format('D d M Y') }} · <span class="gold">{{ $booking->pickup_at->format('H:i') }}</span></div>
+                <div class="bh-who">{{ $booking->displayCustomerName() ?? 'Customer' }}
+                    <span class="badge badge-{{ $booking->status->value }}" id="hero-status">{{ $booking->status->label() }}</span>
+                </div>
+            </div>
+            <div class="bh-refs">
+                <div class="mono">{{ $booking->reference }}</div>
+                @if($booking->external_reference)<div class="mono gold">ETO {{ $booking->external_reference }}</div>@endif
+            </div>
+        </div>
+        <div class="bh-chips">
+            @if($booking->airport)<span class="bh-chip">✈ {{ $booking->airport->code }}</span>@endif
+            @if($booking->displayVehicleType())<span class="bh-chip">🚘 {{ $booking->displayVehicleType() }}</span>@endif
+            <span class="bh-chip">👤 {{ $booking->driver?->name ?? ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}</span>
+            <span class="bh-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
+            @if($booking->displayPayment())
+                <span class="bh-chip {{ str_contains(strtolower($booking->displayPayment()), 'paid') ? 'ok' : '' }}">💳 {{ $booking->displayPayment() }}</span>
+            @elseif($booking->payment_status === 'paid')
+                <span class="bh-chip ok">💳 Paid</span>
+            @else
+                <span class="bh-chip warn">💳 {{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+            @endif
+            @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->displayFlightNumber() }}</span>@endif
+        </div>
+        <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
+    </div>
 
     @if(session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
@@ -76,6 +99,37 @@
     @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
         <div class="alert alert-error">Cancelled — {{ $booking->meta['cancellation_reason'] }}
             @if(!empty($booking->meta['cancelled_at'])) <span class="muted">({{ \Illuminate\Support\Carbon::parse($booking->meta['cancelled_at'])->format('d M Y, H:i') }})</span>@endif
+        </div>
+    @endif
+
+    {{-- The calendar's own words, front and centre — exactly what's on the
+         event, like a screenshot of its description. --}}
+    @if($booking->calendarEvent && filled($booking->calendarEvent->description))
+        <div class="card cal-panel">
+            <div class="cal-panel-head">
+                <span>📅 Full details (from the calendar)</span>
+                <span class="muted" style="font-size:12px">{{ $booking->calendarEvent->start_at->format('D d M') }} · {{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</span>
+            </div>
+            <div class="cal-panel-title mono">{{ $booking->calendarEvent->title }}</div>
+            <div class="cal-panel-body">{{ str_replace('*', '', $booking->calendarEvent->description) }}</div>
+            @if(auth()->user()->isAdmin())
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+                    @if($booking->calendarEvent->google_event_id)
+                        <form method="POST" action="{{ route('bookings.sync-time', $booking) }}"
+                              onsubmit="return confirm('Set this booking\'s pickup time to whatever is on the Google Calendar right now? The calendar itself is not changed.')">
+                            @csrf
+                            <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px">🗓 Match time to calendar</button>
+                        </form>
+                    @endif
+                    <details>
+                        <summary class="muted" style="font-size:12px;cursor:pointer">Event details</summary>
+                        <table style="margin-top:6px">
+                            <tr><th>Location</th><td>{{ $booking->calendarEvent->location }}</td></tr>
+                            <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
+                        </table>
+                    </details>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -204,31 +258,6 @@
         </div>
     @endif
 
-    @if($booking->calendarEvent)
-        <div class="card">
-            <h2>Calendar Event</h2>
-            <table>
-                <tr><th>Title</th><td class="mono">{{ $booking->calendarEvent->title }}</td></tr>
-                <tr><th>Location</th><td>{{ $booking->calendarEvent->location }}</td></tr>
-                <tr><th>Start → End</th><td>{{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</td></tr>
-                <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
-            </table>
-            @if(filled($booking->calendarEvent->description))
-                <div style="margin-top:12px">
-                    <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:4px">Full details (from the calendar)</div>
-                    <div style="white-space:pre-line;font-size:13px;line-height:1.55;background:rgba(128,128,128,.05);border-radius:8px;padding:12px">{{ str_replace('*', '', $booking->calendarEvent->description) }}</div>
-                </div>
-            @endif
-            @if(auth()->user()->isAdmin() && $booking->calendarEvent->google_event_id)
-                <form method="POST" action="{{ route('bookings.sync-time', $booking) }}" style="margin-top:10px"
-                      onsubmit="return confirm('Set this booking\'s pickup time to whatever is on the Google Calendar right now? The calendar itself is not changed.')">
-                    @csrf
-                    <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px">🗓 Match time to calendar</button>
-                </form>
-                <p class="hint" style="margin:6px 0 0">Reads the live calendar (never edits it) and sets the pickup time to match — use it if you corrected the time on the calendar.</p>
-            @endif
-        </div>
-    @endif
 
     @if($booking->payments->isNotEmpty())
         <div class="card">

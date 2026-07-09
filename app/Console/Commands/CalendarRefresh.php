@@ -4,9 +4,13 @@ namespace App\Console\Commands;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\CalendarEvent;
 use App\Models\Setting;
+use App\Services\Calendar\CalendarJobImporter;
+use App\Services\Calendar\CalendarStats;
 use App\Services\Calendar\CalendarTimeSync;
 use App\Services\Calendar\GoogleCalendarService;
+use App\Services\Messaging\BookingNotifier;
 use Illuminate\Console\Command;
 
 /**
@@ -26,7 +30,7 @@ class CalendarRefresh extends Command
 
     protected $description = 'Match upcoming bookings to the live Google Calendar and mirror the details (read-only)';
 
-    public function handle(CalendarTimeSync $sync, GoogleCalendarService $google): int
+    public function handle(CalendarTimeSync $sync, GoogleCalendarService $google, CalendarStats $stats, CalendarJobImporter $importer, BookingNotifier $notifier): int
     {
         if (! $google->configured() || ! $google->active()) {
             $this->warn('Google Calendar is not connected/active — nothing to refresh.');
@@ -47,13 +51,9 @@ class CalendarRefresh extends Command
             ->orderBy('pickup_at')
             ->get();
 
-        if ($bookings->isEmpty()) {
-            $this->info('No upcoming bookings to refresh.');
-
-            return self::SUCCESS;
-        }
-
         // One calendar read for the whole window; match each booking in memory.
+        // NOTE: this runs even with zero existing bookings — brand-new events
+        // added straight onto the calendar still need importing below.
         $calendarId = (string) Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
         $events = $google->eventsBetween($calendarId, $from->copy()->subDays(3), $to->copy()->addDays(3));
 
@@ -89,6 +89,56 @@ class CalendarRefresh extends Command
             }
         }
 
+        // NEW bookings added straight onto the calendar (no booking in the
+        // system yet) — import them so they appear in the Command Centre
+        // automatically, linked to their existing event (never duplicated).
+        $imported = $this->importCalendarOnlyJobs($events, $stats, $importer, $notifier);
+        if ($imported > 0) {
+            $this->info("Imported {$imported} new booking(s) that were added straight onto the calendar.");
+        }
+
         return self::SUCCESS;
+    }
+
+    /**
+     * Create bookings for calendar events that have no booking in the system —
+     * so a job added directly on Google Calendar shows up here by itself.
+     * Future events only; each is linked to its existing event id, and the
+     * reminders are queued exactly like any other booking.
+     *
+     * @param  array<int, array<string, mixed>>  $events
+     */
+    private function importCalendarOnlyJobs(array $events, CalendarStats $stats, CalendarJobImporter $importer, BookingNotifier $notifier): int
+    {
+        // One query for everything already linked, not one per event.
+        $linkedIds = CalendarEvent::whereNotNull('google_event_id')->pluck('google_event_id')->all();
+
+        $imported = 0;
+        foreach ($events as $event) {
+            if (in_array($event['id'] ?? '', $linkedIds, true)) {
+                continue; // already in the system
+            }
+
+            $parsed = $stats->rawEventToBookingData($event);
+            if (! $parsed || ! $parsed['pickup_at'] || $parsed['pickup_at']->isPast()) {
+                continue; // not a booking event, unreadable, or already gone
+            }
+
+            if ($importer->existingBookingFor($parsed)) {
+                continue; // reference already known (e.g. ETO import without a link)
+            }
+
+            try {
+                $booking = $importer->import($parsed);
+                $notifier->ensureReminders($booking->load('customer'));
+                $imported++;
+                $this->line('  + '.$booking->reference.' ← '.($parsed['reference'] ?: $parsed['customer_name'])
+                    .' ('.$parsed['pickup_at']->format('D d M H:i').')');
+            } catch (\Throwable $e) {
+                $this->warn('  ! Could not import event '.($event['id'] ?? '?').': '.$e->getMessage());
+            }
+        }
+
+        return $imported;
     }
 }

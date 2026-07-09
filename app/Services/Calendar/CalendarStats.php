@@ -177,37 +177,54 @@ class CalendarStats
                 continue;
             }
 
-            $summary = (string) ($event['summary'] ?? '');
-            $desc = (string) ($event['description'] ?? '');
-            $start = $this->startOf($event);
-            $endDt = $event['end']['dateTime'] ?? null;
-            $end = $endDt ? Carbon::parse($endDt)->setTimezone('Europe/London') : $start?->copy()->addHour();
-
-            return [
-                'event_id' => $eventId,
-                'calendar_id' => Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk'),
-                'title' => $summary,
-                'location' => (string) ($event['location'] ?? ''),
-                'description' => $desc,
-                'reference' => $this->field($desc, 'Booking Reference'),
-                'customer_name' => $this->field($desc, 'Customer Name') ?? $this->nameFromTitle($summary),
-                'customer_phone' => $this->field($desc, 'Contact No'),
-                'pickup_at' => $start,
-                'end_at' => $end,
-                'pickup_address' => $this->field($desc, 'Pickup Location') ?: (string) ($event['location'] ?? ''),
-                'destination_address' => $this->field($desc, 'Drop-off Location'),
-                'passengers' => max(1, (int) preg_replace('/\D/', '', (string) $this->field($desc, 'Passengers'))),
-                'luggage' => (int) preg_replace('/\D/', '', (string) $this->field($desc, 'Luggage')),
-                'luggage_text' => $this->field($desc, 'Luggage'),
-                'flight_number' => $this->field($desc, 'Flight Number'),
-                'vehicle_label' => $this->field($desc, 'Vehicle Type'),
-                'payment_text' => $this->field($desc, 'Payment'),
-                'notes' => $this->field($desc, 'Notes'),
-                'driver_tag' => $this->allocatedTag($summary),
-            ];
+            return $this->rawEventToBookingData($event);
         }
 
         return null;
+    }
+
+    /**
+     * The same parsed shape from a raw, ALREADY-FETCHED Google event item (no
+     * extra API call) — lets the scheduled refresh auto-import calendar-only
+     * jobs. Returns null for non-booking events (all-day entries etc.).
+     *
+     * @param  array<string, mixed>  $event
+     * @return array<string, mixed>|null
+     */
+    public function rawEventToBookingData(array $event): ?array
+    {
+        if (empty($event['id']) || ! $this->isBooking($event)) {
+            return null;
+        }
+
+        $summary = (string) ($event['summary'] ?? '');
+        $desc = (string) ($event['description'] ?? '');
+        $start = $this->startOf($event);
+        $endDt = $event['end']['dateTime'] ?? null;
+        $end = $endDt ? Carbon::parse($endDt)->setTimezone('Europe/London') : $start?->copy()->addHour();
+
+        return [
+            'event_id' => $event['id'],
+            'calendar_id' => Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk'),
+            'title' => $summary,
+            'location' => (string) ($event['location'] ?? ''),
+            'description' => $desc,
+            'reference' => $this->field($desc, 'Booking Reference'),
+            'customer_name' => $this->field($desc, 'Customer Name') ?? $this->nameFromTitle($summary),
+            'customer_phone' => $this->field($desc, 'Contact No'),
+            'pickup_at' => $start,
+            'end_at' => $end,
+            'pickup_address' => $this->field($desc, 'Pickup Location') ?: (string) ($event['location'] ?? ''),
+            'destination_address' => $this->field($desc, 'Drop-off Location'),
+            'passengers' => max(1, (int) preg_replace('/\D/', '', (string) $this->field($desc, 'Passengers'))),
+            'luggage' => (int) preg_replace('/\D/', '', (string) $this->field($desc, 'Luggage')),
+            'luggage_text' => $this->field($desc, 'Luggage'),
+            'flight_number' => $this->field($desc, 'Flight Number'),
+            'vehicle_label' => $this->field($desc, 'Vehicle Type'),
+            'payment_text' => $this->field($desc, 'Payment'),
+            'notes' => $this->field($desc, 'Notes'),
+            'driver_tag' => $this->allocatedTag($summary),
+        ];
     }
 
     /** A CET booking event = timed event whose title is our format or that carries a reference. */
