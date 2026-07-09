@@ -348,3 +348,62 @@ tr:last-child td { border-bottom: none; }
 .cal-panel-body { white-space: pre-line; font-size: 13.5px; line-height: 1.6;
     background: rgba(251,186,42,.06); border: 1px solid rgba(251,186,42,.25);
     border-radius: 10px; padding: 14px 16px; }
+
+/* ═══ Driver app — clean, modern, dark-accent (scoped to driver pages) ═══ */
+body.driver-app { background: #0e0f12; }
+body.driver-app .content-area { background: #0e0f12; }
+body.driver-app .topbar { background: #0e0f12; border-bottom: 1px solid rgba(255,255,255,.06); }
+body.driver-app .container { max-width: 640px; }
+body.driver-app .page-title, body.driver-app .page-sub { color: #f3f3f3; }
+
+body.driver-app .da-back { color: #9aa0a6; font-size: 13px; display: inline-block; margin-bottom: 12px; }
+
+/* Hero */
+.da-hero { background: linear-gradient(150deg, #17181c 0%, #0f1013 100%);
+    border: 1px solid rgba(251,186,42,.25); border-radius: 20px; padding: 22px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5); margin-bottom: 16px; }
+.da-hero-time { color: #b9bdc4; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; }
+.da-hero-time span { color: var(--gold); font-size: 30px; font-weight: 800; letter-spacing: 0; }
+.da-hero-name { color: #fff; font-size: 24px; font-weight: 800; margin: 2px 0 10px; }
+.da-hero-route { color: #cfd3d8; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.da-hero-route .arr { color: var(--gold); font-weight: 800; }
+.da-hero-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.da-chip { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+    color: #e6e6e6; border-radius: 999px; padding: 5px 13px; font-size: 13px; }
+
+/* Cards + tables go dark on driver pages */
+body.driver-app .card { background: #16171b; border: 1px solid rgba(255,255,255,.07);
+    border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.35); color: #e9e9ea; }
+body.driver-app .card th { color: #8b9096; border-bottom-color: rgba(255,255,255,.07); }
+body.driver-app .card td { border-bottom-color: rgba(255,255,255,.06); color: #e9e9ea; }
+body.driver-app .card a { color: var(--gold); }
+body.driver-app .muted { color: #9aa0a6; }
+
+/* Navigate + flight buttons */
+body.driver-app .btn-dark { background: var(--gold); color: #111; }
+body.driver-app .btn-ghost { background: rgba(255,255,255,.06); color: #eee; border-color: rgba(255,255,255,.14); }
+
+/* Live tracking pill */
+body.driver-app #track-box { background: linear-gradient(150deg, #12241a, #0f1013);
+    border: 1px solid rgba(70,200,120,.35); border-left: 4px solid #46c878 !important;
+    border-radius: 16px; color: #eafff1; }
+
+/* Filters (Today / Tomorrow / Week) */
+body.driver-app .filters a { background: #16171b; border-color: rgba(255,255,255,.08); color: #cfd3d8; }
+body.driver-app .filters a.active { background: var(--gold); color: #111; border-color: var(--gold); }
+
+/* Job tiles */
+body.driver-app .job-tile { background: #16171b; border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.3);
+    transition: transform .12s, border-color .12s; }
+body.driver-app .job-tile:active { transform: scale(.99); }
+body.driver-app .job-tile .big-time { color: var(--gold); font-size: 22px; font-weight: 800; }
+body.driver-app .job-tile .meta { color: #cdd1d6; }
+body.driver-app .job-tile[data-offer] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 8px 26px rgba(251,186,42,.18); }
+
+/* Sticky action bar — the status buttons pinned to the thumb zone */
+.da-actionbar { position: sticky; bottom: 0; z-index: 20; margin: 18px -24px -24px;
+    padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(14,15,18,0) 0%, #0e0f12 24%); }
+.da-actionbar .tap-actions { margin: 0; grid-auto-rows: 1fr; }
+.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }

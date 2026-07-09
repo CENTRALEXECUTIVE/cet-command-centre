@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     @include('partials.pwa')
 </head>
-<body>
+<body class="{{ request()->routeIs('driver.job') || request()->routeIs('driver.jobs') ? 'driver-app' : '' }}">
 @php $u = auth()->user(); @endphp
 <input type="checkbox" id="nav-toggle" class="nav-toggle-cb" hidden>
 <div class="app-shell">

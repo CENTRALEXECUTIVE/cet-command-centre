@@ -48,7 +48,11 @@ return [
     'vat_rate' => 0.20,
 
     // GPS ping cadence while a driver is on an active job.
-    'gps_ping_seconds' => 300, // every 5 minutes
+    'gps_ping_seconds' => 300, // every 5 minutes (fallback/other uses)
+    // Live tracking on the job screen streams continuously (watchPosition) but
+    // only WRITES to the server at most this often, to keep it smooth without
+    // hammering the database.
+    'gps_live_seconds' => (int) env('CET_GPS_LIVE_SECONDS', 20),
 
     // Compliance: how many days before expiry an item becomes "due soon" and a
     // WhatsApp renewal reminder is sent.

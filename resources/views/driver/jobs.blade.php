@@ -26,7 +26,7 @@
 
     @forelse($jobs as $b)
         @php $isOffer = $b->status === \App\Enums\BookingStatus::Allocated; @endphp
-        <div class="job-tile" @if($isOffer) style="border:2px solid var(--gold)" @endif>
+        <div class="job-tile" @if($isOffer) data-offer @endif>
             <a href="{{ route('driver.job', $b) }}" style="color:inherit;text-decoration:none;display:block">
                 <div class="top">
                     <span class="big-time">{{ $b->pickup_at->format('H:i') }}</span>

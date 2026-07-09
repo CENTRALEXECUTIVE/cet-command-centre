@@ -2,12 +2,24 @@
 @section('title', 'Job ' . $booking->reference)
 
 @section('content')
-    <a href="{{ route('driver.jobs') }}" class="muted" style="font-size:13px">← All jobs</a>
-    <h1 class="page-title" style="margin-top:8px">
-        {{ $booking->pickup_at->format('H:i') }} · {{ $booking->displayName() }}
-        <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
-    </h1>
-    <p class="page-sub">{{ $booking->reference }} · {{ $booking->vehicleType?->name }}</p>
+    <a href="{{ route('driver.jobs') }}" class="da-back">← All jobs</a>
+
+    {{-- Modern job hero --}}
+    <div class="da-hero">
+        <div class="da-hero-time">{{ $booking->pickup_at->format('D d M') }} · <span>{{ $booking->pickup_at->format('H:i') }}</span></div>
+        <div class="da-hero-name">{{ $booking->displayName() }}</div>
+        <div class="da-hero-route">
+            <span>{{ \Illuminate\Support\Str::limit($booking->displayPickupAddress(), 34) }}</span>
+            <span class="arr">→</span>
+            <span>{{ \Illuminate\Support\Str::limit($booking->displayDropoffAddress(), 34) }}</span>
+        </div>
+        <div class="da-hero-chips">
+            <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
+            @if($booking->airport)<span class="da-chip">✈ {{ $booking->airport->code }}</span>@endif
+            <span class="da-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
+            @if($booking->displayVehicleType())<span class="da-chip">{{ $booking->displayVehicleType() }}</span>@endif
+        </div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error">{{ $errors->first() }}</div>
@@ -58,7 +70,7 @@
     <div id="gps-config"
          data-active="{{ $booking->status->isActive() ? '1' : '0' }}"
          data-url="{{ route('driver.locations.store') }}"
-         data-interval="{{ (int) config('cet.gps_ping_seconds', 300) }}" hidden></div>
+         data-interval="{{ (int) config('cet.gps_live_seconds', 20) }}" hidden></div>
 
     {{-- Live tracking status so the driver can SEE it's working, with a clear
          start/stop control. Sharing only ever runs while THIS job is active and
@@ -87,6 +99,7 @@
         }
     @endphp
     @if(!empty($next))
+        <div class="da-actionbar">
         <div class="tap-actions">
             @foreach($next as $status)
                 @php
@@ -109,6 +122,7 @@
                     <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
                 </form>
             @endforeach
+        </div>
         </div>
     @else
         <div class="card"><p class="muted mb-0">This job is {{ $booking->status->label() }} — no further action.</p></div>
@@ -177,105 +191,9 @@
             };
         })();
 
-        // ---- GPS ping loop with visible status. Sends the driver's position now
-        // and every interval while the job is active; the office sees it on the
-        // Live map. Stops when the server says the job is no longer active.
-        (function () {
-            var cfg = document.getElementById('gps-config');
-            var box = document.getElementById('track-box');
-            if (!cfg || cfg.dataset.active !== '1') return;
-            if (box) box.style.display = 'block';
-
-            var dot = document.getElementById('track-dot');
-            var label = document.getElementById('track-label');
-            var last = document.getElementById('track-last');
-            var nowBtn = document.getElementById('track-now');
-            var toggleBtn = document.getElementById('track-toggle');
-
-            if (!navigator.geolocation) {
-                if (label) label.textContent = 'This phone can’t share location.';
-                if (dot) dot.textContent = '🔴';
-                if (toggleBtn) toggleBtn.style.display = 'none';
-                return;
-            }
-            var token = document.querySelector('meta[name="csrf-token"]').content;
-            var interval = (parseInt(cfg.dataset.interval, 10) || 300) * 1000;
-            var sharing = true;
-            var staleWatch = null;
-            var lastSentAt = 0;
-
-            function stamp() {
-                var d = new Date();
-                return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
-            }
-            function stopLoop() {
-                if (window._cetTimer) { clearInterval(window._cetTimer); window._cetTimer = null; }
-                if (staleWatch) { clearInterval(staleWatch); staleWatch = null; }
-            }
-            function ping() {
-                if (!sharing) return;
-                navigator.geolocation.getCurrentPosition(function (pos) {
-                    fetch(cfg.dataset.url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            lat: pos.coords.latitude, lng: pos.coords.longitude,
-                            heading: pos.coords.heading, speed: pos.coords.speed, accuracy: pos.coords.accuracy
-                        })
-                    }).then(function (r) { return r.json(); }).then(function (data) {
-                        lastSentAt = Date.now();
-                        if (dot) dot.textContent = '🟢';
-                        if (label) label.textContent = 'Tracking on';
-                        if (last) last.textContent = 'Location sent at ' + stamp() + ' — office can see you.';
-                        if (window.CETshowMe) window.CETshowMe(pos.coords.latitude, pos.coords.longitude);
-                        // Job no longer active → the server says stop, so stop.
-                        if (data && data.tracking === false) {
-                            stopLoop();
-                            if (label) label.textContent = 'Tracking finished';
-                            if (last) last.textContent = 'This job is no longer active, so location sharing has stopped.';
-                            if (dot) dot.textContent = '⚪';
-                            if (toggleBtn) toggleBtn.style.display = 'none';
-                        }
-                    }).catch(function () {
-                        if (last) last.textContent = 'Couldn’t reach the office — will retry.';
-                    });
-                }, function () {
-                    if (dot) dot.textContent = '🔴';
-                    if (label) label.textContent = 'Location permission needed';
-                    if (last) last.textContent = 'Allow location for this site, then tap “Send my location now”.';
-                }, { enableHighAccuracy: true, timeout: 10000 });
-            }
-
-            // Driver-controlled start/stop. Stopping pauses pings immediately;
-            // starting resumes them (and sends one straight away).
-            if (toggleBtn) toggleBtn.addEventListener('click', function () {
-                sharing = !sharing;
-                if (sharing) {
-                    toggleBtn.textContent = '⏸ Stop sharing';
-                    if (label) label.textContent = 'Tracking on';
-                    if (dot) dot.textContent = '🟢';
-                    ping();
-                } else {
-                    toggleBtn.textContent = '▶ Start sharing';
-                    if (label) label.textContent = 'Sharing paused';
-                    if (dot) dot.textContent = '⚪';
-                    if (last) last.textContent = 'The office can’t see your location while paused.';
-                }
-            });
-
-            if (nowBtn) nowBtn.addEventListener('click', function () { sharing = true; toggleBtn.textContent = '⏸ Stop sharing'; ping(); });
-            ping();
-            window._cetTimer = setInterval(ping, interval);
-
-            // Warn the driver if no fix has gone out for over two intervals.
-            staleWatch = setInterval(function () {
-                if (sharing && lastSentAt && Date.now() - lastSentAt > interval * 2) {
-                    if (dot) dot.textContent = '🟡';
-                    if (last) last.textContent = 'No location sent for a while — check signal/GPS.';
-                }
-            }, 60000);
-        })();
+        // (Live tracking runs from cet-track.js — watchPosition + wake lock.)
     </script>
     @endverbatim
     <script src="{{ asset('js/cet-flight.js') }}"></script>
+    <script src="{{ asset('js/cet-track.js') }}"></script>
 @endsection
