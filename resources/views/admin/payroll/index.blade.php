@@ -12,10 +12,10 @@
         </form>
     </div>
 
-    <div class="grid grid-3" style="margin-bottom:16px">
-        <div class="card stat"><div class="muted" style="font-size:12px">Total driver pay</div><strong style="font-size:22px">£{{ number_format($totals['pay'], 2) }}</strong></div>
-        <div class="card stat"><div class="muted" style="font-size:12px">Paid out</div><strong style="font-size:22px;color:#1f7a44">£{{ number_format($totals['paid'], 2) }}</strong></div>
-        <div class="card stat"><div class="muted" style="font-size:12px">Still owed</div><strong style="font-size:22px;color:#b8860b">£{{ number_format($totals['remaining'], 2) }}</strong></div>
+    <div class="deck" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px">
+        <div class="kpi"><div class="kpi-ico">💷</div><div class="kpi-n">£{{ number_format($totals['pay'], 2) }}</div><div class="kpi-l">Total driver pay</div></div>
+        <div class="kpi ok"><div class="kpi-ico">✅</div><div class="kpi-n">£{{ number_format($totals['paid'], 2) }}</div><div class="kpi-l">Paid out</div></div>
+        <div class="kpi warn"><div class="kpi-ico">⏳</div><div class="kpi-n">£{{ number_format($totals['remaining'], 2) }}</div><div class="kpi-l">Still owed</div></div>
     </div>
 
     @if($missingPay->isNotEmpty())

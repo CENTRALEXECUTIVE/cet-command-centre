@@ -42,7 +42,7 @@
                 <h3>{{ $status->label() }} <span class="count">{{ $jobs->count() }}</span></h3>
 
                 @forelse($jobs as $b)
-                    <div class="job-card">
+                    <div class="job-card s-{{ $b->status->value }}">
                         <div class="time">{{ $b->pickup_at->format('H:i') }}
                             <a href="{{ route('bookings.show', $b) }}" class="ref" title="Open booking">{{ $b->reference }}</a></div>
                         <div class="meta">

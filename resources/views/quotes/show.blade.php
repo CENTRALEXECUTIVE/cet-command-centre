@@ -2,19 +2,16 @@
 @section('title', 'Quote ' . $quote->reference)
 
 @section('content')
-    <h1 class="page-title">Quote <span class="mono">{{ $quote->reference }}</span></h1>
-    <p class="page-sub">
-        {{ $quote->ai_generated ? 'AI priced ('.($quote->breakdown['model'] ?? config('cet.ai_model')).')' : 'Rule-based price' }}
-        · valid until {{ $quote->expires_at?->format('D d M, H:i') }}
-    </p>
-
-    <div class="card" style="text-align:center">
-        <div class="muted" style="text-transform:uppercase;letter-spacing:.5px;font-size:12px">Quoted price</div>
-        <div style="font-size:48px;font-weight:800;color:var(--black)">£{{ number_format($quote->price, 2) }}</div>
-        <div class="muted">{{ $quote->vehicleType?->name }} · {{ $quote->distance_miles }} mi · {{ $quote->duration_minutes }} min</div>
-        <div style="margin-top:16px">
-            <a href="{{ route('bookings.create', ['quote' => $quote->id]) }}" class="btn btn-primary">Convert to booking →</a>
-            <a href="{{ route('quotes.create') }}" class="btn btn-ghost">New quote</a>
+    <div class="quote-hero">
+        <div class="quote-hero-glow"></div>
+        <div style="position:relative">
+            <div class="q-ref mono">Quote {{ $quote->reference }} · {{ $quote->ai_generated ? 'AI priced' : 'Rule-based' }} · valid until {{ $quote->expires_at?->format('D d M, H:i') }}</div>
+            <div class="q-price">£{{ number_format($quote->price, 2) }}</div>
+            <div class="q-sub">{{ $quote->vehicleType?->name }} · {{ $quote->distance_miles }} mi · {{ $quote->duration_minutes }} min</div>
+            <div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                <a href="{{ route('bookings.create', ['quote' => $quote->id]) }}" class="btn btn-primary">Convert to booking →</a>
+                <a href="{{ route('quotes.create') }}" class="dash-btn">New quote</a>
+            </div>
         </div>
     </div>
 

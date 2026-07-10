@@ -2,22 +2,32 @@
 @section('title', 'Bookings')
 
 @section('content')
-    <h1 class="page-title">Bookings</h1>
-    @if(!empty($q))
-        <p class="page-sub">Search results for “<strong>{{ $q }}</strong>” · {{ $bookings->total() }} found — <a href="{{ route('bookings.index') }}">clear</a></p>
-    @else
-        <p class="page-sub">All journeys in the system.</p>
-    @endif
+    <div class="list-head">
+        <div>
+            <h1 class="page-title" style="margin:0">Bookings</h1>
+            @if(!empty($q))
+                <p class="page-sub" style="margin:2px 0 0">Search results for “<strong>{{ $q }}</strong>” · {{ $bookings->total() }} found — <a href="{{ route('bookings.index') }}">clear</a></p>
+            @else
+                <p class="page-sub" style="margin:2px 0 0">{{ $bookings->total() }} journeys in the system</p>
+            @endif
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+            <form method="GET" action="{{ route('bookings.index') }}" role="search">
+                <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="🔍 Search ref, ETO, name, phone…"
+                       style="width:240px;max-width:52vw;padding:9px 12px;border-radius:10px">
+            </form>
+            @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
+                <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="padding:9px 16px;white-space:nowrap">+ New</a>
+            @endif
+        </div>
+    </div>
 
-    @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
-        <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="margin-bottom:20px">+ New Booking</a>
-    @endif
-
-    <div class="card">
+    <div class="card" style="padding:8px">
         @if($bookings->isEmpty())
-            <p class="muted mb-0">No bookings found.</p>
+            <p class="muted mb-0" style="padding:16px">No bookings found.</p>
         @else
-            <table>
+            <div style="overflow-x:auto">
+            <table class="table-modern">
                 <thead>
                     <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Route</th><th>Vehicle</th><th>Luggage</th><th>Driver</th><th>Pay</th><th>Status</th>@if(auth()->user()->isAdmin())<th></th>@endif</tr>
                 </thead>
@@ -48,7 +58,8 @@
                     @endforeach
                 </tbody>
             </table>
-            <div style="margin-top:16px">{{ $bookings->links() }}</div>
+            </div>
+            <div style="margin-top:12px;padding:0 8px 8px">{{ $bookings->links() }}</div>
         @endif
     </div>
 @endsection
