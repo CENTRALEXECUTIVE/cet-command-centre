@@ -2,18 +2,22 @@
 @section('title', 'Admin Dashboard')
 
 @section('content')
-    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-        <div>
-            <h1 class="page-title" style="margin-bottom:2px">Dispatch Overview</h1>
-            <p class="page-sub">{{ now()->format('l d F Y · H:i') }} · {{ auth()->user()->name }}</p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <form method="POST" action="{{ route('dashboard.fix-times') }}"
-                  onsubmit="return confirm('Sync every upcoming booking with the live calendar now? The calendar itself is never changed.')">
-                @csrf
-                <button class="btn btn-light" style="padding:6px 14px">🗓 Sync with calendar</button>
-            </form>
-            <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="btn btn-light" style="padding:6px 14px">↻ Refresh</a>
+    @php $hour = (int) now()->format('G'); $greet = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening'); @endphp
+    <div class="dash-hero">
+        <div class="dash-hero-glow"></div>
+        <div class="dash-hero-inner">
+            <div>
+                <div class="dash-greet">{{ $greet }}, {{ \Illuminate\Support\Str::before(auth()->user()->name, ' ') }}</div>
+                <div class="dash-date">{{ now()->format('l d F Y · H:i') }}</div>
+            </div>
+            <div class="dash-hero-actions">
+                <form method="POST" action="{{ route('dashboard.fix-times') }}"
+                      onsubmit="return confirm('Sync every upcoming booking with the live calendar now? The calendar itself is never changed.')">
+                    @csrf
+                    <button class="dash-btn">🗓 Sync calendar</button>
+                </form>
+                <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="dash-btn">↻ Refresh</a>
+            </div>
         </div>
     </div>
 
@@ -109,27 +113,37 @@
         </div>
     @endif
 
-    {{-- Clickable stat tiles --}}
-    <div class="grid grid-3" style="margin-bottom:14px">
-        <a class="stat" href="{{ route('jobs.day') }}" style="text-decoration:none;color:inherit;display:block">
-            <div class="n">{{ $todayCount }}</div><div class="l">Jobs Today →</div>
+    {{-- KPI command deck --}}
+    <div class="deck">
+        <a class="kpi" href="{{ route('jobs.day') }}">
+            <div class="kpi-ico">📅</div>
+            <div class="kpi-n">{{ $todayCount }}</div>
+            <div class="kpi-l">Jobs today</div>
         </a>
-        <a class="stat" href="{{ route('despatch.board') }}" style="text-decoration:none;color:inherit;display:block">
-            <div class="n" style="{{ $pendingCount > 0 ? 'color:#b8860b' : '' }}">{{ $pendingCount }}</div><div class="l">Awaiting Allocation →</div>
+        <a class="kpi {{ $pendingCount > 0 ? 'warn' : '' }}" href="{{ route('despatch.board') }}">
+            <div class="kpi-ico">🕓</div>
+            <div class="kpi-n">{{ $pendingCount }}</div>
+            <div class="kpi-l">Awaiting allocation</div>
         </a>
-        <a class="stat" href="{{ route('despatch.board') }}" style="text-decoration:none;color:inherit;display:block">
-            <div class="n" style="{{ $activeCount > 0 ? 'color:#1f7a44' : '' }}">{{ $activeCount }}</div><div class="l">Active Now →</div>
+        <a class="kpi {{ $activeCount > 0 ? 'ok' : '' }}" href="{{ route('despatch.board') }}">
+            <div class="kpi-ico">🚗</div>
+            <div class="kpi-n">{{ $activeCount }}</div>
+            <div class="kpi-l">Active now</div>
         </a>
-    </div>
-    <div class="grid grid-3" style="margin-bottom:20px">
-        <a class="stat" href="{{ route('review.index') }}" style="text-decoration:none;color:inherit;display:block">
-            <div class="n">£{{ number_format($todayRevenue, 0) }}</div><div class="l">Today's booked value →</div>
+        <a class="kpi" href="{{ route('review.index') }}">
+            <div class="kpi-ico">💷</div>
+            <div class="kpi-n">£{{ number_format($todayRevenue, 0) }}</div>
+            <div class="kpi-l">Today's booked value</div>
         </a>
-        <a class="stat" href="{{ route('payments.index') }}" style="text-decoration:none;color:inherit;display:block">
-            <div class="n" style="{{ $cashToday > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($cashToday, 0) }}</div><div class="l">💰 Cash to collect today →</div>
+        <a class="kpi {{ $cashToday > 0 ? 'warn' : '' }}" href="{{ route('payments.index') }}">
+            <div class="kpi-ico">💰</div>
+            <div class="kpi-n">£{{ number_format($cashToday, 0) }}</div>
+            <div class="kpi-l">Cash to collect today</div>
         </a>
-        <div class="stat">
-            <div class="n">{{ $weekCount }}</div><div class="l">Jobs booked · next 7 days</div>
+        <div class="kpi">
+            <div class="kpi-ico">🗓️</div>
+            <div class="kpi-n">{{ $weekCount }}</div>
+            <div class="kpi-l">Booked · next 7 days</div>
         </div>
     </div>
 
