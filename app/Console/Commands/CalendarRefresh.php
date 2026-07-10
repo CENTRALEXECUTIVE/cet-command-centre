@@ -26,7 +26,7 @@ use Illuminate\Console\Command;
  */
 class CalendarRefresh extends Command
 {
-    protected $signature = 'cet:calendar-refresh {--days=21 : How many days ahead to refresh}';
+    protected $signature = 'cet:calendar-refresh {--days=60 : How many days ahead to refresh}';
 
     protected $description = 'Match upcoming bookings to the live Google Calendar and mirror the details (read-only)';
 

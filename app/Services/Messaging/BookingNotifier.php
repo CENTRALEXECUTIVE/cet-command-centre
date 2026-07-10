@@ -60,7 +60,10 @@ class BookingNotifier
             return;
         }
 
-        if (! $booking->pickup_at?->isFuture()) {
+        // Allow a just-passed pickup (last 12h) as well as future ones, so a
+        // late / last-minute booking still gets a due-now reminder rather than
+        // none at all. Only a genuinely old pickup is skipped.
+        if (! $booking->pickup_at || $booking->pickup_at->lt(now()->subHours(12))) {
             return;
         }
 
@@ -84,7 +87,9 @@ class BookingNotifier
      */
     public function ensureReminders(Booking $booking): void
     {
-        if (blank($booking->customer?->phone) || ! $booking->pickup_at?->isFuture()) {
+        if (blank($booking->customer?->phone)
+            || ! $booking->pickup_at
+            || $booking->pickup_at->lt(now()->subHours(12))) {
             return;
         }
         if ($booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])->exists()) {

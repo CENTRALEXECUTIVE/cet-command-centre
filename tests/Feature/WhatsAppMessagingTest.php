@@ -194,6 +194,45 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
     }
 
+    public function test_late_booking_reminder_stays_on_the_list_until_it_is_sent(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-15 15:00:00');
+
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+
+        // A booking added at the last minute — pickup only 30 minutes away.
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Late Booker', 'customer_phone' => '07700900999',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => now()->addMinutes(30)->format('Y-m-d H:i'),
+            'pickup_address' => '1 Test St, Sheffield', 'destination_address' => 'Leeds Bradford Airport',
+            'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        // A due-now reminder is queued for the late job.
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertNotNull($reminder);
+        $this->assertSame('queued', $reminder->status);
+
+        $ref = $booking->external_reference ?? $booking->reference;
+        $onList = fn () => collect($this->actingAs($admin)->get(route('dashboard'))->viewData('remindersToSend'))
+            ->pluck('ref');
+
+        // The pickup time passes without anyone having sent the reminder yet.
+        \Illuminate\Support\Carbon::setTestNow('2026-07-15 16:00:00');
+
+        // It must STILL be on the "to send" list — a late job must not silently
+        // drop off the moment its pickup time ticks past.
+        $this->assertTrue($onList()->contains($ref), 'Unsent reminder should stay on the list after pickup passes.');
+
+        // Marking it sent is the ONLY thing that removes it from the list.
+        $reminder->update(['status' => 'sent']);
+        $this->assertFalse($onList()->contains($ref), 'A sent reminder should leave the list.');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_allocating_a_driver_sends_the_driver_details(): void
     {
         $booking = $this->makeBooking();

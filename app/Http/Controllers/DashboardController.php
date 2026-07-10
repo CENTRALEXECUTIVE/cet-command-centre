@@ -118,9 +118,15 @@ class DashboardController extends Controller
             ->where('status', 'queued')
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '<=', now()->addDays(2)) // due now + next 2 days
+            // A queued reminder stays on the list until it's actually SENT (or the
+            // job is cancelled/no-show/complete) — it must NOT quietly drop off the
+            // moment the pickup time ticks past. That's what made late-added jobs
+            // "miss" their reminder: created due-now, then hidden before anyone
+            // sent it. Keep recently-passed pickups visible (last 12h) so a
+            // last-minute booking is never lost, without resurfacing ancient ones.
             ->whereHas('booking', fn ($q) => $q->whereNotIn('status', [
                 BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
-            ])->where('pickup_at', '>=', now()))
+            ])->where('pickup_at', '>=', now()->subHours(12)))
             ->with(['booking.customer'])
             ->orderBy('scheduled_for')
             ->get()
@@ -184,7 +190,7 @@ class DashboardController extends Controller
             ->whereNotIn('status', [
                 BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
             ])
-            ->whereBetween('pickup_at', [now(), now()->addDays(3)])
+            ->whereBetween('pickup_at', [now()->subHours(12), now()->addDays(3)])
             ->whereHas('customer', fn ($q) => $q->whereNotNull('phone'))
             ->whereDoesntHave('messages', fn ($q) => $q->whereIn('type', ['reminder_24h', 'reminder_2h']))
             ->with('customer')
