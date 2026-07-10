@@ -499,3 +499,41 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.1
 .quote-hero .q-price { font-size: 56px; font-weight: 900; letter-spacing: -1px; color: var(--gold);
     text-shadow: 0 6px 30px rgba(251,186,42,.25); line-height: 1.1; margin: 6px 0 2px; }
 .quote-hero .q-sub { color: #cfd3d8; font-size: 14px; }
+
+/* ═══ Compact page hero (forms, single screens) ════════════════════════════ */
+.form-hero { position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 20px;
+    padding: 20px 24px; color: #fff;
+    background: linear-gradient(120deg, #0f1013 0%, #17181c 62%, #1c1a12 100%);
+    border: 1px solid rgba(251,186,42,.22); box-shadow: 0 12px 38px rgba(0,0,0,.26); }
+.form-hero-glow { position: absolute; top: -70px; right: -30px; width: 240px; height: 240px;
+    background: radial-gradient(closest-side, rgba(251,186,42,.30), transparent); filter: blur(6px); }
+.form-hero .fh-eyebrow { position: relative; color: var(--gold); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.4px; }
+.form-hero .fh-title { position: relative; font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 4px 0 2px; }
+.form-hero .fh-sub { position: relative; color: #9aa0a6; font-size: 13px; }
+.form-hero .fh-actions { position: relative; margin-top: 4px; }
+
+/* ═══ Live fleet map ═══════════════════════════════════════════════════════ */
+.fleet-hero { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.fleet-live { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+    background: rgba(251,186,42,.12); border: 1px solid rgba(251,186,42,.32); color: #f5d98a;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; }
+.fleet-live .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--gold);
+    box-shadow: 0 0 0 0 rgba(251,186,42,.7); animation: fleetPulse 1.8s infinite; }
+@keyframes fleetPulse { 0% { box-shadow: 0 0 0 0 rgba(251,186,42,.6); } 70% { box-shadow: 0 0 0 10px rgba(251,186,42,0); } 100% { box-shadow: 0 0 0 0 rgba(251,186,42,0); } }
+#fleet-map { height: 460px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+    margin-bottom: 16px; background: #e9eaec; box-shadow: 0 8px 26px rgba(0,0,0,.08); }
+.fleet-row { display: flex; gap: 12px; align-items: center; padding: 12px 4px;
+    border-bottom: 1px solid rgba(128,128,128,.12); }
+.fleet-row:last-child { border-bottom: 0; }
+.fleet-row.stale { background: rgba(179,32,32,.045); }
+.fleet-avatar { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(150deg, #17181c, #26241a); color: var(--gold); font-weight: 800; font-size: 13px;
+    letter-spacing: .5px; border: 1px solid rgba(251,186,42,.28); }
+.fleet-row.stale .fleet-avatar { background: #2a2426; color: #e6a0a0; border-color: rgba(179,32,32,.4); }
+.fleet-main { flex: 1; min-width: 0; }
+.fleet-main .who { font-weight: 700; font-size: 14px; }
+.fleet-main .route { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fleet-main .ping { font-size: 12px; margin-top: 2px; }
+.fleet-main .ping.ok { color: var(--muted); }
+.fleet-main .ping.stale { color: #b32020; font-weight: 600; }

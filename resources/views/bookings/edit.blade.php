@@ -2,9 +2,12 @@
 @section('title', 'Edit Booking ' . $booking->reference)
 
 @section('content')
-    <p class="page-sub"><a href="{{ route('bookings.show', $booking) }}">← Booking {{ $booking->reference }}</a></p>
-    <h1 class="page-title">Edit Booking <span class="mono">{{ $booking->reference }}</span></h1>
-    <p class="page-sub">Amend the journey, passenger or price. The driver and rotation stay as they are.</p>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow"><a href="{{ route('bookings.show', $booking) }}" style="color:var(--gold)">← Booking {{ $booking->reference }}</a></div>
+        <div class="fh-title">Edit Booking</div>
+        <div class="fh-sub">Amend the journey, passenger or price. The driver and rotation stay as they are.</div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error">

@@ -2,12 +2,14 @@
 @section('title', 'Live Map')
 
 @section('content')
-    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-        <div>
-            <h1 class="page-title" style="margin-bottom:2px">Live Map</h1>
-            <p class="page-sub">Drivers currently on a job, from their latest GPS ping. Refreshes every 30s.</p>
+    <div class="form-hero fleet-hero">
+        <div class="form-hero-glow"></div>
+        <div style="position:relative">
+            <div class="fh-eyebrow">Fleet · live positions</div>
+            <div class="fh-title">Live Map</div>
+            <div class="fh-sub">Drivers currently on a job, from their latest GPS ping. Refreshes every 30s.</div>
         </div>
-        <span id="fleet-count" class="muted" style="font-size:13px"></span>
+        <div class="fleet-live"><span class="pulse"></span><span id="fleet-count">0 on the road</span></div>
     </div>
 
     @unless($mapsKey)
@@ -17,7 +19,7 @@
     @endunless
 
     @if($mapsKey)
-        <div id="fleet-map" style="height:460px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;background:#eee"></div>
+        <div id="fleet-map"></div>
     @endif
 
     <div class="card">
@@ -51,20 +53,24 @@
         function renderList(drivers) {
             var list = document.getElementById('fleet-list');
             var count = document.getElementById('fleet-count');
-            count.textContent = drivers.length + ' driver' + (drivers.length === 1 ? '' : 's') + ' on the road';
+            count.textContent = drivers.length + ' on the road';
             if (!drivers.length) { list.innerHTML = '<p class="muted mb-0">No drivers on a job right now.</p>'; return; }
             list.innerHTML = drivers.map(function (d) {
                 // Stale GPS (no ping for a while) is highlighted so the office
                 // knows the position shown may be out of date.
-                var gps = d.stale
-                    ? '<span style="color:#b32020;font-size:12px;font-weight:600">⚠ GPS stale · ' + esc(d.ago || '') + '</span>'
-                    : '<span class="muted" style="font-size:12px">📍 ' + esc(d.ago || 'just now') + '</span>';
-                return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(128,128,128,.12)'
-                    + (d.stale ? ';background:rgba(179,32,32,.05)' : '') + '">'
-                    + '<span style="font-weight:700;min-width:70px">' + esc(d.driver) + '</span>'
-                    + '<span style="flex:1">' + esc(d.customer || '—') + ' <span class="muted">→ ' + esc(d.destination || '') + '</span><br>' + gps + '</span>'
+                var ping = d.stale
+                    ? '<div class="ping stale">⚠ GPS stale · ' + esc(d.ago || '') + '</div>'
+                    : '<div class="ping ok">📍 ' + esc(d.ago || 'just now') + '</div>';
+                var initials = String(d.driver || '?').substring(0, 3).toUpperCase();
+                return '<div class="fleet-row' + (d.stale ? ' stale' : '') + '">'
+                    + '<div class="fleet-avatar">' + esc(initials) + '</div>'
+                    + '<div class="fleet-main">'
+                    +   '<div class="who">' + esc(d.driver) + '</div>'
+                    +   '<div class="route">' + esc(d.customer || '—') + ' → ' + esc(d.destination || '') + '</div>'
+                    +   ping
+                    + '</div>'
                     + '<span class="badge badge-' + slug(d.status) + '">' + esc(d.status) + '</span>'
-                    + '<a href="' + d.url + '" style="font-size:13px;margin-left:8px">Open →</a>'
+                    + '<a href="' + d.url + '" style="font-size:13px;margin-left:6px">Open →</a>'
                     + '</div>';
             }).join('');
         }

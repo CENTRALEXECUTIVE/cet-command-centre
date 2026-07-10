@@ -2,8 +2,12 @@
 @section('title', 'New Booking')
 
 @section('content')
-    <h1 class="page-title">Smart Booking</h1>
-    <p class="page-sub">Quote to confirmed booking in under 60 seconds.</p>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow">Sales · new job</div>
+        <div class="fh-title">Smart Booking</div>
+        <div class="fh-sub">Quote to confirmed booking in under 60 seconds.</div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error">
