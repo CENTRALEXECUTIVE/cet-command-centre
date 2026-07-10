@@ -11,8 +11,10 @@
 </head>
 <body>
     <div class="auth-wrap">
+        <div class="auth-aura"></div>
         <div class="auth-card">
             <div class="auth-brand">
+                <div class="auth-logo"><span class="dot"></span></div>
                 <div class="mark">CENTRAL <span class="gold">EXECUTIVE</span></div>
                 <div class="sub">Command Centre &middot; Secure sign in</div>
             </div>
