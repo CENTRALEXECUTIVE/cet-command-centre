@@ -2,19 +2,21 @@
 @section('title', 'Users')
 
 @section('content')
-    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-        <div>
-            <h1 class="page-title" style="margin-bottom:2px">Users</h1>
-            <p class="page-sub">Logins for the office, drivers and corporate clients.</p>
+    <div class="list-head" style="align-items:center">
+        <div class="form-hero" style="flex:1;margin-bottom:0">
+            <div class="form-hero-glow"></div>
+            <div class="fh-eyebrow">Fleet &amp; admin · access</div>
+            <div class="fh-title">Users</div>
+            <div class="fh-sub">Logins for the office, drivers and corporate clients.</div>
         </div>
-        <a href="{{ route('users.create') }}" class="btn btn-primary" style="padding:9px 16px">+ Add user</a>
+        <a href="{{ route('users.create') }}" class="btn btn-primary" style="padding:10px 18px">+ Add user</a>
     </div>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
     <div class="card">
         <div class="table-scroll">
-            <table>
+            <table class="table-modern">
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @foreach($users as $u)

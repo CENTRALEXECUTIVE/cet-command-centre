@@ -2,13 +2,17 @@
 @section('title', 'Fleet & Compliance')
 
 @section('content')
-    <h1 class="page-title">Fleet &amp; Compliance</h1>
-    <p class="page-sub">MOT, insurance, PHV licences, compliance tests, PHV badges and DBS — with automated WhatsApp reminders.</p>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow">Fleet &amp; admin · compliance</div>
+        <div class="fh-title">Fleet &amp; Compliance</div>
+        <div class="fh-sub">MOT, insurance, PHV licences, compliance tests, PHV badges and DBS — with automated WhatsApp reminders.</div>
+    </div>
 
-    <div class="grid grid-3" style="margin-bottom:24px">
-        <div class="stat"><div class="n" style="color:#b32020">{{ $expired->count() }}</div><div class="l">Expired</div></div>
-        <div class="stat"><div class="n" style="color:#b25e00">{{ $dueSoon->count() }}</div><div class="l">Due Soon</div></div>
-        <div class="stat"><div class="n" style="color:#1f7a44">{{ $valid->count() }}</div><div class="l">Valid</div></div>
+    <div class="deck" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px">
+        <div class="kpi warn" style="border-color:rgba(179,32,32,.4)"><div class="kpi-ico">⛔</div><div class="kpi-n" style="color:#b32020">{{ $expired->count() }}</div><div class="kpi-l">Expired</div></div>
+        <div class="kpi warn"><div class="kpi-ico">⏳</div><div class="kpi-n">{{ $dueSoon->count() }}</div><div class="kpi-l">Due soon</div></div>
+        <div class="kpi ok"><div class="kpi-ico">✅</div><div class="kpi-n">{{ $valid->count() }}</div><div class="kpi-l">Valid</div></div>
     </div>
 
     @foreach(['Expired' => $expired, 'Due Soon' => $dueSoon, 'Valid' => $valid] as $heading => $group)
@@ -17,7 +21,8 @@
             @if($group->isEmpty())
                 <p class="muted mb-0">Nothing here.</p>
             @else
-                <table>
+                <div class="table-scroll">
+                <table class="table-modern">
                     <thead><tr><th>Subject</th><th>Type</th><th>Item</th><th>Due</th><th>Status</th></tr></thead>
                     <tbody>
                         @foreach($group as $item)
@@ -35,6 +40,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             @endif
         </div>
     @endforeach

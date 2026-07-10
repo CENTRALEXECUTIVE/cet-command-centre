@@ -2,8 +2,12 @@
 @section('title', $user->exists ? 'Edit user' : 'Add user')
 
 @section('content')
-    <p class="page-sub"><a href="{{ route('users.index') }}">← Users</a></p>
-    <h1 class="page-title">{{ $user->exists ? 'Edit '.$user->name : 'Add user' }}</h1>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow"><a href="{{ route('users.index') }}" style="color:var(--gold)">← Users</a></div>
+        <div class="fh-title">{{ $user->exists ? 'Edit '.$user->name : 'Add user' }}</div>
+        <div class="fh-sub">Logins for the office, drivers and corporate clients.</div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error"><ul style="margin:0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
