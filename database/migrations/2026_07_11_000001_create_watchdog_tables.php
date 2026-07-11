@@ -17,34 +17,44 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('job_nudges', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('booking_id')->constrained()->cascadeOnDelete();
-            $table->string('nudge_type', 40);
-            $table->string('recipient_type', 12)->default('driver'); // driver | admin
-            $table->foreignId('recipient_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('sent_at');
-            $table->string('channel', 12)->default('push');
-            $table->timestamp('created_at')->nullable();
+        // NOTE: plain indexed columns, deliberately NO database-level foreign
+        // keys — the production bookings/users tables predate this schema
+        // (different id column definitions), and FK creation fails there with
+        // errno 150. Row hygiene is handled by the pruning command instead.
+        // hasTable guards make this rerunnable after a partial failure.
+        if (! Schema::hasTable('job_nudges')) {
+            Schema::create('job_nudges', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('booking_id');
+                $table->string('nudge_type', 40);
+                $table->string('recipient_type', 12)->default('driver'); // driver | admin
+                $table->unsignedBigInteger('recipient_id')->nullable();
+                $table->timestamp('sent_at');
+                $table->string('channel', 12)->default('push');
+                $table->timestamp('created_at')->nullable();
 
-            $table->index(['booking_id', 'nudge_type', 'recipient_type']);
-        });
+                $table->index(['booking_id', 'nudge_type', 'recipient_type']);
+            });
+        }
 
-        Schema::create('watchdog_events', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('booking_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('driver_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('event_type', 40);
-            $table->string('severity', 12)->default('info'); // info | warning | critical
-            $table->string('title');
-            $table->text('body')->nullable();
-            $table->timestamp('occurred_at');
-            $table->timestamp('acknowledged_at')->nullable();
-            $table->timestamp('created_at')->nullable();
+        if (! Schema::hasTable('watchdog_events')) {
+            Schema::create('watchdog_events', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('booking_id')->nullable();
+                $table->unsignedBigInteger('driver_id')->nullable();
+                $table->string('event_type', 40);
+                $table->string('severity', 12)->default('info'); // info | warning | critical
+                $table->string('title');
+                $table->text('body')->nullable();
+                $table->timestamp('occurred_at');
+                $table->timestamp('acknowledged_at')->nullable();
+                $table->timestamp('created_at')->nullable();
 
-            $table->index(['occurred_at']);
-            $table->index(['severity', 'acknowledged_at']);
-        });
+                $table->index(['booking_id']);
+                $table->index(['occurred_at']);
+                $table->index(['severity', 'acknowledged_at']);
+            });
+        }
     }
 
     public function down(): void
