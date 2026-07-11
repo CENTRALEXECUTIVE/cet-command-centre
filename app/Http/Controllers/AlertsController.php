@@ -15,6 +15,17 @@ class AlertsController extends Controller
 {
     public function feed(Request $request): JsonResponse
     {
+        // Crash-safe before the migration has run: an empty feed beats a 500
+        // that leaves the dashboard panel stuck on "Loading…".
+        try {
+            return $this->buildFeed();
+        } catch (\Throwable) {
+            return response()->json(['events' => [], 'critical' => 0]);
+        }
+    }
+
+    private function buildFeed(): JsonResponse
+    {
         $events = WatchdogEvent::with('booking')
             ->orderByDesc('occurred_at')
             ->orderByDesc('id')

@@ -84,7 +84,7 @@
         </div>
         <div id="alerts-list" style="margin-top:10px"><p class="muted mb-0" style="font-size:13px">Loading…</p></div>
     </div>
-    <script src="{{ asset('js/cet-alerts.js') }}?v=1" defer></script>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=2" defer></script>
 
     @if(!empty($reviewReminder))
         <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">

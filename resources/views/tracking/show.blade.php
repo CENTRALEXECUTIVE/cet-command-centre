@@ -6,13 +6,13 @@
     <title>Track your car · Central Executive Transfers</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('cet.asset_version') }}">
     {{-- Leaflet + OpenStreetMap tiles — no API key required --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
-    <header class="topbar">
+    <header class="track-topbar">
         <span class="brand"><span class="dot"></span>CENTRAL <span class="gold">EXECUTIVE</span> TRANSFERS</span>
     </header>
 

@@ -89,9 +89,14 @@
     function poll() {
         if (document.hidden) return;
         fetch(panel.dataset.feed, { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.json(); })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(render)
-            .catch(function () {});
+            .catch(function () {
+                // Never sit on "Loading…" forever — say what's happening.
+                if (seen === null) {
+                    list.innerHTML = '<p class="muted mb-0" style="font-size:13px">Can\'t reach the alerts feed right now — retrying every 30s.</p>';
+                }
+            });
     }
 
     poll();

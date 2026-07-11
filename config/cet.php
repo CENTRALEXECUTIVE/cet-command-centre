@@ -37,6 +37,10 @@ return [
     // AI features use this model exclusively.
     'ai_model' => env('CET_AI_MODEL', 'claude-opus-4-8'),
 
+    // Bump on every deploy that changes CSS/JS — cache-busts the stylesheet
+    // link so phones can never render new pages with old styles.
+    'asset_version' => '14',
+
     // Google Ads budget alert thresholds.
     'ads_alert_thresholds' => [
         'conversions' => 40,

@@ -53,8 +53,8 @@ body {
 a { color: var(--gold-dark); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ----- Top bar ----- */
-.topbar {
+/* ----- Public tracking page header (dark brand bar) ----- */
+.track-topbar {
     background: var(--black);
     color: var(--white);
     padding: 0 24px;
