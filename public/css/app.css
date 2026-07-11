@@ -646,3 +646,79 @@ a.tl-item:hover { text-decoration: none; border-color: rgba(251,186,42,.6); box-
     .job-card.flash { animation: none; }
     .job-card { transition: none; }
 }
+
+/* ═══ Dark mode (toggle in the topbar; light is the default) ═══════════════
+   One switch: <html data-theme="dark">. Every text colour is explicitly
+   lightened so NOTHING is ever dark-on-dark. The driver app keeps its own
+   built-in dark styling either way. */
+html[data-theme="dark"] body { background: #0b0f1a; color: #e8ecf4; }
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .eto-section,
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .kpi,
+html[data-theme="dark"] .job-tile,
+html[data-theme="dark"] .filters a,
+html[data-theme="dark"] .tl-item {
+    background: #151b2c; border-color: rgba(255,255,255,.10); color: #e8ecf4;
+    box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+html[data-theme="dark"] .card h2, html[data-theme="dark"] .stat .n,
+html[data-theme="dark"] .kpi-n, html[data-theme="dark"] .page-title,
+html[data-theme="dark"] .timeline-rail h2, html[data-theme="dark"] .list-head h1 { color: #f2f5fa; }
+html[data-theme="dark"] .muted, html[data-theme="dark"] .hint,
+html[data-theme="dark"] .page-sub, html[data-theme="dark"] .stat .l,
+html[data-theme="dark"] .kpi-l, html[data-theme="dark"] .tl-main .sub,
+html[data-theme="dark"] .site-footer, html[data-theme="dark"] .tl-count { color: #9aa3b2; }
+html[data-theme="dark"] label { color: #c9cfda; }
+
+/* Tinted worklist panels (inline rgba backgrounds) sit over dark now — the
+   light text above makes them readable; strengthen their borders a touch. */
+html[data-theme="dark"] .card[style*="background:rgba"] { color: #e8ecf4; }
+
+html[data-theme="dark"] table, html[data-theme="dark"] td { color: #dbe1ea; border-color: rgba(255,255,255,.08); }
+html[data-theme="dark"] th { color: #9aa3b2; border-bottom-color: rgba(255,255,255,.14); }
+html[data-theme="dark"] .table-modern thead th { background: #111726; }
+html[data-theme="dark"] .table-modern tbody td { border-bottom-color: rgba(255,255,255,.06); }
+html[data-theme="dark"] .table-modern tbody tr:hover { background: rgba(251,186,42,.08); }
+
+html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea {
+    background: #0f1420; border-color: rgba(255,255,255,.14); color: #e8ecf4;
+}
+html[data-theme="dark"] input:focus, html[data-theme="dark"] select:focus, html[data-theme="dark"] textarea:focus {
+    background: #121828; border-color: var(--gold);
+}
+html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #6d7686; }
+
+html[data-theme="dark"] .btn-ghost { background: transparent; border-color: rgba(255,255,255,.2); color: #dbe1ea; }
+html[data-theme="dark"] .btn-light { background: #232b3f; color: #dbe1ea; }
+html[data-theme="dark"] .btn-dark { background: var(--gold); color: #111; }
+
+html[data-theme="dark"] .topbar { background: #0e1320; border-bottom-color: rgba(255,255,255,.08); }
+html[data-theme="dark"] .topbar-title { color: #e8ecf4; }
+html[data-theme="dark"] .topbar-user .who { color: #9aa3b2; }
+html[data-theme="dark"] .nav-burger { color: #e8ecf4; }
+
+html[data-theme="dark"] .board-col { background: #101626; border-color: rgba(255,255,255,.08); }
+html[data-theme="dark"] .board-col h3 { background: #151b2c; color: #dbe1ea; }
+/* Dispatch job cards stay light in dark mode on purpose — maximum contrast
+   for the info the operator scans fastest. */
+
+html[data-theme="dark"] .eto-section > .head { background: #111726; color: #e8ecf4; border-bottom: 1px solid rgba(255,255,255,.08); }
+html[data-theme="dark"] fieldset { border-color: rgba(255,255,255,.12); }
+html[data-theme="dark"] .alert-success { background: rgba(31,157,85,.16); color: #7fe0a7; border-color: rgba(31,157,85,.4); }
+html[data-theme="dark"] .alert-error { background: rgba(214,69,69,.14); color: #ff9d9d; border-color: rgba(214,69,69,.4); }
+html[data-theme="dark"] .kpi.warn { background: linear-gradient(180deg, #241d0e, #151b2c); }
+html[data-theme="dark"] .kpi.warn .kpi-n { color: #ffd479; }
+html[data-theme="dark"] .kpi.ok { background: linear-gradient(180deg, #0e2418, #151b2c); }
+html[data-theme="dark"] .kpi.ok .kpi-n { color: #6fdd9c; }
+html[data-theme="dark"] a.kpi:hover { box-shadow: 0 12px 28px rgba(0,0,0,.5); }
+html[data-theme="dark"] .fleet-row.stale { background: rgba(214,69,69,.10); }
+html[data-theme="dark"] .alert-row.critical-live { background: rgba(214,69,69,.12); }
+html[data-theme="dark"] .ack-btn { background: transparent; }
+
+/* Theme toggle button (topbar) */
+.theme-toggle { border: 1px solid rgba(128,128,128,.35); background: transparent; color: inherit;
+    font: inherit; font-size: 15px; line-height: 1; padding: 7px 10px; border-radius: 999px;
+    cursor: pointer; flex: none; }
+.theme-toggle:hover { border-color: var(--gold); }

@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    {{-- Theme boots before first paint so there's no light/dark flash. --}}
+    <script>try { if (localStorage.getItem('cet-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) {}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'CET Command Centre')</title>
@@ -126,6 +128,7 @@
                 </form>
             @endif
             <div class="topbar-user">
+                <button type="button" class="theme-toggle" id="theme-toggle" title="Switch light / dark mode">🌙</button>
                 <span class="who">{{ $u->name }} <span class="role">{{ $u->role->label() }}</span></span>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
@@ -154,5 +157,20 @@
 </div>
 
 @include('partials.cookie-consent')
+<script>
+    // Light/dark toggle — remembered per device.
+    (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        function paint() { btn.textContent = document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'; }
+        btn.addEventListener('click', function () {
+            var dark = document.documentElement.dataset.theme === 'dark';
+            if (dark) { delete document.documentElement.dataset.theme; } else { document.documentElement.dataset.theme = 'dark'; }
+            try { localStorage.setItem('cet-theme', dark ? 'light' : 'dark'); } catch (e) {}
+            paint();
+        });
+        paint();
+    })();
+</script>
 </body>
 </html>
