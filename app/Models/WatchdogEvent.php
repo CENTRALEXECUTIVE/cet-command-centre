@@ -55,6 +55,20 @@ class WatchdogEvent extends Model
         return $q->where('severity', 'critical')->whereNull('acknowledged_at');
     }
 
+    /**
+     * Unacknowledged-critical count for the nav badge — shown on EVERY admin
+     * page, so it must survive the table not existing yet (deploys where the
+     * operator hasn't run the migration).
+     */
+    public static function criticalCount(): int
+    {
+        try {
+            return self::unacknowledgedCritical()->count();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);

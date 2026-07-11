@@ -26,6 +26,7 @@ class User extends Authenticatable
         'phone',
         'is_active',
         'last_login_at',
+        'notification_preferences',
     ];
 
     protected $hidden = [
@@ -42,7 +43,45 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
             'role' => UserRole::class,
+            'notification_preferences' => 'array',
         ];
+    }
+
+    // ----- Admin alert preferences ----------------------------------------
+
+    /** The admin-alert event types a preference toggle exists for. */
+    public const ALERT_TYPES = [
+        'unacted' => 'Driver ignoring nudges',
+        'unallocated' => 'Job unallocated near pickup',
+        'gps_lost' => 'GPS lost mid-job',
+        'no_show_cancel' => 'No-show / cancellation',
+        'calendar_import' => 'New booking from the calendar',
+    ];
+
+    /** Preference defaults: every alert on, critical-only off, chime off. */
+    public function alertPreferences(): array
+    {
+        return array_merge(
+            array_fill_keys(array_keys(self::ALERT_TYPES), true),
+            ['critical_only' => false, 'chime' => false],
+            $this->notification_preferences ?? [],
+        );
+    }
+
+    /** Should this admin receive a push for this event type at this severity? */
+    public function wantsAlert(string $type, string $severity = 'info'): bool
+    {
+        if (! $this->is_active || ! $this->isAdmin()) {
+            return false;
+        }
+
+        $prefs = $this->alertPreferences();
+
+        if (($prefs['critical_only'] ?? false) && $severity !== 'critical') {
+            return false;
+        }
+
+        return (bool) ($prefs[$type] ?? true);
     }
 
     // ----- Relationships -------------------------------------------------

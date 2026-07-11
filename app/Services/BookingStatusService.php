@@ -32,6 +32,7 @@ class BookingStatusService
         private readonly BookingNotifier $notifier,
         private readonly WaitingListService $waitingList,
         private readonly \App\Services\Push\WebPushService $push,
+        private readonly \App\Services\Watchdog\AdminAlerts $adminAlerts,
     ) {}
 
     public function canTransition(BookingStatus $from, BookingStatus $to): bool
@@ -165,13 +166,15 @@ class BookingStatusService
 
             // Control-tower log: every transition is a feed row; no-show and
             // cancel are called out by name so the office spots them.
+            $flagged = in_array($to, [BookingStatus::NoShow, BookingStatus::Cancelled], true);
             $who = $booking->driver?->name ?? 'unassigned';
-            \App\Models\WatchdogEvent::log(
-                in_array($to, [BookingStatus::NoShow, BookingStatus::Cancelled], true) ? $to->value : 'status_changed',
-                $booking->pickup_at->format('H:i').' '.$booking->displayName().' → '.$to->label().' · '.$who,
-                'info',
-                $booking,
-            );
+            $title = $booking->pickup_at->format('H:i').' '.$booking->displayName().' → '.$to->label().' · '.$who;
+            \App\Models\WatchdogEvent::log($flagged ? $to->value : 'status_changed', $title, 'info', $booking);
+
+            // No-show / cancel also buzz the office phones immediately.
+            if ($flagged) {
+                $this->adminAlerts->notify('no_show_cancel', $to->label().' — '.$booking->pickup_at->format('H:i'), $title, 'info', $booking);
+            }
 
             return $booking;
         });

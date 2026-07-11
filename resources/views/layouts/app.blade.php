@@ -99,6 +99,9 @@
                     <a href="{{ route('audit.index') }}" class="{{ request()->routeIs('audit.*') ? 'active' : '' }}">ETO audit</a>
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">Users</a>
                     <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">Settings</a>
+                    @if($u->isSuperAdmin())
+                        <a href="{{ route('notifications.index') }}" class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}">Notifications</a>
+                    @endif
                     <a href="{{ route('gdpr.erasure') }}" class="{{ request()->routeIs('gdpr.*') ? 'active' : '' }}">GDPR</a>
                 </details>
             @endif
@@ -110,6 +113,11 @@
             <label for="nav-toggle" class="nav-burger" aria-label="Menu">&#9776;</label>
             <div class="topbar-title">@yield('title', 'CET Command Centre')</div>
             @if($u->isAdmin())
+                @php $unackCritical = \App\Models\WatchdogEvent::criticalCount(); @endphp
+                <a href="{{ route('dashboard') }}" class="alert-bell" title="Unacknowledged critical alerts">
+                    🛰<span class="alert-badge" data-alert-badge
+                        style="{{ $unackCritical > 0 ? '' : 'display:none' }}">{{ $unackCritical ?: '' }}</span>
+                </a>
                 <form method="GET" action="{{ route('bookings.index') }}" role="search"
                       style="flex:1;max-width:340px;margin:0 12px;min-width:110px">
                     <input type="search" name="q" value="{{ request('q') }}" placeholder="🔍 Search bookings…"

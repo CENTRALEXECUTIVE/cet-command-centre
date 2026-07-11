@@ -134,6 +134,9 @@ class CalendarRefresh extends Command
                 \App\Models\WatchdogEvent::log('calendar_import',
                     'New booking from the calendar: '.$booking->pickup_at->format('D d M H:i').' '.$booking->displayName(),
                     'info', $booking);
+                app(\App\Services\Watchdog\AdminAlerts::class)->notify('calendar_import',
+                    '📅 New calendar booking',
+                    $booking->pickup_at->format('D d M H:i').' '.$booking->displayName(), 'info', $booking);
                 $imported++;
                 $this->line('  + '.$booking->reference.' ← '.($parsed['reference'] ?: $parsed['customer_name'])
                     .' ('.$parsed['pickup_at']->format('D d M H:i').')');

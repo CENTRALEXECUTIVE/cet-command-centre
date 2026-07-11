@@ -21,6 +21,33 @@
         </div>
     </div>
 
+    {{-- Push opt-in for the office — watchdog escalations (unallocated jobs,
+         drivers ignoring nudges, GPS loss) buzz the admin's phone too. --}}
+    <div id="push-banner" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
+        <strong>🔔 Turn on office alerts</strong>
+        <p class="muted" style="margin:4px 0 10px;font-size:13px">Get buzzed when a job is unallocated near pickup, a driver isn't responding, or GPS drops mid-job — even with the app closed.</p>
+        <button type="button" id="push-enable" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Enable notifications</button>
+        <span id="push-state" class="muted" style="font-size:13px;margin-left:8px"></span>
+    </div>
+    <div id="push-cfg"
+         data-key-url="{{ route('driver.push.key') }}"
+         data-sub-url="{{ route('driver.push.subscribe') }}"
+         data-unsub-url="{{ route('driver.push.unsubscribe') }}" hidden></div>
+    <script src="{{ asset('js/cet-push.js') }}" defer></script>
+
+    {{-- Control-tower log: live watchdog events, critical rows glow until
+         acknowledged. Polls every 30s; chime per-admin preference. --}}
+    <div class="card alerts-panel" id="alerts-panel"
+         data-feed="{{ route('alerts.feed') }}"
+         data-chime="{{ auth()->user()->alertPreferences()['chime'] ? '1' : '0' }}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <h2 style="margin:0">🛰 Live alerts</h2>
+            <span class="muted" style="font-size:12px" id="alerts-stamp">Control-tower log — updates every 30s</span>
+        </div>
+        <div id="alerts-list" style="margin-top:10px"><p class="muted mb-0" style="font-size:13px">Loading…</p></div>
+    </div>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=1" defer></script>
+
     @if(!empty($reviewReminder))
         <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
             <strong>🗓️ Monthly review due (4th–4th).</strong>

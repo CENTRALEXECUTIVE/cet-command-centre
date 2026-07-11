@@ -176,6 +176,13 @@ Route::middleware('auth')->group(function () {
         Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
 
+        // Control-tower alerts feed + per-admin notification preferences.
+        Route::get('alerts/feed', [\App\Http\Controllers\AlertsController::class, 'feed'])->name('alerts.feed');
+        Route::post('alerts/{event}/ack', [\App\Http\Controllers\AlertsController::class, 'acknowledge'])
+            ->middleware('throttle:60,1')->name('alerts.ack');
+        Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
+        Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
+
         // In-app CSV imports (Google Ads report, ETO bookings export).
         Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');
         Route::post('imports/ads', [\App\Http\Controllers\Admin\ImportController::class, 'ads'])

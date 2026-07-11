@@ -49,7 +49,23 @@ class StatusWatchdog
 
     public const MAX_SENDS = 2;
 
-    public function __construct(private readonly WebPushService $push) {}
+    /** A driver nudge is "unacted" this long after its second send. */
+    public const UNACTED_AFTER_MINUTES = 5;
+
+    /** Driver-nudge types → the statuses they nag about + the action wording. */
+    private const UNACTED_MAP = [
+        'set_off' => [[BookingStatus::Allocated, BookingStatus::Accepted], 'set off'],
+        'set_off_urgent' => [[BookingStatus::Allocated, BookingStatus::Accepted], 'set off'],
+        'arrived_detect' => [[BookingStatus::EnRoute], 'tapped Arrived'],
+        'pob_detect' => [[BookingStatus::Arrived], 'tapped POB'],
+        'complete_detect' => [[BookingStatus::Collected], 'completed'],
+        'complete_fallback' => [[BookingStatus::Collected], 'completed'],
+    ];
+
+    public function __construct(
+        private readonly WebPushService $push,
+        private readonly AdminAlerts $admins,
+    ) {}
 
     /**
      * Evaluate every live job in the window. Returns the number of nudges sent
@@ -62,9 +78,8 @@ class StatusWatchdog
         $jobs = Booking::query()
             ->whereNotIn('status', [
                 BookingStatus::Complete->value, BookingStatus::Cancelled->value,
-                BookingStatus::NoShow->value, BookingStatus::Pending->value,
+                BookingStatus::NoShow->value,
             ])
-            ->whereNotNull('driver_id')
             // Today's jobs, plus late-running jobs from yesterday evening and
             // early jobs just past midnight (BST-safe: everything compares in
             // the app clock, never raw UTC).
@@ -74,7 +89,10 @@ class StatusWatchdog
             ->get();
 
         foreach ($jobs as $booking) {
-            $sent += $this->evaluate($booking);
+            if ($booking->driver_id) {
+                $sent += $this->evaluate($booking);
+            }
+            $sent += $this->adminPass($booking);
         }
 
         return $sent;
@@ -141,6 +159,70 @@ class StatusWatchdog
                 '🏁 Job still open',
                 'Is the '.$booking->pickup_at->format('H:i').' job complete? Update the status',
                 severity: 'warning');
+        }
+
+        return $sent;
+    }
+
+    /**
+     * The admin escalation tier — pushes to the office when a job needs a
+     * human: nobody allocated close to pickup, a driver ignoring nudges, or
+     * GPS lost mid-job. Cadence/caps live in AdminAlerts (job_nudges rows
+     * with recipient_type 'admin').
+     */
+    public function adminPass(Booking $booking): int
+    {
+        $sent = 0;
+        $time = $booking->pickup_at->format('H:i');
+        $where = $this->shortAddress($booking->pickup_address);
+
+        // Unallocated with pickup ≤ 2h away — critical, every 30 min until
+        // someone takes it.
+        if (($booking->status === BookingStatus::Pending || ! $booking->driver_id)
+            && ! $booking->status->isTerminal()
+            && now()->gte($booking->pickup_at->copy()->subHours(2))) {
+            $sent += (int) $this->admins->send($booking, 'admin_unallocated', 'unallocated',
+                '🔴 Unallocated: '.$time.' '.$where,
+                'Unallocated: '.$time.' pickup at '.$where.' — allocate a driver',
+                severity: 'critical', maxSends: null, repeatMinutes: 30);
+
+            return $sent; // no driver → nothing below applies
+        }
+
+        if (! $booking->driver_id) {
+            return $sent;
+        }
+
+        // Driver nudge sent twice and still no reaction 5 min later.
+        foreach (self::UNACTED_MAP as $type => [$statuses, $action]) {
+            if (! in_array($booking->status, $statuses, true)) {
+                continue;
+            }
+            $last = JobNudge::where('booking_id', $booking->id)
+                ->where('nudge_type', $type)->where('recipient_type', 'driver')
+                ->orderByDesc('sent_at')->get();
+            if ($last->count() < self::MAX_SENDS
+                || $last->first()->sent_at->gt(now()->subMinutes(self::UNACTED_AFTER_MINUTES))) {
+                continue;
+            }
+
+            $driver = $booking->driver?->name ?? 'Driver';
+            $sent += (int) $this->admins->send($booking, 'admin_unacted_'.$type, 'unacted',
+                '🔴 '.$driver." hasn't ".$action,
+                $driver." hasn't ".$action.' for the '.$time.' '.$where.' job',
+                severity: 'critical');
+        }
+
+        // GPS lost for more than 5 minutes mid-job — warn the office once.
+        if ($booking->status->isTracked()) {
+            $latest = DriverLocation::where('booking_id', $booking->id)->latest('captured_at')->first();
+            if ($latest && $latest->captured_at->lt(now()->subMinutes(5))) {
+                $driver = $booking->driver?->name ?? 'driver';
+                $sent += (int) $this->admins->send($booking, 'admin_gps_lost', 'gps_lost',
+                    '⚠ Lost GPS for '.$driver,
+                    'Lost GPS for '.$driver.' on the '.$time.' job',
+                    severity: 'warning');
+            }
         }
 
         return $sent;
