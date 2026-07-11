@@ -133,13 +133,21 @@ class Booking extends Model
      */
     public function driverContactNumber(): ?string
     {
-        return $this->proxySessions()->open()->latest('opened_at')->value('masked_number');
+        try {
+            return $this->proxySessions()->open()->latest('opened_at')->value('masked_number');
+        } catch (\Throwable) {
+            return null; // masking tables not migrated yet — never break a page
+        }
     }
 
     /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */
     public function customerMaskedNumber(): ?string
     {
-        return $this->proxySessions()->open()->latest('opened_at')->value('customer_masked_number');
+        try {
+            return $this->proxySessions()->open()->latest('opened_at')->value('customer_masked_number');
+        } catch (\Throwable) {
+            return null; // masking tables not migrated yet — never break a booking
+        }
     }
 
     // ----- Scopes --------------------------------------------------------
