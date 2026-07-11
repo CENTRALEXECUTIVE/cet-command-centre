@@ -163,6 +163,16 @@ class BookingStatusService
 
             $this->fireSideEffects($booking, $to);
 
+            // Control-tower log: every transition is a feed row; no-show and
+            // cancel are called out by name so the office spots them.
+            $who = $booking->driver?->name ?? 'unassigned';
+            \App\Models\WatchdogEvent::log(
+                in_array($to, [BookingStatus::NoShow, BookingStatus::Cancelled], true) ? $to->value : 'status_changed',
+                $booking->pickup_at->format('H:i').' '.$booking->displayName().' → '.$to->label().' · '.$who,
+                'info',
+                $booking,
+            );
+
             return $booking;
         });
     }

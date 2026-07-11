@@ -127,6 +127,17 @@ class Booking extends Model
         return $query->whereIn('status', [
             BookingStatus::Accepted->value,
             BookingStatus::EnRoute->value,
+            BookingStatus::Arrived->value,
+            BookingStatus::Collected->value,
+        ]);
+    }
+
+    /** Jobs in a GPS-tracked state — from the Set off tap until Complete. */
+    public function scopeTracked(Builder $query): Builder
+    {
+        return $query->whereIn('status', [
+            BookingStatus::EnRoute->value,
+            BookingStatus::Arrived->value,
             BookingStatus::Collected->value,
         ]);
     }

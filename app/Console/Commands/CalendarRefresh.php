@@ -131,6 +131,9 @@ class CalendarRefresh extends Command
             try {
                 $booking = $importer->import($parsed);
                 $notifier->ensureReminders($booking->load('customer'));
+                \App\Models\WatchdogEvent::log('calendar_import',
+                    'New booking from the calendar: '.$booking->pickup_at->format('D d M H:i').' '.$booking->displayName(),
+                    'info', $booking);
                 $imported++;
                 $this->line('  + '.$booking->reference.' ← '.($parsed['reference'] ?: $parsed['customer_name'])
                     .' ('.$parsed['pickup_at']->format('D d M H:i').')');

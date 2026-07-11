@@ -66,9 +66,10 @@
         </table>
     </div>
 
-    {{-- GPS pinger config — tracking is active only while the job is active. --}}
+    {{-- GPS pinger config — tracking starts on the SET OFF tap and stops on
+         Complete. Never runs before the driver is actually driving. --}}
     <div id="gps-config"
-         data-active="{{ $booking->status->isActive() ? '1' : '0' }}"
+         data-active="{{ $booking->status->isTracked() ? '1' : '0' }}"
          data-url="{{ route('driver.locations.store') }}"
          data-interval="{{ (int) config('cet.gps_live_seconds', 20) }}" hidden></div>
 
@@ -82,7 +83,7 @@
             <button type="button" id="track-now" class="btn btn-light" style="padding:8px 16px">📍 Send my location now</button>
             <button type="button" id="track-toggle" class="btn btn-ghost" style="padding:8px 16px">⏸ Stop sharing</button>
         </div>
-        <p class="hint" style="margin:8px 0 0">Location is shared only while this job is active — it stops on its own when the job is completed or cancelled.</p>
+        <p class="hint" style="margin:8px 0 0">Location sharing starts when you tap Set off and stops on its own when the job is completed or cancelled.</p>
     </div>
 
     {{-- Message the office on WhatsApp Business. --}}

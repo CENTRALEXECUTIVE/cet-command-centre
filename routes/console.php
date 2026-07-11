@@ -50,3 +50,7 @@ Schedule::command('cet:ingest-enquiries')->everyTenMinutes()->withoutOverlapping
 
 // Safety net: re-confirm every upcoming booking is on the calendar, hourly.
 Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
+
+// Status watchdog: nudge drivers who haven't set off / tapped the next status,
+// detect arrivals/POB/complete from GPS, and feed the dashboard alerts log.
+Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping();
