@@ -170,6 +170,9 @@ class DespatchController extends Controller
             ]);
             $booking->forceFill(['driver_id' => null, 'status' => BookingStatus::Pending->value])->save();
 
+            // Untied → the removed driver loses the masked line immediately.
+            app(\App\Services\Telephony\TwilioProxyService::class)->closeSession($booking, 'driver removed');
+
             return back()->with('status', "{$booking->reference}: driver removed — back in Unallocated.");
         }
 
@@ -195,6 +198,9 @@ class DespatchController extends Controller
                 'created_at' => now(),
             ]);
             $booking->forceFill(['driver_id' => $driver->id])->save();
+
+            // Fresh masked session for the new driver; the old one dies now.
+            app(\App\Services\Telephony\TwilioProxyService::class)->reassignDriver($booking->fresh(['customer']), $driver);
         }
 
         return back()->with('status', "{$booking->reference} reassigned to {$driver->name}.");

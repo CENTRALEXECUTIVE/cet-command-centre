@@ -249,7 +249,8 @@
                     <input id="privacy_consent" type="checkbox" name="privacy_consent" value="1" {{ old('privacy_consent') ? 'checked' : '' }} required>
                     <label for="privacy_consent">
                         I confirm the passenger consents to their data being processed to fulfil this booking,
-                        in line with the CET Privacy Notice (UK GDPR). <span class="req">*</span>
+                        in line with the CET Privacy Notice (UK GDPR), and to being contacted about it via a
+                        masked CET contact number. <span class="req">*</span>
                     </label>
                 </div>
                 @error('privacy_consent') <div class="error">{{ $message }}</div> @enderror

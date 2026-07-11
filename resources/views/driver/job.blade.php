@@ -59,8 +59,14 @@
             <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
             <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
             <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
-            @if($booking->customer?->phone)
-                <tr><th>Contact</th><td><a href="tel:{{ $booking->customer->phone }}">{{ $booking->customer->phone }}</a></td></tr>
+            {{-- NUMBER MASKING: a driver NEVER sees the customer's real number.
+                 Only the masked Twilio Proxy line is shown; without an active
+                 mask there is no number at all — the office relays contact. --}}
+            @php $masked = $booking->driverContactNumber(); @endphp
+            @if($masked)
+                <tr><th>Contact</th><td><a href="tel:{{ $masked }}">{{ $masked }}</a> <span class="muted" style="font-size:12px">· CET line</span></td></tr>
+            @else
+                <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
             @endif
             @if($booking->special_requests)<tr><th>Notes</th><td>{{ $booking->special_requests }}</td></tr>@endif
         </table>

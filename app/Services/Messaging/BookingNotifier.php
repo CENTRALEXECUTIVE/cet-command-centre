@@ -155,11 +155,16 @@ class BookingNotifier
      */
     private function driverBlock(Booking $booking): ?string
     {
+        // Number masking: when a Proxy session is open, the customer gets the
+        // masked CET line instead of the driver's real number. Falls back to
+        // the real number only while masking isn't live.
+        $masked = $booking->customerMaskedNumber();
+
         // Operator-entered details for this specific job (any driver, incl. cover).
         $manual = $booking->meta['driver_details'] ?? null;
         if (is_array($manual) && filled($manual['name'] ?? null)) {
             return $this->formatDriverBlock(
-                $manual['name'], $manual['phone'] ?? null, $manual['reg'] ?? null, $manual['car'] ?? null
+                $manual['name'], $masked ?: ($manual['phone'] ?? null), $manual['reg'] ?? null, $manual['car'] ?? null
             );
         }
 
@@ -172,7 +177,7 @@ class BookingNotifier
         $car = trim(implode(' ', array_filter([$vehicle?->colour, $vehicle?->make, $vehicle?->model])));
 
         return $this->formatDriverBlock(
-            $this->driverDisplayName($driver), $driver->phone, $vehicle?->registration, $car
+            $this->driverDisplayName($driver), $masked ?: $driver->phone, $vehicle?->registration, $car
         );
     }
 

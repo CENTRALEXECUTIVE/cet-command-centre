@@ -53,6 +53,21 @@ class WebhookController extends Controller
         ]);
     }
 
+    /**
+     * Twilio Proxy callbacks (call/message interactions and out-of-session
+     * contact attempts) — logged to the masking audit trail. Message bodies
+     * are stripped before storage; only metadata is kept.
+     */
+    public function proxyEvent(Request $request): JsonResponse
+    {
+        $this->authoriseWebhook($request);
+
+        app(\App\Services\Telephony\TwilioProxyService::class)
+            ->recordWebhookEvent($request->all());
+
+        return response()->json(['logged' => true]);
+    }
+
     private function authoriseWebhook(Request $request): void
     {
         $secret = config('cet.webhook_secret');

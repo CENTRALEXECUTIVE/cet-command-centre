@@ -33,6 +33,7 @@ class BookingStatusService
         private readonly WaitingListService $waitingList,
         private readonly \App\Services\Push\WebPushService $push,
         private readonly \App\Services\Watchdog\AdminAlerts $adminAlerts,
+        private readonly \App\Services\Telephony\TwilioProxyService $proxy,
     ) {}
 
     public function canTransition(BookingStatus $from, BookingStatus $to): bool
@@ -87,6 +88,9 @@ class BookingStatusService
                 'created_at' => now(),
             ]);
             $booking->forceFill(['status' => BookingStatus::Pending->value, 'driver_id' => null])->save();
+
+            // Declined → the driver loses the masked line immediately.
+            $this->proxy->closeSession($booking, 'driver declined');
 
             return $booking;
         });
@@ -203,6 +207,12 @@ class BookingStatusService
         // "Here's your driver" the moment a driver is allocated. Force-reload the
         // driver/vehicle relations so a stale (rotation-time) driver isn't used.
         if ($to === BookingStatus::Allocated && $booking->driver_id) {
+            // Number masking FIRST: open the Twilio Proxy session so the
+            // driver-details message below can already carry the masked line.
+            if ($booking->driver) {
+                $this->proxy->openSession($booking, $booking->driver);
+            }
+
             $this->notifier->sendDriverDetails($booking->load(['customer', 'driver.driverProfile.defaultVehicle', 'vehicle', 'vehicleType']));
 
             // Buzz the driver's phone with the new job (even if the app is closed).
@@ -252,6 +262,9 @@ class BookingStatusService
             if ($link && ($link->expires_at === null || $link->expires_at->gt($cutoff))) {
                 $link->forceFill(['expires_at' => $cutoff])->save();
             }
+
+            // The masked line dies with the job.
+            $this->proxy->closeSession($booking, 'job '.$to->value);
         }
     }
 

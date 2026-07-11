@@ -42,6 +42,9 @@ return [
         'sid' => env('TWILIO_SID'),
         'token' => env('TWILIO_AUTH_TOKEN'),
         'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        // Twilio Proxy service (number masking) — the KS… sid from the Proxy
+        // console. Masking is a silent no-op until this is set.
+        'proxy_service_sid' => env('TWILIO_PROXY_SERVICE_SID'),
     ],
 
     // Tide payment links. Card details are never stored — we only generate and

@@ -172,6 +172,25 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   the job screen; pruned after 90 days (`cet:prune-gps`). Fleet map flags stale
   GPS (> 2× ping interval) in red/faded, with heading-arrow markers.
 
+## Number masking (Twilio Proxy)
+
+- **Drivers NEVER see a customer's real number** — the driver job screen shows
+  only the masked line from the open `ProxySession` (`Booking::
+  driverContactNumber()`), or "via the office" when masking is off. Customers
+  get the masked line in driver-details messages (`customerMaskedNumber()`).
+  Admins keep full visibility everywhere else.
+- `Telephony\TwilioProxyService` (raw HTTP, **no SDK — deliberate**, so deploys
+  need no composer step): opens a session on **Allocated**, closes on
+  complete/cancel/no-show/decline/un-tie, swaps on reassign; session expiry =
+  drop-off + 4h (`cet:close-proxy-sessions` every 5 min is the safety net,
+  Twilio `DateExpiry` backs it up). Silent no-op until
+  `TWILIO_PROXY_SERVICE_SID` is set (uses existing `TWILIO_SID`/`TWILIO_AUTH_TOKEN`).
+- Audit: `proxy_events` (opens/closes/webhook callbacks at
+  `/webhooks/twilio-proxy`, secret-guarded; message BODIES are stripped —
+  metadata only). Purged on the 90-day GPS schedule. WhatsApp masking is out
+  of scope. The legacy single-number bridge (`MaskingService`, `/webhooks/voice`)
+  still works as a fallback.
+
 ## Status watchdog & alerts (ops room)
 
 - **`cet:status-watchdog`** runs every minute: driver push nudges (set off at

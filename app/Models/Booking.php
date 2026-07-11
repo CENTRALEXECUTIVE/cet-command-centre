@@ -120,6 +120,28 @@ class Booking extends Model
         return $this->hasOne(FlightMonitor::class);
     }
 
+    public function proxySessions(): HasMany
+    {
+        return $this->hasMany(ProxySession::class);
+    }
+
+    /**
+     * The ONLY customer contact number a driver may ever see: the masked
+     * Twilio Proxy line of the open session. Null when masking isn't active —
+     * in which case driver-facing screens show NO number at all (the office
+     * relays anything urgent). The real number never reaches a driver view.
+     */
+    public function driverContactNumber(): ?string
+    {
+        return $this->proxySessions()->open()->latest('opened_at')->value('masked_number');
+    }
+
+    /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */
+    public function customerMaskedNumber(): ?string
+    {
+        return $this->proxySessions()->open()->latest('opened_at')->value('customer_masked_number');
+    }
+
     // ----- Scopes --------------------------------------------------------
 
     public function scopeActive(Builder $query): Builder

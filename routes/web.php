@@ -263,6 +263,9 @@ Route::post('consent/cookies', [ConsentController::class, 'cookies'])
 Route::post('webhooks/missed-call', [WebhookController::class, 'missedCall'])
     ->middleware('throttle:60,1')
     ->name('webhooks.missed-call');
+Route::post('webhooks/twilio-proxy', [WebhookController::class, 'proxyEvent'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.twilio-proxy');
 Route::post('webhooks/voice', [WebhookController::class, 'voice'])
     ->middleware('throttle:120,1')
     ->name('webhooks.voice');

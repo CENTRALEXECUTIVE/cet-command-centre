@@ -54,3 +54,7 @@ Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
 // Status watchdog: nudge drivers who haven't set off / tapped the next status,
 // detect arrivals/POB/complete from GPS, and feed the dashboard alerts log.
 Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping();
+
+// Number masking safety net: close Proxy sessions past drop-off + 4h even if
+// a status change was missed. Twilio's own expiry backs this up.
+Schedule::command('cet:close-proxy-sessions')->everyFiveMinutes()->withoutOverlapping();
