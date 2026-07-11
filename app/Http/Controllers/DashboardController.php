@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -74,6 +75,8 @@ class DashboardController extends Controller
                 'remindersToSend' => $this->remindersToSend(),
                 'reviewsToSend' => $this->reviewsToSend(),
                 'timeMismatches' => $this->timeMismatches(),
+                'timeline' => $this->nextFourHours(),
+                'mapsKey' => \App\Models\Setting::mapsKey(),
             ]);
         }
 
@@ -173,6 +176,37 @@ class DashboardController extends Controller
                 'due' => $m->scheduled_for,
                 'is_due' => $m->scheduled_for->lte(now()),
                 'url' => route('bookings.show', $m->booking),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The next-4-hours pickup timeline for the ops-room rail: who's due,
+     * with which driver, counting down live in the browser.
+     *
+     * @return array<int, array{ref: string, customer: ?string, pickup_ts: int, time: string, driver: ?string, status: string, status_value: string, url: string}>
+     */
+    private function nextFourHours(): array
+    {
+        return Booking::query()
+            ->whereNotIn('status', [
+                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+            ])
+            ->whereBetween('pickup_at', [now()->subMinutes(30), now()->addHours(4)])
+            ->with(['customer', 'driver.driverProfile'])
+            ->orderBy('pickup_at')
+            ->limit(12)
+            ->get()
+            ->map(fn (Booking $b) => [
+                'ref' => $b->external_reference ?? $b->reference,
+                'customer' => $b->displayName(),
+                'pickup_ts' => $b->pickup_at->getTimestamp(),
+                'time' => $b->pickup_at->format('H:i'),
+                'driver' => $b->driver ? ($b->driver->driverProfile?->callsign ?: Str::before($b->driver->name, ' ')) : null,
+                'status' => $b->status->label(),
+                'status_value' => $b->status->value,
+                'url' => route('bookings.show', $b),
             ])
             ->values()
             ->all();

@@ -3,23 +3,65 @@
 
 @section('content')
     @php $hour = (int) now()->format('G'); $greet = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening'); @endphp
-    <div class="dash-hero">
-        <div class="dash-hero-glow"></div>
-        <div class="dash-hero-inner">
-            <div>
-                <div class="dash-greet">{{ $greet }}, {{ \Illuminate\Support\Str::before(auth()->user()->name, ' ') }}</div>
-                <div class="dash-date">{{ now()->format('l d F Y · H:i') }}</div>
+    {{-- Ops radar: muted dark live map as the backdrop, glass KPIs floating over it. --}}
+    <div class="radar">
+        <div id="radar-map" class="radar-map"></div>
+        <div class="radar-inner">
+            <div class="dash-hero">
+                <div class="dash-hero-inner" style="padding:6px 6px 14px">
+                    <div>
+                        <div class="dash-greet">{{ $greet }}, {{ \Illuminate\Support\Str::before(auth()->user()->name, ' ') }}</div>
+                        <div class="dash-date">{{ now()->format('l d F Y · H:i') }}</div>
+                    </div>
+                    <div class="dash-hero-actions">
+                        <form method="POST" action="{{ route('dashboard.fix-times') }}"
+                              onsubmit="return confirm('Sync every upcoming booking with the live calendar now? The calendar itself is never changed.')">
+                            @csrf
+                            <button class="dash-btn">🗓 Sync calendar</button>
+                        </form>
+                        <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="dash-btn">↻ Refresh</a>
+                    </div>
+                </div>
             </div>
-            <div class="dash-hero-actions">
-                <form method="POST" action="{{ route('dashboard.fix-times') }}"
-                      onsubmit="return confirm('Sync every upcoming booking with the live calendar now? The calendar itself is never changed.')">
-                    @csrf
-                    <button class="dash-btn">🗓 Sync calendar</button>
-                </form>
-                <a href="{{ route('dashboard', ['refresh' => 1]) }}" class="dash-btn">↻ Refresh</a>
+
+            {{-- KPI command deck (glass over the radar) --}}
+            <div class="deck">
+                <a class="kpi" href="{{ route('jobs.day') }}">
+                    <div class="kpi-ico">📅</div>
+                    <div class="kpi-n" data-countup="{{ $todayCount }}">{{ $todayCount }}</div>
+                    <div class="kpi-l">Jobs today</div>
+                </a>
+                <a class="kpi {{ $pendingCount > 0 ? 'warn' : '' }}" href="{{ route('despatch.board') }}">
+                    <div class="kpi-ico">🕓</div>
+                    <div class="kpi-n" data-countup="{{ $pendingCount }}">{{ $pendingCount }}</div>
+                    <div class="kpi-l">Awaiting allocation</div>
+                </a>
+                <a class="kpi {{ $activeCount > 0 ? 'ok' : '' }}" href="{{ route('despatch.board') }}">
+                    <div class="kpi-ico">🚗</div>
+                    <div class="kpi-n" data-countup="{{ $activeCount }}">{{ $activeCount }}</div>
+                    <div class="kpi-l">Active now</div>
+                </a>
+                <a class="kpi" href="{{ route('review.index') }}">
+                    <div class="kpi-ico">💷</div>
+                    <div class="kpi-n" data-countup="{{ round($todayRevenue) }}" data-prefix="£">£{{ number_format($todayRevenue, 0) }}</div>
+                    <div class="kpi-l">Today's booked value</div>
+                </a>
+                <a class="kpi {{ $cashToday > 0 ? 'warn' : '' }}" href="{{ route('payments.index') }}">
+                    <div class="kpi-ico">💰</div>
+                    <div class="kpi-n" data-countup="{{ round($cashToday) }}" data-prefix="£">£{{ number_format($cashToday, 0) }}</div>
+                    <div class="kpi-l">Cash to collect today</div>
+                </a>
+                <div class="kpi">
+                    <div class="kpi-ico">🗓️</div>
+                    <div class="kpi-n" data-countup="{{ $weekCount }}">{{ $weekCount }}</div>
+                    <div class="kpi-l">Booked · next 7 days</div>
+                </div>
             </div>
         </div>
     </div>
+
+    <div class="ops-grid">
+    <div class="ops-main">
 
     {{-- Push opt-in for the office — watchdog escalations (unallocated jobs,
          drivers ignoring nudges, GPS loss) buzz the admin's phone too. --}}
@@ -140,40 +182,6 @@
         </div>
     @endif
 
-    {{-- KPI command deck --}}
-    <div class="deck">
-        <a class="kpi" href="{{ route('jobs.day') }}">
-            <div class="kpi-ico">📅</div>
-            <div class="kpi-n">{{ $todayCount }}</div>
-            <div class="kpi-l">Jobs today</div>
-        </a>
-        <a class="kpi {{ $pendingCount > 0 ? 'warn' : '' }}" href="{{ route('despatch.board') }}">
-            <div class="kpi-ico">🕓</div>
-            <div class="kpi-n">{{ $pendingCount }}</div>
-            <div class="kpi-l">Awaiting allocation</div>
-        </a>
-        <a class="kpi {{ $activeCount > 0 ? 'ok' : '' }}" href="{{ route('despatch.board') }}">
-            <div class="kpi-ico">🚗</div>
-            <div class="kpi-n">{{ $activeCount }}</div>
-            <div class="kpi-l">Active now</div>
-        </a>
-        <a class="kpi" href="{{ route('review.index') }}">
-            <div class="kpi-ico">💷</div>
-            <div class="kpi-n">£{{ number_format($todayRevenue, 0) }}</div>
-            <div class="kpi-l">Today's booked value</div>
-        </a>
-        <a class="kpi {{ $cashToday > 0 ? 'warn' : '' }}" href="{{ route('payments.index') }}">
-            <div class="kpi-ico">💰</div>
-            <div class="kpi-n">£{{ number_format($cashToday, 0) }}</div>
-            <div class="kpi-l">Cash to collect today</div>
-        </a>
-        <div class="kpi">
-            <div class="kpi-ico">🗓️</div>
-            <div class="kpi-n">{{ $weekCount }}</div>
-            <div class="kpi-l">Booked · next 7 days</div>
-        </div>
-    </div>
-
     {{-- Quick actions --}}
     <div class="toolbar" style="gap:8px;flex-wrap:wrap;margin-bottom:20px">
         <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="padding:9px 16px">+ New Booking</a>
@@ -257,6 +265,34 @@
             </table>
         @endif
     </div>
+
+    </div>{{-- /.ops-main --}}
+
+    {{-- Right rail: the next four hours, counting down live. --}}
+    <aside class="timeline-rail">
+        <h2>⏱ Next 4 hours</h2>
+        @forelse($timeline ?? [] as $t)
+            <a class="tl-item s-{{ $t['status_value'] }}" href="{{ $t['url'] }}">
+                <span class="tl-time">
+                    <span class="t">{{ $t['time'] }}</span>
+                    <span class="tl-count" data-countdown="{{ $t['pickup_ts'] }}">…</span>
+                </span>
+                <span class="tl-main">
+                    <span class="who">{{ $t['customer'] }}</span>
+                    <span class="sub">{{ $t['driver'] ? '🚘 '.$t['driver'] : '⚠ no driver' }} · {{ $t['status'] }}</span>
+                </span>
+            </a>
+        @empty
+            <div class="tl-item"><span class="tl-main"><span class="sub">Nothing due in the next four hours.</span></span></div>
+        @endforelse
+    </aside>
+    </div>{{-- /.ops-grid --}}
+
+    <script>
+        window.CET_MAPS_KEY = "{{ $mapsKey ?? '' }}";
+        window.CET_FLEET_URL = "{{ route('fleet.positions') }}";
+    </script>
+    <script src="{{ asset('js/cet-ops.js') }}?v=1" defer></script>
 
     {{-- Live-ish: quietly refresh the figures every 2 minutes. --}}
     <script>setTimeout(function(){ location.href = "{{ route('dashboard', ['refresh' => 1]) }}"; }, 120000);</script>

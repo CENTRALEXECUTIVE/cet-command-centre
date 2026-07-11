@@ -36,6 +36,7 @@
         window.CET_FLEET = @json($drivers);
         window.CET_MAPS_KEY = "{{ $mapsKey }}";
     </script>
+    <script src="{{ asset('js/cet-ops.js') }}?v=1"></script>
     @verbatim
     <script>
     // Google calls this on an auth/API failure — turn its generic red error into
@@ -77,6 +78,21 @@
         function esc(s) { var e = document.createElement('div'); e.textContent = s == null ? '' : s; return e.innerHTML; }
         function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
 
+        // Marker icon: an arrow pointing the way the car is heading when the
+        // device reports one, else a dot. Gold while fresh, faded red once stale.
+        function markerIcon(d) {
+            var hasHeading = d.heading !== null && d.heading !== undefined && !isNaN(d.heading);
+            return {
+                path: hasHeading ? google.maps.SymbolPath.FORWARD_CLOSED_ARROW : google.maps.SymbolPath.CIRCLE,
+                rotation: hasHeading ? Number(d.heading) : 0,
+                scale: hasHeading ? 6 : 8,
+                fillColor: d.stale ? '#d64545' : '#FBBA2A',
+                fillOpacity: d.stale ? 0.55 : 0.95,
+                strokeColor: '#0a101e',
+                strokeWeight: 2,
+            };
+        }
+
         function updateMarkers(drivers) {
             if (!map || !window.google) return;
             var bounds = new google.maps.LatLngBounds(), any = false;
@@ -84,12 +100,17 @@
             drivers.forEach(function (d) {
                 var pos = { lat: d.lat, lng: d.lng };
                 live[d.ref] = true; any = true;
-                if (markers[d.ref]) { markers[d.ref].setPosition(pos); markers[d.ref].setOpacity(d.stale ? 0.45 : 1); }
+                if (markers[d.ref]) {
+                    markers[d.ref].setPosition(pos);
+                    markers[d.ref].setOpacity(d.stale ? 0.45 : 1);
+                    markers[d.ref].setIcon(markerIcon(d));
+                }
                 else {
                     markers[d.ref] = new google.maps.Marker({
                         position: pos, map: map, title: d.driver + (d.stale ? ' (GPS stale)' : ''),
                         opacity: d.stale ? 0.45 : 1,
-                        label: { text: d.driver.substring(0, 3).toUpperCase(), color: '#0b0b0b', fontSize: '11px', fontWeight: '700' }
+                        icon: markerIcon(d),
+                        label: { text: d.driver.substring(0, 3).toUpperCase(), color: '#e8ecf4', fontSize: '11px', fontWeight: '700', className: 'fleet-mlabel' }
                     });
                     var info = new google.maps.InfoWindow({
                         content: '<strong>' + esc(d.driver) + '</strong><br>' + esc(d.customer || '') + '<br>→ ' + esc(d.destination || '')
@@ -120,7 +141,8 @@
             s.async = true;
             s.onload = function () {
                 map = new google.maps.Map(document.getElementById('fleet-map'), {
-                    center: { lat: 53.3811, lng: -1.4701 }, zoom: 10, mapTypeControl: false, streetViewControl: false
+                    center: { lat: 53.3811, lng: -1.4701 }, zoom: 10, mapTypeControl: false, streetViewControl: false,
+                    styles: window.CET_DARK_MAP || undefined
                 });
                 updateMarkers(window.CET_FLEET || []);
             };

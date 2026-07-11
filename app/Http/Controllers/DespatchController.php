@@ -44,12 +44,22 @@ class DespatchController extends Controller
             ->filter(fn ($d) => $d['reason'] !== null)
             ->values();
 
+        // Last GPS ping age (seconds) per tracked job — the board shows it as a
+        // live-ticking chip that ambers then reds as the signal stales.
+        $pingAges = \App\Models\DriverLocation::query()
+            ->whereIn('booking_id', $bookings->pluck('id'))
+            ->selectRaw('booking_id, MAX(captured_at) as last_at')
+            ->groupBy('booking_id')
+            ->pluck('last_at', 'booking_id')
+            ->map(fn ($at) => (int) abs(now()->diffInSeconds(\Illuminate\Support\Carbon::parse($at))));
+
         return view('despatch.board', [
             'date' => $date,
             'columns' => $columns,
             'statuses' => BookingStatus::cases(),
             'drivers' => $drivers,
             'blockedDrivers' => $blockedDrivers,
+            'pingAges' => $pingAges,
             'totals' => [
                 'all' => $bookings->count(),
                 'unallocated' => $bookings->where('status', BookingStatus::Pending)->count(),

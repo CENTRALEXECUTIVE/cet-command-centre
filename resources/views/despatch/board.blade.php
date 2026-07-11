@@ -38,7 +38,7 @@
     <div class="board" id="live-board">
         @foreach($statuses as $status)
             @php $jobs = $columns[$status->value]; @endphp
-            <div class="board-col">
+            <div class="board-col" data-s="{{ $status->value }}">
                 <h3>{{ $status->label() }} <span class="count">{{ $jobs->count() }}</span></h3>
 
                 @forelse($jobs as $b)
@@ -51,6 +51,9 @@
                             {{ \Illuminate\Support\Str::limit($b->displayPickupAddress(), 30) }}<br>
                             {{ $b->passengerCount() }} pax · {{ $b->luggageShort() }}<br>
                             Driver: {{ $b->driver?->name ?? '—' }}
+                            @if($b->status->isTracked() && isset($pingAges[$b->id]))
+                                <span class="ping-chip" data-ping-age="{{ $pingAges[$b->id] }}">…</span>
+                            @endif
                         </div>
 
                         <div class="actions">
@@ -146,6 +149,7 @@
         @endforeach
     </div>
 
+    <script src="{{ asset('js/cet-ops.js') }}?v=1" defer></script>
     @verbatim
     <script>
         // Live board: refetch this page every 60s and swap in the new columns,
@@ -161,8 +165,20 @@
                 var el = document.activeElement;
                 return el && board.contains(el) && (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'BUTTON');
             }
+            // Remember each job's status class so a change can animate (colour
+            // sweep) instead of hard-swapping on refresh.
+            function statusMap(root) {
+                var map = {};
+                root.querySelectorAll('.job-card .ref').forEach(function (a) {
+                    var card = a.closest('.job-card');
+                    var s = (card.className.match(/s-[a-z_]+/) || [''])[0];
+                    map[a.textContent.trim()] = s;
+                });
+                return map;
+            }
             function refresh() {
                 if (document.hidden || busy()) return;
+                var before = statusMap(board);
                 fetch(window.location.href, { headers: { 'X-Requested-With': 'fetch' } })
                     .then(function (r) { return r.text(); })
                     .then(function (html) {
@@ -170,6 +186,12 @@
                         var fresh = doc.getElementById('live-board');
                         if (fresh) {
                             board.innerHTML = fresh.innerHTML;
+                            board.querySelectorAll('.job-card .ref').forEach(function (a) {
+                                var card = a.closest('.job-card');
+                                var s = (card.className.match(/s-[a-z_]+/) || [''])[0];
+                                var ref = a.textContent.trim();
+                                if (before[ref] && before[ref] !== s) card.classList.add('flash');
+                            });
                             if (stamp) {
                                 var d = new Date();
                                 stamp.textContent = 'Live — updated ' +

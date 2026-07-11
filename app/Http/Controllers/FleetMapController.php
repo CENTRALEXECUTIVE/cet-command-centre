@@ -76,12 +76,14 @@ class FleetMapController extends Controller
                 'driver' => $b->driver->driverProfile?->callsign ?: $b->driver->name,
                 'lat' => (float) $loc->latitude,
                 'lng' => (float) $loc->longitude,
+                'heading' => $loc->heading !== null ? (float) $loc->heading : null,
                 'status' => $b->status->label(),
                 'customer' => $b->customer?->name,
                 'destination' => $b->destination_address,
                 'ref' => $b->reference,
                 'url' => route('bookings.show', $b),
                 'ago' => $loc->captured_at?->diffForHumans(),
+                'age_seconds' => $loc->captured_at ? (int) abs(now()->diffInSeconds($loc->captured_at)) : null,
                 'stale' => $loc->captured_at !== null && $loc->captured_at->lt(now()->subSeconds($staleAfter)),
             ];
         }
