@@ -166,10 +166,35 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   secret. Shows driver FIRST name only (`Booking::driverPublicName()`), status
   message (`trackingMessage()`), live map only while en_route/arrived/collected.
   Terminal status caps the link expiry to +2h (`BookingStatusService`).
-- **Driver GPS**: pings only while on an active job (server rejects otherwise),
-  driver has a visible start/stop sharing toggle on the job screen, pruned
-  after 90 days (`cet:prune-gps`). Fleet map flags stale GPS (> 2× ping
-  interval) in red/faded.
+- **Driver GPS**: tracking starts on the **Set off** tap (En Route) and stops on
+  Complete — the server rejects pings outside en_route/arrived/collected
+  (`Booking::scopeTracked`). Driver has a visible start/stop sharing toggle on
+  the job screen; pruned after 90 days (`cet:prune-gps`). Fleet map flags stale
+  GPS (> 2× ping interval) in red/faded, with heading-arrow markers.
+
+## Status watchdog & alerts (ops room)
+
+- **`cet:status-watchdog`** runs every minute: driver push nudges (set off at
+  drive-time+10min before pickup clamped 20–60 min — flat 30 without GPS;
+  urgent at pickup−10; geofence-detected arrived/POB/complete, ≥2 consecutive
+  pings, skipped when GPS stale >3 min; clock-based complete fallback). Max 2
+  sends per type per job (`job_nudges` table). Covers allocated AND accepted.
+- **Admin escalations** (same run, `Watchdog\AdminAlerts`): unallocated ≤2h
+  before pickup (critical, every 30 min until allocated), driver unacted 5 min
+  after the 2nd nudge (critical, once), GPS lost >5 min mid-job (warning,
+  once); no-show/cancel and calendar imports push immediately. Per-admin prefs
+  in `users.notification_preferences` (super-admin page **Settings →
+  Notifications**), incl. a critical-only master switch + optional chime.
+- **Alerts feed**: `watchdog_events` (30-day retention, pruned by
+  `cet:prune-gps`) → dashboard control-tower panel (30s poll, acknowledge
+  flow) + unack-critical badge in the topbar (crash-safe pre-migration).
+- Pickup/drop-off coords are geocoded lazily into `booking.meta['geo']` by the
+  watchdog (CLI-side); geofence rules skip gracefully without them.
+- **Ops-room theme**: navy glass shell driven by CSS variables in `:root`
+  (`--bg`, `--panel`, `--accent`, `--glow`, `--blur`); dashboard radar (dark
+  map backdrop + glass KPIs + next-4h countdown rail), glowing dispatch
+  columns + live ping-age chips, dark fleet map with heading arrows.
+  `prefers-reduced-motion` and no-backdrop-filter fallbacks throughout.
 
 ## Handover to another Claude account
 
