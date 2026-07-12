@@ -173,7 +173,7 @@ class DashboardController extends Controller
             ->orderBy('scheduled_for')
             ->get()
             ->unique('booking_id')
-            ->take(15)
+            ->take(60) // show a good batch — backfilled previous jobs land here too
             ->map(fn (Message $m) => [
                 'ref' => $m->booking->external_reference ?? $m->booking->reference,
                 'customer' => $m->booking->displayName(),
@@ -195,11 +195,11 @@ class DashboardController extends Controller
     {
         Booking::query()
             ->where('status', BookingStatus::Complete->value)
-            ->whereBetween('pickup_at', [now()->subDays(2), now()])
+            ->whereBetween('pickup_at', [now()->subDays((int) config('cet.review_backfill_days', 21)), now()])
             ->whereHas('customer', fn ($q) => $q->whereNotNull('phone'))
             ->whereDoesntHave('messages', fn ($q) => $q->where('type', 'review_request'))
             ->with('customer')
-            ->limit(100)
+            ->limit(300)
             ->get()
             ->each(fn (Booking $b) => $this->notifier->ensureReviewRequest($b));
     }

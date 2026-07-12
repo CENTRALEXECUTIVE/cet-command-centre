@@ -69,6 +69,11 @@ return [
     // Minutes after a job is marked complete before the review request is sent.
     'review_delay_minutes' => 30,
 
+    // How far back to backfill review requests for already-completed jobs that
+    // never got one (ETO imports, older completions). Kept sane so we don't ask
+    // for a review on an ancient trip. Manual-send only — nothing auto-sends.
+    'review_backfill_days' => (int) env('CET_REVIEW_BACKFILL_DAYS', 21),
+
     // Customer messages are only sent during waking hours (08:00–22:00). A
     // reminder whose ideal time falls outside this window is shifted to the
     // nearest edge (before start → start; after end → end) so nothing lands

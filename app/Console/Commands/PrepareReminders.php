@@ -34,10 +34,11 @@ class PrepareReminders extends Command
             $notifier->ensureReminders($booking);
         }
 
-        // Review requests for jobs completed in the last ~2 days without one.
+        // Review requests for recently-completed jobs without one (window from
+        // config so previous jobs are covered too).
         $completed = Booking::with('customer')
             ->where('status', BookingStatus::Complete->value)
-            ->whereBetween('pickup_at', [now()->subDays(2), now()])
+            ->whereBetween('pickup_at', [now()->subDays((int) config('cet.review_backfill_days', 21)), now()])
             ->get();
 
         foreach ($completed as $booking) {
