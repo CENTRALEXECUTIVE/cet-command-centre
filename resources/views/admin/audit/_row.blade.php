@@ -1,4 +1,4 @@
-<tr style="{{ $r['status'] === 'ok' ? 'opacity:.6' : '' }}">
+<tr class="audit-row" data-status="{{ $r['status'] }}" style="{{ $r['status'] === 'ok' ? 'opacity:.6' : '' }}">
     <td style="white-space:nowrap">
         @if($r['url'])<a href="{{ $r['url'] }}">{{ $r['reference'] }}</a>@else {{ $r['reference'] }} @endif
     </td>

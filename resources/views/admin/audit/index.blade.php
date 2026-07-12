@@ -70,11 +70,11 @@
     </div>
 
     @isset($counts)
-        <div class="grid grid-4" style="margin-top:16px">
-            <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800">{{ $counts['checked'] }}</div><div class="muted">Checked</div></div>
-            <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#1f7a44">{{ $counts['ok'] }}</div><div class="muted">All good</div></div>
-            <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#b8860b">{{ $counts['flagged'] }}</div><div class="muted">Flagged ⚠</div></div>
-            <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#b32020">{{ $counts['missing'] }}</div><div class="muted">Not imported</div></div>
+        <div class="grid grid-4" style="margin-top:16px" id="audit-tiles">
+            <button type="button" class="card audit-tile is-active" data-filter="all" style="text-align:center;cursor:pointer;border:2px solid var(--gold)"><div style="font-size:28px;font-weight:800">{{ $counts['checked'] }}</div><div class="muted">Checked · show all</div></button>
+            <button type="button" class="card audit-tile" data-filter="ok" style="text-align:center;cursor:pointer;border:2px solid transparent"><div style="font-size:28px;font-weight:800;color:#1f7a44">{{ $counts['ok'] }}</div><div class="muted">All good</div></button>
+            <button type="button" class="card audit-tile" data-filter="flagged" style="text-align:center;cursor:pointer;border:2px solid transparent"><div style="font-size:28px;font-weight:800;color:#b8860b">{{ $counts['flagged'] }}</div><div class="muted">Flagged ⚠</div></button>
+            <button type="button" class="card audit-tile" data-filter="missing" style="text-align:center;cursor:pointer;border:2px solid transparent"><div style="font-size:28px;font-weight:800;color:#b32020">{{ $counts['missing'] }}</div><div class="muted">Not imported</div></button>
         </div>
 
         <div class="card" style="margin-top:16px">
@@ -85,18 +85,53 @@
             @endif
 
             @if(count($results))
-                <p class="muted" style="font-size:12px;margin:0 0 8px">Newest bookings first. Problems are grouped at the top.</p>
+                <p class="muted" style="font-size:12px;margin:0 0 8px">Newest bookings first. Problems are grouped at the top. <span id="audit-filter-note"></span></p>
                 <div class="table-scroll">
                     <table>
                         <thead><tr><th>Ref</th><th>Passenger</th><th>Pickup</th><th>Result</th></tr></thead>
-                        <tbody>
+                        <tbody id="audit-rows">
                             @foreach($results as $r)
                                 @include('admin.audit._row', ['r' => $r])
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+                <p class="muted" id="audit-empty" style="display:none;margin:10px 0 0">Nothing in this category. 🎉</p>
             @endif
         </div>
+
+        @verbatim
+        <script>
+        (function () {
+            var tiles = document.querySelectorAll('.audit-tile');
+            var rows = Array.prototype.slice.call(document.querySelectorAll('#audit-rows .audit-row'));
+            var note = document.getElementById('audit-filter-note');
+            var empty = document.getElementById('audit-empty');
+            if (!tiles.length || !rows.length) return;
+
+            var labels = { all: '', ok: 'Showing only ✓ All good.', flagged: 'Showing only ⚠ Flagged.', missing: 'Showing only ✗ Not imported.' };
+
+            function apply(filter) {
+                var shown = 0;
+                rows.forEach(function (row) {
+                    var match = filter === 'all' || row.dataset.status === filter;
+                    row.style.display = match ? '' : 'none';
+                    if (match) shown++;
+                });
+                tiles.forEach(function (t) {
+                    var on = t.dataset.filter === filter;
+                    t.classList.toggle('is-active', on);
+                    t.style.borderColor = on ? 'var(--gold)' : 'transparent';
+                });
+                if (note) note.textContent = labels[filter] || '';
+                if (empty) empty.style.display = shown === 0 ? '' : 'none';
+            }
+
+            tiles.forEach(function (t) {
+                t.addEventListener('click', function () { apply(t.dataset.filter); });
+            });
+        })();
+        </script>
+        @endverbatim
     @endisset
 @endsection
