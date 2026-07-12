@@ -19,6 +19,16 @@ class EtoAuditTest extends TestCase
     {
         parent::setUp();
         $this->seed(VehicleTypeSeeder::class);
+        // The fixtures below are dated 24/03/2025; freeze "now" a few days before
+        // that so they count as UPCOMING jobs — the calendar-quality checks only
+        // run for jobs still to happen (a past job's sync status is history).
+        \Illuminate\Support\Carbon::setTestNow('2025-03-20 09:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow();
+        parent::tearDown();
     }
 
     private function csv(string $rows): UploadedFile
@@ -79,6 +89,34 @@ class EtoAuditTest extends TestCase
         $this->assertSame(1, $report['counts']['flagged']);
         $issues = $booking->fresh()->meta['audit_issues'];
         $this->assertContains('Calendar title not in CET format', $issues);
+    }
+
+    public function test_past_job_calendar_status_is_not_flagged_as_noise(): void
+    {
+        // A finished job from a week ago with a failed sync + no calendar event:
+        // its calendar status is history, so the audit must NOT flag it — that
+        // was the "260 flagged" noise the office couldn't action.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'OLDJOB',
+            'pickup_at' => now()->subDays(7)->setTime(14, 0),
+            'status' => \App\Enums\BookingStatus::Complete,
+            'final_price' => 120,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_old',
+            'title' => 'Jo Manchester Airport', // not CET format — but it's history
+            'sync_status' => 'failed',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+        ]);
+
+        $report = app(EtoAuditService::class)->audit(
+            $this->csvPath($booking->pickup_at->format('d/m/Y H:i').";OLDJOB;Jo;Completed;120.00;\"Paid\"\n")
+        );
+
+        $this->assertSame(0, $report['counts']['flagged']);
+        $this->assertSame(1, $report['counts']['ok']);
     }
 
     public function test_audit_corrects_a_drifted_booking_time_to_the_calendar(): void

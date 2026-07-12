@@ -122,42 +122,50 @@ class EtoAuditService
         // Cancelled / no-show jobs are legitimately off the calendar — don't flag those.
         $liveJob = $booking->status?->isActive() ?? true;
 
-        if (! $ev || blank($ev->google_event_id)) {
-            if ($liveJob) {
+        // Calendar-quality checks only matter for jobs that are STILL TO RUN.
+        // A past / completed / cancelled job's sync status is history — flagging
+        // it just floods the audit with noise the office can't (and needn't)
+        // action. Only upcoming, non-terminal jobs get the calendar checks.
+        $checkCalendar = $booking->pickup_at
+            && $booking->pickup_at->gte(today())
+            && ! ($booking->status?->isTerminal() ?? false);
+
+        if ($checkCalendar) {
+            if (! $ev || blank($ev->google_event_id)) {
                 $issues[] = 'Not on the calendar';
-            }
-        } else {
-            if ($ev->sync_status !== 'synced') {
-                $issues[] = 'Calendar event not synced ('.$ev->sync_status.')';
-            }
-            if (! $this->titleOk($ev->title)) {
-                $issues[] = 'Calendar title not in CET format';
-            }
-            // The location field IS the pickup — if it's dropped off the event
-            // the driver has no address on the calendar. This is the big one.
-            if (blank($ev->location)) {
-                $issues[] = 'Pickup location has dropped off the calendar event';
-            }
-            // The "Booking Confirmation" body (contact, flight, drop-off, ref…).
-            if (blank($ev->description)) {
-                $issues[] = 'Booking details block missing from the calendar event';
-            }
-            // Calendar takes priority: correct the booking (and our local slot) to
-            // the calendar's true time as we reconcile, rather than just flagging a
-            // drift. After this the booking, the slot and the printed time agree,
-            // so no "one hour" warning is raised. (Read-only against Google.)
-            if ($flag && $this->timeSync->alignToCalendarSlot($booking)) {
-                $booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
-                    ->where('status', 'queued')->delete();
-            }
-            // Any residual disagreement is then genuinely worth flagging.
-            if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
-                $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
-            }
-            // The time PRINTED in the description must match the event's slot.
-            $descAt = $ev->descriptionPickupAt();
-            if ($descAt && $ev->start_at && $descAt->format('H:i') !== $ev->start_at->format('H:i')) {
-                $issues[] = 'Calendar description time ('.$descAt->format('H:i').') doesn\'t match the event slot ('.$ev->start_at->format('H:i').')';
+            } else {
+                if ($ev->sync_status !== 'synced') {
+                    $issues[] = 'Calendar event not synced ('.$ev->sync_status.')';
+                }
+                if (! $this->titleOk($ev->title)) {
+                    $issues[] = 'Calendar title not in CET format';
+                }
+                // The location field IS the pickup — if it's dropped off the event
+                // the driver has no address on the calendar. This is the big one.
+                if (blank($ev->location)) {
+                    $issues[] = 'Pickup location has dropped off the calendar event';
+                }
+                // The "Booking Confirmation" body (contact, flight, drop-off, ref…).
+                if (blank($ev->description)) {
+                    $issues[] = 'Booking details block missing from the calendar event';
+                }
+                // Calendar takes priority: correct the booking (and our local slot) to
+                // the calendar's true time as we reconcile, rather than just flagging a
+                // drift. After this the booking, the slot and the printed time agree,
+                // so no "one hour" warning is raised. (Read-only against Google.)
+                if ($flag && $this->timeSync->alignToCalendarSlot($booking)) {
+                    $booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
+                        ->where('status', 'queued')->delete();
+                }
+                // Any residual disagreement is then genuinely worth flagging.
+                if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
+                    $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
+                }
+                // The time PRINTED in the description must match the event's slot.
+                $descAt = $ev->descriptionPickupAt();
+                if ($descAt && $ev->start_at && $descAt->format('H:i') !== $ev->start_at->format('H:i')) {
+                    $issues[] = 'Calendar description time ('.$descAt->format('H:i').') doesn\'t match the event slot ('.$ev->start_at->format('H:i').')';
+                }
             }
         }
 
