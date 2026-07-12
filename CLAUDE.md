@@ -4,6 +4,63 @@ This file is read automatically by Claude Code. It carries the context and the
 rules any Claude account needs to continue this project safely. **Read it before
 making changes.** Keep it up to date.
 
+## STATUS: THE LIVE WEBSITE IS SORTED. DO NOT TOUCH IT.
+
+The live site at **centralexecutivetransfers.co.uk** is fully restored and working.
+Homepage, hero section, fleet images, navigation menu, all 25 SEO pages and the legal
+pages are live and correct. It was fixed manually and it is **done**.
+
+Do not attempt to help with it, verify it, repair it, improve it, or "check" it.
+It needs nothing from you.
+
+## CRITICAL: PRODUCTION IS PERMANENTLY OFF LIMITS
+
+**NEVER read from, write to, modify, move, delete, or overwrite anything under:**
+
+```
+/home/u2beq0g0k7mj/public_html
+```
+
+That directory is the live public website. It is business-critical: it is the company's
+main source of customer bookings and its SEO rankings took months to build.
+
+This includes, without exception:
+- `public_html/routes/` — especially `web.php`
+- `public_html/resources/views/` — especially `layouts/`, `livewire/`, `frontend/`
+- `public_html/public/` — images, sitemap.xml, robots.txt
+- `public_html/app/`
+- `public_html/.env`
+- Anything else anywhere beneath `public_html`
+
+If a task appears to require touching `public_html`: **STOP and ask first.**
+Do not proceed. Do not "helpfully" repair, restore, or patch anything in that directory.
+Explain what you think needs doing and wait for explicit written confirmation.
+
+### Why this rule exists
+
+On 11 July 2026, work on this project overwrote
+`public_html/resources/views/layouts/app.blade.php` and rewrote
+`public_html/routes/web.php`. This took the live website down, broke the homepage, and
+orphaned 28 named routes that the site's header depended on. Recovery took five hours.
+There were no server backups. This must never happen again.
+
+### Where the Command Centre actually runs
+
+- The Command Centre is served from **`/home/u2beq0g0k7mj/cet-staging`** (a git
+  checkout of this repo) at **staging.centralexecutivetransfers.co.uk**, with its
+  own database (`cetstaging`). Deploys go THERE and nowhere else:
+  `cd ~/cet-staging && git fetch origin <branch> && git reset --hard origin/<branch>
+  && php artisan migrate --force && php artisan optimize:clear`.
+- Test bookings, Twilio sessions and driver assignments run against **staging only**.
+- Never create test data, test bookings, or Twilio sessions on the live site.
+- Never add Twilio credentials or any live API keys to a staging `.env`, and never
+  move live credentials between environments.
+- If a change is destructive (overwrite, delete, move, or rewrite of a routes or
+  config file), state clearly what you are about to do and get confirmation first.
+  Prefer creating new files over modifying existing ones.
+- If something breaks: do not silently self-repair by rewriting routes, layouts or
+  config files. Report what broke and what you were doing, then wait for instructions.
+
 ## What this is
 
 **CET Command Centre** — the in-house booking, dispatch and admin system for
@@ -25,10 +82,12 @@ making changes.** Keep it up to date.
   without permission. Only open a PR if explicitly asked.
 - **Tests:** `php artisan test`. Every feature gets a PHPUnit feature test
   (`RefreshDatabase`). Keep the suite green before committing.
-- **Deploy (what the operator actually runs):** `git fetch` + `git reset --hard
-  origin/<branch>` + `php artisan optimize:clear`. **They often skip
-  `php artisan migrate --force`** — so if a change needs a migration, TELL THEM
-  explicitly to run it, and prefer solutions that don't add migrations when
+- **Deploy — to `~/cet-staging` ONLY** (see the production-off-limits rule above;
+  `public_html` is the live website, a different app, and is never touched):
+  `cd ~/cet-staging && git fetch origin <branch> && git reset --hard
+  origin/<branch> && php artisan migrate --force && php artisan optimize:clear`.
+  **The operator sometimes skips `migrate`** — if a change needs a migration,
+  TELL THEM explicitly, and prefer solutions that don't add migrations when
   reasonable.
 - Migrations that would pollute test runs are guarded with
   `if (app()->environment('testing')) return;`. `phpunit.xml` pins
