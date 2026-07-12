@@ -47,4 +47,41 @@ class CalendarJobController extends Controller
         return redirect()->route('bookings.show', $booking)
             ->with('status', 'Added to bookings — you can now edit it and send the customer a message.');
     }
+
+    /**
+     * Bulk version: pull EVERY calendar-only job shown for a day into bookings
+     * in one tap, so the operator never adds them one at a time. Each is linked
+     * to its existing event (no duplicates); already-imported ones are skipped.
+     */
+    public function storeAll(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'event_ids' => ['required', 'array'],
+            'event_ids.*' => ['string'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $added = 0;
+        $skipped = 0;
+        foreach (array_unique($data['event_ids']) as $eventId) {
+            $parsed = $this->calendar->eventToBookingData($eventId);
+            if (! $parsed || ! $parsed['pickup_at'] || $this->importer->existingBookingFor($parsed)) {
+                $skipped++;
+
+                continue;
+            }
+            $booking = $this->importer->import($parsed, $request->user());
+            $this->notifier->ensureReminders($booking->load('customer'));
+            $added++;
+        }
+
+        $back = $request->input('date')
+            ? redirect()->route('jobs.day', ['date' => $request->input('date')])
+            : redirect()->route('jobs.day');
+
+        return $back->with('status', "Added {$added} job(s) to bookings"
+            .($skipped ? ", {$skipped} already in the system." : '.'));
+    }
 }

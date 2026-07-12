@@ -349,6 +349,36 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertEquals($count, $booking->fresh()->messages()->count());
     }
 
+    public function test_completed_job_without_a_review_gets_one_backfilled(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-15 12:00:00');
+
+        // A job completed a couple of hours ago that never went through the live
+        // Complete-tap (e.g. an ETO import marked done) — no review request.
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $customer = \App\Models\Customer::create(['name' => 'Lewis Reviewer', 'phone' => '07700900888']);
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => $customer->id, 'vehicle_type_id' => $executive->id,
+            'pickup_at' => now()->subHours(2),
+            'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => 'complete', 'payment_method' => 'card',
+        ]);
+        $this->assertEquals(0, $booking->messages()->where('type', 'review_request')->count());
+
+        // Opening the dashboard backfills the review request.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+
+        $this->assertEquals(1, $booking->fresh()->messages()->where('type', 'review_request')->count());
+
+        // The scheduled command is idempotent — no duplicate.
+        $this->artisan('cet:prepare-reminders')->assertSuccessful();
+        $this->assertEquals(1, $booking->fresh()->messages()->where('type', 'review_request')->count());
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_reminder_greets_the_lead_passenger_not_the_booker(): void
     {
         $booking = $this->makeBooking(); // customer = James Watson

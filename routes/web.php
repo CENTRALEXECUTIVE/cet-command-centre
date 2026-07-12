@@ -60,6 +60,9 @@ Route::middleware('auth')->group(function () {
     // Pull a calendar-only job into the booking system (admin only).
     Route::post('jobs/import', [\App\Http\Controllers\CalendarJobController::class, 'store'])
         ->middleware('role:admin', 'throttle:30,1')->name('jobs.import');
+    // Pull EVERY calendar-only job for a day into bookings in one tap.
+    Route::post('jobs/import-all', [\App\Http\Controllers\CalendarJobController::class, 'storeAll'])
+        ->middleware('role:admin', 'throttle:20,1')->name('jobs.import-all');
 
     // Bookings + AI quotes — admins and corporate clients.
     Route::middleware('role:admin,corporate_client')->group(function () {

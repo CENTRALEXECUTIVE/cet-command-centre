@@ -85,6 +85,26 @@ class BookingNotifier
      * duplicating them. Used to backfill imported bookings (which don't go
      * through the booking form) so every job shows a reminder ready to send.
      */
+    /**
+     * Make sure a recently-completed job has its review request queued, without
+     * ever duplicating one. Backfills jobs that reached Complete outside the
+     * live status flow (e.g. ETO imports marked done, or a completion recorded
+     * before review requests existed) so every finished trip shows a review to
+     * send. Only recent completions are targeted — we don't ask for a review on
+     * a job from weeks ago. scheduleReviewRequest() enforces the both-legs rule.
+     */
+    public function ensureReviewRequest(Booking $booking): void
+    {
+        if (blank($booking->customer?->phone) || $booking->status->value !== 'complete') {
+            return;
+        }
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return;
+        }
+
+        $this->scheduleReviewRequest($booking);
+    }
+
     public function ensureReminders(Booking $booking): void
     {
         if (blank($booking->customer?->phone)

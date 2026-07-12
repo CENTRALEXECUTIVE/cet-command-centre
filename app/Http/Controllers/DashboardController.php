@@ -158,6 +158,11 @@ class DashboardController extends Controller
      */
     private function reviewsToSend(): array
     {
+        // Self-healing: a completed job that never went through the live
+        // Complete-tap (ETO imports, older completions) still gets its review
+        // request prepared here, so the worklist is complete.
+        $this->backfillCompletedReviews();
+
         return Message::query()
             ->where('type', 'review_request')
             ->where('status', 'queued')
@@ -179,6 +184,24 @@ class DashboardController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Queue review requests for jobs completed in the last ~2 days that have a
+     * phone but no review request yet — so completions that bypassed the live
+     * status flow still show a review to send. Nothing is sent to a customer.
+     */
+    private function backfillCompletedReviews(): void
+    {
+        Booking::query()
+            ->where('status', BookingStatus::Complete->value)
+            ->whereBetween('pickup_at', [now()->subDays(2), now()])
+            ->whereHas('customer', fn ($q) => $q->whereNotNull('phone'))
+            ->whereDoesntHave('messages', fn ($q) => $q->where('type', 'review_request'))
+            ->with('customer')
+            ->limit(100)
+            ->get()
+            ->each(fn (Booking $b) => $this->notifier->ensureReviewRequest($b));
     }
 
     /**

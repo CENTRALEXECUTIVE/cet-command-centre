@@ -8,19 +8,20 @@ use App\Services\Messaging\BookingNotifier;
 use Illuminate\Console\Command;
 
 /**
- * Makes sure every upcoming booking has its pickup reminder prepared and on the
- * "to send" list — including ones imported from ETO, which don't go through the
- * booking form. Idempotent: never duplicates an existing reminder.
+ * Makes sure every upcoming booking has its pickup reminder prepared, and every
+ * recently-completed job has its review request prepared — including ones that
+ * bypassed the booking form / live status flow (ETO imports). On the "to send"
+ * lists. Idempotent: never duplicates an existing reminder or review request.
  */
 class PrepareReminders extends Command
 {
     protected $signature = 'cet:prepare-reminders';
 
-    protected $description = 'Prepare pickup reminders for all upcoming bookings';
+    protected $description = 'Prepare pickup reminders and post-trip review requests';
 
     public function handle(BookingNotifier $notifier): int
     {
-        $bookings = Booking::with('customer')
+        $upcoming = Booking::with('customer')
             ->where('pickup_at', '>=', now())
             ->whereNotIn('status', [
                 BookingStatus::Cancelled->value,
@@ -29,11 +30,21 @@ class PrepareReminders extends Command
             ])
             ->get();
 
-        foreach ($bookings as $booking) {
+        foreach ($upcoming as $booking) {
             $notifier->ensureReminders($booking);
         }
 
-        $this->info("Checked {$bookings->count()} upcoming booking(s) for reminders.");
+        // Review requests for jobs completed in the last ~2 days without one.
+        $completed = Booking::with('customer')
+            ->where('status', BookingStatus::Complete->value)
+            ->whereBetween('pickup_at', [now()->subDays(2), now()])
+            ->get();
+
+        foreach ($completed as $booking) {
+            $notifier->ensureReviewRequest($booking);
+        }
+
+        $this->info("Checked {$upcoming->count()} upcoming reminder(s) and {$completed->count()} completed job(s) for reviews.");
 
         return self::SUCCESS;
     }
