@@ -346,33 +346,49 @@
             <h2>Customer Comms</h2>
             <p class="hint" style="margin-top:-8px">The button opens WhatsApp with the number <em>and</em> message ready — hit send, then mark it done. <strong>Send from WhatsApp Business</strong> (use a device signed into the business number, so it goes from the right account).</p>
 
-            {{-- Both numbers, side by side: the REAL number (office WhatsApp
-                 goes there, as always) and the MASKED CET line for this job
-                 (what driver ↔ customer use — the only number the driver sees). --}}
+            {{-- The office's contact panel: the two REAL numbers you keep, plus
+                 the TWO masked lines to hand out — one for the customer to reach
+                 the driver, one for the driver to reach the customer. Neither
+                 party ever gets the other's real number. --}}
             @php
-                $maskedForCustomer = $booking->customerMaskedNumber();
+                $maskedForCustomer = $booking->customerMaskedNumber(); // customer dials this to reach the driver
+                $maskedForDriver = $booking->driverContactNumber();    // driver dials this to reach the customer
                 $maskingConfigured = app(\App\Services\Telephony\TwilioProxyService::class)->configured();
+                $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
+                $maskState = fn () => ! $maskingConfigured ? 'Masking not switched on here'
+                    : (! $booking->driver_id ? 'Opens when you assign a driver' : 'No open session (job finished, or it couldn’t open)');
             @endphp
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-                <div style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
-                    <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">📞 Customer's real number</div>
+
+            <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office only, never given out</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+                    <div class="muted" style="font-size:12px">📞 Customer</div>
                     <div style="font-weight:700;font-size:15px" class="mono">{{ $booking->customer?->phone ?? '—' }}</div>
-                    <div class="hint" style="margin-top:2px">Your WhatsApp messages go here, as always. Drivers never see it.</div>
                 </div>
+                <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+                    <div class="muted" style="font-size:12px">🚗 Driver</div>
+                    <div style="font-weight:700;font-size:15px" class="mono">{{ $driverRealPhone ?? '—' }}</div>
+                </div>
+            </div>
+
+            <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 Masked CET lines — these are what you give out</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
                 <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForCustomer ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForCustomer ? 'background:rgba(31,157,85,.06)' : '' }}">
-                    <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">🎭 Masked CET line (driver ↔ customer)</div>
+                    <div class="muted" style="font-size:12px">➡️ Give to the <strong>CUSTOMER</strong> (rings the driver)</div>
                     @if($maskedForCustomer)
-                        <div style="font-weight:700;font-size:15px" class="mono">{{ $maskedForCustomer }}</div>
-                        <div class="hint" style="margin-top:2px">Live — the customer rings/texts this to reach the driver; the driver has their own masked line on the job screen. Closes ~4h after drop-off.</div>
-                    @elseif(! $maskingConfigured)
-                        <div style="font-weight:700;font-size:15px" class="muted">Not active on this environment</div>
-                        <div class="hint" style="margin-top:2px">No Twilio keys here — driver-details messages fall back to the real driver number.</div>
-                    @elseif(! $booking->driver_id)
-                        <div style="font-weight:700;font-size:15px" class="muted">Opens when you assign a driver</div>
-                        <div class="hint" style="margin-top:2px">Assign on the dispatch board and the masked line appears here automatically.</div>
+                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
+                        <div class="hint" style="margin-top:2px">Already in the customer’s driver-details message. Closes ~4h after drop-off.</div>
                     @else
-                        <div style="font-weight:700;font-size:15px" class="muted">No open session</div>
-                        <div class="hint" style="margin-top:2px">Closed (job finished) or it couldn't open — check the logs if unexpected.</div>
+                        <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
+                    @endif
+                </div>
+                <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForDriver ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForDriver ? 'background:rgba(31,157,85,.06)' : '' }}">
+                    <div class="muted" style="font-size:12px">⬅️ Give to the <strong>DRIVER</strong> (rings the customer)</div>
+                    @if($maskedForDriver)
+                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForDriver }}</div>
+                        <div class="hint" style="margin-top:2px">Also shown on the driver’s own job screen. He dials this — never the customer’s real number.</div>
+                    @else
+                        <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
                     @endif
                 </div>
             </div>
