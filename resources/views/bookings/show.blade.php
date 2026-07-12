@@ -346,6 +346,37 @@
             <h2>Customer Comms</h2>
             <p class="hint" style="margin-top:-8px">The button opens WhatsApp with the number <em>and</em> message ready — hit send, then mark it done. <strong>Send from WhatsApp Business</strong> (use a device signed into the business number, so it goes from the right account).</p>
 
+            {{-- Both numbers, side by side: the REAL number (office WhatsApp
+                 goes there, as always) and the MASKED CET line for this job
+                 (what driver ↔ customer use — the only number the driver sees). --}}
+            @php
+                $maskedForCustomer = $booking->customerMaskedNumber();
+                $maskingConfigured = app(\App\Services\Telephony\TwilioProxyService::class)->configured();
+            @endphp
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+                <div style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+                    <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">📞 Customer's real number</div>
+                    <div style="font-weight:700;font-size:15px" class="mono">{{ $booking->customer?->phone ?? '—' }}</div>
+                    <div class="hint" style="margin-top:2px">Your WhatsApp messages go here, as always. Drivers never see it.</div>
+                </div>
+                <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForCustomer ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForCustomer ? 'background:rgba(31,157,85,.06)' : '' }}">
+                    <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">🎭 Masked CET line (driver ↔ customer)</div>
+                    @if($maskedForCustomer)
+                        <div style="font-weight:700;font-size:15px" class="mono">{{ $maskedForCustomer }}</div>
+                        <div class="hint" style="margin-top:2px">Live — the customer rings/texts this to reach the driver; the driver has their own masked line on the job screen. Closes ~4h after drop-off.</div>
+                    @elseif(! $maskingConfigured)
+                        <div style="font-weight:700;font-size:15px" class="muted">Not active on this environment</div>
+                        <div class="hint" style="margin-top:2px">No Twilio keys here — driver-details messages fall back to the real driver number.</div>
+                    @elseif(! $booking->driver_id)
+                        <div style="font-weight:700;font-size:15px" class="muted">Opens when you assign a driver</div>
+                        <div class="hint" style="margin-top:2px">Assign on the dispatch board and the masked line appears here automatically.</div>
+                    @else
+                        <div style="font-weight:700;font-size:15px" class="muted">No open session</div>
+                        <div class="hint" style="margin-top:2px">Closed (job finished) or it couldn't open — check the logs if unexpected.</div>
+                    @endif
+                </div>
+            </div>
+
             @php
                 $md = $booking->meta['driver_details'] ?? null;
                 $hasDriver = (is_array($md) && !empty($md['name'])) || $booking->driver;
