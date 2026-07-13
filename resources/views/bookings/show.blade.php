@@ -413,18 +413,11 @@
                 $ownerDriving = $booking->driver?->isAdmin() ?? false;  // admin drives their own job
                 $maskingOff = $booking->maskingDisabled();               // office turned masking off for this job
                 $realNumbers = $ownerDriving || $maskingOff;             // no masked line — both use real numbers
-                $maskedForCustomer = $realNumbers ? null : $booking->customerMaskedNumber(); // customer dials this to reach the driver
-                $maskedForDriver = $realNumbers ? null : $booking->driverContactNumber();    // driver dials this to reach the customer
-                $maskingConfigured = app(\App\Services\Telephony\TwilioProxyService::class)->configured();
+                $switchboard = app(\App\Services\Telephony\MaskingService::class);
+                $switchboardOn = $switchboard->configured();
+                $maskedForCustomer = $realNumbers ? null : $switchboard->customerLine(); // customer rings this → reaches the driver
+                $maskedForDriver = $realNumbers ? null : $switchboard->driverLine();      // driver rings this → reaches the customer
                 $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
-                $maskState = function () use ($maskingConfigured, $booking, $driverRealPhone) {
-                    if (! $maskingConfigured) return 'Masking not switched on here';
-                    if (! $booking->driver_id) return 'Opens when you assign a driver';
-                    if (blank($booking->customer?->phone)) return 'No customer number on this booking — add one (Edit booking) and the line opens automatically';
-                    if (blank($driverRealPhone)) return 'No driver number on this booking — add one and the line opens automatically';
-                    if ($booking->status->isTerminal()) return 'Job finished — the line has closed';
-                    return 'Line not open — re-allocate the driver (or Re-mask) to open it';
-                };
             @endphp
 
             <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office{{ $realNumbers ? '' : ' only, never given out' }}</div>
@@ -452,28 +445,25 @@
                         <div class="hint" style="margin-top:4px">Both sides use their real numbers — customer <span class="mono">{{ $booking->customer?->phone ?? '—' }}</span> · driver <span class="mono">{{ $driverRealPhone ?? '—' }}</span>. Handy when they already have each other's number (e.g. a return leg). The driver's job screen shows the real number too.</div>
                     @endif
                 </div>
-            @else
-                <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 Masked CET lines — these are what you give out</div>
+            @elseif($switchboardOn)
+                {{-- Switchboard: two PERMANENT CET lines. Same numbers on every
+                     job, so they're safe to send with driver details 24h ahead —
+                     each rings whoever's on the job at the time of the call. --}}
+                <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 CET switchboard lines — hand these out (same on every job)</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-                    <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForCustomer ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForCustomer ? 'background:rgba(31,157,85,.06)' : '' }}">
+                    <div style="flex:1;min-width:220px;border:1px solid rgba(31,122,68,.45);border-radius:10px;padding:10px 14px;background:rgba(31,157,85,.06)">
                         <div class="muted" style="font-size:12px">➡️ Give to the <strong>CUSTOMER</strong> (rings the driver)</div>
-                        @if($maskedForCustomer)
-                            <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
-                            <div class="hint" style="margin-top:2px">Already in the customer’s driver-details message. Closes ~30 min after On Board (or ~4h after drop-off if the job never hits POB).</div>
-                        @else
-                            <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
-                        @endif
+                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
+                        <div class="hint" style="margin-top:2px">Goes in the driver-details message. Call or text it — reaches {{ $booking->driver?->name ?? 'the driver' }}. Never changes.</div>
                     </div>
-                    <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForDriver ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForDriver ? 'background:rgba(31,157,85,.06)' : '' }}">
+                    <div style="flex:1;min-width:220px;border:1px solid rgba(31,122,68,.45);border-radius:10px;padding:10px 14px;background:rgba(31,157,85,.06)">
                         <div class="muted" style="font-size:12px">⬅️ Give to the <strong>DRIVER</strong> (rings the customer)</div>
-                        @if($maskedForDriver)
-                            <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForDriver }}</div>
-                            <div class="hint" style="margin-top:2px">Also shown on the driver’s own job screen. He dials this — never the customer’s real number.</div>
-                        @else
-                            <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
-                        @endif
+                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForDriver }}</div>
+                        <div class="hint" style="margin-top:2px">On the driver's job screen too. Call or text it — reaches the customer. Never the customer's real number.</div>
                     </div>
                 </div>
+            @else
+                <div class="alert" style="margin-bottom:14px">Masking isn't switched on here yet. Set <span class="mono">TWILIO_CUSTOMER_LINE</span> and <span class="mono">TWILIO_DRIVER_LINE</span> to turn on the CET switchboard.</div>
             @endif
 
             @if($booking->driver_id && ! $ownerDriving && ! $booking->status->isTerminal())
@@ -481,7 +471,7 @@
                     @csrf
                     @if($maskingOff)
                         <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px">🔒 Re-mask this job (use CET lines again)</button>
-                        <span class="hint" style="margin-left:6px">A fresh masked line opens for the driver.</span>
+                        <span class="hint" style="margin-left:6px">Back to the CET switchboard lines for this job.</span>
                     @else
                         <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px;color:#b8860b"
                                 onclick="return confirm('Turn masking OFF for {{ $booking->reference }}? The customer and driver will use their real numbers for this job.')">🔓 Unmask this job (use real numbers)</button>

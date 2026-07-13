@@ -169,11 +169,16 @@ class Booking extends Model
      */
     public function driverContactNumber(): ?string
     {
-        // An admin driving their own job (Abdi / Maj) is allowed the customer's
-        // real number — no masked line is opened for them, which also saves a
-        // Twilio credit. Every other driver only ever gets the masked line.
+        // An admin driving their own job (Abdi / Maj), or a job the office has
+        // unmasked, gets the customer's real number.
         if ($this->driverSeesRealNumber()) {
             return $this->customer?->phone;
+        }
+
+        // Switchboard: the driver rings the permanent CET driver line to reach
+        // the customer (same number on every job — safe to show in advance).
+        if (filled($line = config('services.twilio_masking.driver_line'))) {
+            return $line;
         }
 
         try {
@@ -206,6 +211,17 @@ class Booking extends Model
     /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */
     public function customerMaskedNumber(): ?string
     {
+        // Unmasked job → no CET line; the customer gets the real driver number.
+        if ($this->maskingDisabled()) {
+            return null;
+        }
+
+        // Switchboard: the customer rings the permanent CET customer line to
+        // reach whoever's driving this job (same number every time).
+        if (filled($line = config('services.twilio_masking.customer_line'))) {
+            return $line;
+        }
+
         try {
             return $this->proxySessions()->open()->latest('opened_at')->value('customer_masked_number');
         } catch (\Throwable) {

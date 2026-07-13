@@ -80,9 +80,16 @@ return [
         'customer_id' => env('GOOGLE_ADS_CUSTOMER_ID'),
     ],
 
-    // Twilio number masking virtual number (customer & driver connect via this).
+    // Number masking — the "switchboard" model. Two permanent CET lines (from
+    // your existing 2 Twilio numbers) bridge every job with no per-job cost:
+    //   customer_line — give to customers; they ring it → reaches their driver.
+    //   driver_line   — on the driver's job screen; they ring it → reaches the customer.
+    // Works for unlimited concurrent jobs and can be handed out 24h+ ahead
+    // because the numbers never change. proxy_number kept as a legacy fallback.
     'twilio_masking' => [
         'proxy_number' => env('TWILIO_PROXY_NUMBER'),
+        'customer_line' => env('TWILIO_CUSTOMER_LINE'),
+        'driver_line' => env('TWILIO_DRIVER_LINE'),
     ],
 
     // Google Calendar — booking events pushed to the company calendar.

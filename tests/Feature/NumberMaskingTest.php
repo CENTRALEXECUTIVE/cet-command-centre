@@ -21,7 +21,13 @@ class NumberMaskingTest extends TestCase
     {
         parent::setUp();
         $this->seed(VehicleTypeSeeder::class);
-        config(['cet.webhook_secret' => 'test-secret']);
+        config([
+            'cet.webhook_secret' => 'test-secret',
+            'services.twilio_masking.customer_line' => '+441140000001',
+            'services.twilio_masking.driver_line' => '+441140000002',
+            'services.twilio.sid' => 'AC_test',
+            'services.twilio.token' => 'secret',
+        ]);
     }
 
     private function activeJob(): Booking
@@ -34,6 +40,7 @@ class NumberMaskingTest extends TestCase
             'customer_id' => $customer->id,
             'driver_id' => $driver->id,
             'status' => BookingStatus::EnRoute->value,
+            'pickup_at' => now()->addHour(),
         ]);
     }
 
@@ -71,5 +78,67 @@ class NumberMaskingTest extends TestCase
     public function test_voice_webhook_rejects_bad_secret(): void
     {
         $this->post(route('webhooks.voice'), ['secret' => 'wrong', 'From' => '07700900111'])->assertForbidden();
+    }
+
+    public function test_a_booking_still_bridges_a_day_before_pickup(): void
+    {
+        // Details go out ~24h ahead, so the switchboard must connect that early.
+        $customer = Customer::factory()->create(['phone' => '07700900111']);
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+        Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id, 'driver_id' => $driver->id,
+            'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addHours(23),
+        ]);
+
+        $this->assertEquals('07700900222', app(MaskingService::class)->counterpartFor('07700900111'));
+    }
+
+    public function test_callee_sees_the_counterpart_cet_line_not_the_real_number(): void
+    {
+        $this->activeJob();
+        $service = app(MaskingService::class);
+
+        // Customer calls → driver is dialled, and the caller-ID shown is the CET
+        // DRIVER line (so the driver can call/text back on it).
+        $forCustomer = $service->resolve('07700900111');
+        $this->assertSame('07700900222', $forCustomer['dial']);
+        $this->assertSame('+441140000002', $forCustomer['caller_id']);
+
+        // Driver calls → customer is dialled, caller-ID is the CET CUSTOMER line.
+        $forDriver = $service->resolve('07700900222');
+        $this->assertSame('07700900111', $forDriver['dial']);
+        $this->assertSame('+441140000001', $forDriver['caller_id']);
+    }
+
+    public function test_sms_webhook_forwards_the_text_to_the_counterpart(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'api.twilio.com/*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM_x']),
+        ]);
+        $this->activeJob();
+
+        $this->post(route('webhooks.sms'), [
+            'secret' => 'test-secret', 'From' => '07700900111', 'Body' => 'I am outside',
+        ])->assertOk();
+
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'Messages.json')
+                && $request['From'] === '+441140000002'   // from the CET driver line
+                && $request['To'] === '+447700900222'      // to the driver
+                && $request['Body'] === 'I am outside';
+        });
+    }
+
+    public function test_sms_from_an_unknown_number_is_not_forwarded(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+        $this->activeJob();
+
+        $this->post(route('webhooks.sms'), [
+            'secret' => 'test-secret', 'From' => '07999999999', 'Body' => 'hello',
+        ])->assertOk()->assertSee('connect your message', false);
+
+        \Illuminate\Support\Facades\Http::assertNothingSent();
     }
 }

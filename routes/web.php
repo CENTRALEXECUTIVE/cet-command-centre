@@ -278,6 +278,9 @@ Route::post('webhooks/missed-call', [WebhookController::class, 'missedCall'])
 Route::post('webhooks/twilio-proxy', [WebhookController::class, 'proxyEvent'])
     ->middleware('throttle:120,1')
     ->name('webhooks.twilio-proxy');
+Route::post('webhooks/sms', [WebhookController::class, 'sms'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.sms');
 Route::post('webhooks/voice', [WebhookController::class, 'voice'])
     ->middleware('throttle:120,1')
     ->name('webhooks.voice');
