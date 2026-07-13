@@ -149,11 +149,11 @@ class ProxyMaskingTest extends TestCase
         $this->assertDatabaseHas('proxy_events', ['booking_id' => $booking->id, 'event_type' => 'session_closed']);
     }
 
-    public function test_reaching_pob_closes_the_session_so_the_number_frees_up(): void
+    public function test_reaching_pob_winds_the_mask_down_to_thirty_minutes(): void
     {
-        // Once the passenger is on board there's no more phone contact — the
-        // mask closes at POB (not drop-off + grace) so the pooled number is
-        // free for the next job and a later call can't reach a reassigned pair.
+        // At POB the passenger is in the car — keep the line for a 30-min grace
+        // (bag left behind / follow-up), then it closes so the pooled number is
+        // free again and a later call can't reach a reassigned pair.
         $admin = User::factory()->admin()->create();
         $driver = $this->driver();
         $booking = $this->booking(BookingStatus::Arrived, $driver);
@@ -162,8 +162,16 @@ class ProxyMaskingTest extends TestCase
         app(BookingStatusService::class)->forceTransition($booking, BookingStatus::Collected, $admin);
 
         $session = ProxySession::where('booking_id', $booking->id)->first();
-        $this->assertSame('closed', $session->status, 'The mask must close at POB');
-        $this->assertNotNull($session->closed_at);
+        $this->assertSame('open', $session->status, 'The mask stays open briefly after POB');
+        $this->assertTrue(
+            $session->closes_at->between(now()->addMinutes(28), now()->addMinutes(32)),
+            'The mask should be wound down to ~30 min after POB'
+        );
+
+        // Once the grace window passes, the scheduled sweep closes it.
+        $session->forceFill(['closes_at' => now()->subMinute()])->save();
+        app(TwilioProxyService::class)->closeExpired();
+        $this->assertSame('closed', $session->fresh()->status);
     }
 
     public function test_reassigning_the_driver_swaps_the_session(): void

@@ -115,7 +115,7 @@
         @endphp
         <div class="card" style="margin-bottom:16px">
             <h2 style="margin-top:0">Update status</h2>
-            <p class="hint" style="margin-top:-6px">Set this job to any stage in one tap. Logged against your name — you can also wind it back if a driver tapped the wrong button. Marking <strong>On Board</strong> closes the masked number for this job.</p>
+            <p class="hint" style="margin-top:-6px">Set this job to any stage in one tap. Logged against your name — you can also wind it back if a driver tapped the wrong button. Marking <strong>On Board</strong> winds the masked number down (closes ~30 min later).</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 @foreach($statusButtons as [$value, $icon, $label])
                     @if($booking->status->value === $value)
@@ -414,7 +414,7 @@
                     <div class="muted" style="font-size:12px">➡️ Give to the <strong>CUSTOMER</strong> (rings the driver)</div>
                     @if($maskedForCustomer)
                         <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
-                        <div class="hint" style="margin-top:2px">Already in the customer’s driver-details message. Closes ~4h after drop-off.</div>
+                        <div class="hint" style="margin-top:2px">Already in the customer’s driver-details message. Closes ~30 min after On Board (or ~4h after drop-off if the job never hits POB).</div>
                     @else
                         <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
                     @endif

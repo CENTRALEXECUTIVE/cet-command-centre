@@ -31,6 +31,9 @@ class TwilioProxyService
     /** Mask lifetime beyond the expected drop-off. */
     private const GRACE_HOURS = 4;
 
+    /** How long the mask lingers after the passenger is on board (POB). */
+    public const POB_GRACE_MINUTES = 30;
+
     public function configured(): bool
     {
         return filled(config('services.twilio.sid'))
@@ -109,6 +112,39 @@ class TwilioProxyService
     {
         $booking->proxySessions()->open()->get()
             ->each(fn (ProxySession $s) => $this->close($s, $reason));
+    }
+
+    /**
+     * Bring an open session's expiry forward to a few minutes from now — used
+     * at POB, where the passenger is in the car but might still need the line
+     * briefly (a bag left behind, a follow-up call). Updates our closes_at so
+     * the 5-minute sweep closes it, AND pushes the new DateExpiry to Twilio so
+     * the mask still dies on time even if the sweep doesn't run.
+     */
+    public function closeAfterMinutes(Booking $booking, int $minutes): void
+    {
+        $at = now()->addMinutes($minutes);
+
+        $booking->proxySessions()->open()->get()->each(function (ProxySession $s) use ($at) {
+            // Never push the expiry OUT — only pull it in. If a session is
+            // already set to die sooner, leave it.
+            if ($s->closes_at && $s->closes_at->lte($at)) {
+                return;
+            }
+
+            if ($this->configured() && $s->twilio_session_sid) {
+                try {
+                    $this->twilio()->post($this->url("/Sessions/{$s->twilio_session_sid}"), [
+                        'DateExpiry' => $at->copy()->utc()->toIso8601String(),
+                    ])->throw();
+                } catch (\Throwable $e) {
+                    Log::warning('Twilio Proxy re-expiry failed', ['sid' => $s->twilio_session_sid, 'error' => $e->getMessage()]);
+                }
+            }
+
+            $s->forceFill(['closes_at' => $at])->save();
+            $this->audit($s, $s->booking, 'expiry_shortened', ['closes_at' => $at->toDateTimeString()]);
+        });
     }
 
     /** Swap the mask to a new driver — the old driver loses contact now. */
