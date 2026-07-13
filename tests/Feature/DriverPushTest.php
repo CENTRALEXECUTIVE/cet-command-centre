@@ -139,6 +139,14 @@ class DriverPushTest extends TestCase
             ->assertJson(['reason' => 'not_configured']);
     }
 
+    public function test_make_vapid_show_prints_the_env_lines_without_writing(): void
+    {
+        // --show must never touch .env — it just prints the two lines.
+        $this->artisan('cet:make-vapid --show')
+            ->expectsOutputToContain('VAPID_PUBLIC_KEY=')
+            ->assertSuccessful();
+    }
+
     public function test_push_is_a_no_op_when_vapid_is_not_configured(): void
     {
         config(['webpush.vapid.public_key' => null, 'webpush.vapid.private_key' => null]);
