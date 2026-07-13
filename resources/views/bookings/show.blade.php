@@ -551,6 +551,44 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin())
+        @php
+            $driverBrief = app(\App\Services\CalendarEventBuilder::class)->driverBrief($booking);
+            $driverRealForWa = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
+            $briefDigits = $driverRealForWa ? preg_replace('/\D/', '', $driverRealForWa) : '';
+            $briefWa = $briefDigits ? (\Illuminate\Support\Str::startsWith($briefDigits, '0') ? '44'.substr($briefDigits, 1) : $briefDigits) : null;
+        @endphp
+        <div class="card">
+            <h2>🚗 Driver brief — send to the driver</h2>
+            <p class="hint" style="margin-top:-8px">The job details for the driver — <strong>no price, no booking reference, and the masked CET number</strong> instead of the customer's real one. Copy it, or send it straight to the driver on WhatsApp.</p>
+            <textarea id="driver-brief" readonly style="width:100%;min-height:240px;font-family:var(--mono,monospace);font-size:13px;line-height:1.5;white-space:pre-wrap">{{ $driverBrief }}</textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+                <button type="button" class="btn btn-ghost copy-brief" style="padding:8px 16px">⧉ Copy</button>
+                @if($briefWa)
+                    <a href="https://wa.me/{{ $briefWa }}?text={{ rawurlencode($driverBrief) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:8px 16px">📲 Send to {{ $booking->driver?->name ?? 'the driver' }}</a>
+                @else
+                    <span class="hint">Add the driver's number (in <strong>Driver for this job</strong> above) to enable the WhatsApp send.</span>
+                @endif
+            </div>
+            @verbatim
+            <script>
+                (function () {
+                    var btn = document.querySelector('.copy-brief');
+                    if (!btn) return;
+                    btn.addEventListener('click', function () {
+                        var t = document.getElementById('driver-brief');
+                        t.select();
+                        navigator.clipboard.writeText(t.value).then(function () {
+                            var old = btn.textContent; btn.textContent = '✓ Copied';
+                            setTimeout(function () { btn.textContent = old; }, 1500);
+                        });
+                    });
+                })();
+            </script>
+            @endverbatim
+        </div>
+    @endif
+
     @if($auditLogs->isNotEmpty())
         <div class="card">
             <h2>Audit Trail</h2>
