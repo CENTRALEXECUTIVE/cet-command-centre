@@ -111,6 +111,34 @@ class DriverPushTest extends TestCase
         app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
     }
 
+    public function test_admin_can_send_themselves_a_test_notification(): void
+    {
+        $this->configureVapid();
+        $admin = User::factory()->admin()->create();
+
+        // Don't hit the network — confirm the endpoint pushes to the caller.
+        $spy = \Mockery::mock(WebPushService::class);
+        $spy->shouldReceive('configured')->andReturnTrue();
+        $spy->shouldReceive('sendToUser')->once()
+            ->with(\Mockery::on(fn ($u) => $u->id === $admin->id), \Mockery::any(), \Mockery::any(), \Mockery::any())
+            ->andReturn(2);
+        $this->instance(WebPushService::class, $spy);
+
+        $this->actingAs($admin)->postJson(route('driver.push.test'))
+            ->assertOk()
+            ->assertJson(['ok' => true, 'devices' => 2]);
+    }
+
+    public function test_test_notification_reports_when_push_is_not_configured(): void
+    {
+        config(['webpush.vapid.public_key' => null, 'webpush.vapid.private_key' => null]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->postJson(route('driver.push.test'))
+            ->assertStatus(422)
+            ->assertJson(['reason' => 'not_configured']);
+    }
+
     public function test_push_is_a_no_op_when_vapid_is_not_configured(): void
     {
         config(['webpush.vapid.public_key' => null, 'webpush.vapid.private_key' => null]);

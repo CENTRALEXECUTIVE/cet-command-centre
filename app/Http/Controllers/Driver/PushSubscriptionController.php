@@ -44,6 +44,27 @@ class PushSubscriptionController extends Controller
         return response()->json(['subscribed' => true]);
     }
 
+    /**
+     * Fire a test notification to the signed-in user's own devices, so an admin
+     * can confirm alerts actually reach their phone (and that they installed the
+     * app / granted permission correctly). Rate-limited on the route.
+     */
+    public function test(Request $request, WebPushService $push): JsonResponse
+    {
+        if (! $push->configured()) {
+            return response()->json(['ok' => false, 'reason' => 'not_configured'], 422);
+        }
+
+        $sent = $push->sendToUser(
+            $request->user(),
+            'CET test alert',
+            'Notifications are working on this device 🎉',
+            ['url' => route('dashboard'), 'tag' => 'cet-test'],
+        );
+
+        return response()->json(['ok' => $sent > 0, 'devices' => $sent]);
+    }
+
     public function destroy(Request $request): JsonResponse
     {
         $endpoint = (string) $request->input('endpoint');

@@ -163,6 +163,8 @@ Route::middleware('auth')->group(function () {
         Route::get('push/key', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'key'])->name('push.key');
         Route::post('push/subscribe', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'store'])->middleware('throttle:30,1')->name('push.subscribe');
         Route::post('push/unsubscribe', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'destroy'])->middleware('throttle:30,1')->name('push.unsubscribe');
+        // Fire a test notification to your own devices (confirm it reaches the phone).
+        Route::post('push/test', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'test'])->middleware('throttle:6,1')->name('push.test');
 
         // Vehicle & documents — days-left cards + upload.
         Route::get('documents', [\App\Http\Controllers\Driver\DocumentController::class, 'index'])->name('documents');
