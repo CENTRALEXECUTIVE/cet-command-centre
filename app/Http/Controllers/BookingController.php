@@ -227,6 +227,35 @@ class BookingController extends Controller
 
     /** @return array<string, mixed> */
     /**
+     * Toggle number masking for a single job. Turning it OFF frees both sides
+     * to use their real numbers (handy on a return leg where they already have
+     * each other's number) and closes any open masked line. Turning it back ON
+     * reopens a fresh masked line for a live non-admin driver.
+     */
+    public function toggleMasking(Request $request, Booking $booking, \App\Services\Telephony\TwilioProxyService $proxy): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $off = ! $booking->maskingDisabled();
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'masking_disabled' => $off,
+        ])])->save();
+
+        if ($off) {
+            $proxy->closeSession($booking, 'masking disabled for job');
+
+            return back()->with('status', "Masking OFF for {$booking->reference} — both sides use their real numbers.");
+        }
+
+        // Re-mask: open a fresh line if there's a live, non-admin driver.
+        if ($booking->driver && ! $booking->status->isTerminal() && ! $booking->driver->isAdmin()) {
+            $proxy->openSession($booking->fresh(['customer', 'driver']), $booking->driver);
+        }
+
+        return back()->with('status', "Masking back ON for {$booking->reference}.");
+    }
+
+    /**
      * Ask the assigned driver to share their location now: flag the request on
      * the booking and push their phone. Their job screen answers with a one-off
      * ping (works at any live stage, even before Set off).

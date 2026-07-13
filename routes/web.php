@@ -98,6 +98,8 @@ Route::middleware('auth')->group(function () {
         // Ask the driver to share their location now + poll their latest ping.
         Route::post('bookings/{booking}/request-location', [BookingController::class, 'requestLocation'])->middleware('throttle:20,1')->name('bookings.request-location');
         Route::get('bookings/{booking}/location', [BookingController::class, 'locationData'])->name('bookings.location');
+        // Turn number masking off / on for a single job (e.g. a return leg).
+        Route::post('bookings/{booking}/toggle-masking', [BookingController::class, 'toggleMasking'])->middleware('throttle:20,1')->name('bookings.toggle-masking');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');

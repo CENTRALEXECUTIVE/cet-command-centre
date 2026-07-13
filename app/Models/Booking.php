@@ -184,13 +184,23 @@ class Booking extends Model
     }
 
     /**
-     * True when the assigned driver is an admin, so their job screen shows the
-     * customer's REAL number rather than a masked Twilio line (owners are
-     * trusted with it, and it saves a masking credit).
+     * True when the office has switched masking OFF for this specific job — e.g.
+     * a return leg where the customer and driver already have each other's
+     * numbers from the outbound, so a masked line just gets in the way.
+     */
+    public function maskingDisabled(): bool
+    {
+        return (bool) ($this->meta['masking_disabled'] ?? false);
+    }
+
+    /**
+     * True when the driver's job screen shows the customer's REAL number rather
+     * than a masked Twilio line: either the driver is an admin/owner (trusted
+     * with it, and it saves a credit), or masking was turned off for this job.
      */
     public function driverSeesRealNumber(): bool
     {
-        return $this->driver?->isAdmin() ?? false;
+        return ($this->driver?->isAdmin() ?? false) || $this->maskingDisabled();
     }
 
     /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */

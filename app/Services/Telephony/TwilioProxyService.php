@@ -51,8 +51,10 @@ class TwilioProxyService
         // An admin who drives their own job (Abdi / Maj) is already allowed to
         // see the customer's real number, so there's nothing to mask — skip the
         // session entirely and save a Twilio credit. Masking is only for
-        // non-admin (cover / third-party) drivers.
-        if ($driver->isAdmin()) {
+        // non-admin (cover / third-party) drivers. The office can also turn
+        // masking off for a specific job (e.g. a return leg where both sides
+        // already have each other's number).
+        if ($driver->isAdmin() || $booking->maskingDisabled()) {
             return null;
         }
 

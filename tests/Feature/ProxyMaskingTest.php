@@ -173,6 +173,44 @@ class ProxyMaskingTest extends TestCase
         $page->assertSee('customer’s number', false);
     }
 
+    public function test_office_can_unmask_a_single_job(): void
+    {
+        // A return leg where both sides already have each other's number: the
+        // office turns masking off — the open line closes, no session reopens,
+        // and the driver's screen shows the real number.
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::EnRoute, $driver);
+        app(TwilioProxyService::class)->openSession($booking, $driver);
+
+        $this->actingAs($admin)->post(route('bookings.toggle-masking', $booking))->assertRedirect();
+
+        $booking = $booking->fresh(['customer', 'driver']);
+        $this->assertTrue($booking->maskingDisabled());
+        $this->assertSame('closed', ProxySession::where('booking_id', $booking->id)->first()->status);
+        // Driver now sees the real customer number.
+        $this->assertTrue($booking->driverSeesRealNumber());
+        $this->assertSame(self::REAL_CUSTOMER, $booking->driverContactNumber());
+
+        // Re-allocating must NOT reopen a masked line while masking is off.
+        app(TwilioProxyService::class)->openSession($booking, $driver);
+        $this->assertCount(0, ProxySession::where('booking_id', $booking->id)->open()->get());
+    }
+
+    public function test_re_masking_reopens_a_line(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::EnRoute, $driver);
+        $booking->forceFill(['meta' => ['masking_disabled' => true]])->save();
+
+        $this->actingAs($admin)->post(route('bookings.toggle-masking', $booking))->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertFalse($booking->maskingDisabled());
+        $this->assertCount(1, ProxySession::where('booking_id', $booking->id)->open()->get());
+    }
+
     public function test_reaching_pob_winds_the_mask_down_to_thirty_minutes(): void
     {
         // At POB the passenger is in the car — keep the line for a 30-min grace

@@ -410,16 +410,18 @@
                  the driver, one for the driver to reach the customer. Neither
                  party ever gets the other's real number. --}}
             @php
-                $driverIsOwner = $booking->driverSeesRealNumber();     // admin drives their own job — no masked line
-                $maskedForCustomer = $booking->customerMaskedNumber(); // customer dials this to reach the driver
-                $maskedForDriver = $driverIsOwner ? null : $booking->driverContactNumber(); // driver dials this to reach the customer
+                $ownerDriving = $booking->driver?->isAdmin() ?? false;  // admin drives their own job
+                $maskingOff = $booking->maskingDisabled();               // office turned masking off for this job
+                $realNumbers = $ownerDriving || $maskingOff;             // no masked line — both use real numbers
+                $maskedForCustomer = $realNumbers ? null : $booking->customerMaskedNumber(); // customer dials this to reach the driver
+                $maskedForDriver = $realNumbers ? null : $booking->driverContactNumber();    // driver dials this to reach the customer
                 $maskingConfigured = app(\App\Services\Telephony\TwilioProxyService::class)->configured();
                 $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
                 $maskState = fn () => ! $maskingConfigured ? 'Masking not switched on here'
                     : (! $booking->driver_id ? 'Opens when you assign a driver' : 'No open session (job finished, or it couldn’t open)');
             @endphp
 
-            <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office only, never given out</div>
+            <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office{{ $realNumbers ? '' : ' only, never given out' }}</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                 <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
                     <div class="muted" style="font-size:12px">📞 Customer</div>
@@ -431,13 +433,18 @@
                 </div>
             </div>
 
-            @if($driverIsOwner)
-                {{-- Owner (Abdi / Maj) drives this job — no masked line is opened
-                     (they're trusted with the real number, and it saves a Twilio
-                     credit). Both parties just use their real numbers. --}}
+            @if($realNumbers)
+                {{-- No masked line for this job — either an owner is driving, or
+                     the office turned masking off. Both parties use their real
+                     numbers. --}}
                 <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.06);margin-bottom:14px;padding:10px 14px">
-                    <strong>👑 Owner is driving this one</strong>
-                    <div class="hint" style="margin-top:4px">No masked line needed — {{ $booking->driver?->name }} uses the customer’s real number ({{ $booking->customer?->phone ?? '—' }}) straight from their job screen, and the customer has the driver’s direct number. A Twilio credit is saved.</div>
+                    @if($ownerDriving)
+                        <strong>👑 Owner is driving this one</strong>
+                        <div class="hint" style="margin-top:4px">No masked line needed — {{ $booking->driver?->name }} uses the customer’s real number ({{ $booking->customer?->phone ?? '—' }}) straight from their job screen, and the customer has the driver’s direct number. A Twilio credit is saved.</div>
+                    @else
+                        <strong>🔓 Masking is OFF for this job</strong>
+                        <div class="hint" style="margin-top:4px">Both sides use their real numbers — customer <span class="mono">{{ $booking->customer?->phone ?? '—' }}</span> · driver <span class="mono">{{ $driverRealPhone ?? '—' }}</span>. Handy when they already have each other's number (e.g. a return leg). The driver's job screen shows the real number too.</div>
+                    @endif
                 </div>
             @else
                 <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 Masked CET lines — these are what you give out</div>
@@ -461,6 +468,20 @@
                         @endif
                     </div>
                 </div>
+            @endif
+
+            @if($booking->driver_id && ! $ownerDriving && ! $booking->status->isTerminal())
+                <form method="POST" action="{{ route('bookings.toggle-masking', $booking) }}" style="margin-bottom:14px">
+                    @csrf
+                    @if($maskingOff)
+                        <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px">🔒 Re-mask this job (use CET lines again)</button>
+                        <span class="hint" style="margin-left:6px">A fresh masked line opens for the driver.</span>
+                    @else
+                        <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px;color:#b8860b"
+                                onclick="return confirm('Turn masking OFF for {{ $booking->reference }}? The customer and driver will use their real numbers for this job.')">🔓 Unmask this job (use real numbers)</button>
+                        <span class="hint" style="margin-left:6px">For when they already have each other's number — e.g. a return leg.</span>
+                    @endif
+                </form>
             @endif
 
             @php
