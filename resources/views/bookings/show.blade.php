@@ -96,6 +96,43 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin())
+        {{-- One-tap status control for the office. Reaches ANY stage directly
+             (Arrived / On Board / Completed …) and can wind a job back if a
+             driver tapped the wrong button. Same admin-override route the
+             dispatch board uses (logged against the actor). --}}
+        @php
+            $statusButtons = [
+                ['pending',   '⏳', 'Pending'],
+                ['allocated', '🧭', 'Allocated'],
+                ['accepted',  '✅', 'Accepted'],
+                ['en_route',  '🚗', 'En Route'],
+                ['arrived',   '📍', 'Arrived'],
+                ['collected', '🧳', 'On Board (POB)'],
+                ['complete',  '🏁', 'Completed'],
+                ['no_show',   '🚫', 'No Show'],
+            ];
+        @endphp
+        <div class="card" style="margin-bottom:16px">
+            <h2 style="margin-top:0">Update status</h2>
+            <p class="hint" style="margin-top:-6px">Set this job to any stage in one tap. Logged against your name — you can also wind it back if a driver tapped the wrong button. Marking <strong>On Board</strong> closes the masked number for this job.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                @foreach($statusButtons as [$value, $icon, $label])
+                    @if($booking->status->value === $value)
+                        <span class="btn" style="padding:8px 14px;font-size:13px;background:#111;color:#FBBA2A;cursor:default" aria-current="true">{{ $icon }} {{ $label }} · now</span>
+                    @else
+                        <form method="POST" action="{{ route('despatch.quick-status', $booking) }}" onsubmit="return confirm('Set {{ $booking->reference }} to {{ $label }}?')">
+                            @csrf
+                            <input type="hidden" name="status" value="{{ $value }}">
+                            <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">{{ $icon }} {{ $label }}</button>
+                        </form>
+                    @endif
+                @endforeach
+            </div>
+            <p class="hint" style="margin:10px 0 0">To cancel, use <strong>Cancel booking</strong> above — it records a reason and doesn't touch the calendar.</p>
+        </div>
+    @endif
+
     @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
         <div class="alert alert-error">Cancelled — {{ $booking->meta['cancellation_reason'] }}
             @if(!empty($booking->meta['cancelled_at'])) <span class="muted">({{ \Illuminate\Support\Carbon::parse($booking->meta['cancelled_at'])->format('d M Y, H:i') }})</span>@endif

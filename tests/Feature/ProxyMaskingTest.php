@@ -149,6 +149,23 @@ class ProxyMaskingTest extends TestCase
         $this->assertDatabaseHas('proxy_events', ['booking_id' => $booking->id, 'event_type' => 'session_closed']);
     }
 
+    public function test_reaching_pob_closes_the_session_so_the_number_frees_up(): void
+    {
+        // Once the passenger is on board there's no more phone contact — the
+        // mask closes at POB (not drop-off + grace) so the pooled number is
+        // free for the next job and a later call can't reach a reassigned pair.
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::Arrived, $driver);
+        app(TwilioProxyService::class)->openSession($booking, $driver);
+
+        app(BookingStatusService::class)->forceTransition($booking, BookingStatus::Collected, $admin);
+
+        $session = ProxySession::where('booking_id', $booking->id)->first();
+        $this->assertSame('closed', $session->status, 'The mask must close at POB');
+        $this->assertNotNull($session->closed_at);
+    }
+
     public function test_reassigning_the_driver_swaps_the_session(): void
     {
         $admin = User::factory()->admin()->create();

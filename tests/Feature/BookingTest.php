@@ -271,6 +271,33 @@ class BookingTest extends TestCase
         $this->assertEquals('synced', $booking->calendarEvent->fresh()->sync_status);
     }
 
+    public function test_booking_page_shows_status_controls_for_admin(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Update status')
+            ->assertSee('On Board (POB)')
+            ->assertSee('Completed');
+    }
+
+    public function test_admin_can_change_status_from_the_booking_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        // The booking-page control posts to the same admin-override route the
+        // dispatch board uses — reaching any stage directly (e.g. Arrived).
+        $this->actingAs($admin)->post(route('despatch.quick-status', $booking), ['status' => 'arrived'])
+            ->assertRedirect();
+
+        $this->assertEquals(\App\Enums\BookingStatus::Arrived, $booking->fresh()->status);
+    }
+
     public function test_admin_can_cancel_a_booking_with_a_reason(): void
     {
         $admin = User::factory()->admin()->create();

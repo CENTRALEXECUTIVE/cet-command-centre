@@ -240,6 +240,16 @@ class BookingStatusService
         // "Passenger on board" — journey underway, reassures the booker.
         if ($to === BookingStatus::Collected) {
             $this->notifier->sendPassengerOnBoard($booking);
+
+            // POB is the natural end of phone contact — the customer is now in
+            // the car, so the masked line is no longer needed. Close it here
+            // (rather than holding it until drop-off + grace) so the pooled
+            // number frees up straight away for the next job, and a later call
+            // on that number can never reach a driver/customer it was reassigned
+            // to. Twilio rejects out-of-session callers, so this is a hard stop.
+            // The terminal close below stays as a backstop for any job that
+            // completes without passing through POB.
+            $this->proxy->closeSession($booking, 'reached POB');
         }
 
         // Review request 30 minutes after completion (delivered by the scheduler).
