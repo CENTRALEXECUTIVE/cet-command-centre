@@ -388,8 +388,9 @@
                  the driver, one for the driver to reach the customer. Neither
                  party ever gets the other's real number. --}}
             @php
+                $driverIsOwner = $booking->driverSeesRealNumber();     // admin drives their own job — no masked line
                 $maskedForCustomer = $booking->customerMaskedNumber(); // customer dials this to reach the driver
-                $maskedForDriver = $booking->driverContactNumber();    // driver dials this to reach the customer
+                $maskedForDriver = $driverIsOwner ? null : $booking->driverContactNumber(); // driver dials this to reach the customer
                 $maskingConfigured = app(\App\Services\Telephony\TwilioProxyService::class)->configured();
                 $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
                 $maskState = fn () => ! $maskingConfigured ? 'Masking not switched on here'
@@ -408,27 +409,37 @@
                 </div>
             </div>
 
-            <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 Masked CET lines — these are what you give out</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-                <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForCustomer ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForCustomer ? 'background:rgba(31,157,85,.06)' : '' }}">
-                    <div class="muted" style="font-size:12px">➡️ Give to the <strong>CUSTOMER</strong> (rings the driver)</div>
-                    @if($maskedForCustomer)
-                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
-                        <div class="hint" style="margin-top:2px">Already in the customer’s driver-details message. Closes ~30 min after On Board (or ~4h after drop-off if the job never hits POB).</div>
-                    @else
-                        <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
-                    @endif
+            @if($driverIsOwner)
+                {{-- Owner (Abdi / Maj) drives this job — no masked line is opened
+                     (they're trusted with the real number, and it saves a Twilio
+                     credit). Both parties just use their real numbers. --}}
+                <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.06);margin-bottom:14px;padding:10px 14px">
+                    <strong>👑 Owner is driving this one</strong>
+                    <div class="hint" style="margin-top:4px">No masked line needed — {{ $booking->driver?->name }} uses the customer’s real number ({{ $booking->customer?->phone ?? '—' }}) straight from their job screen, and the customer has the driver’s direct number. A Twilio credit is saved.</div>
                 </div>
-                <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForDriver ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForDriver ? 'background:rgba(31,157,85,.06)' : '' }}">
-                    <div class="muted" style="font-size:12px">⬅️ Give to the <strong>DRIVER</strong> (rings the customer)</div>
-                    @if($maskedForDriver)
-                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForDriver }}</div>
-                        <div class="hint" style="margin-top:2px">Also shown on the driver’s own job screen. He dials this — never the customer’s real number.</div>
-                    @else
-                        <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
-                    @endif
+            @else
+                <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 Masked CET lines — these are what you give out</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+                    <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForCustomer ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForCustomer ? 'background:rgba(31,157,85,.06)' : '' }}">
+                        <div class="muted" style="font-size:12px">➡️ Give to the <strong>CUSTOMER</strong> (rings the driver)</div>
+                        @if($maskedForCustomer)
+                            <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
+                            <div class="hint" style="margin-top:2px">Already in the customer’s driver-details message. Closes ~30 min after On Board (or ~4h after drop-off if the job never hits POB).</div>
+                        @else
+                            <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
+                        @endif
+                    </div>
+                    <div style="flex:1;min-width:220px;border:1px solid {{ $maskedForDriver ? 'rgba(31,122,68,.45)' : 'var(--line)' }};border-radius:10px;padding:10px 14px;{{ $maskedForDriver ? 'background:rgba(31,157,85,.06)' : '' }}">
+                        <div class="muted" style="font-size:12px">⬅️ Give to the <strong>DRIVER</strong> (rings the customer)</div>
+                        @if($maskedForDriver)
+                            <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForDriver }}</div>
+                            <div class="hint" style="margin-top:2px">Also shown on the driver’s own job screen. He dials this — never the customer’s real number.</div>
+                        @else
+                            <div style="font-weight:700;font-size:14px" class="muted">{{ $maskState() }}</div>
+                        @endif
+                    </div>
                 </div>
-            </div>
+            @endif
 
             @php
                 $md = $booking->meta['driver_details'] ?? null;

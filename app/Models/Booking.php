@@ -133,11 +133,28 @@ class Booking extends Model
      */
     public function driverContactNumber(): ?string
     {
+        // An admin driving their own job (Abdi / Maj) is allowed the customer's
+        // real number — no masked line is opened for them, which also saves a
+        // Twilio credit. Every other driver only ever gets the masked line.
+        if ($this->driverSeesRealNumber()) {
+            return $this->customer?->phone;
+        }
+
         try {
             return $this->proxySessions()->open()->latest('opened_at')->value('masked_number');
         } catch (\Throwable) {
             return null; // masking tables not migrated yet — never break a page
         }
+    }
+
+    /**
+     * True when the assigned driver is an admin, so their job screen shows the
+     * customer's REAL number rather than a masked Twilio line (owners are
+     * trusted with it, and it saves a masking credit).
+     */
+    public function driverSeesRealNumber(): bool
+    {
+        return $this->driver?->isAdmin() ?? false;
     }
 
     /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */

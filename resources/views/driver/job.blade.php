@@ -59,12 +59,13 @@
             <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
             <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
             <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
-            {{-- NUMBER MASKING: a driver NEVER sees the customer's real number.
-                 Only the masked Twilio Proxy line is shown; without an active
-                 mask there is no number at all — the office relays contact. --}}
-            @php $masked = $booking->driverContactNumber(); @endphp
-            @if($masked)
-                <tr><th>Contact</th><td><a href="tel:{{ $masked }}">{{ $masked }}</a> <span class="muted" style="font-size:12px">· CET line</span></td></tr>
+            {{-- NUMBER MASKING: a driver NEVER sees the customer's real number —
+                 only the masked Twilio Proxy line. The one exception is an admin
+                 driving their own job (an owner), who is trusted with the real
+                 number. Without either, no number shows and the office relays. --}}
+            @php $contact = $booking->driverContactNumber(); $isReal = $booking->driverSeesRealNumber(); @endphp
+            @if($contact)
+                <tr><th>Contact</th><td><a href="tel:{{ $contact }}">{{ $contact }}</a> <span class="muted" style="font-size:12px">· {{ $isReal ? 'customer’s number' : 'CET line' }}</span></td></tr>
             @else
                 <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
             @endif

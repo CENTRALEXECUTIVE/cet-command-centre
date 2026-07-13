@@ -48,6 +48,14 @@ class TwilioProxyService
      */
     public function openSession(Booking $booking, User $driver): ?ProxySession
     {
+        // An admin who drives their own job (Abdi / Maj) is already allowed to
+        // see the customer's real number, so there's nothing to mask — skip the
+        // session entirely and save a Twilio credit. Masking is only for
+        // non-admin (cover / third-party) drivers.
+        if ($driver->isAdmin()) {
+            return null;
+        }
+
         $customerPhone = $booking->customer?->phone;
         if (! $this->configured() || blank($customerPhone) || blank($driver->phone)) {
             return null;

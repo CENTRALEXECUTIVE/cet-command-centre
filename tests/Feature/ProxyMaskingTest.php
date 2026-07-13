@@ -149,6 +149,30 @@ class ProxyMaskingTest extends TestCase
         $this->assertDatabaseHas('proxy_events', ['booking_id' => $booking->id, 'event_type' => 'session_closed']);
     }
 
+    public function test_admin_driver_sees_the_real_number_and_no_credit_is_spent(): void
+    {
+        // Abdi / Maj drive their own jobs. They're admins, already allowed the
+        // real number — so NO masking session is opened (saves a Twilio credit)
+        // and their job screen shows the customer's actual number.
+        $admin = User::factory()->admin()->create(['phone' => self::REAL_DRIVER]);
+        DriverProfile::create(['user_id' => $admin->id, 'is_third_party' => false]);
+        $booking = $this->booking();
+
+        app(BookingStatusService::class)->allocateDriver($booking, $admin, $admin);
+
+        // No Twilio session — no credit burned.
+        $this->assertDatabaseCount('proxy_sessions', 0);
+
+        // The admin driver's own job screen shows the REAL customer number.
+        $booking = $booking->fresh(['customer', 'driver']);
+        $this->assertTrue($booking->driverSeesRealNumber());
+        $this->assertSame(self::REAL_CUSTOMER, $booking->driverContactNumber());
+
+        $page = $this->actingAs($admin)->get(route('driver.job', $booking))->assertOk();
+        $page->assertSee(self::REAL_CUSTOMER);
+        $page->assertSee('customer’s number', false);
+    }
+
     public function test_reaching_pob_winds_the_mask_down_to_thirty_minutes(): void
     {
         // At POB the passenger is in the car — keep the line for a 30-min grace
