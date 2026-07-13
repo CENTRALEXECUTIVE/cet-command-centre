@@ -76,6 +76,27 @@ class JobController extends Controller
         return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
     }
 
+    /**
+     * Answer an office "request location": record a one-off position for this
+     * job (works even before Set off) so the office can see where the driver is.
+     */
+    public function shareLocation(Request $request, Booking $booking, \App\Services\DriverLocationService $locations): \Illuminate\Http\JsonResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+
+        $data = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'heading' => ['nullable', 'numeric'],
+            'speed' => ['nullable', 'numeric'],
+            'accuracy' => ['nullable', 'numeric'],
+        ]);
+
+        $ping = $locations->recordRequestedPing($request->user(), $booking, (float) $data['lat'], (float) $data['lng'], $data);
+
+        return response()->json(['shared' => $ping !== null]);
+    }
+
     /** Driver declines an offered job — it returns to the office pool. */
     public function decline(Request $request, Booking $booking): RedirectResponse
     {

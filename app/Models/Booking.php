@@ -125,6 +125,42 @@ class Booking extends Model
         return $this->hasMany(ProxySession::class);
     }
 
+    public function driverLocations(): HasMany
+    {
+        return $this->hasMany(DriverLocation::class);
+    }
+
+    /** The most recent GPS ping recorded for this job (or null). */
+    public function latestLocation(): ?DriverLocation
+    {
+        return $this->driverLocations()->orderByDesc('captured_at')->first();
+    }
+
+    /** When the office last asked the driver to share their location. */
+    public function locationRequestedAt(): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->meta['location_request_at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    /**
+     * True when the office has asked for a location and the driver hasn't
+     * answered it yet (no ping newer than the request). Drives the one-off
+     * share on the driver's job screen.
+     */
+    public function locationRequestPending(): bool
+    {
+        $requestedAt = $this->locationRequestedAt();
+        if (! $requestedAt || $this->status->isTerminal()) {
+            return false;
+        }
+
+        $latest = $this->latestLocation();
+
+        return ! $latest || $latest->captured_at->lt($requestedAt);
+    }
+
     /**
      * The ONLY customer contact number a driver may ever see: the masked
      * Twilio Proxy line of the open session. Null when masking isn't active —

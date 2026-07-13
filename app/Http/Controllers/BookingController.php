@@ -226,6 +226,61 @@ class BookingController extends Controller
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Ask the assigned driver to share their location now: flag the request on
+     * the booking and push their phone. Their job screen answers with a one-off
+     * ping (works at any live stage, even before Set off).
+     */
+    public function requestLocation(Request $request, Booking $booking, \App\Services\Push\WebPushService $push): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (! $booking->driver_id || $booking->status->isTerminal()) {
+            return response()->json(['ok' => false, 'reason' => 'no_live_driver'], 422);
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'location_request_at' => now()->toIso8601String(),
+        ])])->save();
+
+        $sent = $booking->driver
+            ? $push->sendToUser(
+                $booking->driver,
+                'Location request',
+                'The office needs your location — tap to share.',
+                ['url' => route('driver.job', $booking), 'tag' => 'locreq-'.$booking->id],
+            )
+            : 0;
+
+        return response()->json(['ok' => true, 'pushed' => $sent, 'requested_at' => now()->toIso8601String()]);
+    }
+
+    /**
+     * JSON snapshot of the driver's latest position for this job + the pending
+     * request state — polled by the booking page to update the live card.
+     */
+    public function locationData(Request $request, Booking $booking): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $loc = $booking->latestLocation();
+        $requestedAt = $booking->locationRequestedAt();
+
+        return response()->json([
+            'has_driver' => (bool) $booking->driver_id,
+            'requested_at' => $requestedAt?->toIso8601String(),
+            'requested_age' => $requestedAt ? (int) abs(now()->diffInSeconds($requestedAt)) : null,
+            'pending' => $booking->locationRequestPending(),
+            'ping' => $loc ? [
+                'lat' => (float) $loc->latitude,
+                'lng' => (float) $loc->longitude,
+                'heading' => $loc->heading !== null ? (float) $loc->heading : null,
+                'captured_at' => $loc->captured_at->toIso8601String(),
+                'age' => (int) abs(now()->diffInSeconds($loc->captured_at)),
+            ] : null,
+        ]);
+    }
+
     private function showData(Request $request, Booking $booking): array
     {
         $booking->load([

@@ -41,6 +41,31 @@ class DriverLocationService
         ]);
     }
 
+    /**
+     * Record a one-off ping in answer to an office "request location" — allowed
+     * for a live job the driver is assigned to even BEFORE Set off, so the
+     * office can locate a driver on the way to the pickup. Still bounded to a
+     * non-terminal job that belongs to this driver (GDPR: never off-job), and
+     * it clears the pending request flag.
+     */
+    public function recordRequestedPing(User $driver, Booking $booking, float $lat, float $lng, array $extra = []): ?DriverLocation
+    {
+        if ($booking->driver_id !== $driver->id || $booking->status->isTerminal()) {
+            return null;
+        }
+
+        return DriverLocation::create([
+            'driver_id' => $driver->id,
+            'booking_id' => $booking->id,
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'heading' => $extra['heading'] ?? null,
+            'speed' => $extra['speed'] ?? null,
+            'accuracy' => $extra['accuracy'] ?? null,
+            'captured_at' => now(),
+        ]);
+    }
+
     public function activeBookingFor(User $driver): ?Booking
     {
         return Booking::forDriver($driver->id)

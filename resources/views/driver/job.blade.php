@@ -73,6 +73,19 @@
         </table>
     </div>
 
+    {{-- Office "request location": a one-off share that works at ANY live stage
+         (even before Set off), so the office can locate a driver on the way to
+         the pickup. Shown only while a request is outstanding. --}}
+    @if($booking->locationRequestPending())
+        <div id="locreq-banner" class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);text-align:center">
+            📍 <strong>The office asked for your location.</strong>
+            <span id="locreq-state" class="muted" style="display:block;margin-top:4px">Sharing your position…</span>
+            <button type="button" id="locreq-share" class="btn btn-primary" style="padding:8px 16px;font-size:14px;margin-top:8px">Share my location</button>
+        </div>
+        <div id="loc-request" data-url="{{ route('driver.job.location', $booking) }}" hidden></div>
+        <script src="{{ asset('js/cet-locreq.js') }}" defer></script>
+    @endif
+
     {{-- GPS pinger config — tracking starts on the SET OFF tap and stops on
          Complete. Never runs before the driver is actually driving. --}}
     <div id="gps-config"

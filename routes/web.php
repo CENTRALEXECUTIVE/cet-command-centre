@@ -95,6 +95,9 @@ Route::middleware('auth')->group(function () {
         Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
         Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
         Route::post('bookings/{booking}/scan-calendar', [BookingController::class, 'scanCalendar'])->middleware('throttle:30,1')->name('bookings.scan-calendar');
+        // Ask the driver to share their location now + poll their latest ping.
+        Route::post('bookings/{booking}/request-location', [BookingController::class, 'requestLocation'])->middleware('throttle:20,1')->name('bookings.request-location');
+        Route::get('bookings/{booking}/location', [BookingController::class, 'locationData'])->name('bookings.location');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
@@ -156,6 +159,8 @@ Route::middleware('auth')->group(function () {
         Route::get('jobs/{booking}', [JobController::class, 'show'])->name('job');
         Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
         Route::post('jobs/{booking}/decline', [JobController::class, 'decline'])->name('job.decline');
+        // Answer an office location request with a one-off ping.
+        Route::post('jobs/{booking}/location', [JobController::class, 'shareLocation'])->middleware('throttle:60,1')->name('job.location');
         // GPS ping — only stored while on an active job.
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
 
