@@ -271,6 +271,43 @@ class BookingTest extends TestCase
         $this->assertEquals('synced', $booking->calendarEvent->fresh()->sync_status);
     }
 
+    public function test_adding_a_customer_number_opens_the_masked_line(): void
+    {
+        config([
+            'services.twilio.sid' => 'AC', 'services.twilio.token' => 't',
+            'services.twilio.proxy_service_sid' => 'KS_test',
+        ]);
+        \Illuminate\Support\Facades\Http::fake([
+            'proxy.twilio.com/v1/Services/KS_test/Sessions' => \Illuminate\Support\Facades\Http::response(['sid' => 'KC1']),
+            'proxy.twilio.com/v1/Services/KS_test/Sessions/KC1/Participants' => \Illuminate\Support\Facades\Http::sequence()
+                ->push(['sid' => 'KPc', 'proxy_identifier' => '+447700111111'])
+                ->push(['sid' => 'KPd', 'proxy_identifier' => '+447700222222']),
+            'api.twilio.com/*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM']),
+        ]);
+
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->create(['role' => 'driver', 'phone' => '07700900222']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+
+        // Allocated job whose customer has no number yet → no masked line.
+        $booking = Booking::factory()->create([
+            'status' => \App\Enums\BookingStatus::Allocated,
+            'driver_id' => $driver->id,
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'journey_type' => 'one_way',
+            'pickup_at' => now()->addDays(2),
+        ]);
+        $booking->customer->forceFill(['phone' => null])->save();
+        $this->assertDatabaseCount('proxy_sessions', 0);
+
+        // Add the customer's number through the edit form — the line opens.
+        $this->actingAs($admin)->put(route('bookings.update', $booking), $this->validPayload([
+            'customer_phone' => '07700900123',
+        ]))->assertRedirect();
+
+        $this->assertSame(1, \App\Models\ProxySession::where('booking_id', $booking->id)->open()->count());
+    }
+
     public function test_booking_page_shows_status_controls_for_admin(): void
     {
         $admin = User::factory()->admin()->create();

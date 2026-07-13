@@ -183,6 +183,15 @@ class BookingController extends Controller
     {
         $this->bookings->updateFromForm($booking, $request->validated());
 
+        // Adding a contact number can make masking possible on an already-
+        // allocated job — open the line now so the office can hand it out.
+        // Idempotent, and a no-op for admin drivers, unmasked jobs, missing
+        // numbers or when masking is off.
+        $booking->refresh()->loadMissing('customer', 'driver');
+        if ($booking->driver && ! $booking->status->isTerminal()) {
+            app(\App\Services\Telephony\TwilioProxyService::class)->openSession($booking, $booking->driver);
+        }
+
         return redirect()
             ->route('bookings.show', $booking)
             ->with('status', "Booking {$booking->reference} updated. The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");

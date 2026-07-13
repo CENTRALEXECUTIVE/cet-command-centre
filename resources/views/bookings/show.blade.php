@@ -417,8 +417,14 @@
                 $maskedForDriver = $realNumbers ? null : $booking->driverContactNumber();    // driver dials this to reach the customer
                 $maskingConfigured = app(\App\Services\Telephony\TwilioProxyService::class)->configured();
                 $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
-                $maskState = fn () => ! $maskingConfigured ? 'Masking not switched on here'
-                    : (! $booking->driver_id ? 'Opens when you assign a driver' : 'No open session (job finished, or it couldn’t open)');
+                $maskState = function () use ($maskingConfigured, $booking, $driverRealPhone) {
+                    if (! $maskingConfigured) return 'Masking not switched on here';
+                    if (! $booking->driver_id) return 'Opens when you assign a driver';
+                    if (blank($booking->customer?->phone)) return 'No customer number on this booking — add one (Edit booking) and the line opens automatically';
+                    if (blank($driverRealPhone)) return 'No driver number on this booking — add one and the line opens automatically';
+                    if ($booking->status->isTerminal()) return 'Job finished — the line has closed';
+                    return 'Line not open — re-allocate the driver (or Re-mask) to open it';
+                };
             @endphp
 
             <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office{{ $realNumbers ? '' : ' only, never given out' }}</div>
