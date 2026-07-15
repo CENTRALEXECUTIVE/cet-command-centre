@@ -23,6 +23,9 @@ class EtoAuditTest extends TestCase
         // that so they count as UPCOMING jobs — the calendar-quality checks only
         // run for jobs still to happen (a past job's sync status is history).
         \Illuminate\Support\Carbon::setTestNow('2025-03-20 09:00:00');
+        // Push the "old" cutoff well back so the 2025 fixtures are still audited;
+        // the cutoff behaviour has its own dedicated test.
+        config(['cet.audit_cutoff' => '2020-01-01']);
     }
 
     protected function tearDown(): void
@@ -117,6 +120,50 @@ class EtoAuditTest extends TestCase
 
         $this->assertSame(0, $report['counts']['flagged']);
         $this->assertSame(1, $report['counts']['ok']);
+    }
+
+    public function test_bookings_before_the_cutoff_are_archived_not_audited(): void
+    {
+        // A booking before the cutoff with NO calendar event — normally a problem
+        // for a live job, but it predates the live-calendar era, so it's archive.
+        config(['cet.audit_cutoff' => '2025-03-22']);
+        $booking = Booking::factory()->create([
+            'external_reference' => 'OLDONE',
+            'pickup_at' => '2025-03-21 09:00:00',
+            'status' => \App\Enums\BookingStatus::Allocated,
+        ]);
+
+        $results = app(EtoAuditService::class)->search('OLDONE');
+
+        $this->assertSame('old', $results[0]['status']);
+        $this->assertSame([], $results[0]['issues']);
+    }
+
+    public function test_a_failed_sync_alone_is_not_flagged_when_the_event_is_on_the_calendar(): void
+    {
+        // The event has a google_event_id → it IS on the calendar. A stale
+        // sync_status of "failed" must NOT raise a "not synced" error on its own.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'SYNCF',
+            'pickup_at' => '2025-03-24 09:00:00',
+            'status' => \App\Enums\BookingStatus::Allocated,
+            'final_price' => 100,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_sync',
+            'title' => '*Jo EMA (ABDI)*',
+            'location' => '1 Test Street, Sheffield',
+            'description' => 'Booking Confirmation block present',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'failed',
+        ]);
+
+        $results = app(EtoAuditService::class)->search('SYNCF');
+
+        $this->assertSame('ok', $results[0]['status'],
+            'a failed sync flag alone must not flag a booking that is on the calendar');
     }
 
     public function test_audit_corrects_a_drifted_booking_time_to_the_calendar(): void

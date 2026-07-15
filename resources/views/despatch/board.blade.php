@@ -26,9 +26,16 @@
     @endif
 
     <div class="toolbar">
-        <form method="GET" action="{{ route('despatch.board') }}" style="display:flex;gap:8px;align-items:center">
-            <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()" style="width:auto">
-        </form>
+        <div class="date-nav">
+            <a href="{{ route('despatch.board', ['date' => $date->copy()->subDay()->toDateString()]) }}" class="date-arrow" aria-label="Previous day" title="Previous day">‹</a>
+            <form method="GET" action="{{ route('despatch.board') }}" style="display:flex;gap:6px;align-items:center">
+                <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()" style="width:auto">
+            </form>
+            <a href="{{ route('despatch.board', ['date' => $date->copy()->addDay()->toDateString()]) }}" class="date-arrow" aria-label="Next day" title="Next day">›</a>
+            @unless($date->isToday())
+                <a href="{{ route('despatch.board') }}" class="date-today">Today</a>
+            @endunless
+        </div>
         <div class="stat" style="padding:10px 16px"><strong>{{ $totals['all'] }}</strong> jobs &middot;
             <strong>{{ $totals['unallocated'] }}</strong> unallocated &middot;
             <strong>{{ $totals['active'] }}</strong> active</div>

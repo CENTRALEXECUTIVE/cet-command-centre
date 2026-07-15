@@ -24,7 +24,7 @@ class EtoAuditService
     {
         $rows = $this->readCsv($path);
         $results = [];
-        $counts = ['checked' => 0, 'ok' => 0, 'flagged' => 0, 'missing' => 0];
+        $counts = ['checked' => 0, 'ok' => 0, 'flagged' => 0, 'missing' => 0, 'old' => 0];
 
         foreach ($rows as $row) {
             if (! $this->isBookingRow($row['Status'] ?? '')) {
@@ -82,7 +82,7 @@ class EtoAuditService
 
     private function rank(string $status): int
     {
-        return ['flagged' => 0, 'missing' => 1, 'ok' => 2][$status] ?? 3;
+        return ['flagged' => 0, 'missing' => 1, 'ok' => 2, 'old' => 3][$status] ?? 4;
     }
 
     /** Sortable stamp for a pickup value (Carbon|string|null) — newest sorts first. */
@@ -118,6 +118,21 @@ class EtoAuditService
     private function inspect(Booking $booking, ?array $row, bool $flag, string $ref, string $name): array
     {
         $issues = [];
+
+        // Historical bookings (before the live-calendar era) are archive, not
+        // live work — never audit them. Clears any stale ⚠ left on the booking.
+        $cutoff = \Illuminate\Support\Carbon::parse(config('cet.audit_cutoff', '2026-03-01'));
+        if ($booking->pickup_at && $booking->pickup_at->lt($cutoff)) {
+            if ($flag && ! empty($booking->meta['audit_issues'])) {
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['audit_issues' => []])])->save();
+            }
+
+            return [
+                'reference' => $ref, 'name' => $name, 'pickup' => $booking->pickup_at,
+                'url' => route('bookings.show', $booking), 'status' => 'old', 'issues' => [],
+            ];
+        }
+
         $ev = $booking->calendarEvent;
         // Cancelled / no-show jobs are legitimately off the calendar — don't flag those.
         $liveJob = $booking->status?->isActive() ?? true;
@@ -134,9 +149,13 @@ class EtoAuditService
             if (! $ev || blank($ev->google_event_id)) {
                 $issues[] = 'Not on the calendar';
             } else {
-                if ($ev->sync_status !== 'synced') {
-                    $issues[] = 'Calendar event not synced ('.$ev->sync_status.')';
-                }
+                // NB: a google_event_id means the event IS on the calendar. We do
+                // NOT flag a stale sync_status ('failed'/'pending') on its own —
+                // that just reflects the app's last push attempt, not whether the
+                // booking is on the calendar, and flagging it floods the audit
+                // with "not synced" noise the office can't action. The content
+                // checks below (missing pickup location, missing details block,
+                // wrong time) catch anything that would actually harm the driver.
                 if (! $this->titleOk($ev->title)) {
                     $issues[] = 'Calendar title not in CET format';
                 }

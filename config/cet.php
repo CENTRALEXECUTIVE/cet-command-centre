@@ -34,12 +34,17 @@ return [
     // GPS data retention (GDPR): pruned automatically after this many days.
     'gps_retention_days' => 90,
 
+    // ETO audit: bookings with a pickup BEFORE this date are historical (they
+    // predate the live-calendar era), so the audit classes them "old" and never
+    // raises calendar/sync errors for them — they're archive, not live work.
+    'audit_cutoff' => env('CET_AUDIT_CUTOFF', '2026-03-01'),
+
     // AI features use this model exclusively.
     'ai_model' => env('CET_AI_MODEL', 'claude-opus-4-8'),
 
     // Bump on every deploy that changes CSS/JS — cache-busts the stylesheet
     // link so phones can never render new pages with old styles.
-    'asset_version' => '21',
+    'asset_version' => '22',
 
     // Google Ads budget alert thresholds.
     'ads_alert_thresholds' => [
