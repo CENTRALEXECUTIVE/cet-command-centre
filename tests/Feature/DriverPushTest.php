@@ -116,17 +116,19 @@ class DriverPushTest extends TestCase
         $this->configureVapid();
         $admin = User::factory()->admin()->create();
 
-        // Don't hit the network — confirm the endpoint pushes to the caller.
+        // Don't hit the network — confirm the endpoint pushes to the caller and
+        // surfaces the per-device delivery report.
         $spy = \Mockery::mock(WebPushService::class);
         $spy->shouldReceive('configured')->andReturnTrue();
-        $spy->shouldReceive('sendToUser')->once()
+        $spy->shouldReceive('sendToUserReport')->once()
             ->with(\Mockery::on(fn ($u) => $u->id === $admin->id), \Mockery::any(), \Mockery::any(), \Mockery::any())
-            ->andReturn(2);
+            ->andReturn(['configured' => true, 'subscriptions' => 1, 'reports' => [['ok' => true, 'status' => 201, 'reason' => 'accepted']]]);
         $this->instance(WebPushService::class, $spy);
 
         $this->actingAs($admin)->postJson(route('driver.push.test'))
             ->assertOk()
-            ->assertJson(['ok' => true, 'devices' => 2]);
+            ->assertJson(['ok' => true, 'devices' => 1])
+            ->assertJsonPath('reports.0.status', 201);
     }
 
     public function test_test_notification_reports_when_push_is_not_configured(): void

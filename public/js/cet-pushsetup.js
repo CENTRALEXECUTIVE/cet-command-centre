@@ -114,9 +114,18 @@
         fetch(card.dataset.testUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } })
             .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
             .then(function (res) {
-                if (res.ok && res.d.ok) say('✓ Test sent to ' + res.d.devices + ' device(s) — check your phone now.', true);
-                else if (res.d && res.d.reason === 'not_configured') say('✗ Push isn’t switched on the server yet (VAPID keys).', false);
-                else say('✗ No device subscribed here yet — tap “Enable notifications” first.', false);
+                var d = res.d || {};
+                var rep = (d.reports && d.reports[0]) || null;
+                var detail = rep ? (' [push service: ' + (rep.status || '?') + ' ' + (rep.reason || '') + ']') : '';
+                if (res.ok && d.ok) {
+                    say('✓ Accepted by the push service' + detail + '. If your phone doesn’t buzz in ~10s, pull down the notification shade — and try installing the app to your Home Screen (Chrome ⋮ → Add to Home Screen), which delivers more reliably.', true);
+                } else if (d.reason === 'not_configured') {
+                    say('✗ Push isn’t switched on the server yet (VAPID keys).', false);
+                } else if (d.subscriptions === 0) {
+                    say('✗ No device subscribed here yet — tap “Enable notifications” first.', false);
+                } else {
+                    say('✗ The push service rejected it' + detail + '. Tell me this message.', false);
+                }
             })
             .catch(function () { say('✗ Request failed — check your connection.', false); });
     }

@@ -55,14 +55,21 @@ class PushSubscriptionController extends Controller
             return response()->json(['ok' => false, 'reason' => 'not_configured'], 422);
         }
 
-        $sent = $push->sendToUser(
+        $res = $push->sendToUserReport(
             $request->user(),
             'CET test alert',
             'Notifications are working on this device 🎉',
             ['url' => route('dashboard'), 'tag' => 'cet-test'],
         );
 
-        return response()->json(['ok' => $sent > 0, 'devices' => $sent]);
+        $sent = collect($res['reports'])->where('ok', true)->count();
+
+        return response()->json([
+            'ok' => $sent > 0,
+            'devices' => $sent,
+            'subscriptions' => $res['subscriptions'],
+            'reports' => $res['reports'],
+        ]);
     }
 
     public function destroy(Request $request): JsonResponse

@@ -88,6 +88,55 @@ class WebPushService
         return $sent;
     }
 
+    /**
+     * Like sendToUser but returns the raw per-device delivery reports (HTTP
+     * status + reason from the push service) so the Notifications page can show
+     * exactly what Google/Mozilla said. For diagnostics only.
+     *
+     * @return array<string, mixed>
+     */
+    public function sendToUserReport(User $user, string $title, string $body, array $options = []): array
+    {
+        if (! $this->configured()) {
+            return ['configured' => false, 'subscriptions' => 0, 'reports' => []];
+        }
+
+        $subs = $user->pushSubscriptions()->get();
+        if ($subs->isEmpty()) {
+            return ['configured' => true, 'subscriptions' => 0, 'reports' => []];
+        }
+
+        try {
+            $webPush = new WebPush(['VAPID' => [
+                'subject' => config('webpush.vapid.subject'),
+                'publicKey' => config('webpush.vapid.public_key'),
+                'privateKey' => config('webpush.vapid.private_key'),
+            ]]);
+        } catch (\Throwable $e) {
+            return ['configured' => true, 'subscriptions' => $subs->count(), 'reports' => [['ok' => false, 'reason' => 'init: '.$e->getMessage()]]];
+        }
+
+        $payload = json_encode(array_filter([
+            'title' => $title, 'body' => $body,
+            'url' => $options['url'] ?? route('driver.jobs'), 'tag' => $options['tag'] ?? null,
+        ]));
+
+        foreach ($subs as $sub) {
+            $webPush->queueNotification($this->toSubscription($sub), $payload);
+        }
+
+        $reports = [];
+        foreach ($webPush->flush() as $report) {
+            $reports[] = [
+                'ok' => $report->isSuccess(),
+                'status' => $report->getResponse()?->getStatusCode(),
+                'reason' => $report->isSuccess() ? 'accepted' : ($report->getReason() ?: 'unknown'),
+            ];
+        }
+
+        return ['configured' => true, 'subscriptions' => $subs->count(), 'reports' => $reports];
+    }
+
     private function toSubscription(PushSubscription $sub): Subscription
     {
         return Subscription::create([
