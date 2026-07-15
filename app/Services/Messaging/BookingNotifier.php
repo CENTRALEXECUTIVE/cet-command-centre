@@ -307,6 +307,13 @@ class BookingNotifier
             return null;
         }
 
+        // One review ask per CUSTOMER, ever — if we've already asked them on any
+        // earlier booking, don't ask again. No point requesting a review twice
+        // from someone who's booked before.
+        if ($this->customerAlreadyAskedForReview($booking)) {
+            return null;
+        }
+
         $delay = (int) config('cet.review_delay_minutes', 30);
         $when = $this->clampToSendWindow(now()->addMinutes($delay));
 
@@ -315,6 +322,30 @@ class BookingNotifier
             'booking' => $booking,
             'scheduled_for' => $when->isPast() ? now() : $when,
         ]);
+    }
+
+    /**
+     * True when this customer has already been sent (or queued) a review request
+     * on any OTHER booking — so we never ask the same person twice.
+     */
+    private function customerAlreadyAskedForReview(Booking $booking): bool
+    {
+        $customerId = $booking->customer_id;
+        if (! $customerId) {
+            return false;
+        }
+
+        $customerBookingIds = Booking::where('customer_id', $customerId)
+            ->where('id', '!=', $booking->id)
+            ->pluck('id');
+
+        if ($customerBookingIds->isEmpty()) {
+            return false;
+        }
+
+        return Message::where('type', 'review_request')
+            ->whereIn('booking_id', $customerBookingIds)
+            ->exists();
     }
 
     /**

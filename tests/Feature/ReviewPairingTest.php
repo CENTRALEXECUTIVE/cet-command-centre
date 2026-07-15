@@ -75,6 +75,30 @@ class ReviewPairingTest extends TestCase
             ->whereIn('booking_id', [$outbound->id, $return->id])->count());
     }
 
+    public function test_a_repeat_customer_is_not_asked_for_a_review_twice(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::create(['name' => 'Repeat Customer', 'phone' => '07700900777']);
+        $status = app(BookingStatusService::class);
+
+        $first = Booking::factory()->create([
+            'customer_id' => $customer->id, 'journey_type' => 'one_way',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->subDay(),
+        ]);
+        $status->transition($first, BookingStatus::Complete, $admin);
+
+        // They book again and that trip completes too.
+        $second = Booking::factory()->create([
+            'customer_id' => $customer->id, 'journey_type' => 'one_way',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->subHour(),
+        ]);
+        $status->transition($second, BookingStatus::Complete, $admin);
+
+        // Only the FIRST booking gets a review request — no point asking twice.
+        $this->assertSame(1, Message::where('type', 'review_request')->where('booking_id', $first->id)->count());
+        $this->assertSame(0, Message::where('type', 'review_request')->where('booking_id', $second->id)->count());
+    }
+
     public function test_one_way_jobs_still_get_their_review(): void
     {
         $admin = User::factory()->admin()->create();
