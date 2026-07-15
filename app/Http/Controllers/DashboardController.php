@@ -52,7 +52,14 @@ class DashboardController extends Controller
                     ?? Booking::where('status', BookingStatus::Pending->value)
                         ->where('pickup_at', '>=', today())
                         ->count(),
-                'activeCount' => Booking::active()->count(),
+                // "Active now" = a driver actually out on a job right now
+                // (set off → not yet completed). Recency-guarded so a job left
+                // stuck in a driving status days ago can't inflate the figure.
+                'activeCount' => Booking::whereIn('status', [
+                    BookingStatus::EnRoute->value,
+                    BookingStatus::Arrived->value,
+                    BookingStatus::Collected->value,
+                ])->where('pickup_at', '>=', now()->subHours(12))->count(),
                 // Today's booked value (non-cancelled), and jobs booked for the week ahead.
                 'todayRevenue' => (float) Booking::whereDate('pickup_at', today())
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])

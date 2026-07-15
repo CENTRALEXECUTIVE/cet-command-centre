@@ -59,6 +59,30 @@ class AuthenticationTest extends TestCase
         $this->assertEquals(1, $response->viewData('pendingCount'), 'only the upcoming pending job counts');
     }
 
+    public function test_active_now_counts_only_jobs_being_driven_right_now(): void
+    {
+        $this->seed([VehicleTypeSeeder::class]);
+        $admin = User::factory()->admin()->create();
+        $vt = \App\Models\VehicleType::first();
+        $customer = \App\Models\Customer::create(['name' => 'Test', 'phone' => '07000000000']);
+
+        $make = fn ($status, $pickupAt) => \App\Models\Booking::create([
+            'reference' => \App\Models\Booking::generateReference(),
+            'customer_id' => $customer->id, 'vehicle_type_id' => $vt->id,
+            'pickup_at' => $pickupAt, 'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => $status, 'payment_method' => 'card',
+        ]);
+
+        $make('complete', now()->subHours(2));   // finished today → NOT active
+        $make('en_route', now()->subDays(3));     // stale, stuck driving → NOT active
+        $make('accepted', now()->addDay());       // assigned for tomorrow → NOT active now
+        $make('collected', now()->subMinutes(20)); // passenger on board right now → active
+
+        $active = $this->actingAs($admin)->get(route('dashboard'))->viewData('activeCount');
+
+        $this->assertSame(1, $active, 'only the in-progress job counts as active now');
+    }
+
     public function test_monthly_review_reminder_shows_after_the_4th_and_clears_on_import(): void
     {
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-10 09:00:00')); // after the 4th

@@ -63,7 +63,7 @@ class DespatchController extends Controller
             'totals' => [
                 'all' => $bookings->count(),
                 'unallocated' => $bookings->where('status', BookingStatus::Pending)->count(),
-                'active' => $bookings->whereIn('status', [BookingStatus::Accepted, BookingStatus::EnRoute, BookingStatus::Collected])->count(),
+                'active' => $bookings->whereIn('status', [BookingStatus::Accepted, BookingStatus::EnRoute, BookingStatus::Arrived, BookingStatus::Collected])->count(),
             ],
         ]);
     }

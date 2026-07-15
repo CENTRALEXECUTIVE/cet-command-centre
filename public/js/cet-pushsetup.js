@@ -97,7 +97,7 @@
                         try {
                             swReg.showNotification('✅ CET notifications are on', {
                                 body: 'If you can see this, your phone can show CET alerts. Now tap “Send a test” to check delivery.',
-                                icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', vibrate: [80, 40, 80],
+                                icon: '/icons/icon-192.png', badge: '/icons/badge-96.png', vibrate: [80, 40, 80],
                             });
                         } catch (e) {}
                         say('✓ Notifications are ON. You should see a “notifications are on” banner now — if you do, tap “Send a test”. If you don’t, notifications are blocked in your phone settings.', true);

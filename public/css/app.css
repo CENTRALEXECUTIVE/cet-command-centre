@@ -30,15 +30,9 @@
 
 * { box-sizing: border-box; }
 
-/* App-like page behaviour: no sideways drift, no iOS text auto-inflation, and
-   a stable viewport that doesn't pan around when you tap things. */
-html, body {
-    max-width: 100%;
-    overflow-x: hidden;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-    overscroll-behavior-y: none;   /* no rubber-band bounce past the top/bottom */
-}
+/* Stop iOS from auto-inflating text; keep vertical scrolling completely normal
+   (never put overflow-x:hidden on html/body — it silently kills scroll on iOS). */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
     margin: 0;

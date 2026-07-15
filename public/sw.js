@@ -10,7 +10,7 @@
  *
  * Bump CACHE_VERSION whenever a precached asset changes so clients refresh.
  */
-const CACHE_VERSION = 'cet-static-v14';
+const CACHE_VERSION = 'cet-static-v15';
 
 const PRECACHE = [
     '/offline.html',
@@ -25,6 +25,7 @@ const PRECACHE = [
     '/icons/icon-512.png',
     '/icons/icon-maskable-512.png',
     '/icons/apple-touch-icon.png',
+    '/icons/badge-96.png',
     '/manifest.webmanifest',
 ];
 
@@ -89,8 +90,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Central Executive Transfers';
     const options = {
         body: data.body || '',
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
+        icon: data.icon || '/icons/icon-192.png',   // full-colour CET logo (large icon)
+        badge: '/icons/badge-96.png',                // monochrome CET mark (status bar)
         tag: data.tag || undefined,
         renotify: !!data.tag,
         data: { url: data.url || '/driver/jobs' },
