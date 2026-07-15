@@ -9,7 +9,7 @@
         if (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
         if (t === 'dark') document.documentElement.dataset.theme = 'dark';
     } catch (e) {}</script>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'CET Command Centre')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">

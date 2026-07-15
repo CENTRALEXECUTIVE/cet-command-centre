@@ -146,11 +146,7 @@ class UserController extends Controller
             ."Please sign in and set your own password.";
 
         $wa = null;
-        $digits = preg_replace('/\D/', '', (string) $user->phone);
-        if ($digits) {
-            if (str_starts_with($digits, '0')) {
-                $digits = '44'.substr($digits, 1);
-            }
+        if ($digits = \App\Support\Phone::wa($user->phone)) {
             $wa = 'https://wa.me/'.$digits.'?text='.rawurlencode($text);
         }
 

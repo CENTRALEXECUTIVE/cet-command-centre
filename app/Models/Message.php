@@ -68,18 +68,7 @@ class Message extends Model
     /** The recipient number in international format (44…) for wa.me links. */
     public function intlPhone(): ?string
     {
-        $number = preg_replace('/[^0-9+]/', '', (string) $this->to_address);
-        if (blank($number)) {
-            return null;
-        }
-        if (str_starts_with($number, '+')) {
-            return substr($number, 1);
-        }
-        if (str_starts_with($number, '0')) {
-            return '44'.substr($number, 1);
-        }
-
-        return $number;
+        return \App\Support\Phone::wa($this->to_address);
     }
 
     /**

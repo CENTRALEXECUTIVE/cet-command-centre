@@ -555,8 +555,7 @@
         @php
             $driverBrief = app(\App\Services\CalendarEventBuilder::class)->driverBrief($booking);
             $driverRealForWa = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
-            $briefDigits = $driverRealForWa ? preg_replace('/\D/', '', $driverRealForWa) : '';
-            $briefWa = $briefDigits ? (\Illuminate\Support\Str::startsWith($briefDigits, '0') ? '44'.substr($briefDigits, 1) : $briefDigits) : null;
+            $briefWa = \App\Support\Phone::wa($driverRealForWa);
         @endphp
         <div class="card">
             <h2>🚗 Driver brief — send to the driver</h2>
