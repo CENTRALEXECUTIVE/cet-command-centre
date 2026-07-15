@@ -38,8 +38,7 @@ class BookingController extends Controller
             return redirect()->route('driver.jobs');
         }
 
-        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent'])
-            ->orderByDesc('pickup_at');
+        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent']);
 
         // Corporate clients only ever see their own account's bookings.
         if ($user->isCorporateClient()) {
@@ -57,9 +56,19 @@ class BookingController extends Controller
             });
         }
 
+        // Time filter for order. Default to Upcoming (soonest first); when
+        // searching, default to All so a match isn't hidden by its date.
+        $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
+        match ($filter) {
+            'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
+            'past' => $query->where('pickup_at', '<', now()->startOfDay())->orderByDesc('pickup_at'),
+            'all' => $query->orderByDesc('pickup_at'),
+            default => $query->where('pickup_at', '>=', now()->startOfDay())->orderBy('pickup_at'), // upcoming
+        };
+
         $bookings = $query->paginate(20)->withQueryString();
 
-        return view('bookings.index', ['bookings' => $bookings, 'q' => $q]);
+        return view('bookings.index', ['bookings' => $bookings, 'q' => $q, 'filter' => $filter]);
     }
 
     public function create(Request $request): View

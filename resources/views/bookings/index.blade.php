@@ -8,7 +8,7 @@
             @if(!empty($q))
                 <p class="page-sub" style="margin:2px 0 0">Search results for “<strong>{{ $q }}</strong>” · {{ $bookings->total() }} found — <a href="{{ route('bookings.index') }}">clear</a></p>
             @else
-                <p class="page-sub" style="margin:2px 0 0">{{ $bookings->total() }} journeys in the system</p>
+                <p class="page-sub" style="margin:2px 0 0">{{ $bookings->total() }} {{ Str::plural('journey', $bookings->total()) }}</p>
             @endif
         </div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -22,44 +22,79 @@
         </div>
     </div>
 
-    <div class="card" style="padding:8px">
-        @if($bookings->isEmpty())
-            <p class="muted mb-0" style="padding:16px">No bookings found.</p>
-        @else
-            <div style="overflow-x:auto">
-            <table class="table-modern">
-                <thead>
-                    <tr><th>Ref</th><th>Pickup</th><th>Customer</th><th>Route</th><th>Vehicle</th><th>Luggage</th><th>Driver</th><th>Pay</th><th>Status</th>@if(auth()->user()->isAdmin())<th></th>@endif</tr>
-                </thead>
-                <tbody>
-                    @foreach($bookings as $b)
-                        <tr>
-                            <td>
-                                <a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a>
-                                @if(!empty($b->meta['audit_issues']))
-                                    <span title="Flagged by ETO audit — {{ implode('; ', $b->meta['audit_issues']) }}">⚠</span>
-                                @endif
-                                @if($b->external_reference)
-                                    <br><span class="muted" style="font-size:11px">ETO {{ $b->external_reference }}</span>
-                                @endif
-                            </td>
-                            <td>{{ $b->pickup_at->format('d M H:i') }}</td>
-                            <td>{{ $b->displayCustomerName() }}</td>
-                            <td>{{ Str::limit($b->displayPickupAddress(), 18) }} → {{ Str::limit($b->displayDropoffAddress(), 18) }}</td>
-                            <td>{{ $b->displayVehicleType() }}</td>
-                            <td title="{{ $b->luggageBreakdown() }}">{{ $b->luggageShort() }}</td>
-                            <td>{{ $b->driver?->name ?? '—' }}</td>
-                            <td>{{ $b->payment_method->emoji() ?? $b->payment_method->label() }}</td>
-                            <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
-                            @if(auth()->user()->isAdmin())
-                                <td>@unless($b->status->isTerminal())<a href="{{ route('bookings.edit', $b) }}" title="Edit">✏️</a>@endunless</td>
-                            @endif
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-            </div>
-            <div style="margin-top:12px;padding:0 8px 8px">{{ $bookings->links() }}</div>
-        @endif
+    {{-- Filter tabs give the list an order: upcoming soonest-first by default. --}}
+    @php
+        $tabs = ['upcoming' => 'Upcoming', 'today' => 'Today', 'past' => 'Past', 'all' => 'All'];
+    @endphp
+    <div class="bk-tabs">
+        @foreach($tabs as $key => $label)
+            <a href="{{ route('bookings.index', array_filter(['filter' => $key, 'q' => $q ?: null])) }}"
+               class="bk-tab {{ ($filter ?? 'upcoming') === $key ? 'active' : '' }}">{{ $label }}</a>
+        @endforeach
     </div>
+
+    @if($bookings->isEmpty())
+        <div class="card" style="text-align:center;padding:40px 20px">
+            <div style="font-size:34px">🗓️</div>
+            <p class="muted" style="margin:8px 0 0">No {{ ($filter ?? 'upcoming') === 'all' ? '' : ($filter ?? 'upcoming').' ' }}bookings{{ !empty($q) ? ' match your search' : '' }}.</p>
+            @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
+                <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="margin-top:14px;padding:9px 18px">+ New booking</a>
+            @endif
+        </div>
+    @else
+        @php
+            $grouped = $bookings->getCollection()->groupBy(fn ($b) => $b->pickup_at->toDateString());
+            $dayLabel = function ($dateStr) {
+                $d = \Illuminate\Support\Carbon::parse($dateStr);
+                if ($d->isToday()) return 'Today';
+                if ($d->isTomorrow()) return 'Tomorrow';
+                if ($d->isYesterday()) return 'Yesterday';
+                return $d->format('D d M Y');
+            };
+        @endphp
+
+        <div class="bk-list">
+            @foreach($grouped as $day => $dayBookings)
+                <div class="bk-day">
+                    <div class="bk-day-label">{{ $dayLabel($day) }} <span class="bk-day-count">{{ $dayBookings->count() }}</span></div>
+
+                    @foreach($dayBookings as $b)
+                        <a href="{{ route('bookings.show', $b) }}" class="bk-card s-{{ $b->status->value }}">
+                            <div class="bk-time">
+                                <span class="t">{{ $b->pickup_at->format('H:i') }}</span>
+                                @if($b->airport?->code)<span class="d">✈ {{ $b->airport->code }}</span>@endif
+                            </div>
+
+                            <div class="bk-main">
+                                <div class="bk-name">
+                                    {{ $b->displayCustomerName() }}
+                                    <span class="bk-ref">{{ $b->reference }}</span>
+                                    @if(!empty($b->meta['audit_issues']))
+                                        <span title="Flagged by ETO audit — {{ implode('; ', $b->meta['audit_issues']) }}">⚠</span>
+                                    @endif
+                                </div>
+                                <div class="bk-route">{{ Str::limit($b->displayPickupAddress(), 26) }} <span class="arr">→</span> {{ Str::limit($b->displayDropoffAddress(), 26) }}</div>
+                                <div class="bk-tags">
+                                    <span>{{ $b->displayVehicleType() }}</span>
+                                    <span>·</span><span>{{ $b->passengerCount() }} pax</span>
+                                    <span>·</span><span>{{ $b->driver?->name ?? 'Unassigned' }}</span>
+                                    @if($b->payment_method)<span>·</span><span>{{ $b->payment_method->emoji() ?: $b->payment_method->label() }}</span>@endif
+                                </div>
+                            </div>
+
+                            <div class="bk-side">
+                                <span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span>
+                                @if(auth()->user()->isAdmin() && ! $b->status->isTerminal())
+                                    <span class="bk-edit" title="Edit booking"
+                                          onclick="event.preventDefault();event.stopPropagation();window.location='{{ route('bookings.edit', $b) }}'">✏️ Edit</span>
+                                @endif
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
+            @endforeach
+        </div>
+
+        <div style="margin-top:14px">{{ $bookings->links() }}</div>
+    @endif
 @endsection
