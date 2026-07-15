@@ -39,7 +39,7 @@
             <div class="kpi-n" data-countup="{{ $activeCount }}">{{ $activeCount }}</div>
             <div class="kpi-l">Active now</div>
         </a>
-        <a class="kpi" href="{{ route('review.index') }}">
+        <a class="kpi" href="{{ route('bookings.index', ['filter' => 'today']) }}">
             <div class="kpi-ico">💷</div>
             <div class="kpi-n" data-countup="{{ round($todayRevenue) }}" data-prefix="£">£{{ number_format($todayRevenue, 0) }}</div>
             <div class="kpi-l">Today's booked value</div>

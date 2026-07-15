@@ -28,6 +28,13 @@
                             <input id="password" type="password" name="password" placeholder="{{ $user->exists ? 'Leave blank to keep' : 'Leave blank to auto-generate' }}" autocomplete="new-password">
                             <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">Show</button>
                         </div>
+                        @if($user->exists)
+                            @if($user->must_change_password)
+                                <div class="hint" style="color:#b8860b">⏳ A temporary password is set — they’ll choose their own the next time they sign in.</div>
+                            @else
+                                <div class="hint">🔒 They’ve set their own password — it’s hidden, even from you. Type a new one here to reset it (they’ll be asked to choose their own again).</div>
+                            @endif
+                        @endif
                     </div>
                 </div>
 
