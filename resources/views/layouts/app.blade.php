@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    {{-- Theme boots before first paint so there's no light/dark flash. --}}
-    <script>try { if (localStorage.getItem('cet-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) {}</script>
+    {{-- Theme boots before first paint so there's no light/dark flash. Follows
+         the phone's light/dark setting unless the user picked one with the toggle. --}}
+    <script>try {
+        var t = localStorage.getItem('cet-theme');
+        if (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+        if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+    } catch (e) {}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'CET Command Centre')</title>
@@ -147,10 +152,7 @@
             @yield('content')
 
             <footer class="site-footer">
-                {{ config('cet.company.name') }} &middot; Company No. {{ config('cet.company.number') }} &middot;
-                Operator Licence {{ config('cet.company.operator_licence') }}
-                @if(config('cet.ico_registration_number')) &middot; ICO {{ config('cet.ico_registration_number') }} @endif
-                &middot; UK GDPR
+                Central Executive Transfers
             </footer>
         </main>
     </div>

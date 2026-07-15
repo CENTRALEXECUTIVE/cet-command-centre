@@ -63,9 +63,12 @@
                  only the masked Twilio Proxy line. The one exception is an admin
                  driving their own job (an owner), who is trusted with the real
                  number. Without either, no number shows and the office relays. --}}
-            @php $contact = $booking->driverContactNumber(); $isReal = $booking->driverSeesRealNumber(); @endphp
+            {{-- The driver sees this simply as the customer's number. Whether it's
+                 the real number (owner-driver) or the masked switchboard line, we
+                 label it the same so the masking is invisible to them. --}}
+            @php $contact = $booking->driverContactNumber(); @endphp
             @if($contact)
-                <tr><th>Contact</th><td><a href="tel:{{ $contact }}">{{ $contact }}</a> <span class="muted" style="font-size:12px">· {{ $isReal ? 'customer’s number' : 'CET line' }}</span></td></tr>
+                <tr><th>Contact</th><td><a href="tel:{{ $contact }}">{{ $contact }}</a> <span class="muted" style="font-size:12px">· customer’s number</span></td></tr>
             @else
                 <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
             @endif
