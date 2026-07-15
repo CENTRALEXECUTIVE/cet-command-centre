@@ -588,9 +588,14 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.1
     0%, 100% { background: rgba(179,32,32,.05); }
     50% { background: rgba(179,32,32,.12); }
 }
-.alert-row .ack-btn { flex: none; border: 1px solid rgba(179,32,32,.5); background: #fff; color: #b32020;
+/* Neutral "Done" dismiss on every row; critical rows tint it red. */
+.alert-row .ack-btn { flex: none; border: 1px solid var(--line); background: transparent; color: var(--muted);
     font: inherit; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; cursor: pointer; }
-.alert-row .ack-btn:hover { background: #b32020; color: #fff; }
+.alert-row .ack-btn:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.alert-row.critical-live .ack-btn { border-color: rgba(179,32,32,.5); color: #b32020; }
+.alert-row.critical-live .ack-btn:hover { background: #b32020; color: #fff; border-color: #b32020; }
+/* Keep the live-alerts log from dominating the page — scroll past a few rows. */
+#alerts-list { max-height: 300px; overflow-y: auto; }
 .alert-row.slide-in { animation: alertIn .35s ease-out; }
 @keyframes alertIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
@@ -605,7 +610,12 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.1
 
 /* ═══ Ops room: timeline rail + live widgets ══════════════════════════════ */
 .ops-grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
-@media (max-width: 980px) { .ops-grid { grid-template-columns: 1fr; } }
+@media (max-width: 980px) {
+    /* Stacked (phone): show "Next 4 hours" ABOVE the live-alerts log. */
+    .ops-grid { grid-template-columns: 1fr; }
+    .ops-grid .timeline-rail { order: -1; }
+    .ops-grid .timeline-rail { position: static; top: auto; margin-bottom: 16px; }
+}
 
 .timeline-rail { position: sticky; top: 76px; }
 .timeline-rail h2 { color: var(--ink); font-size: 13px; text-transform: uppercase;

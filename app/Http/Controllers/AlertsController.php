@@ -27,9 +27,14 @@ class AlertsController extends Controller
     private function buildFeed(): JsonResponse
     {
         $events = WatchdogEvent::with('booking')
+            // Only what still needs attention: once an alert is acknowledged
+            // (dealt with) it drops off the feed. Routine per-status-change log
+            // rows are excluded — they're noise, not alerts.
+            ->whereNull('acknowledged_at')
+            ->where('event_type', '!=', 'status_changed')
             ->orderByDesc('occurred_at')
             ->orderByDesc('id')
-            ->limit(40)
+            ->limit(20)
             ->get()
             ->map(fn (WatchdogEvent $e) => [
                 'id' => $e->id,

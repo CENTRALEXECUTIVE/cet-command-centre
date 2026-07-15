@@ -38,10 +38,13 @@
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
         }).then(function (r) { return r.json(); }).then(function (d) {
-            row.classList.remove('critical-live');
-            var btn = row.querySelector('.ack-btn');
-            if (btn) btn.remove();
+            // Dealt with → drop it off the feed entirely.
+            if (seen) delete seen[id];
+            row.remove();
             badge(d.critical);
+            if (!list.querySelector('.alert-row')) {
+                list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
+            }
         }).catch(function () {});
     }
 
@@ -52,7 +55,7 @@
         var hadNewCritical = false;
 
         if (!data.events.length) {
-            list.innerHTML = '<p class="muted mb-0" style="font-size:13px">Nothing yet — the watchdog reports here as the day runs.</p>';
+            list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
             badge(data.critical);
             return;
         }
@@ -71,8 +74,7 @@
                 '<span class="a-time mono">' + esc(e.time) + '</span>'
                 + '<span class="a-ico">' + (ICONS[e.severity] || '·') + '</span>'
                 + '<span class="a-title">' + (e.url ? '<a href="' + e.url + '">' + esc(e.title) + '</a>' : esc(e.title)) + '</span>'
-                + (e.severity === 'critical' && !e.acknowledged
-                    ? '<button type="button" class="ack-btn" title="Acknowledge">OK</button>' : '');
+                + '<button type="button" class="ack-btn" title="Dismiss — mark dealt with">Done</button>';
             var btn = row.querySelector('.ack-btn');
             if (btn) btn.addEventListener('click', function () { ack(e.id, row); });
             list.appendChild(row);

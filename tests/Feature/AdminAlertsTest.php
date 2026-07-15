@@ -230,20 +230,25 @@ class AdminAlertsTest extends TestCase
 
     /* ── Feed endpoint + acknowledge flow ────────────────────────────────── */
 
-    public function test_feed_returns_newest_first_with_severity_and_is_admin_only(): void
+    public function test_feed_shows_unacked_alerts_newest_first_and_hides_noise(): void
     {
         $admin = $this->admin();
-        WatchdogEvent::log('status_changed', 'older row', 'info');
+        WatchdogEvent::log('status_changed', 'routine transition', 'info'); // noise — never in the feed
+        $old = WatchdogEvent::log('calendar_import', 'older alert', 'info');
         Carbon::setTestNow(now()->addMinute());
         WatchdogEvent::log('admin_unallocated', 'newest row', 'critical');
 
         $response = $this->actingAs($admin)->getJson(route('alerts.feed'))->assertOk();
-        $events = $response->json('events');
+        $titles = collect($response->json('events'))->pluck('title')->all();
 
-        $this->assertSame('newest row', $events[0]['title']);
-        $this->assertSame('critical', $events[0]['severity']);
-        $this->assertSame('older row', $events[1]['title']);
+        // Newest first, and the routine status-change log is excluded.
+        $this->assertSame(['newest row', 'older alert'], $titles);
         $this->assertSame(1, $response->json('critical'));
+
+        // Once dealt with (acknowledged), it drops off the feed entirely.
+        $old->forceFill(['acknowledged_at' => now()])->save();
+        $after = collect($this->actingAs($admin)->getJson(route('alerts.feed'))->json('events'))->pluck('title')->all();
+        $this->assertSame(['newest row'], $after);
 
         // Drivers cannot read the office feed.
         $driver = User::factory()->driver()->create();
