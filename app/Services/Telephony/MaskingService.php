@@ -21,11 +21,20 @@ use Illuminate\Support\Str;
  * so the SAME two numbers serve unlimited concurrent jobs and can be handed out
  * 24h+ in advance (they never change). Neither party sees the other's real
  * number: the callee sees the CET line they'd call/text back on.
+ *
+ * The permanent numbers can be PRINTED on the job sheet 24h+ ahead, but they only
+ * CONNECT from OPEN_BEFORE_MINUTES before pickup — earlier calls/texts get the
+ * polite "contact the office" reply, so nobody reaches anyone before the job is
+ * genuinely imminent.
  */
 class MaskingService
 {
-    /** How far ahead a masked call/text can connect (details go out ~24h before). */
-    private const LOOKAHEAD_DAYS = 3;
+    /**
+     * How long before pickup the line starts connecting. The number is on the
+     * job sheet earlier, but a call/text won't bridge until this window opens —
+     * 90 min covers a driver setting off early for a distant airport run.
+     */
+    private const OPEN_BEFORE_MINUTES = 90;
 
     /**
      * Grace after pickup so a job running long (not yet marked Complete) still
@@ -76,7 +85,7 @@ class MaskingService
         ];
         $bookings = Booking::with(['customer', 'driver'])
             ->whereNotIn('status', $terminal)
-            ->whereBetween('pickup_at', [now()->subHours(self::LOOKBEHIND_HOURS), now()->addDays(self::LOOKAHEAD_DAYS)])
+            ->whereBetween('pickup_at', [now()->subHours(self::LOOKBEHIND_HOURS), now()->addMinutes(self::OPEN_BEFORE_MINUTES)])
             ->orderBy('pickup_at') // nearest job wins if a caller has more than one
             ->get();
 

@@ -126,18 +126,30 @@ class NumberMaskingTest extends TestCase
         $this->post(route('webhooks.voice'), ['secret' => 'wrong', 'From' => '07700900111'])->assertForbidden();
     }
 
-    public function test_a_booking_still_bridges_a_day_before_pickup(): void
+    public function test_the_line_only_opens_ninety_minutes_before_pickup(): void
     {
-        // Details go out ~24h ahead, so the switchboard must connect that early.
+        // The masked number is printed on the job sheet 24h ahead, but it must
+        // NOT connect that early — only once pickup is within ~90 minutes.
         $customer = Customer::factory()->create(['phone' => '07700900111']);
         $driver = User::factory()->driver()->create(['phone' => '07700900222']);
         DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
-        Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+        $booking = Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
             'customer_id' => $customer->id, 'driver_id' => $driver->id,
             'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addHours(23),
         ]);
 
-        $this->assertEquals('+447700900222', app(MaskingService::class)->counterpartFor('07700900111'));
+        $service = app(MaskingService::class);
+
+        // 23h out → too early, the line is dead.
+        $this->assertNull($service->counterpartFor('07700900111'));
+
+        // 2h out → still too early.
+        $booking->forceFill(['pickup_at' => now()->addHours(2)])->save();
+        $this->assertNull($service->counterpartFor('07700900111'));
+
+        // 80 min out → inside the 90-min window, now it connects.
+        $booking->forceFill(['pickup_at' => now()->addMinutes(80)])->save();
+        $this->assertEquals('+447700900222', $service->counterpartFor('07700900111'));
     }
 
     public function test_callee_sees_the_counterpart_cet_line_not_the_real_number(): void
