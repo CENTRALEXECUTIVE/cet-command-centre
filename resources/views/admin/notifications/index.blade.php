@@ -25,7 +25,7 @@
         </div>
         <div id="push-status" class="hint" style="margin-top:10px;min-height:18px"></div>
 
-        <script src="{{ asset('js/cet-pushsetup.js') }}?v=1" defer></script>
+        <script src="{{ asset('js/cet-pushsetup.js') }}?v=2" defer></script>
     </div>
 
     <form method="POST" action="{{ route('notifications.update') }}">

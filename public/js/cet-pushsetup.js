@@ -67,11 +67,13 @@
                     }
                     say('Step 3/4 — starting the app worker…');
                     // Register (idempotent) and wait for it to be active.
+                    var swReg = null;
                     return navigator.serviceWorker.register('/sw.js').then(function (reg) {
-                        return navigator.serviceWorker.ready.then(function () { return reg; });
-                    }).then(function (reg) {
+                        swReg = reg;
+                        return navigator.serviceWorker.ready;
+                    }).then(function () {
                         say('Step 4/4 — subscribing this device…');
-                        return reg.pushManager.subscribe({
+                        return swReg.pushManager.subscribe({
                             userVisibleOnly: true,
                             applicationServerKey: b64ToUint8(data.key),
                         });
@@ -88,7 +90,17 @@
                         });
                     }).then(function (r) {
                         if (r && !r.ok) throw new Error('server rejected the subscription');
-                        say('✓ Notifications are ON for this device. Now tap “Send a test”.', true);
+                        // DIAGNOSTIC: fire a LOCAL notification right now. If this one
+                        // appears, the phone can display notifications (so any missing
+                        // test is a delivery/settings issue). If it doesn't appear,
+                        // Android is blocking notifications for this site.
+                        try {
+                            swReg.showNotification('✅ CET notifications are on', {
+                                body: 'If you can see this, your phone can show CET alerts. Now tap “Send a test” to check delivery.',
+                                icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', vibrate: [80, 40, 80],
+                            });
+                        } catch (e) {}
+                        say('✓ Notifications are ON. You should see a “notifications are on” banner now — if you do, tap “Send a test”. If you don’t, notifications are blocked in your phone settings.', true);
                     });
                 });
             })
