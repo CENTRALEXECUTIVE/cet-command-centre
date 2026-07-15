@@ -27,7 +27,11 @@ class MaskingService
     /** How far ahead a masked call/text can connect (details go out ~24h before). */
     private const LOOKAHEAD_DAYS = 3;
 
-    /** Grace after pickup so post-trip contact (a lost item) still bridges. */
+    /**
+     * Grace after pickup so a job running long (not yet marked Complete) still
+     * bridges. Once it IS marked Complete the line closes immediately regardless
+     * of this window — see resolve().
+     */
     private const LOOKBEHIND_HOURS = 6;
 
     /** Both permanent lines set → the switchboard is live. */
@@ -62,8 +66,16 @@ class MaskingService
 
         // Any live/upcoming job in the window — whether the driver is an assigned
         // system user OR was typed into the manual "Driver for this job" form.
+        // Terminal jobs never bridge: once a job is Completed (or Cancelled /
+        // No-Show) the line goes dead both ways, so a driver can't reach the
+        // customer after drop-off. Post-trip contact goes via the office.
+        $terminal = [
+            BookingStatus::Complete->value,
+            BookingStatus::Cancelled->value,
+            BookingStatus::NoShow->value,
+        ];
         $bookings = Booking::with(['customer', 'driver'])
-            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->whereNotIn('status', $terminal)
             ->whereBetween('pickup_at', [now()->subHours(self::LOOKBEHIND_HOURS), now()->addDays(self::LOOKAHEAD_DAYS)])
             ->orderBy('pickup_at') // nearest job wins if a caller has more than one
             ->get();

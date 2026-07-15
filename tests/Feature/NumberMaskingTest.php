@@ -85,6 +85,32 @@ class NumberMaskingTest extends TestCase
         $this->assertNull(app(MaskingService::class)->counterpartFor('07999999999'));
     }
 
+    public function test_a_completed_job_no_longer_bridges_either_way(): void
+    {
+        // Once the job is marked Complete the line must go dead immediately, so a
+        // driver can't text the customer after drop-off (post-trip contact goes
+        // via the office). Regression: Completed jobs used to keep bridging for
+        // up to 6h after pickup because only Cancelled/No-Show were excluded.
+        $customer = Customer::factory()->create(['phone' => '07700900111']);
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+        Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id, 'driver_id' => $driver->id,
+            'status' => BookingStatus::Complete->value, 'pickup_at' => now()->subMinutes(30),
+        ]);
+
+        $service = app(MaskingService::class);
+        $this->assertNull($service->resolve('07700900222')); // driver → nobody
+        $this->assertNull($service->resolve('07700900111')); // customer → nobody
+
+        // And an inbound text on a finished job is not forwarded.
+        \Illuminate\Support\Facades\Http::fake();
+        $this->post(route('webhooks.sms'), [
+            'secret' => 'test-secret', 'From' => '07700900222', 'Body' => 'you left your bag',
+        ])->assertOk()->assertSee('connect your message', false);
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
     public function test_voice_webhook_returns_dial_twiml(): void
     {
         $this->activeJob();
