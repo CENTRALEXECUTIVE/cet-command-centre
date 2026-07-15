@@ -12,55 +12,20 @@
     {{-- Set up push on THIS phone/computer, then prove it with a test. The
          opt-in reuses the driver push endpoints (admins are allowed on them);
          subscriptions store against whoever is signed in. --}}
-    <div class="card">
+    <div class="card" id="push-device"
+         data-key-url="{{ route('driver.push.key') }}"
+         data-sub-url="{{ route('driver.push.subscribe') }}"
+         data-test-url="{{ route('driver.push.test') }}">
         <h2 style="margin:0 0 4px">🔔 Alerts on this device</h2>
-        <p class="hint" style="margin:0 0 12px">Turn push on for the phone or computer you're reading this on, then send yourself a test. <strong>On iPhone:</strong> tap Share → <em>Add to Home Screen</em>, open the app from that icon, then enable (iOS only allows push from the installed app). Android works either way.</p>
+        <p class="hint" style="margin:0 0 12px">Turn push on for the phone or computer you're reading this on, then send yourself a test. <strong>On iPhone:</strong> you must first tap Share → <em>Add to Home Screen</em> and open the app from that icon — iOS only allows notifications from the installed app. Android works either way.</p>
 
-        <div id="push-banner" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:12px">
-            <strong>Turn on office alerts</strong>
-            <p class="muted" style="margin:4px 0 10px;font-size:13px">Get buzzed for unallocated jobs, unresponsive drivers and mid-job GPS loss — even with the app closed.</p>
-            <button type="button" id="push-enable" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Enable notifications</button>
-            <span id="push-state" class="muted" style="font-size:13px;margin-left:8px"></span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button type="button" id="push-enable" class="btn btn-primary" style="padding:9px 16px;font-size:14px">Enable notifications</button>
+            <button type="button" id="push-test" class="btn btn-light" style="padding:9px 16px;font-size:14px">Send a test</button>
         </div>
-        <div id="push-cfg"
-             data-key-url="{{ route('driver.push.key') }}"
-             data-sub-url="{{ route('driver.push.subscribe') }}"
-             data-unsub-url="{{ route('driver.push.unsubscribe') }}" hidden></div>
+        <div id="push-status" class="hint" style="margin-top:10px;min-height:18px"></div>
 
-        <button type="button" id="push-test" class="btn btn-light" style="padding:7px 14px">Send a test notification</button>
-        <span id="push-test-state" class="muted" style="font-size:13px;margin-left:8px"></span>
-
-        <script src="{{ asset('js/cet-push.js') }}" defer></script>
-        <script>
-            (function () {
-                var btn = document.getElementById('push-test');
-                var state = document.getElementById('push-test-state');
-                if (!btn) return;
-                var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content;
-                btn.addEventListener('click', function () {
-                    state.style.color = ''; state.textContent = 'sending…';
-                    fetch('{{ route('driver.push.test') }}', {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-                    }).then(function (r) {
-                        return r.json().then(function (d) { return { ok: r.ok, d: d }; });
-                    }).then(function (res) {
-                        if (res.ok && res.d.ok) {
-                            state.style.color = '#1f7a44';
-                            state.textContent = '✓ Sent to ' + res.d.devices + ' device(s) — check your phone.';
-                        } else if (res.d.reason === 'not_configured') {
-                            state.style.color = '#b32020';
-                            state.textContent = '✗ Push isn’t set up on the server yet (run cet:make-vapid).';
-                        } else {
-                            state.style.color = '#b32020';
-                            state.textContent = '✗ No device subscribed here yet — tap Enable above first.';
-                        }
-                    }).catch(function () {
-                        state.style.color = '#b32020'; state.textContent = '✗ Request failed.';
-                    });
-                });
-            })();
-        </script>
+        <script src="{{ asset('js/cet-pushsetup.js') }}?v=1" defer></script>
     </div>
 
     <form method="POST" action="{{ route('notifications.update') }}">
