@@ -35,6 +35,30 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'driver@cet.test', 'role' => 'driver']);
     }
 
+    public function test_resetting_a_driver_password_actually_changes_it_and_is_confirmed(): void
+    {
+        $driver = User::factory()->driver()->create([
+            'email' => 'kash-am64-far@cet-drivers.local', 'password' => 'old-password',
+        ]);
+
+        $this->actingAs($this->superAdmin())->put(route('users.update', $driver), [
+            'name' => 'Kash', 'email' => 'kash-am64-far@cet-drivers.local',
+            'role' => 'driver', 'is_active' => 1, 'password' => 'kash12345',
+        ])->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'kash12345'));
+
+        // The new password works; the old one no longer does.
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('kash12345', $driver->fresh()->password));
+    }
+
+    public function test_email_is_stored_lowercase(): void
+    {
+        $this->actingAs($this->superAdmin())->post(route('users.store'), [
+            'name' => 'Caps', 'email' => 'MixedCase@CET.Test', 'role' => 'driver',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('users', ['email' => 'mixedcase@cet.test']);
+    }
+
     public function test_regular_admin_cannot_create_an_admin(): void
     {
         $admin = User::factory()->admin()->create(['is_super_admin' => false]);

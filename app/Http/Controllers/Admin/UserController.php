@@ -45,7 +45,7 @@ class UserController extends Controller
         $password = ($data['password'] ?? null) ?: Str::password(12, symbols: false);
         $user = User::create([
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => Str::lower(trim($data['email'])),
             'phone' => $data['phone'] ?? null,
             'password' => $password,
             'role' => $data['role'],
@@ -76,7 +76,7 @@ class UserController extends Controller
 
         $user->fill([
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => Str::lower(trim($data['email'])),
             'phone' => $data['phone'] ?? null,
             'role' => $data['role'],
             'is_active' => $user->id === $request->user()->id ? true : (bool) ($data['is_active'] ?? false),
@@ -90,7 +90,14 @@ class UserController extends Controller
         }
         $user->save();
 
-        return redirect()->route('users.index')->with('status', "{$user->name} updated.");
+        // When the password was reset, echo it back so the admin can share the
+        // exact new login with the driver (and knows the reset actually took).
+        $msg = "{$user->name} updated.";
+        if (! empty($data['password'])) {
+            $msg = "{$user->name} updated — login: {$user->email} · new password: {$data['password']} (share it with them).";
+        }
+
+        return redirect()->route('users.index')->with('status', $msg);
     }
 
     public function destroy(Request $request, User $user): RedirectResponse

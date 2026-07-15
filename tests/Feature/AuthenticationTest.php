@@ -74,6 +74,23 @@ class AuthenticationTest extends TestCase
             ->assertOk()->assertDontSee('Monthly review due', false);
     }
 
+    public function test_login_tolerates_a_capitalised_or_padded_email(): void
+    {
+        // Tablet keyboards auto-capitalise the first letter and can leave a
+        // trailing space — the login must still find the account.
+        $user = User::factory()->driver()->create([
+            'email' => 'kash-am64-far@cet-drivers.local',
+            'password' => 'kash12345',
+        ]);
+
+        $this->post('/login', [
+            'email' => '  Kash-AM64-far@cet-drivers.local ',
+            'password' => 'kash12345',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_login_fails_with_wrong_password(): void
     {
         $user = User::factory()->admin()->create(['password' => 'correct-password']);

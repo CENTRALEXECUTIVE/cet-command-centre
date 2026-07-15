@@ -28,11 +28,15 @@
                 <div class="field">
                     <label for="email">Email address</label>
                     <input id="email" type="email" name="email" value="{{ old('email') }}"
-                           required autofocus autocomplete="username">
+                           required autofocus autocomplete="username"
+                           inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false">
                 </div>
                 <div class="field">
                     <label for="password">Password</label>
-                    <input id="password" type="password" name="password" required autocomplete="current-password">
+                    <div class="pw-wrap">
+                        <input id="password" type="password" name="password" required autocomplete="current-password">
+                        <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">Show</button>
+                    </div>
                 </div>
                 <div class="checkbox-row" style="margin-bottom:20px">
                     <input id="remember" type="checkbox" name="remember">
@@ -47,5 +51,6 @@
         </div>
     </div>
     @include('partials.cookie-consent')
+    <script src="{{ asset('js/cet-showpassword.js') }}?v={{ config('cet.asset_version') }}" defer></script>
 </body>
 </html>

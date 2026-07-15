@@ -21,9 +21,14 @@
             <div class="body">
                 <div class="grid grid-2">
                     <div class="field"><label for="name">Full name <span class="req">*</span></label><input id="name" name="name" value="{{ old('name', $user->name) }}" required></div>
-                    <div class="field"><label for="email">Email (login) <span class="req">*</span></label><input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required></div>
+                    <div class="field"><label for="email">Email (login) <span class="req">*</span></label><input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
                     <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" value="{{ old('phone', $user->phone) }}" placeholder="07…"></div>
-                    <div class="field"><label for="password">{{ $user->exists ? 'Reset password' : 'Password' }}</label><input id="password" type="text" name="password" placeholder="{{ $user->exists ? 'Leave blank to keep' : 'Leave blank to auto-generate' }}" autocomplete="off"></div>
+                    <div class="field"><label for="password">{{ $user->exists ? 'Reset password' : 'Password' }}</label>
+                        <div class="pw-wrap">
+                            <input id="password" type="password" name="password" placeholder="{{ $user->exists ? 'Leave blank to keep' : 'Leave blank to auto-generate' }}" autocomplete="new-password">
+                            <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">Show</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="field">
@@ -67,4 +72,5 @@
     @if($user->exists && $user->id !== auth()->id())
         <form id="deactivate-user" method="POST" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Deactivate {{ $user->name }}?')">@csrf @method('DELETE')</form>
     @endif
+    <script src="{{ asset('js/cet-showpassword.js') }}?v={{ config('cet.asset_version') }}" defer></script>
 @endsection

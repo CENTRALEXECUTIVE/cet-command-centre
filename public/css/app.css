@@ -120,6 +120,17 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 4px rgba(251, 186, 42, .18);
 }
 textarea { min-height: 80px; resize: vertical; }
+
+/* Show/hide password toggle — a small text button pinned inside the field. */
+.pw-wrap { position: relative; display: flex; align-items: center; }
+.pw-wrap input { padding-right: 62px; }
+.pw-toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: auto; padding: 6px 10px; border: 0; background: transparent;
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: inherit; opacity: .6; border-radius: 8px;
+}
+.pw-toggle:hover { opacity: 1; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .error { color: var(--red); font-size: 12px; margin-top: 4px; }
 fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin: 0 0 20px; }
