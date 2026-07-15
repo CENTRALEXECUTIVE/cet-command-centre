@@ -49,8 +49,16 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
-// ----- Authenticated area ------------------------------------------------
+// Set-your-own-password (forced first-login flow + voluntary change). Sits
+// OUTSIDE the password-change gate so a flagged user can actually reach it.
 Route::middleware('auth')->group(function () {
+    Route::get('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('password.change');
+    Route::put('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'update'])
+        ->middleware('throttle:10,1')->name('password.update');
+});
+
+// ----- Authenticated area ------------------------------------------------
+Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('dashboard/fix-times', [DashboardController::class, 'fixTimes'])->middleware('throttle:10,1')->name('dashboard.fix-times');
     Route::get('jobs/day', [DashboardController::class, 'day'])->name('jobs.day');

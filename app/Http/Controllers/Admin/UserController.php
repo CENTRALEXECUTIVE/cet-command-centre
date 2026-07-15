@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -53,9 +54,10 @@ class UserController extends Controller
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
+        $this->forcePasswordChange($user); // set their own on first sign-in
 
         return redirect()->route('users.index')
-            ->with('status', "{$user->name} created — {$user->email} · password: {$password} (share it, they can change it).");
+            ->with('new_credentials', $this->credentialCard($user, $password));
     }
 
     public function edit(Request $request, User $user): View
@@ -90,14 +92,20 @@ class UserController extends Controller
         }
         $user->save();
 
-        // When the password was reset, echo it back so the admin can share the
-        // exact new login with the driver (and knows the reset actually took).
-        $msg = "{$user->name} updated.";
-        if (! empty($data['password'])) {
-            $msg = "{$user->name} updated — login: {$user->email} · new password: {$data['password']} (share it with them).";
+        // An admin resetting SOMEONE ELSE'S password → they must pick their own
+        // on next sign-in. Resetting your own password doesn't force a change.
+        if (! empty($data['password']) && $user->id !== $request->user()->id) {
+            $this->forcePasswordChange($user);
         }
 
-        return redirect()->route('users.index')->with('status', $msg);
+        // When the password was reset, hand back a copyable credentials card so
+        // the admin can share the exact login (and knows the reset actually took).
+        if (! empty($data['password'])) {
+            return redirect()->route('users.index')
+                ->with('new_credentials', $this->credentialCard($user, $data['password']));
+        }
+
+        return redirect()->route('users.index')->with('status', "{$user->name} updated.");
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
@@ -109,6 +117,50 @@ class UserController extends Controller
         $user->update(['is_active' => false]);
 
         return redirect()->route('users.index')->with('status', "{$user->name} deactivated.");
+    }
+
+    /**
+     * Flag a user to set their own password on next sign-in. Crash-safe: does
+     * nothing until the migration adding the column has run.
+     */
+    private function forcePasswordChange(User $user): void
+    {
+        if (Schema::hasColumn('users', 'must_change_password')) {
+            $user->forceFill(['must_change_password' => true])->save();
+        }
+    }
+
+    /**
+     * A one-time credentials card for the users page: the exact login to share,
+     * plus a wa.me deep link so the admin can send it to the driver by hand
+     * (still a manual tap — nothing auto-sends).
+     *
+     * @return array<string, ?string>
+     */
+    private function credentialCard(User $user, string $password): array
+    {
+        $text = "Your Central Executive Command Centre login:\n"
+            ."Web: ".route('login')."\n"
+            ."Email: {$user->email}\n"
+            ."Password: {$password}\n\n"
+            ."Please sign in and set your own password.";
+
+        $wa = null;
+        $digits = preg_replace('/\D/', '', (string) $user->phone);
+        if ($digits) {
+            if (str_starts_with($digits, '0')) {
+                $digits = '44'.substr($digits, 1);
+            }
+            $wa = 'https://wa.me/'.$digits.'?text='.rawurlencode($text);
+        }
+
+        return [
+            'name' => $user->name,
+            'email' => $user->email,
+            'password' => $password,
+            'share_text' => $text,
+            'wa_link' => $wa,
+        ];
     }
 
     /** @return array<string, mixed> */

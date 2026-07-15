@@ -35,19 +35,36 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'driver@cet.test', 'role' => 'driver']);
     }
 
-    public function test_resetting_a_driver_password_actually_changes_it_and_is_confirmed(): void
+    public function test_resetting_a_driver_password_changes_it_and_returns_a_copyable_card(): void
     {
         $driver = User::factory()->driver()->create([
             'email' => 'kash-am64-far@cet-drivers.local', 'password' => 'old-password',
+            'phone' => '07785729671',
         ]);
 
         $this->actingAs($this->superAdmin())->put(route('users.update', $driver), [
-            'name' => 'Kash', 'email' => 'kash-am64-far@cet-drivers.local',
+            'name' => 'Kash', 'email' => 'kash-am64-far@cet-drivers.local', 'phone' => '07785729671',
             'role' => 'driver', 'is_active' => 1, 'password' => 'kash12345',
-        ])->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'kash12345'));
+        ])->assertRedirect()
+            ->assertSessionHas('new_credentials', function ($c) {
+                return $c['password'] === 'kash12345'
+                    && $c['email'] === 'kash-am64-far@cet-drivers.local'
+                    && str_starts_with($c['wa_link'], 'https://wa.me/447785729671?text=');
+            });
 
-        // The new password works; the old one no longer does.
-        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('kash12345', $driver->fresh()->password));
+        $fresh = $driver->fresh();
+        // The new password works, and the driver must set their own on next login.
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('kash12345', $fresh->password));
+        $this->assertTrue($fresh->must_change_password);
+    }
+
+    public function test_new_users_are_flagged_to_set_their_own_password(): void
+    {
+        $this->actingAs($this->superAdmin())->post(route('users.store'), [
+            'name' => 'Fresh Driver', 'email' => 'fresh@cet.test', 'role' => 'driver',
+        ])->assertRedirect();
+
+        $this->assertTrue(User::where('email', 'fresh@cet.test')->first()->must_change_password);
     }
 
     public function test_email_is_stored_lowercase(): void
