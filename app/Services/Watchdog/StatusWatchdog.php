@@ -146,11 +146,11 @@ class StatusWatchdog
                     '🏁 Job done?',
                     'Job done? Tap Complete');
             }
-        } elseif ($pings->isNotEmpty() && $status->isActive()) {
-            // GPS gone stale mid-job — log once for the alerts feed.
-            $this->logOnce($booking, 'gps_stale', 'warning',
-                'GPS stale for '.($booking->driver?->name ?? 'driver').' on the '.$booking->pickup_at->format('H:i').' job');
         }
+        // NB: we deliberately do NOT alert when GPS goes stale mid-job. A web app
+        // can't track once the driver backgrounds the app, so a "GPS lost" would
+        // fire on almost every job — pure noise. The geofence nudges above simply
+        // skip while GPS is stale; the clock-based fallbacks still cover the job.
 
         // ── 6: complete fallback — pure clock, works with dead GPS ──────────
         if ($status === BookingStatus::Collected
@@ -213,17 +213,10 @@ class StatusWatchdog
                 severity: 'critical');
         }
 
-        // GPS lost for more than 5 minutes mid-job — warn the office once.
-        if ($booking->status->isTracked()) {
-            $latest = DriverLocation::where('booking_id', $booking->id)->latest('captured_at')->first();
-            if ($latest && $latest->captured_at->lt(now()->subMinutes(5))) {
-                $driver = $booking->driver?->name ?? 'driver';
-                $sent += (int) $this->admins->send($booking, 'admin_gps_lost', 'gps_lost',
-                    '⚠ Lost GPS for '.$driver,
-                    'Lost GPS for '.$driver.' on the '.$time.' job',
-                    severity: 'warning');
-            }
-        }
+        // NB: no "GPS lost mid-job" office alert. A web app stops sending GPS the
+        // moment the driver backgrounds the app, so this would cry wolf on nearly
+        // every job. (If we ever ship a native app with true background tracking,
+        // re-enable it — then a GPS drop actually means something.)
 
         return $sent;
     }

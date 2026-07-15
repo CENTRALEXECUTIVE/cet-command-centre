@@ -53,7 +53,6 @@ class User extends Authenticatable
     public const ALERT_TYPES = [
         'unacted' => 'Driver ignoring nudges',
         'unallocated' => 'Job unallocated near pickup',
-        'gps_lost' => 'GPS lost mid-job',
         'no_show_cancel' => 'No-show / cancellation',
         'calendar_import' => 'New booking from the calendar',
     ];

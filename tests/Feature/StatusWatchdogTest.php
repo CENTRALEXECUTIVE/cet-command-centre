@@ -284,7 +284,7 @@ class StatusWatchdogTest extends TestCase
 
     /* ── Stale GPS + missing coords ───────────────────────────────────────── */
 
-    public function test_stale_gps_skips_geofence_rules_and_logs_the_loss(): void
+    public function test_stale_gps_skips_geofence_rules_silently(): void
     {
         $b = $this->job(BookingStatus::EnRoute, now()->addMinutes(20), ['pickup' => self::PICKUP]);
         // Perfect dwell pattern at the pickup — but the newest ping is 10
@@ -295,7 +295,9 @@ class StatusWatchdogTest extends TestCase
         $this->tick();
 
         $this->assertNudged($b, 'arrived_detect', 0);
-        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'gps_stale']);
+        // A web app stops sending GPS the moment the driver backgrounds it, so
+        // "GPS stale" would fire on nearly every job — we deliberately stay quiet.
+        $this->assertDatabaseMissing('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'gps_stale']);
     }
 
     public function test_job_without_coords_skips_geofence_but_time_rules_still_apply(): void

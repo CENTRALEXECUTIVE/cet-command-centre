@@ -163,10 +163,12 @@ class AdminAlertsTest extends TestCase
         $this->assertDatabaseMissing('job_nudges', ['nudge_type' => 'admin_unallocated']);
     }
 
-    /* ── Escalation: GPS lost mid-job ────────────────────────────────────── */
+    /* ── GPS lost mid-job is intentionally silent ────────────────────────── */
 
-    public function test_gps_lost_mid_job_warns_the_office_once(): void
+    public function test_gps_lost_mid_job_does_not_alert_the_office(): void
     {
+        // A web app can't track once the driver backgrounds it, so a stale
+        // GPS is normal, not an emergency. We must NOT nag the office about it.
         $admin = $this->admin();
         $b = $this->driverJob(BookingStatus::EnRoute, now()->addMinutes(30));
         DriverLocation::create([
@@ -176,10 +178,10 @@ class AdminAlertsTest extends TestCase
 
         $this->tick();
         Carbon::setTestNow(now()->addMinutes(40));
-        $this->tick(); // still lost much later → no second warning
+        $this->tick();
 
-        $this->assertSame(1, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'admin_gps_lost')->count());
-        $this->assertCount(1, $this->push->to($admin));
+        $this->assertDatabaseMissing('job_nudges', ['booking_id' => $b->id, 'nudge_type' => 'admin_gps_lost']);
+        $this->assertCount(0, $this->push->to($admin));
     }
 
     /* ── Preference filtering ────────────────────────────────────────────── */
@@ -200,13 +202,9 @@ class AdminAlertsTest extends TestCase
     {
         $criticalOnly = $this->admin(['notification_preferences' => ['critical_only' => true]]);
 
-        // A warning (GPS lost) is muted…
-        $b = $this->driverJob(BookingStatus::EnRoute, now()->addMinutes(30));
-        DriverLocation::create([
-            'driver_id' => $b->driver_id, 'booking_id' => $b->id,
-            'latitude' => 53.4, 'longitude' => -1.5, 'captured_at' => now()->subMinutes(6),
-        ]);
-        $this->tick();
+        // A lower-severity alert (e.g. a calendar import notice) is muted…
+        app(\App\Services\Watchdog\AdminAlerts::class)
+            ->notify('calendar_import', 'New booking imported', 'A calendar booking arrived', 'info');
         $this->assertCount(0, $this->push->to($criticalOnly));
 
         // …but a critical (unallocated) still gets through.
@@ -284,6 +282,6 @@ class AdminAlertsTest extends TestCase
         $prefs = $plain->fresh()->alertPreferences();
         $this->assertTrue($prefs['unallocated']);
         $this->assertTrue($prefs['critical_only']);
-        $this->assertFalse($prefs['gps_lost']); // unchecked box saved as off
+        $this->assertFalse($prefs['no_show_cancel']); // unchecked box saved as off
     }
 }
