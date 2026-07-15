@@ -152,7 +152,8 @@
             @yield('content')
 
             <footer class="site-footer">
-                Central Executive Transfers
+                <div class="foot-brand"><strong>Central Executive Transfers</strong> &mdash; &ldquo;Driven by Excellence&rdquo;</div>
+                <div class="foot-copy">&copy; {{ date('Y') }} Central Executive Transfers. All rights reserved.</div>
             </footer>
         </main>
     </div>

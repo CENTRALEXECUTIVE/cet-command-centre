@@ -202,6 +202,11 @@ tr:last-child td { border-bottom: none; }
 /* ----- Footer ----- */
 .site-footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; border-top: 1px solid var(--line); }
 .site-footer .ico { font-weight: 600; }
+.site-footer .foot-brand { font-size: 14px; color: var(--ink); }
+.site-footer .foot-brand strong { color: var(--ink); }
+.site-footer .foot-copy { margin-top: 4px; }
+html[data-theme="dark"] .site-footer .foot-brand,
+html[data-theme="dark"] .site-footer .foot-brand strong { color: #e8ecf4; }
 
 .muted { color: var(--muted); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -471,6 +476,9 @@ body.driver-app .card th { color: #8b9096; border-bottom-color: rgba(255,255,255
 body.driver-app .card td { border-bottom-color: rgba(255,255,255,.06); color: #e9e9ea; }
 body.driver-app .card a { color: var(--gold); }
 body.driver-app .muted { color: #9aa0a6; }
+body.driver-app .site-footer { color: #9aa0a6; border-top-color: rgba(255,255,255,.08); }
+body.driver-app .site-footer .foot-brand,
+body.driver-app .site-footer .foot-brand strong { color: #f3f3f3; }
 
 /* Navigate + flight buttons */
 body.driver-app .btn-dark { background: var(--gold); color: #111; }
