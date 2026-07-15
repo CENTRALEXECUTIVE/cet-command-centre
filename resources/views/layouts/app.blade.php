@@ -113,6 +113,8 @@
     <div class="content-area">
         <header class="topbar">
             <label for="nav-toggle" class="nav-burger" aria-label="Menu">&#9776;</label>
+            <a href="{{ route('dashboard') }}" class="topbar-home" title="Home" aria-label="Home"
+               style="text-decoration:none;font-size:19px;line-height:1;padding:4px 8px;border-radius:8px">🏠</a>
             <div class="topbar-title">@yield('title', 'CET Command Centre')</div>
             @if($u->isAdmin())
                 @php $unackCritical = \App\Models\WatchdogEvent::criticalCount(); @endphp

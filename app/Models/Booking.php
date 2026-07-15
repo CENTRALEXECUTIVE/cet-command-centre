@@ -216,8 +216,10 @@ class Booking extends Model
     /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */
     public function customerMaskedNumber(): ?string
     {
-        // Unmasked job → no CET line; the customer gets the real driver number.
-        if ($this->maskingDisabled()) {
+        // No masking on either side when an owner (admin) drives their own job,
+        // or the office has unmasked it → the customer gets the driver's REAL
+        // number (kept consistent with the driver's own screen).
+        if ($this->driverSeesRealNumber()) {
             return null;
         }
 
