@@ -48,14 +48,34 @@ class NumberMaskingTest extends TestCase
     {
         $this->activeJob();
 
-        $this->assertEquals('07700900222', app(MaskingService::class)->counterpartFor('07700900111'));
+        $this->assertEquals('+447700900222', app(MaskingService::class)->counterpartFor('07700900111'));
     }
 
     public function test_driver_is_connected_to_their_customer(): void
     {
         $this->activeJob();
 
-        $this->assertEquals('07700900111', app(MaskingService::class)->counterpartFor('07700900222'));
+        $this->assertEquals('+447700900111', app(MaskingService::class)->counterpartFor('07700900222'));
+    }
+
+    public function test_switchboard_routes_a_manually_entered_driver(): void
+    {
+        // The office usually sets the driver via the manual "Driver for this job"
+        // form (no system user) — masking must still route to that number.
+        $customer = Customer::factory()->create(['phone' => '07700900111']);
+        Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id,
+            'driver_id' => null,
+            'status' => BookingStatus::EnRoute->value,
+            'pickup_at' => now()->addHour(),
+            'meta' => ['driver_details' => ['name' => 'Mehtab', 'phone' => '07395565934']],
+        ]);
+
+        $service = app(MaskingService::class);
+        // Customer → the manually-entered driver.
+        $this->assertSame('+447395565934', $service->resolve('07700900111')['dial']);
+        // That driver → the customer.
+        $this->assertSame('+447700900111', $service->resolve('07395565934')['dial']);
     }
 
     public function test_unknown_caller_has_no_counterpart(): void
@@ -72,7 +92,7 @@ class NumberMaskingTest extends TestCase
         $response = $this->post(route('webhooks.voice'), ['secret' => 'test-secret', 'From' => '07700900111']);
         $response->assertOk();
         $this->assertStringContainsString('<Dial', $response->getContent());
-        $this->assertStringContainsString('07700900222', $response->getContent());
+        $this->assertStringContainsString('+447700900222', $response->getContent());
     }
 
     public function test_voice_webhook_rejects_bad_secret(): void
@@ -91,7 +111,7 @@ class NumberMaskingTest extends TestCase
             'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addHours(23),
         ]);
 
-        $this->assertEquals('07700900222', app(MaskingService::class)->counterpartFor('07700900111'));
+        $this->assertEquals('+447700900222', app(MaskingService::class)->counterpartFor('07700900111'));
     }
 
     public function test_callee_sees_the_counterpart_cet_line_not_the_real_number(): void
@@ -102,12 +122,12 @@ class NumberMaskingTest extends TestCase
         // Customer calls → driver is dialled, and the caller-ID shown is the CET
         // DRIVER line (so the driver can call/text back on it).
         $forCustomer = $service->resolve('07700900111');
-        $this->assertSame('07700900222', $forCustomer['dial']);
+        $this->assertSame('+447700900222', $forCustomer['dial']);
         $this->assertSame('+441140000002', $forCustomer['caller_id']);
 
         // Driver calls → customer is dialled, caller-ID is the CET CUSTOMER line.
         $forDriver = $service->resolve('07700900222');
-        $this->assertSame('07700900111', $forDriver['dial']);
+        $this->assertSame('+447700900111', $forDriver['dial']);
         $this->assertSame('+441140000001', $forDriver['caller_id']);
     }
 

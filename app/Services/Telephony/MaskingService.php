@@ -60,8 +60,9 @@ class MaskingService
             return null;
         }
 
+        // Any live/upcoming job in the window — whether the driver is an assigned
+        // system user OR was typed into the manual "Driver for this job" form.
         $bookings = Booking::with(['customer', 'driver'])
-            ->whereNotNull('driver_id')
             ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
             ->whereBetween('pickup_at', [now()->subHours(self::LOOKBEHIND_HOURS), now()->addDays(self::LOOKAHEAD_DAYS)])
             ->orderBy('pickup_at') // nearest job wins if a caller has more than one
@@ -69,15 +70,17 @@ class MaskingService
 
         foreach ($bookings as $booking) {
             $customer = $this->normalise($booking->customer?->phone);
-            $driver = $this->normalise($booking->driver?->phone);
+            // The driver's number comes from an assigned system driver, else the
+            // manually-entered driver details — so masking works either way.
+            $driver = $this->normalise($booking->driver?->phone ?: ($booking->meta['driver_details']['phone'] ?? null));
 
             // Customer calling → reach the driver; the driver sees the DRIVER line.
             if ($customer && $customer === $from && $driver) {
-                return ['dial' => $booking->driver->phone, 'caller_id' => $this->driverLine(), 'to' => 'driver', 'booking' => $booking];
+                return ['dial' => $driver, 'caller_id' => $this->driverLine(), 'to' => 'driver', 'booking' => $booking];
             }
             // Driver calling → reach the customer; the customer sees the CUSTOMER line.
             if ($driver && $driver === $from && $customer) {
-                return ['dial' => $booking->customer->phone, 'caller_id' => $this->customerLine(), 'to' => 'customer', 'booking' => $booking];
+                return ['dial' => $customer, 'caller_id' => $this->customerLine(), 'to' => 'customer', 'booking' => $booking];
             }
         }
 
