@@ -197,6 +197,26 @@ class ProxyMaskingTest extends TestCase
         $this->assertCount(0, ProxySession::where('booking_id', $booking->id)->open()->get());
     }
 
+    public function test_unmasking_covers_both_legs_and_survives_a_meta_rewrite(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        $outbound = $this->booking(BookingStatus::Allocated, $driver);
+        $return = $this->booking(BookingStatus::Allocated, $driver);
+        $outbound->forceFill(['linked_booking_id' => $return->id])->save();
+        $return->forceFill(['linked_booking_id' => $outbound->id])->save();
+
+        $this->actingAs($admin)->post(route('bookings.toggle-masking', $outbound))->assertRedirect();
+
+        $this->assertTrue($outbound->fresh()->maskingDisabled());
+        $this->assertTrue($return->fresh()->maskingDisabled(), 'The return leg should be unmasked too');
+
+        // A later meta rewrite (e.g. the calendar mirror) must NOT re-mask it —
+        // the durable column keeps it off. This is the "keeps going back" fix.
+        $outbound->fresh()->forceFill(['meta' => ['something' => 'else']])->save();
+        $this->assertTrue($outbound->fresh()->maskingDisabled(), 'Unmask must survive a meta rewrite');
+    }
+
     public function test_re_masking_reopens_a_line(): void
     {
         $admin = User::factory()->admin()->create();

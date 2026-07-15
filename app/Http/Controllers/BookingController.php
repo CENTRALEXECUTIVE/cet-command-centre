@@ -246,12 +246,29 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $off = ! $booking->maskingDisabled();
-        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
-            'masking_disabled' => $off,
-        ])])->save();
+        $hasColumn = \Illuminate\Support\Facades\Schema::hasColumn('bookings', 'masking_disabled');
+
+        // Apply to BOTH legs of a return journey so unmasking one doesn't leave
+        // the other masked. Writes the durable column (when migrated) AND the
+        // meta flag, so the setting sticks no matter what.
+        $legs = Booking::query()
+            ->where('id', $booking->id)
+            ->orWhere('id', $booking->linked_booking_id)
+            ->orWhere('linked_booking_id', $booking->id)
+            ->get();
+
+        foreach ($legs as $leg) {
+            $attrs = ['meta' => array_merge($leg->meta ?? [], ['masking_disabled' => $off])];
+            if ($hasColumn) {
+                $attrs['masking_disabled'] = $off;
+            }
+            $leg->forceFill($attrs)->save();
+        }
 
         if ($off) {
-            $proxy->closeSession($booking, 'masking disabled for job');
+            foreach ($legs as $leg) {
+                $proxy->closeSession($leg, 'masking disabled for job');
+            }
 
             return back()->with('status', "Masking OFF for {$booking->reference} — both sides use their real numbers.");
         }

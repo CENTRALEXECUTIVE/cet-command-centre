@@ -32,6 +32,7 @@ class Booking extends Model
         return [
             'pickup_at' => 'datetime',
             'is_return_leg' => 'boolean',
+            'masking_disabled' => 'boolean',
             'affected_rotation' => 'boolean',
             'passengers' => 'integer',
             'luggage' => 'integer',
@@ -195,7 +196,11 @@ class Booking extends Model
      */
     public function maskingDisabled(): bool
     {
-        return (bool) ($this->meta['masking_disabled'] ?? false);
+        // Prefer the durable column (no sync ever rewrites it); fall back to the
+        // old meta flag for jobs unmasked before the column existed, and so it
+        // still works if the migration hasn't been run yet.
+        return (bool) $this->getAttribute('masking_disabled')
+            || (bool) ($this->meta['masking_disabled'] ?? false);
     }
 
     /**
