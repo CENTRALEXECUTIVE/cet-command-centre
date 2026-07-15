@@ -49,11 +49,11 @@
             <div class="kpi-n" data-countup="{{ round($cashToday) }}" data-prefix="£">£{{ number_format($cashToday, 0) }}</div>
             <div class="kpi-l">Cash to collect today</div>
         </a>
-        <div class="kpi">
+        <a class="kpi" href="{{ route('bookings.index') }}">
             <div class="kpi-ico">🗓️</div>
             <div class="kpi-n" data-countup="{{ $weekCount }}">{{ $weekCount }}</div>
             <div class="kpi-l">Booked · next 7 days</div>
-        </div>
+        </a>
     </div>
 
     <div class="ops-grid">

@@ -158,6 +158,28 @@
         </main>
     </div>
 
+    {{-- Bottom tab bar (phones only) — native-style nav, main sections always a
+         thumb away. Hidden on the single-job screen, which has its own action bar. --}}
+    @unless(request()->routeIs('driver.job'))
+    <nav class="tabbar" aria-label="Primary">
+        @if($u->isAdmin())
+            <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}"><span class="ico">🏠</span>Home</a>
+            <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}"><span class="ico">🚦</span>Dispatch</a>
+            <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index','bookings.show','bookings.create') ? 'active' : '' }}"><span class="ico">📋</span>Bookings</a>
+            <a href="{{ route('fleet.map') }}" class="{{ request()->routeIs('fleet.*') ? 'active' : '' }}"><span class="ico">🗺</span>Fleet</a>
+        @elseif($u->isDriver())
+            <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.jobs','driver.job') ? 'active' : '' }}"><span class="ico">🚘</span>Jobs</a>
+            <a href="{{ route('driver.earnings') }}" class="{{ request()->routeIs('driver.earnings') ? 'active' : '' }}"><span class="ico">💷</span>Earnings</a>
+            <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}"><span class="ico">📄</span>Docs</a>
+        @elseif($u->isCorporateClient())
+            <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}"><span class="ico">🏠</span>Home</a>
+            <a href="{{ route('bookings.index') }}" class="{{ request()->routeIs('bookings.index','bookings.show') ? 'active' : '' }}"><span class="ico">📋</span>Bookings</a>
+            <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}"><span class="ico">➕</span>New</a>
+        @endif
+        <label for="nav-toggle" class="tabbar-more"><span class="ico">☰</span>More</label>
+    </nav>
+    @endunless
+
     <label for="nav-toggle" class="nav-scrim"></label>
 </div>
 

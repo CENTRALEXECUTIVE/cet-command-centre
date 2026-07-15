@@ -38,7 +38,7 @@
     <div class="board" id="live-board">
         @foreach($statuses as $status)
             @php $jobs = $columns[$status->value]; @endphp
-            <div class="board-col" data-s="{{ $status->value }}">
+            <div class="board-col {{ $jobs->isEmpty() ? 'is-empty' : '' }}" data-s="{{ $status->value }}">
                 <h3>{{ $status->label() }} <span class="count">{{ $jobs->count() }}</span></h3>
 
                 @forelse($jobs as $b)
