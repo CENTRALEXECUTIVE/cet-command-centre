@@ -39,6 +39,20 @@ class DriverLinkTest extends TestCase
             ->assertSee('On My Way');             // a working status button
     }
 
+    public function test_child_seats_are_shown_as_key_info(): void
+    {
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'meta' => ['child_seats' => 2],
+        ]);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('Child seats')
+            ->assertSee('2 child')
+            ->assertSee('🚼');
+    }
+
     public function test_an_unknown_or_finished_link_is_not_found(): void
     {
         $this->get(route('driver.link', 'nope-nope-nope'))->assertNotFound();

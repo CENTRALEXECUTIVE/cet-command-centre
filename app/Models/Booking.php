@@ -488,6 +488,32 @@ class Booking extends Model
     }
 
     /**
+     * Child/booster/infant seats for the driver — the calendar's counts win,
+     * else the booking's own meta. e.g. "4 child · 1 booster", or null when none.
+     */
+    public function displayChildSeats(): ?string
+    {
+        $parts = [];
+        foreach (['Child Seats' => 'child', 'Booster Seats' => 'booster', 'Infant Seats' => 'infant'] as $label => $word) {
+            $n = $this->calendarField($label);
+            if ($n === null || $n === '') {
+                $n = $this->meta[str_replace(' ', '_', strtolower($label))] ?? null;
+            }
+            if ((int) $n > 0) {
+                $parts[] = ((int) $n).' '.$word;
+            }
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
+    }
+
+    /** Whether this job carries any child/booster/infant seat (for the 🚼 mark). */
+    public function hasChildSeat(): bool
+    {
+        return $this->displayChildSeats() !== null || (bool) ($this->meta['child_seat'] ?? false);
+    }
+
+    /**
      * Payment line exactly as printed on the calendar, e.g. "Paid £350 (Stripe)",
      * or null so the booking's own structured payment fields are shown instead.
      */

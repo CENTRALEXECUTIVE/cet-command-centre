@@ -15,7 +15,7 @@
 {{-- Modern job hero --}}
 <div class="da-hero">
     <div class="da-hero-time">{{ $booking->pickup_at->format('D d M') }} · <span>{{ $booking->pickup_at->format('H:i') }}</span></div>
-    <div class="da-hero-name">{{ $booking->displayName() }}</div>
+    <div class="da-hero-name">{{ $booking->displayName() }}@if($booking->hasChildSeat()) <span title="Child seat required">🚼</span>@endif</div>
     <div class="da-hero-route">
         <span>{{ \Illuminate\Support\Str::limit($booking->displayPickupAddress(), 34) }}</span>
         <span class="arr">→</span>
@@ -24,8 +24,6 @@
     <div class="da-hero-chips">
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
         @if($booking->airport)<span class="da-chip">✈ {{ $booking->airport->code }}</span>@endif
-        <span class="da-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
-        @if($booking->displayVehicleType())<span class="da-chip">{{ $booking->displayVehicleType() }}</span>@endif
     </div>
 </div>
 
@@ -67,6 +65,10 @@
         <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
         <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
         <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
+        {{-- Child seats — KEY info for the driver (right seat fitted for the age). --}}
+        @if($booking->displayChildSeats())
+            <tr><th>Child seats</th><td><strong>🚼 {{ $booking->displayChildSeats() }}</strong></td></tr>
+        @endif
         {{-- What to collect from the customer (cash balance). Never the fare
              or the driver's own pay — only what the passenger still owes. --}}
         @php $collect = $booking->driverCollectLine(); @endphp
