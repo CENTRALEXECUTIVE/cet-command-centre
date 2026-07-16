@@ -300,3 +300,14 @@ Route::get('track/{token}', [TrackingController::class, 'show'])
 Route::get('track/{token}/location', [TrackingController::class, 'location'])
     ->middleware('throttle:120,1')
     ->name('track.location');
+
+// ----- Public shareable DRIVER LINK (token in URL, no login) --------------
+// A cover driver works their job — details, cash to collect, masked number,
+// navigate, status buttons and live GPS — without an account. The token is the
+// key; the link dies once the job is terminal.
+Route::get('job/{token}', [\App\Http\Controllers\Driver\LinkController::class, 'show'])
+    ->middleware('throttle:60,1')->name('driver.link');
+Route::post('job/{token}/status', [\App\Http\Controllers\Driver\LinkController::class, 'updateStatus'])
+    ->middleware('throttle:60,1')->name('driver.link.status');
+Route::post('job/{token}/location', [\App\Http\Controllers\Driver\LinkController::class, 'location'])
+    ->middleware('throttle:120,1')->name('driver.link.location');

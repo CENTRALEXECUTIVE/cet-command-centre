@@ -137,6 +137,36 @@ class Booking extends Model
         return $this->driverLocations()->orderByDesc('captured_at')->first();
     }
 
+    /**
+     * A secret token for the shareable driver link — lets a cover driver open
+     * their job page (details, cash, masked number, navigate, status, GPS)
+     * without a login. Generated once and stored in meta; the token IS the key.
+     */
+    public function driverLinkToken(): string
+    {
+        $token = $this->meta['driver_link_token'] ?? null;
+        if (! $token) {
+            $token = \Illuminate\Support\Str::random(40);
+            $this->forceFill(['meta' => array_merge($this->meta ?? [], ['driver_link_token' => $token])])->save();
+        }
+
+        return $token;
+    }
+
+    /** The full shareable driver-link URL. */
+    public function driverLinkUrl(): string
+    {
+        return route('driver.link', $this->driverLinkToken());
+    }
+
+    /** Resolve a booking from a driver-link token, or null. */
+    public static function byDriverLinkToken(string $token): ?self
+    {
+        $token = trim($token);
+
+        return $token === '' ? null : static::where('meta->driver_link_token', $token)->first();
+    }
+
     /** When the office last asked the driver to share their location. */
     public function locationRequestedAt(): ?\Illuminate\Support\Carbon
     {

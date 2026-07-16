@@ -66,6 +66,29 @@ class DriverLocationService
         ]);
     }
 
+    /**
+     * Record a ping for a job worked through the shareable LINK (no user
+     * account). Keyed to the booking; only while the job is actually being
+     * driven (en route → on board), same GDPR rule as the app.
+     */
+    public function recordLinkPing(Booking $booking, float $lat, float $lng, array $extra = []): ?DriverLocation
+    {
+        if (! $booking->status->isTracked()) {
+            return null; // location OFF until Set off, and after Complete
+        }
+
+        return DriverLocation::create([
+            'driver_id' => $booking->driver_id, // a system driver if any, else null
+            'booking_id' => $booking->id,
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'heading' => $extra['heading'] ?? null,
+            'speed' => $extra['speed'] ?? null,
+            'accuracy' => $extra['accuracy'] ?? null,
+            'captured_at' => now(),
+        ]);
+    }
+
     public function activeBookingFor(User $driver): ?Booking
     {
         return Booking::forDriver($driver->id)

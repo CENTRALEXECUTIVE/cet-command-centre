@@ -48,8 +48,9 @@ class FleetMapController extends Controller
      */
     private function positions(): array
     {
+        // Every active job — INCLUDING link-only cover drivers with no account
+        // (driver_id null). Location is keyed to the booking, so both plot.
         $bookings = Booking::whereIn('status', self::ACTIVE)
-            ->whereNotNull('driver_id')
             ->with(['driver.driverProfile', 'customer'])
             ->orderBy('pickup_at')
             ->get();
@@ -57,23 +58,27 @@ class FleetMapController extends Controller
         $out = [];
         $seen = [];
         foreach ($bookings as $b) {
-            if (in_array($b->driver_id, $seen, true)) {
-                continue; // one marker per driver
+            if ($b->driver_id && in_array($b->driver_id, $seen, true)) {
+                continue; // one marker per system driver; link jobs plot per job
             }
 
-            $loc = DriverLocation::where('driver_id', $b->driver_id)
+            $loc = DriverLocation::where('booking_id', $b->id)
                 ->orderByDesc('captured_at')
                 ->first();
             if (! $loc) {
                 continue; // no GPS yet
             }
 
-            $seen[] = $b->driver_id;
+            if ($b->driver_id) {
+                $seen[] = $b->driver_id;
+            }
             // Stale = no ping for over two intervals (plus a minute's grace) —
             // flagged so the office spots a driver whose GPS has gone quiet.
             $staleAfter = ((int) config('cet.gps_ping_seconds', 300)) * 2 + 60;
             $out[] = [
-                'driver' => $b->driver->driverProfile?->callsign ?: $b->driver->name,
+                'driver' => $b->driver?->driverProfile?->callsign
+                    ?: $b->driver?->name
+                    ?: ($b->meta['driver_details']['name'] ?? 'Driver'),
                 'lat' => (float) $loc->latitude,
                 'lng' => (float) $loc->longitude,
                 'heading' => $loc->heading !== null ? (float) $loc->heading : null,

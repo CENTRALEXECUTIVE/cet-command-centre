@@ -29,14 +29,15 @@ class FleetMapTest extends TestCase
         $exec = VehicleType::where('slug', 'executive')->first();
         $customer = Customer::create(['name' => 'On Board Cust', 'phone' => '07700900020']);
 
-        Booking::create([
+        $booking = Booking::create([
             'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
             'vehicle_type_id' => $exec->id, 'driver_id' => $driver->id,
             'pickup_at' => now()->subMinutes(20), 'pickup_address' => 'A', 'destination_address' => 'Manchester Airport',
             'passengers' => 1, 'status' => 'en_route', 'payment_method' => 'card',
         ]);
         DriverLocation::create([
-            'driver_id' => $driver->id, 'latitude' => 53.4001, 'longitude' => -1.4700, 'captured_at' => now(),
+            'driver_id' => $driver->id, 'booking_id' => $booking->id,
+            'latitude' => 53.4001, 'longitude' => -1.4700, 'captured_at' => now(),
         ]);
 
         return $driver;

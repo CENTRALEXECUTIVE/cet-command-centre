@@ -44,7 +44,7 @@ return [
 
     // Bump on every deploy that changes CSS/JS — cache-busts the stylesheet
     // link so phones can never render new pages with old styles.
-    'asset_version' => '23',
+    'asset_version' => '24',
 
     // Google Ads budget alert thresholds.
     'ads_alert_thresholds' => [

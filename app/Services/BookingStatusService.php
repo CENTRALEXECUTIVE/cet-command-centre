@@ -143,12 +143,34 @@ class BookingStatusService
         return $this->apply($booking, $from, $to, $actor, null, null, $note);
     }
 
+    /**
+     * A driver working the job through the shareable LINK (no login). The token
+     * is the authentication; we still enforce a legal, driver-permitted step.
+     * The change is stamped to the assigned user if there is one, else recorded
+     * with no user and a "via job link" note.
+     */
+    public function linkTransition(Booking $booking, BookingStatus $to, ?float $lat = null, ?float $lng = null): Booking
+    {
+        $from = $booking->status;
+        if ($from === $to) {
+            return $booking;
+        }
+        if (! $this->canTransition($from, $to)) {
+            throw new InvalidArgumentException("Cannot move a booking from {$from->value} to {$to->value}.");
+        }
+        if (! in_array($to->value, self::DRIVER_ALLOWED, true)) {
+            throw new AuthorizationException('That status change is not allowed from the driver link.');
+        }
+
+        return $this->apply($booking, $from, $to, $booking->driver, $lat, $lng, 'via job link');
+    }
+
     /** Persist the status change, record history and fire side effects. */
     private function apply(
         Booking $booking,
         BookingStatus $from,
         BookingStatus $to,
-        User $actor,
+        ?User $actor,
         ?float $lat,
         ?float $lng,
         ?string $note,
@@ -159,7 +181,7 @@ class BookingStatusService
             $booking->statusHistory()->create([
                 'from_status' => $from->value,
                 'to_status' => $to->value,
-                'changed_by' => $actor->id,
+                'changed_by' => $actor?->id,
                 'gps_latitude' => $lat,
                 'gps_longitude' => $lng,
                 'note' => $note,

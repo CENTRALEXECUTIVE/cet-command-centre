@@ -120,9 +120,9 @@ class CustomerTrackingTest extends TestCase
     public function test_fleet_positions_flag_stale_gps(): void
     {
         $admin = User::factory()->admin()->create();
-        $this->job(BookingStatus::EnRoute);
+        $job = $this->job(BookingStatus::EnRoute);
         DriverLocation::create([
-            'driver_id' => $this->driver->id, 'booking_id' => null,
+            'driver_id' => $this->driver->id, 'booking_id' => $job->id,
             'latitude' => 53.4, 'longitude' => -1.4,
             'captured_at' => now()->subMinutes(30), // well past 2× the 5-min interval
         ]);

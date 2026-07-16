@@ -586,6 +586,14 @@ body.driver-app .card td { border-bottom-color: rgba(255,255,255,.06); color: #e
 body.driver-app .card a { color: var(--gold); }
 body.driver-app .muted { color: #9aa0a6; }
 body.driver-app .collect-amount { color: #6fdd9c; font-size: 15px; } /* money to collect — stands out */
+
+/* Public driver-link page header (standalone, no app shell) */
+.link-topbar { display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: #0e0f12; border-bottom: 1px solid rgba(255,255,255,.06); }
+.link-topbar .brand { font-weight: 800; letter-spacing: .3px; color: #f3f3f3; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.link-topbar .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); display: inline-block; }
+.link-topbar .brand .gold { color: var(--gold); }
+.link-topbar .link-tag { font-size: 12px; color: #9aa0a6; }
 body.driver-app .site-footer { color: #9aa0a6; border-top-color: rgba(255,255,255,.08); }
 body.driver-app .site-footer .foot-brand,
 body.driver-app .site-footer .foot-brand strong { color: #f3f3f3; }

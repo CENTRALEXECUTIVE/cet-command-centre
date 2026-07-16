@@ -20,7 +20,9 @@ return new class extends Migration
     {
         Schema::create('driver_locations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('driver_id')->constrained('users')->cascadeOnDelete();
+            // Nullable so a cover driver reached only by the shareable job link
+            // (no user account) can still be tracked — the ping keys on booking_id.
+            $table->foreignId('driver_id')->nullable()->constrained('users')->cascadeOnDelete();
             $table->foreignId('booking_id')->nullable()->constrained()->nullOnDelete()
                 ->comment('Location is only tracked while on an active job');
             $table->decimal('latitude', 10, 7);
