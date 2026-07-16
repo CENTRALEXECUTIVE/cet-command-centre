@@ -130,6 +130,20 @@
                         <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', $booking->meta['hand_luggage'] ?? 0) }}">
                     </div>
                 </div>
+                <div class="grid grid-3">
+                    <div class="field">
+                        <label for="child_seats">Child seats</label>
+                        <input id="child_seats" type="number" name="child_seats" min="0" max="8" value="{{ old('child_seats', $booking->meta['child_seats'] ?? 0) }}">
+                    </div>
+                    <div class="field">
+                        <label for="booster_seats">Booster seats</label>
+                        <input id="booster_seats" type="number" name="booster_seats" min="0" max="8" value="{{ old('booster_seats', $booking->meta['booster_seats'] ?? 0) }}">
+                    </div>
+                    <div class="field">
+                        <label for="infant_seats">Infant seats</label>
+                        <input id="infant_seats" type="number" name="infant_seats" min="0" max="8" value="{{ old('infant_seats', $booking->meta['infant_seats'] ?? 0) }}">
+                    </div>
+                </div>
                 <div class="field" style="margin-bottom:0">
                     <label for="special_requests">Special requests</label>
                     <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests', $booking->special_requests) }}</textarea>

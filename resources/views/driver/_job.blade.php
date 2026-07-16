@@ -24,6 +24,9 @@
     <div class="da-hero-chips">
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
         @if($booking->airport)<span class="da-chip">✈ {{ $booking->airport->code }}</span>@endif
+        <span class="da-chip">👤 {{ $booking->passengerCount() }} {{ \Illuminate\Support\Str::plural('passenger', (int) $booking->passengerCount()) }}</span>
+        <span class="da-chip">🧳 {{ $booking->luggageBreakdown() }}</span>
+        @if($booking->displayChildSeats())<span class="da-chip">🚼 {{ $booking->displayChildSeats() }}</span>@endif
     </div>
 </div>
 

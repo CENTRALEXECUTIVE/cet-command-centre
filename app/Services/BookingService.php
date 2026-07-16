@@ -105,6 +105,10 @@ class BookingService
                 'meta' => array_merge($booking->meta ?? [], [
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
+                    'child_seats' => (int) ($data['child_seats'] ?? 0),
+                    'booster_seats' => (int) ($data['booster_seats'] ?? 0),
+                    'infant_seats' => (int) ($data['infant_seats'] ?? 0),
+                    'child_seat' => (int) ($data['child_seats'] ?? 0) + (int) ($data['booster_seats'] ?? 0) + (int) ($data['infant_seats'] ?? 0) > 0,
                 ]),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],

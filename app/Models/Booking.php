@@ -494,10 +494,12 @@ class Booking extends Model
     public function displayChildSeats(): ?string
     {
         $parts = [];
-        foreach (['Child Seats' => 'child', 'Booster Seats' => 'booster', 'Infant Seats' => 'infant'] as $label => $word) {
-            $n = $this->calendarField($label);
+        foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $metaKey => $word) {
+            // The booking's OWN count wins (it's what the office edits); fall back
+            // to the calendar text only when the booking doesn't carry a count.
+            $n = $this->meta[$metaKey] ?? null;
             if ($n === null || $n === '') {
-                $n = $this->meta[str_replace(' ', '_', strtolower($label))] ?? null;
+                $n = $this->calendarField(ucwords(str_replace('_', ' ', $metaKey)));
             }
             $n = (int) $n;
             if ($n > 0) {

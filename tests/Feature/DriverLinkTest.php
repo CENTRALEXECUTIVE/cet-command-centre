@@ -54,6 +54,19 @@ class DriverLinkTest extends TestCase
             ->assertSee('🚼');
     }
 
+    public function test_child_seat_count_is_faithful_and_correctable(): void
+    {
+        // The booking's OWN count is authoritative and wins over a stale import.
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted, 'meta' => ['child_seats' => 1],
+        ]);
+        $this->assertSame('1 child seat', $booking->displayChildSeats());
+
+        // Corrected to a mix → proper singular/plural wording.
+        $booking->forceFill(['meta' => ['child_seats' => 2, 'booster_seats' => 1]])->save();
+        $this->assertSame('2 child seats · 1 booster seat', $booking->fresh()->displayChildSeats());
+    }
+
     public function test_an_unknown_or_finished_link_is_not_found(): void
     {
         $this->get(route('driver.link', 'nope-nope-nope'))->assertNotFound();
