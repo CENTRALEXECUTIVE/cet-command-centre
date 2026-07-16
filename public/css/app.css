@@ -585,6 +585,7 @@ body.driver-app .card th { color: #8b9096; border-bottom-color: rgba(255,255,255
 body.driver-app .card td { border-bottom-color: rgba(255,255,255,.06); color: #e9e9ea; }
 body.driver-app .card a { color: var(--gold); }
 body.driver-app .muted { color: #9aa0a6; }
+body.driver-app .collect-amount { color: #6fdd9c; font-size: 15px; } /* money to collect — stands out */
 body.driver-app .site-footer { color: #9aa0a6; border-top-color: rgba(255,255,255,.08); }
 body.driver-app .site-footer .foot-brand,
 body.driver-app .site-footer .foot-brand strong { color: #f3f3f3; }

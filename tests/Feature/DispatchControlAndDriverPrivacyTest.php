@@ -141,6 +141,41 @@ class DispatchControlAndDriverPrivacyTest extends TestCase
             ->assertDontSee('£350');
     }
 
+    public function test_driver_sees_cash_to_collect_on_a_cash_job(): void
+    {
+        $driver = $this->driver();
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::Accepted,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+            'payment_status' => 'pending',
+            'quoted_price' => 90.00,
+            'final_price' => 90.00,
+        ]);
+
+        $this->actingAs($driver)->get(route('driver.job', $booking))
+            ->assertOk()
+            ->assertSee('Collect')
+            ->assertSee('£90.00 cash');
+    }
+
+    public function test_admin_can_assign_a_driver_from_the_booking_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        $booking = Booking::factory()->create(['status' => BookingStatus::Pending]);
+
+        // The booking page offers the assignment control…
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()->assertSee('Assign a driver');
+
+        // …and allocating from it ties the driver and moves the job to Allocated.
+        $this->actingAs($admin)->post(route('despatch.allocate', $booking), ['driver_id' => $driver->id])
+            ->assertRedirect();
+        $this->assertSame($driver->id, $booking->fresh()->driver_id);
+        $this->assertSame(BookingStatus::Allocated, $booking->fresh()->status);
+    }
+
     public function test_driver_earnings_show_their_pay_not_the_customer_fare(): void
     {
         $driver = $this->driver();

@@ -404,13 +404,20 @@ class BookingController extends Controller
             $jobDrivers = $cover->concat($system)->values();
         }
 
+        // System drivers (with a login) that can be ALLOCATED to this job right
+        // from the booking page — same allocate flow as the dispatch board.
+        $allocatableDrivers = $request->user()->isAdmin()
+            ? \App\Models\User::where('is_active', true)->whereHas('driverProfile')
+                ->with('driverProfile.defaultVehicle')->orderBy('name')->get()
+            : collect();
+
         // Whether the live calendar can be scanned for this booking — used to
         // show the "Scan calendar" button even for ETO imports that don't yet
         // have a stored event id (the scan matches them by reference).
         $canScan = $request->user()->isAdmin()
             && $this->google->configured() && $this->google->active();
 
-        return compact('booking', 'auditLogs', 'messages', 'jobDrivers', 'canScan');
+        return compact('booking', 'auditLogs', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan');
     }
 
     /**

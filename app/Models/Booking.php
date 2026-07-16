@@ -467,6 +467,38 @@ class Booking extends Model
     }
 
     /**
+     * What the driver must physically COLLECT from the customer on this job.
+     * Prefers the office-curated calendar Payment line (e.g. "Deposit £10 Paid
+     * – £110 Cash Due"); otherwise derives a cash amount for an unpaid cash job.
+     * Returns null when there's nothing to collect (fully prepaid) or unknown —
+     * so a card/prepaid job never shows the fare on the driver's screen.
+     */
+    public function driverCollectLine(): ?string
+    {
+        $line = trim((string) $this->displayPayment());
+        if ($line !== '') {
+            if (preg_match('/cash|due|balance|outstanding|owe/i', $line)) {
+                return $line; // money still to collect — show it verbatim
+            }
+            if (preg_match('/paid/i', $line)) {
+                return 'Paid — collect nothing';
+            }
+        }
+
+        // No usable calendar line — fall back to the booking's own fields.
+        $amount = $this->final_price ?? $this->quoted_price;
+        if (($this->payment_method?->value ?? null) === 'cash'
+            && $this->payment_status !== 'paid' && $amount) {
+            return '£'.number_format((float) $amount, 2).' cash';
+        }
+        if ($this->payment_status === 'paid') {
+            return 'Paid — collect nothing';
+        }
+
+        return null;
+    }
+
+    /**
      * ---- Payroll (driver pay per job) --------------------------------------
      * Stored in meta['payroll'] so no migration is needed:
      *   ['pay' => 45.00, 'paid' => 20.00, 'history' => [{amount, at, by, note}]]

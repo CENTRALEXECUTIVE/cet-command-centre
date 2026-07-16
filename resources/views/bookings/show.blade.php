@@ -133,6 +133,46 @@
         </div>
     @endif
 
+    {{-- Assign / reassign a system driver right here — same allocate flow as the
+         dispatch board (sets Allocated, opens the masked line, notifies them). --}}
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        <div class="card">
+            <h2 style="margin:0 0 4px">🧑‍✈️ {{ $booking->driver_id ? 'Change driver' : 'Assign a driver' }}</h2>
+            <p class="hint" style="margin:0 0 12px">
+                @if($booking->driver)Currently <strong>{{ $booking->driver->name }}</strong>. @endif
+                Allocate a driver with a login — the job goes to <strong>Allocated</strong>, the masked line opens and the driver is notified.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <form method="POST" action="{{ route($booking->driver_id ? 'despatch.reassign' : 'despatch.allocate', $booking) }}" style="display:flex;gap:6px;flex-wrap:wrap">
+                    @csrf
+                    <select name="driver_id" required style="width:auto;min-width:190px">
+                        <option value="">Choose a driver…</option>
+                        @foreach($allocatableDrivers as $d)
+                            @php $reg = $d->driverProfile?->defaultVehicle?->registration; @endphp
+                            <option value="{{ $d->id }}" @selected($booking->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}@if($reg) ({{ $reg }})@endif</option>
+                        @endforeach
+                    </select>
+                    <button class="btn btn-primary" style="padding:8px 16px">{{ $booking->driver_id ? 'Reassign' : 'Assign' }}</button>
+                </form>
+                @if($booking->vehicleType?->affects_rotation && ! $booking->driver_id)
+                    <form method="POST" action="{{ route('despatch.auto-allocate', $booking) }}">
+                        @csrf
+                        <button class="btn btn-ghost" style="padding:8px 16px">Auto (rotation)</button>
+                    </form>
+                @endif
+                @if($booking->driver_id)
+                    <form method="POST" action="{{ route('despatch.reassign', $booking) }}" onsubmit="return confirm('Remove the driver and put this job back in Unallocated?')">
+                        @csrf<input type="hidden" name="driver_id" value="">
+                        <button class="btn btn-ghost" style="padding:8px 16px;color:#b32020">Remove driver</button>
+                    </form>
+                @endif
+            </div>
+            @if($allocatableDrivers->isEmpty())
+                <p class="hint" style="margin:10px 0 0">No login-drivers yet. For a one-off/cover driver, use <strong>Driver for this job</strong> below (name &amp; number only).</p>
+            @endif
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
         {{-- Live driver location. "Request location" pushes the driver's phone to
              share where they are right now (works even before Set off); once

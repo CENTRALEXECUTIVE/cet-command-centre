@@ -59,6 +59,12 @@
             <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
             <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
             <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
+            {{-- What to collect from the customer (cash balance). Never the fare
+                 or the driver's own pay — only what the passenger still owes. --}}
+            @php $collect = $booking->driverCollectLine(); @endphp
+            @if($collect)
+                <tr><th>Collect</th><td><strong class="collect-amount">💷 {{ $collect }}</strong></td></tr>
+            @endif
             {{-- NUMBER MASKING: a driver NEVER sees the customer's real number —
                  only the masked Twilio Proxy line. The one exception is an admin
                  driving their own job (an owner), who is trusted with the real

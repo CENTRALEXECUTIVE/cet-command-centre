@@ -14,6 +14,21 @@ class PickupTimeConsistencyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // The fixtures below are dated 15 Jul 2026; freeze "now" to that morning
+        // so they always count as UPCOMING (the audit only corrects jobs still to
+        // run) regardless of the real date the suite happens to run on.
+        Carbon::setTestNow('2026-07-15 05:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     private function bookingWithEvent(string $pickup, string $descTime, ?string $slot = null): Booking
     {
         $booking = Booking::factory()->create(['pickup_at' => $pickup]);
