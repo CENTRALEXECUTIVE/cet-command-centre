@@ -40,6 +40,21 @@ class DriverLinkTest extends TestCase
             ->assertSee('On My Way');             // a working status button
     }
 
+    public function test_the_token_resolves_via_the_column_and_a_legacy_meta_token(): void
+    {
+        // New booking → token lands on the indexed column.
+        $booking = Booking::factory()->create(['status' => BookingStatus::Allocated]);
+        $token = $booking->driverLinkToken();
+        $this->assertSame($token, $booking->fresh()->driver_link_token);
+        $this->assertTrue(Booking::byDriverLinkToken($token)?->is($booking));
+
+        // A link sent before the column existed (token only in meta) still works.
+        $legacy = Booking::factory()->create(['status' => BookingStatus::Allocated]);
+        $legacy->forceFill(['driver_link_token' => null, 'meta' => ['driver_link_token' => 'legacy-abc-123']])->save();
+        $this->assertTrue(Booking::byDriverLinkToken('legacy-abc-123')?->is($legacy));
+        $this->get(route('driver.link', 'legacy-abc-123'))->assertOk();
+    }
+
     public function test_child_seats_are_shown_as_key_info(): void
     {
         $booking = Booking::factory()->create([

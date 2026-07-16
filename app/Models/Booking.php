@@ -144,11 +144,19 @@ class Booking extends Model
      */
     public function driverLinkToken(): string
     {
-        $token = $this->meta['driver_link_token'] ?? null;
-        if (! $token) {
-            $token = \Illuminate\Support\Str::random(40);
-            $this->forceFill(['meta' => array_merge($this->meta ?? [], ['driver_link_token' => $token])])->save();
+        // Prefer the dedicated indexed column (reliable); fall back to any legacy
+        // token stored in meta so links already sent keep working.
+        if (filled($this->driver_link_token ?? null)) {
+            return $this->driver_link_token;
         }
+
+        $token = $this->meta['driver_link_token'] ?? \Illuminate\Support\Str::random(40);
+
+        $updates = ['meta' => array_merge($this->meta ?? [], ['driver_link_token' => $token])];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('bookings', 'driver_link_token')) {
+            $updates['driver_link_token'] = $token; // migrate/store on the column
+        }
+        $this->forceFill($updates)->save();
 
         return $token;
     }
@@ -163,8 +171,21 @@ class Booking extends Model
     public static function byDriverLinkToken(string $token): ?self
     {
         $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
 
-        return $token === '' ? null : static::where('meta->driver_link_token', $token)->first();
+        // Indexed column first (fast, reliable); legacy meta fallback for links
+        // sent before the column existed. try/catch survives pre-migration.
+        try {
+            if ($found = static::where('driver_link_token', $token)->first()) {
+                return $found;
+            }
+        } catch (\Throwable) {
+            // column not migrated yet — fall through to the meta lookup
+        }
+
+        return static::where('meta->driver_link_token', $token)->first();
     }
 
     /** When the office last asked the driver to share their location. */
