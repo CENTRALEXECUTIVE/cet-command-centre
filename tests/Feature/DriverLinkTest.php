@@ -71,11 +71,14 @@ class DriverLinkTest extends TestCase
     {
         $this->get(route('driver.link', 'nope-nope-nope'))->assertNotFound();
 
-        // A completed job's link still SHOWS (read-only) rather than a scary 404…
+        // A completed job's link closes cleanly (not a scary 404, no details)…
         $done = Booking::factory()->create(['status' => BookingStatus::Complete]);
-        $this->get(route('driver.link', $done->driverLinkToken()))->assertOk();
+        $this->get(route('driver.link', $done->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('this link is now closed')
+            ->assertDontSee('On My Way');
 
-        // …but it can no longer be updated.
+        // …and it can no longer be updated.
         $this->post(route('driver.link.status', $done->driverLinkToken()), ['status' => 'en_route'])
             ->assertNotFound();
     }

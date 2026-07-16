@@ -52,13 +52,22 @@
         </script>
         @endverbatim
 
-        @include('driver._job', [
-            'linkMode' => true,
-            'statusUrl' => route('driver.link.status', $token),
-            'locationStoreUrl' => route('driver.link.location', $token),
-        ])
+        @if($booking->status->isTerminal())
+            {{-- Job done → the link closes. Kept tidy (no details), not a raw 404. --}}
+            <div class="card" style="text-align:center;padding:36px 20px">
+                <div style="font-size:40px">✅</div>
+                <h2 style="margin:10px 0 4px">This job is {{ $booking->status->label() }}</h2>
+                <p class="hint" style="margin:0">Thanks — this link is now closed. Central Executive Transfers will send a fresh link for your next job.</p>
+            </div>
+        @else
+            @include('driver._job', [
+                'linkMode' => true,
+                'statusUrl' => route('driver.link.status', $token),
+                'locationStoreUrl' => route('driver.link.location', $token),
+            ])
 
-        <p class="hint" style="text-align:center;margin-top:20px">Private link for this job · Central Executive Transfers</p>
+            <p class="hint" style="text-align:center;margin-top:20px">Private link for this job · Central Executive Transfers</p>
+        @endif
     </main>
 </body>
 </html>
