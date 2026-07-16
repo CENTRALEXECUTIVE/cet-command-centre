@@ -72,6 +72,9 @@
                                     @if(!empty($b->meta['audit_issues']))
                                         <span title="Flagged by ETO audit — {{ implode('; ', $b->meta['audit_issues']) }}">⚠</span>
                                     @endif
+                                    @if($b->looksDuplicated())
+                                        <span title="Possible duplicate — another booking looks like the same journey" style="color:#b32020;font-weight:700">⑂ dup?</span>
+                                    @endif
                                 </div>
                                 <div class="bk-route">{{ Str::limit($b->displayPickupAddress(), 26) }} <span class="arr">→</span> {{ Str::limit($b->displayDropoffAddress(), 26) }}</div>
                                 <div class="bk-tags">

@@ -67,19 +67,23 @@ class DriverLinkTest extends TestCase
         $this->assertSame('2 child seats · 1 booster seat', $booking->fresh()->displayChildSeats());
     }
 
-    public function test_unknown_link_404s_but_a_finished_job_stays_viewable(): void
+    public function test_bad_and_finished_links_show_a_branded_message_not_a_crash(): void
     {
-        $this->get(route('driver.link', 'nope-nope-nope'))->assertNotFound();
+        // Unknown token → a tidy "not active" page, never a raw 404 or crash.
+        $this->get(route('driver.link', 'nope-nope-nope'))
+            ->assertOk()->assertSee('isn’t active', false);
 
-        // A completed job's link closes cleanly (not a scary 404, no details)…
+        // A completed job's link closes cleanly (no details)…
         $done = Booking::factory()->create(['status' => BookingStatus::Complete]);
         $this->get(route('driver.link', $done->driverLinkToken()))
             ->assertOk()
             ->assertSee('this link is now closed')
             ->assertDontSee('On My Way');
 
-        // …and it can no longer be updated.
+        // …and neither can be updated.
         $this->post(route('driver.link.status', $done->driverLinkToken()), ['status' => 'en_route'])
+            ->assertNotFound();
+        $this->post(route('driver.link.status', 'nope-nope-nope'), ['status' => 'en_route'])
             ->assertNotFound();
     }
 

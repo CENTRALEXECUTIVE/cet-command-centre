@@ -38,6 +38,22 @@
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
 
+    {{-- Possible duplicate — another live booking looks like the same journey. --}}
+    @if(auth()->user()->isAdmin())
+        @php $dupes = $booking->duplicateCandidates(); @endphp
+        @if($dupes->isNotEmpty())
+            <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
+                <strong>⚠ Possible duplicate booking</strong>
+                <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off). Check both and cancel the extra one so a driver isn’t sent twice.</p>
+                <ul style="margin:0;padding-left:18px">
+                    @foreach($dupes as $d)
+                        <li><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    @endif
+
     @if(auth()->user()->isAdmin() && !empty($booking->meta['audit_issues']))
         <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
             <strong>⚠ Flagged by the ETO audit{{ !empty($booking->meta['audited_at']) ? ' · '.\Illuminate\Support\Carbon::parse($booking->meta['audited_at'])->format('D d M, H:i') : '' }}</strong>

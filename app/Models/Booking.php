@@ -266,6 +266,43 @@ class Booking extends Model
         }
     }
 
+    /**
+     * Other LIVE bookings that look like the same journey (a likely duplicate):
+     * same pickup minute AND the same customer OR the same drop-off. Cancelled /
+     * no-show jobs are ignored. Used to flag double-bookings that slipped in via
+     * two different references.
+     */
+    public function duplicateCandidates(): \Illuminate\Support\Collection
+    {
+        if (! $this->pickup_at) {
+            return collect();
+        }
+
+        $name = \Illuminate\Support\Str::lower(trim((string) ($this->displayCustomerName() ?? '')));
+        $dropoff = \Illuminate\Support\Str::lower(trim((string) $this->destination_address));
+
+        return static::query()
+            ->where('id', '!=', $this->id)
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->whereBetween('pickup_at', [$this->pickup_at->copy()->subMinute(), $this->pickup_at->copy()->addMinute()])
+            ->with('customer')
+            ->get()
+            ->filter(function (self $b) use ($name, $dropoff) {
+                $bName = \Illuminate\Support\Str::lower(trim((string) ($b->displayCustomerName() ?? '')));
+                $bDrop = \Illuminate\Support\Str::lower(trim((string) $b->destination_address));
+
+                return ($name !== '' && $bName === $name)
+                    || ($dropoff !== '' && $bDrop === $dropoff);
+            })
+            ->values();
+    }
+
+    /** True when another live booking looks like the same journey. */
+    public function looksDuplicated(): bool
+    {
+        return $this->duplicateCandidates()->isNotEmpty();
+    }
+
     // ----- Scopes --------------------------------------------------------
 
     public function scopeActive(Builder $query): Builder

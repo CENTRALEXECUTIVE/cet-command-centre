@@ -379,4 +379,26 @@ class BookingTest extends TestCase
             'cancellation_reason' => 'nope',
         ])->assertForbidden();
     }
+
+    public function test_it_flags_a_possible_duplicate_journey(): void
+    {
+        $vt = VehicleType::where('slug', 'executive')->first();
+        $cust = \App\Models\Customer::create(['name' => 'Sienna Stancliffe-Clayton', 'phone' => '07700900001']);
+        $make = fn () => Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $cust->id,
+            'vehicle_type_id' => $vt->id, 'pickup_at' => '2026-07-20 16:00:00',
+            'pickup_address' => 'Manchester Airport', 'destination_address' => '111 Fishponds Road West',
+            'passengers' => 3, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+
+        $a = $make();
+        $b = $make();
+
+        $this->assertTrue($a->fresh()->looksDuplicated());
+        $this->assertTrue($b->fresh()->duplicateCandidates()->contains('id', $a->id));
+
+        // A cancelled twin doesn't count, and a different journey isn't flagged.
+        $b->forceFill(['status' => 'cancelled'])->save();
+        $this->assertFalse($a->fresh()->looksDuplicated());
+    }
 }

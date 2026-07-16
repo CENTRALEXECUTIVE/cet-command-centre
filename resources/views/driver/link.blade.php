@@ -52,7 +52,14 @@
         </script>
         @endverbatim
 
-        @if($booking->status->isTerminal())
+        @if($booking === null)
+            {{-- Unknown/expired token — branded, not a raw 404. --}}
+            <div class="card" style="text-align:center;padding:36px 20px">
+                <div style="font-size:40px">🔒</div>
+                <h2 style="margin:10px 0 4px">This link isn’t active</h2>
+                <p class="hint" style="margin:0">It may have expired or the job is no longer live. Contact Central Executive Transfers on WhatsApp for a fresh link.</p>
+            </div>
+        @elseif($booking->status->isTerminal())
             {{-- Job done → the link closes. Kept tidy (no details), not a raw 404. --}}
             <div class="card" style="text-align:center;padding:36px 20px">
                 <div style="font-size:40px">✅</div>
