@@ -21,6 +21,37 @@
             <div class="alert alert-success">{{ session('status') }}</div>
         @endif
 
+        {{-- In-app browsers (esp. WhatsApp on iPhone) block location and can drop
+             the session. Nudge the driver into their real browser where it all
+             works. Only shows when we detect an in-app browser. --}}
+        <div id="open-external" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10)">
+            <div style="font-weight:800;font-size:15px">📲 Open in your browser</div>
+            <p class="hint" style="margin:6px 0 10px">You’re in WhatsApp’s built-in browser. For location sharing and the buttons to work reliably <strong>on iPhone</strong>, tap the <strong>⋯</strong> (or <strong>aA</strong>) menu and choose <strong>Open in Safari / Chrome</strong>.</p>
+            <button type="button" id="copy-job-link" class="btn btn-primary" style="padding:8px 16px;font-size:14px">⧉ Copy this link</button>
+            <span id="copy-job-done" class="hint" style="color:#6fdd9c;margin-left:8px"></span>
+        </div>
+
+        @verbatim
+        <script>
+            (function () {
+                var ua = navigator.userAgent || '';
+                var inApp = /WhatsApp|FBAN|FBAV|Instagram|Line\/|Messenger|Snapchat|GSA/i.test(ua);
+                if (inApp) {
+                    var box = document.getElementById('open-external');
+                    if (box) box.style.display = 'block';
+                }
+                var btn = document.getElementById('copy-job-link');
+                if (btn) btn.addEventListener('click', function () {
+                    var done = document.getElementById('copy-job-done');
+                    var finish = function () { if (done) done.textContent = '✓ Copied — paste it in Safari'; };
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(window.location.href).then(finish).catch(finish);
+                    } else { finish(); }
+                });
+            })();
+        </script>
+        @endverbatim
+
         @include('driver._job', [
             'linkMode' => true,
             'statusUrl' => route('driver.link.status', $token),
