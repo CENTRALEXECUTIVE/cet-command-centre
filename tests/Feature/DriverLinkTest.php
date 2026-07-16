@@ -97,7 +97,7 @@ class DriverLinkTest extends TestCase
 
         $this->actingAs($admin)->get(route('bookings.show', $booking))
             ->assertOk()
-            ->assertSee('Driver link (no login)')
+            ->assertSee('Driver link')
             ->assertSee($token, false);
     }
 }

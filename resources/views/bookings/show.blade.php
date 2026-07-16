@@ -173,6 +173,42 @@
         </div>
     @endif
 
+    {{-- Shareable driver link — its own card so it's easy to find. Send it to a
+         cover driver and they get the full job page (details, cash to collect,
+         masked number, navigate, status, live GPS) with no login. --}}
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        @php
+            $driverLink = $booking->driverLinkUrl();
+            $linkPhone = \App\Support\Phone::wa($booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null));
+            $linkMsg = "Your job with Central Executive Transfers — open your job sheet here (no login needed):\n".$driverLink;
+        @endphp
+        <div class="card">
+            <h2 style="margin:0 0 4px">🔗 Driver link — no login</h2>
+            <p class="hint" style="margin:0 0 12px">Send this to the driver. It opens their full job sheet — details, cash to collect, the contact number, navigation and the status buttons — with live tracking, no account needed.</p>
+            <input type="text" value="{{ $driverLink }}" readonly onclick="this.select()" style="font-size:12px;margin-bottom:10px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn btn-primary copy-link" data-link="{{ $driverLink }}" style="padding:9px 16px;font-size:14px">⧉ Copy link</button>
+                @if($linkPhone)
+                    <a href="https://wa.me/{{ $linkPhone }}?text={{ rawurlencode($linkMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:9px 16px;font-size:14px">📲 Send to driver</a>
+                @endif
+                <span class="copy-link-done hint" style="color:#1f8b4c"></span>
+            </div>
+            <p class="hint" style="margin:10px 0 0">Anyone with this link can work the job — treat it like a key. It stops working once the job is completed or cancelled.</p>
+        </div>
+        <script>
+            (function () {
+                document.querySelectorAll('.copy-link').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var done = btn.parentElement.querySelector('.copy-link-done');
+                        var finish = function () { if (done) done.textContent = '✓ Copied — paste it to the driver'; };
+                        if (navigator.clipboard) { navigator.clipboard.writeText(btn.dataset.link).then(finish).catch(finish); }
+                        else { finish(); }
+                    });
+                });
+            })();
+        </script>
+    @endif
+
     @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
         {{-- Live driver location. "Request location" pushes the driver's phone to
              share where they are right now (works even before Set off); once
@@ -550,41 +586,6 @@
                     </div>
                     <button class="btn btn-primary" style="padding:7px 16px;font-size:13px">Save driver details</button>
                 </form>
-
-                {{-- Shareable driver link — no login needed. Send it to a cover
-                     driver and they get the full job page (details, cash to
-                     collect, masked number, navigate, status, live GPS). --}}
-                @unless($booking->status->isTerminal())
-                    @php
-                        $driverLink = $booking->driverLinkUrl();
-                        $linkPhone = \App\Support\Phone::wa($booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null));
-                        $linkMsg = "Your job with Central Executive Transfers — open your job sheet here (no login needed):\n".$driverLink;
-                    @endphp
-                    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px">
-                        <div style="font-weight:700;font-size:13px;margin-bottom:6px">🔗 Driver link (no login)</div>
-                        <input type="text" value="{{ $driverLink }}" readonly onclick="this.select()" style="font-size:12px;margin-bottom:8px">
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                            <button type="button" class="btn btn-ghost copy-link" data-link="{{ $driverLink }}" style="padding:7px 14px;font-size:13px">⧉ Copy link</button>
-                            @if($linkPhone)
-                                <a href="https://wa.me/{{ $linkPhone }}?text={{ rawurlencode($linkMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:7px 14px;font-size:13px">📲 Send to driver</a>
-                            @endif
-                            <span class="copy-link-done hint" style="color:#1f8b4c"></span>
-                        </div>
-                        <p class="hint" style="margin:8px 0 0">Anyone with this link can work the job — treat it like a key. It stops working once the job is completed or cancelled.</p>
-                    </div>
-                    <script>
-                        (function () {
-                            document.querySelectorAll('.copy-link').forEach(function (btn) {
-                                btn.addEventListener('click', function () {
-                                    var done = btn.parentElement.querySelector('.copy-link-done');
-                                    var finish = function () { if (done) done.textContent = '✓ Copied'; };
-                                    if (navigator.clipboard) { navigator.clipboard.writeText(btn.dataset.link).then(finish).catch(finish); }
-                                    else { finish(); }
-                                });
-                            });
-                        })();
-                    </script>
-                @endunless
             </details>
 
             @forelse($messages as $m)
