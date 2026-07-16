@@ -26,7 +26,11 @@ class LinkController extends Controller
 
     public function show(string $token): View
     {
-        $booking = $this->resolve($token);
+        // Viewing works for as long as the token is valid — even after the job
+        // is done (the driver just sees it read-only, not a 404). Only UPDATES
+        // are blocked once terminal.
+        $booking = Booking::byDriverLinkToken($token);
+        abort_if($booking === null, 404);
         $booking->load(['customer', 'vehicleType', 'airport', 'stops', 'calendarEvent', 'driver']);
 
         return view('driver.link', ['booking' => $booking, 'token' => $token]);

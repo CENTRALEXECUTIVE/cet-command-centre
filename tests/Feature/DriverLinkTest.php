@@ -67,12 +67,17 @@ class DriverLinkTest extends TestCase
         $this->assertSame('2 child seats · 1 booster seat', $booking->fresh()->displayChildSeats());
     }
 
-    public function test_an_unknown_or_finished_link_is_not_found(): void
+    public function test_unknown_link_404s_but_a_finished_job_stays_viewable(): void
     {
         $this->get(route('driver.link', 'nope-nope-nope'))->assertNotFound();
 
+        // A completed job's link still SHOWS (read-only) rather than a scary 404…
         $done = Booking::factory()->create(['status' => BookingStatus::Complete]);
-        $this->get(route('driver.link', $done->driverLinkToken()))->assertNotFound();
+        $this->get(route('driver.link', $done->driverLinkToken()))->assertOk();
+
+        // …but it can no longer be updated.
+        $this->post(route('driver.link.status', $done->driverLinkToken()), ['status' => 'en_route'])
+            ->assertNotFound();
     }
 
     public function test_a_driver_can_update_status_through_the_link(): void
