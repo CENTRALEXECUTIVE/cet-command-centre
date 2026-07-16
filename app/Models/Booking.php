@@ -499,18 +499,24 @@ class Booking extends Model
             if ($n === null || $n === '') {
                 $n = $this->meta[str_replace(' ', '_', strtolower($label))] ?? null;
             }
-            if ((int) $n > 0) {
-                $parts[] = ((int) $n).' '.$word;
+            $n = (int) $n;
+            if ($n > 0) {
+                $parts[] = $n.' '.$word.' '.\Illuminate\Support\Str::plural('seat', $n);
             }
         }
 
-        return $parts === [] ? null : implode(' · ', $parts);
+        if ($parts === []) {
+            // Only a yes/no flag with no count → assume a single seat.
+            return (bool) ($this->meta['child_seat'] ?? false) ? '1 child seat' : null;
+        }
+
+        return implode(' · ', $parts);
     }
 
     /** Whether this job carries any child/booster/infant seat (for the 🚼 mark). */
     public function hasChildSeat(): bool
     {
-        return $this->displayChildSeats() !== null || (bool) ($this->meta['child_seat'] ?? false);
+        return $this->displayChildSeats() !== null;
     }
 
     /**
@@ -533,8 +539,10 @@ class Booking extends Model
     {
         $line = trim((string) $this->displayPayment());
         if ($line !== '') {
-            if (preg_match('/cash|due|balance|outstanding|owe/i', $line)) {
-                return $line; // money still to collect — show it verbatim
+            // Pull out JUST the amount still to collect (cash) — the driver never
+            // needs the deposit-already-paid part, only what to take on the day.
+            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)) {
+                return '£'.$m[1].' to collect (cash)';
             }
             if (preg_match('/paid/i', $line)) {
                 return 'Paid — collect nothing';
@@ -545,7 +553,7 @@ class Booking extends Model
         $amount = $this->final_price ?? $this->quoted_price;
         if (($this->payment_method?->value ?? null) === 'cash'
             && $this->payment_status !== 'paid' && $amount) {
-            return '£'.number_format((float) $amount, 2).' cash';
+            return '£'.number_format((float) $amount, 2).' to collect (cash)';
         }
         if ($this->payment_status === 'paid') {
             return 'Paid — collect nothing';
