@@ -27,7 +27,7 @@ class BookingNotifier
     /** Sent immediately when a booking is created. */
     public function sendConfirmation(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -55,7 +55,7 @@ class BookingNotifier
      */
     public function scheduleReminders(Booking $booking): void
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return;
         }
@@ -95,7 +95,7 @@ class BookingNotifier
      */
     public function ensureReviewRequest(Booking $booking): void
     {
-        if (blank($booking->customer?->phone) || $booking->status->value !== 'complete') {
+        if (blank($booking->customerContactNumber()) || $booking->status->value !== 'complete') {
             return;
         }
         if ($booking->messages()->where('type', 'review_request')->exists()) {
@@ -107,7 +107,7 @@ class BookingNotifier
 
     public function ensureReminders(Booking $booking): void
     {
-        if (blank($booking->customer?->phone)
+        if (blank($booking->customerContactNumber())
             || ! $booking->pickup_at
             || $booking->pickup_at->lt(now()->subHours(12))) {
             return;
@@ -121,7 +121,7 @@ class BookingNotifier
 
     private function queueReminder(Booking $booking, string $type, Carbon $when): void
     {
-        $this->whatsApp->send((string) $booking->customer?->phone, $this->reminderBody($booking), [
+        $this->whatsApp->send((string) $booking->customerContactNumber(), $this->reminderBody($booking), [
             'type' => $type,
             'booking' => $booking,
             'scheduled_for' => $when,
@@ -285,7 +285,7 @@ class BookingNotifier
      */
     public function scheduleReviewRequest(Booking $booking, bool $force = false): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -386,7 +386,7 @@ class BookingNotifier
      */
     public function sendDriverDetails(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         $block = $this->driverBlock($booking);
         if (blank($to) || ! $block) {
             return null;
@@ -407,7 +407,7 @@ class BookingNotifier
      */
     public function sendPassengerOnBoard(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -424,7 +424,7 @@ class BookingNotifier
     /** Sent when the driver marks Arrived at the pickup. */
     public function sendArrived(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -439,7 +439,7 @@ class BookingNotifier
     /** Sent when the driver goes En Route, including the live tracking link. */
     public function sendTrackingLink(Booking $booking, string $url): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }

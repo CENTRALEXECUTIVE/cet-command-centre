@@ -98,6 +98,41 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertNotNull($reminder->fresh()->sent_at);
     }
 
+    public function test_reminder_targets_the_bookings_own_contact_not_a_merged_customer_phone(): void
+    {
+        // The linked customer record carries an OLD/other phone (e.g. it got
+        // matched to another booker by a shared email on import). The booking's
+        // OWN contact — the calendar "Contact No" — is the real customer number.
+        // The reminder must go to the booking's number, never the stale record.
+        $booking = Booking::factory()->create(['pickup_at' => now()->addDay()->setTime(15, 0)]);
+        $booking->customer->update(['phone' => '07588804226']); // wrong/merged number
+
+        \App\Models\CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_contact',
+            'title' => '*Darren Pearson MAN (MAJ)*',
+            'location' => 'Manchester Airport',
+            'description' => implode("\n", [
+                '📑 *Booking Confirmation – Arrival*',
+                '• *Customer Name:* Darren Pearson',
+                '• *Contact No:* +447971871155', // the real number for THIS booking
+                '• *Pickup Location:* Manchester Airport',
+            ]),
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+        $booking = $booking->fresh(['customer', 'calendarEvent']);
+
+        app(\App\Services\Messaging\BookingNotifier::class)->ensureReminders($booking);
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertNotNull($reminder);
+        // Queued against the booking's real contact, not the merged record's phone.
+        $this->assertStringContainsString('447971871155', $reminder->whatsAppLink());
+        $this->assertStringNotContainsString('7588804226', $reminder->whatsAppLink());
+    }
+
     public function test_24h_reminder_is_shifted_into_the_daytime_window(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

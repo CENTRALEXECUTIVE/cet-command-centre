@@ -249,10 +249,16 @@ class BookingIntakeService
         $phone = $f['contact_no'] ?: null;
         $email = $f['email'] ?: null;
 
-        $customer = Customer::query()
-            ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
-            ->when($email, fn ($q) => $q->orWhere('email', $email))
-            ->first();
+        // Match on PHONE first; fall back to email only when there's no phone.
+        // Never merge a phoned booking into a record with a different phone just
+        // because an email matches — that would text the wrong customer.
+        $customer = null;
+        if ($phone) {
+            $customer = Customer::where('phone', $phone)->first();
+        }
+        if (! $customer && ! $phone && $email) {
+            $customer = Customer::where('email', $email)->first();
+        }
 
         return $customer ?? Customer::create([
             'name' => $f['lead_name'] ?: 'Customer',

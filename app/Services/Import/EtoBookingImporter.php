@@ -204,12 +204,31 @@ class EtoBookingImporter
             ?: $this->clean($data['Customer'] ?? '')
             ?: 'Unknown';
 
-        $customer = Customer::query()
-            ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
-            ->when($email, fn ($q) => $q->orWhere('email', $email))
-            ->first();
+        // Match on PHONE first — the phone is the identity that matters for
+        // messaging. Only fall back to email when this booking has no phone at
+        // all. Never match a phoned booking to a record with a DIFFERENT phone
+        // just because an email coincides: that silently files one person's
+        // trip under another's record and would text the wrong number.
+        $customer = $this->matchCustomer($phone, $email);
 
         return $customer ?? Customer::create(['name' => $name, 'phone' => $phone ?: null, 'email' => $email ?: null]);
+    }
+
+    /**
+     * Find an existing customer by phone (preferred) or, only when the booking
+     * carries no phone, by email. Returns null to signal "create a new one".
+     */
+    private function matchCustomer(?string $phone, ?string $email): ?Customer
+    {
+        if ($phone && $found = Customer::where('phone', $phone)->first()) {
+            return $found;
+        }
+
+        if (! $phone && $email) {
+            return Customer::where('email', $email)->first();
+        }
+
+        return null;
     }
 
     private function resolveVehicleType(string $label): VehicleType

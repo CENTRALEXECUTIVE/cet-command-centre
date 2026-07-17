@@ -138,11 +138,17 @@ class BookingService
         $phone = $data['customer_phone'] ?? null;
         $email = $data['customer_email'] ?? null;
 
-        // "Remember every customer": match on phone or email before creating.
-        $customer = Customer::query()
-            ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
-            ->when($email, fn ($q) => $q->orWhere('email', $email))
-            ->first();
+        // "Remember every customer": match on PHONE first; fall back to email
+        // only when the booking has no phone. Never merge a phoned booking into a
+        // record with a different phone just because an email coincides — that
+        // silently files it under the wrong person and texts the wrong number.
+        $customer = null;
+        if ($phone) {
+            $customer = Customer::where('phone', $phone)->first();
+        }
+        if (! $customer && ! $phone && $email) {
+            $customer = Customer::where('email', $email)->first();
+        }
 
         if (! $customer) {
             $customer = Customer::create([

@@ -579,6 +579,24 @@ class Booking extends Model
         return $this->calendarField('Contact No') ?: $this->customer?->phone;
     }
 
+    /**
+     * The number to actually MESSAGE the customer on for THIS booking.
+     *
+     * This is deliberately the booking's OWN contact — the calendar "Contact No",
+     * which is the number shown on the booking page — falling back to the linked
+     * customer record's phone only when the booking carries no contact of its own.
+     *
+     * Why: a customer record can be shared across bookings (matched by email or
+     * phone on import), so its stored phone may belong to a different/earlier
+     * booker. Sending to it would text the WRONG person. Routing every customer
+     * message through this method guarantees the reminder/confirmation goes to the
+     * exact number the operator sees on the booking — never a stale merged number.
+     */
+    public function customerContactNumber(): ?string
+    {
+        return $this->displayContact();
+    }
+
     /** Meet & greet note as printed on the calendar, if present. */
     public function displayMeetAndGreet(): ?string
     {
