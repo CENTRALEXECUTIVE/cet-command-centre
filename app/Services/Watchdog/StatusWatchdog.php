@@ -95,6 +95,8 @@ class StatusWatchdog
             $sent += $this->adminPass($booking);
         }
 
+        $sent += $this->remindersPass();
+
         return $sent;
     }
 
@@ -159,6 +161,46 @@ class StatusWatchdog
                 '🏁 Job still open',
                 'Is the '.$booking->pickup_at->format('H:i').' job complete? Update the status',
                 severity: 'warning');
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Buzz the office when a customer WhatsApp reminder is DUE to send, so it
+     * doesn't get forgotten. Once per reminder (24h and 2h each), and only when
+     * it's actually due — the reminder's scheduled time already sits inside the
+     * 08:00–22:00 send window, so nothing fires overnight.
+     */
+    private function remindersPass(): int
+    {
+        $sent = 0;
+
+        $due = \App\Models\Message::query()
+            ->whereIn('type', ['reminder_24h', 'reminder_2h'])
+            ->where('status', 'queued')
+            ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '<=', now())
+            ->with('booking.customer')
+            ->limit(40)
+            ->get();
+
+        foreach ($due as $m) {
+            $booking = $m->booking;
+            if (! $booking || $booking->status->isTerminal()) {
+                continue;
+            }
+            $name = $booking->displayName() ?: ($booking->customer?->name ?? 'a customer');
+
+            $sent += (int) $this->admins->send(
+                $booking,
+                'reminder_due_'.$m->type,     // deduped once per booking × reminder type
+                'reminder_due',
+                '📲 Send reminder — '.$name,
+                $name.' · '.$booking->pickup_at->format('D H:i').' pickup — open & send it on WhatsApp.',
+                severity: 'info',
+                maxSends: 1,
+            );
         }
 
         return $sent;

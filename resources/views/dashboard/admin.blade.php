@@ -105,7 +105,7 @@
                         <span style="width:64px;flex:none">
                             @if($r['is_due'])<span class="badge badge-pending">Send</span>@else<span class="muted" style="font-size:12px">{{ $r['due']?->format('D H:i') }}</span>@endif
                         </span>
-                        <span style="flex:1">{{ $r['customer'] ?? 'Customer' }} <span class="muted">· pickup {{ $r['pickup']->format('D d M, H:i') }}</span></span>
+                        <span style="flex:1"><a href="{{ $r['url'] }}" style="color:inherit;font-weight:600">{{ $r['customer'] ?? 'Customer' }}</a> <span class="muted">· pickup {{ $r['pickup']->format('D d M, H:i') }}</span></span>
                         <a href="{{ $r['url'] }}" class="btn" style="{{ $r['is_due'] ? 'background:#25D366;color:#fff' : '' }};padding:4px 12px;font-size:12px" @class(['btn-light' => ! $r['is_due']])>{{ $r['is_due'] ? 'Open & send →' : 'Open →' }}</a>
                     </div>
                 @endforeach
@@ -125,7 +125,7 @@
                         <span style="width:64px;flex:none">
                             @if($r['is_due'])<span class="badge badge-pending">Send</span>@else<span class="muted" style="font-size:12px">{{ $r['due']?->format('D H:i') }}</span>@endif
                         </span>
-                        <span style="flex:1">{{ $r['customer'] ?? 'Customer' }} <span class="muted">· journey {{ $r['pickup']->format('D d M, H:i') }}</span></span>
+                        <span style="flex:1"><a href="{{ $r['url'] }}" style="color:inherit;font-weight:600">{{ $r['customer'] ?? 'Customer' }}</a> <span class="muted">· journey {{ $r['pickup']->format('D d M, H:i') }}</span></span>
                         <a href="{{ $r['url'] }}" class="btn" style="{{ $r['is_due'] ? 'background:#FBBA2A;color:#111' : '' }};padding:4px 12px;font-size:12px" @class(['btn-light' => ! $r['is_due']])>{{ $r['is_due'] ? 'Open & send →' : 'Open →' }}</a>
                     </div>
                 @endforeach
@@ -141,7 +141,7 @@
             <div style="margin-top:8px">
                 @foreach($correctedTimes as $tm)
                     <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
-                        <a href="{{ $tm['url'] }}" class="mono">{{ $tm['ref'] }}</a> <span class="muted">· {{ $tm['customer'] }}</span>
+                        <a href="{{ $tm['url'] }}" class="mono">{{ $tm['ref'] }}</a> <span class="muted">· <a href="{{ $tm['url'] }}" style="color:inherit">{{ $tm['customer'] }}</a></span>
                         <div style="font-size:12px;margin-top:2px">
                             <span class="muted" style="text-decoration:line-through">{{ $tm['from'] }}</span> → <strong>{{ $tm['to'] }}</strong>
                         </div>
@@ -158,7 +158,7 @@
             <div style="margin-top:8px">
                 @foreach($timeMismatches as $tm)
                     <div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,.1)">
-                        <a href="{{ $tm['url'] }}" class="mono">{{ $tm['ref'] }}</a> <span class="muted">· {{ $tm['customer'] }}</span>
+                        <a href="{{ $tm['url'] }}" class="mono">{{ $tm['ref'] }}</a> <span class="muted">· <a href="{{ $tm['url'] }}" style="color:inherit">{{ $tm['customer'] }}</a></span>
                         <div style="font-size:12px;margin-top:2px">
                             @foreach($tm['times'] as $source => $time){{ $source }}: <strong>{{ $time }}</strong>@if(!$loop->last) <span class="muted">·</span> @endif @endforeach
                         </div>
@@ -245,7 +245,9 @@
                                 @endif
                             </td>
                             <td><a href="{{ route('jobs.day', ['date' => $row['pickup']->toDateString()]) }}" style="color:inherit">{{ $row['pickup']->format('D d M, H:i') }}</a></td>
-                            <td>{{ $row['customer'] }}</td>
+                            <td>
+                                @if($row['url'])<a href="{{ $row['url'] }}" style="color:inherit;font-weight:600">{{ $row['customer'] }}</a>@else{{ $row['customer'] }}@endif
+                            </td>
                             <td>{{ $row['vehicle'] }}</td>
                             <td>
                                 @if($row['driver'] === '—' || $row['driver'] === 'COVER')

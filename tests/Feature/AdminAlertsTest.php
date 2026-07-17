@@ -184,6 +184,26 @@ class AdminAlertsTest extends TestCase
         $this->assertCount(0, $this->push->to($admin));
     }
 
+    public function test_a_due_customer_reminder_buzzes_the_office_once(): void
+    {
+        $admin = $this->admin();
+        // Allocated with a driver and pickup well out, so nothing else alerts.
+        $b = $this->driverJob(BookingStatus::Allocated, now()->addHours(6));
+        \App\Models\Message::create([
+            'booking_id' => $b->id, 'customer_id' => $b->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+            'to_address' => '07700900000', 'body' => 'reminder', 'status' => 'queued',
+            'scheduled_for' => now()->subMinute(), // due to send
+        ]);
+
+        $this->tick();
+        $this->tick(); // rerun → still just once
+
+        $this->assertCount(1, $this->push->to($admin));
+        $this->assertSame(1, JobNudge::where('booking_id', $b->id)
+            ->where('nudge_type', 'reminder_due_reminder_24h')->count());
+    }
+
     /* ── Preference filtering ────────────────────────────────────────────── */
 
     public function test_preferences_filter_event_types_per_admin(): void
