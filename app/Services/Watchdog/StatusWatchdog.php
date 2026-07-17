@@ -181,13 +181,21 @@ class StatusWatchdog
             ->where('status', 'queued')
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '<=', now())
+            // Only for jobs still to run (or only just gone) — never nudge about a
+            // reminder for a pickup that's already well in the past. Mirrors the
+            // dashboard reminders list so the two always agree.
+            ->whereHas('booking', fn ($q) => $q
+                ->whereNotIn('status', [
+                    BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+                ])
+                ->where('pickup_at', '>=', now()->subHours(12)))
             ->with('booking.customer')
             ->limit(40)
             ->get();
 
         foreach ($due as $m) {
             $booking = $m->booking;
-            if (! $booking || $booking->status->isTerminal()) {
+            if (! $booking) {
                 continue;
             }
             $name = $booking->displayName() ?: ($booking->customer?->name ?? 'a customer');

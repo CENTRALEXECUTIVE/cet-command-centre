@@ -204,6 +204,23 @@ class AdminAlertsTest extends TestCase
             ->where('nudge_type', 'reminder_due_reminder_24h')->count());
     }
 
+    public function test_a_reminder_for_an_old_booking_never_buzzes(): void
+    {
+        $admin = $this->admin();
+        // Pickup two days ago, reminder still sitting queued → must NOT nudge.
+        $b = $this->driverJob(BookingStatus::Allocated, now()->subDays(2));
+        \App\Models\Message::create([
+            'booking_id' => $b->id, 'customer_id' => $b->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+            'to_address' => '07700900000', 'body' => 'reminder', 'status' => 'queued',
+            'scheduled_for' => now()->subDays(3),
+        ]);
+
+        $this->tick();
+
+        $this->assertCount(0, $this->push->to($admin));
+    }
+
     /* ── Preference filtering ────────────────────────────────────────────── */
 
     public function test_preferences_filter_event_types_per_admin(): void
