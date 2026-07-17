@@ -214,6 +214,18 @@ class Booking extends Model
     }
 
     /**
+     * The number to drop into a DRIVER BRIEF (the block the office copies and
+     * sends the driver on WhatsApp). Always the masked switchboard line — never
+     * the customer's real number, even on an owner-driver job — so a real number
+     * is never pasted into a message. Falls back to whatever the driver would
+     * see on-screen if masking isn't configured.
+     */
+    public function driverBriefContact(): ?string
+    {
+        return config('services.twilio_masking.driver_line') ?: $this->driverContactNumber();
+    }
+
+    /**
      * The ONLY customer contact number a driver may ever see: the masked
      * Twilio Proxy line of the open session. Null when masking isn't active —
      * in which case driver-facing screens show NO number at all (the office
@@ -625,11 +637,14 @@ class Booking extends Model
      */
     public function driverCollectLine(): ?string
     {
-        $line = trim((string) $this->displayPayment());
+        // The office-curated payment line — the calendar's, else the booking's own.
+        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         if ($line !== '') {
             // Pull out JUST the amount still to collect (cash) — the driver never
             // needs the deposit-already-paid part, only what to take on the day.
-            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)) {
+            // Handle both orders: "£110 Cash Due" and "Cash £90".
+            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)
+                || preg_match('/(?:cash|collect|outstanding|balance|due)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
                 return '£'.$m[1].' to collect (cash)';
             }
             if (preg_match('/paid/i', $line)) {

@@ -79,11 +79,23 @@ class DriverBriefTest extends TestCase
         $this->assertStringContainsString('Passengers', $brief);
     }
 
-    public function test_cash_job_says_cash_on_the_day_with_no_amount(): void
+    public function test_cash_job_shows_the_amount_to_collect(): void
     {
+        // The driver needs to know how much cash to take — show it.
         $brief = $this->brief(['payment_status' => 'pending', 'meta' => ['payment_text' => 'Cash £90']]);
 
-        $this->assertStringContainsString('Cash on the day', $brief);
-        $this->assertStringNotContainsString('£90', $brief);
+        $this->assertStringContainsString('£90 to collect', $brief);
+    }
+
+    public function test_cash_job_shows_only_the_balance_not_the_deposit(): void
+    {
+        // Deposit already paid → the driver only sees what's left to collect.
+        $brief = $this->brief([
+            'payment_status' => 'pending',
+            'meta' => ['payment_text' => 'Deposit £10 Paid – £110 Cash Due'],
+        ]);
+
+        $this->assertStringContainsString('£110 to collect', $brief);
+        $this->assertStringNotContainsString('£10', $brief); // no deposit amount
     }
 }

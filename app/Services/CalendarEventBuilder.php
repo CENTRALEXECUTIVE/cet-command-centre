@@ -244,8 +244,8 @@ class CalendarEventBuilder
         // exactly what the office sees and what's actually happening.
         $add('Date & Time', $booking->pickup_at?->format('d/m/Y – H:i'));
         $add('Customer Name', $meta['lead_name'] ?? $booking->displayCustomerName());
-        // Masked CET line — never the customer's real number.
-        $add('Contact No', $booking->driverContactNumber());
+        // Masked CET line — never the customer's real number (even owner-driver).
+        $add('Contact No', $booking->driverBriefContact());
         $add('Passengers', (string) $booking->passengerCount());
         $add('Luggage', $this->luggageText($booking));
         if ((int) ($meta['child_seats'] ?? 0) > 0) {
@@ -272,12 +272,22 @@ class CalendarEventBuilder
         return implode("\n", $lines);
     }
 
-    /** Paid jobs say "Paid"; anything outstanding is "Cash on the day" — no amount. */
+    /**
+     * For the driver: the CASH TO COLLECT with its amount (e.g. "£110 to collect
+     * (cash)"), stripped of any deposit already paid — that's what the driver
+     * needs. A fully-paid job just says "Paid" (no amount).
+     */
     private function driverPaymentLabel(Booking $booking): string
     {
-        $paidText = strtolower((string) ($booking->meta['payment_text'] ?? ''));
+        $collect = $booking->driverCollectLine();
 
-        if ($booking->payment_status === 'paid' || str_contains($paidText, 'paid')) {
+        // A real amount to collect → show it verbatim.
+        if ($collect !== null && ! str_contains($collect, 'collect nothing')) {
+            return $collect;
+        }
+
+        $paidText = strtolower((string) ($booking->meta['payment_text'] ?? ''));
+        if ($collect !== null || $booking->payment_status === 'paid' || str_contains($paidText, 'paid')) {
             return 'Paid';
         }
 
