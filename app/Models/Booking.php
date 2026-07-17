@@ -324,6 +324,34 @@ class Booking extends Model
         return $this->duplicateCandidates()->isNotEmpty();
     }
 
+    /**
+     * If this job is completed but has NO review request, explain why (so the
+     * office isn't left wondering). Returns null when a review exists, the job
+     * isn't complete, or a review is simply still to be prepared.
+     */
+    public function reviewSkipReason(): ?string
+    {
+        if ($this->status->value !== 'complete') {
+            return null;
+        }
+        if ($this->messages()->where('type', 'review_request')->exists()) {
+            return null; // it has one
+        }
+        if (blank($this->customer?->phone)) {
+            return 'No review request — no phone number on file for this customer.';
+        }
+        if ($this->customer_id) {
+            $otherIds = static::where('customer_id', $this->customer_id)
+                ->where('id', '!=', $this->id)->pluck('id');
+            if ($otherIds->isNotEmpty()
+                && \App\Models\Message::where('type', 'review_request')->whereIn('booking_id', $otherIds)->exists()) {
+                return 'No review request — this customer was already asked on an earlier booking (once per customer).';
+            }
+        }
+
+        return null;
+    }
+
     // ----- Scopes --------------------------------------------------------
 
     public function scopeActive(Builder $query): Builder

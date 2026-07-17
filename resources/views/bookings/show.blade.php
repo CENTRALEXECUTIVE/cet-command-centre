@@ -633,6 +633,10 @@
                 <p class="muted">No messages yet for this booking.</p>
             @endforelse
 
+            @if($reason = $booking->reviewSkipReason())
+                <p class="hint" style="margin-top:10px;color:#b8860b">⭐ {{ $reason }}</p>
+            @endif
+
             <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">
                 @csrf
                 <label for="body" style="font-weight:600">Send a message to {{ $booking->customer?->name ?? 'the customer' }}</label>
