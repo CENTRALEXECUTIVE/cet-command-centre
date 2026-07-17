@@ -60,6 +60,25 @@ class DriverBriefTest extends TestCase
         $this->assertStringNotContainsString('+447855601980', $brief);
     }
 
+    public function test_brief_shows_the_real_number_when_a_director_drives_their_own_job(): void
+    {
+        // Maj / Abdi driving their own job aren't masked from the customer —
+        // the brief carries the real number, not the switchboard line.
+        $customer = Customer::factory()->create(['name' => 'Darren Pearson', 'phone' => '07971871155']);
+        $admin = User::factory()->admin()->create(['name' => 'Majid Ali', 'phone' => '07999000111']);
+
+        $booking = Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id,
+            'driver_id' => $admin->id,
+            'status' => BookingStatus::Allocated->value,
+        ]);
+
+        $brief = app(CalendarEventBuilder::class)->driverBrief($booking->fresh(['customer', 'driver', 'vehicleType']));
+
+        $this->assertStringContainsString('07971871155', $brief);          // the real number
+        $this->assertStringNotContainsString('+447576574083', $brief);     // not the masked line
+    }
+
     public function test_brief_hides_the_price_and_reference(): void
     {
         $brief = $this->brief();

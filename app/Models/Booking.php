@@ -215,14 +215,15 @@ class Booking extends Model
 
     /**
      * The number to drop into a DRIVER BRIEF (the block the office copies and
-     * sends the driver on WhatsApp). Always the masked switchboard line — never
-     * the customer's real number, even on an owner-driver job — so a real number
-     * is never pasted into a message. Falls back to whatever the driver would
-     * see on-screen if masking isn't configured.
+     * sends the driver on WhatsApp) — exactly what that driver would see on their
+     * own job screen. A third-party / cover driver gets the masked switchboard
+     * line (their real customer number is never pasted into a message); a director
+     * driving their own job (Abdi / Maj), or an unmasked job, gets the real
+     * customer number — masking a director from the customer serves no purpose.
      */
     public function driverBriefContact(): ?string
     {
-        return config('services.twilio_masking.driver_line') ?: $this->driverContactNumber();
+        return $this->driverContactNumber();
     }
 
     /**
