@@ -133,6 +133,30 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('7588804226', $reminder->whatsAppLink());
     }
 
+    public function test_send_link_uses_the_bookings_current_number_even_if_the_message_was_queued_earlier(): void
+    {
+        // A reminder was queued to an old/wrong number (before the contact was
+        // corrected). The "Send on WhatsApp" link must still go to the booking's
+        // CURRENT contact, not the stale recipient frozen on the message.
+        $booking = Booking::factory()->create(['pickup_at' => now()->addDay()->setTime(15, 0)]);
+        $booking->customer->update(['phone' => '07971871155']);
+
+        $message = Message::create([
+            'booking_id' => $booking->id,
+            'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp',
+            'direction' => 'outbound',
+            'type' => 'reminder_24h',
+            'to_address' => '07588804226', // stale/wrong number stored at queue time
+            'body' => '*Booking Reminder*',
+            'status' => 'queued',
+        ]);
+
+        $link = $message->whatsAppLink();
+        $this->assertStringContainsString('447971871155', $link);   // the current number
+        $this->assertStringNotContainsString('7588804226', $link);  // never the stale one
+    }
+
     public function test_24h_reminder_is_shifted_into_the_daytime_window(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

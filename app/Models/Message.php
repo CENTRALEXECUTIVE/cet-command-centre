@@ -68,7 +68,19 @@ class Message extends Model
     /** The recipient number in international format (44…) for wa.me links. */
     public function intlPhone(): ?string
     {
-        return \App\Support\Phone::wa($this->to_address);
+        return \App\Support\Phone::wa($this->recipientNumber());
+    }
+
+    /**
+     * The number this message should actually go to. For a booking message that's
+     * the booking's CURRENT customer contact (the calendar number) — so a message
+     * queued before the number was corrected still reaches the right person, not
+     * the stale recipient frozen in `to_address`. Falls back to `to_address` for
+     * messages with no booking.
+     */
+    public function recipientNumber(): ?string
+    {
+        return $this->booking?->customerContactNumber() ?: $this->to_address;
     }
 
     /**

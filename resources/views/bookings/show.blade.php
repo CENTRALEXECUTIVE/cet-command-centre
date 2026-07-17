@@ -667,7 +667,7 @@
                 <label for="body" style="font-weight:600">Send a message to {{ $booking->customer?->name ?? 'the customer' }}</label>
                 <textarea id="body" name="body" required placeholder="Type a message…" style="margin:6px 0 8px;min-height:70px">{{ old('body') }}</textarea>
                 <button type="submit" class="btn btn-dark" style="padding:8px 16px">Send</button>
-                <span class="hint">Goes to {{ $booking->customer?->phone ?? $booking->customer?->email ?? 'no contact on file' }}.</span>
+                <span class="hint">Goes to {{ $booking->customerContactNumber() ?? $booking->customer?->email ?? 'no contact on file' }}.</span>
             </form>
         </div>
     @endif
@@ -680,7 +680,7 @@
         @endphp
         <div class="card">
             <h2>🚗 Driver brief — send to the driver</h2>
-            <p class="hint" style="margin-top:-8px">The job details for the driver — <strong>no price, no booking reference, and the masked CET number</strong> instead of the customer's real one. Copy it, or send it straight to the driver on WhatsApp.</p>
+            <p class="hint" style="margin-top:-8px">The job details for the driver — <strong>no price and no booking reference</strong>. A cover driver gets the masked CET number; a director driving their own job gets the real one. Copy it, or send it straight to the driver on WhatsApp.</p>
             <textarea id="driver-brief" readonly style="width:100%;min-height:240px;font-family:var(--mono,monospace);font-size:13px;line-height:1.5;white-space:pre-wrap">{{ $driverBrief }}</textarea>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
                 <button type="button" class="btn btn-ghost copy-brief" style="padding:8px 16px">⧉ Copy</button>
