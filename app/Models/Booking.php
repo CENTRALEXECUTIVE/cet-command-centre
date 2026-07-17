@@ -597,6 +597,30 @@ class Booking extends Model
         return $this->displayContact();
     }
 
+    /**
+     * Data-integrity check: the calendar's "Contact No" for this booking when it
+     * DISAGREES with the linked customer record's stored phone — otherwise null.
+     *
+     * A mismatch means the booking is filed under a customer record carrying a
+     * different number (e.g. an old email-merge), so anything that reads the
+     * record's phone instead of the booking would reach the wrong person. The
+     * calendar is the source of truth, so this returns the calendar number to
+     * show/repair to. Null when there's no calendar contact, no record phone, or
+     * they already agree.
+     */
+    public function contactNumberMismatch(): ?string
+    {
+        $calendar = $this->calendarField('Contact No');
+        $record = $this->customer?->phone;
+        if (blank($calendar) || blank($record)) {
+            return null;
+        }
+
+        return \App\Support\Phone::wa($calendar) !== \App\Support\Phone::wa($record)
+            ? $calendar
+            : null;
+    }
+
     /** Meet & greet note as printed on the calendar, if present. */
     public function displayMeetAndGreet(): ?string
     {

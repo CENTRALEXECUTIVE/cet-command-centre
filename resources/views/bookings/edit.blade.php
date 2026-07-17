@@ -32,11 +32,15 @@
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="customer_name">Full name <span class="req">*</span></label>
-                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $booking->customer?->name) }}" required>
+                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $booking->displayCustomerName()) }}" required>
                     </div>
                     <div class="field">
+                        {{-- Prefill from the booking's OWN contact (the calendar "Contact No"),
+                             never the linked customer record's stored phone — that record can be
+                             shared and carry a different/older number. What's shown here must be
+                             the number for THIS booking. --}}
                         <label for="customer_phone">Mobile number</label>
-                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $booking->customer?->phone) }}" placeholder="07…">
+                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $booking->customerContactNumber()) }}" placeholder="07…">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0">
