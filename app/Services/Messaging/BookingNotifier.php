@@ -283,7 +283,7 @@ class BookingNotifier
      * it appears as a task on the dashboard and the booking, exactly like a
      * pickup reminder. No duplicates.
      */
-    public function scheduleReviewRequest(Booking $booking): ?Message
+    public function scheduleReviewRequest(Booking $booking, bool $force = false): ?Message
     {
         $to = $booking->customer?->phone;
         if (blank($to)) {
@@ -309,8 +309,9 @@ class BookingNotifier
 
         // One review ask per CUSTOMER, ever — if we've already asked them on any
         // earlier booking, don't ask again. No point requesting a review twice
-        // from someone who's booked before.
-        if ($this->customerAlreadyAskedForReview($booking)) {
+        // from someone who's booked before. A manual "Request a review" ($force)
+        // overrides this, so the office can always ask when it wants to.
+        if (! $force && $this->customerAlreadyAskedForReview($booking)) {
             return null;
         }
 

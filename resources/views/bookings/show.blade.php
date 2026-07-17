@@ -633,8 +633,19 @@
                 <p class="muted">No messages yet for this booking.</p>
             @endforelse
 
-            @if($reason = $booking->reviewSkipReason())
-                <p class="hint" style="margin-top:10px;color:#b8860b">⭐ {{ $reason }}</p>
+            @if($booking->status->value === 'complete' && ! $booking->messages()->where('type', 'review_request')->exists())
+                <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+                    @if($reason = $booking->reviewSkipReason())
+                        <p class="hint" style="margin:0 0 8px;color:#b8860b">⭐ {{ $reason }}</p>
+                    @endif
+                    @if(filled($booking->customer?->phone))
+                        <form method="POST" action="{{ route('bookings.request-review', $booking) }}">
+                            @csrf
+                            <button class="btn btn-light" style="padding:7px 14px;font-size:13px">⭐ Request a review</button>
+                        </form>
+                        <p class="hint" style="margin:6px 0 0">Creates a review request to send by hand — overrides the once-per-customer rule.</p>
+                    @endif
+                </div>
             @endif
 
             <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">

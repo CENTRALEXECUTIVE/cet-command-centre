@@ -457,6 +457,28 @@ class BookingController extends Controller
      * how much, and what's still owed. Stored on the booking's meta (no
      * migration) with a timestamped history of every payment.
      */
+    /**
+     * Manually create a review request for a completed job — overrides the
+     * once-per-customer rule, so the office can always ask when it wants to.
+     */
+    public function requestReview(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (blank($booking->customer?->phone)) {
+            return back()->with('status', 'No phone number on file for this customer — add one, then request the review.');
+        }
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return back()->with('status', 'A review request already exists for this booking — it’s on the Review requests list.');
+        }
+
+        $msg = $this->notifier->scheduleReviewRequest($booking, force: true);
+
+        return back()->with('status', $msg
+            ? 'Review request created — it’s on the Review requests list to send on WhatsApp.'
+            : 'Couldn’t create a review request (a return leg may still be running).');
+    }
+
     public function payroll(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
