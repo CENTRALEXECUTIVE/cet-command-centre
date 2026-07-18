@@ -19,6 +19,9 @@
         @if(session('tipError'))
             <div class="alert" style="background:rgba(179,32,32,.1);border-left:4px solid #b32020">{{ session('tipError') }}</div>
         @endif
+        @if($errors->any())
+            <div class="alert" style="background:rgba(179,32,32,.1);border-left:4px solid #b32020">Please enter a tip amount between £1 and £500.</div>
+        @endif
 
         @if(! $booking)
             <div class="card" style="text-align:center">
@@ -38,20 +41,25 @@
                 <h1 style="font-size:21px;margin:10px 0 4px">Thank {{ $driverName ?: 'your driver' }}</h1>
                 <p class="hint" style="margin:0 0 18px">If you enjoyed your journey with Central Executive Transfers, you can leave {{ $driverName ? $driverName.'' : 'your driver' }} a tip below. 100% goes to the driver.</p>
 
-                <form method="POST" action="{{ route('tip.pay', $token) }}" id="tip-form">
-                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
-                        @foreach($amounts as $amt)
-                            <button type="submit" name="amount" value="{{ $amt }}" class="btn btn-primary" style="padding:16px 0;font-size:19px;font-weight:800;min-width:96px;flex:1 1 96px;max-width:140px">£{{ $amt }}</button>
-                        @endforeach
-                    </div>
+                {{-- Each preset is its OWN form so it submits only its amount — a
+                     single shared form with the custom box also named "amount" made
+                     the empty box override the tapped button, sending nothing. --}}
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+                    @foreach($amounts as $amt)
+                        <form method="POST" action="{{ route('tip.pay', $token) }}" style="margin:0;flex:1 1 96px;max-width:140px">
+                            @csrf
+                            <button type="submit" name="amount" value="{{ $amt }}" class="btn btn-primary" style="width:100%;padding:16px 0;font-size:19px;font-weight:800">£{{ $amt }}</button>
+                        </form>
+                    @endforeach
+                </div>
 
-                    <div style="border-top:1px solid rgba(128,128,128,.15);padding-top:14px">
-                        <label for="custom" class="hint" style="display:block;margin-bottom:6px">Or another amount</label>
-                        <div style="display:flex;gap:8px;justify-content:center;align-items:center">
-                            <span style="font-size:20px;font-weight:700">£</span>
-                            <input id="custom" name="amount" type="number" step="0.50" min="1" max="500" placeholder="25" inputmode="decimal" style="width:120px;font-size:18px;text-align:center">
-                            <button type="submit" class="btn btn-dark" style="padding:12px 18px;font-size:15px">Tip →</button>
-                        </div>
+                <form method="POST" action="{{ route('tip.pay', $token) }}" style="border-top:1px solid rgba(128,128,128,.15);padding-top:14px;margin:0">
+                    @csrf
+                    <label for="custom" class="hint" style="display:block;margin-bottom:6px">Or another amount</label>
+                    <div style="display:flex;gap:8px;justify-content:center;align-items:center">
+                        <span style="font-size:20px;font-weight:700">£</span>
+                        <input id="custom" name="amount" type="number" step="0.50" min="1" max="500" placeholder="25" inputmode="decimal" style="width:120px;font-size:18px;text-align:center">
+                        <button type="submit" class="btn btn-dark" style="padding:12px 18px;font-size:15px">Tip →</button>
                     </div>
                 </form>
 

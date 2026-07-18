@@ -36,6 +36,20 @@ class SquareTipTest extends TestCase
             ->assertSee('£5')->assertSee('£10')->assertSee('£20');
     }
 
+    public function test_each_preset_amount_is_its_own_form_so_it_submits_cleanly(): void
+    {
+        // Regression: presets and the custom box shared one form + the name
+        // "amount", so tapping a preset was overridden by the empty box and sent
+        // nothing. Each preset must be its own form (3 presets + 1 custom = 4).
+        $this->configureSquare();
+        $booking = Booking::factory()->create();
+        $token = $booking->tipToken();
+
+        $html = $this->get(route('tip.show', $token))->assertOk()->getContent();
+
+        $this->assertEquals(4, substr_count($html, 'action="'.route('tip.pay', $token).'"'));
+    }
+
     public function test_tip_page_is_dormant_when_square_is_off(): void
     {
         config(['services.square.access_token' => null, 'services.square.location_id' => null]);
