@@ -787,7 +787,11 @@ class Booking extends Model
             return $this->meta['tip_token'];
         }
 
-        $token = \Illuminate\Support\Str::random(40);
+        // Short, clean token — this goes in a message a customer sees, so keep
+        // the URL tidy. 10 url-safe chars is ~8×10^17 combinations: unguessable
+        // for a tip link, and the worst case if one were guessed is a stranger
+        // tipping a random driver.
+        $token = \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(10));
         $this->forceFill(['meta' => array_merge($this->meta ?? [], ['tip_token' => $token])])->save();
 
         return $token;
