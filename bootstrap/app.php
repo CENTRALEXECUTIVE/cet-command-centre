@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/*',
             'consent/cookies',
             'job/*',
+            'tip/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

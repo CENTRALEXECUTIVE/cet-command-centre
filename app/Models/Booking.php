@@ -777,6 +777,63 @@ class Booking extends Model
         return $this->tipsTotalBy('card');
     }
 
+    /**
+     * A secret token for the customer TIP link (no login). Generated once and
+     * stored in meta so the link is migration-free and stable once shared.
+     */
+    public function tipToken(): string
+    {
+        if (filled($this->meta['tip_token'] ?? null)) {
+            return $this->meta['tip_token'];
+        }
+
+        $token = \Illuminate\Support\Str::random(40);
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['tip_token' => $token])])->save();
+
+        return $token;
+    }
+
+    /** The full customer tip-link URL. */
+    public function tipUrl(): string
+    {
+        return route('tip.show', $this->tipToken());
+    }
+
+    /** Resolve a booking from a tip token, or null. */
+    public static function byTipToken(string $token): ?self
+    {
+        $token = trim($token);
+
+        return $token === '' ? null : static::where('meta->tip_token', $token)->first();
+    }
+
+    /**
+     * Log a card tip that came in through Square, keyed by the Square payment id
+     * so a re-delivered webhook never double-counts. Returns true if it was newly
+     * recorded, false if it was already logged.
+     */
+    public function logSquareTip(float $amount, string $paymentId, ?string $note = null): bool
+    {
+        $tips = $this->meta['tips'] ?? [];
+        foreach ($tips as $t) {
+            if (($t['square_payment_id'] ?? null) === $paymentId) {
+                return false; // already recorded — idempotent
+            }
+        }
+
+        $tips[] = [
+            'amount' => round($amount, 2),
+            'method' => 'card',
+            'at' => now()->toDateTimeString(),
+            'by' => 'Square',
+            'note' => $note ?: 'Card tip via Square',
+            'square_payment_id' => $paymentId,
+        ];
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['tips' => $tips])])->save();
+
+        return true;
+    }
+
     /** The name payroll groups by — assigned driver, else the manual job driver. */
     public function payrollDriverName(): string
     {

@@ -55,6 +55,19 @@ return [
         'base_url' => env('TIDE_BASE_URL', 'https://pay.tide.co'),
     ],
 
+    // Square — customer card TIPS for the driver. A silent no-op until the
+    // access token + location are set. Tips are attributed to the booking via
+    // the order reference and logged onto the driver's payroll by the webhook.
+    'square' => [
+        'environment' => env('SQUARE_ENVIRONMENT', 'production'),
+        'app_id' => env('SQUARE_APP_ID'),
+        'access_token' => env('SQUARE_ACCESS_TOKEN'),
+        'location_id' => env('SQUARE_LOCATION_ID'),
+        'webhook_signature_key' => env('SQUARE_WEBHOOK_SIGNATURE_KEY'),
+        // Preset tip buttons shown to the customer (£). "Other" is always offered.
+        'tip_amounts' => [5, 10, 20],
+    ],
+
     // Anthropic Claude — powers the AI pricing engine and other AI features.
     // The model is pinned to claude-opus-4-8 via config/cet.php (ai_model).
     'anthropic' => [

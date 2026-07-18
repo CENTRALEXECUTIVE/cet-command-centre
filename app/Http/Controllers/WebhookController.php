@@ -90,6 +90,24 @@ class WebhookController extends Controller
         return response()->json(['logged' => true]);
     }
 
+    /**
+     * Square payment webhook — a customer card TIP. Verified by Square's HMAC
+     * signature (not the shared secret), then the tip is logged onto the driver's
+     * payroll. Always answers 200 on a genuine call so Square stops retrying,
+     * even when there's nothing to record.
+     */
+    public function square(Request $request, \App\Services\Payments\SquareTipService $square): JsonResponse
+    {
+        $signature = $request->header('x-square-hmacsha256-signature');
+        if (! $square->verifySignature($signature, $request->getContent(), $request->fullUrl())) {
+            return response()->json(['error' => 'bad signature'], 403);
+        }
+
+        $booking = $square->recordTipFromWebhook($request->json()->all());
+
+        return response()->json(['recorded' => (bool) $booking]);
+    }
+
     private function authoriseWebhook(Request $request): void
     {
         $secret = config('cet.webhook_secret');

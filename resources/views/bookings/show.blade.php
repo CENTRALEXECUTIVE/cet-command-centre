@@ -424,6 +424,9 @@
             @php $tips = $booking->tipsTotal(); @endphp
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
                 <strong style="font-size:14px">💛 Tips for {{ $booking->payrollDriverName() }}</strong>
+                @if(app(\App\Services\Payments\SquareTipService::class)->enabled())
+                    <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(also added to the review message automatically)</span></div>
+                @endif
                 @if($tips > 0)
                     <span class="muted" style="font-size:13px"> · £{{ number_format($tips, 2) }} total @if($booking->tipsTotalBy('cash') > 0 && $booking->cardTipsOwed() > 0)(£{{ number_format($booking->tipsTotalBy('cash'), 2) }} cash · £{{ number_format($booking->cardTipsOwed(), 2) }} card)@endif</span>
                     @if($booking->cardTipsOwed() > 0)

@@ -295,6 +295,10 @@ Route::post('webhooks/sms', [WebhookController::class, 'sms'])
 Route::post('webhooks/voice', [WebhookController::class, 'voice'])
     ->middleware('throttle:120,1')
     ->name('webhooks.voice');
+// Square card-tip payment webhook (HMAC-verified inside the controller).
+Route::post('webhooks/square', [WebhookController::class, 'square'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.square');
 
 // ----- Public live tracking (token in URL, no login) ---------------------
 Route::get('track/{token}', [TrackingController::class, 'show'])
@@ -314,3 +318,12 @@ Route::post('job/{token}/status', [\App\Http\Controllers\Driver\LinkController::
     ->middleware('throttle:60,1')->name('driver.link.status');
 Route::post('job/{token}/location', [\App\Http\Controllers\Driver\LinkController::class, 'location'])
     ->middleware('throttle:120,1')->name('driver.link.location');
+
+// ----- Public customer TIP page (token in URL, no login) ------------------
+// The customer thanks the driver with a card tip via Square-hosted checkout.
+Route::get('tip/{token}', [\App\Http\Controllers\TipController::class, 'show'])
+    ->middleware('throttle:60,1')->name('tip.show');
+Route::post('tip/{token}', [\App\Http\Controllers\TipController::class, 'pay'])
+    ->middleware('throttle:30,1')->name('tip.pay');
+Route::get('tip/{token}/thanks', [\App\Http\Controllers\TipController::class, 'thanks'])
+    ->middleware('throttle:60,1')->name('tip.thanks');
