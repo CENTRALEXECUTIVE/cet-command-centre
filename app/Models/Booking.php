@@ -742,6 +742,41 @@ class Booking extends Model
         return $this->meta['payroll']['history'] ?? [];
     }
 
+    /**
+     * ---- Tips (driver gratuities per job) ----------------------------------
+     * Stored in meta['tips'] so no migration is needed. Each entry:
+     *   ['amount' => 5.00, 'method' => 'cash'|'card', 'at' => .., 'by' => .., 'note' => ..]
+     * Tips are the DRIVER's, on top of job pay. A cash tip is already in the
+     * driver's hand; a card tip is collected by the company and owed to them.
+     *
+     * @return array<int, array{amount: float, method: string, at: string, by: ?string, note: ?string}>
+     */
+    public function tips(): array
+    {
+        return $this->meta['tips'] ?? [];
+    }
+
+    /** Every tip on this job, cash + card. */
+    public function tipsTotal(): float
+    {
+        return round(array_sum(array_map(fn ($t) => (float) ($t['amount'] ?? 0), $this->tips())), 2);
+    }
+
+    /** Tips by method — 'cash' the driver already holds, 'card' the company collected. */
+    public function tipsTotalBy(string $method): float
+    {
+        return round(array_sum(array_map(
+            fn ($t) => strtolower($t['method'] ?? 'cash') === $method ? (float) ($t['amount'] ?? 0) : 0,
+            $this->tips()
+        )), 2);
+    }
+
+    /** Card tips are collected by the company, so they're owed to the driver. */
+    public function cardTipsOwed(): float
+    {
+        return $this->tipsTotalBy('card');
+    }
+
     /** The name payroll groups by — assigned driver, else the manual job driver. */
     public function payrollDriverName(): string
     {

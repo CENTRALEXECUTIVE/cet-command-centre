@@ -83,6 +83,54 @@ class PayrollTest extends TestCase
             ->assertSee('Abdi Ali');                          // in the missing-pay list
     }
 
+    public function test_admin_logs_cash_and_card_tips_for_the_driver(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Maj Khan']);
+        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
+
+        // A cash tip the driver already has.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'tip', 'amount' => '5', 'method' => 'cash'])
+            ->assertRedirect();
+        // A card tip the company collected → owed to the driver.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'tip', 'amount' => '10', 'method' => 'card', 'note' => 'Square'])
+            ->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertSame(15.0, $booking->tipsTotal());
+        $this->assertSame(5.0, $booking->tipsTotalBy('cash'));
+        $this->assertSame(10.0, $booking->cardTipsOwed());
+        $this->assertCount(2, $booking->tips());
+        $this->assertSame('Square', $booking->tips()[1]['note']);
+    }
+
+    public function test_a_tip_requires_a_method(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'tip', 'amount' => '5'])
+            ->assertSessionHasErrors('method');
+    }
+
+    public function test_tips_show_on_the_payroll_page_even_without_pay_set(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Tip Only Tom']);
+
+        // A job with a tip but no driver pay set — should still surface on payroll.
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => now()->startOfMonth()->addDays(2)->setTime(9, 0)])
+            ->forceFill(['meta' => ['tips' => [['amount' => 8.0, 'method' => 'card', 'at' => now()->toDateTimeString(), 'by' => 'Abdi', 'note' => null]]]])->save();
+
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertOk()
+            ->assertSee('Tip Only Tom')
+            ->assertSee('£8.00 tips');
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();

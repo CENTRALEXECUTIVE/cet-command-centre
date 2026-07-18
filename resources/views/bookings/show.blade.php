@@ -419,6 +419,45 @@
                     @endforeach
                 </details>
             @endif
+
+            {{-- Tips — the driver's gratuity, on top of job pay. --}}
+            @php $tips = $booking->tipsTotal(); @endphp
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                <strong style="font-size:14px">💛 Tips for {{ $booking->payrollDriverName() }}</strong>
+                @if($tips > 0)
+                    <span class="muted" style="font-size:13px"> · £{{ number_format($tips, 2) }} total @if($booking->tipsTotalBy('cash') > 0 && $booking->cardTipsOwed() > 0)(£{{ number_format($booking->tipsTotalBy('cash'), 2) }} cash · £{{ number_format($booking->cardTipsOwed(), 2) }} card)@endif</span>
+                    @if($booking->cardTipsOwed() > 0)
+                        <div class="hint" style="margin:4px 0 0">£{{ number_format($booking->cardTipsOwed(), 2) }} card tip owed to the driver (collected by the company).</div>
+                    @endif
+                @endif
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px">
+                    @csrf
+                    <input type="hidden" name="action" value="tip">
+                    <div class="field" style="margin:0">
+                        <label for="tip-amount" style="font-size:12px">Tip received (£)</label>
+                        <input id="tip-amount" name="amount" type="number" step="0.01" min="0.01" placeholder="5.00" required style="width:110px">
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="tip-method" style="font-size:12px">How</label>
+                        <select id="tip-method" name="method" style="width:110px">
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Log tip</button>
+                </form>
+                @if($booking->tips() !== [])
+                    <details style="margin-top:8px">
+                        <summary class="muted" style="font-size:12px;cursor:pointer">Tip history</summary>
+                        @foreach(array_reverse($booking->tips()) as $t)
+                            <div style="font-size:13px;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                                £{{ number_format($t['amount'], 2) }} <span class="muted">{{ ucfirst($t['method'] ?? 'cash') }} · {{ \Illuminate\Support\Carbon::parse($t['at'])->format('D d M Y, H:i') }}@if(!empty($t['by'])) · by {{ $t['by'] }}@endif @if(!empty($t['note'])) · {{ $t['note'] }}@endif</span>
+                            </div>
+                        @endforeach
+                    </details>
+                @endif
+            </div>
+
             <p class="hint" style="margin:10px 0 0">Full monthly view per driver: <a href="{{ route('payroll.index') }}">Payroll</a>.</p>
         </div>
     @endif

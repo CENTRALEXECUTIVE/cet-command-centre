@@ -31,10 +31,11 @@ class PayrollController extends Controller
             ->orderBy('pickup_at')
             ->get();
 
-        $withPay = $bookings->filter(fn (Booking $b) => $b->driverPay() !== null);
+        // A job is relevant to payroll if it has pay set OR carries a tip.
+        $relevant = $bookings->filter(fn (Booking $b) => $b->driverPay() !== null || $b->tipsTotal() > 0);
 
-        // Per-driver totals: pay, paid, remaining, and their jobs for the drill-down.
-        $drivers = $withPay
+        // Per-driver totals: pay, paid, remaining, tips, and their jobs for the drill-down.
+        $drivers = $relevant
             ->groupBy(fn (Booking $b) => $b->payrollDriverName())
             ->map(fn ($jobs, $name) => [
                 'name' => $name,
@@ -42,6 +43,8 @@ class PayrollController extends Controller
                 'pay' => round($jobs->sum(fn (Booking $b) => $b->driverPay()), 2),
                 'paid' => round($jobs->sum(fn (Booking $b) => $b->driverPaidAmount()), 2),
                 'remaining' => round($jobs->sum(fn (Booking $b) => $b->driverPayRemaining() ?? 0), 2),
+                'tips' => round($jobs->sum(fn (Booking $b) => $b->tipsTotal()), 2),
+                'card_tips_owed' => round($jobs->sum(fn (Booking $b) => $b->cardTipsOwed()), 2),
             ])
             ->sortByDesc('remaining')
             ->values();
@@ -61,6 +64,8 @@ class PayrollController extends Controller
                 'pay' => round($drivers->sum('pay'), 2),
                 'paid' => round($drivers->sum('paid'), 2),
                 'remaining' => round($drivers->sum('remaining'), 2),
+                'tips' => round($drivers->sum('tips'), 2),
+                'card_tips_owed' => round($drivers->sum('card_tips_owed'), 2),
             ],
         ]);
     }

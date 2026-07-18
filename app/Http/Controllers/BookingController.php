@@ -504,10 +504,29 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'action' => ['required', 'in:set,record'],
+            'action' => ['required', 'in:set,record,tip'],
             'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'method' => ['required_if:action,tip', 'in:cash,card'],
             'note' => ['nullable', 'string', 'max:200'],
         ]);
+
+        // A gratuity for the driver — kept separate from job pay in meta['tips'].
+        if ($data['action'] === 'tip') {
+            $amount = round((float) $data['amount'], 2);
+            $tips = $booking->meta['tips'] ?? [];
+            $tips[] = [
+                'amount' => $amount,
+                'method' => $data['method'],
+                'at' => now()->toDateTimeString(),
+                'by' => $request->user()->name,
+                'note' => $data['note'] ?? null,
+            ];
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['tips' => $tips])])->save();
+
+            $where = $data['method'] === 'cash' ? 'cash (driver already has it)' : 'card (owed to the driver)';
+
+            return back()->with('status', '£'.number_format($amount, 2)." tip logged for {$booking->payrollDriverName()} — {$where}.");
+        }
 
         $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
 

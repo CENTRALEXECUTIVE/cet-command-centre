@@ -12,10 +12,11 @@
         </form>
     </div>
 
-    <div class="deck" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px">
+    <div class="deck" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
         <div class="kpi"><div class="kpi-ico">💷</div><div class="kpi-n">£{{ number_format($totals['pay'], 2) }}</div><div class="kpi-l">Total driver pay</div></div>
         <div class="kpi ok"><div class="kpi-ico">✅</div><div class="kpi-n">£{{ number_format($totals['paid'], 2) }}</div><div class="kpi-l">Paid out</div></div>
         <div class="kpi warn"><div class="kpi-ico">⏳</div><div class="kpi-n">£{{ number_format($totals['remaining'], 2) }}</div><div class="kpi-l">Still owed</div></div>
+        <div class="kpi"><div class="kpi-ico">💛</div><div class="kpi-n">£{{ number_format($totals['tips'], 2) }}</div><div class="kpi-l">Tips @if($totals['card_tips_owed'] > 0)· £{{ number_format($totals['card_tips_owed'], 2) }} card owed @endif</div></div>
     </div>
 
     @if($missingPay->isNotEmpty())
@@ -41,21 +42,23 @@
                     £{{ number_format($d['pay'], 2) }} total
                     · <span style="color:#1f7a44">£{{ number_format($d['paid'], 2) }} paid</span>
                     · @if($d['remaining'] > 0)<strong style="color:#b8860b">£{{ number_format($d['remaining'], 2) }} owed</strong>@else<span class="badge badge-complete">Settled</span>@endif
+                    @if($d['tips'] > 0) · <span style="color:#b8860b">💛 £{{ number_format($d['tips'], 2) }} tips @if($d['card_tips_owed'] > 0)(£{{ number_format($d['card_tips_owed'], 2) }} card owed)@endif</span>@endif
                 </div>
             </div>
             <div style="margin-top:10px">
                 <div style="overflow-x:auto">
                 <table>
-                    <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th></th></tr></thead>
+                    <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
                     @foreach($d['jobs'] as $b)
                         <tr>
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}</td>
-                            <td>£{{ number_format($b->driverPay(), 2) }}</td>
+                            <td>{{ $b->driverPay() === null ? '—' : '£'.number_format($b->driverPay(), 2) }}</td>
                             <td>£{{ number_format($b->driverPaidAmount(), 2) }}</td>
                             <td>@if(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
+                            <td>@if($b->tipsTotal() > 0)💛 £{{ number_format($b->tipsTotal(), 2) }}@else<span class="muted">—</span>@endif</td>
                             <td><a href="{{ route('bookings.show', $b) }}" style="font-size:13px">Open →</a></td>
                         </tr>
                     @endforeach
