@@ -78,7 +78,7 @@ class WhatsAppService
                 ->post("https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json", [
                     'From' => 'whatsapp:'.config('services.twilio.whatsapp_from'),
                     'To' => 'whatsapp:'.$this->normalise($message->to_address),
-                    'Body' => $message->body,
+                    'Body' => $message->renderedBody(),
                 ]);
 
             if ($response->successful()) {

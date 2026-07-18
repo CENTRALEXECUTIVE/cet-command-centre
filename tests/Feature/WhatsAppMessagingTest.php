@@ -157,6 +157,31 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('7588804226', $link);  // never the stale one
     }
 
+    public function test_stale_link_host_in_a_queued_message_is_rewritten_to_the_current_app_host(): void
+    {
+        // A message queued with an old "staging." link must show/send on the
+        // current app host — but the marketing site + Google links stay put.
+        config(['app.url' => 'https://app.centralexecutivetransfers.co.uk']);
+        $booking = Booking::factory()->create();
+
+        $message = Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'review_request',
+            'to_address' => '07700900123', 'status' => 'queued',
+            'body' => "Review us: https://g.page/x/review\n"
+                ."💛 Tip: https://staging.centralexecutivetransfers.co.uk/tip/abc123\n"
+                .'Track: https://staging.centralexecutivetransfers.co.uk/track/xyz789'."\n"
+                .'🌐 www.centralexecutivetransfers.co.uk',
+        ]);
+
+        $rendered = $message->renderedBody();
+        $this->assertStringContainsString('https://app.centralexecutivetransfers.co.uk/tip/abc123', $rendered);
+        $this->assertStringContainsString('https://app.centralexecutivetransfers.co.uk/track/xyz789', $rendered);
+        $this->assertStringNotContainsString('staging.', $rendered);          // no staging anywhere
+        $this->assertStringContainsString('https://g.page/x/review', $rendered); // external link untouched
+        $this->assertStringContainsString('www.centralexecutivetransfers.co.uk', $rendered); // marketing link untouched
+    }
+
     public function test_24h_reminder_is_shifted_into_the_daytime_window(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

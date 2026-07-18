@@ -65,6 +65,29 @@ class Message extends Model
         return ! ($this->isScheduledPrompt() && $this->scheduled_for && $this->scheduled_for->isFuture());
     }
 
+    /**
+     * The message text as it should be shown/sent NOW. Any internal link
+     * (tip / track / driver) that was frozen into the body with an old host —
+     * e.g. an earlier "staging." address — is rewritten to the current app host,
+     * so a queued or historical message never shows a stale/ugly domain. The
+     * marketing site link (www.…, no /tip|track|job path) and external links
+     * (Google review) are left untouched.
+     */
+    public function renderedBody(): string
+    {
+        $body = (string) $this->body;
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+        if (! $host) {
+            return $body;
+        }
+
+        return preg_replace(
+            '#https://[a-z0-9.-]*centralexecutivetransfers\.co\.uk(/(?:tip|track|job)/)#i',
+            'https://'.$host.'$1',
+            $body
+        );
+    }
+
     /** The recipient number in international format (44…) for wa.me links. */
     public function intlPhone(): ?string
     {
@@ -95,6 +118,6 @@ class Message extends Model
             return null;
         }
 
-        return 'https://wa.me/'.$phone.'?text='.rawurlencode((string) $this->body);
+        return 'https://wa.me/'.$phone.'?text='.rawurlencode($this->renderedBody());
     }
 }

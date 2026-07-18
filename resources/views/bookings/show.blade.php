@@ -670,7 +670,7 @@
                             @elseif($m->sent_at) · sent {{ $m->sent_at->format('d M H:i') }}@endif
                         </span>
                     </div>
-                    <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->body }}</div>
+                    <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->renderedBody() }}</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
                         @if($m->whatsAppLink() && $m->isReadyToSend())
                             <a href="{{ $m->whatsAppLink() }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:5px 12px;font-size:12px">📲 Send on WhatsApp</a>
