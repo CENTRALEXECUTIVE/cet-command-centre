@@ -49,6 +49,25 @@ class PayrollController extends Controller
             ->sortByDesc('remaining')
             ->values();
 
+        // Totals come from ALL drivers (the tiles always show the full picture).
+        $totals = [
+            'pay' => round($drivers->sum('pay'), 2),
+            'paid' => round($drivers->sum('paid'), 2),
+            'remaining' => round($drivers->sum('remaining'), 2),
+            'tips' => round($drivers->sum('tips'), 2),
+            'card_tips_owed' => round($drivers->sum('card_tips_owed'), 2),
+        ];
+
+        // Tapping a tile filters the driver list to that category.
+        $filter = in_array($request->query('filter'), ['paid', 'owed', 'tips'], true)
+            ? $request->query('filter') : 'all';
+        $shown = match ($filter) {
+            'paid' => $drivers->filter(fn ($d) => $d['paid'] > 0)->values(),
+            'owed' => $drivers->filter(fn ($d) => $d['remaining'] > 0)->values(),
+            'tips' => $drivers->filter(fn ($d) => $d['tips'] > 0)->values(),
+            default => $drivers,
+        };
+
         // Completed driver jobs with no pay set — the "don't forget these" list.
         $missingPay = $bookings
             ->filter(fn (Booking $b) => $b->driverPay() === null
@@ -58,15 +77,10 @@ class PayrollController extends Controller
 
         return view('admin.payroll.index', [
             'month' => $start,
-            'drivers' => $drivers,
+            'drivers' => $shown,
+            'filter' => $filter,
             'missingPay' => $missingPay,
-            'totals' => [
-                'pay' => round($drivers->sum('pay'), 2),
-                'paid' => round($drivers->sum('paid'), 2),
-                'remaining' => round($drivers->sum('remaining'), 2),
-                'tips' => round($drivers->sum('tips'), 2),
-                'card_tips_owed' => round($drivers->sum('card_tips_owed'), 2),
-            ],
+            'totals' => $totals,
         ]);
     }
 }
