@@ -123,7 +123,7 @@ class PayrollTest extends TestCase
 
         // A job with a tip but no driver pay set — should still surface on payroll.
         Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => now()->startOfMonth()->addDays(2)->setTime(9, 0)])
-            ->forceFill(['meta' => ['tips' => [['amount' => 8.0, 'method' => 'card', 'at' => now()->toDateTimeString(), 'by' => 'Abdi', 'note' => null]]]])->save();
+            ->logTip(8.0, 'card', loggedBy: 'Abdi');
 
         $this->actingAs($admin)->get(route('payroll.index'))
             ->assertOk()

@@ -510,18 +510,11 @@ class BookingController extends Controller
             'note' => ['nullable', 'string', 'max:200'],
         ]);
 
-        // A gratuity for the driver — kept separate from job pay in meta['tips'].
+        // A gratuity for the driver — kept in the booking_tips ledger, separate
+        // from job pay and safe from any meta rewrite.
         if ($data['action'] === 'tip') {
             $amount = round((float) $data['amount'], 2);
-            $tips = $booking->meta['tips'] ?? [];
-            $tips[] = [
-                'amount' => $amount,
-                'method' => $data['method'],
-                'at' => now()->toDateTimeString(),
-                'by' => $request->user()->name,
-                'note' => $data['note'] ?? null,
-            ];
-            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['tips' => $tips])])->save();
+            $booking->logTip($amount, $data['method'], note: $data['note'] ?? null, loggedBy: $request->user()->name);
 
             $where = $data['method'] === 'cash' ? 'cash (driver already has it)' : 'card (owed to the driver)';
 

@@ -754,37 +754,60 @@ class Booking extends Model
 
     /**
      * ---- Tips (driver gratuities per job) ----------------------------------
-     * Stored in meta['tips'] so no migration is needed. Each entry:
-     *   ['amount' => 5.00, 'method' => 'cash'|'card', 'at' => .., 'by' => .., 'note' => ..]
-     * Tips are the DRIVER's, on top of job pay. A cash tip is already in the
-     * driver's hand; a card tip is collected by the company and owed to them.
+     * Stored in their OWN table (booking_tips) so a sync rewriting meta can never
+     * wipe them. Tips are the DRIVER's, on top of job pay: a cash tip is already
+     * in the driver's hand; a card tip is collected by the company and owed.
+     */
+    public function tipEntries(): HasMany
+    {
+        return $this->hasMany(BookingTip::class);
+    }
+
+    /**
+     * Tip rows shaped for the views (newest last), from the ledger.
      *
      * @return array<int, array{amount: float, method: string, at: string, by: ?string, note: ?string}>
      */
     public function tips(): array
     {
-        return $this->meta['tips'] ?? [];
+        return $this->tipEntries()->orderBy('id')->get()->map(fn (BookingTip $t) => [
+            'amount' => (float) $t->amount,
+            'method' => $t->method,
+            'at' => (string) $t->created_at,
+            'by' => $t->logged_by,
+            'note' => $t->note,
+        ])->all();
     }
 
     /** Every tip on this job, cash + card. */
     public function tipsTotal(): float
     {
-        return round(array_sum(array_map(fn ($t) => (float) ($t['amount'] ?? 0), $this->tips())), 2);
+        return round((float) $this->tipEntries()->sum('amount'), 2);
     }
 
     /** Tips by method — 'cash' the driver already holds, 'card' the company collected. */
     public function tipsTotalBy(string $method): float
     {
-        return round(array_sum(array_map(
-            fn ($t) => strtolower($t['method'] ?? 'cash') === $method ? (float) ($t['amount'] ?? 0) : 0,
-            $this->tips()
-        )), 2);
+        return round((float) $this->tipEntries()->where('method', $method)->sum('amount'), 2);
     }
 
     /** Card tips are collected by the company, so they're owed to the driver. */
     public function cardTipsOwed(): float
     {
         return $this->tipsTotalBy('card');
+    }
+
+    /** Log a tip against this job (cash or card). Returns the new ledger row. */
+    public function logTip(float $amount, string $method, ?string $note = null, ?string $loggedBy = null, string $source = 'manual', ?string $squarePaymentId = null): BookingTip
+    {
+        return $this->tipEntries()->create([
+            'amount' => round($amount, 2),
+            'method' => $method,
+            'source' => $source,
+            'note' => $note,
+            'logged_by' => $loggedBy,
+            'square_payment_id' => $squarePaymentId,
+        ]);
     }
 
     /**
@@ -860,22 +883,19 @@ class Booking extends Model
      */
     public function logSquareTip(float $amount, string $paymentId, ?string $note = null): bool
     {
-        $tips = $this->meta['tips'] ?? [];
-        foreach ($tips as $t) {
-            if (($t['square_payment_id'] ?? null) === $paymentId) {
-                return false; // already recorded — idempotent
-            }
+        // Idempotent: the DB unique index on square_payment_id is the real guard.
+        if (BookingTip::where('square_payment_id', $paymentId)->exists()) {
+            return false;
         }
 
-        $tips[] = [
-            'amount' => round($amount, 2),
-            'method' => 'card',
-            'at' => now()->toDateTimeString(),
-            'by' => 'Square',
-            'note' => $note ?: 'Card tip via Square',
-            'square_payment_id' => $paymentId,
-        ];
-        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['tips' => $tips])])->save();
+        $this->logTip(
+            $amount,
+            'card',
+            note: $note ?: 'Card tip via Square',
+            loggedBy: 'Square',
+            source: 'square',
+            squarePaymentId: $paymentId,
+        );
 
         return true;
     }
