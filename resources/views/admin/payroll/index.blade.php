@@ -12,7 +12,7 @@
         </form>
     </div>
 
-    <div class="deck" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
+    <div class="deck" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px">
         <div class="kpi"><div class="kpi-ico">💷</div><div class="kpi-n">£{{ number_format($totals['pay'], 2) }}</div><div class="kpi-l">Total driver pay</div></div>
         <div class="kpi ok"><div class="kpi-ico">✅</div><div class="kpi-n">£{{ number_format($totals['paid'], 2) }}</div><div class="kpi-l">Paid out</div></div>
         <div class="kpi warn"><div class="kpi-ico">⏳</div><div class="kpi-n">£{{ number_format($totals['remaining'], 2) }}</div><div class="kpi-l">Still owed</div></div>
