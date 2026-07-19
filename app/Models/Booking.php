@@ -185,7 +185,17 @@ class Booking extends Model
             // column not migrated yet — fall through to the meta lookup
         }
 
-        return static::where('meta->driver_link_token', $token)->first();
+        try {
+            if ($found = static::where('meta->driver_link_token', $token)->first()) {
+                return $found;
+            }
+        } catch (\Throwable) {
+            // JSON query quirk — fall through to the PHP scan
+        }
+
+        // Safety net: a valid link must never fail to resolve.
+        return static::whereNotNull('meta->driver_link_token')->get()
+            ->first(fn ($b) => ($b->meta['driver_link_token'] ?? null) === $token);
     }
 
     /** When the office last asked the driver to share their location. */
@@ -803,12 +813,27 @@ class Booking extends Model
         return route('tip.show', $this->tipToken());
     }
 
-    /** Resolve a booking from a tip token, or null. */
+    /** Resolve a booking from a tip token, or null. Bulletproof: never misses. */
     public static function byTipToken(string $token): ?self
     {
         $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
 
-        return $token === '' ? null : static::where('meta->tip_token', $token)->first();
+        // Fast path: JSON column lookup.
+        try {
+            if ($booking = static::where('meta->tip_token', $token)->first()) {
+                return $booking;
+            }
+        } catch (\Throwable) {
+            // JSON query unsupported/odd on this DB — fall through to the scan.
+        }
+
+        // Safety net: scan bookings that carry a tip token and match in PHP, so a
+        // valid link can never fail to resolve because of a JSON-query quirk.
+        return static::whereNotNull('meta->tip_token')->get()
+            ->first(fn ($b) => ($b->meta['tip_token'] ?? null) === $token);
     }
 
     /**
