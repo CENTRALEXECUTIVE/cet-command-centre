@@ -788,21 +788,29 @@ class Booking extends Model
     }
 
     /**
-     * A secret token for the customer TIP link (no login). Generated once and
-     * stored in meta so the link is migration-free and stable once shared.
+     * A secret token for the customer TIP link (no login). Stored in a dedicated
+     * indexed column (reliable) with a meta copy for back-compat, and generated
+     * once — a shared link stays valid. Mirrors driverLinkToken().
      */
     public function tipToken(): string
     {
-        if (filled($this->meta['tip_token'] ?? null)) {
-            return $this->meta['tip_token'];
+        // Prefer the indexed column; fall back to any legacy meta token so links
+        // already sent keep working.
+        if (filled($this->tip_token ?? null)) {
+            return $this->tip_token;
         }
 
         // Short, clean token — this goes in a message a customer sees, so keep
         // the URL tidy. 10 url-safe chars is ~8×10^17 combinations: unguessable
         // for a tip link, and the worst case if one were guessed is a stranger
         // tipping a random driver.
-        $token = \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(10));
-        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['tip_token' => $token])])->save();
+        $token = $this->meta['tip_token'] ?? \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(10));
+
+        $updates = ['meta' => array_merge($this->meta ?? [], ['tip_token' => $token])];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('bookings', 'tip_token')) {
+            $updates['tip_token'] = $token; // migrate/store on the indexed column
+        }
+        $this->forceFill($updates)->save();
 
         return $token;
     }
@@ -821,7 +829,16 @@ class Booking extends Model
             return null;
         }
 
-        // Fast path: JSON column lookup.
+        // Indexed column first (fast, reliable).
+        try {
+            if ($booking = static::where('tip_token', $token)->first()) {
+                return $booking;
+            }
+        } catch (\Throwable) {
+            // column not migrated yet — fall through to the meta lookup
+        }
+
+        // Legacy meta JSON lookup for links stored before the column existed.
         try {
             if ($booking = static::where('meta->tip_token', $token)->first()) {
                 return $booking;

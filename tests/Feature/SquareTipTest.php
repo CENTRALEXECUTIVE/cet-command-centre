@@ -60,6 +60,20 @@ class SquareTipTest extends TestCase
             ->assertSee('aren’t available just yet', false);
     }
 
+    public function test_tip_token_resolves_via_the_indexed_column_and_a_legacy_meta_token(): void
+    {
+        // New tokens live in the indexed column and resolve reliably.
+        $booking = Booking::factory()->create();
+        $token = $booking->tipToken();
+        $this->assertSame($token, $booking->fresh()->tip_token);           // stored on the column
+        $this->assertSame($booking->id, Booking::byTipToken($token)?->id); // resolves
+
+        // A link sent before the column existed (token only in meta) still resolves.
+        $legacy = Booking::factory()->create();
+        $legacy->forceFill(['tip_token' => null, 'meta' => ['tip_token' => 'legacy123x']])->save();
+        $this->assertSame($legacy->id, Booking::byTipToken('legacy123x')?->id);
+    }
+
     public function test_unknown_token_shows_a_friendly_page_not_a_404(): void
     {
         $this->get(route('tip.show', 'nope'))->assertOk()->assertSee('Link not found');
