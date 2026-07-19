@@ -111,9 +111,25 @@ class SquareTipService
      */
     public function recordTipFromWebhook(array $payload): ?Booking
     {
+        // A refund event, or a payment reported as refunded → reverse the tip.
+        if ($refund = data_get($payload, 'data.object.refund')) {
+            return strtoupper((string) ($refund['status'] ?? '')) === 'COMPLETED'
+                ? $this->reverseTip((string) ($refund['payment_id'] ?? ''))
+                : null;
+        }
+
         $payment = data_get($payload, 'data.object.payment');
         if (! is_array($payment)) {
             return null;
+        }
+
+        $paymentId = (string) ($payment['id'] ?? '');
+        $amount = (int) data_get($payment, 'amount_money.amount', 0);
+        $refunded = (int) data_get($payment, 'refunded_money.amount', 0);
+
+        // The tip was refunded (fully) → take it back off the driver's payroll.
+        if ($paymentId !== '' && $refunded > 0 && $refunded >= $amount) {
+            return $this->reverseTip($paymentId);
         }
 
         // Only count money actually taken.
@@ -121,9 +137,7 @@ class SquareTipService
             return null;
         }
 
-        $paymentId = (string) ($payment['id'] ?? '');
         $orderId = (string) ($payment['order_id'] ?? '');
-        $amount = (int) data_get($payment, 'amount_money.amount', 0);
         if ($paymentId === '' || $orderId === '' || $amount <= 0) {
             return null;
         }
@@ -140,7 +154,52 @@ class SquareTipService
             return null;
         }
 
-        return $booking->logSquareTip($amount / 100, $paymentId) ? $booking : null;
+        if (! $booking->logSquareTip($amount / 100, $paymentId)) {
+            return null; // already logged (idempotent)
+        }
+
+        // Delight the driver — buzz their phone that they've been tipped.
+        $this->pingDriver($booking, $amount / 100);
+
+        return $booking;
+    }
+
+    /** Remove the tip tied to a Square payment (refund). Returns its booking. */
+    private function reverseTip(string $paymentId): ?Booking
+    {
+        if ($paymentId === '') {
+            return null;
+        }
+        $tip = \App\Models\BookingTip::where('square_payment_id', $paymentId)->first();
+        if (! $tip) {
+            return null;
+        }
+
+        $booking = $tip->booking;
+        $tip->delete();
+        Log::info('[Square] tip reversed by refund', ['payment' => $paymentId, 'booking' => $booking?->id]);
+
+        return $booking;
+    }
+
+    /** Push a "you've been tipped" notification to the job's driver, if any. */
+    private function pingDriver(Booking $booking, float $amount): void
+    {
+        $driver = $booking->driver;
+        if (! $driver) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Push\WebPushService::class)->sendToUser(
+                $driver,
+                '💛 You got a tip!',
+                '£'.number_format($amount, 2).' from '.($booking->displayName() ?: 'a customer').' — thank you!',
+                ['tag' => 'tip-'.$booking->id],
+            );
+        } catch (\Throwable $e) {
+            Log::warning('[Square] tip push failed: '.$e->getMessage());
+        }
     }
 
     /**

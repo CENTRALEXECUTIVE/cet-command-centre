@@ -143,6 +143,51 @@ class SquareTipTest extends TestCase
         $this->assertSame(5.0, $booking->fresh()->tipsTotal());        // counted once
     }
 
+    public function test_a_refund_reverses_the_tip_off_the_payroll(): void
+    {
+        $this->configureSquare();
+        $booking = Booking::factory()->create(['external_reference' => 'A078B2']);
+        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'A078B2']], 200)]);
+        $svc = app(SquareTipService::class);
+
+        // Tip comes in…
+        $svc->recordTipFromWebhook(['data' => ['object' => ['payment' => [
+            'id' => 'pay_ref', 'order_id' => 'order_1', 'status' => 'COMPLETED',
+            'amount_money' => ['amount' => 1000],
+        ]]]]);
+        $this->assertSame(10.0, $booking->fresh()->tipsTotal());
+
+        // …then it's refunded → the tip is taken back off.
+        $reversed = $svc->recordTipFromWebhook(['data' => ['object' => ['refund' => [
+            'id' => 'rf_1', 'payment_id' => 'pay_ref', 'status' => 'COMPLETED',
+            'amount_money' => ['amount' => 1000],
+        ]]]]);
+
+        $this->assertNotNull($reversed);
+        $this->assertSame(0.0, $booking->fresh()->tipsTotal());
+    }
+
+    public function test_a_payment_marked_refunded_also_reverses_the_tip(): void
+    {
+        $this->configureSquare();
+        $booking = Booking::factory()->create(['external_reference' => 'A078B2']);
+        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'A078B2']], 200)]);
+        $svc = app(SquareTipService::class);
+
+        $svc->recordTipFromWebhook(['data' => ['object' => ['payment' => [
+            'id' => 'pay_r2', 'order_id' => 'order_1', 'status' => 'COMPLETED',
+            'amount_money' => ['amount' => 500],
+        ]]]]);
+        $this->assertSame(5.0, $booking->fresh()->tipsTotal());
+
+        // payment.updated now shows the money fully refunded.
+        $svc->recordTipFromWebhook(['data' => ['object' => ['payment' => [
+            'id' => 'pay_r2', 'order_id' => 'order_1', 'status' => 'COMPLETED',
+            'amount_money' => ['amount' => 500], 'refunded_money' => ['amount' => 500],
+        ]]]]);
+        $this->assertSame(0.0, $booking->fresh()->tipsTotal());
+    }
+
     public function test_pending_payment_is_ignored(): void
     {
         $this->configureSquare();
