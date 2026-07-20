@@ -75,6 +75,24 @@ class DedupeBookingsCommandTest extends TestCase
         $this->assertSame($worked->id, $survivor->id);
     }
 
+    public function test_it_merges_everything_useful_into_the_single_survivor(): void
+    {
+        $driver = \App\Models\User::factory()->driver()->create();
+
+        // One copy has the driver; the other has the price and a tip. After the
+        // merge there must be ONE record carrying all three — nothing lost.
+        $this->make('U6NAEK', ['driver_id' => $driver->id, 'final_price' => null]);
+        $withMoney = $this->make('U6NAEK', ['driver_id' => null, 'final_price' => 120]);
+        $withMoney->logTip(7.5, 'card');
+
+        $this->artisan('cet:dedupe-bookings')->assertSuccessful();
+
+        $survivor = Booking::where('external_reference', 'U6NAEK')->sole(); // exactly one left
+        $this->assertSame($driver->id, $survivor->driver_id);          // driver folded in
+        $this->assertSame('120.00', (string) $survivor->final_price);  // price kept
+        $this->assertSame(7.5, $survivor->tipsTotal());                // tip moved across
+    }
+
     public function test_bookings_without_a_reference_are_left_alone(): void
     {
         Booking::factory()->count(2)->forVehicleType(VehicleType::where('slug', 'executive')->first())

@@ -68,10 +68,10 @@ class DedupeBookings extends Command
             $keep = $sorted->first();
             foreach ($sorted->slice(1) as $dupe) {
                 $ref = $dupe->external_reference ?: $dupe->reference;
-                $keepRef = $keep->external_reference ?: $keep->reference;
                 $when = $dupe->pickup_at?->format('D d M H:i') ?? 'no time';
-                $details[] = ($dry ? 'WOULD REMOVE ' : 'removed ')."{$ref} ({$when} {$dupe->displayName()}) — kept {$keepRef}";
+                $details[] = ($dry ? 'WOULD MERGE ' : 'merged ')."{$ref} ({$when} {$dupe->displayName()}) → kept copy #{$keep->id}";
                 if (! $dry) {
+                    $this->mergeInto($keep, $dupe);   // survivor absorbs anything it's missing
                     $dupe->forceDelete();
                     $removed++;
                 }
@@ -83,16 +83,46 @@ class DedupeBookings extends Command
         }
 
         if ($dry) {
-            $this->info(count($details).' duplicate(s) found. Re-run without --dry-run to remove them.');
+            $this->info(count($details).' duplicate(s) found. Re-run without --dry-run to merge & remove them.');
 
             return self::SUCCESS;
         }
 
-        $this->info("Removed {$removed} duplicate booking(s).");
+        $this->info("Merged & removed {$removed} duplicate booking(s).");
         if ($removed > 0) {
             $this->line('Now run: php artisan cet:purge-calendar && php artisan cet:sync-calendar');
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Fold everything useful from a duplicate into the copy we're keeping, so
+     * removing the duplicate loses nothing — a "replace", not a bare delete.
+     */
+    private function mergeInto(Booking $keep, Booking $dupe): void
+    {
+        // Money moves with the journey — reassign any tips to the survivor.
+        \App\Models\BookingTip::where('booking_id', $dupe->id)->update(['booking_id' => $keep->id]);
+
+        // Take the calendar link if the survivor hasn't got one.
+        if (! $keep->calendarEvent && $dupe->calendarEvent) {
+            $dupe->calendarEvent->forceFill(['booking_id' => $keep->id])->save();
+        }
+
+        // Fill any blank fields on the survivor from the duplicate.
+        $fill = [];
+        foreach ([
+            'driver_id', 'vehicle_id', 'airport_id', 'quoted_price', 'final_price',
+            'flight_number', 'destination_address', 'pickup_address', 'special_requests',
+        ] as $col) {
+            if (blank($keep->$col) && filled($dupe->$col)) {
+                $fill[$col] = $dupe->$col;
+            }
+        }
+        // Merge meta so nothing (payroll, notes, tokens, audit) is lost —
+        // the survivor's own values win any conflict.
+        $fill['meta'] = array_merge($dupe->meta ?? [], $keep->meta ?? []);
+        $keep->forceFill($fill)->save();
     }
 }
