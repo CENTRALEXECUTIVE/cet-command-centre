@@ -6,25 +6,36 @@ use App\Models\Booking;
 use Illuminate\Console\Command;
 
 /**
- * Removes duplicate ETO bookings — the same trip (same pickup time + same
- * customer phone) imported more than once under different references (e.g. the
- * curated file and the live email feed). Keeps the richest copy (curated import
- * preferred, then the one with the most detail) and deletes the rest. Run the
+ * Removes duplicate imported bookings — the same trip (same pickup minute + same
+ * customer) that landed twice: an ETO file imported more than once, or a
+ * calendar event auto-imported before the dedup match caught it. Keeps the
+ * RICHEST copy — one carrying money data (tips/payroll) first, then a curated
+ * import, then the most detail — and removes the rest.
+ *
+ *   php artisan cet:dedupe-bookings --dry-run   # preview, deletes nothing
+ *   php artisan cet:dedupe-bookings             # actually remove them
+ *
+ * Only ever touches imported bookings (source_system eto/calendar); bookings
+ * created by hand in the office are never de-duplicated automatically. Run the
  * calendar purge + sync afterwards to rebuild one clean event per booking.
  */
 class DedupeBookings extends Command
 {
-    protected $signature = 'cet:dedupe-bookings';
+    protected $signature = 'cet:dedupe-bookings {--dry-run : List duplicates without deleting anything}';
 
-    protected $description = 'Remove duplicate ETO bookings (same trip under different references)';
+    protected $description = 'Remove duplicate imported bookings (same trip landed twice)';
 
     public function handle(): int
     {
-        $bookings = Booking::where('source_system', 'eto')
+        $dry = (bool) $this->option('dry-run');
+
+        $bookings = Booking::whereIn('source_system', ['eto', 'calendar'])
             ->whereNotNull('pickup_at')
-            ->with('customer:id,phone')
+            ->with(['customer:id,phone'])
+            ->withCount('tipEntries')
             ->get();
 
+        // Same trip = same pickup minute AND same customer (phone, else id).
         $groups = $bookings->groupBy(
             fn ($b) => $b->pickup_at->format('YmdHi').'|'.($b->customer->phone ?? 'c'.$b->customer_id)
         );
@@ -36,17 +47,24 @@ class DedupeBookings extends Command
                 continue;
             }
 
-            // Keep the richest: curated import first, then most meta keys, then oldest.
+            // Rank so the copy we KEEP is the safest: money data first (never
+            // delete the one holding tips/payroll), then a curated import, then
+            // the most detail, then the oldest.
             $sorted = $group->sort(function ($a, $b) {
+                $am = ($a->tip_entries_count > 0 || ! empty($a->meta['payroll'])) ? 0 : 1;
+                $bm = ($b->tip_entries_count > 0 || ! empty($b->meta['payroll'])) ? 0 : 1;
+                if ($am !== $bm) {
+                    return $am <=> $bm;
+                }
                 $ai = $a->source === 'import' ? 0 : 1;
                 $bi = $b->source === 'import' ? 0 : 1;
                 if ($ai !== $bi) {
                     return $ai <=> $bi;
                 }
-                $am = count((array) ($a->meta ?? []));
-                $bm = count((array) ($b->meta ?? []));
-                if ($am !== $bm) {
-                    return $bm <=> $am;
+                $ak = count((array) ($a->meta ?? []));
+                $bk = count((array) ($b->meta ?? []));
+                if ($ak !== $bk) {
+                    return $bk <=> $ak;
                 }
 
                 return $a->id <=> $b->id;
@@ -54,17 +72,30 @@ class DedupeBookings extends Command
 
             $keep = $sorted->first();
             foreach ($sorted->slice(1) as $dupe) {
-                $details[] = "{$dupe->external_reference} (kept {$keep->external_reference})";
-                $dupe->forceDelete();
-                $removed++;
+                $ref = $dupe->external_reference ?: $dupe->reference;
+                $keepRef = $keep->external_reference ?: $keep->reference;
+                $details[] = ($dry ? 'WOULD REMOVE ' : 'removed ')."{$ref} ({$dupe->pickup_at->format('D d M H:i')} {$dupe->displayName()}) — kept {$keepRef}";
+                if (! $dry) {
+                    $dupe->forceDelete();
+                    $removed++;
+                }
             }
         }
 
-        $this->info("Removed {$removed} duplicate booking(s).");
-        foreach (array_slice($details, 0, 40) as $d) {
+        foreach (array_slice($details, 0, 60) as $d) {
             $this->line('  '.$d);
         }
-        $this->line('Now run: php artisan cet:purge-calendar && php artisan cet:sync-calendar');
+
+        if ($dry) {
+            $this->info(count($details).' duplicate(s) found. Re-run without --dry-run to remove them.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info("Removed {$removed} duplicate booking(s).");
+        if ($removed > 0) {
+            $this->line('Now run: php artisan cet:purge-calendar && php artisan cet:sync-calendar');
+        }
 
         return self::SUCCESS;
     }
