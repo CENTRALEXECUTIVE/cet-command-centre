@@ -410,9 +410,48 @@ class Booking extends Model
      */
     public static function flightRadarLink(?string $flightNumber): ?string
     {
-        $fn = strtolower(preg_replace('/\s+/', '', (string) $flightNumber));
+        $fn = self::normaliseFlightNumberForFr24($flightNumber);
 
         return $fn !== '' ? 'https://www.flightradar24.com/data/flights/'.$fn : null;
+    }
+
+    /**
+     * Flightradar24's /data/flights/ URL is strict: it wants the 2-letter IATA
+     * airline code and the flight number with NO leading zeros (e.g. "vs74").
+     * Feeds often carry a 3-letter ICAO code ("AFR1169") or leading zeros
+     * ("VS0074"), which just don't load. Convert the common ICAO codes to IATA
+     * and strip leading zeros. Unrecognised formats fall back to a clean slug.
+     */
+    public static function normaliseFlightNumberForFr24(?string $flightNumber): string
+    {
+        $raw = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $flightNumber));
+        if ($raw === '') {
+            return '';
+        }
+
+        // ICAO (3-letter) → IATA (2-letter) for the carriers a UK transfer firm
+        // actually sees. Extend as needed.
+        $icaoToIata = [
+            'BAW' => 'BA', 'VIR' => 'VS', 'EZY' => 'U2', 'RYR' => 'FR', 'EXS' => 'LS',
+            'TOM' => 'BY', 'DLH' => 'LH', 'AFR' => 'AF', 'KLM' => 'KL', 'UAE' => 'EK',
+            'QTR' => 'QR', 'ETD' => 'EY', 'DAL' => 'DL', 'UAL' => 'UA', 'AAL' => 'AA',
+            'ACA' => 'AC', 'SWR' => 'LX', 'IBE' => 'IB', 'TAP' => 'TP', 'THY' => 'TK',
+            'ELY' => 'LY', 'SAS' => 'SK', 'AUA' => 'OS', 'BEL' => 'SN', 'EIN' => 'EI',
+            'WZZ' => 'W6', 'FIN' => 'AY', 'ICE' => 'FI', 'QFA' => 'QF', 'SIA' => 'SQ',
+            'CPA' => 'CX', 'ANA' => 'NH', 'JAL' => 'JL', 'ETH' => 'ET', 'MSR' => 'MS',
+            'RJA' => 'RJ', 'SVA' => 'SV', 'GFA' => 'GF', 'OMA' => 'WY', 'PIA' => 'PK',
+            'AIC' => 'AI', 'THA' => 'TG', 'MAS' => 'MH', 'CCA' => 'CA', 'CES' => 'MU',
+            'CSN' => 'CZ', 'KAL' => 'KE', 'AZA' => 'AZ', 'ITY' => 'AZ', 'LOT' => 'LO',
+        ];
+
+        // Airline code (2 or 3 letters) + flight number.
+        if (preg_match('/^([A-Z]{2,3})0*(\d+)([A-Z]?)$/', $raw, $m)) {
+            $code = $icaoToIata[$m[1]] ?? $m[1];
+
+            return strtolower($code.$m[2].$m[3]);
+        }
+
+        return strtolower($raw);
     }
 
     /** Google live flight-status search (shows the status card) for a flight number. */

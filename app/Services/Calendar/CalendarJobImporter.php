@@ -22,7 +22,9 @@ class CalendarJobImporter
 {
     /**
      * Is there already a booking for this parsed event? Matched by linked
-     * Google event id first, then by the reference.
+     * Google event id, then the reference, then a fuzzy match on the journey —
+     * so the 5-minute import never creates a second booking for one already in
+     * the system (the usual cause of "2 on the Command Centre, 1 on the calendar").
      */
     public function existingBookingFor(array $parsed): ?Booking
     {
@@ -32,9 +34,36 @@ class CalendarJobImporter
         }
 
         if (! empty($parsed['reference'])) {
-            return Booking::where('external_reference', $parsed['reference'])
-                ->orWhere('reference', $parsed['reference'])
-                ->first();
+            if ($byRef = Booking::where('external_reference', $parsed['reference'])
+                ->orWhere('reference', $parsed['reference'])->first()) {
+                return $byRef;
+            }
+        }
+
+        // No reference (or unmatched) → the event carries no id we know. Fall back
+        // to the journey itself: same pickup minute AND a matching phone, drop-off
+        // or customer name. Requires at least one identifier so we never collapse
+        // two genuinely different jobs that merely share a pickup time.
+        $pickup = $parsed['pickup_at'] ?? null;
+        $phone = $parsed['customer_phone'] ?? null;
+        $dropoff = $parsed['destination_address'] ?? null;
+        $name = $parsed['customer_name'] ?? null;
+
+        if ($pickup && ($phone || $dropoff || $name)) {
+            return Booking::whereBetween('pickup_at', [
+                $pickup->copy()->subMinute(),
+                $pickup->copy()->addMinute(),
+            ])->where(function ($q) use ($phone, $dropoff, $name) {
+                if ($phone) {
+                    $q->orWhereHas('customer', fn ($c) => $c->where('phone', $phone));
+                }
+                if ($dropoff) {
+                    $q->orWhere('destination_address', $dropoff);
+                }
+                if ($name) {
+                    $q->orWhereHas('customer', fn ($c) => $c->where('name', $name));
+                }
+            })->first();
         }
 
         return null;

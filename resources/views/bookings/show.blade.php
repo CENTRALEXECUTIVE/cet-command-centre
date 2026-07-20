@@ -753,20 +753,24 @@
 
     @if($auditLogs->isNotEmpty())
         <div class="card">
-            <h2>Audit Trail</h2>
-            <table>
-                <thead><tr><th>When</th><th>Action</th><th>By</th><th>Changed</th></tr></thead>
-                <tbody>
-                    @foreach($auditLogs as $log)
-                        <tr>
-                            <td>{{ $log->created_at?->format('d M H:i:s') }}</td>
-                            <td>{{ ucfirst($log->action) }}</td>
-                            <td>{{ $log->user?->name ?? 'System' }}</td>
-                            <td class="mono" style="font-size:11px">{{ $log->new_values ? implode(', ', array_keys($log->new_values)) : '—' }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <details>
+                <summary style="cursor:pointer;font-weight:700;font-size:16px">Audit trail <span class="muted" style="font-weight:400;font-size:13px">· latest {{ $auditLogs->count() }}@if(($auditLogTotal ?? 0) > $auditLogs->count()) of {{ $auditLogTotal }}@endif</span></summary>
+                <div style="overflow-x:auto;margin-top:10px">
+                <table>
+                    <thead><tr><th>When</th><th>Action</th><th>By</th><th>Changed</th></tr></thead>
+                    <tbody>
+                        @foreach($auditLogs as $log)
+                            <tr>
+                                <td style="white-space:nowrap">{{ $log->created_at?->format('d M H:i') }}</td>
+                                <td>{{ ucfirst($log->action) }}</td>
+                                <td>{{ $log->user?->name ?? 'System' }}</td>
+                                <td class="mono" style="font-size:11px">{{ $log->new_values ? implode(', ', array_keys($log->new_values)) : '—' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                </div>
+            </details>
         </div>
     @endif
 

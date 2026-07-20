@@ -375,9 +375,12 @@ class BookingController extends Controller
             }
         }
 
+        // Newest first, capped — the full history is rarely needed and made the
+        // page very long. Show the latest handful; older entries stay in the DB.
         $auditLogs = $request->user()->isAdmin()
-            ? $booking->auditLogs()->with('user')->latest('created_at')->get()
+            ? $booking->auditLogs()->with('user')->latest('created_at')->limit(8)->get()
             : collect();
+        $auditLogTotal = $request->user()->isAdmin() ? $booking->auditLogs()->count() : 0;
 
         // Drivers to prefill the "driver for this job" picker (admins only):
         // the cover-driver roster plus any system drivers not already in it.
@@ -417,7 +420,7 @@ class BookingController extends Controller
         $canScan = $request->user()->isAdmin()
             && $this->google->configured() && $this->google->active();
 
-        return compact('booking', 'auditLogs', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan');
+        return compact('booking', 'auditLogs', 'auditLogTotal', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan');
     }
 
     /**
