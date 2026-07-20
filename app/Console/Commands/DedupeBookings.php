@@ -33,7 +33,7 @@ class DedupeBookings extends Command
 
         $bookings = Booking::whereNotNull('external_reference')
             ->where('external_reference', '!=', '')
-            ->with(['customer:id,phone'])
+            ->with(['customer:id,phone', 'calendarEvent:id,booking_id'])
             ->withCount('tipEntries')
             ->get();
 
@@ -47,28 +47,23 @@ class DedupeBookings extends Command
                 continue;
             }
 
-            // Rank so the copy we KEEP is the safest: money data first (never
-            // delete the one holding tips/payroll), then a curated import, then
-            // the most detail, then the oldest.
-            $sorted = $group->sort(function ($a, $b) {
-                $am = ($a->tip_entries_count > 0 || ! empty($a->meta['payroll'])) ? 0 : 1;
-                $bm = ($b->tip_entries_count > 0 || ! empty($b->meta['payroll'])) ? 0 : 1;
-                if ($am !== $bm) {
-                    return $am <=> $bm;
-                }
-                $ai = $a->source === 'import' ? 0 : 1;
-                $bi = $b->source === 'import' ? 0 : 1;
-                if ($ai !== $bi) {
-                    return $ai <=> $bi;
-                }
-                $ak = count((array) ($a->meta ?? []));
-                $bk = count((array) ($b->meta ?? []));
-                if ($ak !== $bk) {
-                    return $bk <=> $ak;
-                }
-
-                return $a->id <=> $b->id;
-            })->values();
+            // Rank so we KEEP the copy you've actually worked. Lower wins:
+            //   1. carries money data (tips/payroll)   — never delete money
+            //   2. not cancelled                        — keep the live one
+            //   3. has a driver assigned                — it's been worked
+            //   4. linked to the Google calendar event  — the "real" one
+            //   5. a curated import over an auto-import
+            //   6. the most detail, then the oldest
+            $rank = fn (Booking $b) => [
+                ($b->tip_entries_count > 0 || ! empty($b->meta['payroll'])) ? 0 : 1,
+                $b->status?->value === 'cancelled' ? 1 : 0,
+                $b->driver_id ? 0 : 1,
+                $b->calendarEvent ? 0 : 1,
+                $b->source === 'import' ? 0 : 1,
+                -count((array) ($b->meta ?? [])),
+                $b->id,
+            ];
+            $sorted = $group->sortBy($rank)->values();
 
             $keep = $sorted->first();
             foreach ($sorted->slice(1) as $dupe) {

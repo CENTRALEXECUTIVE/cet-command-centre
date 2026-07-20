@@ -63,6 +63,18 @@ class DedupeBookingsCommandTest extends TestCase
         $this->assertSame(5.0, $survivor->tipsTotal());
     }
 
+    public function test_it_keeps_the_copy_that_has_a_driver_assigned(): void
+    {
+        $driver = \App\Models\User::factory()->driver()->create();
+        $unworked = $this->make('U6NAEK');
+        $worked = $this->make('U6NAEK', ['driver_id' => $driver->id]);
+
+        $this->artisan('cet:dedupe-bookings')->assertSuccessful();
+
+        $survivor = Booking::where('external_reference', 'U6NAEK')->sole();
+        $this->assertSame($worked->id, $survivor->id);
+    }
+
     public function test_bookings_without_a_reference_are_left_alone(): void
     {
         Booking::factory()->count(2)->forVehicleType(VehicleType::where('slug', 'executive')->first())
