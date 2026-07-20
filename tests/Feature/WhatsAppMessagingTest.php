@@ -54,11 +54,11 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertNotNull($confirmation);
         $this->assertEquals('sent', $confirmation->status);
 
-        // 24h and 2h reminders queued for the future.
+        // A single 24h reminder queued for the future — no 2h second nudge.
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h', 'status' => 'queued']);
-        $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_2h', 'status' => 'queued']);
+        $this->assertDatabaseMissing('messages', ['booking_id' => $booking->id, 'type' => 'reminder_2h']);
 
-        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_2h')->first();
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
         $this->assertTrue($reminder->scheduled_for->isFuture());
     }
 
@@ -258,12 +258,11 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertTrue((new Message(['type' => 'confirmation']))->isReadyToSend());
     }
 
-    public function test_2h_reminder_is_skipped_when_it_falls_overnight(): void
+    public function test_only_a_single_24h_reminder_is_scheduled_never_a_2h_one(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
         $admin = User::factory()->admin()->create();
 
-        // Pickup at 03:00 → 2h mark is 01:00, outside the window → no 2h nudge.
         $pickup = now()->addDays(5)->setTime(3, 0);
         $booking = app(BookingService::class)->createFromForm([
             'customer_name' => 'Night Owl', 'customer_phone' => '07700900556',
@@ -273,9 +272,10 @@ class WhatsAppMessagingTest extends TestCase
             'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
         ], $admin);
 
+        // One reminder only — the 24h one. The 2h nudge was removed.
         $this->assertDatabaseMissing('messages', ['booking_id' => $booking->id, 'type' => 'reminder_2h']);
-        // The 24h reminder still exists (03:00 → 24h mark 03:00 → shifted to 08:00).
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
+        $this->assertSame(1, Message::where('booking_id', $booking->id)->whereIn('type', ['reminder_24h', 'reminder_2h'])->count());
     }
 
     public function test_late_booking_reminder_stays_on_the_list_until_it_is_sent(): void

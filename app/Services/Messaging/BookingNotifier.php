@@ -67,17 +67,12 @@ class BookingNotifier
             return;
         }
 
-        // ~24h reminder — clamped into the daytime window. If the ideal time has
-        // already passed (e.g. a job booked/imported inside 24h), make it due now
-        // so it lands on the "to send" list immediately.
+        // A single ~24h reminder — clamped into the daytime window. If the ideal
+        // time has already passed (e.g. a job booked/imported inside 24h), make it
+        // due now so it lands on the "to send" list immediately. That's the only
+        // reminder — one clean nudge, no second 2h message.
         $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
         $this->queueReminder($booking, 'reminder_24h', $at24h->isPast() ? now() : $at24h);
-
-        // 2h nudge — only if it naturally falls within waking hours.
-        $at2h = $booking->pickup_at->copy()->subHours(2);
-        if ($at2h->isFuture() && $this->withinSendWindow($at2h)) {
-            $this->queueReminder($booking, 'reminder_2h', $at2h);
-        }
     }
 
     /**
