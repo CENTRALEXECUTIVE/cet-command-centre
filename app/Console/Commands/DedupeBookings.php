@@ -6,39 +6,39 @@ use App\Models\Booking;
 use Illuminate\Console\Command;
 
 /**
- * Removes duplicate imported bookings — the same trip (same pickup minute + same
- * customer) that landed twice: an ETO file imported more than once, or a
- * calendar event auto-imported before the dedup match caught it. Keeps the
- * RICHEST copy — one carrying money data (tips/payroll) first, then a curated
- * import, then the most detail — and removes the rest.
+ * Removes duplicate imported bookings — two records that share the same ETO
+ * reference number are the SAME booking (an ETO file imported twice, or a
+ * calendar event auto-imported before the dedup match caught it). The reference
+ * is the identity, NOT the pickup time — a customer can reschedule and we update
+ * the time, so time is not a reliable key. Keeps the RICHEST copy — one carrying
+ * money data (tips/payroll) first, then a curated import, then the most detail —
+ * and removes the rest.
  *
  *   php artisan cet:dedupe-bookings --dry-run   # preview, deletes nothing
  *   php artisan cet:dedupe-bookings             # actually remove them
  *
- * Only ever touches imported bookings (source_system eto/calendar); bookings
- * created by hand in the office are never de-duplicated automatically. Run the
- * calendar purge + sync afterwards to rebuild one clean event per booking.
+ * Only groups bookings that actually carry a reference; anything without one is
+ * left untouched. Run the calendar purge + sync afterwards to rebuild one clean
+ * event per booking.
  */
 class DedupeBookings extends Command
 {
     protected $signature = 'cet:dedupe-bookings {--dry-run : List duplicates without deleting anything}';
 
-    protected $description = 'Remove duplicate imported bookings (same trip landed twice)';
+    protected $description = 'Remove duplicate bookings that share an ETO reference number';
 
     public function handle(): int
     {
         $dry = (bool) $this->option('dry-run');
 
-        $bookings = Booking::whereIn('source_system', ['eto', 'calendar'])
-            ->whereNotNull('pickup_at')
+        $bookings = Booking::whereNotNull('external_reference')
+            ->where('external_reference', '!=', '')
             ->with(['customer:id,phone'])
             ->withCount('tipEntries')
             ->get();
 
-        // Same trip = same pickup minute AND same customer (phone, else id).
-        $groups = $bookings->groupBy(
-            fn ($b) => $b->pickup_at->format('YmdHi').'|'.($b->customer->phone ?? 'c'.$b->customer_id)
-        );
+        // Same booking = same ETO reference number (case/space-insensitive).
+        $groups = $bookings->groupBy(fn ($b) => strtoupper(trim((string) $b->external_reference)));
 
         $removed = 0;
         $details = [];
@@ -74,7 +74,8 @@ class DedupeBookings extends Command
             foreach ($sorted->slice(1) as $dupe) {
                 $ref = $dupe->external_reference ?: $dupe->reference;
                 $keepRef = $keep->external_reference ?: $keep->reference;
-                $details[] = ($dry ? 'WOULD REMOVE ' : 'removed ')."{$ref} ({$dupe->pickup_at->format('D d M H:i')} {$dupe->displayName()}) — kept {$keepRef}";
+                $when = $dupe->pickup_at?->format('D d M H:i') ?? 'no time';
+                $details[] = ($dry ? 'WOULD REMOVE ' : 'removed ')."{$ref} ({$when} {$dupe->displayName()}) — kept {$keepRef}";
                 if (! $dry) {
                     $dupe->forceDelete();
                     $removed++;
