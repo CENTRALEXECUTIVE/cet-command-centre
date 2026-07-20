@@ -52,6 +52,9 @@ class JobsDayViewTest extends TestCase
 
     public function test_day_view_navigates_by_date(): void
     {
+        // Pin "now" so the target date is never "today" (which renders as "Today"
+        // rather than the full date) — keeps this deterministic year-round.
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-15 12:00:00'));
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->get(route('jobs.day', ['date' => '2026-07-20']))
             ->assertOk()->assertSee('20 July 2026');

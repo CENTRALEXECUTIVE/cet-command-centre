@@ -368,26 +368,18 @@ class BookingNotifier
      */
     public function reviewBody(Booking $booking): string
     {
-        $lines = [
+        // Review only — a single, clean call to action. No tip link here: two
+        // asks in one message hurt review conversion, and reviews matter more.
+        // The tip link lives elsewhere (the booking page / tracking page).
+        return implode("\n", [
             'Hi '.$this->firstName($booking).', we hope you had a smooth journey with '.self::FOOTER.'!',
             "We'd love to hear your feedback.",
             'If you could take a moment to leave us a quick review, it really helps us improve our service and means a lot to us 🙏',
             '👉 Google: '.config('cet.review_url'),
-        ];
-
-        // Offer a card tip for the driver when Square is live (a silent no-op
-        // otherwise). 100% goes to the driver; nothing is auto-charged.
-        if (app(\App\Services\Payments\SquareTipService::class)->enabled()) {
-            $driver = $booking->driverPublicName();
-            $lines[] = '';
-            $lines[] = '💛 Like to tip'.($driver ? ' '.$driver : ' your driver').'? '.$booking->tipUrl();
-        }
-
-        $lines[] = 'Thank you for choosing us, and we look forward to assisting you again soon.';
-        $lines[] = self::FOOTER;
-        $lines[] = '🌐 '.config('cet.website');
-
-        return implode("\n", $lines);
+            'Thank you for choosing us, and we look forward to assisting you again soon.',
+            self::FOOTER,
+            '🌐 '.config('cet.website'),
+        ]);
     }
 
     /**

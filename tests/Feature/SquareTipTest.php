@@ -204,23 +204,17 @@ class SquareTipTest extends TestCase
         $this->assertSame(0.0, $booking->fresh()->tipsTotal());
     }
 
-    public function test_review_message_carries_the_tip_link_only_when_square_is_on(): void
+    public function test_review_message_never_carries_a_tip_link(): void
     {
-        $driver = User::factory()->driver()->create(['name' => 'Majid Ali']);
-        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
-        $notifier = app(\App\Services\Messaging\BookingNotifier::class);
-
-        // Off → no tip line.
-        config(['services.square.access_token' => null, 'services.square.location_id' => null]);
-        $this->assertStringNotContainsString('/tip/', $notifier->reviewBody($booking));
-
-        // On → the customer tip link is included.
+        // Reviews get a clean, single ask — the tip link must NOT ride along,
+        // even when Square is live (it hurts review conversion).
         $this->configureSquare();
-        $booking->refresh();
-        $token = $booking->tipToken();
-        $body = $notifier->reviewBody($booking);
-        $this->assertStringContainsString('/tip/'.$token, $body);
-        $this->assertStringContainsString('Majid', $body);
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reviewBody($booking);
+
+        $this->assertStringContainsString('Google:', $body);       // still asks for the review
+        $this->assertStringNotContainsString('/tip/', $body);      // but no tip link
     }
 
     public function test_webhook_endpoint_rejects_a_bad_signature(): void
