@@ -73,6 +73,9 @@ class DriverAppTest extends TestCase
         // En Route side effects: tracking link + customer message.
         $this->assertNotNull($job->trackingLink);
         $this->assertDatabaseHas('messages', ['booking_id' => $job->id, 'type' => 'tracking_link']);
+
+        // The office gets a "driver has set off" ping in the alerts feed.
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $job->id, 'event_type' => 'driver_set_off']);
     }
 
     public function test_driver_cannot_update_another_drivers_job(): void

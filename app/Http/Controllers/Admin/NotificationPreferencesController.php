@@ -40,6 +40,7 @@ class NotificationPreferencesController extends Controller
             }
             $prefs['critical_only'] = (bool) ($row['critical_only'] ?? false);
             $prefs['chime'] = (bool) ($row['chime'] ?? false);
+            $prefs['alarm'] = (bool) ($row['alarm'] ?? false);
 
             $admin->forceFill(['notification_preferences' => $prefs])->save();
         }

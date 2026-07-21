@@ -59,6 +59,11 @@
                                name="prefs[{{ $admin->id }}][chime]" value="1" @checked($p['chime'])>
                         <label for="p{{ $admin->id }}_chime">Soft chime on new critical alerts (dashboard open)</label>
                     </div>
+                    <div class="checkbox-row">
+                        <input id="p{{ $admin->id }}_alarm" type="checkbox"
+                               name="prefs[{{ $admin->id }}][alarm]" value="1" @checked($p['alarm'] ?? false)>
+                        <label for="p{{ $admin->id }}_alarm"><strong>🚨 Alarm</strong> — loud repeating siren + buzz on 🔴 critical alerts, until you acknowledge or silence it (dashboard open)</label>
+                    </div>
                 </div>
             </div>
         @endforeach

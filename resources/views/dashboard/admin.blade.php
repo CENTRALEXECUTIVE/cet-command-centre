@@ -77,14 +77,18 @@
          acknowledged. Polls every 30s; chime per-admin preference. --}}
     <div class="card alerts-panel" id="alerts-panel"
          data-feed="{{ route('alerts.feed') }}"
-         data-chime="{{ auth()->user()->alertPreferences()['chime'] ? '1' : '0' }}">
+         data-chime="{{ auth()->user()->alertPreferences()['chime'] ? '1' : '0' }}"
+         data-alarm="{{ auth()->user()->alertPreferences()['alarm'] ? '1' : '0' }}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <h2 style="margin:0">🛰 Live alerts</h2>
-            <span class="muted" style="font-size:12px" id="alerts-stamp">Control-tower log — updates every 30s</span>
+            <div style="display:flex;align-items:center;gap:10px">
+                <button type="button" id="alerts-silence" class="btn btn-light" style="display:none;padding:6px 14px;font-size:13px;font-weight:700">🔕 Silence alarm</button>
+                <span class="muted" style="font-size:12px" id="alerts-stamp">Control-tower log — updates every 30s</span>
+            </div>
         </div>
         <div id="alerts-list" style="margin-top:10px"><p class="muted mb-0" style="font-size:13px">Loading…</p></div>
     </div>
-    <script src="{{ asset('js/cet-alerts.js') }}?v=3" defer></script>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=4" defer></script>
 
     @if(!empty($reviewReminder))
         <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">

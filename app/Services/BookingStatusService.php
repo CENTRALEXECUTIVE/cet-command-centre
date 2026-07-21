@@ -252,6 +252,14 @@ class BookingStatusService
         if ($to === BookingStatus::EnRoute) {
             $link = $this->ensureTrackingLink($booking);
             $this->notifier->sendTrackingLink($booking, route('track', $link->token));
+
+            // Tell the office the driver has set off — a positive ping (info, not
+            // an alarm). Shows in the alerts feed and pushes to admins who want it.
+            $driver = $booking->driverPublicName() ?: 'The driver';
+            $where = \Illuminate\Support\Str::before((string) $booking->pickup_address, ',');
+            $body = $driver.' has set off for the '.$booking->pickup_at->format('H:i').($where ? ' '.$where : '').' job';
+            \App\Models\WatchdogEvent::log('driver_set_off', $body, 'info', $booking);
+            $this->adminAlerts->notify('driver_set_off', '🚗 '.$driver.' has set off', $body, 'info', $booking);
         }
 
         // "Your driver has arrived" — sent when the driver marks Arrived.

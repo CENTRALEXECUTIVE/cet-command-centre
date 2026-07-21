@@ -55,17 +55,18 @@ class User extends Authenticatable
     public const ALERT_TYPES = [
         'unacted' => 'Driver ignoring nudges',
         'unallocated' => 'Job unallocated near pickup',
+        'driver_set_off' => 'Driver has set off',
         'reminder_due' => 'Pickup reminder due to send',
         'no_show_cancel' => 'No-show / cancellation',
         'calendar_import' => 'New booking from the calendar',
     ];
 
-    /** Preference defaults: every alert on, critical-only off, chime off. */
+    /** Preference defaults: every alert on, critical-only off, chime/alarm off. */
     public function alertPreferences(): array
     {
         return array_merge(
             array_fill_keys(array_keys(self::ALERT_TYPES), true),
-            ['critical_only' => false, 'chime' => false],
+            ['critical_only' => false, 'chime' => false, 'alarm' => false],
             $this->notification_preferences ?? [],
         );
     }
