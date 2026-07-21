@@ -247,6 +247,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
 
         // Marketing — Google Ads dashboard, keywords, SEO.
+        Route::get('marketing/studio', [\App\Http\Controllers\MarketingStudioController::class, 'index'])->name('marketing.studio');
+        Route::post('marketing/studio', [\App\Http\Controllers\MarketingStudioController::class, 'generate'])->middleware('throttle:20,1')->name('marketing.studio.generate');
         Route::get('marketing/ads', [ReportController::class, 'ads'])->name('marketing.ads');
         Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
         Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');
