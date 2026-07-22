@@ -238,12 +238,19 @@ class BookingStatusService
             $this->notifier->sendDriverDetails($booking->load(['customer', 'driver.driverProfile.defaultVehicle', 'vehicle', 'vehicleType']));
 
             // Buzz the driver's phone with the new job (even if the app is closed).
+            // Title carries the date & time; body carries the route + passenger so
+            // they know which job it is at a glance (matches the driver-link message).
             if ($booking->driver) {
-                $where = $booking->airport?->code ?: \Illuminate\Support\Str::before((string) $booking->pickup_address, ',');
+                $fromPlace = \Illuminate\Support\Str::before((string) $booking->displayPickupAddress(), ',');
+                $toPlace = $booking->airport?->code
+                    ?: \Illuminate\Support\Str::before((string) $booking->displayDropoffAddress(), ',');
+                $route = trim(trim((string) $fromPlace).' → '.trim((string) $toPlace), ' →');
+                $name = $booking->meta['lead_name'] ?? $booking->displayName();
+                $body = implode(' · ', array_filter([$route, $name]));
                 $this->push->sendToUser(
                     $booking->driver,
                     'New job — '.$booking->pickup_at->format('D d M, H:i'),
-                    trim(($where ? $where.' · ' : '').$booking->displayName()),
+                    $body,
                     ['url' => route('driver.job', $booking), 'tag' => 'job-'.$booking->id],
                 );
             }

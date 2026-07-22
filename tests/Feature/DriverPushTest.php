@@ -100,14 +100,21 @@ class DriverPushTest extends TestCase
         $spy->shouldReceive('sendToUser')->once()
             ->with(
                 \Mockery::on(fn ($u) => $u->id === $driver->id),
+                // Title leads with the date & time.
                 \Mockery::on(fn ($title) => str_contains($title, 'New job')),
-                \Mockery::any(),
+                // Body carries the route (→) and the passenger name.
+                \Mockery::on(fn ($body) => str_contains($body, '→') && str_contains($body, 'Jo Smith')),
                 \Mockery::on(fn ($opts) => str_contains($opts['url'] ?? '', '/driver/jobs/'))
             )
             ->andReturn(1);
         $this->instance(WebPushService::class, $spy);
 
-        $booking = Booking::factory()->create(['status' => BookingStatus::Pending]);
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Pending,
+            'pickup_address' => '21 Ecclesall Rd, Sheffield',
+            'destination_address' => 'Manchester Airport T2',
+            'meta' => ['lead_name' => 'Jo Smith'],
+        ]);
         app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
     }
 
