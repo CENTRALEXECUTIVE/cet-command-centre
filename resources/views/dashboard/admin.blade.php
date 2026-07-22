@@ -44,6 +44,16 @@
             <div class="kpi-n" data-countup="{{ round($todayRevenue) }}" data-prefix="£">£{{ number_format($todayRevenue, 0) }}</div>
             <div class="kpi-l">Today's booked value</div>
         </a>
+        <a class="kpi {{ $bookedTodayCount > 0 ? 'ok' : '' }}" href="{{ route('bookings.index') }}">
+            <div class="kpi-ico">📥</div>
+            <div class="kpi-n" data-countup="{{ $bookedTodayCount }}">{{ $bookedTodayCount }}</div>
+            <div class="kpi-l">Bookings taken today</div>
+        </a>
+        <a class="kpi {{ $bookedTodayRevenue > 0 ? 'ok' : '' }}" href="{{ route('bookings.index') }}">
+            <div class="kpi-ico">📈</div>
+            <div class="kpi-n" data-countup="{{ round($bookedTodayRevenue) }}" data-prefix="£">£{{ number_format($bookedTodayRevenue, 0) }}</div>
+            <div class="kpi-l">Revenue taken today</div>
+        </a>
         <a class="kpi {{ $cashToday > 0 ? 'warn' : '' }}" href="{{ route('payments.index') }}">
             <div class="kpi-ico">💰</div>
             <div class="kpi-n" data-countup="{{ round($cashToday) }}" data-prefix="£">£{{ number_format($cashToday, 0) }}</div>

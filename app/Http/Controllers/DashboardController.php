@@ -64,6 +64,14 @@ class DashboardController extends Controller
                 'todayRevenue' => (float) Booking::whereDate('pickup_at', today())
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->sum(DB::raw($revenue)),
+                // New business that CAME IN today — bookings taken today and their
+                // value (whenever they're actually travelling). "How did we do today."
+                'bookedTodayCount' => Booking::whereDate('created_at', today())
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->count(),
+                'bookedTodayRevenue' => (float) Booking::whereDate('created_at', today())
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->sum(DB::raw($revenue)),
                 'weekCount' => Booking::whereBetween('pickup_at', [now()->startOfDay(), now()->addDays(7)->endOfDay()])
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->count(),
