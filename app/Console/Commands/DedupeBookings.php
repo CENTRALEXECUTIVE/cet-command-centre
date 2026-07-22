@@ -116,7 +116,7 @@ class DedupeBookings extends Command
 
         $this->info("Merged & removed {$removed} duplicate booking(s).");
         if ($removed > 0) {
-            $this->line('Now run: php artisan cet:purge-calendar && php artisan cet:sync-calendar');
+            $this->line('Done — Command Centre only. Your Google Calendar was not touched, and nothing else needs running.');
         }
 
         return self::SUCCESS;
