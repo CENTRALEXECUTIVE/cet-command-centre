@@ -4,6 +4,7 @@ namespace App\Services\Bookings;
 
 use App\Models\Booking;
 use App\Models\BookingTip;
+use App\Models\Message;
 
 /**
  * Folds one booking (the duplicate) into another (the one we keep) without
@@ -26,6 +27,12 @@ class BookingMerger
     {
         // Money moves with the journey — reassign any tips to the survivor.
         BookingTip::where('booking_id', $dupe->id)->update(['booking_id' => $keep->id]);
+
+        // Messages (reminders, review requests, sent history) move to the
+        // survivor so nothing is orphaned or left firing for a booking that no
+        // longer exists — this is what kept showing a duplicate WhatsApp
+        // reminder after a merge.
+        Message::where('booking_id', $dupe->id)->update(['booking_id' => $keep->id]);
 
         // Take the calendar link if the survivor hasn't got one.
         if (! $keep->calendarEvent && $dupe->calendarEvent) {
@@ -55,5 +62,24 @@ class BookingMerger
         $fill['meta'] = array_merge($dupe->meta ?? [], $keep->meta ?? []);
 
         $keep->forceFill($fill)->save();
+
+        $this->collapseDuplicateQueuedMessages($keep);
+    }
+
+    /**
+     * After folding two bookings together the survivor can hold two still-queued
+     * reminders (or review requests) of the same type — one from each copy. Keep
+     * one per type and drop the rest, so the office isn't shown (or doesn't send)
+     * the same nudge twice. Sent history is left untouched.
+     */
+    private function collapseDuplicateQueuedMessages(Booking $keep): void
+    {
+        $keep->messages()
+            ->where('status', 'queued')
+            ->get()
+            ->groupBy('type')
+            ->each(function ($group): void {
+                $group->sortBy('id')->slice(1)->each(fn (Message $m) => $m->delete());
+            });
     }
 }

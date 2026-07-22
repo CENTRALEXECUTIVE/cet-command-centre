@@ -63,6 +63,36 @@ class BookingMergeTest extends TestCase
         $this->assertSame(10.0, $survivor->tipsTotal());
     }
 
+    public function test_merging_leaves_only_one_queued_reminder(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::factory()->create(['phone' => '+447700900123']);
+        $at = now()->addDay()->setTime(13, 45);
+
+        $keep = $this->booking(['customer_id' => $customer->id, 'pickup_at' => $at]);
+        $dupe = $this->booking(['customer_id' => $customer->id, 'pickup_at' => $at]);
+
+        // Each copy carries its own queued 24h reminder — the cause of the
+        // doubled-up WhatsApp reminder after a merge.
+        foreach ([$keep, $dupe] as $b) {
+            \App\Models\Message::create([
+                'booking_id' => $b->id, 'customer_id' => $customer->id,
+                'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+                'to_address' => $customer->phone, 'body' => 'reminder', 'status' => 'queued',
+                'scheduled_for' => $at->copy()->subDay(),
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->post(route('bookings.merge', $keep), ['dupe_id' => $dupe->id])
+            ->assertRedirect(route('bookings.show', $keep));
+
+        // Exactly one queued reminder remains, on the survivor.
+        $this->assertNull($dupe->fresh());
+        $this->assertSame(1, \App\Models\Message::where('type', 'reminder_24h')->where('status', 'queued')->count());
+        $this->assertSame(1, $keep->messages()->where('type', 'reminder_24h')->count());
+    }
+
     public function test_it_refuses_to_merge_two_unrelated_bookings(): void
     {
         $admin = User::factory()->admin()->create();
