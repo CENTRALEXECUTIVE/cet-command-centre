@@ -44,12 +44,19 @@
         @if($dupes->isNotEmpty())
             <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
                 <strong>⚠ Possible duplicate booking</strong>
-                <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off). Check both and cancel the extra one so a driver isn’t sent twice.</p>
-                <ul style="margin:0;padding-left:18px">
-                    @foreach($dupes as $d)
-                        <li><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</li>
-                    @endforeach
-                </ul>
+                <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off). Keep <strong>this</strong> copy and merge the other in — its driver, tips, calendar link and any missing details fold into this one, then it’s removed. <strong>Your Google Calendar isn’t touched.</strong></p>
+                @foreach($dupes as $d)
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(179,32,32,.15)">
+                        <span><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</span>
+                        <form method="POST" action="{{ route('bookings.merge', $booking) }}" style="margin:0"
+                              onsubmit="return confirm('Merge {{ $d->reference }} into this booking? The other copy is removed. This does NOT touch Google Calendar.')">
+                            @csrf
+                            <input type="hidden" name="dupe_id" value="{{ $d->id }}">
+                            <button class="btn" style="background:#b32020;color:#fff;padding:7px 14px;font-size:13px">⇄ Merge into this one</button>
+                        </form>
+                    </div>
+                @endforeach
+                <p class="hint" style="margin:8px 0 0">Tip: do this from the copy that’s already <strong>allocated to a driver</strong>, so the allocation stays put.</p>
             </div>
         @endif
     @endif

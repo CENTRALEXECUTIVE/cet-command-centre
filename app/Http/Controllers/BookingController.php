@@ -243,6 +243,40 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} cancelled. Remember to remove it from Google Calendar if it was pushed there.");
     }
 
+    /**
+     * Merge a duplicate booking into this one. $booking is the copy we KEEP;
+     * the duplicate is folded in (driver, tips, calendar link, any blank fields,
+     * merged meta) and then removed — a "replace", not a bare delete. Only allowed
+     * when the two are genuinely the same journey (same pickup minute + customer),
+     * so a bad request can't merge two unrelated bookings. Calendar untouched.
+     */
+    public function merge(Request $request, Booking $booking, \App\Services\Bookings\BookingMerger $merger): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['dupe_id' => ['required', 'integer']]);
+
+        $dupe = Booking::findOrFail($data['dupe_id']);
+        if ($dupe->id === $booking->id) {
+            throw ValidationException::withMessages(['dupe_id' => 'A booking cannot be merged into itself.']);
+        }
+
+        // Only merge a booking the page actually flagged as a same-journey twin,
+        // so a stray request can never fold two unrelated jobs together.
+        if (! $booking->duplicateCandidates()->contains('id', $dupe->id)) {
+            throw ValidationException::withMessages([
+                'dupe_id' => 'These bookings are not the same journey, so they were not merged.',
+            ]);
+        }
+
+        $mergedRef = $dupe->external_reference ?: $dupe->reference;
+        $merger->mergeAndDelete($booking, $dupe);
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Merged {$mergedRef} into this booking — one record now. Google Calendar was not touched.");
+    }
+
     /** @return array<string, mixed> */
     /**
      * Toggle number masking for a single job. Turning it OFF frees both sides

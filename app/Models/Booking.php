@@ -206,6 +206,30 @@ class Booking extends Model
         return implode("\n", $lines);
     }
 
+    /**
+     * A journey signature: the pickup minute + the customer (phone if we have
+     * it, else the name). Two records that share it are the same journey. Null
+     * when we can't identify it confidently — those are never matched, so we
+     * never collapse two different jobs that merely share a time.
+     */
+    public function journeySignature(): ?string
+    {
+        if (! $this->pickup_at) {
+            return null;
+        }
+
+        $phone = \App\Support\Phone::wa($this->customer?->phone);
+        if (filled($phone)) {
+            $customer = 'p:'.$phone;
+        } elseif (filled($this->customer?->name)) {
+            $customer = 'n:'.strtolower(preg_replace('/\s+/', ' ', trim($this->customer->name)));
+        } else {
+            return null;
+        }
+
+        return $this->pickup_at->format('YmdHi').'|'.$customer;
+    }
+
     /** Resolve a booking from a driver-link token, or null. */
     public static function byDriverLinkToken(string $token): ?self
     {

@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Booking;
-use App\Support\Phone;
+use App\Services\Bookings\BookingMerger;
 use Illuminate\Console\Command;
 
 /**
@@ -38,7 +38,7 @@ class DedupeBookings extends Command
 
     protected $description = 'Remove duplicate bookings (same ETO reference, or same journey with no reference match)';
 
-    public function handle(): int
+    public function handle(BookingMerger $merger): int
     {
         $dry = (bool) $this->option('dry-run');
 
@@ -65,8 +65,7 @@ class DedupeBookings extends Command
                 $details[] = $this->describe($dupe, $keep, 'same reference', $dry);
                 $removedIds[] = $dupe->id;
                 if (! $dry) {
-                    $this->mergeInto($keep, $dupe);
-                    $dupe->forceDelete();
+                    $merger->mergeAndDelete($keep, $dupe);
                     $removed++;
                 }
             }
@@ -75,8 +74,8 @@ class DedupeBookings extends Command
         // ---- Pass 2: same journey, missing / one reference. ----
         $survivors = $bookings->reject(fn ($b) => in_array($b->id, $removedIds, true));
         $sigGroups = $survivors
-            ->filter(fn ($b) => $this->signature($b) !== null)
-            ->groupBy(fn ($b) => $this->signature($b));
+            ->filter(fn ($b) => $b->journeySignature() !== null)
+            ->groupBy(fn ($b) => $b->journeySignature());
 
         foreach ($sigGroups as $group) {
             if ($group->count() < 2) {
@@ -97,8 +96,7 @@ class DedupeBookings extends Command
             foreach ($sorted->slice(1) as $dupe) {
                 $details[] = $this->describe($dupe, $keep, 'same journey, no ref match', $dry);
                 if (! $dry) {
-                    $this->mergeInto($keep, $dupe);
-                    $dupe->forceDelete();
+                    $merger->mergeAndDelete($keep, $dupe);
                     $removed++;
                 }
             }
@@ -144,71 +142,11 @@ class DedupeBookings extends Command
         ];
     }
 
-    /**
-     * A journey signature for the second pass: the pickup minute + the customer
-     * (phone if we have it, otherwise the name). Null when we can't identify the
-     * journey confidently — those are never matched, so we never collapse two
-     * different jobs that merely share a time.
-     */
-    private function signature(Booking $b): ?string
-    {
-        if (! $b->pickup_at) {
-            return null;
-        }
-
-        $phone = Phone::wa($b->customer?->phone);
-        if (filled($phone)) {
-            $customer = 'p:'.$phone;
-        } elseif (filled($b->customer?->name)) {
-            $customer = 'n:'.strtolower(preg_replace('/\s+/', ' ', trim($b->customer->name)));
-        } else {
-            return null;
-        }
-
-        return $b->pickup_at->format('YmdHi').'|'.$customer;
-    }
-
     private function describe(Booking $dupe, Booking $keep, string $why, bool $dry): string
     {
         $ref = $dupe->external_reference ?: $dupe->reference ?: 'no ref';
         $when = $dupe->pickup_at?->format('D d M H:i') ?? 'no time';
 
         return ($dry ? 'WOULD MERGE ' : 'merged ')."{$ref} ({$when} {$dupe->displayName()}) [{$why}] → kept copy #{$keep->id}";
-    }
-
-    /**
-     * Fold everything useful from a duplicate into the copy we're keeping, so
-     * removing the duplicate loses nothing — a "replace", not a bare delete.
-     */
-    private function mergeInto(Booking $keep, Booking $dupe): void
-    {
-        // Money moves with the journey — reassign any tips to the survivor.
-        \App\Models\BookingTip::where('booking_id', $dupe->id)->update(['booking_id' => $keep->id]);
-
-        // Take the calendar link if the survivor hasn't got one.
-        if (! $keep->calendarEvent && $dupe->calendarEvent) {
-            $dupe->calendarEvent->forceFill(['booking_id' => $keep->id])->save();
-        }
-
-        // Take the reference if the survivor is missing one (the no-ref intake
-        // copy folding into a referenced one, or vice-versa).
-        $fill = [];
-        if (blank($keep->external_reference) && filled($dupe->external_reference)) {
-            $fill['external_reference'] = $dupe->external_reference;
-        }
-
-        // Fill any blank fields on the survivor from the duplicate.
-        foreach ([
-            'driver_id', 'vehicle_id', 'airport_id', 'quoted_price', 'final_price',
-            'flight_number', 'destination_address', 'pickup_address', 'special_requests',
-        ] as $col) {
-            if (blank($keep->$col) && filled($dupe->$col)) {
-                $fill[$col] = $dupe->$col;
-            }
-        }
-        // Merge meta so nothing (payroll, notes, tokens, audit) is lost —
-        // the survivor's own values win any conflict.
-        $fill['meta'] = array_merge($dupe->meta ?? [], $keep->meta ?? []);
-        $keep->forceFill($fill)->save();
     }
 }
