@@ -61,6 +61,23 @@ class BookingMerger
         // survivor's own values win any conflict.
         $fill['meta'] = array_merge($dupe->meta ?? [], $keep->meta ?? []);
 
+        // Keep the duplicate's DRIVER-LINK token(s) alive as aliases on the
+        // survivor: a link already sent to a driver for the merged-away copy must
+        // still open this booking, not die when the copy is deleted.
+        $aliases = (array) ($fill['meta']['driver_link_aliases'] ?? []);
+        $carry = array_merge(
+            [$dupe->driver_link_token ?? null, $dupe->meta['driver_link_token'] ?? null],
+            (array) ($dupe->meta['driver_link_aliases'] ?? [])
+        );
+        foreach ($carry as $token) {
+            if (filled($token) && $token !== ($keep->driver_link_token ?? null) && ! in_array($token, $aliases, true)) {
+                $aliases[] = $token;
+            }
+        }
+        if ($aliases) {
+            $fill['meta']['driver_link_aliases'] = array_values($aliases);
+        }
+
         $keep->forceFill($fill)->save();
 
         $this->collapseDuplicateQueuedMessages($keep);

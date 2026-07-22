@@ -93,6 +93,28 @@ class BookingMergeTest extends TestCase
         $this->assertSame(1, $keep->messages()->where('type', 'reminder_24h')->count());
     }
 
+    public function test_a_driver_link_still_works_after_its_booking_is_merged_away(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::factory()->create(['phone' => '+447700900123']);
+        $at = now()->addDay()->setTime(13, 45);
+
+        $keep = $this->booking(['customer_id' => $customer->id, 'pickup_at' => $at]);
+        $dupe = $this->booking(['customer_id' => $customer->id, 'pickup_at' => $at]);
+
+        // A driver was already sent the DUPE's link.
+        $dupeToken = $dupe->driverLinkToken();
+
+        $this->actingAs($admin)
+            ->post(route('bookings.merge', $keep), ['dupe_id' => $dupe->id])
+            ->assertRedirect(route('bookings.show', $keep));
+
+        // The dupe is gone, but its link now opens the surviving booking.
+        $this->assertNull($dupe->fresh());
+        $this->assertTrue(Booking::byDriverLinkToken($dupeToken)?->is($keep));
+        $this->get(route('driver.link', $dupeToken))->assertOk();
+    }
+
     public function test_it_refuses_to_merge_two_unrelated_bookings(): void
     {
         $admin = User::factory()->admin()->create();

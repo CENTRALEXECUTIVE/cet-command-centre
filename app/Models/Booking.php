@@ -244,9 +244,22 @@ class Booking extends Model
             // JSON query quirk — fall through to the PHP scan
         }
 
+        // Aliases: a link sent for a copy that was later MERGED into another
+        // booking must still resolve to the survivor (the token is carried over).
+        try {
+            if ($found = static::whereJsonContains('meta->driver_link_aliases', $token)->first()) {
+                return $found;
+            }
+        } catch (\Throwable) {
+            // fall through to the PHP scan
+        }
+
         // Safety net: a valid link must never fail to resolve.
-        return static::whereNotNull('meta->driver_link_token')->get()
-            ->first(fn ($b) => ($b->meta['driver_link_token'] ?? null) === $token);
+        return static::where(fn ($q) => $q->whereNotNull('meta->driver_link_token')
+                ->orWhereNotNull('meta->driver_link_aliases'))
+            ->get()
+            ->first(fn ($b) => ($b->meta['driver_link_token'] ?? null) === $token
+                || in_array($token, (array) ($b->meta['driver_link_aliases'] ?? []), true));
     }
 
     /** When the office last asked the driver to share their location. */
