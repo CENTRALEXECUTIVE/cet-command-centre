@@ -18,7 +18,7 @@ class DedupeBookingsCommandTest extends TestCase
         $this->seed(VehicleTypeSeeder::class);
     }
 
-    private function make(string $ref, array $attrs = []): Booking
+    private function make(?string $ref, array $attrs = []): Booking
     {
         return Booking::factory()
             ->forVehicleType(VehicleType::where('slug', 'executive')->first())
@@ -95,11 +95,49 @@ class DedupeBookingsCommandTest extends TestCase
 
     public function test_bookings_without_a_reference_are_left_alone(): void
     {
+        // Different customers → different journeys → untouched.
         Booking::factory()->count(2)->forVehicleType(VehicleType::where('slug', 'executive')->first())
             ->create(['external_reference' => null]);
 
         $this->artisan('cet:dedupe-bookings')->assertSuccessful();
 
         $this->assertSame(2, Booking::whereNull('external_reference')->count());
+    }
+
+    public function test_it_merges_a_no_reference_copy_into_the_calendar_copy(): void
+    {
+        // The classic "two on the Command Centre, one on the calendar": same
+        // customer, same pickup minute — one has the ETO ref (from the calendar
+        // import), one has none (the old paste-a-booking copy). They never share
+        // a reference, so only the journey match catches them.
+        $customer = \App\Models\Customer::factory()->create(['phone' => '+447700900123']);
+        $at = now()->addDay()->setTime(14, 30);
+
+        $noRef = $this->make(null, ['customer_id' => $customer->id, 'pickup_at' => $at]);
+        $withRef = $this->make('U6NAEK', ['customer_id' => $customer->id, 'pickup_at' => $at]);
+        $withRef->logTip(5.0, 'card'); // richer copy → the survivor
+
+        $this->artisan('cet:dedupe-bookings')->assertSuccessful();
+
+        // One record left, carrying the reference and the money.
+        $survivor = Booking::where('customer_id', $customer->id)->sole();
+        $this->assertSame($withRef->id, $survivor->id);
+        $this->assertSame('U6NAEK', $survivor->external_reference);
+        $this->assertNull($noRef->fresh());
+    }
+
+    public function test_it_never_merges_two_different_references_in_the_same_slot(): void
+    {
+        // Same customer + minute but TWO different ETO references = a genuine
+        // re-book that isn't on the calendar yet. By rule these stay separate.
+        $customer = \App\Models\Customer::factory()->create(['phone' => '+447700900999']);
+        $at = now()->addDay()->setTime(9, 15);
+
+        $this->make('OLDREF', ['customer_id' => $customer->id, 'pickup_at' => $at]);
+        $this->make('NEWREF', ['customer_id' => $customer->id, 'pickup_at' => $at]);
+
+        $this->artisan('cet:dedupe-bookings')->assertSuccessful();
+
+        $this->assertSame(2, Booking::where('customer_id', $customer->id)->count());
     }
 }
