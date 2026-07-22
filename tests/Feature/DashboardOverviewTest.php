@@ -72,6 +72,31 @@ class DashboardOverviewTest extends TestCase
         $res->assertSee('Bookings taken today', false)->assertSee('Revenue taken today', false);
     }
 
+    public function test_a_cancelled_booking_is_not_in_the_review_worklist(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Rev Test', 'phone' => '07000000002']);
+
+        $cancelled = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->subHours(3),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => BookingStatus::Cancelled->value, 'payment_method' => 'cash',
+        ]);
+
+        // A review request left queued from before it was cancelled.
+        \App\Models\Message::create([
+            'booking_id' => $cancelled->id, 'customer_id' => $customer->id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'review_request',
+            'to_address' => $customer->phone, 'body' => 'review', 'status' => 'queued',
+            'scheduled_for' => now()->subHour(),
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $this->assertCount(0, $res->viewData('reviewsToSend'));
+    }
+
     public function test_compliance_alert_shows_a_blocked_driver(): void
     {
         $admin = User::factory()->admin()->create();

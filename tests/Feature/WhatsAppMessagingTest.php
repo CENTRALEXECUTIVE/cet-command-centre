@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Message;
 use App\Models\User;
@@ -496,6 +497,27 @@ class WhatsAppMessagingTest extends TestCase
         $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
         $this->assertStringContainsString('Hi David,', $body);
         $this->assertStringNotContainsString('♿', $body);
+    }
+
+    public function test_cancelling_a_booking_clears_its_queued_reminder_and_review(): void
+    {
+        $booking = $this->makeBooking(); // comes with a queued 24h reminder
+        $admin = User::factory()->admin()->create();
+
+        \App\Models\Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'review_request',
+            'to_address' => '07700900123', 'body' => 'review', 'status' => 'queued',
+            'scheduled_for' => now()->addHour(),
+        ]);
+        $this->assertTrue($booking->messages()->where('status', 'queued')->exists());
+
+        app(\App\Services\BookingStatusService::class)
+            ->forceTransition($booking, BookingStatus::Cancelled, $admin, 'test cancel');
+
+        // No queued reminder or review left to chase for a cancelled job.
+        $this->assertSame(0, $booking->messages()->where('status', 'queued')
+            ->whereIn('type', ['reminder_24h', 'reminder_2h', 'review_request'])->count());
     }
 
     public function test_manual_driver_details_go_into_the_reminder(): void

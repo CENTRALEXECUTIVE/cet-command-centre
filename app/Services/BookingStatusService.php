@@ -299,6 +299,15 @@ class BookingStatusService
             $this->waitingList->notifyForCancellation($booking);
         }
 
+        // Cancelled / no-show: there was no journey, so drop any queued reminder
+        // or review request — they must never sit in the office worklists.
+        if (in_array($to, [BookingStatus::Cancelled, BookingStatus::NoShow], true)) {
+            $booking->messages()
+                ->where('status', 'queued')
+                ->whereIn('type', ['reminder_24h', 'reminder_2h', 'review_request'])
+                ->delete();
+        }
+
         // Job closed (complete / cancelled / no-show): wind the public tracking
         // link down shortly after, so the customer sees the final status for a
         // little while and then the link expires. GPS pings already stop on

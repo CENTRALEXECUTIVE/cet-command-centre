@@ -183,7 +183,11 @@ class DashboardController extends Controller
             ->where('status', 'queued')
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '<=', now()->addDay()) // due now + queued for later today
-            ->whereHas('booking')
+            // Never chase a review for a cancelled / no-show job — there was no journey.
+            ->whereHas('booking', fn ($q) => $q->whereNotIn('status', [
+                BookingStatus::Cancelled->value,
+                BookingStatus::NoShow->value,
+            ]))
             ->with(['booking.customer'])
             ->orderBy('scheduled_for')
             ->get()
