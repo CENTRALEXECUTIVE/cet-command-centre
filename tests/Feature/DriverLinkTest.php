@@ -156,10 +156,10 @@ class DriverLinkTest extends TestCase
             ->assertSee($token, false);
     }
 
-    public function test_the_link_message_carries_a_few_key_details(): void
+    public function test_the_link_message_carries_only_name_and_datetime(): void
     {
-        // Maj's ask: date & time (so they don't forget) + route + passenger,
-        // then the link — a short reminder, not the whole sheet.
+        // Deliberately minimal: customer name + weekday/date/time (numbers) +
+        // the link. No route, no flight — the driver finds the rest on the link.
         $booking = Booking::factory()->create([
             'status' => BookingStatus::Allocated,
             'pickup_at' => \Illuminate\Support\Carbon::create(2026, 7, 24, 14, 30, 0, config('app.timezone')),
@@ -170,10 +170,11 @@ class DriverLinkTest extends TestCase
 
         $msg = $booking->driverLinkMessage();
 
-        $this->assertStringContainsString('24/07/2026', $msg);        // date
-        $this->assertStringContainsString('14:30', $msg);             // time
-        $this->assertStringContainsString('21 Ecclesall Rd, Sheffield → Manchester Airport T2', $msg);
-        $this->assertStringContainsString('Jo Smith', $msg);          // passenger
-        $this->assertStringContainsString($booking->driverLinkUrl(), $msg); // the link
+        $this->assertStringContainsString('Jo Smith', $msg);                                 // customer name
+        $this->assertStringContainsString($booking->pickup_at->format('D d/m/Y H:i'), $msg); // weekday + numbers
+        $this->assertStringContainsString($booking->driverLinkUrl(), $msg);                  // the link
+        // Route and drop-off are NOT in the message — they're behind the link.
+        $this->assertStringNotContainsString('→', $msg);
+        $this->assertStringNotContainsString('Manchester Airport', $msg);
     }
 }

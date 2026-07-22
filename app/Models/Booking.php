@@ -168,39 +168,27 @@ class Booking extends Model
     }
 
     /**
-     * The WhatsApp message that goes out WITH the driver link — a few key
-     * details (date & time first, then route and passenger) so the driver can
-     * see at a glance which job it is and doesn't forget it, then the link to
-     * the full job sheet. Deliberately short: the link carries everything else.
+     * The WhatsApp message that goes out WITH the driver link — deliberately
+     * minimal: just the customer name and the day + date/time (numbers), enough
+     * to recognise the job and not forget it. Everything else (route, flight,
+     * cash, contact, navigation, status) lives behind the link.
      */
     public function driverLinkMessage(): string
     {
-        $lines = ['Your job with Central Executive Transfers'];
-
-        if ($this->pickup_at) {
-            // Day + date + time up front — the bit Maj wants them to remember.
-            $lines[] = '';
-            $lines[] = '📅 '.$this->pickup_at->format('D d/m/Y').' at '.$this->pickup_at->format('H:i');
-        }
-
-        $from = $this->displayPickupAddress();
-        $to = $this->displayDropoffAddress();
-        if (filled($from) || filled($to)) {
-            $lines[] = '📍 '.trim(($from ?: '?').' → '.($to ?: '?'));
-        }
+        $lines = ['Central Executive Transfers', ''];
 
         $name = $this->meta['lead_name'] ?? $this->displayCustomerName();
         if (filled($name)) {
-            $lines[] = '👤 '.$name;
+            $lines[] = $name;
         }
 
-        $flight = $this->displayFlightNumber() ?: $this->flight_number;
-        if (filled($flight)) {
-            $lines[] = '✈️ '.$flight;
+        if ($this->pickup_at) {
+            // Weekday + date/time in numbers — the bit to remember at a glance.
+            $lines[] = $this->pickup_at->format('D d/m/Y H:i');
         }
 
         $lines[] = '';
-        $lines[] = 'Open your job sheet here (no login needed):';
+        $lines[] = 'Open your job sheet (no login needed):';
         $lines[] = $this->driverLinkUrl();
 
         return implode("\n", $lines);
