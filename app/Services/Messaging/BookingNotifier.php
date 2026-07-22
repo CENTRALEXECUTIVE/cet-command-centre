@@ -390,13 +390,16 @@ class BookingNotifier
         // asks in one message hurt review conversion, and reviews matter more.
         // The tip link lives elsewhere (the booking page / tracking page).
         return implode("\n", [
-            'Hi '.$this->firstName($booking).', we hope you had a smooth journey with '.self::FOOTER.'!',
+            'Hi '.$this->firstName($booking).',',
+            '',
+            'We hope you had a smooth journey with '.self::FOOTER.'!',
             "We'd love to hear your feedback.",
             'If you could take a moment to leave us a quick review, it really helps us improve our service and means a lot to us 🙏',
             '👉 Google: '.config('cet.review_url'),
             'Thank you for choosing us, and we look forward to assisting you again soon.',
+            '',
             self::FOOTER,
-            '🌐 '.config('cet.website'),
+            config('cet.website'),
         ]);
     }
 

@@ -100,10 +100,10 @@ class Phase4PortalTest extends TestCase
         $booking = $this->completeJourney($admin, 'Lewis Carter', '07700900456');
 
         $review = Message::where('booking_id', $booking->id)->where('type', 'review_request')->first();
-        $this->assertStringContainsString('Hi Lewis, we hope you had a smooth journey', $review->body);
+        $this->assertStringContainsString("Hi Lewis,\n\nWe hope you had a smooth journey with *Central Executive Transfers*!", $review->body);
         $this->assertStringContainsString('👉 Google: https://g.page/r/CYo2748zMiu5EBM/review', $review->body);
-        $this->assertStringContainsString('*Central Executive Transfers*', $review->body);
-        $this->assertStringContainsString('🌐 www.centralexecutivetransfers.co.uk', $review->body);
+        $this->assertStringContainsString("*Central Executive Transfers*\nwww.centralexecutivetransfers.co.uk", $review->body);
+        $this->assertStringNotContainsString('🌐', $review->body);
 
         \Illuminate\Support\Carbon::setTestNow();
     }
