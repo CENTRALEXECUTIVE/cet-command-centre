@@ -15,9 +15,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // HTTPS only in production (security requirement) — force generated
-        // URLs and asset links to https behind the GoDaddy proxy.
-        if ($this->app->environment('production')) {
+        // Force generated URLs and asset links to https on any real server
+        // (production AND staging) — links sent to customers/drivers must never
+        // come out as http, which triggers "not secure" errors on their phones.
+        // Local dev and the test suite stay on http.
+        if (! $this->app->environment('local', 'testing')) {
             URL::forceScheme('https');
         }
 

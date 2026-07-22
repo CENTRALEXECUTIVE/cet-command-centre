@@ -2,8 +2,12 @@
 @section('title', $user->exists ? 'Edit user' : 'Add user')
 
 @section('content')
-    <p class="page-sub"><a href="{{ route('users.index') }}">← Users</a></p>
-    <h1 class="page-title">{{ $user->exists ? 'Edit '.$user->name : 'Add user' }}</h1>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow"><a href="{{ route('users.index') }}" style="color:var(--gold)">← Users</a></div>
+        <div class="fh-title">{{ $user->exists ? 'Edit '.$user->name : 'Add user' }}</div>
+        <div class="fh-sub">Logins for the office, drivers and corporate clients.</div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error"><ul style="margin:0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
@@ -17,9 +21,21 @@
             <div class="body">
                 <div class="grid grid-2">
                     <div class="field"><label for="name">Full name <span class="req">*</span></label><input id="name" name="name" value="{{ old('name', $user->name) }}" required></div>
-                    <div class="field"><label for="email">Email (login) <span class="req">*</span></label><input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required></div>
+                    <div class="field"><label for="email">Email (login) <span class="req">*</span></label><input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
                     <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" value="{{ old('phone', $user->phone) }}" placeholder="07…"></div>
-                    <div class="field"><label for="password">{{ $user->exists ? 'Reset password' : 'Password' }}</label><input id="password" type="text" name="password" placeholder="{{ $user->exists ? 'Leave blank to keep' : 'Leave blank to auto-generate' }}" autocomplete="off"></div>
+                    <div class="field"><label for="password">{{ $user->exists ? 'Reset password' : 'Password' }}</label>
+                        <div class="pw-wrap">
+                            <input id="password" type="password" name="password" placeholder="{{ $user->exists ? 'Leave blank to keep' : 'Leave blank to auto-generate' }}" autocomplete="new-password">
+                            <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">Show</button>
+                        </div>
+                        @if($user->exists)
+                            @if($user->must_change_password)
+                                <div class="hint" style="color:#b8860b">⏳ A temporary password is set — they’ll choose their own the next time they sign in.</div>
+                            @else
+                                <div class="hint">🔒 They’ve set their own password — it’s hidden, even from you. Type a new one here to reset it (they’ll be asked to choose their own again).</div>
+                            @endif
+                        @endif
+                    </div>
                 </div>
 
                 <div class="field">
@@ -63,4 +79,5 @@
     @if($user->exists && $user->id !== auth()->id())
         <form id="deactivate-user" method="POST" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Deactivate {{ $user->name }}?')">@csrf @method('DELETE')</form>
     @endif
+    <script src="{{ asset('js/cet-showpassword.js') }}?v={{ config('cet.asset_version') }}" defer></script>
 @endsection

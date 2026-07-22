@@ -17,11 +17,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
         ]);
 
-        // Inbound webhooks (shared-secret auth) and the public cookie-consent
-        // beacon are exempt from CSRF.
+        // Inbound webhooks (shared-secret auth), the cookie-consent beacon, and
+        // the public driver LINK are exempt from CSRF. The driver link is opened
+        // from WhatsApp's in-app browser, which often drops cookies/sessions, so
+        // a session-based CSRF token would make status/GPS posts fail ("page
+        // expired"). The secret token in the /job/{token} URL is the auth here —
+        // same model as webhooks — so CSRF adds nothing and only breaks it.
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
             'consent/cookies',
+            'job/*',
+            'tip/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -22,18 +22,19 @@
             <p class="muted mb-0">No completed jobs yet.</p>
         @else
             <table>
-                <thead><tr><th>Date</th><th>Ref</th><th>Vehicle</th><th class="right">Fare</th></tr></thead>
+                <thead><tr><th>Date</th><th>Ref</th><th>Vehicle</th><th class="right">Your pay</th></tr></thead>
                 <tbody>
                     @foreach($recent as $b)
                         <tr>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td class="mono">{{ $b->reference }}</td>
                             <td>{{ $b->vehicleType?->name }}</td>
-                            <td class="right">£{{ number_format($b->final_price ?? $b->quoted_price ?? 0, 2) }}</td>
+                            <td class="right">{{ $b->driverPay() !== null ? '£'.number_format($b->driverPay(), 2) : '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
+            <p class="hint" style="margin:8px 0 0">— means the office hasn't set the pay for that job yet.</p>
         @endif
     </div>
 @endsection

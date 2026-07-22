@@ -11,11 +11,11 @@ use Illuminate\Console\Command;
  * Handles queued WhatsApp messages whose scheduled time has arrived. Run on the
  * scheduler every minute.
  *
- * Pickup REMINDERS are not auto-delivered: the office sends them by hand from
- * their own WhatsApp (the free, no-API flow), so this command just re-renders a
- * due reminder's wording with the current driver/vehicle and leaves it queued as
- * a task on the dashboard + booking. Any other scheduled message (e.g. the
- * review request) is delivered as before.
+ * Pickup REMINDERS and review REQUESTS are not auto-delivered: the office sends
+ * them by hand from their own WhatsApp (the free, no-API flow), so this command
+ * just re-renders a due message's wording (current driver/vehicle, current
+ * name/link) and leaves it queued as a task on the dashboard + booking. Any
+ * other scheduled message is delivered as before.
  */
 class SendDueMessages extends Command
 {
@@ -35,10 +35,12 @@ class SendDueMessages extends Command
 
         $delivered = 0;
         foreach ($due as $message) {
-            // Reminders wait for the operator to send them — just keep the
-            // wording fresh with the current driver/vehicle.
-            if ($message->isReminder() && $message->booking) {
-                $message->body = $notifier->reminderBody($message->booking);
+            // Reminders and review requests wait for the operator to send them —
+            // just keep the wording fresh (driver/vehicle, or name/link).
+            if ($message->isScheduledPrompt() && $message->booking) {
+                $message->body = $message->isReminder()
+                    ? $notifier->reminderBody($message->booking)
+                    : $notifier->reviewBody($message->booking);
                 $message->save();
 
                 continue;

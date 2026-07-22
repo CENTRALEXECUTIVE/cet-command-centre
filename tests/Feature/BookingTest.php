@@ -72,6 +72,47 @@ class BookingTest extends TestCase
         $this->assertEquals('Abdirazak Hassan', $booking->driver->name);
     }
 
+    public function test_bookings_list_can_be_searched(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $wanted = Booking::factory()->create(['external_reference' => 'FINDME1']);
+        $other = Booking::factory()->create(['external_reference' => 'NOPE222']);
+
+        $response = $this->actingAs($admin)->get(route('bookings.index', ['q' => 'FINDME1']))->assertOk();
+        $response->assertSee($wanted->reference);
+        $response->assertDontSee($other->reference);
+    }
+
+    public function test_suitcases_and_hand_luggage_are_captured_separately(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'suitcases' => 3,
+            'hand_luggage' => 2,
+        ]));
+
+        $booking = Booking::first();
+        $this->assertEquals(3, $booking->meta['suitcases']);
+        $this->assertEquals(2, $booking->meta['hand_luggage']);
+        $this->assertEquals(5, $booking->luggage); // combined total kept in sync
+        // The breakdown lands on the calendar and the booking mirrors it verbatim.
+        $this->assertEquals('3 Suitcases + 2 Hand Luggage', $booking->luggageBreakdown());
+    }
+
+    public function test_luggage_breakdown_reads_the_calendar_luggage_text_for_older_bookings(): void
+    {
+        // An older booking with no discrete counts, but the descriptive text that
+        // built its calendar event — the split must still show, mirroring the calendar.
+        $booking = Booking::factory()->create([
+            'luggage' => 3,
+            'meta' => ['luggage_text' => '2 Suitcases + 1 Hand Luggage'],
+        ]);
+
+        $this->assertEquals('2 suitcases · 1 hand luggage', $booking->luggageBreakdown());
+        $this->assertEquals('2 cases · 1 hand', $booking->luggageShort());
+    }
+
     public function test_return_journey_creates_two_linked_legs(): void
     {
         $admin = User::factory()->admin()->create();
@@ -230,6 +271,70 @@ class BookingTest extends TestCase
         $this->assertEquals('synced', $booking->calendarEvent->fresh()->sync_status);
     }
 
+    public function test_adding_a_customer_number_opens_the_masked_line(): void
+    {
+        config([
+            'services.twilio.sid' => 'AC', 'services.twilio.token' => 't',
+            'services.twilio.proxy_service_sid' => 'KS_test',
+        ]);
+        \Illuminate\Support\Facades\Http::fake([
+            'proxy.twilio.com/v1/Services/KS_test/Sessions' => \Illuminate\Support\Facades\Http::response(['sid' => 'KC1']),
+            'proxy.twilio.com/v1/Services/KS_test/Sessions/KC1/Participants' => \Illuminate\Support\Facades\Http::sequence()
+                ->push(['sid' => 'KPc', 'proxy_identifier' => '+447700111111'])
+                ->push(['sid' => 'KPd', 'proxy_identifier' => '+447700222222']),
+            'api.twilio.com/*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM']),
+        ]);
+
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->create(['role' => 'driver', 'phone' => '07700900222']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+
+        // Allocated job whose customer has no number yet → no masked line.
+        $booking = Booking::factory()->create([
+            'status' => \App\Enums\BookingStatus::Allocated,
+            'driver_id' => $driver->id,
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'journey_type' => 'one_way',
+            'pickup_at' => now()->addDays(2),
+        ]);
+        $booking->customer->forceFill(['phone' => null])->save();
+        $this->assertDatabaseCount('proxy_sessions', 0);
+
+        // Add the customer's number through the edit form — the line opens.
+        $this->actingAs($admin)->put(route('bookings.update', $booking), $this->validPayload([
+            'customer_phone' => '07700900123',
+        ]))->assertRedirect();
+
+        $this->assertSame(1, \App\Models\ProxySession::where('booking_id', $booking->id)->open()->count());
+    }
+
+    public function test_booking_page_shows_status_controls_for_admin(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Update status')
+            ->assertSee('On Board (POB)')
+            ->assertSee('Completed');
+    }
+
+    public function test_admin_can_change_status_from_the_booking_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload());
+        $booking = Booking::first();
+
+        // The booking-page control posts to the same admin-override route the
+        // dispatch board uses — reaching any stage directly (e.g. Arrived).
+        $this->actingAs($admin)->post(route('despatch.quick-status', $booking), ['status' => 'arrived'])
+            ->assertRedirect();
+
+        $this->assertEquals(\App\Enums\BookingStatus::Arrived, $booking->fresh()->status);
+    }
+
     public function test_admin_can_cancel_a_booking_with_a_reason(): void
     {
         $admin = User::factory()->admin()->create();
@@ -273,5 +378,27 @@ class BookingTest extends TestCase
         $this->actingAs($driver)->post(route('bookings.cancel', $booking), [
             'cancellation_reason' => 'nope',
         ])->assertForbidden();
+    }
+
+    public function test_it_flags_a_possible_duplicate_journey(): void
+    {
+        $vt = VehicleType::where('slug', 'executive')->first();
+        $cust = \App\Models\Customer::create(['name' => 'Sienna Stancliffe-Clayton', 'phone' => '07700900001']);
+        $make = fn () => Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $cust->id,
+            'vehicle_type_id' => $vt->id, 'pickup_at' => '2026-07-20 16:00:00',
+            'pickup_address' => 'Manchester Airport', 'destination_address' => '111 Fishponds Road West',
+            'passengers' => 3, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+
+        $a = $make();
+        $b = $make();
+
+        $this->assertTrue($a->fresh()->looksDuplicated());
+        $this->assertTrue($b->fresh()->duplicateCandidates()->contains('id', $a->id));
+
+        // A cancelled twin doesn't count, and a different journey isn't flagged.
+        $b->forceFill(['status' => 'cancelled'])->save();
+        $this->assertFalse($a->fresh()->looksDuplicated());
     }
 }

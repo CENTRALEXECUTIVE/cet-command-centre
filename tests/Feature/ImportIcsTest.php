@@ -59,6 +59,10 @@ class ImportIcsTest extends TestCase
 
         $b = Booking::where('external_reference', 'H9XA0Fb')->first();
         $this->assertNotNull($b);
+        // ETO's calendar time is UK local — a 16:15 event is stored as 16:15, not
+        // pushed to 17:15 by treating the 'Z' tag as UTC (BST +1h bug).
+        $this->assertEquals('16:15', $b->pickup_at->format('H:i'));
+        $this->assertEquals('16:15', $b->calendarEvent->start_at->format('H:i'));
         // Title + description restored verbatim (commas unescaped, lines unfolded).
         $this->assertEquals('*🚼 Daniel Pitts MAN (MINIBUS)*', $b->calendarEvent->title);
         $this->assertStringContainsString('*Customer Name:* Daniel Pitts', $b->calendarEvent->description);

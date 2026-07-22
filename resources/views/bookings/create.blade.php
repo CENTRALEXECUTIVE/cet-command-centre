@@ -2,8 +2,12 @@
 @section('title', 'New Booking')
 
 @section('content')
-    <h1 class="page-title">Smart Booking</h1>
-    <p class="page-sub">Quote to confirmed booking in under 60 seconds.</p>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow">Sales · new job</div>
+        <div class="fh-title">Smart Booking</div>
+        <div class="fh-sub">Quote to confirmed booking in under 60 seconds.</div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error">
@@ -150,14 +154,24 @@
                 @error('passengers') <div class="error">{{ $message }}</div> @enderror
 
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
-                    <span class="lbl">Luggage<span class="sub">Suitcases &amp; bags</span></span>
+                    <span class="lbl">Suitcases<span class="sub">Large / hold bags</span></span>
                     <div class="stepper" data-stepper>
                         <button type="button" data-dec>−</button>
-                        <input id="luggage" type="number" name="luggage" min="0" max="30" value="{{ old('luggage', 0) }}">
+                        <input id="suitcases" type="number" name="suitcases" min="0" max="30" value="{{ old('suitcases', 0) }}">
                         <button type="button" data-inc>+</button>
                     </div>
                 </div>
-                @error('luggage') <div class="error">{{ $message }}</div> @enderror
+                @error('suitcases') <div class="error">{{ $message }}</div> @enderror
+
+                <div class="stepper-field" style="border-top:1px solid var(--line)">
+                    <span class="lbl">Hand luggage<span class="sub">Cabin / small bags</span></span>
+                    <div class="stepper" data-stepper>
+                        <button type="button" data-dec>−</button>
+                        <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', 0) }}">
+                        <button type="button" data-inc>+</button>
+                    </div>
+                </div>
+                @error('hand_luggage') <div class="error">{{ $message }}</div> @enderror
 
                 <div class="field" style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
                     <label for="flight_number">Flight number <span class="muted">(if airport)</span></label>
@@ -235,7 +249,8 @@
                     <input id="privacy_consent" type="checkbox" name="privacy_consent" value="1" {{ old('privacy_consent') ? 'checked' : '' }} required>
                     <label for="privacy_consent">
                         I confirm the passenger consents to their data being processed to fulfil this booking,
-                        in line with the CET Privacy Notice (UK GDPR). <span class="req">*</span>
+                        in line with the CET Privacy Notice (UK GDPR), and to being contacted about it via a
+                        masked CET contact number. <span class="req">*</span>
                     </label>
                 </div>
                 @error('privacy_consent') <div class="error">{{ $message }}</div> @enderror

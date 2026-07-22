@@ -19,6 +19,19 @@ class EtoAuditTest extends TestCase
     {
         parent::setUp();
         $this->seed(VehicleTypeSeeder::class);
+        // The fixtures below are dated 24/03/2025; freeze "now" a few days before
+        // that so they count as UPCOMING jobs — the calendar-quality checks only
+        // run for jobs still to happen (a past job's sync status is history).
+        \Illuminate\Support\Carbon::setTestNow('2025-03-20 09:00:00');
+        // Push the "old" cutoff well back so the 2025 fixtures are still audited;
+        // the cutoff behaviour has its own dedicated test.
+        config(['cet.audit_cutoff' => '2020-01-01']);
+    }
+
+    protected function tearDown(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow();
+        parent::tearDown();
     }
 
     private function csv(string $rows): UploadedFile
@@ -81,28 +94,136 @@ class EtoAuditTest extends TestCase
         $this->assertContains('Calendar title not in CET format', $issues);
     }
 
-    public function test_flags_pickup_time_drift(): void
+    public function test_past_job_calendar_status_is_not_flagged_as_noise(): void
     {
+        // A finished job from a week ago with a failed sync + no calendar event:
+        // its calendar status is history, so the audit must NOT flag it — that
+        // was the "260 flagged" noise the office couldn't action.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'OLDJOB',
+            'pickup_at' => now()->subDays(7)->setTime(14, 0),
+            'status' => \App\Enums\BookingStatus::Complete,
+            'final_price' => 120,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_old',
+            'title' => 'Jo Manchester Airport', // not CET format — but it's history
+            'sync_status' => 'failed',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+        ]);
+
+        $report = app(EtoAuditService::class)->audit(
+            $this->csvPath($booking->pickup_at->format('d/m/Y H:i').";OLDJOB;Jo;Completed;120.00;\"Paid\"\n")
+        );
+
+        $this->assertSame(0, $report['counts']['flagged']);
+        $this->assertSame(1, $report['counts']['ok']);
+    }
+
+    public function test_bookings_before_the_cutoff_are_archived_not_audited(): void
+    {
+        // A booking before the cutoff with NO calendar event — normally a problem
+        // for a live job, but it predates the live-calendar era, so it's archive.
+        config(['cet.audit_cutoff' => '2025-03-22']);
+        $booking = Booking::factory()->create([
+            'external_reference' => 'OLDONE',
+            'pickup_at' => '2025-03-21 09:00:00',
+            'status' => \App\Enums\BookingStatus::Allocated,
+        ]);
+
+        $results = app(EtoAuditService::class)->search('OLDONE');
+
+        $this->assertSame('old', $results[0]['status']);
+        $this->assertSame([], $results[0]['issues']);
+    }
+
+    public function test_a_failed_sync_alone_is_not_flagged_when_the_event_is_on_the_calendar(): void
+    {
+        // The event has a google_event_id → it IS on the calendar. A stale
+        // sync_status of "failed" must NOT raise a "not synced" error on its own.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'SYNCF',
+            'pickup_at' => '2025-03-24 09:00:00',
+            'status' => \App\Enums\BookingStatus::Allocated,
+            'final_price' => 100,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_sync',
+            'title' => '*Jo EMA (ABDI)*',
+            'location' => '1 Test Street, Sheffield',
+            'description' => 'Booking Confirmation block present',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'failed',
+        ]);
+
+        $results = app(EtoAuditService::class)->search('SYNCF');
+
+        $this->assertSame('ok', $results[0]['status'],
+            'a failed sync flag alone must not flag a booking that is on the calendar');
+    }
+
+    public function test_audit_corrects_a_drifted_booking_time_to_the_calendar(): void
+    {
+        // The calendar takes priority — the audit should CORRECT the booking to
+        // the calendar time (not just flag it) and leave no time warning behind.
         $booking = Booking::factory()->create([
             'external_reference' => 'TIMEXX',
-            'pickup_at' => '2025-03-24 21:05:00', // one hour off
+            'pickup_at' => '2025-03-24 21:05:00', // an hour off the calendar
+            'pickup_address' => '1 Test St, Sheffield',
+            'destination_address' => 'Manchester Airport',
             'final_price' => 200,
         ]);
         CalendarEvent::create([
             'booking_id' => $booking->id,
             'google_event_id' => 'evt_3',
             'title' => '*Jo Manchester Airport (EXEC)*',
+            'location' => 'Manchester Airport',
+            'description' => '📑 Booking Confirmation',
+            'start_at' => '2025-03-24 22:05:00', // the calendar's time
+            'end_at' => '2025-03-24 23:05:00',
+            'sync_status' => 'synced',
+        ]);
+
+        app(EtoAuditService::class)->audit(
+            $this->csvPath("24/03/2025 22:05;TIMEXX;Jo;Completed;200.00;\"Paid\"\n")
+        );
+
+        $booking = $booking->fresh();
+        $this->assertEquals('22:05', $booking->pickup_at->format('H:i')); // corrected to the calendar
+        $this->assertStringNotContainsString("doesn't match", implode(' ', $booking->meta['audit_issues'] ?? []));
+    }
+
+    public function test_eto_time_of_day_difference_alone_is_not_flagged(): void
+    {
+        // Calendar + command centre both 21:05; ETO says 22:05. Not an issue.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'ETOTIM',
+            'pickup_at' => '2025-03-24 21:05:00',
+            'pickup_address' => '1 Test St, Sheffield',
+            'destination_address' => 'Manchester Airport',
+            'final_price' => 200,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_4',
+            'title' => '*Jo Manchester Airport (EXEC)*',
+            'location' => 'Manchester Airport',
+            'description' => '📑 Booking Confirmation',
             'start_at' => $booking->pickup_at,
             'end_at' => $booking->pickup_at->copy()->addHour(),
             'sync_status' => 'synced',
         ]);
 
-        $report = app(EtoAuditService::class)->audit(
-            $this->csvPath("24/03/2025 22:05;TIMEXX;Jo;Completed;200.00;\"Paid\"\n")
+        app(EtoAuditService::class)->audit(
+            $this->csvPath("24/03/2025 22:05;ETOTIM;Jo;Completed;200.00;\"Paid\"\n")
         );
 
-        $this->assertSame(1, $report['counts']['flagged']);
-        $this->assertStringContainsString('Pickup time differs', implode(' ', $booking->fresh()->meta['audit_issues']));
+        $issues = implode(' ', $booking->fresh()->meta['audit_issues'] ?? []);
+        $this->assertStringNotContainsString('time differs', $issues);
     }
 
     public function test_flags_location_dropped_off_the_calendar(): void

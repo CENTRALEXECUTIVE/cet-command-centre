@@ -2,28 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\BookingStatus;
-use App\Models\Booking;
-use App\Models\Customer;
-use App\Models\VehicleType;
+use App\Services\Calendar\CalendarJobImporter;
 use App\Services\Calendar\CalendarStats;
 use App\Services\Messaging\BookingNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * Pulls a "calendar only" job (one that exists on the Google Calendar but not in
  * the booking database) into the system as a real booking, so it can be edited
  * and messaged. The existing calendar event is LINKED (not re-created), so the
- * calendar sync never pushes a duplicate.
+ * calendar sync never pushes a duplicate. The scheduled refresh does the same
+ * automatically (CalendarJobImporter) — this button remains for immediacy.
  */
 class CalendarJobController extends Controller
 {
     public function __construct(
         private readonly CalendarStats $calendar,
         private readonly BookingNotifier $notifier,
+        private readonly CalendarJobImporter $importer,
     ) {}
 
     public function store(Request $request): RedirectResponse
@@ -38,63 +35,12 @@ class CalendarJobController extends Controller
         }
 
         // Already in the system? Just go there.
-        if ($parsed['reference']) {
-            $existing = Booking::where('external_reference', $parsed['reference'])
-                ->orWhere('reference', $parsed['reference'])->first();
-            if ($existing) {
-                return redirect()->route('bookings.show', $existing)
-                    ->with('status', 'This job is already in bookings.');
-            }
+        if ($existing = $this->importer->existingBookingFor($parsed)) {
+            return redirect()->route('bookings.show', $existing)
+                ->with('status', 'This job is already in bookings.');
         }
 
-        $booking = DB::transaction(function () use ($parsed, $request) {
-            $customer = $this->resolveCustomer($parsed);
-            $vehicleType = $this->resolveVehicleType($parsed['vehicle_label']);
-            [$method, $paymentStatus, $amount] = $this->resolvePayment($parsed['payment_text']);
-
-            $booking = Booking::create([
-                'reference' => Booking::generateReference(),
-                'source_system' => 'calendar',
-                'external_reference' => $parsed['reference'] ?: null,
-                'customer_id' => $customer->id,
-                'vehicle_type_id' => $vehicleType->id,
-                'pickup_at' => $parsed['pickup_at'],
-                'pickup_address' => $parsed['pickup_address'] ?: 'Unknown',
-                'destination_address' => $parsed['destination_address'] ?: 'Unknown',
-                'flight_number' => $parsed['flight_number'],
-                'passengers' => $parsed['passengers'],
-                'luggage' => $parsed['luggage'],
-                'special_requests' => $parsed['notes'],
-                'status' => BookingStatus::Pending->value,
-                'quoted_price' => $amount,
-                'payment_method' => $method,
-                'payment_status' => $paymentStatus,
-                'source' => 'calendar',
-                'created_by' => $request->user()->id,
-                'meta' => array_filter([
-                    'driver_tag' => $parsed['driver_tag'],
-                    'payment_text' => $parsed['payment_text'],
-                    'luggage_text' => $parsed['luggage_text'],
-                ]),
-            ]);
-
-            // Link the EXISTING Google event so the sync updates it in place and
-            // never creates a duplicate.
-            $booking->calendarEvent()->create([
-                'calendar_id' => $parsed['calendar_id'],
-                'google_event_id' => $parsed['event_id'],
-                'title' => $parsed['title'],
-                'location' => $parsed['location'],
-                'description' => $parsed['description'],
-                'start_at' => $parsed['pickup_at'],
-                'end_at' => $parsed['end_at'] ?? $parsed['pickup_at']->copy()->addHour(),
-                'timezone' => 'Europe/London',
-                'sync_status' => 'synced',
-                'synced_at' => now(),
-            ]);
-
-            return $booking;
-        });
+        $booking = $this->importer->import($parsed, $request->user());
 
         $this->notifier->ensureReminders($booking->load('customer'));
 
@@ -102,51 +48,40 @@ class CalendarJobController extends Controller
             ->with('status', 'Added to bookings — you can now edit it and send the customer a message.');
     }
 
-    private function resolveCustomer(array $parsed): Customer
+    /**
+     * Bulk version: pull EVERY calendar-only job shown for a day into bookings
+     * in one tap, so the operator never adds them one at a time. Each is linked
+     * to its existing event (no duplicates); already-imported ones are skipped.
+     */
+    public function storeAll(Request $request): RedirectResponse
     {
-        $phone = $parsed['customer_phone'] ?: null;
+        abort_unless($request->user()->isAdmin(), 403);
 
-        $customer = $phone ? Customer::where('phone', $phone)->first() : null;
-
-        return $customer ?? Customer::create([
-            'name' => $parsed['customer_name'] ?: 'Customer',
-            'phone' => $phone,
-            'preferred_pickup_address' => $parsed['pickup_address'] ?: null,
+        $data = $request->validate([
+            'event_ids' => ['required', 'array'],
+            'event_ids.*' => ['string'],
+            'date' => ['nullable', 'date'],
         ]);
-    }
 
-    private function resolveVehicleType(?string $label): VehicleType
-    {
-        $label = trim((string) $label);
-        if ($label !== '') {
-            $match = VehicleType::where('name', 'like', $label)
-                ->orWhere('name', 'like', '%'.$label.'%')
-                ->orWhere('slug', Str::slug($label))
-                ->first();
-            if ($match) {
-                return $match;
+        $added = 0;
+        $skipped = 0;
+        foreach (array_unique($data['event_ids']) as $eventId) {
+            $parsed = $this->calendar->eventToBookingData($eventId);
+            if (! $parsed || ! $parsed['pickup_at'] || $this->importer->existingBookingFor($parsed)) {
+                $skipped++;
+
+                continue;
             }
+            $booking = $this->importer->import($parsed, $request->user());
+            $this->notifier->ensureReminders($booking->load('customer'));
+            $added++;
         }
 
-        return VehicleType::where('slug', 'executive')->first()
-            ?? VehicleType::orderBy('id')->firstOrFail();
-    }
+        $back = $request->input('date')
+            ? redirect()->route('jobs.day', ['date' => $request->input('date')])
+            : redirect()->route('jobs.day');
 
-    /**
-     * Infer payment method, status and any amount from the calendar's payment
-     * line, e.g. "Paid £100 (Stripe)" or "Pending (Account)".
-     *
-     * @return array{0: string, 1: string, 2: ?float}
-     */
-    private function resolvePayment(?string $text): array
-    {
-        $t = Str::lower((string) $text);
-        $method = str_contains($t, 'cash') ? 'cash' : (str_contains($t, 'account') ? 'account' : 'card');
-        $status = str_contains($t, 'paid') ? 'paid' : 'pending';
-        $amount = preg_match('/£\s*([\d,]+(?:\.\d+)?)/', (string) $text, $m)
-            ? (float) str_replace(',', '', $m[1])
-            : null;
-
-        return [$method, $status, $amount];
+        return $back->with('status', "Added {$added} job(s) to bookings"
+            .($skipped ? ", {$skipped} already in the system." : '.'));
     }
 }

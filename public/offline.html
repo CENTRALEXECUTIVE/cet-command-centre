@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Offline · CET Command Centre</title>
+    <style>
+        /* Self-contained on purpose — this page must render with no network. */
+        body { margin: 0; font-family: 'Inter', -apple-system, system-ui, sans-serif;
+               background: #111; color: #fff; display: flex; align-items: center;
+               justify-content: center; min-height: 100vh; text-align: center; }
+        .box { padding: 32px; max-width: 420px; }
+        .dot { width: 14px; height: 14px; border-radius: 50%; background: #FBBA2A;
+               display: inline-block; margin-right: 8px; }
+        h1 { font-size: 22px; margin: 18px 0 8px; }
+        .gold { color: #FBBA2A; }
+        p { color: #bbb; font-size: 15px; line-height: 1.6; }
+        button { margin-top: 18px; background: #FBBA2A; color: #111; border: 0;
+                 padding: 12px 28px; border-radius: 10px; font-weight: 700;
+                 font-size: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div style="font-weight:800;letter-spacing:.5px"><span class="dot"></span>CENTRAL <span class="gold">EXECUTIVE</span> TRANSFERS</div>
+        <h1>You're offline</h1>
+        <p>The Command Centre needs a connection for live bookings and dispatch —
+           nothing is stored on this device. Check your signal and try again.</p>
+        <button onclick="location.reload()">↻ Try again</button>
+    </div>
+</body>
+</html>

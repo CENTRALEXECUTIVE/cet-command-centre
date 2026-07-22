@@ -132,10 +132,35 @@ class CalendarEventBuilder
         return (bool) ($booking->meta['child_seat'] ?? false);
     }
 
-    /** Descriptive luggage from a bare count, never just a number. */
-    private function luggageText(int $count): string
+    /**
+     * The descriptive luggage line for the calendar — the suitcase + hand-luggage
+     * split when we have it (from ETO or the booking form), so the calendar
+     * carries the real breakdown that the rest of the app mirrors back. Falls
+     * back to the pre-supplied text, then a bare count, then "None".
+     */
+    private function luggageText(Booking $booking): string
     {
-        return $count > 0 ? $count.' Hand Luggage' : 'None';
+        $meta = $booking->meta ?? [];
+        if (filled($meta['luggage_text'] ?? null)) {
+            return $meta['luggage_text'];
+        }
+
+        $suitcases = (int) ($meta['suitcases'] ?? 0);
+        $hand = (int) ($meta['hand_luggage'] ?? 0);
+        $parts = [];
+        if ($suitcases > 0) {
+            $parts[] = $suitcases.' Suitcase'.($suitcases > 1 ? 's' : '');
+        }
+        if ($hand > 0) {
+            $parts[] = $hand.' Hand Luggage';
+        }
+        if ($parts) {
+            return implode(' + ', $parts);
+        }
+
+        $total = (int) $booking->luggage;
+
+        return $total > 0 ? $total.' Hand Luggage' : 'None';
     }
 
     /** The "📑 Booking Confirmation" body, bold labels on both sides. */
@@ -166,7 +191,7 @@ class CalendarEventBuilder
         $add('Contact No', $meta['contact_no'] ?? $booking->customer?->phone);
         $add('Passengers', (string) $booking->passengers);
         // Luggage must be descriptive, never a bare number.
-        $add('Luggage', $meta['luggage_text'] ?? $this->luggageText((int) $booking->luggage));
+        $add('Luggage', $this->luggageText($booking));
         if ((int) ($meta['child_seats'] ?? 0) > 0) {
             $add('Child Seats', (string) $meta['child_seats']);
         }
@@ -190,6 +215,83 @@ class CalendarEventBuilder
         $add('Notes', $this->notesLine($meta, $booking));
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * The office → driver brief. The SAME block the calendar carries, but with
+     * the three things a driver must not see stripped out: the price (shows just
+     * "Paid" / "Cash on the day", no amount), the booking reference (removed),
+     * and the customer's real number (the masked CET line is shown instead).
+     */
+    public function driverBrief(Booking $booking): string
+    {
+        $meta = $booking->meta ?? [];
+        $lines = [];
+        $childMark = $this->hasChildSeat($booking) ? ' 🚼' : '';
+        $journey = $meta['journey_label'] ?? 'Transfer';
+        if (! empty($meta['meet_and_greet'])) {
+            $journey .= ' (Meet & Greet)';
+        }
+        $lines[] = '📑 *Booking Confirmation – '.$journey.'*'.$childMark;
+
+        $add = function (string $label, ?string $value) use (&$lines): void {
+            if (filled($value)) {
+                $lines[] = "• *{$label}:* {$value}";
+            }
+        };
+
+        // Use the DISPLAY values (calendar-authoritative) so the brief matches
+        // exactly what the office sees and what's actually happening.
+        $add('Date & Time', $booking->pickup_at?->format('d/m/Y – H:i'));
+        $add('Customer Name', $meta['lead_name'] ?? $booking->displayCustomerName());
+        // Masked CET line — never the customer's real number (even owner-driver).
+        $add('Contact No', $booking->driverBriefContact());
+        $add('Passengers', (string) $booking->passengerCount());
+        $add('Luggage', $this->luggageText($booking));
+        if ((int) ($meta['child_seats'] ?? 0) > 0) {
+            $add('Child Seats', (string) $meta['child_seats']);
+        }
+        if ((int) ($meta['booster_seats'] ?? 0) > 0) {
+            $add('Booster Seats', (string) $meta['booster_seats']);
+        }
+        $add('Flight Number', $booking->displayFlightNumber() ?: $booking->flight_number);
+        if (! empty($meta['meet_and_greet'])) {
+            $add('Meet & Greet', 'Required');
+        }
+        $add('Pickup Location', $booking->displayPickupAddress());
+        foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
+            $add('Stop '.($i + 1), $stop);
+        }
+        $add('Drop-off Location', $booking->displayDropoffAddress());
+        $add('Vehicle Type', $booking->displayVehicleType() ?: $booking->vehicleType?->name);
+        // Paid vs cash only — no amount for the driver.
+        $add('Payment', $this->driverPaymentLabel($booking));
+        // Deliberately NO Booking Reference for drivers.
+        $add('Notes', $this->notesLine($meta, $booking));
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * For the driver: the CASH TO COLLECT with its amount (e.g. "£110 to collect
+     * (cash)"), stripped of any deposit already paid — that's what the driver
+     * needs. A fully-paid job just says "Paid" (no amount).
+     */
+    private function driverPaymentLabel(Booking $booking): string
+    {
+        $collect = $booking->driverCollectLine();
+
+        // A real amount to collect → show it verbatim.
+        if ($collect !== null && ! str_contains($collect, 'collect nothing')) {
+            return $collect;
+        }
+
+        $paidText = strtolower((string) ($booking->meta['payment_text'] ?? ''));
+        if ($collect !== null || $booking->payment_status === 'paid' || str_contains($paidText, 'paid')) {
+            return 'Paid';
+        }
+
+        return 'Cash on the day';
     }
 
     /** "Booked by X" (rule 3), plus any special request, with no leading dash. */

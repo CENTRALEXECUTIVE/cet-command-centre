@@ -25,6 +25,18 @@ Route::get('/', function () {
     return redirect()->route(auth()->check() ? 'dashboard' : 'login');
 });
 
+// ----- PWA assets ----------------------------------------------------------
+// Served as static files by the webserver in production; these routes make
+// them available under any server config (and in tests). No auth — the
+// manifest/worker/offline page contain no data.
+Route::get('manifest.webmanifest', fn () => response()->file(
+    public_path('manifest.webmanifest'), ['Content-Type' => 'application/manifest+json']
+))->name('pwa.manifest');
+Route::get('sw.js', fn () => response()->file(
+    public_path('sw.js'), ['Content-Type' => 'application/javascript', 'Service-Worker-Allowed' => '/']
+))->name('pwa.sw');
+Route::get('offline.html', fn () => response()->file(public_path('offline.html')))->name('pwa.offline');
+
 // ----- Authentication ----------------------------------------------------
 // Login is rate limited at the form-request level (5 attempts / email+IP).
 Route::middleware('guest')->group(function () {
@@ -37,9 +49,18 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
-// ----- Authenticated area ------------------------------------------------
+// Set-your-own-password (forced first-login flow + voluntary change). Sits
+// OUTSIDE the password-change gate so a flagged user can actually reach it.
 Route::middleware('auth')->group(function () {
+    Route::get('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('password.change');
+    Route::put('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'update'])
+        ->middleware('throttle:10,1')->name('password.update');
+});
+
+// ----- Authenticated area ------------------------------------------------
+Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('dashboard/fix-times', [DashboardController::class, 'fixTimes'])->middleware('throttle:10,1')->name('dashboard.fix-times');
     Route::get('jobs/day', [DashboardController::class, 'day'])->name('jobs.day');
     // Live fleet map (admin).
     Route::get('fleet/map', [\App\Http\Controllers\FleetMapController::class, 'index'])->name('fleet.map');
@@ -47,6 +68,9 @@ Route::middleware('auth')->group(function () {
     // Pull a calendar-only job into the booking system (admin only).
     Route::post('jobs/import', [\App\Http\Controllers\CalendarJobController::class, 'store'])
         ->middleware('role:admin', 'throttle:30,1')->name('jobs.import');
+    // Pull EVERY calendar-only job for a day into bookings in one tap.
+    Route::post('jobs/import-all', [\App\Http\Controllers\CalendarJobController::class, 'storeAll'])
+        ->middleware('role:admin', 'throttle:20,1')->name('jobs.import-all');
 
     // Bookings + AI quotes — admins and corporate clients.
     Route::middleware('role:admin,corporate_client')->group(function () {
@@ -75,8 +99,21 @@ Route::middleware('auth')->group(function () {
         Route::get('bookings/{booking}/edit', [BookingController::class, 'edit'])->name('bookings.edit');
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+        Route::post('bookings/{booking}/merge', [BookingController::class, 'merge'])->middleware('throttle:30,1')->name('bookings.merge');
         Route::post('bookings/{booking}/driver-details', [BookingController::class, 'setDriverDetails'])->middleware('throttle:30,1')->name('bookings.driver-details');
+        Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
+        Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
+        Route::post('bookings/{booking}/scan-calendar', [BookingController::class, 'scanCalendar'])->middleware('throttle:30,1')->name('bookings.scan-calendar');
+        // Ask the driver to share their location now + poll their latest ping.
+        Route::post('bookings/{booking}/request-location', [BookingController::class, 'requestLocation'])->middleware('throttle:20,1')->name('bookings.request-location');
+        Route::get('bookings/{booking}/location', [BookingController::class, 'locationData'])->name('bookings.location');
+        // Turn number masking off / on for a single job (e.g. a return leg).
+        Route::post('bookings/{booking}/toggle-masking', [BookingController::class, 'toggleMasking'])->middleware('throttle:20,1')->name('bookings.toggle-masking');
+        Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
+        Route::post('bookings/{booking}/request-review', [BookingController::class, 'requestReview'])->middleware('throttle:30,1')->name('bookings.request-review');
+        // Correct the customer record's phone to this booking's calendar contact.
+        Route::post('bookings/{booking}/fix-contact', [BookingController::class, 'fixContact'])->middleware('throttle:30,1')->name('bookings.fix-contact');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
         Route::post('messages/{message}/sent', [\App\Http\Controllers\MessageController::class, 'markSent'])->middleware('throttle:60,1')->name('messages.sent');
 
@@ -124,6 +161,8 @@ Route::middleware('auth')->group(function () {
         Route::post('despatch/{booking}/allocate', [DespatchController::class, 'allocate'])->name('despatch.allocate');
         Route::post('despatch/{booking}/auto-allocate', [DespatchController::class, 'autoAllocate'])->name('despatch.auto-allocate');
         Route::post('despatch/{booking}/status', [DespatchController::class, 'updateStatus'])->name('despatch.status');
+        Route::post('despatch/{booking}/quick-status', [DespatchController::class, 'quickStatus'])->middleware('throttle:60,1')->name('despatch.quick-status');
+        Route::post('despatch/{booking}/reassign', [DespatchController::class, 'reassign'])->middleware('throttle:60,1')->name('despatch.reassign');
     });
 
     // ----- Driver mobile app (driver) ------------------------------------
@@ -134,8 +173,17 @@ Route::middleware('auth')->group(function () {
         Route::get('jobs/{booking}', [JobController::class, 'show'])->name('job');
         Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
         Route::post('jobs/{booking}/decline', [JobController::class, 'decline'])->name('job.decline');
+        // Answer an office location request with a one-off ping.
+        Route::post('jobs/{booking}/location', [JobController::class, 'shareLocation'])->middleware('throttle:60,1')->name('job.location');
         // GPS ping — only stored while on an active job.
         Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
+
+        // Push notifications (new-job alerts to the driver's phone).
+        Route::get('push/key', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'key'])->name('push.key');
+        Route::post('push/subscribe', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'store'])->middleware('throttle:30,1')->name('push.subscribe');
+        Route::post('push/unsubscribe', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'destroy'])->middleware('throttle:30,1')->name('push.unsubscribe');
+        // Fire a test notification to your own devices (confirm it reaches the phone).
+        Route::post('push/test', [\App\Http\Controllers\Driver\PushSubscriptionController::class, 'test'])->middleware('throttle:6,1')->name('push.test');
 
         // Vehicle & documents — days-left cards + upload.
         Route::get('documents', [\App\Http\Controllers\Driver\DocumentController::class, 'index'])->name('documents');
@@ -152,6 +200,13 @@ Route::middleware('auth')->group(function () {
         Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
 
+        // Control-tower alerts feed + per-admin notification preferences.
+        Route::get('alerts/feed', [\App\Http\Controllers\AlertsController::class, 'feed'])->name('alerts.feed');
+        Route::post('alerts/{event}/ack', [\App\Http\Controllers\AlertsController::class, 'acknowledge'])
+            ->middleware('throttle:60,1')->name('alerts.ack');
+        Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
+        Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
+
         // In-app CSV imports (Google Ads report, ETO bookings export).
         Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');
         Route::post('imports/ads', [\App\Http\Controllers\Admin\ImportController::class, 'ads'])
@@ -166,13 +221,13 @@ Route::middleware('auth')->group(function () {
 
         // Driver rotation — read-only order + next-driver pointer + history.
         Route::get('rotation', [\App\Http\Controllers\Admin\RotationController::class, 'index'])->name('rotation.index');
+        Route::post('rotation/next', [\App\Http\Controllers\Admin\RotationController::class, 'setNext'])->middleware('throttle:30,1')->name('rotation.set-next');
 
-        // New booking from a pasted message — AI formats it, operator confirms → calendar.
+        // Paste a message → formats it into the exact CET calendar block to copy
+        // onto Google Calendar. Never creates a booking (calendar is the origin).
         Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
         Route::post('intake/preview', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'preview'])
             ->middleware('throttle:30,1')->name('intake.preview');
-        Route::post('intake/confirm', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'confirm'])
-            ->middleware('throttle:30,1')->name('intake.confirm');
 
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
@@ -192,6 +247,8 @@ Route::middleware('auth')->group(function () {
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
 
         // Marketing — Google Ads dashboard, keywords, SEO.
+        Route::get('marketing/studio', [\App\Http\Controllers\MarketingStudioController::class, 'index'])->name('marketing.studio');
+        Route::post('marketing/studio', [\App\Http\Controllers\MarketingStudioController::class, 'generate'])->middleware('throttle:20,1')->name('marketing.studio.generate');
         Route::get('marketing/ads', [ReportController::class, 'ads'])->name('marketing.ads');
         Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
         Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');
@@ -231,9 +288,19 @@ Route::post('consent/cookies', [ConsentController::class, 'cookies'])
 Route::post('webhooks/missed-call', [WebhookController::class, 'missedCall'])
     ->middleware('throttle:60,1')
     ->name('webhooks.missed-call');
+Route::post('webhooks/twilio-proxy', [WebhookController::class, 'proxyEvent'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.twilio-proxy');
+Route::post('webhooks/sms', [WebhookController::class, 'sms'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.sms');
 Route::post('webhooks/voice', [WebhookController::class, 'voice'])
     ->middleware('throttle:120,1')
     ->name('webhooks.voice');
+// Square card-tip payment webhook (HMAC-verified inside the controller).
+Route::post('webhooks/square', [WebhookController::class, 'square'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.square');
 
 // ----- Public live tracking (token in URL, no login) ---------------------
 Route::get('track/{token}', [TrackingController::class, 'show'])
@@ -242,3 +309,23 @@ Route::get('track/{token}', [TrackingController::class, 'show'])
 Route::get('track/{token}/location', [TrackingController::class, 'location'])
     ->middleware('throttle:120,1')
     ->name('track.location');
+
+// ----- Public shareable DRIVER LINK (token in URL, no login) --------------
+// A cover driver works their job — details, cash to collect, masked number,
+// navigate, status buttons and live GPS — without an account. The token is the
+// key; the link dies once the job is terminal.
+Route::get('job/{token}', [\App\Http\Controllers\Driver\LinkController::class, 'show'])
+    ->middleware('throttle:60,1')->name('driver.link');
+Route::post('job/{token}/status', [\App\Http\Controllers\Driver\LinkController::class, 'updateStatus'])
+    ->middleware('throttle:60,1')->name('driver.link.status');
+Route::post('job/{token}/location', [\App\Http\Controllers\Driver\LinkController::class, 'location'])
+    ->middleware('throttle:120,1')->name('driver.link.location');
+
+// ----- Public customer TIP page (token in URL, no login) ------------------
+// The customer thanks the driver with a card tip via Square-hosted checkout.
+Route::get('tip/{token}', [\App\Http\Controllers\TipController::class, 'show'])
+    ->middleware('throttle:60,1')->name('tip.show');
+Route::post('tip/{token}', [\App\Http\Controllers\TipController::class, 'pay'])
+    ->middleware('throttle:30,1')->name('tip.pay');
+Route::get('tip/{token}/thanks', [\App\Http\Controllers\TipController::class, 'thanks'])
+    ->middleware('throttle:60,1')->name('tip.thanks');

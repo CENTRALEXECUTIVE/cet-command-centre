@@ -128,4 +128,38 @@ class ReviewTest extends TestCase
         $this->assertEquals(250.0, $res->viewData('reserved')['revenue']);
         $this->assertEquals(2, $res->viewData('reserved')['jobs']);
     }
+
+    public function test_admin_can_manually_request_a_review_overriding_the_once_rule(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $vt = VehicleType::where('slug', 'executive')->first();
+        $cust = Customer::create(['name' => 'Repeat Rita', 'phone' => '07700900555']);
+
+        // An earlier booking already got its review request → the once-per-customer
+        // rule would normally skip a new one.
+        $old = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $cust->id,
+            'vehicle_type_id' => $vt->id, 'pickup_at' => now()->subMonth(),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => 'complete', 'payment_method' => 'card',
+        ]);
+        \App\Models\Message::create([
+            'booking_id' => $old->id, 'customer_id' => $cust->id, 'channel' => 'whatsapp',
+            'direction' => 'outbound', 'type' => 'review_request', 'to_address' => '07700900555',
+            'body' => 'review', 'status' => 'sent',
+        ]);
+
+        $today = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $cust->id,
+            'vehicle_type_id' => $vt->id, 'pickup_at' => now()->subHour(),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => 'complete', 'payment_method' => 'card',
+        ]);
+
+        $this->actingAs($admin)->post(route('bookings.request-review', $today))->assertRedirect();
+
+        $this->assertDatabaseHas('messages', [
+            'booking_id' => $today->id, 'type' => 'review_request', 'status' => 'queued',
+        ]);
+    }
 }

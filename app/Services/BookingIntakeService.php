@@ -5,20 +5,21 @@ namespace App\Services;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Customer;
-use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\Ai\AnthropicService;
-use App\Services\Calendar\GoogleCalendarService;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
  * Turns a pasted booking message (WhatsApp / email text) into a properly
- * formatted CET booking. The operator pastes the message, the AI extracts the
- * fields, and we build a NON-SAVED preview of the exact calendar title and
- * details block. Nothing is created and nothing touches the calendar until the
- * operator reviews the preview and explicitly confirms.
+ * formatted CET calendar block. The operator pastes the message, the free
+ * parser (or AI) extracts the fields, and we render the EXACT calendar title,
+ * location and details block for them to copy onto Google Calendar.
+ *
+ * It deliberately does NOT create a booking in the Command Centre. The calendar
+ * is the single source of truth: the operator adds the event to the calendar
+ * and the 5-minute sync imports it once — so the tool can never produce the
+ * "two in the Command Centre, one on the calendar" duplicate.
  */
 class BookingIntakeService
 {
@@ -26,29 +27,46 @@ class BookingIntakeService
         private readonly AnthropicService $ai,
         private readonly CalendarEventBuilder $calendar,
         private readonly RotationService $rotation,
-        private readonly GoogleCalendarService $google,
+        private readonly \App\Services\Intake\FreeIntakeParser $freeParser,
     ) {}
 
     /**
-     * Extract booking fields from free text with the AI. Returns a normalised
-     * field array (empty strings where nothing was found) so the operator always
-     * gets an editable form, even when the AI is unavailable.
+     * Extract booking fields from pasted free text. The FREE deterministic
+     * parser runs first and handles the formats the office actually pastes
+     * (calendar blocks, ETO emails, labelled messages) at zero cost. The AI is
+     * only consulted when the free parse found too little AND the operator has
+     * explicitly enabled it (config cet.intake_use_ai) — by default nothing
+     * here ever costs money.
      *
      * @return array<string, mixed>
      */
     public function parse(string $text): array
     {
+        $free = $this->freeParser->parse($text);
+        if ($this->freeParser->foundEssentials($free) || ! config('cet.intake_use_ai', false) || ! $this->ai->configured()) {
+            return $this->normalise($free);
+        }
+
         $system = 'You extract UK executive-taxi booking details from a pasted message. '
             .'Return ONLY a JSON object. Times are UK local (Europe/London). Use 24-hour HH:MM. '
             .'Keys: lead_name, contact_no, email, pickup_at (YYYY-MM-DD HH:MM), pickup_address, '
             .'destination_address, where (short airport code or destination word for the title, e.g. MAN, LHR, Sheffield), '
-            .'flight_number, passengers (integer), luggage (integer), vehicle (one of: Executive, Estate, V Class, '
+            .'flight_number, passengers (integer), suitcases (integer, large/hold bags), '
+            .'hand_luggage (integer, cabin/small bags), vehicle (one of: Executive, Estate, V Class, '
             .'Minibus 8 Seater, Rolls Royce Ghost), payment (cash|card|account), paid (true|false), '
             .'booked_by, notes. Use empty string when a field is not present.';
 
         $parsed = $this->ai->completeJson("Message:\n\n".$text, $system, ['max_tokens' => 800]) ?? [];
 
-        return $this->normalise($parsed);
+        // Merge: AI fills only the gaps the free parser couldn't.
+        $merged = $this->normalise($parsed);
+        foreach ($this->normalise($free) as $key => $value) {
+            if ($value !== '' && $value !== 0 && $value !== false) {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
     }
 
     /**
@@ -72,12 +90,19 @@ class BookingIntakeService
             'where' => $get('where'),
             'flight_number' => $get('flight_number'),
             'passengers' => (int) ($get('passengers') ?: 1) ?: 1,
-            'luggage' => (int) ($get('luggage') ?: 0),
+            'suitcases' => (int) ($get('suitcases') ?: 0),
+            'hand_luggage' => (int) ($get('hand_luggage') ?: 0),
+            // Combined total kept in sync with the two counts (legacy fallback).
+            'luggage' => ((int) ($get('suitcases') ?: 0) + (int) ($get('hand_luggage') ?: 0))
+                ?: (int) ($get('luggage') ?: 0),
             'vehicle' => $get('vehicle') ?: 'Executive',
             'payment' => in_array($get('payment'), ['cash', 'card', 'account'], true) ? $get('payment') : 'card',
             'paid' => filter_var($in['paid'] ?? false, FILTER_VALIDATE_BOOL),
             'booked_by' => $get('booked_by'),
             'notes' => $get('notes'),
+            // The rotation-suggested driver tag (ABDI/MAJ/…) shown in the title,
+            // so the copied calendar block already reads the right person.
+            'driver_tag' => $get('driver_tag'),
         ];
     }
 
@@ -115,6 +140,10 @@ class BookingIntakeService
             'where' => $f['where'] ?: null,
             'contact_no' => $f['contact_no'] ?: null,
             'booked_by' => $f['booked_by'] ?: null,
+            'suitcases' => (int) ($f['suitcases'] ?? 0),
+            'hand_luggage' => (int) ($f['hand_luggage'] ?? 0),
+            // Feeds the (TAG) in the calendar title so the copied block is ready.
+            'driver_tag' => $f['driver_tag'] ?? null,
         ]);
 
         return $booking;
@@ -133,79 +162,30 @@ class BookingIntakeService
     }
 
     /**
-     * Persist the booking the operator confirmed: customer, booking, rotation
-     * allocation, then build the calendar event and push it to Google IF the
-     * calendar is connected (otherwise it's left pending — never silently
-     * dropped). Returns the saved booking.
+     * Peek (read-only — the pointer does NOT move) at who the rotation would
+     * give this job, so the operator sees the driver tag before confirming.
+     * Null for vehicles outside the rotation (allocated manually).
      *
      * @param  array<string, mixed>  $f
+     * @return array{name: string, tag: string}|null
      */
-    public function confirm(array $f, ?User $creator): Booking
+    public function nextDriver(array $f): ?array
     {
-        $f = $this->normalise($f);
+        $vehicleType = $this->resolveVehicleType($f['vehicle'] ?? '');
+        $airport = null;
+        if (! empty($f['where'])) {
+            $airport = \App\Models\Airport::where('code', strtoupper(trim((string) $f['where'])))->first();
+        }
 
-        return DB::transaction(function () use ($f, $creator) {
-            $vehicleType = $this->resolveVehicleType($f['vehicle']);
-            $customer = $this->resolveCustomer($f);
+        $driver = $this->rotation->nextDriverFor($airport, $vehicleType);
+        if (! $driver) {
+            return null;
+        }
 
-            $booking = Booking::create([
-                'reference' => Booking::generateReference(),
-                'customer_id' => $customer->id,
-                'vehicle_type_id' => $vehicleType->id,
-                'journey_type' => 'one_way',
-                'is_return_leg' => false,
-                'pickup_at' => $this->parseTime($f['pickup_at']) ?? now(),
-                'pickup_address' => $f['pickup_address'] ?: 'Unknown',
-                'destination_address' => $f['destination_address'] ?: 'Unknown',
-                'flight_number' => $f['flight_number'] ?: null,
-                'passengers' => $f['passengers'],
-                'luggage' => $f['luggage'],
-                'special_requests' => $f['notes'] ?: null,
-                'status' => BookingStatus::Pending,
-                'payment_method' => $f['payment'],
-                'payment_status' => $f['paid'] ? 'paid' : 'pending',
-                'source' => 'phone',
-                'created_by' => $creator?->id,
-                'meta' => array_filter([
-                    'lead_name' => $f['lead_name'] ?: null,
-                    'where' => $f['where'] ?: null,
-                    'contact_no' => $f['contact_no'] ?: null,
-                    'booked_by' => $f['booked_by'] ?: null,
-                    'created_from' => 'pasted_message',
-                ]),
-            ]);
+        $tag = $driver->driverProfile?->callsign
+            ?: strtoupper(Str::before(trim($driver->name), ' '));
 
-            // Allocate a rotation driver for executive saloon jobs (so the
-            // calendar tag is ABDI/MAJ, not COVER); other vehicles stay manual.
-            $this->rotation->allocate($booking);
-
-            $event = $this->calendar->buildFor($booking->refresh());
-
-            // Push to Google only when the integration is live. Otherwise leave
-            // the event pending for the normal sync — we never silently drop it.
-            if ($this->google->active()) {
-                $this->google->push($event);
-            }
-
-            return $booking;
-        });
-    }
-
-    private function resolveCustomer(array $f): Customer
-    {
-        $phone = $f['contact_no'] ?: null;
-        $email = $f['email'] ?: null;
-
-        $customer = Customer::query()
-            ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
-            ->when($email, fn ($q) => $q->orWhere('email', $email))
-            ->first();
-
-        return $customer ?? Customer::create([
-            'name' => $f['lead_name'] ?: 'Customer',
-            'phone' => $phone,
-            'email' => $email,
-        ]);
+        return ['name' => $driver->name, 'tag' => $tag];
     }
 
     /** Map a free-text vehicle label to a seeded vehicle type; default Executive. */
@@ -232,7 +212,8 @@ class BookingIntakeService
         if ($value === '') {
             return null;
         }
-        foreach (['Y-m-d H:i', 'Y-m-d H:i:s', 'd/m/Y H:i', 'Y-m-d'] as $format) {
+        // 'Y-m-d\TH:i' covers the datetime-local picker on the intake form.
+        foreach (['Y-m-d H:i', 'Y-m-d\TH:i', 'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'd/m/Y H:i', 'Y-m-d'] as $format) {
             try {
                 return Carbon::createFromFormat($format, $value, config('app.timezone'));
             } catch (\Throwable) {

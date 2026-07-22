@@ -122,4 +122,42 @@ class DespatchBoardTest extends TestCase
 
         $this->assertEquals(BookingStatus::Pending, $booking->refresh()->status);
     }
+
+    public function test_admin_can_quick_complete_a_job_from_any_state(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->pendingBooking(['status' => BookingStatus::Accepted]);
+
+        // Straight to Completed in one tap, bypassing the step-by-step flow.
+        $this->actingAs($admin)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'complete'])
+            ->assertRedirect();
+
+        $this->assertEquals(BookingStatus::Complete, $booking->refresh()->status);
+    }
+
+    public function test_quick_status_allows_any_state_for_admins_only(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->create();
+        $booking = $this->pendingBooking(['status' => BookingStatus::Accepted]);
+
+        // Admin can set ANY status — including winding a job back after a
+        // wrong tap (that's the point of the board override).
+        $this->actingAs($admin)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'en_route'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+        $this->assertSame('en_route', $booking->fresh()->status->value);
+
+        // A made-up status is still rejected.
+        $this->actingAs($admin)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'teleported'])
+            ->assertSessionHasErrors('status');
+
+        // Non-admins can't use the override at all.
+        $this->actingAs($driver)
+            ->post(route('despatch.quick-status', $booking), ['status' => 'complete'])
+            ->assertForbidden();
+    }
 }

@@ -79,6 +79,45 @@
             </div>
         </div>
 
+        {{-- ───────────── Extras (CET surcharge list) ───────────── --}}
+        @php $sur = config('cet.surcharges'); @endphp
+        <div class="eto-section">
+            <div class="head"><span class="ico">➕</span> Extras &amp; stopovers</div>
+            <div class="body">
+                <div class="grid grid-2">
+                    <div class="field">
+                        <label>&nbsp;</label>
+                        <div class="checkbox-row" style="padding-top:8px">
+                            <input id="meet_greet" type="checkbox" name="meet_greet" value="1" {{ old('meet_greet') ? 'checked' : '' }}>
+                            <label for="meet_greet">Meet &amp; greet (£{{ number_format($sur['meet_greet'], 0) }})</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="stopovers">Stopovers / via points (£{{ number_format($sur['stopover'], 0) }} each)</label>
+                        <input id="stopovers" type="number" name="stopovers" min="0" max="8" value="{{ old('stopovers', 0) }}" style="width:110px">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="stopover_addresses">Stopover address(es) — one per line</label>
+                    <textarea id="stopover_addresses" name="stopover_addresses" rows="2" placeholder="e.g. 12 Ecclesall Road, Sheffield">{{ old('stopover_addresses') }}</textarea>
+                </div>
+                <div class="grid grid-3">
+                    <div class="field">
+                        <label for="child_seats">Child seats (£{{ number_format($sur['child_seat'], 0) }})</label>
+                        <input id="child_seats" type="number" name="child_seats" min="0" max="8" value="{{ old('child_seats', 0) }}">
+                    </div>
+                    <div class="field">
+                        <label for="booster_seats">Booster seats (£{{ number_format($sur['booster_seat'], 0) }})</label>
+                        <input id="booster_seats" type="number" name="booster_seats" min="0" max="8" value="{{ old('booster_seats', 0) }}">
+                    </div>
+                    <div class="field">
+                        <label for="infant_seats">Infant seats (£{{ number_format($sur['infant_seat'], 0) }})</label>
+                        <input id="infant_seats" type="number" name="infant_seats" min="0" max="8" value="{{ old('infant_seats', 0) }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- ───────────── Fixed-price route (advanced) ───────────── --}}
         @if($zones->isNotEmpty())
         <div class="eto-section collapsible closed" data-collapsible>

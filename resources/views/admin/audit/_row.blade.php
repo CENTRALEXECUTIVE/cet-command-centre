@@ -1,12 +1,14 @@
-<tr style="{{ $r['status'] === 'ok' ? 'opacity:.6' : '' }}">
+<tr class="audit-row" data-status="{{ $r['status'] }}" style="{{ in_array($r['status'], ['ok', 'old'], true) ? 'opacity:.55' : '' }}">
     <td style="white-space:nowrap">
         @if($r['url'])<a href="{{ $r['url'] }}">{{ $r['reference'] }}</a>@else {{ $r['reference'] }} @endif
     </td>
     <td>{{ $r['name'] }}</td>
-    <td class="muted" style="white-space:nowrap">{{ $r['pickup']?->format('D d M · H:i') ?? '—' }}</td>
+    <td class="muted" style="white-space:nowrap">{{ $r['pickup']?->format('D d M Y · H:i') ?? '—' }}</td>
     <td>
         @if($r['status'] === 'ok')
             <span style="color:#1f7a44">✓ OK</span>
+        @elseif($r['status'] === 'old')
+            <span class="muted">🗄 Old · archived (not audited)</span>
         @elseif($r['status'] === 'missing')
             <span style="color:#b32020">✗ Not imported</span>
             <div class="muted" style="font-size:12px">Import it via Imports → ETO bookings.</div>

@@ -24,23 +24,51 @@ class BookingController extends Controller
         private readonly BookingService $bookings,
         private readonly BookingStatusService $status,
         private readonly BookingNotifier $notifier,
+        private readonly \App\Services\Calendar\GoogleCalendarService $google,
+        private readonly \App\Services\Calendar\CalendarTimeSync $timeSync,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $user = $request->user();
 
-        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount'])
-            ->orderByDesc('pickup_at');
+        // Drivers never see the bookings area — their world is My jobs, which
+        // shows only their own assigned work (and no prices).
+        if ($user->isDriver() && ! $user->isAdmin()) {
+            return redirect()->route('driver.jobs');
+        }
+
+        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent']);
 
         // Corporate clients only ever see their own account's bookings.
         if ($user->isCorporateClient()) {
             $query->whereIn('corporate_account_id', $user->corporateAccounts->pluck('id'));
         }
 
-        return view('bookings.index', [
-            'bookings' => $query->paginate(20),
-        ]);
+        // Search — reference, ETO reference, customer name/phone, lead passenger.
+        $q = trim((string) $request->query('q'));
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('reference', 'like', "%{$q}%")
+                    ->orWhere('external_reference', 'like', "%{$q}%")
+                    ->orWhere('meta->lead_name', 'like', "%{$q}%")
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"));
+            });
+        }
+
+        // Time filter for order. Default to Upcoming (soonest first); when
+        // searching, default to All so a match isn't hidden by its date.
+        $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
+        match ($filter) {
+            'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
+            'past' => $query->where('pickup_at', '<', now()->startOfDay())->orderByDesc('pickup_at'),
+            'all' => $query->orderByDesc('pickup_at'),
+            default => $query->where('pickup_at', '>=', now()->startOfDay())->orderBy('pickup_at'), // upcoming
+        };
+
+        $bookings = $query->paginate(20)->withQueryString();
+
+        return view('bookings.index', ['bookings' => $bookings, 'q' => $q, 'filter' => $filter]);
     }
 
     public function create(Request $request): View
@@ -75,15 +103,74 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} created successfully.");
     }
 
-    public function show(Request $request, Booking $booking): View
+    public function show(Request $request, Booking $booking): View|RedirectResponse
     {
+        // Drivers never see the full booking (prices, payment, comms) — they get
+        // the driver job screen, and only for their own job.
+        if ($request->user()->isDriver() && ! $request->user()->isAdmin()) {
+            return $booking->driver_id === $request->user()->id
+                ? redirect()->route('driver.job', $booking)
+                : redirect()->route('driver.jobs');
+        }
+
         // Authorisation: corporate clients can only view their own bookings.
         if ($request->user()->isCorporateClient()
             && ! $request->user()->corporateAccounts->pluck('id')->contains($booking->corporate_account_id)) {
             abort(403);
         }
 
+        // Auto-follow the live calendar: when Google Calendar is connected, reading
+        // this booking silently matches its time to the live event (the operator's
+        // source of truth) so a time changed directly on Google shows here without
+        // any button. Read-only — it never writes to Google. A no-op until the
+        // credentials are configured on the server, and failures are swallowed so
+        // the page always renders.
+        $this->autoFollowCalendar($booking);
+
         return view('bookings.show', $this->showData($request, $booking));
+    }
+
+    /**
+     * If the live Google Calendar is reachable, scan this booking against it so
+     * the page reflects the calendar exactly — including linking an ETO import
+     * to its event by reference on first view, then mirroring the time and the
+     * whole details block. Silent and best-effort: skipped when the calendar
+     * isn't connected, and any error leaves our stored copy untouched so the
+     * page always renders. The expensive match runs once per booking; after
+     * that it's a fast single-event read.
+     */
+    private function autoFollowCalendar(Booking $booking): void
+    {
+        if (! $this->google->configured() || ! $this->google->active()) {
+            return; // not connected — the manual "Scan calendar" button still works
+        }
+
+        $linked = filled($booking->calendarEvent?->google_event_id);
+        if (! $linked) {
+            // Only auto-SEARCH for bookings likely to be on the calendar (they
+            // carry a reference), and at most once every few minutes, so an
+            // unmatchable booking doesn't hit the API on every page view. The
+            // manual "Scan calendar" button always searches on demand.
+            if (blank($booking->external_reference)) {
+                return;
+            }
+            $lastTry = $booking->meta['calendar_scan_attempted_at'] ?? null;
+            if ($lastTry && \Illuminate\Support\Carbon::parse($lastTry)->gt(now()->subMinutes(10))) {
+                return;
+            }
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                'calendar_scan_attempted_at' => now()->toDateTimeString(),
+            ])])->save();
+        }
+
+        try {
+            $this->timeSync->scan($booking);
+        } catch (\Throwable $e) {
+            // Never let a calendar read break the booking page.
+            \Illuminate\Support\Facades\Log::warning('Auto-follow calendar scan failed', [
+                'booking' => $booking->id, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function edit(Request $request, Booking $booking): View|RedirectResponse
@@ -104,6 +191,15 @@ class BookingController extends Controller
     public function update(UpdateBookingRequest $request, Booking $booking): RedirectResponse
     {
         $this->bookings->updateFromForm($booking, $request->validated());
+
+        // Adding a contact number can make masking possible on an already-
+        // allocated job — open the line now so the office can hand it out.
+        // Idempotent, and a no-op for admin drivers, unmasked jobs, missing
+        // numbers or when masking is off.
+        $booking->refresh()->loadMissing('customer', 'driver');
+        if ($booking->driver && ! $booking->status->isTerminal()) {
+            app(\App\Services\Telephony\TwilioProxyService::class)->openSession($booking, $booking->driver);
+        }
 
         return redirect()
             ->route('bookings.show', $booking)
@@ -147,7 +243,142 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} cancelled. Remember to remove it from Google Calendar if it was pushed there.");
     }
 
+    /**
+     * Merge a duplicate booking into this one. $booking is the copy we KEEP;
+     * the duplicate is folded in (driver, tips, calendar link, any blank fields,
+     * merged meta) and then removed — a "replace", not a bare delete. Only allowed
+     * when the two are genuinely the same journey (same pickup minute + customer),
+     * so a bad request can't merge two unrelated bookings. Calendar untouched.
+     */
+    public function merge(Request $request, Booking $booking, \App\Services\Bookings\BookingMerger $merger): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['dupe_id' => ['required', 'integer']]);
+
+        $dupe = Booking::findOrFail($data['dupe_id']);
+        if ($dupe->id === $booking->id) {
+            throw ValidationException::withMessages(['dupe_id' => 'A booking cannot be merged into itself.']);
+        }
+
+        // Only merge a booking the page actually flagged as a same-journey twin,
+        // so a stray request can never fold two unrelated jobs together.
+        if (! $booking->duplicateCandidates()->contains('id', $dupe->id)) {
+            throw ValidationException::withMessages([
+                'dupe_id' => 'These bookings are not the same journey, so they were not merged.',
+            ]);
+        }
+
+        $mergedRef = $dupe->external_reference ?: $dupe->reference;
+        $merger->mergeAndDelete($booking, $dupe);
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Merged {$mergedRef} into this booking — one record now. Google Calendar was not touched.");
+    }
+
     /** @return array<string, mixed> */
+    /**
+     * Toggle number masking for a single job. Turning it OFF frees both sides
+     * to use their real numbers (handy on a return leg where they already have
+     * each other's number) and closes any open masked line. Turning it back ON
+     * reopens a fresh masked line for a live non-admin driver.
+     */
+    public function toggleMasking(Request $request, Booking $booking, \App\Services\Telephony\TwilioProxyService $proxy): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $off = ! $booking->maskingDisabled();
+        $hasColumn = \Illuminate\Support\Facades\Schema::hasColumn('bookings', 'masking_disabled');
+
+        // Apply to BOTH legs of a return journey so unmasking one doesn't leave
+        // the other masked. Writes the durable column (when migrated) AND the
+        // meta flag, so the setting sticks no matter what.
+        $legs = Booking::query()
+            ->where('id', $booking->id)
+            ->orWhere('id', $booking->linked_booking_id)
+            ->orWhere('linked_booking_id', $booking->id)
+            ->get();
+
+        foreach ($legs as $leg) {
+            $attrs = ['meta' => array_merge($leg->meta ?? [], ['masking_disabled' => $off])];
+            if ($hasColumn) {
+                $attrs['masking_disabled'] = $off;
+            }
+            $leg->forceFill($attrs)->save();
+        }
+
+        if ($off) {
+            foreach ($legs as $leg) {
+                $proxy->closeSession($leg, 'masking disabled for job');
+            }
+
+            return back()->with('status', "Masking OFF for {$booking->reference} — both sides use their real numbers.");
+        }
+
+        // Re-mask: open a fresh line if there's a live, non-admin driver.
+        if ($booking->driver && ! $booking->status->isTerminal() && ! $booking->driver->isAdmin()) {
+            $proxy->openSession($booking->fresh(['customer', 'driver']), $booking->driver);
+        }
+
+        return back()->with('status', "Masking back ON for {$booking->reference}.");
+    }
+
+    /**
+     * Ask the assigned driver to share their location now: flag the request on
+     * the booking and push their phone. Their job screen answers with a one-off
+     * ping (works at any live stage, even before Set off).
+     */
+    public function requestLocation(Request $request, Booking $booking, \App\Services\Push\WebPushService $push): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (! $booking->driver_id || $booking->status->isTerminal()) {
+            return response()->json(['ok' => false, 'reason' => 'no_live_driver'], 422);
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'location_request_at' => now()->toIso8601String(),
+        ])])->save();
+
+        $sent = $booking->driver
+            ? $push->sendToUser(
+                $booking->driver,
+                'Location request',
+                'The office needs your location — tap to share.',
+                ['url' => route('driver.job', $booking), 'tag' => 'locreq-'.$booking->id],
+            )
+            : 0;
+
+        return response()->json(['ok' => true, 'pushed' => $sent, 'requested_at' => now()->toIso8601String()]);
+    }
+
+    /**
+     * JSON snapshot of the driver's latest position for this job + the pending
+     * request state — polled by the booking page to update the live card.
+     */
+    public function locationData(Request $request, Booking $booking): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $loc = $booking->latestLocation();
+        $requestedAt = $booking->locationRequestedAt();
+
+        return response()->json([
+            'has_driver' => (bool) $booking->driver_id,
+            'requested_at' => $requestedAt?->toIso8601String(),
+            'requested_age' => $requestedAt ? (int) abs(now()->diffInSeconds($requestedAt)) : null,
+            'pending' => $booking->locationRequestPending(),
+            'ping' => $loc ? [
+                'lat' => (float) $loc->latitude,
+                'lng' => (float) $loc->longitude,
+                'heading' => $loc->heading !== null ? (float) $loc->heading : null,
+                'captured_at' => $loc->captured_at->toIso8601String(),
+                'age' => (int) abs(now()->diffInSeconds($loc->captured_at)),
+            ] : null,
+        ]);
+    }
+
     private function showData(Request $request, Booking $booking): array
     {
         $booking->load([
@@ -172,13 +403,18 @@ class BookingController extends Controller
                 // "Send on WhatsApp" text (you can re-send the updated version).
                 if ($m->isReminder()) {
                     $m->body = $this->notifier->reminderBody($booking);
+                } elseif ($m->isReviewRequest()) {
+                    $m->body = $this->notifier->reviewBody($booking);
                 }
             }
         }
 
+        // Newest first, capped — the full history is rarely needed and made the
+        // page very long. Show the latest handful; older entries stay in the DB.
         $auditLogs = $request->user()->isAdmin()
-            ? $booking->auditLogs()->with('user')->latest('created_at')->get()
+            ? $booking->auditLogs()->with('user')->latest('created_at')->limit(8)->get()
             : collect();
+        $auditLogTotal = $request->user()->isAdmin() ? $booking->auditLogs()->count() : 0;
 
         // Drivers to prefill the "driver for this job" picker (admins only):
         // the cover-driver roster plus any system drivers not already in it.
@@ -205,7 +441,20 @@ class BookingController extends Controller
             $jobDrivers = $cover->concat($system)->values();
         }
 
-        return compact('booking', 'auditLogs', 'messages', 'jobDrivers');
+        // System drivers (with a login) that can be ALLOCATED to this job right
+        // from the booking page — same allocate flow as the dispatch board.
+        $allocatableDrivers = $request->user()->isAdmin()
+            ? \App\Models\User::where('is_active', true)->whereHas('driverProfile')
+                ->with('driverProfile.defaultVehicle')->orderBy('name')->get()
+            : collect();
+
+        // Whether the live calendar can be scanned for this booking — used to
+        // show the "Scan calendar" button even for ETO imports that don't yet
+        // have a stored event id (the scan matches them by reference).
+        $canScan = $request->user()->isAdmin()
+            && $this->google->configured() && $this->google->active();
+
+        return compact('booking', 'auditLogs', 'auditLogTotal', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan');
     }
 
     /**
@@ -237,6 +486,176 @@ class BookingController extends Controller
         ])->save();
 
         return back()->with('status', 'Driver details added — they now appear in the reminder below.');
+    }
+
+    /**
+     * Payroll on a job (admin only): set what the job pays the driver, or
+     * record money handed over — so the office always knows who's been paid,
+     * how much, and what's still owed. Stored on the booking's meta (no
+     * migration) with a timestamped history of every payment.
+     */
+    /**
+     * Manually create a review request for a completed job — overrides the
+     * once-per-customer rule, so the office can always ask when it wants to.
+     */
+    public function requestReview(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (blank($booking->customer?->phone)) {
+            return back()->with('status', 'No phone number on file for this customer — add one, then request the review.');
+        }
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return back()->with('status', 'A review request already exists for this booking — it’s on the Review requests list.');
+        }
+
+        $msg = $this->notifier->scheduleReviewRequest($booking, force: true);
+
+        return back()->with('status', $msg
+            ? 'Review request created — it’s on the Review requests list to send on WhatsApp.'
+            : 'Couldn’t create a review request (a return leg may still be running).');
+    }
+
+    /**
+     * Correct the linked customer record's phone to this booking's calendar
+     * "Contact No" — the fix for a booking that got filed under a record holding
+     * another booker's number. Messaging already uses the calendar contact; this
+     * just tidies the stored record so it stops showing the wrong number.
+     */
+    public function fixContact(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $calendar = $booking->contactNumberMismatch();
+        if (! $calendar || ! $booking->customer) {
+            return back()->with('status', 'Nothing to fix — the contact number already matches the calendar.');
+        }
+
+        $booking->customer->forceFill(['phone' => $calendar])->save();
+
+        return back()->with('status', "Customer number corrected to the calendar contact ({$calendar}).");
+    }
+
+    public function payroll(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'action' => ['required', 'in:set,record,tip'],
+            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'method' => ['required_if:action,tip', 'in:cash,card'],
+            'note' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        // A gratuity for the driver — kept in the booking_tips ledger, separate
+        // from job pay and safe from any meta rewrite.
+        if ($data['action'] === 'tip') {
+            $amount = round((float) $data['amount'], 2);
+            $booking->logTip($amount, $data['method'], note: $data['note'] ?? null, loggedBy: $request->user()->name);
+
+            $where = $data['method'] === 'cash' ? 'cash (driver already has it)' : 'card (owed to the driver)';
+
+            return back()->with('status', '£'.number_format($amount, 2)." tip logged for {$booking->payrollDriverName()} — {$where}.");
+        }
+
+        $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+
+        if ($data['action'] === 'set') {
+            $payroll['pay'] = round((float) $data['amount'], 2);
+            $status = 'Driver pay set to £'.number_format($payroll['pay'], 2).'.';
+        } else {
+            $amount = round((float) $data['amount'], 2);
+            $payroll['paid'] = round(((float) ($payroll['paid'] ?? 0)) + $amount, 2);
+            $payroll['history'][] = [
+                'amount' => $amount,
+                'at' => now()->toDateTimeString(),
+                'by' => $request->user()->name,
+                'note' => $data['note'] ?? null,
+            ];
+            $status = '£'.number_format($amount, 2).' recorded as paid to '.$booking->payrollDriverName().'.';
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
+
+        return back()->with('status', $status);
+    }
+
+    /**
+     * Scan this booking against the LIVE Google Calendar: read the event as it
+     * stands right now and bring everything on our side — pickup time, title,
+     * pickup location, slot and the whole details block — exactly into line.
+     * Read-only on Google. Reports precisely what was corrected.
+     */
+    public function scanCalendar(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $result = $sync->scan($booking);
+
+        if ($result['status'] !== 'ok') {
+            $ref = $booking->external_reference ?: $booking->reference;
+            $diag = $result['diag'] ?? [];
+
+            if (! $google->configured()) {
+                $why = 'Google Calendar isn’t connected on the server.';
+            } elseif (! $google->active()) {
+                $why = 'Calendar sync is paused right now.';
+            } elseif (! empty($diag['token_error'])) {
+                // The precise reason Google/the server refused a token.
+                $why = $diag['token_error'];
+            } elseif (empty($diag['read'])) {
+                $why = 'Couldn’t read your Google Calendar (a temporary Google error or the calendar isn’t shared with the service account). Try again in a moment.';
+            } else {
+                // We DID read the calendar but found no matching event.
+                $hits = (int) ($diag['ref_hits'] ?? 0) + (int) ($diag['name_hits'] ?? 0);
+                $why = $hits > 0
+                    ? "Read your calendar and found {$hits} event(s) mentioning “{$ref}” or the customer, but none had “Booking Reference: {$ref}” in the details. Check the reference on the calendar event matches."
+                    : "Searched your calendar for “{$ref}” and the customer name but found no matching event. Check the event is on {$this->calendarLabel()} and its reference is in the details.";
+            }
+
+            return back()->with('status', '⚠ Scan couldn’t verify against the live calendar: '.$why);
+        }
+
+        if ($result['changes'] === []) {
+            return back()->with('status', '✅ Scanned the live calendar — this booking matches it exactly. Nothing to correct.');
+        }
+
+        return back()
+            ->with('status', '🗓 Scanned the live calendar — '.count($result['changes']).' thing(s) corrected to match it.')
+            ->with('scanChanges', $result['changes']);
+    }
+
+    /** The calendar name for messages (Setting override, else the CET default). */
+    private function calendarLabel(): string
+    {
+        return (string) \App\Models\Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
+    }
+
+    /**
+     * Match the booking's pickup time to the live calendar event (read-only) —
+     * for when the operator corrected the time on the calendar and the system
+     * needs to catch up. Never edits the calendar.
+     */
+    public function syncTime(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $result = $sync->pullTime($booking);
+
+        // A clear reason when the live read can't run — the usual cause of
+        // "I edited Google but nothing updates" is that the calendar API isn't
+        // connected on the server, so we can't read your live edit back.
+        $unavailable = ! $google->configured()
+            ? 'Google Calendar isn’t connected on the server, so live edits can’t be read. Connect it, or use “Edit booking” to set the time here.'
+            : (! $google->active()
+                ? 'Calendar sync is paused, so live edits can’t be read right now.'
+                : 'Couldn’t read this booking from the live calendar (the event may no longer be linked). Use “Edit booking” to set the time here.');
+
+        return back()->with('status', match ($result['status']) {
+            'updated' => "Pickup time updated to {$result['new']} to match the calendar (was {$result['old']}).",
+            'matches' => 'The live calendar shows the same time already — nothing to change.',
+            default => $unavailable,
+        });
     }
 
     /** @return array<string, mixed> */

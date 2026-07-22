@@ -42,6 +42,9 @@ return [
         'sid' => env('TWILIO_SID'),
         'token' => env('TWILIO_AUTH_TOKEN'),
         'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        // Twilio Proxy service (number masking) — the KS… sid from the Proxy
+        // console. Masking is a silent no-op until this is set.
+        'proxy_service_sid' => env('TWILIO_PROXY_SERVICE_SID'),
     ],
 
     // Tide payment links. Card details are never stored — we only generate and
@@ -50,6 +53,19 @@ return [
     'tide' => [
         'key' => env('TIDE_API_KEY'),
         'base_url' => env('TIDE_BASE_URL', 'https://pay.tide.co'),
+    ],
+
+    // Square — customer card TIPS for the driver. A silent no-op until the
+    // access token + location are set. Tips are attributed to the booking via
+    // the order reference and logged onto the driver's payroll by the webhook.
+    'square' => [
+        'environment' => env('SQUARE_ENVIRONMENT', 'production'),
+        'app_id' => env('SQUARE_APP_ID'),
+        'access_token' => env('SQUARE_ACCESS_TOKEN'),
+        'location_id' => env('SQUARE_LOCATION_ID'),
+        'webhook_signature_key' => env('SQUARE_WEBHOOK_SIGNATURE_KEY'),
+        // Preset tip buttons shown to the customer (£). "Other" is always offered.
+        'tip_amounts' => [5, 10, 20],
     ],
 
     // Anthropic Claude — powers the AI pricing engine and other AI features.
@@ -77,9 +93,16 @@ return [
         'customer_id' => env('GOOGLE_ADS_CUSTOMER_ID'),
     ],
 
-    // Twilio number masking virtual number (customer & driver connect via this).
+    // Number masking — the "switchboard" model. Two permanent CET lines (from
+    // your existing 2 Twilio numbers) bridge every job with no per-job cost:
+    //   customer_line — give to customers; they ring it → reaches their driver.
+    //   driver_line   — on the driver's job screen; they ring it → reaches the customer.
+    // Works for unlimited concurrent jobs and can be handed out 24h+ ahead
+    // because the numbers never change. proxy_number kept as a legacy fallback.
     'twilio_masking' => [
         'proxy_number' => env('TWILIO_PROXY_NUMBER'),
+        'customer_line' => env('TWILIO_CUSTOMER_LINE'),
+        'driver_line' => env('TWILIO_DRIVER_LINE'),
     ],
 
     // Google Calendar — booking events pushed to the company calendar.

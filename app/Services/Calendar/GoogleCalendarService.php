@@ -4,6 +4,7 @@ namespace App\Services\Calendar;
 
 use App\Models\CalendarEvent;
 use App\Models\Setting;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -164,6 +165,240 @@ class GoogleCalendarService
         $check = Http::withToken($token)->get("{$base}/{$eventId}");
 
         return $check->successful() && $check->json('status') !== 'cancelled';
+    }
+
+    /**
+     * READ-ONLY: fetch a tracked event from Google exactly as it stands on the
+     * calendar right now — including any time the operator corrected there by
+     * hand. Returns its start/end (in the app timezone), title, location and
+     * description, or null if the calendar is inactive/unconfigured, the event
+     * isn't tracked, or it can't be read. NEVER writes to the calendar.
+     *
+     * @return array{start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     */
+    public function readEvent(CalendarEvent $event): ?array
+    {
+        if (! $this->active() || ! $this->configured() || blank($event->google_event_id)) {
+            return null;
+        }
+
+        try {
+            $token = $this->accessToken();
+            if (! $token) {
+                return null;
+            }
+
+            $calendarId = rawurlencode($event->calendar_id);
+            $base = "https://www.googleapis.com/calendar/v3/calendars/{$calendarId}/events";
+            $resp = Http::withToken($token)->get("{$base}/{$event->google_event_id}");
+
+            if (! $resp->successful() || $resp->json('status') === 'cancelled') {
+                return null;
+            }
+
+            // Timed events carry start.dateTime; all-day events carry start.date.
+            $start = $resp->json('start.dateTime') ?? $resp->json('start.date');
+            if (! $start) {
+                return null;
+            }
+            $end = $resp->json('end.dateTime') ?? $resp->json('end.date');
+
+            return [
+                'start' => $this->calendarTime($start),
+                'end' => $end ? $this->calendarTime($end) : null,
+                'title' => $resp->json('summary'),
+                'location' => $resp->json('location'),
+                'description' => $resp->json('description'),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Google Calendar read failed', ['event' => $event->id, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * READ-ONLY: find the LIVE calendar event that belongs to a booking, even
+     * when we never stored its id. Uses Google's own full-text search (q=) so
+     * it looks across the WHOLE calendar — not a fragile time window — matching
+     * the ETO/booking reference in the event, then (fallback) the lead name.
+     * Returns the matched event, plus a diagnostic of what was searched/found
+     * so a failure can always be explained.
+     *
+     * @return array{event: ?array<string,mixed>, diag: array<string,mixed>}
+     */
+    public function findEventWithDiagnostics(string $calendarId, ?string $reference, ?string $name, \DateTimeInterface $near): array
+    {
+        $diag = ['reference' => $reference, 'name' => $name, 'read' => false, 'ref_hits' => 0, 'name_hits' => 0];
+
+        if (! $this->active() || ! $this->configured()) {
+            $diag['reason'] = 'not_connected';
+
+            return ['event' => null, 'diag' => $diag];
+        }
+        $token = $this->accessToken();
+        if (! $token) {
+            $diag['reason'] = 'no_token';
+            $diag['token_error'] = $this->tokenError;
+
+            return ['event' => null, 'diag' => $diag];
+        }
+
+        $base = 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId).'/events';
+        // A wide window so a moved time/day can't hide the event, but bounded
+        // so a huge calendar stays fast.
+        $timeMin = Carbon::parse($near)->subDays(31)->startOfDay();
+        $timeMax = Carbon::parse($near)->addDays(31)->endOfDay();
+
+        $ref = trim((string) $reference);
+        if ($ref !== '') {
+            $items = $this->searchEvents($token, $base, $ref, $timeMin, $timeMax);
+            $diag['read'] = true;
+            $diag['ref_hits'] = count($items);
+            // Strict: the reference is the "Booking Reference" line.
+            foreach ($items as $item) {
+                if (! empty($item['id'])
+                    && preg_match('/Booking Reference:\*?\s*'.preg_quote($ref, '/').'\b/i', (string) ($item['description'] ?? ''))) {
+                    $diag['matched'] = 'reference';
+
+                    return ['event' => $this->normaliseEvent($item), 'diag' => $diag];
+                }
+            }
+            // Loose: the reference anywhere in the event text.
+            if ($m = $this->matchIn($items, $ref, null)) {
+                $diag['matched'] = 'reference_loose';
+
+                return ['event' => $m, 'diag' => $diag];
+            }
+        }
+
+        $needle = trim((string) $name);
+        if ($needle !== '') {
+            $items = $this->searchEvents($token, $base, $needle, $timeMin, $timeMax);
+            $diag['read'] = true;
+            $diag['name_hits'] = count($items);
+            if ($m = $this->matchIn($items, null, $needle)) {
+                $diag['matched'] = 'name';
+
+                return ['event' => $m, 'diag' => $diag];
+            }
+        }
+
+        $diag['reason'] = 'no_match';
+
+        return ['event' => null, 'diag' => $diag];
+    }
+
+    /** Convenience wrapper returning just the event (or null). */
+    public function findEvent(string $calendarId, ?string $reference, ?string $name, \DateTimeInterface $near): ?array
+    {
+        return $this->findEventWithDiagnostics($calendarId, $reference, $name, $near)['event'];
+    }
+
+    /**
+     * Google Calendar full-text event search (q=) within a time window. Returns
+     * the raw event items across all pages.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function searchEvents(string $token, string $base, string $query, \DateTimeInterface $timeMin, \DateTimeInterface $timeMax): array
+    {
+        $items = [];
+        $pageToken = null;
+        do {
+            $resp = Http::withToken($token)->get($base, array_filter([
+                'q' => $query,
+                'singleEvents' => 'true',
+                'showDeleted' => 'false',
+                'timeMin' => $timeMin->format(\DateTimeInterface::RFC3339),
+                'timeMax' => $timeMax->format(\DateTimeInterface::RFC3339),
+                'maxResults' => 250,
+                'pageToken' => $pageToken,
+            ]));
+            if (! $resp->successful()) {
+                break;
+            }
+            foreach ($resp->json('items', []) as $item) {
+                $items[] = $item;
+            }
+            $pageToken = $resp->json('nextPageToken');
+        } while ($pageToken);
+
+        return $items;
+    }
+
+    /**
+     * Pick the event that matches a booking from an already-fetched list (used
+     * by the bulk sync so the calendar is read once, not per booking).
+     *
+     * @param  array<int, array<string, mixed>>  $events
+     * @return array{id: string, start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     */
+    public function matchIn(array $events, ?string $reference, ?string $name): ?array
+    {
+        $ref = strtoupper(trim((string) $reference));
+        $needleName = strtolower(trim((string) $name));
+
+        // 1. Reference in the description — unique and authoritative.
+        if ($ref !== '') {
+            foreach ($events as $e) {
+                $haystack = strtoupper(($e['description'] ?? '').' '.($e['summary'] ?? ''));
+                if (str_contains($haystack, $ref)) {
+                    return $this->normaliseEvent($e);
+                }
+            }
+        }
+
+        // 2. Fallback: the lead name in the title/description.
+        if ($needleName !== '') {
+            foreach ($events as $e) {
+                $haystack = strtolower(($e['summary'] ?? '').' '.($e['description'] ?? ''));
+                if (str_contains($haystack, $needleName)) {
+                    return $this->normaliseEvent($e);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalise a raw Google event item into our shape (start/end in app tz).
+     *
+     * @param  array<string, mixed>  $e
+     * @return array{id: string, start: Carbon, end: ?Carbon, title: ?string, location: ?string, description: ?string}|null
+     */
+    public function normaliseEvent(array $e): ?array
+    {
+        $start = $e['start']['dateTime'] ?? $e['start']['date'] ?? null;
+        if (! $start || empty($e['id'])) {
+            return null;
+        }
+        $end = $e['end']['dateTime'] ?? $e['end']['date'] ?? null;
+
+        return [
+            'id' => $e['id'],
+            'start' => $this->calendarTime($start),
+            'end' => $end ? $this->calendarTime($end) : null,
+            'title' => $e['summary'] ?? null,
+            'location' => $e['location'] ?? null,
+            'description' => $e['description'] ?? null,
+        ];
+    }
+
+    /**
+     * Convert a Google event time to the UK wall-clock the operator sees on the
+     * calendar, represented in the app timezone — so a 16:45 BST event reads as
+     * 16:45, never shifted to 15:45 by a UTC app timezone. Google returns an
+     * absolute instant (e.g. "…T16:45:00+01:00"); we take its Europe/London
+     * wall-clock and rebuild it in the app tz, matching how ETO local times are
+     * stored (rule 3 — never treat UK-local times as UTC).
+     */
+    private function calendarTime(string $googleDateTime): Carbon
+    {
+        $london = Carbon::parse($googleDateTime)->setTimezone('Europe/London');
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $london->format('Y-m-d H:i:s'), config('app.timezone'));
     }
 
     /**
@@ -411,43 +646,97 @@ class GoogleCalendarService
      * The target calendar (config cet.calendar_id) must be shared with the
      * service account's client_email, with "Make changes to events" permission.
      */
+    /** Human-readable reason the last token fetch failed (for diagnostics). */
+    public ?string $tokenError = null;
+
     protected function accessToken(): ?string
     {
-        return Cache::remember('google_calendar_token', 3000, function () {
-            $creds = $this->credentials();
-            if (! $creds || empty($creds['client_email']) || empty($creds['private_key'])) {
-                return null;
-            }
+        // Use a cached token when we have one — but NEVER cache a failure, so a
+        // transient error doesn't lock the calendar out for the cache lifetime.
+        if ($cached = Cache::get('google_calendar_token')) {
+            return $cached;
+        }
 
-            $tokenUri = $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token';
-            $now = time();
-            $claims = [
-                'iss' => $creds['client_email'],
-                'scope' => 'https://www.googleapis.com/auth/calendar',
-                'aud' => $tokenUri,
-                'iat' => $now,
-                'exp' => $now + 3600,
-            ];
+        $token = $this->requestToken();
+        if ($token) {
+            Cache::put('google_calendar_token', $token, 3000);
+        }
 
-            $segments = [
-                $this->base64Url(json_encode(['alg' => 'RS256', 'typ' => 'JWT'])),
-                $this->base64Url(json_encode($claims)),
-            ];
-            $signingInput = implode('.', $segments);
+        return $token;
+    }
 
-            $signature = '';
-            if (! openssl_sign($signingInput, $signature, $creds['private_key'], 'sha256WithRSAEncryption')) {
-                return null;
-            }
-            $jwt = $signingInput.'.'.$this->base64Url($signature);
+    /** Fetch a fresh access token, recording a precise failure reason. */
+    private function requestToken(): ?string
+    {
+        $this->tokenError = null;
 
+        $value = config('services.google_calendar.credentials');
+        if (blank($value)) {
+            $this->tokenError = 'No credentials configured (GOOGLE_CALENDAR_CREDENTIALS is empty).';
+
+            return null;
+        }
+        // Distinguish "path given but not readable by the web user" — a common
+        // cPanel cause where the shell can read the key but PHP-FPM cannot.
+        if (is_string($value) && ! str_starts_with(trim($value), '{') && ! is_readable($value)) {
+            $this->tokenError = "Key file not readable by the web server at {$value} (check the path and file permissions — chmod 644).";
+
+            return null;
+        }
+
+        $creds = $this->credentials();
+        if (! $creds || empty($creds['client_email']) || empty($creds['private_key'])) {
+            $this->tokenError = 'Credentials file is not valid JSON, or is missing client_email/private_key.';
+
+            return null;
+        }
+
+        $tokenUri = $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token';
+        $now = time();
+        $claims = [
+            'iss' => $creds['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/calendar',
+            'aud' => $tokenUri,
+            'iat' => $now,
+            'exp' => $now + 3600,
+        ];
+
+        $signingInput = $this->base64Url(json_encode(['alg' => 'RS256', 'typ' => 'JWT']))
+            .'.'.$this->base64Url(json_encode($claims));
+
+        $signature = '';
+        if (! openssl_sign($signingInput, $signature, $creds['private_key'], 'sha256WithRSAEncryption')) {
+            $this->tokenError = 'Could not sign the token (the private key in the JSON is invalid).';
+
+            return null;
+        }
+        $jwt = $signingInput.'.'.$this->base64Url($signature);
+
+        try {
             $response = Http::asForm()->post($tokenUri, [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => $jwt,
             ]);
+        } catch (\Throwable $e) {
+            $this->tokenError = 'Network error reaching Google: '.$e->getMessage();
 
-            return $response->successful() ? $response->json('access_token') : null;
-        });
+            return null;
+        }
+
+        if ($response->successful() && $response->json('access_token')) {
+            return $response->json('access_token');
+        }
+
+        // Google's own error — invalid_grant almost always means the server
+        // clock is wrong (the signed times are out of tolerance).
+        $err = (string) ($response->json('error') ?: $response->status());
+        $desc = (string) $response->json('error_description');
+        $hint = str_contains($err.$desc, 'invalid_grant')
+            ? ' — this usually means the SERVER CLOCK is wrong; sync the server time.'
+            : '';
+        $this->tokenError = "Google rejected the token request (HTTP {$response->status()}: {$err}){$hint}";
+
+        return null;
     }
 
     /** @return array<string, mixed>|null */

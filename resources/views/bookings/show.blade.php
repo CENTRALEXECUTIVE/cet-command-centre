@@ -2,15 +2,77 @@
 @section('title', 'Booking ' . $booking->reference)
 
 @section('content')
-    <h1 class="page-title">
-        Booking <span class="mono">{{ $booking->reference }}</span>
-        <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
-    </h1>
-    <p class="page-sub">Created {{ $booking->created_at->format('D d M Y, H:i') }}
-        @if($booking->createdBy) by {{ $booking->createdBy->name }} @endif</p>
+    {{-- Hero: the four things the office needs at a glance — when, who,
+         where-code, and state — in the brand black/gold. --}}
+    <div class="booking-hero">
+        <div class="bh-top">
+            <div>
+                <div class="bh-when">{{ $booking->pickup_at->format('D d M Y') }} · <span class="gold">{{ $booking->pickup_at->format('H:i') }}</span></div>
+                <div class="bh-who">{{ $booking->displayCustomerName() ?? 'Customer' }}
+                    <span class="badge badge-{{ $booking->status->value }}" id="hero-status">{{ $booking->status->label() }}</span>
+                </div>
+            </div>
+            <div class="bh-refs">
+                <div class="mono">{{ $booking->reference }}</div>
+                @if($booking->external_reference)<div class="mono gold">ETO {{ $booking->external_reference }}</div>@endif
+            </div>
+        </div>
+        <div class="bh-chips">
+            @if($booking->airport)<span class="bh-chip">✈ {{ $booking->airport->code }}</span>@endif
+            @if($booking->displayVehicleType())<span class="bh-chip">🚘 {{ $booking->displayVehicleType() }}</span>@endif
+            <span class="bh-chip">👤 {{ $booking->driver?->name ?? ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}</span>
+            <span class="bh-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
+            @if($booking->displayPayment())
+                <span class="bh-chip {{ str_contains(strtolower($booking->displayPayment()), 'paid') ? 'ok' : '' }}">💳 {{ $booking->displayPayment() }}</span>
+            @elseif($booking->payment_status === 'paid')
+                <span class="bh-chip ok">💳 Paid</span>
+            @else
+                <span class="bh-chip warn">💳 {{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+            @endif
+            @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->displayFlightNumber() }}</span>@endif
+        </div>
+        <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
+    </div>
 
     @if(session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+
+    {{-- Possible duplicate — another live booking looks like the same journey. --}}
+    @if(auth()->user()->isAdmin())
+        @php $dupes = $booking->duplicateCandidates(); @endphp
+        @if($dupes->isNotEmpty())
+            <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
+                <strong>⚠ Possible duplicate booking</strong>
+                <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off). Keep <strong>this</strong> copy and merge the other in — its driver, tips, calendar link and any missing details fold into this one, then it’s removed. <strong>Your Google Calendar isn’t touched.</strong></p>
+                @foreach($dupes as $d)
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(179,32,32,.15)">
+                        <span><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</span>
+                        <form method="POST" action="{{ route('bookings.merge', $booking) }}" style="margin:0"
+                              onsubmit="return confirm('Merge {{ $d->reference }} into this booking? The other copy is removed. This does NOT touch Google Calendar.')">
+                            @csrf
+                            <input type="hidden" name="dupe_id" value="{{ $d->id }}">
+                            <button class="btn" style="background:#b32020;color:#fff;padding:7px 14px;font-size:13px">⇄ Merge into this one</button>
+                        </form>
+                    </div>
+                @endforeach
+                <p class="hint" style="margin:8px 0 0">Tip: do this from the copy that’s already <strong>allocated to a driver</strong>, so the allocation stays put.</p>
+            </div>
+        @endif
+    @endif
+
+    @if(auth()->user()->isAdmin())
+        @php $contactFix = $booking->contactNumberMismatch(); @endphp
+        @if($contactFix)
+            <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
+                <strong>⚠ Contact number doesn’t match the calendar</strong>
+                <p class="hint" style="margin:6px 0 8px">The customer record has <strong>{{ $booking->customer?->phone }}</strong> but this booking’s calendar contact is <strong>{{ $contactFix }}</strong>. Messages already go to the calendar number — tap below to also correct the stored record.</p>
+                <form method="POST" action="{{ route('bookings.fix-contact', $booking) }}" style="margin:0">
+                    @csrf
+                    <button class="btn" style="background:#b8860b;color:#fff;padding:8px 16px">Use calendar number ({{ $contactFix }})</button>
+                </form>
+            </div>
+        @endif
     @endif
 
     @if(auth()->user()->isAdmin() && !empty($booking->meta['audit_issues']))
@@ -22,11 +84,37 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin() && session('scanChanges'))
+        <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin-bottom:16px">
+            <strong>Corrected to match the live calendar:</strong>
+            <table style="margin-top:6px;max-width:640px">
+                @foreach(session('scanChanges') as $field => $c)
+                    <tr><th style="white-space:nowrap">{{ $field }}</th>
+                        <td><span class="muted" style="text-decoration:line-through">{{ $c['from'] ?? '—' }}</span> → <strong>{{ $c['to'] }}</strong></td></tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         <div class="toolbar" style="margin-bottom:16px">
+            @if(!empty($canScan))
+                <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}">
+                    @csrf
+                    <button class="btn btn-dark" style="padding:9px 16px">🔍 Scan calendar</button>
+                </form>
+            @endif
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
         </div>
+        @if(!empty($canScan))
+            <p class="hint" style="margin:-8px 0 16px">
+                <strong>Scan calendar</strong> finds this booking on your live Google Calendar (by its reference), then makes it match exactly — time, addresses, and the full details block. Never changes the calendar.
+                @if(!empty($booking->meta['calendar_scanned_at']))
+                    · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
+                @endif
+            </p>
+        @endif
         <div id="cancel-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin-bottom:16px">
             <form method="POST" action="{{ route('bookings.cancel', $booking) }}">
                 @csrf
@@ -39,9 +127,181 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin() && !empty($booking->meta['calendar_unverified']))
+        <div class="alert alert-error" style="margin-bottom:16px">
+            ⚠ <strong>Not verified against the live calendar.</strong> The time and details below are from our stored copy and <strong>may be out of date</strong> if the event was changed on Google Calendar. Tap <strong>🔍 Scan calendar</strong> above to pull the live version.
+        </div>
+    @endif
+
+    @if(auth()->user()->isAdmin())
+        {{-- One-tap status control for the office. Reaches ANY stage directly
+             (Arrived / On Board / Completed …) and can wind a job back if a
+             driver tapped the wrong button. Same admin-override route the
+             dispatch board uses (logged against the actor). --}}
+        @php
+            $statusButtons = [
+                ['pending',   '⏳', 'Pending'],
+                ['allocated', '🧭', 'Allocated'],
+                ['accepted',  '✅', 'Accepted'],
+                ['en_route',  '🚗', 'En Route'],
+                ['arrived',   '📍', 'Arrived'],
+                ['collected', '🧳', 'On Board (POB)'],
+                ['complete',  '🏁', 'Completed'],
+                ['no_show',   '🚫', 'No Show'],
+            ];
+        @endphp
+        <div class="card" style="margin-bottom:16px">
+            <h2 style="margin-top:0">Update status</h2>
+            <p class="hint" style="margin-top:-6px">Set this job to any stage in one tap. Logged against your name — you can also wind it back if a driver tapped the wrong button. Marking <strong>On Board</strong> winds the masked number down (closes ~30 min later).</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                @foreach($statusButtons as [$value, $icon, $label])
+                    @if($booking->status->value === $value)
+                        <span class="btn" style="padding:8px 14px;font-size:13px;background:#111;color:#FBBA2A;cursor:default" aria-current="true">{{ $icon }} {{ $label }} · now</span>
+                    @else
+                        <form method="POST" action="{{ route('despatch.quick-status', $booking) }}" onsubmit="return confirm('Set {{ $booking->reference }} to {{ $label }}?')">
+                            @csrf
+                            <input type="hidden" name="status" value="{{ $value }}">
+                            <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">{{ $icon }} {{ $label }}</button>
+                        </form>
+                    @endif
+                @endforeach
+            </div>
+            <p class="hint" style="margin:10px 0 0">To cancel, use <strong>Cancel booking</strong> above — it records a reason and doesn't touch the calendar.</p>
+        </div>
+    @endif
+
+    {{-- Assign / reassign a system driver right here — same allocate flow as the
+         dispatch board (sets Allocated, opens the masked line, notifies them). --}}
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        <div class="card">
+            <h2 style="margin:0 0 4px">🧑‍✈️ {{ $booking->driver_id ? 'Change driver' : 'Assign a driver' }}</h2>
+            <p class="hint" style="margin:0 0 12px">
+                @if($booking->driver)Currently <strong>{{ $booking->driver->name }}</strong>. @endif
+                Allocate a driver with a login — the job goes to <strong>Allocated</strong>, the masked line opens and the driver is notified.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <form method="POST" action="{{ route($booking->driver_id ? 'despatch.reassign' : 'despatch.allocate', $booking) }}" style="display:flex;gap:6px;flex-wrap:wrap">
+                    @csrf
+                    <select name="driver_id" required style="width:auto;min-width:190px">
+                        <option value="">Choose a driver…</option>
+                        @foreach($allocatableDrivers as $d)
+                            @php $reg = $d->driverProfile?->defaultVehicle?->registration; @endphp
+                            <option value="{{ $d->id }}" @selected($booking->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}@if($reg) ({{ $reg }})@endif</option>
+                        @endforeach
+                    </select>
+                    <button class="btn btn-primary" style="padding:8px 16px">{{ $booking->driver_id ? 'Reassign' : 'Assign' }}</button>
+                </form>
+                @if($booking->vehicleType?->affects_rotation && ! $booking->driver_id)
+                    <form method="POST" action="{{ route('despatch.auto-allocate', $booking) }}">
+                        @csrf
+                        <button class="btn btn-ghost" style="padding:8px 16px">Auto (rotation)</button>
+                    </form>
+                @endif
+                @if($booking->driver_id)
+                    <form method="POST" action="{{ route('despatch.reassign', $booking) }}" onsubmit="return confirm('Remove the driver and put this job back in Unallocated?')">
+                        @csrf<input type="hidden" name="driver_id" value="">
+                        <button class="btn btn-ghost" style="padding:8px 16px;color:#b32020">Remove driver</button>
+                    </form>
+                @endif
+            </div>
+            @if($allocatableDrivers->isEmpty())
+                <p class="hint" style="margin:10px 0 0">No login-drivers yet. For a one-off/cover driver, use <strong>Driver for this job</strong> below (name &amp; number only).</p>
+            @endif
+        </div>
+    @endif
+
+    {{-- Shareable driver link — its own card so it's easy to find. Send it to a
+         cover driver and they get the full job page (details, cash to collect,
+         masked number, navigate, status, live GPS) with no login. --}}
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        @php
+            $driverLink = $booking->driverLinkUrl();
+            $linkPhone = \App\Support\Phone::wa($booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null));
+            $linkMsg = $booking->driverLinkMessage();
+        @endphp
+        <div class="card">
+            <h2 style="margin:0 0 4px">🔗 Driver link — no login</h2>
+            <p class="hint" style="margin:0 0 12px">Send this to the driver. It opens their full job sheet — details, cash to collect, the contact number, navigation and the status buttons — with live tracking, no account needed.</p>
+            <input type="text" value="{{ $driverLink }}" readonly onclick="this.select()" style="font-size:12px;margin-bottom:10px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn btn-primary copy-link" data-link="{{ $driverLink }}" style="padding:9px 16px;font-size:14px">⧉ Copy link</button>
+                @if($linkPhone)
+                    <a href="https://wa.me/{{ $linkPhone }}?text={{ rawurlencode($linkMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:9px 16px;font-size:14px">📲 Send to driver</a>
+                @endif
+                <span class="copy-link-done hint" style="color:#1f8b4c"></span>
+            </div>
+            <p class="hint" style="margin:10px 0 0">Anyone with this link can work the job — treat it like a key. It stops working once the job is completed or cancelled.</p>
+        </div>
+        <script>
+            (function () {
+                document.querySelectorAll('.copy-link').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var done = btn.parentElement.querySelector('.copy-link-done');
+                        var finish = function () { if (done) done.textContent = '✓ Copied — paste it to the driver'; };
+                        if (navigator.clipboard) { navigator.clipboard.writeText(btn.dataset.link).then(finish).catch(finish); }
+                        else { finish(); }
+                    });
+                });
+            })();
+        </script>
+    @endif
+
+    @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
+        {{-- Live driver location. "Request location" pushes the driver's phone to
+             share where they are right now (works even before Set off); once
+             they've set off the pinger keeps this fresh on its own. Polls the
+             latest ping so the card updates without a page reload. --}}
+        <div class="card" id="live-loc" style="margin-bottom:16px"
+             data-poll="{{ route('bookings.location', $booking) }}"
+             data-request="{{ route('bookings.request-location', $booking) }}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                <h2 style="margin:0">📍 Driver location</h2>
+                <button type="button" id="loc-req-btn" class="btn btn-primary" style="padding:8px 14px;font-size:13px">Request location</button>
+            </div>
+            <div id="loc-status" class="hint" style="margin-top:8px">Checking…</div>
+            <div id="loc-detail" style="margin-top:8px;display:none">
+                <a id="loc-map" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">🗺 Open in Google Maps</a>
+                <a href="{{ route('fleet.map') }}" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">Live fleet map</a>
+            </div>
+            <p class="hint" style="margin:10px 0 0"><strong>Request location</strong> buzzes the driver to share where they are right now — even before they've set off. Needs push notifications switched on (VAPID keys); if they're off, the driver can still tap Share on their open job screen.</p>
+        </div>
+        <script src="{{ asset('js/cet-liveloc.js') }}" defer></script>
+    @endif
+
     @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
         <div class="alert alert-error">Cancelled — {{ $booking->meta['cancellation_reason'] }}
             @if(!empty($booking->meta['cancelled_at'])) <span class="muted">({{ \Illuminate\Support\Carbon::parse($booking->meta['cancelled_at'])->format('d M Y, H:i') }})</span>@endif
+        </div>
+    @endif
+
+    {{-- The calendar's own words, front and centre — exactly what's on the
+         event, like a screenshot of its description. --}}
+    @if($booking->calendarEvent && filled($booking->calendarEvent->description))
+        <div class="card cal-panel">
+            <div class="cal-panel-head">
+                <span>📅 Full details (from the calendar)</span>
+                <span class="muted" style="font-size:12px">{{ $booking->calendarEvent->start_at->format('D d M') }} · {{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</span>
+            </div>
+            <div class="cal-panel-title mono">{{ $booking->calendarEvent->title }}</div>
+            <div class="cal-panel-body">{{ str_replace('*', '', $booking->calendarEvent->description) }}</div>
+            @if(auth()->user()->isAdmin())
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+                    @if($booking->calendarEvent->google_event_id)
+                        <form method="POST" action="{{ route('bookings.sync-time', $booking) }}"
+                              onsubmit="return confirm('Set this booking\'s pickup time to whatever is on the Google Calendar right now? The calendar itself is not changed.')">
+                            @csrf
+                            <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px">🗓 Match time to calendar</button>
+                        </form>
+                    @endif
+                    <details>
+                        <summary class="muted" style="font-size:12px;cursor:pointer">Event details</summary>
+                        <table style="margin-top:6px">
+                            <tr><th>Location</th><td>{{ $booking->calendarEvent->location }}</td></tr>
+                            <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
+                        </table>
+                    </details>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -50,20 +310,22 @@
             <h2>Journey</h2>
             <table>
                 <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M Y, H:i') }}</td></tr>
-                <tr><th>From</th><td>{{ $booking->pickup_address }}</td></tr>
+                <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
                 @foreach($booking->stops as $stop)
                     <tr><th>Via {{ $stop->sequence }}</th><td>{{ $stop->address }}</td></tr>
                 @endforeach
-                <tr><th>To</th><td>{{ $booking->destination_address }}</td></tr>
+                <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
                 @if($booking->airport)<tr><th>Airport</th><td>{{ $booking->airport->code }} — {{ $booking->airport->name }}</td></tr>@endif
-                @if($booking->flight_number)
+                @if($booking->displayFlightNumber())
                     <tr><th>Flight</th><td>
-                        <span class="mono">{{ $booking->flight_number }}</span>
+                        <span class="mono">{{ $booking->displayFlightNumber() }}</span>
                         <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">✈ Flightradar24</a>
                         <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                     </td></tr>
                 @endif
-                <tr><th>Passengers</th><td>{{ $booking->passengers }} &middot; {{ $booking->luggage }} bags</td></tr>
+                @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif
+                <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
+                <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                 <tr><th>Type</th><td>{{ ucfirst(str_replace('_',' ',$booking->journey_type)) }}{{ $booking->is_return_leg ? ' (return leg)' : '' }}</td></tr>
                 @if($booking->special_requests)<tr><th>Notes</th><td>{{ $booking->special_requests }}</td></tr>@endif
             </table>
@@ -72,19 +334,24 @@
         <div class="card">
             <h2>Service &amp; Payment</h2>
             <table>
-                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->customer->name }}</a>@else{{ $booking->customer?->name }}@endif</td></tr>
-                <tr><th>Vehicle</th><td>{{ $booking->vehicleType?->name }}</td></tr>
+                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->displayCustomerName() }}</a>@else{{ $booking->displayCustomerName() }}@endif</td></tr>
+                @if($booking->displayContact())<tr><th>Contact</th><td>{{ $booking->displayContact() }}</td></tr>@endif
+                <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
                 <tr><th>Driver</th><td>{{ $booking->driver?->name ?? 'Awaiting allocation' }}</td></tr>
                 @if($booking->corporateAccount)
                     <tr><th>Account</th><td>{{ $booking->corporateAccount->name }}</td></tr>
                     @if($booking->cost_code)<tr><th>Cost code</th><td>{{ $booking->cost_code }}</td></tr>@endif
                 @endif
                 <tr><th>Payment</th><td>
-                    {{ $booking->payment_method->emoji() }} {{ $booking->payment_method->label() }}
-                    @if($booking->payment_status === 'paid')
-                        <span class="badge badge-complete">Paid</span>
+                    @if($booking->displayPayment())
+                        {{ $booking->displayPayment() }}
                     @else
-                        <span class="badge badge-pending">{{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+                        {{ $booking->payment_method->emoji() }} {{ $booking->payment_method->label() }}
+                        @if($booking->payment_status === 'paid')
+                            <span class="badge badge-complete">Paid</span>
+                        @else
+                            <span class="badge badge-pending">{{ ucfirst($booking->payment_status ?? 'pending') }}</span>
+                        @endif
                     @endif
                 </td></tr>
                 @if($booking->quoted_price)<tr><th>Quoted</th><td>£{{ number_format($booking->quoted_price, 2) }}</td></tr>@endif
@@ -98,17 +365,113 @@
         </div>
     </div>
 
-    @if($booking->calendarEvent)
-        <div class="card">
-            <h2>Calendar Event</h2>
-            <table>
-                <tr><th>Title</th><td class="mono">{{ $booking->calendarEvent->title }}</td></tr>
-                <tr><th>Location</th><td>{{ $booking->calendarEvent->location }}</td></tr>
-                <tr><th>Start → End</th><td>{{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</td></tr>
-                <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
-            </table>
+    @if(auth()->user()->isAdmin())
+        @php $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining(); @endphp
+        <div class="card" @if($left !== null && $left > 0) style="border-left:4px solid #FBBA2A" @endif>
+            <h2>Driver payroll — {{ $booking->payrollDriverName() }}</h2>
+            @if($pay === null)
+                <p class="muted" style="margin:0 0 10px">No driver pay set for this job yet.</p>
+            @else
+                <table style="max-width:420px">
+                    <tr><th>Job pays</th><td>£{{ number_format($pay, 2) }}</td></tr>
+                    <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
+                    <tr><th>Remaining</th><td>
+                        @if($left > 0)
+                            <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
+                        @else
+                            <span class="badge badge-complete">Paid in full</span>
+                        @endif
+                    </td></tr>
+                </table>
+            @endif
+
+            <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end">
+                    @csrf
+                    <input type="hidden" name="action" value="set">
+                    <div class="field" style="margin:0">
+                        <label for="pay-amount" style="font-size:12px">Job pays the driver (£)</label>
+                        <input id="pay-amount" name="amount" type="number" step="0.01" min="0" value="{{ $pay }}" required style="width:130px">
+                    </div>
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Set pay</button>
+                </form>
+
+                @if($pay !== null && $left > 0)
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                        @csrf
+                        <input type="hidden" name="action" value="record">
+                        <div class="field" style="margin:0">
+                            <label for="paid-amount" style="font-size:12px">Record payment (£)</label>
+                            <input id="paid-amount" name="amount" type="number" step="0.01" min="0.01" value="{{ $left }}" required style="width:130px">
+                        </div>
+                        <div class="field" style="margin:0">
+                            <label for="paid-note" style="font-size:12px">Note (optional)</label>
+                            <input id="paid-note" name="note" placeholder="e.g. bank transfer" style="width:170px">
+                        </div>
+                        <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">✓ Record paid</button>
+                    </form>
+                @endif
+            </div>
+
+            @if($booking->driverPayHistory() !== [])
+                <details style="margin-top:10px">
+                    <summary class="muted" style="font-size:12px;cursor:pointer">Payment history</summary>
+                    @foreach(array_reverse($booking->driverPayHistory()) as $h)
+                        <div style="font-size:13px;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                            £{{ number_format($h['amount'], 2) }}
+                            <span class="muted">· {{ \Illuminate\Support\Carbon::parse($h['at'])->format('D d M Y, H:i') }}
+                            @if(!empty($h['by'])) · by {{ $h['by'] }}@endif
+                            @if(!empty($h['note'])) · {{ $h['note'] }}@endif</span>
+                        </div>
+                    @endforeach
+                </details>
+            @endif
+
+            {{-- Tips — the driver's gratuity, on top of job pay. --}}
+            @php $tips = $booking->tipsTotal(); @endphp
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                <strong style="font-size:14px">💛 Tips for {{ $booking->payrollDriverName() }}</strong>
+                @if(app(\App\Services\Payments\SquareTipService::class)->enabled())
+                    <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(also added to the review message automatically)</span></div>
+                @endif
+                @if($tips > 0)
+                    <span class="muted" style="font-size:13px"> · £{{ number_format($tips, 2) }} total @if($booking->tipsTotalBy('cash') > 0 && $booking->cardTipsOwed() > 0)(£{{ number_format($booking->tipsTotalBy('cash'), 2) }} cash · £{{ number_format($booking->cardTipsOwed(), 2) }} card)@endif</span>
+                    @if($booking->cardTipsOwed() > 0)
+                        <div class="hint" style="margin:4px 0 0">£{{ number_format($booking->cardTipsOwed(), 2) }} card tip owed to the driver (collected by the company).</div>
+                    @endif
+                @endif
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px">
+                    @csrf
+                    <input type="hidden" name="action" value="tip">
+                    <div class="field" style="margin:0">
+                        <label for="tip-amount" style="font-size:12px">Tip received (£)</label>
+                        <input id="tip-amount" name="amount" type="number" step="0.01" min="0.01" placeholder="5.00" required style="width:110px">
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="tip-method" style="font-size:12px">How</label>
+                        <select id="tip-method" name="method" style="width:110px">
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Log tip</button>
+                </form>
+                @if($booking->tips() !== [])
+                    <details style="margin-top:8px">
+                        <summary class="muted" style="font-size:12px;cursor:pointer">Tip history</summary>
+                        @foreach(array_reverse($booking->tips()) as $t)
+                            <div style="font-size:13px;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                                £{{ number_format($t['amount'], 2) }} <span class="muted">{{ ucfirst($t['method'] ?? 'cash') }} · {{ \Illuminate\Support\Carbon::parse($t['at'])->format('D d M Y, H:i') }}@if(!empty($t['by'])) · by {{ $t['by'] }}@endif @if(!empty($t['note'])) · {{ $t['note'] }}@endif</span>
+                            </div>
+                        @endforeach
+                    </details>
+                @endif
+            </div>
+
+            <p class="hint" style="margin:10px 0 0">Full monthly view per driver: <a href="{{ route('payroll.index') }}">Payroll</a>.</p>
         </div>
     @endif
+
 
     @if($booking->payments->isNotEmpty())
         <div class="card">
@@ -197,6 +560,81 @@
             <h2>Customer Comms</h2>
             <p class="hint" style="margin-top:-8px">The button opens WhatsApp with the number <em>and</em> message ready — hit send, then mark it done. <strong>Send from WhatsApp Business</strong> (use a device signed into the business number, so it goes from the right account).</p>
 
+            {{-- The office's contact panel: the two REAL numbers you keep, plus
+                 the TWO masked lines to hand out — one for the customer to reach
+                 the driver, one for the driver to reach the customer. Neither
+                 party ever gets the other's real number. --}}
+            @php
+                $ownerDriving = $booking->driver?->isAdmin() ?? false;  // admin drives their own job
+                $maskingOff = $booking->maskingDisabled();               // office turned masking off for this job
+                $realNumbers = $ownerDriving || $maskingOff;             // no masked line — both use real numbers
+                $switchboard = app(\App\Services\Telephony\MaskingService::class);
+                $switchboardOn = $switchboard->configured();
+                $maskedForCustomer = $realNumbers ? null : $switchboard->customerLine(); // customer rings this → reaches the driver
+                $maskedForDriver = $realNumbers ? null : $switchboard->driverLine();      // driver rings this → reaches the customer
+                $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
+            @endphp
+
+            <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office{{ $realNumbers ? '' : ' only, never given out' }}</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+                    <div class="muted" style="font-size:12px">📞 Customer</div>
+                    <div style="font-weight:700;font-size:15px" class="mono">{{ $booking->customer?->phone ?? '—' }}</div>
+                </div>
+                <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+                    <div class="muted" style="font-size:12px">🚗 Driver</div>
+                    <div style="font-weight:700;font-size:15px" class="mono">{{ $driverRealPhone ?? '—' }}</div>
+                </div>
+            </div>
+
+            @if($realNumbers)
+                {{-- No masked line for this job — either an owner is driving, or
+                     the office turned masking off. Both parties use their real
+                     numbers. --}}
+                <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.06);margin-bottom:14px;padding:10px 14px">
+                    @if($ownerDriving)
+                        <strong>👑 Owner is driving this one</strong>
+                        <div class="hint" style="margin-top:4px">No masked line needed — {{ $booking->driver?->name }} uses the customer’s real number ({{ $booking->customer?->phone ?? '—' }}) straight from their job screen, and the customer has the driver’s direct number. A Twilio credit is saved.</div>
+                    @else
+                        <strong>🔓 Masking is OFF for this job</strong>
+                        <div class="hint" style="margin-top:4px">Both sides use their real numbers — customer <span class="mono">{{ $booking->customer?->phone ?? '—' }}</span> · driver <span class="mono">{{ $driverRealPhone ?? '—' }}</span>. Handy when they already have each other's number (e.g. a return leg). The driver's job screen shows the real number too.</div>
+                    @endif
+                </div>
+            @elseif($switchboardOn)
+                {{-- Switchboard: two PERMANENT CET lines. Same numbers on every
+                     job, so they're safe to send with driver details 24h ahead —
+                     each rings whoever's on the job at the time of the call. --}}
+                <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎭 CET switchboard lines — hand these out (same on every job)</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+                    <div style="flex:1;min-width:220px;border:1px solid rgba(31,122,68,.45);border-radius:10px;padding:10px 14px;background:rgba(31,157,85,.06)">
+                        <div class="muted" style="font-size:12px">➡️ Give to the <strong>CUSTOMER</strong> (rings the driver)</div>
+                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForCustomer }}</div>
+                        <div class="hint" style="margin-top:2px">Goes in the driver-details message. Call or text it — reaches {{ $booking->driver?->name ?? 'the driver' }}. Never changes.</div>
+                    </div>
+                    <div style="flex:1;min-width:220px;border:1px solid rgba(31,122,68,.45);border-radius:10px;padding:10px 14px;background:rgba(31,157,85,.06)">
+                        <div class="muted" style="font-size:12px">⬅️ Give to the <strong>DRIVER</strong> (rings the customer)</div>
+                        <div style="font-weight:800;font-size:16px" class="mono">{{ $maskedForDriver }}</div>
+                        <div class="hint" style="margin-top:2px">On the driver's job screen too. Call or text it — reaches the customer. Never the customer's real number.</div>
+                    </div>
+                </div>
+            @else
+                <div class="alert" style="margin-bottom:14px">Masking isn't switched on here yet. Set <span class="mono">TWILIO_CUSTOMER_LINE</span> and <span class="mono">TWILIO_DRIVER_LINE</span> to turn on the CET switchboard.</div>
+            @endif
+
+            @if($booking->driver_id && ! $ownerDriving && ! $booking->status->isTerminal())
+                <form method="POST" action="{{ route('bookings.toggle-masking', $booking) }}" style="margin-bottom:14px">
+                    @csrf
+                    @if($maskingOff)
+                        <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px">🔒 Re-mask this job (use CET lines again)</button>
+                        <span class="hint" style="margin-left:6px">Back to the CET switchboard lines for this job.</span>
+                    @else
+                        <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px;color:#b8860b"
+                                onclick="return confirm('Turn masking OFF for {{ $booking->reference }}? The customer and driver will use their real numbers for this job.')">🔓 Unmask this job (use real numbers)</button>
+                        <span class="hint" style="margin-left:6px">For when they already have each other's number — e.g. a return leg.</span>
+                    @endif
+                </form>
+            @endif
+
             @php
                 $md = $booking->meta['driver_details'] ?? null;
                 $hasDriver = (is_array($md) && !empty($md['name'])) || $booking->driver;
@@ -235,14 +673,16 @@
                         <strong style="font-size:13px">{{ ucfirst(str_replace('_',' ',$m->type)) }}</strong>
                         <span class="muted" style="font-size:12px">
                             <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ $m->status === 'queued' ? 'To send' : ucfirst($m->status) }}</span>
-                            @if($m->isReminder() && $m->scheduled_for && $m->status !== 'sent') · due {{ $m->scheduled_for->format('D d M, H:i') }}
+                            @if($m->isScheduledPrompt() && $m->scheduled_for && $m->status !== 'sent') · due {{ $m->scheduled_for->format('D d M, H:i') }}
                             @elseif($m->sent_at) · sent {{ $m->sent_at->format('d M H:i') }}@endif
                         </span>
                     </div>
-                    <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->body }}</div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-                        @if($m->whatsAppLink())
+                    <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->renderedBody() }}</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+                        @if($m->whatsAppLink() && $m->isReadyToSend())
                             <a href="{{ $m->whatsAppLink() }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:5px 12px;font-size:12px">📲 Send on WhatsApp</a>
+                        @elseif($m->isScheduledPrompt() && ! $m->isReadyToSend())
+                            <span class="muted" style="font-size:12px">🕗 Ready to send {{ $m->scheduled_for->format('D d M, H:i') }}</span>
                         @endif
                         <button type="button" class="btn btn-ghost copy-msg" style="padding:5px 12px;font-size:12px">⧉ Copy</button>
                         @if($m->status !== 'sent')
@@ -256,32 +696,88 @@
                 <p class="muted">No messages yet for this booking.</p>
             @endforelse
 
+            @if($booking->status->value === 'complete' && ! $booking->messages()->where('type', 'review_request')->exists())
+                <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+                    @if($reason = $booking->reviewSkipReason())
+                        <p class="hint" style="margin:0 0 8px;color:#b8860b">⭐ {{ $reason }}</p>
+                    @endif
+                    @if(filled($booking->customer?->phone))
+                        <form method="POST" action="{{ route('bookings.request-review', $booking) }}">
+                            @csrf
+                            <button class="btn btn-light" style="padding:7px 14px;font-size:13px">⭐ Request a review</button>
+                        </form>
+                        <p class="hint" style="margin:6px 0 0">Creates a review request to send by hand — overrides the once-per-customer rule.</p>
+                    @endif
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">
                 @csrf
                 <label for="body" style="font-weight:600">Send a message to {{ $booking->customer?->name ?? 'the customer' }}</label>
                 <textarea id="body" name="body" required placeholder="Type a message…" style="margin:6px 0 8px;min-height:70px">{{ old('body') }}</textarea>
                 <button type="submit" class="btn btn-dark" style="padding:8px 16px">Send</button>
-                <span class="hint">Goes to {{ $booking->customer?->phone ?? $booking->customer?->email ?? 'no contact on file' }}.</span>
+                <span class="hint">Goes to {{ $booking->customerContactNumber() ?? $booking->customer?->email ?? 'no contact on file' }}.</span>
             </form>
+        </div>
+    @endif
+
+    @if(auth()->user()->isAdmin())
+        @php
+            $driverBrief = app(\App\Services\CalendarEventBuilder::class)->driverBrief($booking);
+            $driverRealForWa = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
+            $briefWa = \App\Support\Phone::wa($driverRealForWa);
+        @endphp
+        <div class="card">
+            <h2>🚗 Driver brief — send to the driver</h2>
+            <p class="hint" style="margin-top:-8px">The job details for the driver — <strong>no price and no booking reference</strong>. A cover driver gets the masked CET number; a director driving their own job gets the real one. Copy it, or send it straight to the driver on WhatsApp.</p>
+            <textarea id="driver-brief" readonly style="width:100%;min-height:240px;font-family:var(--mono,monospace);font-size:13px;line-height:1.5;white-space:pre-wrap">{{ $driverBrief }}</textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+                <button type="button" class="btn btn-ghost copy-brief" style="padding:8px 16px">⧉ Copy</button>
+                @if($briefWa)
+                    <a href="https://wa.me/{{ $briefWa }}?text={{ rawurlencode($driverBrief) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:8px 16px">📲 Send to {{ $booking->driver?->name ?? 'the driver' }}</a>
+                @else
+                    <span class="hint">Add the driver's number (in <strong>Driver for this job</strong> above) to enable the WhatsApp send.</span>
+                @endif
+            </div>
+            @verbatim
+            <script>
+                (function () {
+                    var btn = document.querySelector('.copy-brief');
+                    if (!btn) return;
+                    btn.addEventListener('click', function () {
+                        var t = document.getElementById('driver-brief');
+                        t.select();
+                        navigator.clipboard.writeText(t.value).then(function () {
+                            var old = btn.textContent; btn.textContent = '✓ Copied';
+                            setTimeout(function () { btn.textContent = old; }, 1500);
+                        });
+                    });
+                })();
+            </script>
+            @endverbatim
         </div>
     @endif
 
     @if($auditLogs->isNotEmpty())
         <div class="card">
-            <h2>Audit Trail</h2>
-            <table>
-                <thead><tr><th>When</th><th>Action</th><th>By</th><th>Changed</th></tr></thead>
-                <tbody>
-                    @foreach($auditLogs as $log)
-                        <tr>
-                            <td>{{ $log->created_at?->format('d M H:i:s') }}</td>
-                            <td>{{ ucfirst($log->action) }}</td>
-                            <td>{{ $log->user?->name ?? 'System' }}</td>
-                            <td class="mono" style="font-size:11px">{{ $log->new_values ? implode(', ', array_keys($log->new_values)) : '—' }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <details>
+                <summary style="cursor:pointer;font-weight:700;font-size:16px">Audit trail <span class="muted" style="font-weight:400;font-size:13px">· latest {{ $auditLogs->count() }}@if(($auditLogTotal ?? 0) > $auditLogs->count()) of {{ $auditLogTotal }}@endif</span></summary>
+                <div style="overflow-x:auto;margin-top:10px">
+                <table>
+                    <thead><tr><th>When</th><th>Action</th><th>By</th><th>Changed</th></tr></thead>
+                    <tbody>
+                        @foreach($auditLogs as $log)
+                            <tr>
+                                <td style="white-space:nowrap">{{ $log->created_at?->format('d M H:i') }}</td>
+                                <td>{{ ucfirst($log->action) }}</td>
+                                <td>{{ $log->user?->name ?? 'System' }}</td>
+                                <td class="mono" style="font-size:11px">{{ $log->new_values ? implode(', ', array_keys($log->new_values)) : '—' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                </div>
+            </details>
         </div>
     @endif
 

@@ -43,6 +43,60 @@ class DashboardOverviewTest extends TestCase
             ->assertSee('↻ Refresh', false);          // interactive refresh
     }
 
+    public function test_bookings_and_revenue_taken_today(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'C', 'phone' => '07000000001']);
+
+        $make = fn (array $attrs) => Booking::create(array_merge([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+        ], $attrs));
+
+        // Came in TODAY, travelling next week → counts as taken today.
+        $make(['pickup_at' => today()->addDays(7), 'final_price' => 200]);
+
+        // Came in YESTERDAY, travelling today → NOT taken today (created earlier).
+        $old = $make(['pickup_at' => today()->addHours(9), 'final_price' => 999]);
+        Booking::where('id', $old->id)->update(['created_at' => now()->subDay()]);
+
+        // Came in today but cancelled → excluded from the money figure.
+        $make(['pickup_at' => today()->addDays(2), 'final_price' => 50, 'status' => BookingStatus::Cancelled->value]);
+
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+
+        $this->assertSame(1, $res->viewData('bookedTodayCount'));
+        $this->assertEquals(200.0, $res->viewData('bookedTodayRevenue'));
+        $res->assertSee('Bookings taken today', false)->assertSee('Revenue taken today', false);
+    }
+
+    public function test_a_cancelled_booking_is_not_in_the_review_worklist(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Rev Test', 'phone' => '07000000002']);
+
+        $cancelled = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->subHours(3),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => BookingStatus::Cancelled->value, 'payment_method' => 'cash',
+        ]);
+
+        // A review request left queued from before it was cancelled.
+        \App\Models\Message::create([
+            'booking_id' => $cancelled->id, 'customer_id' => $customer->id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'review_request',
+            'to_address' => $customer->phone, 'body' => 'review', 'status' => 'queued',
+            'scheduled_for' => now()->subHour(),
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $this->assertCount(0, $res->viewData('reviewsToSend'));
+    }
+
     public function test_compliance_alert_shows_a_blocked_driver(): void
     {
         $admin = User::factory()->admin()->create();

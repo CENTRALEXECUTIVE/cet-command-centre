@@ -140,13 +140,16 @@ class ImportIcs extends Command
         if ($value === '') {
             return null;
         }
+        // ETO's calendar times are already UK local (rule 3) — the same clock as
+        // the event's description. Parse in Europe/London even when the value is
+        // tagged 'Z'; treating that as UTC added a spurious BST hour and pushed
+        // summer pickups an hour late (the slot then disagreed with the description).
+        $clean = rtrim($value, 'Z');
         try {
-            return str_ends_with($value, 'Z')
-                ? Carbon::createFromFormat('Ymd\THis\Z', $value, 'UTC')
-                : Carbon::createFromFormat('Ymd\THis', $value, 'Europe/London');
+            return Carbon::createFromFormat('Ymd\THis', $clean, 'Europe/London');
         } catch (\Throwable) {
             try {
-                return Carbon::parse($value);
+                return Carbon::createFromFormat('Ymd', $clean, 'Europe/London')->startOfDay();
             } catch (\Throwable) {
                 return null;
             }

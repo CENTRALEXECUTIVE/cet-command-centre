@@ -20,6 +20,18 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Tablet keyboards love to auto-capitalise the first letter or leave a
+     * trailing space, which then won't match the stored login. Normalise the
+     * email (trim + lowercase) before we validate or attempt auth.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('email')) {
+            $this->merge(['email' => Str::lower(trim((string) $this->input('email')))]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

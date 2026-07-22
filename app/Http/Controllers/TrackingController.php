@@ -32,7 +32,12 @@ class TrackingController extends Controller
         return view('tracking.show', ['booking' => $link->booking]);
     }
 
-    /** JSON feed the tracking page polls for the driver's live position. */
+    /**
+     * JSON feed the tracking page polls for the driver's live position. The
+     * position is only exposed while the job is actively running (en route →
+     * on board) — once it completes or closes, only the final status message
+     * remains, never a location.
+     */
     public function location(string $token, DriverLocationService $locations): JsonResponse
     {
         $link = TrackingLink::with('booking')->where('token', $token)->first();
@@ -42,12 +47,15 @@ class TrackingController extends Controller
         }
 
         $booking = $link->booking;
-        $position = $booking ? $locations->latestForBooking($booking) : null;
+        $live = $booking && in_array($booking->status->value, ['en_route', 'arrived', 'collected'], true);
+        $position = $live ? $locations->latestForBooking($booking) : null;
 
         return response()->json([
             'available' => (bool) $position,
             'status' => $booking?->status->value,
             'status_label' => $booking?->status->label(),
+            'message' => $booking?->trackingMessage(),
+            'finished' => $booking?->status->isTerminal() ?? false,
             'latitude' => $position?->latitude,
             'longitude' => $position?->longitude,
             'updated_at' => $position?->captured_at?->toIso8601String(),

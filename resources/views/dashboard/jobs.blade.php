@@ -17,6 +17,25 @@
     </div>
     <p class="page-sub"><a href="{{ route('dashboard') }}">← Dashboard</a></p>
 
+    {{-- Calendar-only jobs (on Google, not yet in the system). One tap pulls
+         them ALL into bookings so they hit the dispatch board and follow the
+         rules. The 5-min calendar refresh does this automatically too. --}}
+    @php $calendarOnly = collect($jobs)->filter(fn ($j) => empty($j['url']) && !empty($j['event_id'])); @endphp
+    @if(auth()->user()->isAdmin() && $calendarOnly->isNotEmpty())
+        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div>
+                <strong>📅 {{ $calendarOnly->count() }} job(s) are on the calendar but not in the system yet</strong>
+                <div class="muted" style="font-size:13px">Add them and they appear on the dispatch board and follow rotation, reminders and the rest. (The 5-minute calendar refresh also does this on its own.)</div>
+            </div>
+            <form method="POST" action="{{ route('jobs.import-all') }}" style="white-space:nowrap">
+                @csrf
+                <input type="hidden" name="date" value="{{ $day->toDateString() }}">
+                @foreach($calendarOnly as $j)<input type="hidden" name="event_ids[]" value="{{ $j['event_id'] }}">@endforeach
+                <button class="btn btn-primary">＋ Add all {{ $calendarOnly->count() }} to bookings</button>
+            </form>
+        </div>
+    @endif
+
     @forelse($jobs as $job)
         <div class="card" style="margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">

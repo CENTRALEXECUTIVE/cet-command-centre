@@ -46,7 +46,7 @@ class JobController extends Controller
     public function show(Request $request, Booking $booking): View
     {
         $this->authoriseOwnership($request, $booking);
-        $booking->load(['customer', 'vehicleType', 'airport', 'stops']);
+        $booking->load(['customer', 'vehicleType', 'airport', 'stops', 'calendarEvent']);
 
         return view('driver.job', compact('booking'));
     }
@@ -76,6 +76,27 @@ class JobController extends Controller
         return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
     }
 
+    /**
+     * Answer an office "request location": record a one-off position for this
+     * job (works even before Set off) so the office can see where the driver is.
+     */
+    public function shareLocation(Request $request, Booking $booking, \App\Services\DriverLocationService $locations): \Illuminate\Http\JsonResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+
+        $data = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'heading' => ['nullable', 'numeric'],
+            'speed' => ['nullable', 'numeric'],
+            'accuracy' => ['nullable', 'numeric'],
+        ]);
+
+        $ping = $locations->recordRequestedPing($request->user(), $booking, (float) $data['lat'], (float) $data['lng'], $data);
+
+        return response()->json(['shared' => $ping !== null]);
+    }
+
     /** Driver declines an offered job — it returns to the office pool. */
     public function decline(Request $request, Booking $booking): RedirectResponse
     {
@@ -85,22 +106,25 @@ class JobController extends Controller
         return redirect()->route('driver.jobs')->with('status', 'Job declined and returned to the office.');
     }
 
-    /** Driver earnings — completed jobs and income for today / this week. */
+    /**
+     * Driver earnings — completed jobs and THEIR PAY (from the payroll set per
+     * job), never the customer fare. Drivers must not see booking prices.
+     */
     public function earnings(Request $request): View
     {
         $driverId = $request->user()->id;
-        $revenue = 'COALESCE(final_price, quoted_price, 0)';
 
         $base = Booking::forDriver($driverId)->where('status', BookingStatus::Complete->value);
+        $pay = fn ($q) => (float) $q->get()->sum(fn (Booking $b) => $b->driverPay() ?? 0);
 
         return view('driver.earnings', [
             'today' => [
                 'jobs' => (clone $base)->whereDate('pickup_at', today())->count(),
-                'earnings' => (float) (clone $base)->whereDate('pickup_at', today())->sum(DB::raw($revenue)),
+                'earnings' => $pay((clone $base)->whereDate('pickup_at', today())),
             ],
             'week' => [
                 'jobs' => (clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])->count(),
-                'earnings' => (float) (clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])->sum(DB::raw($revenue)),
+                'earnings' => $pay((clone $base)->whereBetween('pickup_at', [today()->startOfWeek(), today()->endOfWeek()])),
             ],
             'recent' => (clone $base)->with('vehicleType')->orderByDesc('pickup_at')->limit(20)->get(),
         ]);

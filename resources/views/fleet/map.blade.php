@@ -2,12 +2,14 @@
 @section('title', 'Live Map')
 
 @section('content')
-    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-        <div>
-            <h1 class="page-title" style="margin-bottom:2px">Live Map</h1>
-            <p class="page-sub">Drivers currently on a job, from their latest GPS ping. Refreshes every 30s.</p>
+    <div class="form-hero fleet-hero">
+        <div class="form-hero-glow"></div>
+        <div style="position:relative">
+            <div class="fh-eyebrow">Fleet · live positions</div>
+            <div class="fh-title">Live Map</div>
+            <div class="fh-sub">Drivers currently on a job, from their latest GPS ping. Refreshes every 30s.</div>
         </div>
-        <span id="fleet-count" class="muted" style="font-size:13px"></span>
+        <div class="fleet-live"><span class="pulse"></span><span id="fleet-count">0 on the road</span></div>
     </div>
 
     @unless($mapsKey)
@@ -17,7 +19,7 @@
     @endunless
 
     @if($mapsKey)
-        <div id="fleet-map" style="height:460px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;background:#eee"></div>
+        <div id="fleet-map"></div>
     @endif
 
     <div class="card">
@@ -34,6 +36,7 @@
         window.CET_FLEET = @json($drivers);
         window.CET_MAPS_KEY = "{{ $mapsKey }}";
     </script>
+    <script src="{{ asset('js/cet-ops.js') }}?v=1"></script>
     @verbatim
     <script>
     // Google calls this on an auth/API failure — turn its generic red error into
@@ -51,19 +54,44 @@
         function renderList(drivers) {
             var list = document.getElementById('fleet-list');
             var count = document.getElementById('fleet-count');
-            count.textContent = drivers.length + ' driver' + (drivers.length === 1 ? '' : 's') + ' on the road';
+            count.textContent = drivers.length + ' on the road';
             if (!drivers.length) { list.innerHTML = '<p class="muted mb-0">No drivers on a job right now.</p>'; return; }
             list.innerHTML = drivers.map(function (d) {
-                return '<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(128,128,128,.12)">'
-                    + '<span style="font-weight:700;min-width:70px">' + esc(d.driver) + '</span>'
-                    + '<span style="flex:1">' + esc(d.customer || '—') + ' <span class="muted">→ ' + esc(d.destination || '') + '</span></span>'
+                // Stale GPS (no ping for a while) is highlighted so the office
+                // knows the position shown may be out of date.
+                var ping = d.stale
+                    ? '<div class="ping stale">⚠ GPS stale · ' + esc(d.ago || '') + '</div>'
+                    : '<div class="ping ok">📍 ' + esc(d.ago || 'just now') + '</div>';
+                var initials = String(d.driver || '?').substring(0, 3).toUpperCase();
+                return '<div class="fleet-row' + (d.stale ? ' stale' : '') + '">'
+                    + '<div class="fleet-avatar">' + esc(initials) + '</div>'
+                    + '<div class="fleet-main">'
+                    +   '<div class="who">' + esc(d.driver) + '</div>'
+                    +   '<div class="route">' + esc(d.customer || '—') + ' → ' + esc(d.destination || '') + '</div>'
+                    +   ping
+                    + '</div>'
                     + '<span class="badge badge-' + slug(d.status) + '">' + esc(d.status) + '</span>'
-                    + '<a href="' + d.url + '" style="font-size:13px;margin-left:8px">Open →</a>'
+                    + '<a href="' + d.url + '" style="font-size:13px;margin-left:6px">Open →</a>'
                     + '</div>';
             }).join('');
         }
         function esc(s) { var e = document.createElement('div'); e.textContent = s == null ? '' : s; return e.innerHTML; }
         function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+
+        // Marker icon: an arrow pointing the way the car is heading when the
+        // device reports one, else a dot. Gold while fresh, faded red once stale.
+        function markerIcon(d) {
+            var hasHeading = d.heading !== null && d.heading !== undefined && !isNaN(d.heading);
+            return {
+                path: hasHeading ? google.maps.SymbolPath.FORWARD_CLOSED_ARROW : google.maps.SymbolPath.CIRCLE,
+                rotation: hasHeading ? Number(d.heading) : 0,
+                scale: hasHeading ? 6 : 8,
+                fillColor: d.stale ? '#d64545' : '#FBBA2A',
+                fillOpacity: d.stale ? 0.55 : 0.95,
+                strokeColor: '#0a101e',
+                strokeWeight: 2,
+            };
+        }
 
         function updateMarkers(drivers) {
             if (!map || !window.google) return;
@@ -72,11 +100,17 @@
             drivers.forEach(function (d) {
                 var pos = { lat: d.lat, lng: d.lng };
                 live[d.ref] = true; any = true;
-                if (markers[d.ref]) { markers[d.ref].setPosition(pos); }
+                if (markers[d.ref]) {
+                    markers[d.ref].setPosition(pos);
+                    markers[d.ref].setOpacity(d.stale ? 0.45 : 1);
+                    markers[d.ref].setIcon(markerIcon(d));
+                }
                 else {
                     markers[d.ref] = new google.maps.Marker({
-                        position: pos, map: map, title: d.driver,
-                        label: { text: d.driver.substring(0, 3).toUpperCase(), color: '#0b0b0b', fontSize: '11px', fontWeight: '700' }
+                        position: pos, map: map, title: d.driver + (d.stale ? ' (GPS stale)' : ''),
+                        opacity: d.stale ? 0.45 : 1,
+                        icon: markerIcon(d),
+                        label: { text: d.driver.substring(0, 3).toUpperCase(), color: '#e8ecf4', fontSize: '11px', fontWeight: '700', className: 'fleet-mlabel' }
                     });
                     var info = new google.maps.InfoWindow({
                         content: '<strong>' + esc(d.driver) + '</strong><br>' + esc(d.customer || '') + '<br>→ ' + esc(d.destination || '')
@@ -107,7 +141,8 @@
             s.async = true;
             s.onload = function () {
                 map = new google.maps.Map(document.getElementById('fleet-map'), {
-                    center: { lat: 53.3811, lng: -1.4701 }, zoom: 10, mapTypeControl: false, streetViewControl: false
+                    center: { lat: 53.3811, lng: -1.4701 }, zoom: 10, mapTypeControl: false, streetViewControl: false,
+                    styles: window.CET_DARK_MAP || undefined
                 });
                 updateMarkers(window.CET_FLEET || []);
             };

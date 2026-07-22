@@ -38,6 +38,15 @@ class WhatsAppService
             'scheduled_for' => $context['scheduled_for'] ?? null,
         ]);
 
+        // Reminders and review requests are NEVER auto-delivered — the office
+        // sends them by hand from their own WhatsApp. They stay queued on the
+        // "to send" list until marked sent, even when due right now (e.g. a
+        // last-minute booking whose reminder is due immediately). Delivering
+        // them here would silently mark them sent and hide them from the list.
+        if ($message->isScheduledPrompt()) {
+            return $message;
+        }
+
         // Future-dated messages are left queued for the scheduler to deliver.
         if ($message->scheduled_for && $message->scheduled_for->isFuture()) {
             return $message;
@@ -69,7 +78,7 @@ class WhatsAppService
                 ->post("https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json", [
                     'From' => 'whatsapp:'.config('services.twilio.whatsapp_from'),
                     'To' => 'whatsapp:'.$this->normalise($message->to_address),
-                    'Body' => $message->body,
+                    'Body' => $message->renderedBody(),
                 ]);
 
             if ($response->successful()) {

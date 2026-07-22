@@ -15,6 +15,8 @@ use Illuminate\Support\Str;
  */
 class EtoAuditService
 {
+    public function __construct(private readonly \App\Services\Calendar\CalendarTimeSync $timeSync) {}
+
     /**
      * @return array{results: array<int, array<string, mixed>>, counts: array<string, int>}
      */
@@ -22,7 +24,7 @@ class EtoAuditService
     {
         $rows = $this->readCsv($path);
         $results = [];
-        $counts = ['checked' => 0, 'ok' => 0, 'flagged' => 0, 'missing' => 0];
+        $counts = ['checked' => 0, 'ok' => 0, 'flagged' => 0, 'missing' => 0, 'old' => 0];
 
         foreach ($rows as $row) {
             if (! $this->isBookingRow($row['Status'] ?? '')) {
@@ -80,7 +82,7 @@ class EtoAuditService
 
     private function rank(string $status): int
     {
-        return ['flagged' => 0, 'missing' => 1, 'ok' => 2][$status] ?? 3;
+        return ['flagged' => 0, 'missing' => 1, 'ok' => 2, 'old' => 3][$status] ?? 4;
     }
 
     /** Sortable stamp for a pickup value (Carbon|string|null) — newest sorts first. */
@@ -116,33 +118,73 @@ class EtoAuditService
     private function inspect(Booking $booking, ?array $row, bool $flag, string $ref, string $name): array
     {
         $issues = [];
+
+        // Historical bookings (before the live-calendar era) are archive, not
+        // live work — never audit them. Clears any stale ⚠ left on the booking.
+        $cutoff = \Illuminate\Support\Carbon::parse(config('cet.audit_cutoff', '2026-03-01'));
+        if ($booking->pickup_at && $booking->pickup_at->lt($cutoff)) {
+            if ($flag && ! empty($booking->meta['audit_issues'])) {
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['audit_issues' => []])])->save();
+            }
+
+            return [
+                'reference' => $ref, 'name' => $name, 'pickup' => $booking->pickup_at,
+                'url' => route('bookings.show', $booking), 'status' => 'old', 'issues' => [],
+            ];
+        }
+
         $ev = $booking->calendarEvent;
         // Cancelled / no-show jobs are legitimately off the calendar — don't flag those.
         $liveJob = $booking->status?->isActive() ?? true;
 
-        if (! $ev || blank($ev->google_event_id)) {
-            if ($liveJob) {
+        // Calendar-quality checks only matter for jobs that are STILL TO RUN.
+        // A past / completed / cancelled job's sync status is history — flagging
+        // it just floods the audit with noise the office can't (and needn't)
+        // action. Only upcoming, non-terminal jobs get the calendar checks.
+        $checkCalendar = $booking->pickup_at
+            && $booking->pickup_at->gte(today())
+            && ! ($booking->status?->isTerminal() ?? false);
+
+        if ($checkCalendar) {
+            if (! $ev || blank($ev->google_event_id)) {
                 $issues[] = 'Not on the calendar';
-            }
-        } else {
-            if ($ev->sync_status !== 'synced') {
-                $issues[] = 'Calendar event not synced ('.$ev->sync_status.')';
-            }
-            if (! $this->titleOk($ev->title)) {
-                $issues[] = 'Calendar title not in CET format';
-            }
-            // The location field IS the pickup — if it's dropped off the event
-            // the driver has no address on the calendar. This is the big one.
-            if (blank($ev->location)) {
-                $issues[] = 'Pickup location has dropped off the calendar event';
-            }
-            // The "Booking Confirmation" body (contact, flight, drop-off, ref…).
-            if (blank($ev->description)) {
-                $issues[] = 'Booking details block missing from the calendar event';
-            }
-            // Calendar time should match the booking's pickup time too.
-            if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
-                $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
+            } else {
+                // NB: a google_event_id means the event IS on the calendar. We do
+                // NOT flag a stale sync_status ('failed'/'pending') on its own —
+                // that just reflects the app's last push attempt, not whether the
+                // booking is on the calendar, and flagging it floods the audit
+                // with "not synced" noise the office can't action. The content
+                // checks below (missing pickup location, missing details block,
+                // wrong time) catch anything that would actually harm the driver.
+                if (! $this->titleOk($ev->title)) {
+                    $issues[] = 'Calendar title not in CET format';
+                }
+                // The location field IS the pickup — if it's dropped off the event
+                // the driver has no address on the calendar. This is the big one.
+                if (blank($ev->location)) {
+                    $issues[] = 'Pickup location has dropped off the calendar event';
+                }
+                // The "Booking Confirmation" body (contact, flight, drop-off, ref…).
+                if (blank($ev->description)) {
+                    $issues[] = 'Booking details block missing from the calendar event';
+                }
+                // Calendar takes priority: correct the booking (and our local slot) to
+                // the calendar's true time as we reconcile, rather than just flagging a
+                // drift. After this the booking, the slot and the printed time agree,
+                // so no "one hour" warning is raised. (Read-only against Google.)
+                if ($flag && $this->timeSync->alignToCalendarSlot($booking)) {
+                    $booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])
+                        ->where('status', 'queued')->delete();
+                }
+                // Any residual disagreement is then genuinely worth flagging.
+                if ($ev->start_at && $booking->pickup_at && $ev->start_at->format('H:i') !== $booking->pickup_at->format('H:i')) {
+                    $issues[] = 'Calendar time ('.$ev->start_at->format('H:i').') doesn\'t match the booking ('.$booking->pickup_at->format('H:i').')';
+                }
+                // The time PRINTED in the description must match the event's slot.
+                $descAt = $ev->descriptionPickupAt();
+                if ($descAt && $ev->start_at && $descAt->format('H:i') !== $ev->start_at->format('H:i')) {
+                    $issues[] = 'Calendar description time ('.$descAt->format('H:i').') doesn\'t match the event slot ('.$ev->start_at->format('H:i').')';
+                }
             }
         }
 
@@ -156,11 +198,12 @@ class EtoAuditService
 
         // The following compare against the ETO export row — only when auditing a CSV.
         if ($row !== null) {
-            // Pickup time: catches timezone / edit drift against the ETO record.
             $csvAt = $this->parseDate($row['Journey date'] ?? '');
-            if ($csvAt && $booking->pickup_at && $csvAt->format('H:i') !== $booking->pickup_at->format('H:i')) {
-                $issues[] = 'Pickup time differs — ETO '.$csvAt->format('H:i').' vs system '.$booking->pickup_at->format('H:i');
-            }
+
+            // NOTE: we deliberately do NOT flag an ETO-vs-system time-of-day
+            // difference. What matters is that the calendar and the command centre
+            // agree (checked above against the event); a ±1h wobble against the ETO
+            // export is not an issue when those two match.
 
             // Pickup date: a full day off means it's on the wrong day on the calendar.
             if ($csvAt && $booking->pickup_at && $csvAt->format('Y-m-d') !== $booking->pickup_at->format('Y-m-d')) {
@@ -232,7 +275,11 @@ class EtoAuditService
         $value = trim((string) $value);
         foreach (['d/m/Y H:i', 'd/m/Y H:i:s', 'd/m/Y'] as $format) {
             try {
-                return Carbon::createFromFormat($format, $value, 'UTC')->setTimezone(config('app.timezone'));
+                // ETO's journey times are already UK local — the same clock as the
+                // booking email and calendar. Parse in the app timezone; treating
+                // them as UTC and adding a BST hour made the audit report the ETO
+                // time an hour late and raise a phantom "pickup time differs".
+                return Carbon::createFromFormat($format, $value, config('app.timezone'));
             } catch (\Throwable) {
                 continue;
             }

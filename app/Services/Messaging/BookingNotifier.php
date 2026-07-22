@@ -27,7 +27,7 @@ class BookingNotifier
     /** Sent immediately when a booking is created. */
     public function sendConfirmation(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -48,32 +48,31 @@ class BookingNotifier
 
     /**
      * Queues the ~24h and 2h reminders. The 24h reminder targets 24h before
-     * pickup but is shifted into the 08:00–23:00 sending window so it never
-     * lands overnight (matching how the office sends them by hand). The 2h nudge
-     * is only queued if it too falls inside the window.
+     * pickup but is shifted into the 08:00–22:00 sending window so it never
+     * lands overnight (matching how the office sends them by hand) — a night
+     * pickup (e.g. 05:00) is reminded at 08:00 the day before, not at 05:00.
+     * The 2h nudge is only queued if it too falls inside the window.
      */
     public function scheduleReminders(Booking $booking): void
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return;
         }
 
-        if (! $booking->pickup_at?->isFuture()) {
+        // Allow a just-passed pickup (last 12h) as well as future ones, so a
+        // late / last-minute booking still gets a due-now reminder rather than
+        // none at all. Only a genuinely old pickup is skipped.
+        if (! $booking->pickup_at || $booking->pickup_at->lt(now()->subHours(12))) {
             return;
         }
 
-        // ~24h reminder — clamped into the daytime window. If the ideal time has
-        // already passed (e.g. a job booked/imported inside 24h), make it due now
-        // so it lands on the "to send" list immediately.
+        // A single ~24h reminder — clamped into the daytime window. If the ideal
+        // time has already passed (e.g. a job booked/imported inside 24h), make it
+        // due now so it lands on the "to send" list immediately. That's the only
+        // reminder — one clean nudge, no second 2h message.
         $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
         $this->queueReminder($booking, 'reminder_24h', $at24h->isPast() ? now() : $at24h);
-
-        // 2h nudge — only if it naturally falls within waking hours.
-        $at2h = $booking->pickup_at->copy()->subHours(2);
-        if ($at2h->isFuture() && $this->withinSendWindow($at2h)) {
-            $this->queueReminder($booking, 'reminder_2h', $at2h);
-        }
     }
 
     /**
@@ -81,9 +80,31 @@ class BookingNotifier
      * duplicating them. Used to backfill imported bookings (which don't go
      * through the booking form) so every job shows a reminder ready to send.
      */
+    /**
+     * Make sure a recently-completed job has its review request queued, without
+     * ever duplicating one. Backfills jobs that reached Complete outside the
+     * live status flow (e.g. ETO imports marked done, or a completion recorded
+     * before review requests existed) so every finished trip shows a review to
+     * send. Only recent completions are targeted — we don't ask for a review on
+     * a job from weeks ago. scheduleReviewRequest() enforces the both-legs rule.
+     */
+    public function ensureReviewRequest(Booking $booking): void
+    {
+        if (blank($booking->customerContactNumber()) || $booking->status->value !== 'complete') {
+            return;
+        }
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return;
+        }
+
+        $this->scheduleReviewRequest($booking);
+    }
+
     public function ensureReminders(Booking $booking): void
     {
-        if (blank($booking->customer?->phone) || ! $booking->pickup_at?->isFuture()) {
+        if (blank($booking->customerContactNumber())
+            || ! $booking->pickup_at
+            || $booking->pickup_at->lt(now()->subHours(12))) {
             return;
         }
         if ($booking->messages()->whereIn('type', ['reminder_24h', 'reminder_2h'])->exists()) {
@@ -95,7 +116,7 @@ class BookingNotifier
 
     private function queueReminder(Booking $booking, string $type, Carbon $when): void
     {
-        $this->whatsApp->send((string) $booking->customer?->phone, $this->reminderBody($booking), [
+        $this->whatsApp->send((string) $booking->customerContactNumber(), $this->reminderBody($booking), [
             'type' => $type,
             'booking' => $booking,
             'scheduled_for' => $when,
@@ -149,11 +170,16 @@ class BookingNotifier
      */
     private function driverBlock(Booking $booking): ?string
     {
+        // Number masking: when a Proxy session is open, the customer gets the
+        // masked CET line instead of the driver's real number. Falls back to
+        // the real number only while masking isn't live.
+        $masked = $booking->customerMaskedNumber();
+
         // Operator-entered details for this specific job (any driver, incl. cover).
         $manual = $booking->meta['driver_details'] ?? null;
         if (is_array($manual) && filled($manual['name'] ?? null)) {
             return $this->formatDriverBlock(
-                $manual['name'], $manual['phone'] ?? null, $manual['reg'] ?? null, $manual['car'] ?? null
+                $manual['name'], $masked ?: ($manual['phone'] ?? null), $manual['reg'] ?? null, $manual['car'] ?? null
             );
         }
 
@@ -166,7 +192,7 @@ class BookingNotifier
         $car = trim(implode(' ', array_filter([$vehicle?->colour, $vehicle?->make, $vehicle?->model])));
 
         return $this->formatDriverBlock(
-            $this->driverDisplayName($driver), $driver->phone, $vehicle?->registration, $car
+            $this->driverDisplayName($driver), $masked ?: $driver->phone, $vehicle?->registration, $car
         );
     }
 
@@ -244,23 +270,136 @@ class BookingNotifier
         return $when;
     }
 
-    /** Queues the review request for ~30 minutes after job completion. */
-    public function scheduleReviewRequest(Booking $booking): ?Message
+    /**
+     * Queues the review request for ~30 minutes after job completion, clamped
+     * into the 08:00–22:00 window so it never lands overnight (a job completed
+     * late at night becomes a review to send at 08:00). Left QUEUED for the
+     * office to send by hand on WhatsApp — never auto-sent to the customer — so
+     * it appears as a task on the dashboard and the booking, exactly like a
+     * pickup reminder. No duplicates.
+     */
+    public function scheduleReviewRequest(Booking $booking, bool $force = false): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
 
-        $delay = (int) config('cet.review_delay_minutes', 30);
-        $body = "Thanks for travelling with Central Executive Transfers, {$this->firstName($booking)}!"
-            ."\nWe'd love a quick review: ".config('cet.review_url')
-            ."\nRef: {$booking->reference}";
+        // Return journeys get ONE review for the whole trip, only after BOTH
+        // legs are completed — never a review mid-trip when just the outbound
+        // is done. One-way jobs are unaffected.
+        $sibling = $this->pairedLeg($booking);
+        if ($sibling) {
+            if ($sibling->status->value !== 'complete') {
+                return null; // other leg still to run — ask after the full trip
+            }
+            if ($sibling->messages()->where('type', 'review_request')->exists()) {
+                return null; // the pair already has its review request
+            }
+        }
 
-        return $this->whatsApp->send($to, $body, [
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return null;
+        }
+
+        // One review ask per CUSTOMER, ever — if we've already asked them on any
+        // earlier booking, don't ask again. No point requesting a review twice
+        // from someone who's booked before. A manual "Request a review" ($force)
+        // overrides this, so the office can always ask when it wants to.
+        if (! $force && $this->customerAlreadyAskedForReview($booking)) {
+            return null;
+        }
+
+        $delay = (int) config('cet.review_delay_minutes', 30);
+        $when = $this->clampToSendWindow(now()->addMinutes($delay));
+
+        return $this->whatsApp->send($to, $this->reviewBody($booking), [
             'type' => 'review_request',
             'booking' => $booking,
-            'scheduled_for' => now()->addMinutes($delay),
+            'scheduled_for' => $when->isPast() ? now() : $when,
+        ]);
+    }
+
+    /**
+     * True when this person has already been sent (or queued) a review request on
+     * any OTHER booking — so a repeat customer is never asked twice.
+     *
+     * Matches on the PHONE NUMBER the review goes to first: repeat customers can
+     * land as separate customer records (a calendar import creates a new Customer
+     * when the number isn't an exact match), so a customer_id-only check misses
+     * them. Falls back to the stored customer_id for numbers we can't parse.
+     */
+    private function customerAlreadyAskedForReview(Booking $booking): bool
+    {
+        $phone = \App\Support\Phone::wa($booking->customerContactNumber());
+        if (filled($phone)) {
+            // Last 9 digits identify the line regardless of +44 / 0 formatting;
+            // then confirm an exact normalised match on the small result set.
+            $tail = substr($phone, -9);
+            $addresses = Message::where('type', 'review_request')
+                ->where('booking_id', '!=', $booking->id)
+                ->where('to_address', 'like', '%'.$tail.'%')
+                ->pluck('to_address');
+
+            foreach ($addresses as $addr) {
+                if (\App\Support\Phone::wa($addr) === $phone) {
+                    return true;
+                }
+            }
+        }
+
+        // Also match on the stored customer record (covers unparseable numbers).
+        $customerId = $booking->customer_id;
+        if (! $customerId) {
+            return false;
+        }
+
+        $customerBookingIds = Booking::where('customer_id', $customerId)
+            ->where('id', '!=', $booking->id)
+            ->pluck('id');
+
+        if ($customerBookingIds->isEmpty()) {
+            return false;
+        }
+
+        return Message::where('type', 'review_request')
+            ->whereIn('booking_id', $customerBookingIds)
+            ->exists();
+    }
+
+    /**
+     * The other leg of a return pair (linked either direction), or null for a
+     * one-way job.
+     */
+    private function pairedLeg(Booking $booking): ?Booking
+    {
+        if ($booking->linked_booking_id) {
+            return Booking::find($booking->linked_booking_id);
+        }
+
+        return Booking::where('linked_booking_id', $booking->id)->first();
+    }
+
+    /**
+     * The exact office "leave us a review" wording, greeting the LEAD PASSENGER.
+     * Rendered fresh at send time so the name/link are always current.
+     */
+    public function reviewBody(Booking $booking): string
+    {
+        // Review only — a single, clean call to action. No tip link here: two
+        // asks in one message hurt review conversion, and reviews matter more.
+        // The tip link lives elsewhere (the booking page / tracking page).
+        return implode("\n", [
+            'Hi '.$this->firstName($booking).',',
+            '',
+            'We hope you had a smooth journey with '.self::FOOTER.'!',
+            "We'd love to hear your feedback.",
+            'If you could take a moment to leave us a quick review, it really helps us improve our service and means a lot to us 🙏',
+            '👉 Google: '.config('cet.review_url'),
+            'Thank you for choosing us, and we look forward to assisting you again soon.',
+            '',
+            self::FOOTER,
+            config('cet.website'),
         ]);
     }
 
@@ -271,7 +410,7 @@ class BookingNotifier
      */
     public function sendDriverDetails(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         $block = $this->driverBlock($booking);
         if (blank($to) || ! $block) {
             return null;
@@ -285,10 +424,31 @@ class BookingNotifier
         ]);
     }
 
+    /**
+     * Sent when the driver marks Passenger On Board — reassures the booker
+     * (often not the passenger, e.g. a company booking a client's transfer)
+     * that the journey is underway.
+     */
+    public function sendPassengerOnBoard(Booking $booking): ?Message
+    {
+        $to = $booking->customerContactNumber();
+        if (blank($to)) {
+            return null;
+        }
+
+        $body = 'Passenger on board — your Central Executive Transfers journey is underway. '
+            ."Ref: {$booking->reference}";
+
+        return $this->whatsApp->send($to, $body, [
+            'type' => 'custom',
+            'booking' => $booking,
+        ]);
+    }
+
     /** Sent when the driver marks Arrived at the pickup. */
     public function sendArrived(Booking $booking): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -303,7 +463,7 @@ class BookingNotifier
     /** Sent when the driver goes En Route, including the live tracking link. */
     public function sendTrackingLink(Booking $booking, string $url): ?Message
     {
-        $to = $booking->customer?->phone;
+        $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;
         }
@@ -345,7 +505,10 @@ class BookingNotifier
             return null;
         }
 
-        $name = trim(preg_replace('/[*👀💰🚼🚸✈️🛬]/u', '', Str::before($title, ' (')));
+        // Strip the bold markers AND every emoji/symbol (♿, ✈️, 💰, 👀, 🚼 …) —
+        // \p{So}/\p{Sk} + the variation selector/ZWJ cover them all, so a new
+        // marker emoji can never leak into the greeting as the "name" again.
+        $name = trim(preg_replace('/[*\p{So}\p{Sk}\x{FE0F}\x{200D}]/u', '', Str::before($title, ' (')));
         $name = trim((string) preg_replace(
             '/\s+(MAN|LHR|LGW|STN|EMA|LBA|HUY|LPL|BHX|LTN|BRS|EDI|GLA|NCL|LCY|DSA|Free Roam|Return).*$/iu',
             '',

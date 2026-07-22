@@ -43,6 +43,13 @@ class QuoteController extends Controller
             // Fixed-price matrix inputs.
             'pricing_zone_id' => ['nullable', Rule::exists('pricing_zones', 'id')],
             'pickup_postcode' => ['nullable', 'string', 'max:16'],
+            // Extras — priced from the CET surcharge list (config cet.surcharges).
+            'meet_greet' => ['nullable', 'boolean'],
+            'child_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'stopovers' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'stopover_addresses' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $quote = $this->engine->quote($data);

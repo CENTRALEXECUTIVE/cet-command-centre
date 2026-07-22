@@ -36,6 +36,11 @@ Schedule::command('cet:sync-ads')->dailyAt('05:00');
 // 10 — the corruption source). Operator-driven edits/deletions are NOT done here.
 Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping();
 
+// PULL upcoming bookings into line with the live calendar (read-only), in the
+// shell where the Google connection is reliable — so the website never has to
+// reach Google and bookings stay matched to the calendar automatically.
+Schedule::command('cet:calendar-refresh')->everyFiveMinutes()->withoutOverlapping();
+
 // Parse Outlook booking emails into bookings, every 5 minutes.
 Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();
 
@@ -45,3 +50,11 @@ Schedule::command('cet:ingest-enquiries')->everyTenMinutes()->withoutOverlapping
 
 // Safety net: re-confirm every upcoming booking is on the calendar, hourly.
 Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
+
+// Status watchdog: nudge drivers who haven't set off / tapped the next status,
+// detect arrivals/POB/complete from GPS, and feed the dashboard alerts log.
+Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping();
+
+// Number masking safety net: close Proxy sessions past drop-off + 4h even if
+// a status change was missed. Twilio's own expiry backs this up.
+Schedule::command('cet:close-proxy-sessions')->everyFiveMinutes()->withoutOverlapping();

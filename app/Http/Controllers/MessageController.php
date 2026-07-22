@@ -26,7 +26,7 @@ class MessageController extends Controller
             'body' => ['required', 'string', 'max:1000'],
         ]);
 
-        $to = $booking->customer?->phone ?? $booking->customer?->email;
+        $to = $booking->customerContactNumber() ?? $booking->customer?->email;
         if (blank($to)) {
             return back()->withErrors(['body' => 'This customer has no phone or email on file.']);
         }

@@ -31,6 +31,9 @@ class BookingStatusService
         private readonly RotationService $rotation,
         private readonly BookingNotifier $notifier,
         private readonly WaitingListService $waitingList,
+        private readonly \App\Services\Push\WebPushService $push,
+        private readonly \App\Services\Watchdog\AdminAlerts $adminAlerts,
+        private readonly \App\Services\Telephony\TwilioProxyService $proxy,
     ) {}
 
     public function canTransition(BookingStatus $from, BookingStatus $to): bool
@@ -86,6 +89,9 @@ class BookingStatusService
             ]);
             $booking->forceFill(['status' => BookingStatus::Pending->value, 'driver_id' => null])->save();
 
+            // Declined → the driver loses the masked line immediately.
+            $this->proxy->closeSession($booking, 'driver declined');
+
             return $booking;
         });
     }
@@ -116,13 +122,66 @@ class BookingStatusService
 
         $this->authorise($booking, $to, $actor);
 
+        return $this->apply($booking, $from, $to, $actor, $lat, $lng, $note);
+    }
+
+    /**
+     * Admin override — set a booking straight to a status (e.g. Completed, No
+     * Show, Cancelled) from the dispatch board without walking every step of the
+     * flow. Still authorised (admins only), logged, and fires the same side
+     * effects (review request, waiting-list notify) as a normal transition.
+     */
+    public function forceTransition(Booking $booking, BookingStatus $to, User $actor, ?string $note = null): Booking
+    {
+        $from = $booking->status;
+        if ($from === $to) {
+            return $booking;
+        }
+
+        $this->authorise($booking, $to, $actor);
+
+        return $this->apply($booking, $from, $to, $actor, null, null, $note);
+    }
+
+    /**
+     * A driver working the job through the shareable LINK (no login). The token
+     * is the authentication; we still enforce a legal, driver-permitted step.
+     * The change is stamped to the assigned user if there is one, else recorded
+     * with no user and a "via job link" note.
+     */
+    public function linkTransition(Booking $booking, BookingStatus $to, ?float $lat = null, ?float $lng = null): Booking
+    {
+        $from = $booking->status;
+        if ($from === $to) {
+            return $booking;
+        }
+        if (! $this->canTransition($from, $to)) {
+            throw new InvalidArgumentException("Cannot move a booking from {$from->value} to {$to->value}.");
+        }
+        if (! in_array($to->value, self::DRIVER_ALLOWED, true)) {
+            throw new AuthorizationException('That status change is not allowed from the driver link.');
+        }
+
+        return $this->apply($booking, $from, $to, $booking->driver, $lat, $lng, 'via job link');
+    }
+
+    /** Persist the status change, record history and fire side effects. */
+    private function apply(
+        Booking $booking,
+        BookingStatus $from,
+        BookingStatus $to,
+        ?User $actor,
+        ?float $lat,
+        ?float $lng,
+        ?string $note,
+    ): Booking {
         return DB::transaction(function () use ($booking, $from, $to, $actor, $lat, $lng, $note) {
             $booking->forceFill(['status' => $to->value])->save();
 
             $booking->statusHistory()->create([
                 'from_status' => $from->value,
                 'to_status' => $to->value,
-                'changed_by' => $actor->id,
+                'changed_by' => $actor?->id,
                 'gps_latitude' => $lat,
                 'gps_longitude' => $lng,
                 'note' => $note,
@@ -130,6 +189,18 @@ class BookingStatusService
             ]);
 
             $this->fireSideEffects($booking, $to);
+
+            // Control-tower log: every transition is a feed row; no-show and
+            // cancel are called out by name so the office spots them.
+            $flagged = in_array($to, [BookingStatus::NoShow, BookingStatus::Cancelled], true);
+            $who = $booking->driver?->name ?? 'unassigned';
+            $title = $booking->pickup_at->format('H:i').' '.$booking->displayName().' → '.$to->label().' · '.$who;
+            \App\Models\WatchdogEvent::log($flagged ? $to->value : 'status_changed', $title, 'info', $booking);
+
+            // No-show / cancel also buzz the office phones immediately.
+            if ($flagged) {
+                $this->adminAlerts->notify('no_show_cancel', $to->label().' — '.$booking->pickup_at->format('H:i'), $title, 'info', $booking);
+            }
 
             return $booking;
         });
@@ -158,17 +229,64 @@ class BookingStatusService
         // "Here's your driver" the moment a driver is allocated. Force-reload the
         // driver/vehicle relations so a stale (rotation-time) driver isn't used.
         if ($to === BookingStatus::Allocated && $booking->driver_id) {
+            // Number masking FIRST: open the Twilio Proxy session so the
+            // driver-details message below can already carry the masked line.
+            if ($booking->driver) {
+                $this->proxy->openSession($booking, $booking->driver);
+            }
+
             $this->notifier->sendDriverDetails($booking->load(['customer', 'driver.driverProfile.defaultVehicle', 'vehicle', 'vehicleType']));
+
+            // Buzz the driver's phone with the new job (even if the app is closed).
+            // Title carries the date & time; body carries the route + passenger so
+            // they know which job it is at a glance (matches the driver-link message).
+            if ($booking->driver) {
+                $fromPlace = \Illuminate\Support\Str::before((string) $booking->displayPickupAddress(), ',');
+                $toPlace = $booking->airport?->code
+                    ?: \Illuminate\Support\Str::before((string) $booking->displayDropoffAddress(), ',');
+                $route = trim(trim((string) $fromPlace).' → '.trim((string) $toPlace), ' →');
+                $name = $booking->meta['lead_name'] ?? $booking->displayName();
+                $body = implode(' · ', array_filter([$route, $name]));
+                $this->push->sendToUser(
+                    $booking->driver,
+                    'New job — '.$booking->pickup_at->format('D d M, H:i'),
+                    $body,
+                    ['url' => route('driver.job', $booking), 'tag' => 'job-'.$booking->id],
+                );
+            }
         }
 
         if ($to === BookingStatus::EnRoute) {
             $link = $this->ensureTrackingLink($booking);
             $this->notifier->sendTrackingLink($booking, route('track', $link->token));
+
+            // Tell the office the driver has set off — a positive ping (info, not
+            // an alarm). Shows in the alerts feed and pushes to admins who want it.
+            $driver = $booking->driverPublicName() ?: 'The driver';
+            $where = \Illuminate\Support\Str::before((string) $booking->pickup_address, ',');
+            $body = $driver.' has set off for the '.$booking->pickup_at->format('H:i').($where ? ' '.$where : '').' job';
+            \App\Models\WatchdogEvent::log('driver_set_off', $body, 'info', $booking);
+            $this->adminAlerts->notify('driver_set_off', '🚗 '.$driver.' has set off', $body, 'info', $booking);
         }
 
         // "Your driver has arrived" — sent when the driver marks Arrived.
         if ($to === BookingStatus::Arrived) {
             $this->notifier->sendArrived($booking);
+        }
+
+        // "Passenger on board" — journey underway, reassures the booker.
+        if ($to === BookingStatus::Collected) {
+            $this->notifier->sendPassengerOnBoard($booking);
+
+            // POB is effectively the end of phone contact — the passenger is in
+            // the car. Keep the masked line alive for a short grace window (30
+            // min) to cover a bag-left-behind / follow-up call, then let it
+            // close. This frees the pooled number for the next job far sooner
+            // than holding it to drop-off + grace, and once closed a later call
+            // can't reach a driver/customer the number was reassigned to (Twilio
+            // rejects out-of-session callers). The terminal close below stays as
+            // a backstop for any job that completes without passing through POB.
+            $this->proxy->closeAfterMinutes($booking, \App\Services\Telephony\TwilioProxyService::POB_GRACE_MINUTES);
         }
 
         // Review request 30 minutes after completion (delivered by the scheduler).
@@ -179,6 +297,30 @@ class BookingStatusService
         // A cancellation frees capacity — notify the waiting list.
         if ($to === BookingStatus::Cancelled) {
             $this->waitingList->notifyForCancellation($booking);
+        }
+
+        // Cancelled / no-show: there was no journey, so drop any queued reminder
+        // or review request — they must never sit in the office worklists.
+        if (in_array($to, [BookingStatus::Cancelled, BookingStatus::NoShow], true)) {
+            $booking->messages()
+                ->where('status', 'queued')
+                ->whereIn('type', ['reminder_24h', 'reminder_2h', 'review_request'])
+                ->delete();
+        }
+
+        // Job closed (complete / cancelled / no-show): wind the public tracking
+        // link down shortly after, so the customer sees the final status for a
+        // little while and then the link expires. GPS pings already stop on
+        // their own — the server rejects pings without an active job.
+        if ($to->isTerminal()) {
+            $link = $booking->trackingLink()->first();
+            $cutoff = now()->addHours(2);
+            if ($link && ($link->expires_at === null || $link->expires_at->gt($cutoff))) {
+                $link->forceFill(['expires_at' => $cutoff])->save();
+            }
+
+            // The masked line dies with the job.
+            $this->proxy->closeSession($booking, 'job '.$to->value);
         }
     }
 

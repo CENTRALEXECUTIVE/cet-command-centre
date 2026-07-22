@@ -9,23 +9,24 @@ use App\Models\User;
 /**
  * GPS location handling (GDPR sensitive).
  *
- * A driver's location is ONLY recorded while they are on an active job
- * (accepted / en route / collected). When there is no active job the ping is
- * rejected — location tracking is off. Pings are retained for at most
- * config('cet.gps_retention_days') days and pruned automatically.
+ * A driver's location is ONLY recorded while they are on a TRACKED job —
+ * from the Set off tap (en route) through arrived/POB until Complete. Before
+ * set-off, and when there is no job, the ping is rejected — location tracking
+ * is off. Pings are retained for at most config('cet.gps_retention_days')
+ * days and pruned automatically.
  */
 class DriverLocationService
 {
     /**
-     * Record a GPS ping for a driver, attributing it to their current active
-     * job. Returns null (and stores nothing) when the driver is not on a job.
+     * Record a GPS ping for a driver, attributing it to their current tracked
+     * job. Returns null (and stores nothing) when the driver has not set off.
      */
     public function recordPing(User $driver, float $lat, float $lng, array $extra = []): ?DriverLocation
     {
-        $booking = $this->activeBookingFor($driver);
+        $booking = $this->trackedBookingFor($driver);
 
         if (! $booking) {
-            return null; // Location OFF when not on a job.
+            return null; // Location OFF before set-off / when not on a job.
         }
 
         return DriverLocation::create([
@@ -40,10 +41,67 @@ class DriverLocationService
         ]);
     }
 
+    /**
+     * Record a one-off ping in answer to an office "request location" — allowed
+     * for a live job the driver is assigned to even BEFORE Set off, so the
+     * office can locate a driver on the way to the pickup. Still bounded to a
+     * non-terminal job that belongs to this driver (GDPR: never off-job), and
+     * it clears the pending request flag.
+     */
+    public function recordRequestedPing(User $driver, Booking $booking, float $lat, float $lng, array $extra = []): ?DriverLocation
+    {
+        if ($booking->driver_id !== $driver->id || $booking->status->isTerminal()) {
+            return null;
+        }
+
+        return DriverLocation::create([
+            'driver_id' => $driver->id,
+            'booking_id' => $booking->id,
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'heading' => $extra['heading'] ?? null,
+            'speed' => $extra['speed'] ?? null,
+            'accuracy' => $extra['accuracy'] ?? null,
+            'captured_at' => now(),
+        ]);
+    }
+
+    /**
+     * Record a ping for a job worked through the shareable LINK (no user
+     * account). Keyed to the booking; only while the job is actually being
+     * driven (en route → on board), same GDPR rule as the app.
+     */
+    public function recordLinkPing(Booking $booking, float $lat, float $lng, array $extra = []): ?DriverLocation
+    {
+        if (! $booking->status->isTracked()) {
+            return null; // location OFF until Set off, and after Complete
+        }
+
+        return DriverLocation::create([
+            'driver_id' => $booking->driver_id, // a system driver if any, else null
+            'booking_id' => $booking->id,
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'heading' => $extra['heading'] ?? null,
+            'speed' => $extra['speed'] ?? null,
+            'accuracy' => $extra['accuracy'] ?? null,
+            'captured_at' => now(),
+        ]);
+    }
+
     public function activeBookingFor(User $driver): ?Booking
     {
         return Booking::forDriver($driver->id)
             ->active()
+            ->orderBy('pickup_at')
+            ->first();
+    }
+
+    /** The job GPS pings attach to — only after the driver has set off. */
+    public function trackedBookingFor(User $driver): ?Booking
+    {
+        return Booking::forDriver($driver->id)
+            ->tracked()
             ->orderBy('pickup_at')
             ->first();
     }

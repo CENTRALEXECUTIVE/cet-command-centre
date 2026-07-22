@@ -33,10 +33,20 @@ enum BookingStatus: string
         };
     }
 
-    /** Statuses considered an active job (driver location tracked). */
+    /** Statuses considered an active job (driver is working it). */
     public function isActive(): bool
     {
         return in_array($this, [self::Accepted, self::EnRoute, self::Arrived, self::Collected], true);
+    }
+
+    /**
+     * Statuses during which driver GPS is recorded. Tracking starts on the
+     * SET OFF tap (En Route) and stops on Complete/no-show/cancel — never
+     * before the driver is actually driving to the job.
+     */
+    public function isTracked(): bool
+    {
+        return in_array($this, [self::EnRoute, self::Arrived, self::Collected], true);
     }
 
     public function isTerminal(): bool

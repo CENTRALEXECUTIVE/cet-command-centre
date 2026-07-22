@@ -29,7 +29,7 @@ class DespatchController extends Controller
     {
         $date = $request->date('date') ?? today();
 
-        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport'])
+        $bookings = Booking::with(['customer', 'vehicleType', 'driver', 'airport', 'calendarEvent'])
             ->whereDate('pickup_at', $date)
             ->orderBy('pickup_at')
             ->get();
@@ -44,16 +44,26 @@ class DespatchController extends Controller
             ->filter(fn ($d) => $d['reason'] !== null)
             ->values();
 
+        // Last GPS ping age (seconds) per tracked job — the board shows it as a
+        // live-ticking chip that ambers then reds as the signal stales.
+        $pingAges = \App\Models\DriverLocation::query()
+            ->whereIn('booking_id', $bookings->pluck('id'))
+            ->selectRaw('booking_id, MAX(captured_at) as last_at')
+            ->groupBy('booking_id')
+            ->pluck('last_at', 'booking_id')
+            ->map(fn ($at) => (int) abs(now()->diffInSeconds(\Illuminate\Support\Carbon::parse($at))));
+
         return view('despatch.board', [
             'date' => $date,
             'columns' => $columns,
             'statuses' => BookingStatus::cases(),
             'drivers' => $drivers,
             'blockedDrivers' => $blockedDrivers,
+            'pingAges' => $pingAges,
             'totals' => [
                 'all' => $bookings->count(),
                 'unallocated' => $bookings->where('status', BookingStatus::Pending)->count(),
-                'active' => $bookings->whereIn('status', [BookingStatus::Accepted, BookingStatus::EnRoute, BookingStatus::Collected])->count(),
+                'active' => $bookings->whereIn('status', [BookingStatus::Accepted, BookingStatus::EnRoute, BookingStatus::Arrived, BookingStatus::Collected])->count(),
             ],
         ]);
     }
@@ -112,6 +122,88 @@ class DespatchController extends Controller
         }
 
         return back()->with('status', "{$booking->reference} → ".BookingStatus::from($data['status'])->label().'.');
+    }
+
+    /**
+     * Admin override from the board: set a job to ANY status in one tap —
+     * quick-close (Completed / No Show / Cancelled) or wind it BACK when a
+     * driver taps the wrong button (e.g. En Route by accident → back to
+     * Accepted). Bypasses the normal step order, still logged with the actor.
+     */
+    public function quickStatus(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::in(BookingStatus::values())],
+        ]);
+
+        $to = BookingStatus::from($data['status']);
+        $this->status->forceTransition($booking, $to, $request->user(), note: 'Admin override from the dispatch board');
+
+        return back()->with('status', "{$booking->reference} → {$to->label()}.");
+    }
+
+    /**
+     * Admin re-tie / un-tie: move a job to a different driver at ANY stage, or
+     * remove the driver entirely (job returns to Pending for reallocation).
+     * Compliance-gated and written to the booking's history.
+     */
+    public function reassign(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'driver_id' => ['nullable', Rule::exists('users', 'id')],
+        ]);
+
+        $from = $booking->driver?->name ?? 'unassigned';
+
+        // Un-tie: clear the driver and put the job back in the pending pool.
+        if (blank($data['driver_id'])) {
+            $booking->statusHistory()->create([
+                'from_status' => $booking->status->value,
+                'to_status' => BookingStatus::Pending->value,
+                'changed_by' => $request->user()->id,
+                'note' => "Driver removed (was {$from})",
+                'created_at' => now(),
+            ]);
+            $booking->forceFill(['driver_id' => null, 'status' => BookingStatus::Pending->value])->save();
+
+            // Untied → the removed driver loses the masked line immediately.
+            app(\App\Services\Telephony\TwilioProxyService::class)->closeSession($booking, 'driver removed');
+
+            return back()->with('status', "{$booking->reference}: driver removed — back in Unallocated.");
+        }
+
+        $driver = User::findOrFail($data['driver_id']);
+
+        // Never dispatch a driver with expired documents.
+        if ($reason = $this->compliance->blockReason($driver)) {
+            throw ValidationException::withMessages([
+                'driver_id' => "Cannot reassign to {$driver->name}: {$reason}. Update the document first.",
+            ]);
+        }
+
+        if ($booking->status === BookingStatus::Pending) {
+            // From the pool this is just a normal allocation.
+            $this->status->allocateDriver($booking, $driver, $request->user());
+        } else {
+            // Mid-flow swap: keep the job's current status, change the person.
+            $booking->statusHistory()->create([
+                'from_status' => $booking->status->value,
+                'to_status' => $booking->status->value,
+                'changed_by' => $request->user()->id,
+                'note' => "Reassigned from {$from} to {$driver->name}",
+                'created_at' => now(),
+            ]);
+            $booking->forceFill(['driver_id' => $driver->id])->save();
+
+            // Fresh masked session for the new driver; the old one dies now.
+            app(\App\Services\Telephony\TwilioProxyService::class)->reassignDriver($booking->fresh(['customer']), $driver);
+        }
+
+        return back()->with('status', "{$booking->reference} reassigned to {$driver->name}.");
     }
 
     /** @return Collection<int, User> */

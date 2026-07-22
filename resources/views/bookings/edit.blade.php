@@ -2,9 +2,12 @@
 @section('title', 'Edit Booking ' . $booking->reference)
 
 @section('content')
-    <p class="page-sub"><a href="{{ route('bookings.show', $booking) }}">← Booking {{ $booking->reference }}</a></p>
-    <h1 class="page-title">Edit Booking <span class="mono">{{ $booking->reference }}</span></h1>
-    <p class="page-sub">Amend the journey, passenger or price. The driver and rotation stay as they are.</p>
+    <div class="form-hero">
+        <div class="form-hero-glow"></div>
+        <div class="fh-eyebrow"><a href="{{ route('bookings.show', $booking) }}" style="color:var(--gold)">← Booking {{ $booking->reference }}</a></div>
+        <div class="fh-title">Edit Booking</div>
+        <div class="fh-sub">Amend the journey, passenger or price. The driver and rotation stay as they are.</div>
+    </div>
 
     @if($errors->any())
         <div class="alert alert-error">
@@ -29,11 +32,15 @@
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="customer_name">Full name <span class="req">*</span></label>
-                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $booking->customer?->name) }}" required>
+                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $booking->displayCustomerName()) }}" required>
                     </div>
                     <div class="field">
+                        {{-- Prefill from the booking's OWN contact (the calendar "Contact No"),
+                             never the linked customer record's stored phone — that record can be
+                             shared and carry a different/older number. What's shown here must be
+                             the number for THIS booking. --}}
                         <label for="customer_phone">Mobile number</label>
-                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $booking->customer?->phone) }}" placeholder="07…">
+                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $booking->customerContactNumber()) }}" placeholder="07…">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0">
@@ -119,8 +126,26 @@
                         <input id="passengers" type="number" name="passengers" min="1" max="16" value="{{ old('passengers', $booking->passengers) }}" required>
                     </div>
                     <div class="field">
-                        <label for="luggage">Luggage items</label>
-                        <input id="luggage" type="number" name="luggage" min="0" max="30" value="{{ old('luggage', $booking->luggage) }}">
+                        <label for="suitcases">Suitcases</label>
+                        <input id="suitcases" type="number" name="suitcases" min="0" max="30" value="{{ old('suitcases', $booking->meta['suitcases'] ?? $booking->luggage) }}">
+                    </div>
+                    <div class="field">
+                        <label for="hand_luggage">Hand luggage</label>
+                        <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', $booking->meta['hand_luggage'] ?? 0) }}">
+                    </div>
+                </div>
+                <div class="grid grid-3">
+                    <div class="field">
+                        <label for="child_seats">Child seats</label>
+                        <input id="child_seats" type="number" name="child_seats" min="0" max="8" value="{{ old('child_seats', $booking->meta['child_seats'] ?? 0) }}">
+                    </div>
+                    <div class="field">
+                        <label for="booster_seats">Booster seats</label>
+                        <input id="booster_seats" type="number" name="booster_seats" min="0" max="8" value="{{ old('booster_seats', $booking->meta['booster_seats'] ?? 0) }}">
+                    </div>
+                    <div class="field">
+                        <label for="infant_seats">Infant seats</label>
+                        <input id="infant_seats" type="number" name="infant_seats" min="0" max="8" value="{{ old('infant_seats', $booking->meta['infant_seats'] ?? 0) }}">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0">

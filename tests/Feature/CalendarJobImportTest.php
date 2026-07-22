@@ -74,6 +74,29 @@ class CalendarJobImportTest extends TestCase
         $this->assertGreaterThan(0, Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->count());
     }
 
+    public function test_a_reference_less_event_matches_an_existing_booking_and_is_not_duplicated(): void
+    {
+        // An existing booking for this journey (no external reference).
+        $customer = \App\Models\Customer::create(['name' => 'Safah Rajah', 'phone' => '+447526247607']);
+        $existing = Booking::factory()
+            ->forVehicleType(\App\Models\VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => $customer->id,
+                'pickup_at' => Carbon::now()->addDays(1)->setTime(11, 30),
+                'destination_address' => 'Manchester Airport (MAN)',
+            ]);
+
+        // A calendar event with NO booking reference for the same journey.
+        $parsed = $this->fakeParsed();
+        $parsed['reference'] = null;
+        $parsed['event_id'] = 'evt_no_ref';
+
+        $found = app(\App\Services\Calendar\CalendarJobImporter::class)->existingBookingFor($parsed);
+
+        $this->assertNotNull($found, 'The reference-less event should match the existing booking, not duplicate it.');
+        $this->assertSame($existing->id, $found->id);
+    }
+
     public function test_importing_an_already_known_job_just_opens_it(): void
     {
         $existing = Booking::factory()
