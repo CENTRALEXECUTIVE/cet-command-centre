@@ -150,14 +150,24 @@
                 @error('passengers') <div class="error">{{ $message }}</div> @enderror
 
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
-                    <span class="lbl">Luggage<span class="sub">Suitcases &amp; bags</span></span>
+                    <span class="lbl">Suitcases<span class="sub">Hold luggage</span></span>
                     <div class="stepper" data-stepper>
                         <button type="button" data-dec>−</button>
-                        <input id="luggage" type="number" name="luggage" min="0" max="30" value="{{ old('luggage', 0) }}">
+                        <input id="suitcases" type="number" name="suitcases" min="0" max="30" value="{{ old('suitcases', 0) }}">
                         <button type="button" data-inc>+</button>
                     </div>
                 </div>
-                @error('luggage') <div class="error">{{ $message }}</div> @enderror
+                @error('suitcases') <div class="error">{{ $message }}</div> @enderror
+
+                <div class="stepper-field">
+                    <span class="lbl">Hand luggage<span class="sub">Cabin bags</span></span>
+                    <div class="stepper" data-stepper>
+                        <button type="button" data-dec>−</button>
+                        <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', 0) }}">
+                        <button type="button" data-inc>+</button>
+                    </div>
+                </div>
+                @error('hand_luggage') <div class="error">{{ $message }}</div> @enderror
 
                 <div class="field" style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
                     <label for="flight_number">Flight number <span class="muted">(if airport)</span></label>

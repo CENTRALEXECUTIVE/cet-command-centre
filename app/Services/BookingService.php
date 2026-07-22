@@ -99,7 +99,8 @@ class BookingService
                 'destination_address' => $data['destination_address'],
                 'flight_number' => $data['flight_number'] ?? null,
                 'passengers' => $data['passengers'],
-                'luggage' => $data['luggage'] ?? 0,
+                'luggage' => $this->luggageTotal($data),
+                'meta' => $this->mergeLuggageMeta($booking->meta ?? [], $data),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],
                 'payment_status' => $data['payment_status'] ?? $booking->payment_status,
@@ -121,6 +122,41 @@ class BookingService
 
             return $booking->refresh();
         });
+    }
+
+    /**
+     * The combined luggage count. Prefers the split (suitcases + hand luggage)
+     * when either is supplied, otherwise the single combined field.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function luggageTotal(array $data): int
+    {
+        if (isset($data['suitcases']) || isset($data['hand_luggage'])) {
+            return (int) ($data['suitcases'] ?? 0) + (int) ($data['hand_luggage'] ?? 0);
+        }
+
+        return (int) ($data['luggage'] ?? 0);
+    }
+
+    /**
+     * Merge the split luggage counts into a booking's meta so both numbers are
+     * always recorded. Untouched when neither field was submitted.
+     *
+     * @param  array<string, mixed>  $meta
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function mergeLuggageMeta(array $meta, array $data): array
+    {
+        if (isset($data['suitcases'])) {
+            $meta['suitcases'] = (int) $data['suitcases'];
+        }
+        if (isset($data['hand_luggage'])) {
+            $meta['hand_luggage'] = (int) $data['hand_luggage'];
+        }
+
+        return $meta;
     }
 
     private function resolveCustomer(array $data): Customer
@@ -187,7 +223,8 @@ class BookingService
             'destination_postcode' => $isReturn ? ($data['pickup_postcode'] ?? null) : ($data['destination_postcode'] ?? null),
             'flight_number' => $data['flight_number'] ?? null,
             'passengers' => $data['passengers'],
-            'luggage' => $data['luggage'] ?? 0,
+            'luggage' => $this->luggageTotal($data),
+            'meta' => $this->mergeLuggageMeta([], $data),
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,
             // The quoted price is the TOTAL for the journey — keep it on the

@@ -177,6 +177,41 @@ class Booking extends Model
         return $this->meta['lead_name'] ?? $this->customer?->name ?? 'Customer';
     }
 
+    /** Number of suitcases (hold luggage). Null when unknown (not yet imported). */
+    public function suitcases(): ?int
+    {
+        return isset($this->meta['suitcases']) ? (int) $this->meta['suitcases'] : null;
+    }
+
+    /** Number of hand-luggage items. Null when unknown (not yet imported). */
+    public function handLuggage(): ?int
+    {
+        return isset($this->meta['hand_luggage']) ? (int) $this->meta['hand_luggage'] : null;
+    }
+
+    /**
+     * A plain-English luggage summary that always shows BOTH counts when we know
+     * them — "2 suitcases · 1 hand luggage" — falling back to the combined total
+     * for older bookings imported before the split was captured.
+     */
+    public function luggageSummary(): string
+    {
+        $suitcases = $this->suitcases();
+        $hand = $this->handLuggage();
+
+        if ($suitcases === null && $hand === null) {
+            $total = (int) $this->luggage;
+
+            return $total === 1 ? '1 item (total)' : "{$total} items (total)";
+        }
+
+        $parts = [];
+        $parts[] = ($suitcases ?? 0).' '.\Illuminate\Support\Str::plural('suitcase', $suitcases ?? 0);
+        $parts[] = ($hand ?? 0).' hand luggage';
+
+        return implode(' · ', $parts);
+    }
+
     /** Generate the next unique booking reference, e.g. CET-2A4F9C. */
     public static function generateReference(): string
     {
