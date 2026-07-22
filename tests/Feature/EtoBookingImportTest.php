@@ -23,7 +23,7 @@ class EtoBookingImportTest extends TestCase
         'Departure ferry time', 'Departure ferry terminal', 'Phone number', 'Pickup', 'Dropoff', 'Via',
         'Waiting time', 'Email', 'Meet & Greet', 'Customer', 'Departments', 'Lead passenger name',
         'Lead passenger email', 'Lead passenger phone number', 'Created at', 'Updated at', 'Currency',
-        'Tracking history',
+        'Tracking history', 'Passengers', 'Suitcases', 'Hand luggage',
     ];
 
     protected function setUp(): void
@@ -143,11 +143,12 @@ class EtoBookingImportTest extends TestCase
         @unlink($path);
     }
 
-    public function test_bst_times_are_converted_from_utc_to_uk_local(): void
+    public function test_bst_times_are_stored_as_uk_local_not_shifted(): void
     {
         config(['app.timezone' => 'Europe/London']); // production timezone
 
-        // A summer (BST) journey: ETO exports 14:10 UTC → pickup is 15:10 UK.
+        // ETO exports the booking's UK LOCAL time (same as the email/calendar).
+        // A summer (BST) 14:10 must stay 14:10 — NOT be read as UTC and bumped to 15:10.
         $path = $this->csv([[
             'Journey date' => '15/07/2026 14:10', 'Passenger name' => 'BST Test',
             'Reference number' => 'BST1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
@@ -156,7 +157,7 @@ class EtoBookingImportTest extends TestCase
         app(EtoBookingImporter::class)->import($path);
 
         $booking = Booking::where('external_reference', 'BST1')->first();
-        $this->assertEquals('15:10', $booking->pickup_at->format('H:i'));
+        $this->assertEquals('14:10', $booking->pickup_at->format('H:i'));
         @unlink($path);
     }
 
@@ -164,7 +165,7 @@ class EtoBookingImportTest extends TestCase
     {
         config(['app.timezone' => 'Europe/London']);
 
-        // A winter (GMT) journey: 09:00 UTC == 09:00 UK, no shift.
+        // A winter (GMT) journey: 09:00 stays 09:00.
         $path = $this->csv([[
             'Journey date' => '15/01/2026 09:00', 'Passenger name' => 'GMT Test',
             'Reference number' => 'GMT1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
@@ -174,6 +175,25 @@ class EtoBookingImportTest extends TestCase
 
         $booking = Booking::where('external_reference', 'GMT1')->first();
         $this->assertEquals('09:00', $booking->pickup_at->format('H:i'));
+        @unlink($path);
+    }
+
+    public function test_suitcases_and_hand_luggage_are_stored_separately(): void
+    {
+        $path = $this->csv([[
+            'Journey date' => '15/07/2026 14:10', 'Passenger name' => 'Bag Test',
+            'Reference number' => 'BAG1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 100', 'Total' => '100.00', 'Phone number' => '07700900004',
+            'Suitcases' => '2', 'Hand luggage' => '1',
+        ]]);
+        app(EtoBookingImporter::class)->import($path);
+
+        $booking = Booking::where('external_reference', 'BAG1')->first();
+        $this->assertSame(2, $booking->suitcases());
+        $this->assertSame(1, $booking->handLuggage());
+        $this->assertSame(3, (int) $booking->luggage);
+        $this->assertStringContainsString('2 suitcases', $booking->luggageSummary());
+        $this->assertStringContainsString('1 hand luggage', $booking->luggageSummary());
         @unlink($path);
     }
 }

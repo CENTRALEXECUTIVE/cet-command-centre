@@ -232,7 +232,10 @@ class EtoAuditService
         $value = trim((string) $value);
         foreach (['d/m/Y H:i', 'd/m/Y H:i:s', 'd/m/Y'] as $format) {
             try {
-                return Carbon::createFromFormat($format, $value, 'UTC')->setTimezone(config('app.timezone'));
+                // ETO exports UK LOCAL time (matches the email/calendar). Parse
+                // as-is — NO UTC conversion — so we don't invent a false "+1h"
+                // mismatch against the correctly-stored booking.
+                return Carbon::createFromFormat($format, $value, config('app.timezone'));
             } catch (\Throwable) {
                 continue;
             }

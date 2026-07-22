@@ -111,7 +111,7 @@ class EtoBookingImporter
                 'destination_address' => $this->decode($data['Dropoff'] ?? '') ?: 'Unknown',
                 'flight_number' => $this->clean($data['Arrival flight number'] ?? '') ?: $this->clean($data['Departure flight number'] ?? '') ?: null,
                 'passengers' => max(1, (int) $this->clean($data['Passengers'] ?? '1')),
-                'luggage' => (int) $this->clean($data['Suitcases'] ?? '0') + (int) $this->clean($data['Hand luggage'] ?? '0'),
+                'luggage' => $this->suitcases($data) + $this->handLuggage($data),
                 'status' => $status->value,
                 'quoted_price' => $total,
                 'final_price' => $status === BookingStatus::Complete ? $total : null,
@@ -128,7 +128,10 @@ class EtoBookingImporter
                     'eto_via' => $this->decode($data['Via'] ?? '') ?: null,
                     'eto_meet_greet' => $this->clean($data['Meet & Greet'] ?? ''),
                     'total_amount' => $total,
-                ]),
+                    // Keep the two luggage counts separate — both are needed.
+                    'suitcases' => $this->suitcases($data),
+                    'hand_luggage' => $this->handLuggage($data),
+                ], fn ($v) => $v !== null && $v !== ''),
             ]);
 
             // Preserve the original audit dates.
@@ -159,7 +162,10 @@ class EtoBookingImporter
                 'eto_status' => $this->clean($data['Status'] ?? ''),
                 'eto_driver' => $this->clean($data['Driver'] ?? ''),
                 'total_amount' => $total,
-            ])),
+                // Backfill the split luggage counts onto existing bookings too.
+                'suitcases' => $this->suitcases($data),
+                'hand_luggage' => $this->handLuggage($data),
+            ], fn ($v) => $v !== null && $v !== '')),
         ];
         if ($total !== null) {
             $fields['quoted_price'] = $total;
@@ -271,9 +277,10 @@ class EtoBookingImporter
         }
         foreach (['d/m/Y H:i', 'd/m/Y H:i:s', 'd/m/Y'] as $format) {
             try {
-                // ETO exports times in UTC/GMT; convert to UK local (Europe/London)
-                // so BST pickups are stored (and shown) at the correct hour.
-                return Carbon::createFromFormat($format, $value, 'UTC')->setTimezone(config('app.timezone'));
+                // ETO exports the booking's UK LOCAL time — the exact time on the
+                // customer email and the calendar. Parse it as-is in the app
+                // timezone (NO UTC conversion), so 06:45 stays 06:45.
+                return Carbon::createFromFormat($format, $value, config('app.timezone'));
             } catch (\Throwable) {
                 continue;
             }
@@ -287,6 +294,18 @@ class EtoBookingImporter
         $value = trim((string) $value);
 
         return $value === '' || ! is_numeric($value) ? null : (float) $value;
+    }
+
+    /** Number of suitcases (hold luggage) from the ETO row. */
+    private function suitcases(array $data): int
+    {
+        return max(0, (int) $this->clean($data['Suitcases'] ?? '0'));
+    }
+
+    /** Number of hand-luggage items from the ETO row. */
+    private function handLuggage(array $data): int
+    {
+        return max(0, (int) $this->clean($data['Hand luggage'] ?? '0'));
     }
 
     /** @return array<string, string> */

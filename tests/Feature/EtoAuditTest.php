@@ -56,6 +56,38 @@ class EtoAuditTest extends TestCase
         $this->assertEmpty($booking->fresh()->meta['audit_issues']);
     }
 
+    public function test_bst_pickup_matching_eto_does_not_false_flag(): void
+    {
+        // The "Penny" case: a summer (BST) booking whose ETO time equals the
+        // email/calendar time must reconcile clean. ETO exports UK-local time,
+        // so 06:45 must NOT be read as 06:45 UTC and bumped to 07:45.
+        config(['app.timezone' => 'Europe/London']);
+
+        $booking = Booking::factory()->create([
+            'external_reference' => 'PENNY1',
+            'pickup_at' => '2025-07-12 06:45:00', // 6:45am, BST
+            'final_price' => 120,
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id,
+            'google_event_id' => 'evt_p',
+            'title' => '*Penny Manchester Airport (EXEC)*',
+            'location' => 'Sheffield',
+            'description' => '📑 Booking Confirmation…',
+            'start_at' => $booking->pickup_at,
+            'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        $report = app(EtoAuditService::class)->audit(
+            $this->csvPath("12/07/2025 06:45;PENNY1;Penny;Completed;120.00;\"Paid\"\n")
+        );
+
+        $this->assertSame(1, $report['counts']['ok']);
+        $this->assertSame(0, $report['counts']['flagged'], 'A BST booking matching ETO must not be flagged.');
+        $this->assertEmpty($booking->fresh()->meta['audit_issues']);
+    }
+
     public function test_flags_missing_calendar_and_bad_title(): void
     {
         $booking = Booking::factory()->create([
