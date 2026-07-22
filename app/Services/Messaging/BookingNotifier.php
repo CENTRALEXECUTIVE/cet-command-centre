@@ -369,7 +369,8 @@ class BookingNotifier
 
     /**
      * The other leg of a return pair (linked either direction), or null for a
-     * one-way job.
+     * one-way job. Falls back to the ETO reference pattern for legs booked
+     * together but imported as separate, unlinked records.
      */
     private function pairedLeg(Booking $booking): ?Booking
     {
@@ -377,7 +378,31 @@ class BookingNotifier
             return Booking::find($booking->linked_booking_id);
         }
 
-        return Booking::where('linked_booking_id', $booking->id)->first();
+        if ($linked = Booking::where('linked_booking_id', $booking->id)->first()) {
+            return $linked;
+        }
+
+        return $this->etoSiblingLeg($booking);
+    }
+
+    /**
+     * The sibling leg of a return booked together on ETO. Both legs carry the
+     * SAME reference base and differ only by the trailing leg letter — "a" for
+     * the outbound, "b" for the return (e.g. IARIY1a ↔ IARIY1b). Null when the
+     * reference doesn't fit that shape or the sibling isn't in the system.
+     */
+    private function etoSiblingLeg(Booking $booking): ?Booking
+    {
+        $ref = trim((string) $booking->external_reference);
+        if ($ref === '' || ! preg_match('/^(.+)([ab])$/i', $ref, $m)) {
+            return null;
+        }
+
+        $siblingRef = $m[1].(strtolower($m[2]) === 'a' ? 'b' : 'a');
+
+        return Booking::where('id', '!=', $booking->id)
+            ->whereRaw('LOWER(external_reference) = ?', [strtolower($siblingRef)])
+            ->first();
     }
 
     /**

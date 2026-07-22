@@ -126,6 +126,48 @@ class ReviewPairingTest extends TestCase
         $this->assertSame(0, Message::where('type', 'review_request')->where('booking_id', $second->id)->count());
     }
 
+    public function test_eto_return_pair_is_reviewed_only_after_both_legs(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::create(['name' => 'Sheree Hall', 'phone' => '07700900555']);
+
+        // Booked together on ETO → same reference base, differing a/b, no explicit link.
+        $outbound = Booking::factory()->create([
+            'customer_id' => $customer->id, 'external_reference' => 'IARIY1a',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->subDay(),
+        ]);
+        $return = Booking::factory()->create([
+            'customer_id' => $customer->id, 'external_reference' => 'IARIY1b',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->addDay(),
+        ]);
+
+        // Outbound done → no review yet (the return is still to run).
+        app(BookingStatusService::class)->transition($outbound, BookingStatus::Complete, $admin);
+        $this->assertSame(0, Message::where('type', 'review_request')
+            ->whereIn('booking_id', [$outbound->id, $return->id])->count());
+
+        // Return done → exactly one review for the whole trip.
+        app(BookingStatusService::class)->transition($return, BookingStatus::Complete, $admin);
+        $this->assertSame(1, Message::where('type', 'review_request')
+            ->whereIn('booking_id', [$outbound->id, $return->id])->count());
+    }
+
+    public function test_a_one_way_reference_ending_in_a_letter_still_gets_its_review(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::create(['name' => 'Solo', 'phone' => '07700900556']);
+
+        // Ref ends in "a" but there's no matching "b" sibling → it's a one-way.
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'external_reference' => 'ZZZ9a',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->subHour(),
+        ]);
+
+        app(BookingStatusService::class)->transition($booking, BookingStatus::Complete, $admin);
+
+        $this->assertSame(1, Message::where('type', 'review_request')->where('booking_id', $booking->id)->count());
+    }
+
     public function test_one_way_jobs_still_get_their_review(): void
     {
         $admin = User::factory()->admin()->create();
