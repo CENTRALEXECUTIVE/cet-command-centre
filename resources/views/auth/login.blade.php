@@ -39,8 +39,10 @@
                     </div>
                 </div>
                 <div class="checkbox-row" style="margin-bottom:20px">
-                    <input id="remember" type="checkbox" name="remember">
-                    <label for="remember">Remember me on this device</label>
+                    {{-- Ticked by default: staff stay signed in on their own device
+                         and are taken straight in next time. Untick on a shared one. --}}
+                    <input id="remember" type="checkbox" name="remember" @checked(old('remember', true))>
+                    <label for="remember">Keep me signed in on this device</label>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Sign in</button>
             </form>
