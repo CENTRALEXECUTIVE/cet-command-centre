@@ -99,6 +99,33 @@ class ReviewPairingTest extends TestCase
         $this->assertSame(0, Message::where('type', 'review_request')->where('booking_id', $second->id)->count());
     }
 
+    public function test_a_repeat_customer_on_a_separate_record_is_not_asked_again(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $status = app(BookingStatusService::class);
+
+        // First visit — customer record A, number in 0-prefixed form.
+        $custA = Customer::create(['name' => 'Same Person', 'phone' => '07700900888']);
+        $first = Booking::factory()->create([
+            'customer_id' => $custA->id, 'journey_type' => 'one_way',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->subDay(),
+        ]);
+        $status->transition($first, BookingStatus::Complete, $admin);
+        $this->assertSame(1, Message::where('type', 'review_request')->where('booking_id', $first->id)->count());
+
+        // They book again but land as a SEPARATE customer record with the SAME
+        // number in +44 form (what a calendar import can create).
+        $custB = Customer::create(['name' => 'Same Person', 'phone' => '+447700900888']);
+        $second = Booking::factory()->create([
+            'customer_id' => $custB->id, 'journey_type' => 'one_way',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->subHour(),
+        ]);
+        $status->transition($second, BookingStatus::Complete, $admin);
+
+        // Matched by phone number → no second review ask.
+        $this->assertSame(0, Message::where('type', 'review_request')->where('booking_id', $second->id)->count());
+    }
+
     public function test_one_way_jobs_still_get_their_review(): void
     {
         $admin = User::factory()->admin()->create();

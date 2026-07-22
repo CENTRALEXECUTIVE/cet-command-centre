@@ -321,11 +321,34 @@ class BookingNotifier
     }
 
     /**
-     * True when this customer has already been sent (or queued) a review request
-     * on any OTHER booking — so we never ask the same person twice.
+     * True when this person has already been sent (or queued) a review request on
+     * any OTHER booking — so a repeat customer is never asked twice.
+     *
+     * Matches on the PHONE NUMBER the review goes to first: repeat customers can
+     * land as separate customer records (a calendar import creates a new Customer
+     * when the number isn't an exact match), so a customer_id-only check misses
+     * them. Falls back to the stored customer_id for numbers we can't parse.
      */
     private function customerAlreadyAskedForReview(Booking $booking): bool
     {
+        $phone = \App\Support\Phone::wa($booking->customerContactNumber());
+        if (filled($phone)) {
+            // Last 9 digits identify the line regardless of +44 / 0 formatting;
+            // then confirm an exact normalised match on the small result set.
+            $tail = substr($phone, -9);
+            $addresses = Message::where('type', 'review_request')
+                ->where('booking_id', '!=', $booking->id)
+                ->where('to_address', 'like', '%'.$tail.'%')
+                ->pluck('to_address');
+
+            foreach ($addresses as $addr) {
+                if (\App\Support\Phone::wa($addr) === $phone) {
+                    return true;
+                }
+            }
+        }
+
+        // Also match on the stored customer record (covers unparseable numbers).
         $customerId = $booking->customer_id;
         if (! $customerId) {
             return false;
