@@ -368,6 +368,18 @@ class BookingNotifier
     }
 
     /**
+     * True when this booking has a paired return leg that hasn't completed yet —
+     * i.e. a review queued against it now is premature (the whole trip isn't
+     * done). Used to prune leftover outbound-leg reviews.
+     */
+    public function hasPendingReturnLeg(Booking $booking): bool
+    {
+        $sibling = $this->pairedLeg($booking);
+
+        return $sibling !== null && $sibling->status->value !== 'complete';
+    }
+
+    /**
      * The other leg of a return pair (linked either direction), or null for a
      * one-way job. Falls back to the ETO reference pattern for legs booked
      * together but imported as separate, unlinked records.

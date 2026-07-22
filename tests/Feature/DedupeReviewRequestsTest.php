@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -47,6 +49,31 @@ class DedupeReviewRequestsTest extends TestCase
         // Already asked → the queued one goes; the sent record is kept.
         $this->assertNotNull($sent->fresh());
         $this->assertNull($queued->fresh());
+    }
+
+    public function test_it_removes_a_premature_outbound_review_while_the_return_is_pending(): void
+    {
+        $customer = Customer::create(['name' => 'Sheree Hall', 'phone' => '07700900555']);
+
+        // Outbound completed, with a leftover queued review from before the fix.
+        $outbound = Booking::factory()->create([
+            'customer_id' => $customer->id, 'external_reference' => 'IARIY1a',
+            'status' => BookingStatus::Complete, 'pickup_at' => now()->subDay(),
+        ]);
+        // Return leg still to run.
+        Booking::factory()->create([
+            'customer_id' => $customer->id, 'external_reference' => 'IARIY1b',
+            'status' => BookingStatus::Collected, 'pickup_at' => now()->addDay(),
+        ]);
+        $leftover = $this->review('07700900555', 'queued', $outbound);
+
+        // A one-way review for someone else stays put.
+        $solo = $this->review('07700900111', 'queued');
+
+        $this->artisan('cet:dedupe-reviews')->assertSuccessful();
+
+        $this->assertNull($leftover->fresh());   // premature outbound review removed
+        $this->assertNotNull($solo->fresh());     // unrelated one-way untouched
     }
 
     public function test_dry_run_deletes_nothing(): void
