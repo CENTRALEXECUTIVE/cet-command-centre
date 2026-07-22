@@ -106,7 +106,7 @@ TXT;
         $response = $this->actingAs($admin)
             ->post(route('intake.preview'), ['raw' => self::CALENDAR_BLOCK])
             ->assertOk()
-            ->assertSee('Calendar preview')
+            ->assertSee('Copy onto the calendar')
             ->assertSee('Emma Cusworth');
 
         // The generated calendar title carries the CET format: name + WHERE + tag.

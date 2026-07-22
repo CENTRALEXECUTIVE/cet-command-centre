@@ -5,16 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\VehicleType;
 use App\Services\BookingIntakeService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
  * "New booking from a message" — the operator pastes the booking text they were
  * sent, the FREE deterministic parser (no AI cost) formats it into the exact
- * CET calendar format, and a preview is shown. NOTHING is created and NOTHING
- * touches the calendar until the operator reviews the preview and presses
- * Confirm.
+ * CET calendar block, and a copy-ready preview is shown.
+ *
+ * This tool NEVER creates a booking in the Command Centre. The operator adds
+ * the block to Google Calendar and the 5-minute sync imports it once — so the
+ * calendar stays the single source of truth and there are no duplicates.
  */
 class BookingIntakeController extends Controller
 {
@@ -26,9 +27,9 @@ class BookingIntakeController extends Controller
     }
 
     /**
-     * Build the preview. Accepts either raw pasted text (first pass → AI parse)
-     * or already-extracted fields (operator edited them and hit "Update
-     * preview"). Never saves anything.
+     * Build the copy-ready calendar preview. Accepts either raw pasted text
+     * (first pass → free parse) or already-extracted fields (operator edited
+     * them and hit "Update preview"). Never saves anything.
      */
     public function preview(Request $request, BookingIntakeService $intake): View
     {
@@ -42,40 +43,21 @@ class BookingIntakeController extends Controller
             $fields = $intake->parse($request->string('raw'));
         }
 
+        // Who the rotation would give this job — bake the tag into the title so
+        // the copied calendar block already reads the right person (ABDI/MAJ/…).
+        $nextDriver = $intake->nextDriver($fields);
+        if (empty($fields['driver_tag']) && $nextDriver) {
+            $fields['driver_tag'] = $nextDriver['tag'];
+        }
+
         return view('admin.intake.preview', [
             'fields' => $fields,
             'preview' => $intake->preview($fields),
             'vehicleTypes' => $this->vehicleTypes(),
             // The paste box is always available — parsing is free (no AI).
             'aiAvailable' => true,
-            // Who the rotation gives this job (read-only peek — nothing moves
-            // until Confirm), so the driver tag is known before it's created.
-            'nextDriver' => $intake->nextDriver($fields),
+            'nextDriver' => $nextDriver,
         ]);
-    }
-
-    /** Persist the confirmed booking and build/push its calendar event. */
-    public function confirm(Request $request, BookingIntakeService $intake): RedirectResponse
-    {
-        abort_unless($request->user()->isAdmin(), 403);
-
-        $data = $request->validate([
-            'fields' => ['required', 'array'],
-            'fields.lead_name' => ['required', 'string', 'max:190'],
-            'fields.pickup_at' => ['required', 'string', 'max:40'],
-            'fields.pickup_address' => ['required', 'string', 'max:255'],
-            'fields.destination_address' => ['required', 'string', 'max:255'],
-        ], [
-            'fields.lead_name.required' => 'Add the passenger name before confirming.',
-            'fields.pickup_at.required' => 'Add the pickup date & time before confirming.',
-            'fields.pickup_address.required' => 'Add the pickup address before confirming.',
-            'fields.destination_address.required' => 'Add the drop-off before confirming.',
-        ]);
-
-        $booking = $intake->confirm($data['fields'], $request->user());
-
-        return redirect()->route('bookings.show', $booking)
-            ->with('status', 'Booking created — the calendar event is queued and appears on Google within ~5 minutes (the sync also checks by reference so it never creates a duplicate). Review it below.');
     }
 
     /** @return \Illuminate\Support\Collection<int, VehicleType> */

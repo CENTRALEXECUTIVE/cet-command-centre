@@ -1,10 +1,10 @@
 @extends('layouts.app')
-@section('title', 'Check the booking')
+@section('title', 'Add to the calendar')
 
 @section('content')
     <p class="page-sub"><a href="{{ route('intake.index') }}">← Paste another</a></p>
-    <h1 class="page-title">Check the booking</h1>
-    <p class="page-sub">This is how it will look on the calendar. Fix anything that’s wrong, press <strong>Update preview</strong> to re-check, then <strong>Confirm</strong> when you’re happy.</p>
+    <h1 class="page-title">Add to the calendar</h1>
+    <p class="page-sub">Fix anything that’s wrong, press <strong>Update preview</strong> to re-check, then <strong>copy</strong> each part onto Google Calendar. It appears in the Command Centre within ~5 minutes — the calendar stays the single source, so there are never duplicates.</p>
 
     @if($errors->any())
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.08);margin-bottom:16px"><ul style="margin:0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
@@ -25,25 +25,71 @@
         <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.06);margin-bottom:16px">
             🚗 <strong>Next in rotation: {{ $nextDriver['tag'] }}</strong>
             <span class="muted">({{ $nextDriver['name'] }})</span> —
-            confirming this booking allocates them and tags the calendar title <strong>({{ $nextDriver['tag'] }})</strong>, following the rotation rules. The rotation only moves when you press Confirm.
+            the title below is already tagged <strong>({{ $nextDriver['tag'] }})</strong>. If you put someone else on, change the tag in the title before you paste it.
         </div>
     @elseif(($fields['vehicle'] ?? '') !== '')
         <div class="card" style="border-left:4px solid #6f6f6f;background:rgba(128,128,128,.06);margin-bottom:16px">
-            🚗 This vehicle type is outside the driver rotation — allocate the driver manually after confirming.
+            🚗 This vehicle type is outside the driver rotation — set the driver tag in the title yourself.
         </div>
     @endif
 
-    {{-- The calendar preview exactly as it will be written. --}}
+    {{-- The exact calendar block — three parts to copy straight onto the event. --}}
     <div class="card" style="border-left:4px solid #FBBA2A">
-        <h2 style="margin-top:0">📅 Calendar preview</h2>
-        <div style="font-weight:700;font-size:16px;margin-bottom:6px">{{ $preview['title'] }}</div>
-        <div class="muted" style="margin-bottom:10px">📍 {{ $preview['location'] ?: '— no pickup location —' }}</div>
-        <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:rgba(0,0,0,.03);padding:12px;border-radius:8px">{{ $preview['description'] }}</div>
+        <h2 style="margin-top:0">📅 Copy onto the calendar</h2>
+
+        <div class="cal-part">
+            <div class="cal-label">Title</div>
+            <div class="cal-row">
+                <div class="copytext" data-copy style="font-weight:700;font-size:16px">{{ $preview['title'] }}</div>
+                <button type="button" class="btn btn-light cal-copy">⧉ Copy</button>
+            </div>
+        </div>
+
+        <div class="cal-part">
+            <div class="cal-label">Location <span class="muted">(pickup address)</span></div>
+            <div class="cal-row">
+                <div class="copytext" data-copy>{{ $preview['location'] ?: '— no pickup location —' }}</div>
+                <button type="button" class="btn btn-light cal-copy">⧉ Copy</button>
+            </div>
+        </div>
+
+        <div class="cal-part">
+            <div class="cal-label">Description</div>
+            <div class="cal-row">
+                <div class="copytext" data-copy style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:rgba(0,0,0,.03);padding:12px;border-radius:8px;flex:1">{{ $preview['description'] }}</div>
+                <button type="button" class="btn btn-light cal-copy">⧉ Copy</button>
+            </div>
+        </div>
+
+        <p class="hint" style="margin:10px 0 0">Make a new Google Calendar event, paste each part into the matching field, set the start to the pickup time, and save. The sync brings it into the Command Centre automatically.</p>
     </div>
 
-    {{-- Editable fields. Both buttons submit these. --}}
-    <form method="POST" action="{{ route('intake.confirm') }}" class="eto-form" style="margin-top:16px">
+    @verbatim
+    <style>
+        .cal-part { margin-bottom:14px }
+        .cal-label { font-weight:600;font-size:13px;margin-bottom:4px }
+        .cal-row { display:flex;gap:10px;align-items:flex-start }
+        .cal-row .copytext { flex:1;min-width:0;overflow-wrap:anywhere }
+        .cal-copy { flex:0 0 auto;padding:6px 14px;font-size:13px;align-self:flex-start }
+    </style>
+    <script>
+        document.querySelectorAll('.cal-copy').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var box = btn.closest('.cal-row').querySelector('[data-copy]');
+                var text = box ? box.innerText : '';
+                navigator.clipboard.writeText(text).then(function () {
+                    var old = btn.textContent; btn.textContent = '✓ Copied';
+                    setTimeout(function () { btn.textContent = old; }, 1500);
+                }).catch(function () {});
+            });
+        });
+    </script>
+    @endverbatim
+
+    {{-- Editable fields. Submitting re-renders the copy-ready block. --}}
+    <form method="POST" action="{{ route('intake.preview') }}" class="eto-form" style="margin-top:16px">
         @csrf
+        <input type="hidden" name="fields[driver_tag]" value="{{ $fields['driver_tag'] ?? '' }}">
 
         <div class="eto-section">
             <div class="head"><span class="ico">👤</span> Passenger</div>
@@ -106,9 +152,8 @@
         </div>
 
         <div class="toolbar">
-            <button type="submit" formaction="{{ route('intake.preview') }}" class="btn btn-ghost">↻ Update preview</button>
-            <span style="flex:1"></span>
-            <button type="submit" class="btn btn-primary" onclick="return confirm('Create this booking and add it to the calendar?')">✓ Confirm &amp; create</button>
+            <button type="submit" class="btn btn-primary">↻ Update preview</button>
+            <span class="hint" style="margin-left:8px">Re-render the calendar block above after an edit.</span>
         </div>
     </form>
 @endsection

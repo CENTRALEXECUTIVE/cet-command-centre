@@ -51,7 +51,7 @@ class IntakeNextDriverTest extends TestCase
                 ."• *Drop-off Location:* Barnsley S73 0YA\n• *Vehicle Type:* Executive",
         ])->assertOk()
             ->assertSee('Next in rotation')
-            ->assertSee('rotation only moves when you press Confirm');
+            ->assertSee('the title below is already tagged');
     }
 
     public function test_operator_can_correct_a_rotation_pointer_and_the_preview_follows(): void
