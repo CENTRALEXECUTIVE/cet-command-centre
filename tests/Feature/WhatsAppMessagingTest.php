@@ -486,6 +486,18 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('Hi James', $body);
     }
 
+    public function test_a_leading_marker_emoji_in_the_title_never_becomes_the_greeting(): void
+    {
+        // A wheelchair (or any) marker emoji leads the title — the greeting must
+        // still be the passenger's name, not "Hi ♿,".
+        $booking = $this->makeBooking();
+        $booking->calendarEvent()->update(['title' => '*♿ David Harris MAN (MEHTZ)*']);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringContainsString('Hi David,', $body);
+        $this->assertStringNotContainsString('♿', $body);
+    }
+
     public function test_manual_driver_details_go_into_the_reminder(): void
     {
         $booking = $this->makeBooking();

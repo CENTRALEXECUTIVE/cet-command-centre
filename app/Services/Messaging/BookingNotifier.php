@@ -479,7 +479,10 @@ class BookingNotifier
             return null;
         }
 
-        $name = trim(preg_replace('/[*👀💰🚼🚸✈️🛬]/u', '', Str::before($title, ' (')));
+        // Strip the bold markers AND every emoji/symbol (♿, ✈️, 💰, 👀, 🚼 …) —
+        // \p{So}/\p{Sk} + the variation selector/ZWJ cover them all, so a new
+        // marker emoji can never leak into the greeting as the "name" again.
+        $name = trim(preg_replace('/[*\p{So}\p{Sk}\x{FE0F}\x{200D}]/u', '', Str::before($title, ' (')));
         $name = trim((string) preg_replace(
             '/\s+(MAN|LHR|LGW|STN|EMA|LBA|HUY|LPL|BHX|LTN|BRS|EDI|GLA|NCL|LCY|DSA|Free Roam|Return).*$/iu',
             '',
