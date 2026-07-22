@@ -467,22 +467,14 @@ class Booking extends Model
     }
 
     /**
-     * Flightradar24's /data/flights/ URL is strict: it wants the 2-letter IATA
-     * airline code and the flight number with NO leading zeros (e.g. "vs74").
-     * Feeds often carry a 3-letter ICAO code ("AFR1169") or leading zeros
-     * ("VS0074"), which just don't load. Convert the common ICAO codes to IATA
-     * and strip leading zeros. Unrecognised formats fall back to a clean slug.
+     * ICAO (3-letter) → IATA (2-letter) for the carriers a UK transfer firm
+     * actually sees. Extend as needed.
+     *
+     * @return array<string, string>
      */
-    public static function normaliseFlightNumberForFr24(?string $flightNumber): string
+    private static function icaoToIata(): array
     {
-        $raw = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $flightNumber));
-        if ($raw === '') {
-            return '';
-        }
-
-        // ICAO (3-letter) → IATA (2-letter) for the carriers a UK transfer firm
-        // actually sees. Extend as needed.
-        $icaoToIata = [
+        return [
             'BAW' => 'BA', 'VIR' => 'VS', 'EZY' => 'U2', 'RYR' => 'FR', 'EXS' => 'LS',
             'TOM' => 'BY', 'DLH' => 'LH', 'AFR' => 'AF', 'KLM' => 'KL', 'UAE' => 'EK',
             'QTR' => 'QR', 'ETD' => 'EY', 'DAL' => 'DL', 'UAL' => 'UA', 'AAL' => 'AA',
@@ -494,21 +486,53 @@ class Booking extends Model
             'AIC' => 'AI', 'THA' => 'TG', 'MAS' => 'MH', 'CCA' => 'CA', 'CES' => 'MU',
             'CSN' => 'CZ', 'KAL' => 'KE', 'AZA' => 'AZ', 'ITY' => 'AZ', 'LOT' => 'LO',
         ];
+    }
 
-        // Airline code (2 or 3 letters) + flight number.
-        if (preg_match('/^([A-Z]{2,3})0*(\d+)([A-Z]?)$/', $raw, $m)) {
-            $code = $icaoToIata[$m[1]] ?? $m[1];
+    /**
+     * Pull the airline code + flight number out of a value that may carry extra
+     * text — e.g. "QR027 (Qatar Airways)" or "BA 1234" → "QR27" (IATA where known,
+     * leading zeros stripped). The airline name in brackets and any spaces are
+     * ignored. Returns '' when there's no recognisable flight code.
+     */
+    public static function cleanFlightCode(?string $flightNumber): string
+    {
+        $raw = strtoupper((string) $flightNumber);
 
-            return strtolower($code.$m[2].$m[3]);
+        // First "airline code + number" token anywhere in the string, so the
+        // trailing "(Qatar Airways)" and stray spaces don't break it.
+        if (! preg_match('/\b([A-Z]{2,3})\s*0*(\d{1,4})([A-Z]?)\b/', $raw, $m)) {
+            return '';
         }
 
-        return strtolower($raw);
+        $code = self::icaoToIata()[$m[1]] ?? $m[1];
+
+        return $code.$m[2].$m[3];
+    }
+
+    /**
+     * Flightradar24's /data/flights/ URL is strict: it wants the IATA airline
+     * code and the flight number with NO leading zeros (e.g. "vs74"). Feeds often
+     * carry a 3-letter ICAO code, leading zeros, or the airline name in brackets,
+     * which just don't load — clean them up first.
+     */
+    public static function normaliseFlightNumberForFr24(?string $flightNumber): string
+    {
+        $clean = self::cleanFlightCode($flightNumber);
+        if ($clean !== '') {
+            return strtolower($clean);
+        }
+
+        // Unrecognised format → a clean slug of whatever we were given.
+        return strtolower(preg_replace('/[^A-Za-z0-9]/', '', (string) $flightNumber));
     }
 
     /** Google live flight-status search (shows the status card) for a flight number. */
     public static function flightSearchLink(?string $flightNumber): ?string
     {
-        $fn = strtoupper(preg_replace('/\s+/', '', (string) $flightNumber));
+        // Use the clean code ("QR27") where we can recognise it, so Google gets a
+        // tidy query instead of "QR027(QATARAIRWAYS)".
+        $fn = self::cleanFlightCode($flightNumber)
+            ?: strtoupper(preg_replace('/\s+/', '', (string) $flightNumber));
 
         return $fn !== '' ? 'https://www.google.com/search?q='.rawurlencode('flight '.$fn.' status') : null;
     }
