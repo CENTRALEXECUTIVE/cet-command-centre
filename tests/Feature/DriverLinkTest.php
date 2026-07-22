@@ -155,4 +155,25 @@ class DriverLinkTest extends TestCase
             ->assertSee('Driver link')
             ->assertSee($token, false);
     }
+
+    public function test_the_link_message_carries_a_few_key_details(): void
+    {
+        // Maj's ask: date & time (so they don't forget) + route + passenger,
+        // then the link — a short reminder, not the whole sheet.
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Allocated,
+            'pickup_at' => \Illuminate\Support\Carbon::create(2026, 7, 24, 14, 30, 0, config('app.timezone')),
+            'pickup_address' => '21 Ecclesall Rd, Sheffield',
+            'destination_address' => 'Manchester Airport T2',
+            'meta' => ['lead_name' => 'Jo Smith'],
+        ]);
+
+        $msg = $booking->driverLinkMessage();
+
+        $this->assertStringContainsString('24/07/2026', $msg);        // date
+        $this->assertStringContainsString('14:30', $msg);             // time
+        $this->assertStringContainsString('21 Ecclesall Rd, Sheffield → Manchester Airport T2', $msg);
+        $this->assertStringContainsString('Jo Smith', $msg);          // passenger
+        $this->assertStringContainsString($booking->driverLinkUrl(), $msg); // the link
+    }
 }

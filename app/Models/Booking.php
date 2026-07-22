@@ -167,6 +167,45 @@ class Booking extends Model
         return route('driver.link', $this->driverLinkToken());
     }
 
+    /**
+     * The WhatsApp message that goes out WITH the driver link — a few key
+     * details (date & time first, then route and passenger) so the driver can
+     * see at a glance which job it is and doesn't forget it, then the link to
+     * the full job sheet. Deliberately short: the link carries everything else.
+     */
+    public function driverLinkMessage(): string
+    {
+        $lines = ['Your job with Central Executive Transfers'];
+
+        if ($this->pickup_at) {
+            // Day + date + time up front — the bit Maj wants them to remember.
+            $lines[] = '';
+            $lines[] = '📅 '.$this->pickup_at->format('D d/m/Y').' at '.$this->pickup_at->format('H:i');
+        }
+
+        $from = $this->displayPickupAddress();
+        $to = $this->displayDropoffAddress();
+        if (filled($from) || filled($to)) {
+            $lines[] = '📍 '.trim(($from ?: '?').' → '.($to ?: '?'));
+        }
+
+        $name = $this->meta['lead_name'] ?? $this->displayCustomerName();
+        if (filled($name)) {
+            $lines[] = '👤 '.$name;
+        }
+
+        $flight = $this->displayFlightNumber() ?: $this->flight_number;
+        if (filled($flight)) {
+            $lines[] = '✈️ '.$flight;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Open your job sheet here (no login needed):';
+        $lines[] = $this->driverLinkUrl();
+
+        return implode("\n", $lines);
+    }
+
     /** Resolve a booking from a driver-link token, or null. */
     public static function byDriverLinkToken(string $token): ?self
     {

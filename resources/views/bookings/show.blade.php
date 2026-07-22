@@ -210,7 +210,7 @@
         @php
             $driverLink = $booking->driverLinkUrl();
             $linkPhone = \App\Support\Phone::wa($booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null));
-            $linkMsg = "Your job with Central Executive Transfers — open your job sheet here (no login needed):\n".$driverLink;
+            $linkMsg = $booking->driverLinkMessage();
         @endphp
         <div class="card">
             <h2 style="margin:0 0 4px">🔗 Driver link — no login</h2>
