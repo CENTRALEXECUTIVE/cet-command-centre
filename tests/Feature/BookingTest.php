@@ -83,6 +83,31 @@ class BookingTest extends TestCase
         $response->assertDontSee($other->reference);
     }
 
+    public function test_bookings_list_can_be_viewed_by_month(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $july = Booking::factory()->create(['external_reference' => 'JULY01', 'pickup_at' => '2026-07-15 10:00']);
+        $august = Booking::factory()->create(['external_reference' => 'AUG01', 'pickup_at' => '2026-08-03 10:00']);
+
+        $response = $this->actingAs($admin)->get(route('bookings.index', ['month' => '2026-07']))->assertOk();
+        $response->assertSee($july->reference);
+        $response->assertDontSee($august->reference);
+        $response->assertSee('July 2026', false);
+    }
+
+    public function test_bookings_list_can_show_what_came_in_today(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $today = Booking::factory()->create(['external_reference' => 'TODAY1', 'pickup_at' => now()->addMonth()]);
+        $old = Booking::factory()->create(['external_reference' => 'OLD1', 'pickup_at' => now()->addMonth()]);
+        // OLD1 was created yesterday.
+        Booking::where('id', $old->id)->update(['created_at' => now()->subDay()]);
+
+        $response = $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'booked-today']))->assertOk();
+        $response->assertSee($today->reference);
+        $response->assertDontSee($old->reference);
+    }
+
     public function test_suitcases_and_hand_luggage_are_captured_separately(): void
     {
         $admin = User::factory()->admin()->create();

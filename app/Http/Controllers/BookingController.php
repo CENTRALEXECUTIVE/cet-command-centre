@@ -15,6 +15,7 @@ use App\Services\BookingStatusService;
 use App\Services\Messaging\BookingNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -56,19 +57,38 @@ class BookingController extends Controller
             });
         }
 
-        // Time filter for order. Default to Upcoming (soonest first); when
-        // searching, default to All so a match isn't hidden by its date.
-        $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
-        match ($filter) {
-            'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
-            'past' => $query->where('pickup_at', '<', now()->startOfDay())->orderByDesc('pickup_at'),
-            'all' => $query->orderByDesc('pickup_at'),
-            default => $query->where('pickup_at', '>=', now()->startOfDay())->orderBy('pickup_at'), // upcoming
-        };
+        // A specific MONTH view (YYYY-MM) — every booking that month, for payroll
+        // and month-end checks. Takes precedence over the quick tabs.
+        $monthParam = (string) $request->query('month');
+        $month = preg_match('/^\d{4}-\d{2}$/', $monthParam)
+            ? Carbon::createFromFormat('Y-m', $monthParam, config('app.timezone'))->startOfMonth()
+            : null;
 
-        $bookings = $query->paginate(20)->withQueryString();
+        if ($month) {
+            $query->whereBetween('pickup_at', [$month, $month->copy()->endOfMonth()])->orderBy('pickup_at');
+            $filter = 'month';
+        } else {
+            // Time filter for order. Default to Upcoming (soonest first); when
+            // searching, default to All so a match isn't hidden by its date.
+            $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
+            match ($filter) {
+                'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
+                // Bookings that CAME IN today (created today), for the dashboard tile.
+                'booked-today' => $query->whereDate('created_at', today())->orderByDesc('created_at'),
+                'past' => $query->where('pickup_at', '<', now()->startOfDay())->orderByDesc('pickup_at'),
+                'all' => $query->orderByDesc('pickup_at'),
+                default => $query->where('pickup_at', '>=', now()->startOfDay())->orderBy('pickup_at'), // upcoming
+            };
+        }
 
-        return view('bookings.index', ['bookings' => $bookings, 'q' => $q, 'filter' => $filter]);
+        $bookings = $query->paginate(30)->withQueryString();
+
+        return view('bookings.index', [
+            'bookings' => $bookings,
+            'q' => $q,
+            'filter' => $filter,
+            'month' => $month,
+        ]);
     }
 
     public function create(Request $request): View

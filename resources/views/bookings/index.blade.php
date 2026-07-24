@@ -26,12 +26,25 @@
     @php
         $tabs = ['upcoming' => 'Upcoming', 'today' => 'Today', 'past' => 'Past', 'all' => 'All'];
     @endphp
-    <div class="bk-tabs">
-        @foreach($tabs as $key => $label)
-            <a href="{{ route('bookings.index', array_filter(['filter' => $key, 'q' => $q ?: null])) }}"
-               class="bk-tab {{ ($filter ?? 'upcoming') === $key ? 'active' : '' }}">{{ $label }}</a>
-        @endforeach
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div class="bk-tabs">
+            @foreach($tabs as $key => $label)
+                <a href="{{ route('bookings.index', array_filter(['filter' => $key, 'q' => $q ?: null])) }}"
+                   class="bk-tab {{ empty($month) && ($filter ?? 'upcoming') === $key ? 'active' : '' }}">{{ $label }}</a>
+            @endforeach
+        </div>
+        {{-- Month view: pick a month to see every booking in it (for payroll). --}}
+        <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
+            <label for="bk-month" class="muted" style="font-size:13px">Month</label>
+            <input id="bk-month" type="month" name="month"
+                   value="{{ $month?->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
+        </form>
     </div>
+    @if(!empty($month))
+        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} in <strong>{{ $month->format('F Y') }}</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
+    @elseif(($filter ?? '') === 'booked-today')
+        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} that came in <strong>today</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
+    @endif
 
     @if($bookings->isEmpty())
         <div class="card" style="text-align:center;padding:40px 20px">
