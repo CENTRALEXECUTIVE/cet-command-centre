@@ -169,6 +169,28 @@ class PayrollTest extends TestCase
             ->assertRedirect(route('bookings.show', $booking).'#payroll');
     }
 
+    public function test_payroll_page_shows_month_booking_and_paid_counts(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create();
+        $when = fn (int $d) => now()->startOfMonth()->addDays($d)->setTime(9, 0);
+
+        // Fully paid.
+        Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when(2)])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 40, 'paid' => 40, 'history' => []]]])->save();
+        // Pay set but still owed.
+        Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when(3)])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 50, 'paid' => 0, 'history' => []]]])->save();
+        // No pay set at all.
+        Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when(4)]);
+
+        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+
+        $this->assertSame(3, $res->viewData('bookingCount'));  // three jobs this month
+        $this->assertSame(1, $res->viewData('paidCount'));     // one paid in full
+        $res->assertSee('bookings this month', false)->assertSee('paid in full', false);
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();

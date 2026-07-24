@@ -75,12 +75,21 @@ class PayrollController extends Controller
                 && ($b->driver_id || isset($b->meta['driver_details']['name'])))
             ->values();
 
+        // Month coverage: total jobs (excl. cancelled) and how many have the
+        // driver PAID IN FULL — so the office can see at a glance what's left.
+        $bookingCount = $bookings->count();
+        $paidCount = $bookings
+            ->filter(fn (Booking $b) => $b->driverPay() !== null && ($b->driverPayRemaining() ?? 1) <= 0)
+            ->count();
+
         return view('admin.payroll.index', [
             'month' => $start,
             'drivers' => $shown,
             'filter' => $filter,
             'missingPay' => $missingPay,
             'totals' => $totals,
+            'bookingCount' => $bookingCount,
+            'paidCount' => $paidCount,
         ]);
     }
 }
