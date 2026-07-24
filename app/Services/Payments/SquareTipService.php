@@ -24,6 +24,13 @@ class SquareTipService
 {
     private const VERSION = '2024-10-17';
 
+    /**
+     * Prefix stamped on a tip order's reference_id. The webhook ONLY records a
+     * payment as a tip when the order carries this prefix — so a Square payment
+     * for the fare (or any other charge) is never mistaken for a tip.
+     */
+    private const TIP_PREFIX = 'TIP-';
+
     /** Live only when the token + location are configured. */
     public function enabled(): bool
     {
@@ -73,7 +80,7 @@ class SquareTipService
                 'idempotency_key' => (string) Str::uuid(),
                 'order' => [
                     'location_id' => config('services.square.location_id'),
-                    'reference_id' => $this->reference($booking),
+                    'reference_id' => self::TIP_PREFIX.$this->reference($booking),
                     'line_items' => [[
                         'name' => 'Tip for '.$driver.' — Central Executive Transfers',
                         'quantity' => '1',
@@ -143,9 +150,13 @@ class SquareTipService
         }
 
         $reference = $this->retrieveOrderReference($orderId);
-        if (! $reference) {
+        // Only OUR tip checkouts carry the TIP- prefix. A fare payment (or any
+        // other charge on the same Square account) has no prefix — ignore it, so
+        // it can never land on the driver's payroll as a tip.
+        if (! $reference || ! str_starts_with($reference, self::TIP_PREFIX)) {
             return null;
         }
+        $reference = substr($reference, strlen(self::TIP_PREFIX));
 
         $booking = $this->bookingForReference($reference);
         if (! $booking) {

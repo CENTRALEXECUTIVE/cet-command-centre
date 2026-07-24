@@ -94,7 +94,9 @@ class SquareTipTest extends TestCase
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), 'payment-links')
-                && $request['order']['reference_id'] === 'A078B2'
+                // The order is stamped with the TIP- prefix so the webhook can
+                // tell a genuine tip from a fare payment.
+                && $request['order']['reference_id'] === 'TIP-A078B2'
                 && $request['order']['line_items'][0]['base_price_money']['amount'] === 1000; // £10 in pennies
         });
     }
@@ -105,9 +107,9 @@ class SquareTipTest extends TestCase
         $driver = User::factory()->driver()->create(['name' => 'Majid Ali']);
         $booking = Booking::factory()->create(['driver_id' => $driver->id, 'external_reference' => 'A078B2']);
 
-        // The service fetches the order to read its reference.
+        // The service fetches the order to read its reference (TIP-prefixed).
         Http::fake([
-            '*/v2/orders/order_9' => Http::response(['order' => ['reference_id' => 'A078B2']], 200),
+            '*/v2/orders/order_9' => Http::response(['order' => ['reference_id' => 'TIP-A078B2']], 200),
         ]);
 
         $payload = [
@@ -124,11 +126,34 @@ class SquareTipTest extends TestCase
         $this->assertSame(10.0, $booking->fresh()->cardTipsOwed());
     }
 
+    public function test_a_fare_payment_is_not_logged_as_a_tip(): void
+    {
+        $this->configureSquare();
+        $driver = User::factory()->driver()->create();
+        $booking = Booking::factory()->create(['driver_id' => $driver->id, 'external_reference' => 'A078B2']);
+
+        // A fare payment resolves to the booking but its order has NO TIP- prefix.
+        Http::fake([
+            '*/v2/orders/order_fare' => Http::response(['order' => ['reference_id' => 'A078B2']], 200),
+        ]);
+
+        $result = app(SquareTipService::class)->recordTipFromWebhook([
+            'type' => 'payment.updated',
+            'data' => ['object' => ['payment' => [
+                'id' => 'pay_fare', 'order_id' => 'order_fare', 'status' => 'COMPLETED',
+                'amount_money' => ['amount' => 65000, 'currency' => 'GBP'], // £650 fare
+            ]]],
+        ]);
+
+        $this->assertNull($result);
+        $this->assertSame(0.0, $booking->fresh()->tipsTotal());
+    }
+
     public function test_webhook_is_idempotent_on_a_redelivered_payment(): void
     {
         $this->configureSquare();
         $booking = Booking::factory()->create(['external_reference' => 'A078B2']);
-        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'A078B2']], 200)]);
+        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'TIP-A078B2']], 200)]);
 
         $payload = [
             'data' => ['object' => ['payment' => [
@@ -147,7 +172,7 @@ class SquareTipTest extends TestCase
     {
         $this->configureSquare();
         $booking = Booking::factory()->create(['external_reference' => 'A078B2']);
-        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'A078B2']], 200)]);
+        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'TIP-A078B2']], 200)]);
         $svc = app(SquareTipService::class);
 
         // Tip comes in…
@@ -171,7 +196,7 @@ class SquareTipTest extends TestCase
     {
         $this->configureSquare();
         $booking = Booking::factory()->create(['external_reference' => 'A078B2']);
-        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'A078B2']], 200)]);
+        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'TIP-A078B2']], 200)]);
         $svc = app(SquareTipService::class);
 
         $svc->recordTipFromWebhook(['data' => ['object' => ['payment' => [
@@ -229,7 +254,7 @@ class SquareTipTest extends TestCase
     {
         $this->configureSquare();
         $booking = Booking::factory()->create(['external_reference' => 'A078B2']);
-        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'A078B2']], 200)]);
+        Http::fake(['*/v2/orders/*' => Http::response(['order' => ['reference_id' => 'TIP-A078B2']], 200)]);
 
         $payload = [
             'data' => ['object' => ['payment' => [
