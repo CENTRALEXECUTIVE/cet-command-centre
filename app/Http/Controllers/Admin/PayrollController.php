@@ -75,10 +75,14 @@ class PayrollController extends Controller
                 && ($b->driver_id || isset($b->meta['driver_details']['name'])))
             ->values();
 
-        // Month coverage: total jobs (excl. cancelled) and how many have the
-        // driver PAID IN FULL — so the office can see at a glance what's left.
-        $bookingCount = $bookings->count();
-        $paidCount = $bookings
+        // Month coverage: jobs that have actually RUN this month (completed) —
+        // the SAME definition the Review page uses: non-cancelled, non-no-show,
+        // pickup already passed. Then how many of those the driver's been PAID IN
+        // FULL. Upcoming jobs don't count — you pay a driver after the job runs.
+        $completed = $bookings->filter(fn (Booking $b) => $b->status !== BookingStatus::NoShow
+            && $b->pickup_at && $b->pickup_at->lte(now()));
+        $completedCount = $completed->count();
+        $paidCount = $completed
             ->filter(fn (Booking $b) => $b->driverPay() !== null && ($b->driverPayRemaining() ?? 1) <= 0)
             ->count();
 
@@ -88,7 +92,7 @@ class PayrollController extends Controller
             'filter' => $filter,
             'missingPay' => $missingPay,
             'totals' => $totals,
-            'bookingCount' => $bookingCount,
+            'completedCount' => $completedCount,
             'paidCount' => $paidCount,
         ]);
     }

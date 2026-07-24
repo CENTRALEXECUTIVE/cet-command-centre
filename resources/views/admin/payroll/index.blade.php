@@ -6,10 +6,10 @@
         <div>
             <h1 class="page-title" style="margin-bottom:2px">Driver payroll</h1>
             <p class="page-sub">Who's been paid, and what's still owed, for {{ $month->format('F Y') }}. Pay is set on each booking.</p>
-            @php $outstanding = max(0, $bookingCount - $paidCount); @endphp
+            @php $outstanding = max(0, $completedCount - $paidCount); @endphp
             <p style="margin:6px 0 0;font-weight:600">
-                <span class="mono">{{ $bookingCount }}</span> booking{{ $bookingCount === 1 ? '' : 's' }} this month ·
-                <span style="color:#1f7a44">{{ $paidCount }} paid in full</span>@if($outstanding > 0) ·
+                <span class="mono">{{ $completedCount }}</span> job{{ $completedCount === 1 ? '' : 's' }} completed this month ·
+                <span style="color:#1f7a44">{{ $paidCount }} driver paid</span>@if($outstanding > 0) ·
                 <span style="color:#b8860b">{{ $outstanding }} still to pay</span>@endif
             </p>
         </div>

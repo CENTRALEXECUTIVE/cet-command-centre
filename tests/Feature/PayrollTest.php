@@ -169,26 +169,30 @@ class PayrollTest extends TestCase
             ->assertRedirect(route('bookings.show', $booking).'#payroll');
     }
 
-    public function test_payroll_page_shows_month_booking_and_paid_counts(): void
+    public function test_payroll_page_counts_completed_jobs_this_month_not_upcoming(): void
     {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
         $admin = User::factory()->admin()->create();
         $driver = User::factory()->driver()->create();
-        $when = fn (int $d) => now()->startOfMonth()->addDays($d)->setTime(9, 0);
 
-        // Fully paid.
-        Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when(2)])
-            ->forceFill(['meta' => ['payroll' => ['pay' => 40, 'paid' => 40, 'history' => []]]])->save();
-        // Pay set but still owed.
-        Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when(3)])
-            ->forceFill(['meta' => ['payroll' => ['pay' => 50, 'paid' => 0, 'history' => []]]])->save();
-        // No pay set at all.
-        Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when(4)]);
+        // Two jobs that have already RUN this month.
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-07-05 09:00'])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 40, 'paid' => 40, 'history' => []]]])->save(); // paid
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-07-10 09:00'])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 50, 'paid' => 0, 'history' => []]]])->save();  // owed
+
+        // An UPCOMING job this month — must NOT count (the job hasn't run).
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-07-28 09:00']);
+        // A cancelled job this month — must NOT count.
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-07-06 09:00', 'status' => BookingStatus::Cancelled]);
 
         $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
 
-        $this->assertSame(3, $res->viewData('bookingCount'));  // three jobs this month
-        $this->assertSame(1, $res->viewData('paidCount'));     // one paid in full
-        $res->assertSee('bookings this month', false)->assertSee('paid in full', false);
+        $this->assertSame(2, $res->viewData('completedCount')); // only the two that ran
+        $this->assertSame(1, $res->viewData('paidCount'));      // one of them fully paid
+        $res->assertSee('completed this month', false)->assertSee('driver paid', false);
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_drivers_cannot_touch_payroll(): void
