@@ -76,6 +76,15 @@ class OutlookBookingService
                 ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
                 : null;
 
+            // A finished job is locked — never re-write a completed/cancelled/
+            // no-show booking from a re-read email (it would only churn and risk
+            // clobbering what the office has recorded, e.g. driver pay).
+            if ($existing && $existing->status->isTerminal()) {
+                $stats['skipped']++;
+
+                continue;
+            }
+
             // Already on the calendar and nothing changed → leave it (no re-push).
             if ($existing && $this->alreadyCurrent($existing, $parsed)) {
                 $stats['skipped']++;
@@ -213,6 +222,11 @@ class OutlookBookingService
             ];
 
             if ($existing) {
+                // Preserve app-added meta (driver PAYROLL, link tokens, audit
+                // flags) — the email only owns the booking-detail fields, never
+                // the money and tokens we've recorded. Replacing meta wholesale
+                // here was wiping driver pay every 5-minute ingest run.
+                $fields['meta'] = array_merge($existing->meta ?? [], $fields['meta']);
                 $existing->forceFill($fields)->save();
                 $booking = $existing;
                 $action = 'updated';

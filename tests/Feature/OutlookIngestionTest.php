@@ -98,6 +98,58 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals(BookingStatus::Cancelled, Booking::where('external_reference', 'ZWR6MM')->first()->status);
     }
 
+    public function test_reingesting_an_email_never_wipes_the_driver_payroll(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed());
+        $booking = Booking::where('external_reference', 'ZWR6MM')->first();
+
+        // The office sets the driver's pay (stored in meta.payroll).
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'payroll' => ['pay' => 45, 'paid' => 45, 'history' => []],
+        ])])->save();
+        $this->assertSame(45.0, $booking->fresh()->driverPay());
+
+        // The 5-minute ingest re-reads the same email and updates the booking.
+        $svc->upsertFromParsed($this->parsed(['pickup_at' => '2026-07-01 15:30']));
+
+        // Payroll survives the update — it is not the email's to own.
+        $booking = $booking->fresh();
+        $this->assertSame(45.0, $booking->driverPay());
+        $this->assertSame(45.0, $booking->driverPaidAmount());
+        $this->assertSame('15:30', $booking->pickup_at->format('H:i')); // detail still updated
+    }
+
+    public function test_ingest_leaves_a_completed_job_untouched(): void
+    {
+        config(['services.anthropic.key' => null]);
+        $body = "New booking DONEJOB has been created.\n"
+            ."Date & time: 31/12/2030 14:00\nPickup: Manchester Airport (MAN)\n"
+            ."Dropoff: Radisson Blu, Sheffield\nVehicle type: Executive\n"
+            ."Reference number: DONEJOB\nTotal: £100\nPayments: £100 (Square) - Paid";
+
+        $mail = Mockery::mock(GraphMailClient::class);
+        $mail->shouldReceive('fetchRecent')->andReturn([[
+            'id' => 'm1', 'subject' => 'New booking DONEJOB', 'from' => 'eto@x', 'body' => $body,
+        ]]);
+        $this->app->instance(GraphMailClient::class, $mail);
+
+        app(OutlookBookingService::class)->ingest();
+        $booking = Booking::where('external_reference', 'DONEJOB')->firstOrFail();
+
+        // Job finished and pay recorded.
+        $booking->forceFill([
+            'status' => BookingStatus::Complete->value,
+            'meta' => array_merge($booking->meta ?? [], ['payroll' => ['pay' => 60, 'paid' => 60, 'history' => []]]),
+        ])->save();
+
+        // Next ingest run must skip it entirely — no re-write, pay intact.
+        $stats = app(OutlookBookingService::class)->ingest();
+        $this->assertSame(1, $stats['skipped']);
+        $this->assertSame(0, $stats['updated']);
+        $this->assertSame(60.0, $booking->fresh()->driverPay());
+    }
+
     public function test_read_emails_are_scanned_added_then_skipped_when_current(): void
     {
         config(['services.anthropic.key' => null]);
