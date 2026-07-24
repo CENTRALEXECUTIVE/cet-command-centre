@@ -131,6 +131,44 @@ class PayrollTest extends TestCase
             ->assertSee('£8.00 tips');
     }
 
+    public function test_setting_pay_from_the_payroll_list_returns_there_and_clears_the_job(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Maj Khan']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Complete,
+            'pickup_at' => now()->startOfMonth()->addDays(2)->setTime(10, 0),
+        ]);
+        $month = now()->format('Y-m');
+
+        // Starts on the missing-pay list.
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertSee('completed job(s) have no driver pay set');
+
+        // Inline set from the list → lands back on the list, not the booking page.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), [
+                'action' => 'set', 'amount' => '50', 'from' => 'payroll', 'month' => $month,
+            ])
+            ->assertRedirect(route('payroll.index', ['month' => $month]).'#missing-pay');
+
+        $this->assertSame(50.0, $booking->fresh()->driverPay());
+
+        // …and the job is gone from the list (fresh render).
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertDontSee('completed job(s) have no driver pay set');
+    }
+
+    public function test_setting_pay_from_the_booking_page_returns_to_the_payroll_section(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '40'])
+            ->assertRedirect(route('bookings.show', $booking).'#payroll');
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();

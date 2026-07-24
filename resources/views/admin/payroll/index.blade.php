@@ -24,14 +24,24 @@
     @endif
 
     @if($missingPay->isNotEmpty())
-        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.07);margin-bottom:16px">
+        <div id="missing-pay" class="card" style="scroll-margin-top:16px;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.07);margin-bottom:16px">
             <strong>⚠ {{ $missingPay->count() }} completed job(s) have no driver pay set</strong>
-            <div style="margin-top:8px">
+            <p class="hint" style="margin:4px 0 8px">Type the driver's pay and tap <strong>Set</strong> — the job drops off this list and you stay right here.</p>
+            <div>
                 @foreach($missingPay as $b)
-                    <div style="display:flex;gap:12px;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.1)">
-                        <a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->external_reference ?? $b->reference }}</a>
-                        <span style="flex:1">{{ $b->payrollDriverName() }} <span class="muted">· {{ $b->pickup_at->format('D d M, H:i') }} · {{ $b->displayName() }}</span></span>
-                        <a href="{{ route('bookings.show', $b) }}" class="btn btn-light" style="padding:4px 12px;font-size:12px">Set pay →</a>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                        <a href="{{ route('bookings.show', $b) }}#payroll" class="mono">{{ $b->external_reference ?? $b->reference }}</a>
+                        <span style="flex:1;min-width:180px">{{ $b->payrollDriverName() }} <span class="muted">· {{ $b->pickup_at->format('D d M, H:i') }} · {{ $b->displayName() }}</span></span>
+                        <form method="POST" action="{{ route('bookings.payroll', $b) }}" style="display:flex;gap:6px;align-items:center;margin:0">
+                            @csrf
+                            <input type="hidden" name="action" value="set">
+                            <input type="hidden" name="from" value="payroll">
+                            <input type="hidden" name="month" value="{{ $m }}">
+                            <span class="muted">£</span>
+                            <input type="number" name="amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" required
+                                   style="width:90px;padding:5px 8px" aria-label="Driver pay for {{ $b->reference }}">
+                            <button class="btn btn-primary" style="padding:5px 14px;font-size:13px">Set</button>
+                        </form>
                     </div>
                 @endforeach
             </div>

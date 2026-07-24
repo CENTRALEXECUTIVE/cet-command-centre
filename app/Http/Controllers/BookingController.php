@@ -555,7 +555,8 @@ class BookingController extends Controller
 
             $where = $data['method'] === 'cash' ? 'cash (driver already has it)' : 'card (owed to the driver)';
 
-            return back()->with('status', '£'.number_format($amount, 2)." tip logged for {$booking->payrollDriverName()} — {$where}.");
+            return $this->afterPayroll($request, $booking)
+                ->with('status', '£'.number_format($amount, 2)." tip logged for {$booking->payrollDriverName()} — {$where}.");
         }
 
         $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
@@ -577,7 +578,25 @@ class BookingController extends Controller
 
         $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
 
-        return back()->with('status', $status);
+        return $this->afterPayroll($request, $booking)->with('status', $status);
+    }
+
+    /**
+     * Where to land after setting pay / recording a payment / logging a tip.
+     * When the action came from the Payroll list (from=payroll), go straight back
+     * to that list — freshly rendered, so a job that's just had its pay set drops
+     * off immediately — instead of leaving the operator on the booking page. From
+     * the booking page itself, return to the payroll section, not the top.
+     */
+    private function afterPayroll(Request $request, Booking $booking): RedirectResponse
+    {
+        if ($request->input('from') === 'payroll') {
+            $month = preg_match('/^\d{4}-\d{2}$/', (string) $request->input('month')) ? $request->input('month') : null;
+
+            return redirect()->to(route('payroll.index', array_filter(['month' => $month])).'#missing-pay');
+        }
+
+        return redirect()->to(route('bookings.show', $booking).'#payroll');
     }
 
     /**

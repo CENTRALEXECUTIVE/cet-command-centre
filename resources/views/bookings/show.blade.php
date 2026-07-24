@@ -367,7 +367,7 @@
 
     @if(auth()->user()->isAdmin())
         @php $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining(); @endphp
-        <div class="card" @if($left !== null && $left > 0) style="border-left:4px solid #FBBA2A" @endif>
+        <div id="payroll" class="card" style="scroll-margin-top:16px;{{ ($left !== null && $left > 0) ? 'border-left:4px solid #FBBA2A' : '' }}">
             <h2>Driver payroll — {{ $booking->payrollDriverName() }}</h2>
             @if($pay === null)
                 <p class="muted" style="margin:0 0 10px">No driver pay set for this job yet.</p>
