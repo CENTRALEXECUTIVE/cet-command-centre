@@ -82,13 +82,32 @@ class BookingController extends Controller
             };
         }
 
+        // Status filter (orthogonal to the time/month scope): pick a single
+        // status to view, e.g. just cancelled or just completed. With none
+        // chosen we HIDE cancelled — a cancelled job isn't a journey that ran,
+        // so it must not inflate the count. (No-show is kept: it still happened.)
+        $status = $request->query('status');
+        $statusFilter = in_array($status, BookingStatus::values(), true) ? $status : null;
+        if ($statusFilter) {
+            $query->where('status', $statusFilter);
+        } elseif ($q === '') {
+            // Hide cancelled only in the browse view; a search should still find
+            // a cancelled booking when you're looking one up by name/reference.
+            $query->where('status', '!=', BookingStatus::Cancelled->value);
+        }
+
         $bookings = $query->paginate(30)->withQueryString();
+
+        // Remember this exact list view so a booking page can send the operator
+        // straight back to where they were (same month/filter/search/page).
+        session(['bookings.return_url' => $request->fullUrl()]);
 
         return view('bookings.index', [
             'bookings' => $bookings,
             'q' => $q,
             'filter' => $filter,
             'month' => $month,
+            'statusFilter' => $statusFilter,
         ]);
     }
 
@@ -475,7 +494,11 @@ class BookingController extends Controller
         $canScan = $request->user()->isAdmin()
             && $this->google->configured() && $this->google->active();
 
-        return compact('booking', 'auditLogs', 'auditLogTotal', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan');
+        // Where "← Back to bookings" returns to — the last list view the operator
+        // had open (their month/filter/search/page), falling back to the list.
+        $backUrl = session('bookings.return_url', route('bookings.index'));
+
+        return compact('booking', 'auditLogs', 'auditLogTotal', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan', 'backUrl');
     }
 
     /**

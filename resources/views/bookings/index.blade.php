@@ -8,7 +8,10 @@
             @if(!empty($q))
                 <p class="page-sub" style="margin:2px 0 0">Search results for “<strong>{{ $q }}</strong>” · {{ $bookings->total() }} found — <a href="{{ route('bookings.index') }}">clear</a></p>
             @else
-                <p class="page-sub" style="margin:2px 0 0">{{ $bookings->total() }} {{ Str::plural('journey', $bookings->total()) }}</p>
+                <p class="page-sub" style="margin:2px 0 0">
+                    {{ $bookings->total() }} {{ Str::plural('journey', $bookings->total()) }}
+                    @if(!empty($statusFilter))· <strong>{{ \App\Enums\BookingStatus::from($statusFilter)->label() }}</strong> only@else<span class="muted">· cancelled hidden</span>@endif
+                </p>
             @endif
         </div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -29,16 +32,32 @@
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div class="bk-tabs">
             @foreach($tabs as $key => $label)
-                <a href="{{ route('bookings.index', array_filter(['filter' => $key, 'q' => $q ?: null])) }}"
+                <a href="{{ route('bookings.index', array_filter(['filter' => $key, 'q' => $q ?: null, 'status' => ($statusFilter ?? null) ?: null])) }}"
                    class="bk-tab {{ empty($month) && ($filter ?? 'upcoming') === $key ? 'active' : '' }}">{{ $label }}</a>
             @endforeach
         </div>
-        {{-- Month view: pick a month to see every booking in it (for payroll). --}}
-        <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
-            <label for="bk-month" class="muted" style="font-size:13px">Month</label>
-            <input id="bk-month" type="month" name="month"
-                   value="{{ $month?->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
-        </form>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            {{-- Status filter: pending / completed / cancelled / … --}}
+            <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
+                @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
+                @if(!empty($month))<input type="hidden" name="month" value="{{ $month->format('Y-m') }}">@else<input type="hidden" name="filter" value="{{ $filter ?? 'upcoming' }}">@endif
+                <label for="bk-status" class="muted" style="font-size:13px">Status</label>
+                <select id="bk-status" name="status" onchange="this.form.submit()" style="width:auto">
+                    <option value="">All active</option>
+                    @foreach(\App\Enums\BookingStatus::cases() as $st)
+                        <option value="{{ $st->value }}" @selected(($statusFilter ?? null) === $st->value)>{{ $st->label() }}</option>
+                    @endforeach
+                </select>
+            </form>
+            {{-- Month view: pick a month to see every booking in it (for payroll). --}}
+            <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
+                @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
+                @if(!empty($statusFilter))<input type="hidden" name="status" value="{{ $statusFilter }}">@endif
+                <label for="bk-month" class="muted" style="font-size:13px">Month</label>
+                <input id="bk-month" type="month" name="month"
+                       value="{{ $month?->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
+            </form>
+        </div>
     </div>
     @if(!empty($month))
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} in <strong>{{ $month->format('F Y') }}</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>

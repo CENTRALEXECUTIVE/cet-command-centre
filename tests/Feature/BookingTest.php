@@ -95,6 +95,39 @@ class BookingTest extends TestCase
         $response->assertSee('July 2026', false);
     }
 
+    public function test_the_bookings_count_excludes_cancelled_but_a_filter_can_show_them(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $live = Booking::factory()->create(['external_reference' => 'LIVE1', 'pickup_at' => now()->addDays(2), 'status' => \App\Enums\BookingStatus::Pending]);
+        $cancelled = Booking::factory()->create(['external_reference' => 'CXL1', 'pickup_at' => now()->addDays(3), 'status' => \App\Enums\BookingStatus::Cancelled]);
+
+        // Default browse view (All): cancelled is hidden and not counted.
+        $res = $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'all']))->assertOk();
+        $res->assertSee($live->reference)->assertDontSee($cancelled->reference);
+
+        // Filtering by Cancelled surfaces it.
+        $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'all', 'status' => 'cancelled']))
+            ->assertOk()->assertSee($cancelled->reference)->assertDontSee($live->reference);
+
+        // Filtering by a live status shows only that status.
+        $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'all', 'status' => 'pending']))
+            ->assertOk()->assertSee($live->reference)->assertDontSee($cancelled->reference);
+    }
+
+    public function test_the_booking_page_links_back_to_the_list_view_you_came_from(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['pickup_at' => '2026-07-15 10:00']);
+
+        // Visit a specific month view, then open a booking — the back link points
+        // to that same month view, not the bare list.
+        $this->actingAs($admin)->get(route('bookings.index', ['month' => '2026-07']));
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('← Back to bookings')
+            ->assertSee('month=2026-07', false);
+    }
+
     public function test_bookings_list_can_show_what_came_in_today(): void
     {
         $admin = User::factory()->admin()->create();

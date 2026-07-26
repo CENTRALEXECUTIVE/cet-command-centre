@@ -2,6 +2,9 @@
 @section('title', 'Booking ' . $booking->reference)
 
 @section('content')
+    @if(!empty($backUrl))
+        <a href="{{ $backUrl }}" class="muted" style="display:inline-block;margin-bottom:10px;font-size:14px;text-decoration:none">← Back to bookings</a>
+    @endif
     {{-- Hero: the four things the office needs at a glance — when, who,
          where-code, and state — in the brand black/gold. --}}
     <div class="booking-hero">
