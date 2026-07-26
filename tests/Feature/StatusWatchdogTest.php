@@ -107,19 +107,54 @@ class StatusWatchdogTest extends TestCase
         $this->assertNudged($b, 'set_off');
     }
 
-    public function test_lead_time_is_clamped_between_20_and_60_minutes(): void
+    public function test_lead_time_is_drive_plus_five_clamped_between_15_and_90(): void
     {
         $watchdog = app(StatusWatchdog::class);
 
-        // Driver parked far away (Leeds → long drive) → clamped DOWN to 60.
-        $far = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
-        $this->ping($far, 53.7997, -1.5492, now()->subMinutes(5));
-        $this->assertSame(60, $watchdog->setOffLeadMinutes($far->fresh()));
+        // Driver very far away (London → hours of driving) → clamped DOWN to 90.
+        $far = $this->job(BookingStatus::Allocated, now()->addHours(6), ['pickup' => self::PICKUP]);
+        $this->ping($far, 51.5074, -0.1278, now()->subMinutes(5));
+        $this->assertSame(90, $watchdog->setOffLeadMinutes($far->fresh()));
 
-        // Driver already next door (couple of streets) → clamped UP to 20.
+        // Driver already next door (couple of streets) → clamped UP to 15.
         $near = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
         $this->ping($near, 53.4010, -1.5010, now()->subMinutes(5));
-        $this->assertSame(20, $watchdog->setOffLeadMinutes($near->fresh()));
+        $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
+    }
+
+    public function test_complete_by_is_anchored_to_when_the_customer_boarded(): void
+    {
+        $watchdog = app(StatusWatchdog::class);
+        $b = $this->job(BookingStatus::Collected, now()->subHour(), [
+            'pickup' => self::PICKUP, 'dropoff' => self::DROPOFF,
+        ]);
+        // Customer got in the car 20 minutes ago (a long airport wait beforehand
+        // no longer matters — the clock starts from POB).
+        $pob = now()->subMinutes(20);
+        $b->statusHistory()->create(['from_status' => 'arrived', 'to_status' => 'collected', 'created_at' => $pob]);
+
+        $drive = $watchdog->estimatedDurationMinutes($b->fresh());
+        $this->assertEqualsWithDelta(
+            $pob->copy()->addMinutes($drive + 15)->timestamp,
+            $watchdog->completeBy($b->fresh())->timestamp, 2);
+    }
+
+    public function test_airport_pickup_without_pob_gets_a_two_hour_window(): void
+    {
+        $watchdog = app(StatusWatchdog::class);
+        $b = $this->job(BookingStatus::Allocated, now()->addHour(), [
+            'pickup' => self::PICKUP, 'dropoff' => self::DROPOFF,
+        ]);
+        $b->forceFill([
+            'pickup_address' => 'Manchester Airport (MAN), Terminal 2',
+            'meta' => array_merge($b->meta ?? [], ['journey_label' => 'Arrival']),
+        ])->save();
+
+        $drive = $watchdog->estimatedDurationMinutes($b->fresh());
+        // Landing → clear the terminal (2h) → drive, all from the scheduled pickup.
+        $this->assertEqualsWithDelta(
+            $b->pickup_at->copy()->addMinutes(120 + $drive)->timestamp,
+            $watchdog->completeBy($b->fresh())->timestamp, 2);
     }
 
     public function test_urgent_escalation_ten_minutes_before_pickup(): void

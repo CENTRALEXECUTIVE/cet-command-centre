@@ -10,6 +10,7 @@ use App\Models\Setting;
 use App\Models\WatchdogEvent;
 use App\Services\Push\WebPushService;
 use App\Support\Geo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -154,9 +155,11 @@ class StatusWatchdog
         // fire on almost every job — pure noise. The geofence nudges above simply
         // skip while GPS is stale; the clock-based fallbacks still cover the job.
 
-        // ── 6: complete fallback — pure clock, works with dead GPS ──────────
-        if ($status === BookingStatus::Collected
-            && now()->gte($booking->pickup_at->copy()->addMinutes($this->estimatedDurationMinutes($booking) + 45))) {
+        // ── 6: complete fallback — pure clock, works with dead GPS. Anchored to
+        //    when the customer got in the car (POB) so we never nag while the
+        //    driver's still waiting at arrivals; only once the drive home should
+        //    be done (see completeBy).
+        if ($status === BookingStatus::Collected && now()->gte($this->completeBy($booking))) {
             $sent += $this->nudge($booking, 'complete_fallback',
                 '🏁 Job still open',
                 'Is the '.$booking->pickup_at->format('H:i').' job complete? Update the status',
@@ -272,8 +275,10 @@ class StatusWatchdog
     }
 
     /**
-     * Rule 1 lead time: drive time from the driver's last known position to
-     * the pickup + 10 min buffer, clamped 20–60. Flat 30 without GPS/coords.
+     * Rule 1 lead time: drive time from the driver's last known position to the
+     * pickup + a 5 min buffer, so a 30-min-away job is chased ~35 min before
+     * pickup and a 20-min-away one ~25 min before. Clamped 15–90 (far airport
+     * pickups need a longer lead). Flat 30 without GPS/coords.
      */
     public function setOffLeadMinutes(Booking $booking): int
     {
@@ -290,7 +295,7 @@ class StatusWatchdog
 
         $drive = Geo::estimateDriveMinutes((float) $last->latitude, (float) $last->longitude, $pickup[0], $pickup[1]);
 
-        return max(20, min(60, $drive + 10));
+        return max(15, min(90, $drive + 5));
     }
 
     /* ── Geofence primitives ──────────────────────────────────────────────── */
@@ -508,6 +513,70 @@ class StatusWatchdog
             $loc = $response->json('results.0.geometry.location');
 
             return isset($loc['lat'], $loc['lng']) ? [(float) $loc['lat'], (float) $loc['lng']] : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * The earliest time we should ask "is this job complete?".
+     *
+     * Best anchor is when the customer actually got in the car (POB) — from
+     * there it's just the drive home, which naturally covers a long airport
+     * wait (the nudge can't fire before POB anyway). With no POB timestamp we
+     * estimate from the schedule: an airport PICKUP gets a generous allowance
+     * (landing → clear the terminal → drive), using the flight's landing time
+     * when we know it, else a fixed 2-hour window; a normal drop just gets the
+     * drive plus a short buffer.
+     */
+    public function completeBy(Booking $booking): Carbon
+    {
+        $drive = $this->estimatedDurationMinutes($booking);
+
+        if ($pob = $this->pobAt($booking)) {
+            return $pob->copy()->addMinutes($drive + 15);
+        }
+
+        if ($this->isAirportPickup($booking)) {
+            $landing = $this->flightLandingAt($booking);
+            $anchor = ($landing && $landing->gt($booking->pickup_at)) ? $landing : $booking->pickup_at;
+
+            return $anchor->copy()->addMinutes(120 + $drive); // clear the airport + drive home
+        }
+
+        return $booking->pickup_at->copy()->addMinutes($drive + 15);
+    }
+
+    /** When the driver marked the customer on-board (POB), or null. */
+    private function pobAt(Booking $booking): ?Carbon
+    {
+        return $booking->statusHistory()
+            ->where('to_status', BookingStatus::Collected->value)
+            ->latest('created_at')->first()?->created_at;
+    }
+
+    /** True when the pickup itself is at an airport (an arrival job). */
+    private function isAirportPickup(Booking $booking): bool
+    {
+        if (Str::startsWith(Str::lower((string) ($booking->meta['journey_label'] ?? '')), 'arrival')) {
+            return true;
+        }
+
+        return Str::contains(Str::lower((string) $booking->pickup_address), 'airport');
+    }
+
+    /** The flight's landing time from the monitor (estimated, else scheduled), or null. */
+    private function flightLandingAt(Booking $booking): ?Carbon
+    {
+        $monitor = \App\Models\FlightMonitor::where('booking_id', $booking->id)->first();
+        $when = $monitor?->estimated_arrival ?? $monitor?->scheduled_arrival;
+
+        if (! $when) {
+            return null;
+        }
+
+        try {
+            return $when instanceof Carbon ? $when : Carbon::parse($when);
         } catch (\Throwable) {
             return null;
         }
