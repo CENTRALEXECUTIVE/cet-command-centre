@@ -367,6 +367,36 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_callsign_and_login_jobs_total_under_one_driver_in_payroll(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+
+        // Abdirazak Hassan, whose callsign is "Abdi".
+        $abdi = User::factory()->driver()->create(['name' => 'Abdirazak Hassan']);
+        \App\Models\DriverProfile::create(['user_id' => $abdi->id, 'callsign' => 'Abdi']);
+
+        // One job linked to his login…
+        Booking::factory()->create(['driver_id' => $abdi->id, 'pickup_at' => '2026-07-05 10:00'])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 100, 'paid' => 100, 'history' => []]]])->save();
+        // …and one tagged only with the callsign "Abdi" (no login link).
+        Booking::factory()->create(['driver_id' => null, 'pickup_at' => '2026-07-06 10:00'])
+            ->forceFill(['meta' => ['driver_details' => ['name' => 'Abdi'], 'payroll' => ['pay' => 50, 'paid' => 50, 'history' => []]]])->save();
+
+        // The manual job resolves to the full name, so both land in one group.
+        $this->assertSame('Abdirazak Hassan', Booking::resolveDriverFullName('Abdi'));
+
+        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $drivers = $res->viewData('drivers');
+        $abdiRow = $drivers->firstWhere('name', 'Abdirazak Hassan');
+
+        $this->assertNotNull($abdiRow);
+        $this->assertSame(150.0, $abdiRow['pay']);              // £100 + £50 together
+        $this->assertNull($drivers->firstWhere('name', 'Abdi')); // no split "Abdi" group
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();

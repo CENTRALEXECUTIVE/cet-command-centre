@@ -1158,12 +1158,82 @@ class Booking extends Model
         return true;
     }
 
-    /** The name payroll groups by — assigned driver, else the manual job driver. */
+    /**
+     * The name payroll groups by — always the driver's FULL name so the same
+     * person can't split into two groups. A linked driver gives it directly; a
+     * job tagged only with a callsign/first name (e.g. "Abdi") is resolved to
+     * the matching system driver's full name ("Abdirazak Hassan") so their jobs
+     * total together. (Customer messages still show the short name — separate.)
+     */
     public function payrollDriverName(): string
     {
-        return $this->driver?->name
-            ?? ($this->meta['driver_details']['name'] ?? null)
-            ?? 'Unassigned';
+        if ($this->driver) {
+            return $this->driver->name;
+        }
+
+        $manual = trim((string) ($this->meta['driver_details']['name'] ?? ''));
+        if ($manual === '') {
+            return 'Unassigned';
+        }
+
+        return static::resolveDriverFullName($manual) ?? $manual;
+    }
+
+    /**
+     * Map a callsign / first name / full name onto a system driver's FULL name,
+     * or null when there's no single clear match (so ambiguous names aren't
+     * wrongly merged). Memoised per request via the container.
+     */
+    public static function resolveDriverFullName(string $name): ?string
+    {
+        $key = mb_strtolower(trim($name));
+        if ($key === '') {
+            return null;
+        }
+
+        $map = app()->has('cet.driverNameMap')
+            ? app('cet.driverNameMap')
+            : app()->instance('cet.driverNameMap', static::buildDriverNameMap());
+
+        return $map[$key] ?? null;
+    }
+
+    /**
+     * Build the lookup of {callsign|first name|full name} → full name across all
+     * system drivers. A key that would point at two different drivers is dropped
+     * so we never merge two people who happen to share a first name.
+     *
+     * @return array<string, string>
+     */
+    protected static function buildDriverNameMap(): array
+    {
+        $map = [];
+        $ambiguous = [];
+
+        User::query()->whereHas('driverProfile')->with('driverProfile')->get()
+            ->each(function (User $d) use (&$map, &$ambiguous) {
+                $full = $d->name;
+                $local = mb_strtolower(\Illuminate\Support\Str::before((string) $d->email, '@'));
+                $keys = array_filter([
+                    mb_strtolower(trim((string) $d->driverProfile?->callsign)),
+                    mb_strtolower(\Illuminate\Support\Str::before(trim($d->name), ' ')),
+                    mb_strtolower(trim($d->name)),
+                    ctype_alpha($local) ? $local : '',
+                ]);
+                foreach (array_unique($keys) as $k) {
+                    if (isset($map[$k]) && $map[$k] !== $full) {
+                        $ambiguous[$k] = true;
+                    } else {
+                        $map[$k] = $full;
+                    }
+                }
+            });
+
+        foreach (array_keys($ambiguous) as $k) {
+            unset($map[$k]);
+        }
+
+        return $map;
     }
 
     /**
