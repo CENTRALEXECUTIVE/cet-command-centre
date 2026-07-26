@@ -59,21 +59,19 @@ class PayrollTest extends TestCase
 
     public function test_payroll_page_totals_per_driver_and_flags_missing_pay(): void
     {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
         $admin = User::factory()->admin()->create();
         $maj = User::factory()->driver()->create(['name' => 'Maj Khan']);
         $abdi = User::factory()->driver()->create(['name' => 'Abdi Ali']);
 
         // Maj: two jobs this month — £45 (unpaid) + £30 (fully paid).
-        Booking::factory()->create(['driver_id' => $maj->id, 'pickup_at' => now()->startOfMonth()->addDays(3)->setTime(10, 0)])
+        Booking::factory()->create(['driver_id' => $maj->id, 'pickup_at' => '2026-07-05 10:00'])
             ->forceFill(['meta' => ['payroll' => ['pay' => 45, 'paid' => 0, 'history' => []]]])->save();
-        Booking::factory()->create(['driver_id' => $maj->id, 'pickup_at' => now()->startOfMonth()->addDays(5)->setTime(12, 0)])
+        Booking::factory()->create(['driver_id' => $maj->id, 'pickup_at' => '2026-07-07 12:00'])
             ->forceFill(['meta' => ['payroll' => ['pay' => 30, 'paid' => 30, 'history' => []]]])->save();
 
-        // Abdi: a completed job with NO pay set → flagged, not totalled.
-        Booking::factory()->create([
-            'driver_id' => $abdi->id, 'status' => BookingStatus::Complete,
-            'pickup_at' => now()->startOfMonth()->addDays(4)->setTime(9, 0),
-        ]);
+        // Abdi: a job that has already RUN with NO pay set → flagged, not totalled.
+        Booking::factory()->create(['driver_id' => $abdi->id, 'pickup_at' => '2026-07-06 09:00']);
 
         $this->actingAs($admin)->get(route('payroll.index'))
             ->assertOk()
@@ -81,6 +79,28 @@ class PayrollTest extends TestCase
             ->assertSee('£45.00 owed')                       // Maj's remaining
             ->assertSee('completed job(s) have no driver pay set')
             ->assertSee('Abdi Ali');                          // in the missing-pay list
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_a_job_that_ran_but_was_never_marked_complete_still_needs_pay_set(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Sam Jones']);
+
+        // Ran a fortnight ago, still Allocated (office never tapped Complete),
+        // no pay set — this MUST show on the "no pay set" list.
+        Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Allocated,
+            'pickup_at' => '2026-07-06 09:00',
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $this->assertSame(1, $res->viewData('missingPay')->count());
+        $res->assertSee('Sam Jones');
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_admin_logs_cash_and_card_tips_for_the_driver(): void

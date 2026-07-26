@@ -68,11 +68,17 @@ class PayrollController extends Controller
             default => $drivers,
         };
 
-        // Completed driver jobs with no pay set — the "don't forget these" list.
+        // Jobs that have RUN with no pay set yet — the "don't forget these" list.
+        // Uses the same "has run" rule as the completed count (pickup passed, not
+        // cancelled/no-show) rather than status === Complete, because the office
+        // works off the calendar and rarely hand-marks a job Complete — so this
+        // now surfaces EVERY job still needing a pay amount, matching "still to pay".
         $missingPay = $bookings
             ->filter(fn (Booking $b) => $b->driverPay() === null
-                && $b->status === BookingStatus::Complete
+                && $b->status !== BookingStatus::NoShow
+                && $b->pickup_at && $b->pickup_at->lte(now())
                 && ($b->driver_id || isset($b->meta['driver_details']['name'])))
+            ->sortBy('pickup_at')
             ->values();
 
         // Month coverage: jobs that have actually RUN this month (completed) —
