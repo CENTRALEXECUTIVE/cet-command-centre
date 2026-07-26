@@ -96,6 +96,32 @@ class StatusWatchdogTest extends TestCase
         $this->assertDatabaseHas('watchdog_events', ['booking_id' => $due->id, 'event_type' => 'nudge_set_off']);
     }
 
+    public function test_past_allocated_jobs_are_left_alone(): void
+    {
+        // A job whose pickup was hours ago and never got moving — still Allocated
+        // because the office marks it complete off the calendar. It must NOT fire
+        // any set-off nudge or admin escalation (only present/future jobs do).
+        $past = $this->job(BookingStatus::Allocated, now()->subHours(3));
+
+        $this->tick();
+
+        $this->assertNudged($past, 'set_off', 0);
+        $this->assertNudged($past, 'set_off_urgent', 0);
+        $this->assertSame(0, JobNudge::where('booking_id', $past->id)->where('recipient_type', 'admin')->count());
+    }
+
+    public function test_an_unallocated_past_pickup_does_not_escalate(): void
+    {
+        // Pending + no driver, pickup already gone → no "unallocated" siren.
+        $past = Booking::factory()->create([
+            'driver_id' => null, 'status' => BookingStatus::Pending, 'pickup_at' => now()->subHours(2),
+        ]);
+
+        $this->tick();
+
+        $this->assertSame(0, JobNudge::where('booking_id', $past->id)->count());
+    }
+
     public function test_set_off_reminder_also_covers_accepted_jobs(): void
     {
         // This app has an Accepted step between Allocated and En Route — a

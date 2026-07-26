@@ -50,6 +50,15 @@ class StatusWatchdog
 
     public const MAX_SENDS = 2;
 
+    /**
+     * How long after a pickup a not-yet-started job is still "present". Past
+     * this, an Allocated/Accepted/Pending job is treated as history — the office
+     * runs off the calendar and marks these complete by hand, and they must not
+     * keep firing "set off"/"unallocated" alerts. Jobs already in progress
+     * (En Route / Arrived / POB) stay live regardless of how long ago pickup was.
+     */
+    public const PAST_GRACE_MINUTES = 30;
+
     /** A driver nudge is "unacted" this long after its second send. */
     public const UNACTED_AFTER_MINUTES = 5;
 
@@ -90,6 +99,11 @@ class StatusWatchdog
             ->get();
 
         foreach ($jobs as $booking) {
+            // Only chase PRESENT/FUTURE jobs. A past pickup that never got moving
+            // is history — don't notify about it (even allocated ones).
+            if ($this->isPastJob($booking)) {
+                continue;
+            }
             if ($booking->driver_id) {
                 $sent += $this->evaluate($booking);
             }
@@ -99,6 +113,25 @@ class StatusWatchdog
         $sent += $this->remindersPass();
 
         return $sent;
+    }
+
+    /**
+     * A job that's history — its pickup is well in the past and it never got
+     * moving (still Pending/Allocated/Accepted). These are handled off the
+     * calendar and must not fire nudges/escalations. A job already in progress
+     * (En Route / Arrived / POB) is always "live", however long ago pickup was,
+     * so its complete-detection still runs.
+     */
+    public function isPastJob(Booking $booking): bool
+    {
+        if (in_array($booking->status, [
+            BookingStatus::EnRoute, BookingStatus::Arrived, BookingStatus::Collected,
+        ], true)) {
+            return false;
+        }
+
+        return $booking->pickup_at
+            && $booking->pickup_at->lt(now()->subMinutes(self::PAST_GRACE_MINUTES));
     }
 
     /** Run all rules for one job. */
