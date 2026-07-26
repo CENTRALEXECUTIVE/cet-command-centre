@@ -374,14 +374,19 @@
             @else
                 <table style="max-width:420px">
                     <tr><th>Job pays</th><td>£{{ number_format($pay, 2) }}</td></tr>
-                    <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
-                    <tr><th>Remaining</th><td>
-                        @if($left > 0)
-                            <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
-                        @else
-                            <span class="badge badge-complete">Paid in full</span>
-                        @endif
-                    </td></tr>
+                    @if($booking->driverSettledByCustomer())
+                        <tr><th>Settled</th><td><span class="badge badge-complete">Cash — paid by customer</span></td></tr>
+                        <tr><th>Business owes</th><td><span class="muted">£0.00 — nothing sent from the business</span></td></tr>
+                    @else
+                        <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
+                        <tr><th>Remaining</th><td>
+                            @if($left > 0)
+                                <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
+                            @else
+                                <span class="badge badge-complete">Paid in full</span>
+                            @endif
+                        </td></tr>
+                    @endif
                 </table>
             @endif
 

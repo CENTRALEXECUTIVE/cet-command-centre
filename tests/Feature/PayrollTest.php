@@ -215,6 +215,39 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_cash_jobs_are_settled_by_the_customer_so_the_business_owes_nothing(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Cash Carl']);
+
+        // A cash job: the customer pays the driver directly. Pay is £45, the
+        // business has handed over nothing — but it owes nothing either.
+        $cash = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+        ]);
+        $cash->forceFill(['meta' => ['payroll' => ['pay' => 45, 'paid' => 0, 'history' => []]]])->save();
+
+        $this->assertTrue($cash->driverSettledByCustomer());
+        $this->assertSame(0.0, $cash->driverPayRemaining()); // business owes nothing
+
+        // A card job with the same pay still owes the driver from the business.
+        $card = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+        ]);
+        $card->forceFill(['meta' => ['payroll' => ['pay' => 45, 'paid' => 0, 'history' => []]]])->save();
+
+        $this->assertFalse($card->driverSettledByCustomer());
+        $this->assertSame(45.0, $card->driverPayRemaining());
+
+        // The booking page shows the cash job as paid by the customer, not owed.
+        $this->actingAs($admin)->get(route('bookings.show', $cash))
+            ->assertOk()
+            ->assertSee('Cash — paid by customer')
+            ->assertDontSee('£45.00 owed');
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();

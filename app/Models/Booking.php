@@ -865,12 +865,34 @@ class Booking extends Model
         return (float) ($this->meta['payroll']['paid'] ?? 0);
     }
 
-    /** What's still owed to the driver for this job (never negative). */
+    /**
+     * Cash jobs settle themselves: the customer hands the fare straight to the
+     * driver, so the driver already has their pay and the BUSINESS owes nothing.
+     * Only a job paid by CARD/account to the company leaves the business owing
+     * the driver. (In the rare case a "cash" job ends up paid by card, the
+     * payment method flips to card and this reverts to normal owing.)
+     */
+    public function driverSettledByCustomer(): bool
+    {
+        return ($this->payment_method?->value ?? null) === 'cash';
+    }
+
+    /**
+     * What the BUSINESS still owes the driver for this job (never negative).
+     * For cash jobs this is always 0 — the customer paid the driver directly,
+     * nothing is sent from the business.
+     */
     public function driverPayRemaining(): ?float
     {
         $pay = $this->driverPay();
+        if ($pay === null) {
+            return null;
+        }
+        if ($this->driverSettledByCustomer()) {
+            return 0.0;
+        }
 
-        return $pay === null ? null : max(0, round($pay - $this->driverPaidAmount(), 2));
+        return max(0, round($pay - $this->driverPaidAmount(), 2));
     }
 
     /** @return array<int, array{amount: float, at: string, by: ?string, note: ?string}> */

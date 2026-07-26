@@ -76,8 +76,8 @@
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}</td>
                             <td>{{ $b->driverPay() === null ? '—' : '£'.number_format($b->driverPay(), 2) }}</td>
-                            <td>£{{ number_format($b->driverPaidAmount(), 2) }}</td>
-                            <td>@if(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
+                            <td>@if($b->driverSettledByCustomer())<span class="muted">cash</span>@else£{{ number_format($b->driverPaidAmount(), 2) }}@endif</td>
+                            <td>@if($b->driverSettledByCustomer())<span class="muted" title="Customer paid the driver directly">paid by customer</span>@elseif(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
                             <td>@if($b->tipsTotal() > 0)💛 £{{ number_format($b->tipsTotal(), 2) }}@else<span class="muted">—</span>@endif</td>
                             <td><a href="{{ route('bookings.show', $b) }}" style="font-size:13px">Open →</a></td>
                         </tr>
