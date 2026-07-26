@@ -241,11 +241,44 @@ class PayrollTest extends TestCase
         $this->assertFalse($card->driverSettledByCustomer());
         $this->assertSame(45.0, $card->driverPayRemaining());
 
-        // The booking page shows the cash job as paid by the customer, not owed.
+        // The booking page shows the cash job as settled with the driver, not owed.
         $this->actingAs($admin)->get(route('bookings.show', $cash))
             ->assertOk()
-            ->assertSee('Cash — paid by customer')
+            ->assertSee('Cash job — settled with the driver')
             ->assertDontSee('£45.00 owed');
+    }
+
+    public function test_deposit_plus_cash_jobs_are_settled_by_the_customer_and_never_ask_for_pay(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Majid Ali']);
+
+        // The exact screenshot case: deposit paid, balance cash to the driver.
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'pickup_at' => '2026-07-06 09:00',
+            'payment_method' => \App\Enums\PaymentMethod::Card->value, // deposit was card
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid – £90 Cash Due']])->save();
+
+        $this->assertTrue($booking->driverSettledByCustomer());
+        $this->assertSame(90.0, $booking->cashDueToDriver());
+
+        // Booking page: shows it as settled with the driver, no "set pay" demand.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Cash job — settled with the driver')
+            ->assertSee('The driver collects')
+            ->assertDontSee('No driver pay set for this job yet.');
+
+        // Payroll page: NOT on the "still to pay" list, and counted as paid.
+        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $this->assertSame(0, $res->viewData('missingPay')->count());
+        $this->assertSame(1, $res->viewData('completedCount'));
+        $this->assertSame(1, $res->viewData('paidCount'));
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_drivers_cannot_touch_payroll(): void

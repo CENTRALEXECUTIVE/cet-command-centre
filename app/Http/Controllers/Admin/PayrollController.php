@@ -73,8 +73,12 @@ class PayrollController extends Controller
         // cancelled/no-show) rather than status === Complete, because the office
         // works off the calendar and rarely hand-marks a job Complete — so this
         // now surfaces EVERY job still needing a pay amount, matching "still to pay".
+        // Cash jobs settle with the driver directly (customer pays them on the
+        // day), so the business never sets a pay figure for them — they must NOT
+        // appear on the "still to pay" list.
         $missingPay = $bookings
             ->filter(fn (Booking $b) => $b->driverPay() === null
+                && ! $b->driverSettledByCustomer()
                 && $b->status !== BookingStatus::NoShow
                 && $b->pickup_at && $b->pickup_at->lte(now())
                 && ($b->driver_id || isset($b->meta['driver_details']['name'])))
@@ -88,8 +92,11 @@ class PayrollController extends Controller
         $completed = $bookings->filter(fn (Booking $b) => $b->status !== BookingStatus::NoShow
             && $b->pickup_at && $b->pickup_at->lte(now()));
         $completedCount = $completed->count();
+        // A driver is "paid" for a job when it's a cash job (settled with the
+        // customer directly) OR pay is set and nothing remains.
         $paidCount = $completed
-            ->filter(fn (Booking $b) => $b->driverPay() !== null && ($b->driverPayRemaining() ?? 1) <= 0)
+            ->filter(fn (Booking $b) => $b->driverSettledByCustomer()
+                || ($b->driverPay() !== null && ($b->driverPayRemaining() ?? 1) <= 0))
             ->count();
 
         return view('admin.payroll.index', [

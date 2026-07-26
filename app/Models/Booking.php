@@ -866,15 +866,44 @@ class Booking extends Model
     }
 
     /**
-     * Cash jobs settle themselves: the customer hands the fare straight to the
+     * The cash the driver physically collects from the customer on the day, as a
+     * number (e.g. 90.00 from "Deposit £10 Paid – £90 Cash Due"). Null when the
+     * job is fully prepaid / card, i.e. there's nothing for the driver to collect.
+     * Mirrors driverCollectLine()'s parsing so the two never disagree.
+     */
+    public function cashDueToDriver(): ?float
+    {
+        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
+        if ($line !== '') {
+            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)
+                || preg_match('/(?:cash|collect|outstanding|balance|due)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
+                return (float) str_replace(',', '', $m[1]);
+            }
+            if (preg_match('/paid/i', $line)) {
+                return null; // curated line says fully paid — nothing to collect
+            }
+        }
+
+        // No usable line — an unpaid cash job means the whole fare is cash.
+        if (($this->payment_method?->value ?? null) === 'cash' && $this->payment_status !== 'paid') {
+            $amount = $this->final_price ?? $this->quoted_price;
+
+            return $amount ? (float) $amount : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Cash jobs settle themselves: the customer hands the balance straight to the
      * driver, so the driver already has their pay and the BUSINESS owes nothing.
-     * Only a job paid by CARD/account to the company leaves the business owing
-     * the driver. (In the rare case a "cash" job ends up paid by card, the
-     * payment method flips to card and this reverts to normal owing.)
+     * Covers pure-cash jobs AND part-deposit/cash jobs ("… £90 Cash Due"). Only a
+     * job paid entirely by CARD/account to the company leaves the business owing.
      */
     public function driverSettledByCustomer(): bool
     {
-        return ($this->payment_method?->value ?? null) === 'cash';
+        return ($this->payment_method?->value ?? null) === 'cash'
+            || $this->cashDueToDriver() !== null;
     }
 
     /**

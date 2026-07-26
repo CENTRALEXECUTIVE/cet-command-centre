@@ -369,24 +369,43 @@
         @php $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining(); @endphp
         <div id="payroll" class="card" style="scroll-margin-top:16px;{{ ($left !== null && $left > 0) ? 'border-left:4px solid #FBBA2A' : '' }}">
             <h2>Driver payroll — {{ $booking->payrollDriverName() }}</h2>
+            @if($booking->driverSettledByCustomer())
+                {{-- Cash job: the customer pays the driver directly on the day.
+                     Nothing to set, nothing owed by the business. --}}
+                @php $cash = $booking->cashDueToDriver(); @endphp
+                <p style="margin:0 0 6px">
+                    <span class="badge badge-complete">Cash job — settled with the driver</span>
+                </p>
+                <p class="muted" style="margin:0 0 4px">
+                    The driver collects @if($cash)<strong>£{{ number_format($cash, 2) }}</strong>@else the cash @endif from the customer directly on the day.
+                    <strong>Nothing is owed by the business</strong> — no pay to set here.
+                </p>
+                <details style="margin-top:8px">
+                    <summary class="muted" style="font-size:12px;cursor:pointer">Business is paying this driver something on top? Set it here</summary>
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;margin-top:8px">
+                        @csrf
+                        <input type="hidden" name="action" value="set">
+                        <div class="field" style="margin:0">
+                            <label for="pay-amount" style="font-size:12px">Extra the business pays (£)</label>
+                            <input id="pay-amount" name="amount" type="number" step="0.01" min="0" value="{{ $pay }}" required style="width:130px">
+                        </div>
+                        <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Set</button>
+                    </form>
+                </details>
+            @else
             @if($pay === null)
                 <p class="muted" style="margin:0 0 10px">No driver pay set for this job yet.</p>
             @else
                 <table style="max-width:420px">
                     <tr><th>Job pays</th><td>£{{ number_format($pay, 2) }}</td></tr>
-                    @if($booking->driverSettledByCustomer())
-                        <tr><th>Settled</th><td><span class="badge badge-complete">Cash — paid by customer</span></td></tr>
-                        <tr><th>Business owes</th><td><span class="muted">£0.00 — nothing sent from the business</span></td></tr>
-                    @else
-                        <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
-                        <tr><th>Remaining</th><td>
-                            @if($left > 0)
-                                <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
-                            @else
-                                <span class="badge badge-complete">Paid in full</span>
-                            @endif
-                        </td></tr>
-                    @endif
+                    <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
+                    <tr><th>Remaining</th><td>
+                        @if($left > 0)
+                            <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
+                        @else
+                            <span class="badge badge-complete">Paid in full</span>
+                        @endif
+                    </td></tr>
                 </table>
             @endif
 
@@ -417,6 +436,7 @@
                     </form>
                 @endif
             </div>
+            @endif {{-- driverSettledByCustomer --}}
 
             @if($booking->driverPayHistory() !== [])
                 <details style="margin-top:10px">
