@@ -201,12 +201,13 @@
         <a href="{{ route('review.index') }}" class="btn btn-light" style="padding:9px 16px">Review</a>
     </div>
 
-    {{-- Driver status strip --}}
+    {{-- Driver status — collapsed by default so it doesn't eat the homepage;
+         the same view lives on Dispatch and the Live map. Tap to expand. --}}
     @if(!empty($driverStatus))
         @php $chip = ['available' => ['#1f7a44','🟢','Available'], 'on-job' => ['#2a6bb0','🔵','On a job'], 'blocked' => ['#b32020','🔴','Blocked'], 'off' => ['#888','⚪','Off']]; @endphp
-        <div class="card" style="margin-bottom:16px">
-            <h2 style="margin:0 0 10px">Drivers</h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <details class="card" style="margin-bottom:16px">
+            <summary style="cursor:pointer;font-weight:600">Drivers <span class="muted" style="font-weight:400">· {{ count($driverStatus) }}</span></summary>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
                 @foreach($driverStatus as $d)
                     @php $c = $chip[$d['status']]; @endphp
                     <div title="{{ $d['reason'] ?? ($d['next'] ? 'Next: '.$d['next']->format('D H:i') : 'No upcoming jobs') }}"
@@ -216,7 +217,7 @@
                     </div>
                 @endforeach
             </div>
-        </div>
+        </details>
     @endif
 
     {{-- Today's schedule --}}
