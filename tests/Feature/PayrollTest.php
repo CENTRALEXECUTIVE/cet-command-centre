@@ -281,6 +281,40 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_a_cash_job_paid_by_card_to_the_business_flips_to_the_business_owing(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Majid Ali']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+        ]);
+
+        // Starts settled with the driver (normal cash job).
+        $this->assertTrue($booking->driverSettledByCustomer());
+
+        // Office marks it: actually paid by card to the business.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'company_collected', 'collected' => '1'])
+            ->assertRedirect();
+        $booking = $booking->fresh();
+
+        $this->assertTrue($booking->businessCollectedCash());
+        $this->assertFalse($booking->driverSettledByCustomer()); // business owes now
+
+        // Set the pay — it's owed by the business, just like a card job.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '45'])
+            ->assertRedirect();
+        $this->assertSame(45.0, $booking->fresh()->driverPayRemaining());
+
+        // Undo → back to cash-settled.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'company_collected', 'collected' => '0'])
+            ->assertRedirect();
+        $this->assertTrue($booking->fresh()->driverSettledByCustomer());
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();

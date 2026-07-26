@@ -380,6 +380,13 @@
                     The driver collects @if($cash)<strong>£{{ number_format($cash, 2) }}</strong>@else the cash @endif from the customer directly on the day.
                     <strong>Nothing is owed by the business</strong> — no pay to set here.
                 </p>
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin-top:8px">
+                    @csrf
+                    <input type="hidden" name="action" value="company_collected">
+                    <input type="hidden" name="collected" value="1">
+                    <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px">This one was paid by card to the business →</button>
+                    <span class="muted" style="font-size:12px">(customer tapped a card in the car — the business then owes the driver)</span>
+                </form>
                 <details style="margin-top:8px">
                     <summary class="muted" style="font-size:12px;cursor:pointer">Business is paying this driver something on top? Set it here</summary>
                     <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;margin-top:8px">
@@ -393,6 +400,17 @@
                     </form>
                 </details>
             @else
+            @if($booking->businessCollectedCash())
+                <p class="muted" style="margin:0 0 8px">
+                    💳 Paid by card to the business — the business owes the driver their pay.
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:inline">
+                        @csrf
+                        <input type="hidden" name="action" value="company_collected">
+                        <input type="hidden" name="collected" value="0">
+                        <button class="btn-link" style="background:none;border:0;padding:0;color:#b8860b;cursor:pointer;font-size:12px;text-decoration:underline">undo — it was cash to the driver</button>
+                    </form>
+                </p>
+            @endif
             @if($pay === null)
                 <p class="muted" style="margin:0 0 10px">No driver pay set for this job yet.</p>
             @else

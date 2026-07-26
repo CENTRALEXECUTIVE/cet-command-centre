@@ -562,11 +562,28 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'action' => ['required', 'in:set,record,tip'],
-            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'action' => ['required', 'in:set,record,tip,company_collected'],
+            'amount' => ['required_unless:action,company_collected', 'numeric', 'min:0', 'max:100000'],
             'method' => ['required_if:action,tip', 'in:cash,card'],
             'note' => ['nullable', 'string', 'max:200'],
+            'collected' => ['nullable', 'boolean'],
         ]);
+
+        // The 0.01% cash exception: the customer paid the BUSINESS by card, so the
+        // business owes the driver. Toggle it and stop here — the office then sets
+        // the pay amount as for any card job. Reverting restores cash-settled.
+        if ($data['action'] === 'company_collected') {
+            $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+            $on = $request->boolean('collected');
+            $payroll['company_collected'] = $on;
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
+
+            $status = $on
+                ? 'Marked as paid by card to the business — the business now owes '.$booking->payrollDriverName().' their pay. Set the amount below.'
+                : 'Reverted to a cash job settled with the driver.';
+
+            return $this->afterPayroll($request, $booking)->with('status', $status);
+        }
 
         // A gratuity for the driver — kept in the booking_tips ledger, separate
         // from job pay and safe from any meta rewrite.

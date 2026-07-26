@@ -895,13 +895,29 @@ class Booking extends Model
     }
 
     /**
+     * The rare 0.01%: a job set up as cash where the customer actually paid the
+     * BUSINESS by card (e.g. tapped a card in the car). The business collected
+     * the money, so it owes the driver their pay — this job is NOT settled with
+     * the driver. Set by the office from the booking's payroll section.
+     */
+    public function businessCollectedCash(): bool
+    {
+        return (bool) ($this->meta['payroll']['company_collected'] ?? false);
+    }
+
+    /**
      * Cash jobs settle themselves: the customer hands the balance straight to the
      * driver, so the driver already has their pay and the BUSINESS owes nothing.
      * Covers pure-cash jobs AND part-deposit/cash jobs ("… £90 Cash Due"). Only a
-     * job paid entirely by CARD/account to the company leaves the business owing.
+     * job paid entirely by CARD/account to the company leaves the business owing —
+     * including a cash job the office has flagged as paid-by-card-to-the-business.
      */
     public function driverSettledByCustomer(): bool
     {
+        if ($this->businessCollectedCash()) {
+            return false;
+        }
+
         return ($this->payment_method?->value ?? null) === 'cash'
             || $this->cashDueToDriver() !== null;
     }
