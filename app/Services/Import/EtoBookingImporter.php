@@ -81,7 +81,8 @@ class EtoBookingImporter
 
         $reference = $this->clean($data['Reference number'] ?? '');
         $existing = $reference
-            ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+            ? (Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+                ?? Booking::resolveByReference($reference))
             : null;
 
         // The ETO export is the authoritative FINANCIAL record. If we already
@@ -187,7 +188,8 @@ class EtoBookingImporter
             return 'skipped';
         }
         $reference = $this->clean($data['Reference number'] ?? '');
-        if ($reference && Booking::where('source_system', 'eto')->where('external_reference', $reference)->exists()) {
+        if ($reference && (Booking::where('source_system', 'eto')->where('external_reference', $reference)->exists()
+            || Booking::resolveByReference($reference))) {
             return 'updated'; // existing booking → financials will be refreshed
         }
         $this->resolveVehicleType($data['Vehicle type'] ?? ''); // throws if unmappable

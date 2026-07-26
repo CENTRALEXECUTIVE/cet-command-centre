@@ -38,6 +38,11 @@ class CalendarJobImporter
                 ->orWhere('reference', $parsed['reference'])->first()) {
                 return $byRef;
             }
+            // A reference merged into another booking must resolve to the survivor
+            // rather than spawn a fresh duplicate off the calendar event.
+            if ($byAlias = Booking::resolveByReference($parsed['reference'])) {
+                return $byAlias;
+            }
         }
 
         // No reference (or unmatched) → the event carries no id we know. Fall back

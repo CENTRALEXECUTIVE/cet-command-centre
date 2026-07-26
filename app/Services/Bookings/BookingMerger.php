@@ -78,24 +78,56 @@ class BookingMerger
             $fill['meta']['driver_link_aliases'] = array_values($aliases);
         }
 
+        // Remember EVERY reference this survivor now answers to. A later import
+        // keyed by the merged-away reference must update THIS booking, not
+        // re-create the duplicate and split them apart again. The reference that
+        // ends up as the survivor's own external_reference isn't aliased.
+        $finalRef = trim((string) ($fill['external_reference'] ?? $keep->external_reference));
+        $refAliases = (array) ($fill['meta']['merged_references'] ?? []);
+        $carryRefs = array_merge(
+            [$dupe->external_reference, $keep->external_reference],
+            (array) ($dupe->meta['merged_references'] ?? []),
+            (array) ($keep->meta['merged_references'] ?? []),
+        );
+        foreach ($carryRefs as $ref) {
+            $ref = trim((string) $ref);
+            if ($ref !== '' && $ref !== $finalRef && ! in_array($ref, $refAliases, true)) {
+                $refAliases[] = $ref;
+            }
+        }
+        if ($refAliases) {
+            $fill['meta']['merged_references'] = array_values($refAliases);
+        }
+
         $keep->forceFill($fill)->save();
 
         $this->collapseDuplicateQueuedMessages($keep);
     }
 
     /**
-     * After folding two bookings together the survivor can hold two still-queued
-     * reminders (or review requests) of the same type — one from each copy. Keep
-     * one per type and drop the rest, so the office isn't shown (or doesn't send)
-     * the same nudge twice. Sent history is left untouched.
+     * After folding two bookings together the survivor can hold duplicate queued
+     * messages of the same type — one from each copy. Two rules, per type:
+     *   - if that type was ALREADY SENT on either copy, drop every queued one —
+     *     the customer/driver was already messaged, so don't ask again (this is
+     *     what re-asked a customer for a review after a merge);
+     *   - otherwise keep a single queued message and drop the rest.
+     * Sent history itself is left untouched.
      */
     private function collapseDuplicateQueuedMessages(Booking $keep): void
     {
-        $keep->messages()
-            ->where('status', 'queued')
-            ->get()
+        $all = $keep->messages()->get();
+        $sentTypes = $all->where('status', 'sent')->pluck('type')->unique();
+
+        $all->where('status', 'queued')
             ->groupBy('type')
-            ->each(function ($group): void {
+            ->each(function ($group, $type) use ($sentTypes): void {
+                // Already sent this type → no queued copy should remain.
+                if ($sentTypes->contains($type)) {
+                    $group->each(fn (Message $m) => $m->delete());
+
+                    return;
+                }
+                // Otherwise keep the first, drop any duplicates.
                 $group->sortBy('id')->slice(1)->each(fn (Message $m) => $m->delete());
             });
     }

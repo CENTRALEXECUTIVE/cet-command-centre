@@ -73,7 +73,8 @@ class OutlookBookingService
         foreach ($parsedList as $parsed) {
             $reference = $parsed['reference'] ?? null;
             $existing = $reference
-                ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+                ? (Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+                    ?? Booking::resolveByReference($reference))
                 : null;
 
             // A finished job is locked — never re-write a completed/cancelled/
@@ -171,7 +172,8 @@ class OutlookBookingService
         $reference = $parsed['reference'] ?? null;
 
         $existing = $reference
-            ? Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+            ? (Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+                ?? Booking::resolveByReference($reference))
             : null;
 
         // Cancellation.

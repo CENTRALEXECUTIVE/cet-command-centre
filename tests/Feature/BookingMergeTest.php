@@ -115,6 +115,63 @@ class BookingMergeTest extends TestCase
         $this->get(route('driver.link', $dupeToken))->assertOk();
     }
 
+    public function test_a_merged_away_reference_resolves_to_the_survivor_so_it_is_never_re_split(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::factory()->create(['phone' => '+447700900123']);
+        $at = now()->addDay()->setTime(13, 45);
+
+        // Two copies of one journey with DIFFERENT references. We keep this one.
+        $keep = $this->booking([
+            'customer_id' => $customer->id, 'pickup_at' => $at, 'external_reference' => 'ETO-1000',
+        ]);
+        $dupe = $this->booking([
+            'customer_id' => $customer->id, 'pickup_at' => $at, 'external_reference' => 'ETO-2000',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('bookings.merge', $keep), ['dupe_id' => $dupe->id])
+            ->assertRedirect(route('bookings.show', $keep));
+
+        // The survivor keeps its own reference AND answers to the merged-away one,
+        // so a later import keyed by 'ETO-2000' finds THIS booking — not a new one.
+        $survivor = $keep->fresh();
+        $this->assertSame('ETO-1000', $survivor->external_reference);
+        $this->assertTrue(Booking::resolveByReference('ETO-2000')->is($survivor));
+        $this->assertTrue(Booking::resolveByReference('ETO-1000')->is($survivor));
+    }
+
+    public function test_merging_never_re_asks_for_a_review_already_sent_on_the_other_copy(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = Customer::factory()->create(['phone' => '+447700900123']);
+        $at = now()->subDay()->setTime(13, 45);
+
+        $keep = $this->booking(['customer_id' => $customer->id, 'pickup_at' => $at]);
+        $dupe = $this->booking(['customer_id' => $customer->id, 'pickup_at' => $at]);
+
+        // The dupe already had its review request SENT; the kept copy still has a
+        // review QUEUED. After the merge the queued one must be dropped.
+        \App\Models\Message::create([
+            'booking_id' => $dupe->id, 'customer_id' => $customer->id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'review_request',
+            'to_address' => $customer->phone, 'body' => 'review', 'status' => 'sent', 'sent_at' => now()->subHour(),
+        ]);
+        \App\Models\Message::create([
+            'booking_id' => $keep->id, 'customer_id' => $customer->id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'review_request',
+            'to_address' => $customer->phone, 'body' => 'review', 'status' => 'queued',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('bookings.merge', $keep), ['dupe_id' => $dupe->id])
+            ->assertRedirect(route('bookings.show', $keep));
+
+        // No queued review left — only the already-sent one survives.
+        $this->assertSame(0, \App\Models\Message::where('type', 'review_request')->where('status', 'queued')->count());
+        $this->assertSame(1, \App\Models\Message::where('type', 'review_request')->where('status', 'sent')->count());
+    }
+
     public function test_it_refuses_to_merge_two_unrelated_bookings(): void
     {
         $admin = User::factory()->admin()->create();

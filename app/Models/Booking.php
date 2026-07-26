@@ -262,6 +262,39 @@ class Booking extends Model
                 || in_array($token, (array) ($b->meta['driver_link_aliases'] ?? []), true));
     }
 
+    /**
+     * The booking that owns this external/ETO reference — matching the live
+     * external_reference OR a reference that was previously MERGED into this
+     * booking (meta['merged_references']). Every import path uses this so a
+     * reference already folded into another booking updates THAT booking instead
+     * of being re-created as a fresh duplicate ("don't separate them again").
+     */
+    public static function resolveByReference(?string $reference): ?self
+    {
+        $reference = trim((string) $reference);
+        if ($reference === '') {
+            return null;
+        }
+
+        // Live reference first (indexed, fast).
+        if ($found = static::where('external_reference', $reference)->first()) {
+            return $found;
+        }
+
+        // A merged-away reference carried as an alias on the survivor.
+        try {
+            if ($found = static::whereJsonContains('meta->merged_references', $reference)->first()) {
+                return $found;
+            }
+        } catch (\Throwable) {
+            // JSON query unsupported — fall through to the PHP scan.
+        }
+
+        return static::where('meta', 'like', '%"'.$reference.'"%')
+            ->get()
+            ->first(fn (self $b) => in_array($reference, (array) ($b->meta['merged_references'] ?? []), true));
+    }
+
     /** When the office last asked the driver to share their location. */
     public function locationRequestedAt(): ?\Illuminate\Support\Carbon
     {

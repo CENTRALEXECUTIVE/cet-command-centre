@@ -95,7 +95,8 @@ class EtoAuditService
     private function check(string $ref, array $row, bool $flag): array
     {
         $name = $this->clean($row['Lead passenger name'] ?? '') ?: $this->clean($row['Passenger name'] ?? '') ?: '—';
-        $booking = Booking::where('external_reference', $ref)->with('calendarEvent')->first();
+        $booking = Booking::where('external_reference', $ref)->with('calendarEvent')->first()
+            ?? Booking::resolveByReference($ref)?->load('calendarEvent');
 
         if (! $booking) {
             return [
