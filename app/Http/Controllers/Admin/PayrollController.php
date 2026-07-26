@@ -73,15 +73,17 @@ class PayrollController extends Controller
         // cancelled/no-show) rather than status === Complete, because the office
         // works off the calendar and rarely hand-marks a job Complete — so this
         // now surfaces EVERY job still needing a pay amount, matching "still to pay".
-        // Cash jobs settle with the driver directly (customer pays them on the
-        // day), so the business never sets a pay figure for them — they must NOT
-        // appear on the "still to pay" list.
+        // Every completed job that still needs a pay figure — the "fill these in"
+        // list. Cash jobs settle with the driver directly (customer pays them on
+        // the day) so they never need a figure and are excluded. We DON'T require
+        // a driver to be assigned: pre-Command-Centre imports often have no driver
+        // yet, and the office still wants to fill their pay in (they show as
+        // "Unassigned" and can be opened to attach a driver).
         $missingPay = $bookings
             ->filter(fn (Booking $b) => $b->driverPay() === null
                 && ! $b->driverSettledByCustomer()
                 && $b->status !== BookingStatus::NoShow
-                && $b->pickup_at && $b->pickup_at->lte(now())
-                && ($b->driver_id || isset($b->meta['driver_details']['name'])))
+                && $b->pickup_at && $b->pickup_at->lte(now()))
             ->sortBy('pickup_at')
             ->values();
 

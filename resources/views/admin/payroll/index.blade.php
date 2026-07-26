@@ -6,12 +6,14 @@
         <div>
             <h1 class="page-title" style="margin-bottom:2px">Driver payroll</h1>
             <p class="page-sub">Who's been paid, and what's still owed, for {{ $month->format('F Y') }}. Pay is set on each booking.</p>
-            @php $outstanding = max(0, $completedCount - $paidCount); @endphp
             <p style="margin:6px 0 0;font-weight:600">
                 <span class="mono">{{ $completedCount }}</span> job{{ $completedCount === 1 ? '' : 's' }} completed this month ·
-                <span style="color:#1f7a44">{{ $paidCount }} driver paid</span>@if($outstanding > 0) ·
-                <span style="color:#b8860b">{{ $outstanding }} still to pay</span>@endif
+                <span style="color:#1f7a44">{{ $paidCount }} driver paid</span>@if($missingPay->count() > 0) ·
+                <a href="#missing-pay" style="color:#b8860b;text-decoration:none">{{ $missingPay->count() }} still need pay set →</a>@endif
             </p>
+            @if($totals['remaining'] > 0)
+                <p class="hint" style="margin:2px 0 0">…plus <a href="{{ route('payroll.index', ['month' => $month->format('Y-m'), 'filter' => 'owed']) }}" style="color:#b8860b">£{{ number_format($totals['remaining'], 2) }} still owed</a> on jobs that already have pay set.</p>
+            @endif
         </div>
         <form method="GET" action="{{ route('payroll.index') }}">
             <input type="month" name="month" value="{{ $month->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">

@@ -315,6 +315,27 @@ class PayrollTest extends TestCase
         $this->assertTrue($booking->fresh()->driverSettledByCustomer());
     }
 
+    public function test_completed_jobs_with_no_driver_still_show_on_the_fill_in_list(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+
+        // A pre-Command-Centre import: ran this month, no driver, no pay set.
+        // The office still wants to fill it in — it must show on the list.
+        Booking::factory()->create([
+            'driver_id' => null,
+            'pickup_at' => '2026-07-05 10:00',
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $this->assertSame(1, $res->viewData('missingPay')->count());
+        // Header count matches the list exactly.
+        $res->assertSee('1 still need pay set');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();
