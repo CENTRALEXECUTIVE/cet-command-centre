@@ -96,6 +96,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
 
     // Amend / cancel an existing booking + customer comms (admin only).
     Route::middleware('role:admin')->group(function () {
+        // CSV export of the current list view (registered before the {booking}
+        // wildcard so "export" isn't mistaken for a booking id).
+        Route::get('bookings/export', [BookingController::class, 'export'])->middleware('throttle:12,1')->name('bookings.export');
         Route::get('bookings/{booking}/edit', [BookingController::class, 'edit'])->name('bookings.edit');
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');

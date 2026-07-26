@@ -57,12 +57,37 @@
                 <input id="bk-month" type="month" name="month"
                        value="{{ $month?->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
             </form>
+            @if(auth()->user()->isAdmin())
+                @php $exportParams = array_filter(['month' => $month?->format('Y-m'), 'filter' => empty($month) ? ($filter ?? null) : null, 'status' => $statusFilter ?: null, 'q' => $q ?: null]); @endphp
+                <a href="{{ route('bookings.export', $exportParams) }}" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;white-space:nowrap" title="Download this view as CSV">⬇ Export</a>
+            @endif
         </div>
     </div>
     @if(!empty($month))
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} in <strong>{{ $month->format('F Y') }}</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
     @elseif(($filter ?? '') === 'booked-today')
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} that came in <strong>today</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
+    @endif
+
+    {{-- Needs attention: unallocated soon, flagged duplicate, or audit issue. --}}
+    @if(!empty($attention) && $attention->isNotEmpty())
+        <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin:14px 0 0;padding:12px 14px">
+            <strong>⚠ Needs attention <span class="muted">({{ $attention->count() }})</span></strong>
+            <div style="margin-top:6px">
+                @foreach($attention as $item)
+                    @php $ab = $item['booking']; @endphp
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid rgba(128,128,128,.12)">
+                        <a href="{{ route('bookings.show', $ab) }}" class="mono">{{ $ab->reference }}</a>
+                        <span style="flex:1;min-width:160px">{{ $ab->displayCustomerName() }} <span class="muted">· {{ $ab->pickup_at->format('D d M, H:i') }}@if($ab->airport?->code) · ✈ {{ $ab->airport->code }}@endif</span></span>
+                        @foreach($item['reasons'] as $r)
+                            @if($r === 'unallocated')<span class="badge" style="background:#b32020;color:#fff">Unallocated</span>
+                            @elseif($r === 'duplicate')<a href="{{ route('bookings.show', $ab) }}#duplicate" class="badge" style="background:#8a5a00;color:#fff;text-decoration:none">⑂ dup?</a>
+                            @elseif($r === 'audit')<span class="badge" style="background:#8a5a00;color:#fff">⚠ audit</span>@endif
+                        @endforeach
+                    </div>
+                @endforeach
+            </div>
+        </div>
     @endif
 
     @if($bookings->isEmpty())
@@ -88,7 +113,8 @@
         <div class="bk-list">
             @foreach($grouped as $day => $dayBookings)
                 <div class="bk-day">
-                    <div class="bk-day-label">{{ $dayLabel($day) }} <span class="bk-day-count">{{ $dayBookings->count() }}</span></div>
+                    @php $dayTakings = $dayBookings->sum(fn ($b) => $b->fareAmount() ?? 0); @endphp
+                    <div class="bk-day-label">{{ $dayLabel($day) }} <span class="bk-day-count">{{ $dayBookings->count() }}</span>@if($dayTakings > 0 && (auth()->user()->isAdmin() || auth()->user()->isCorporateClient()))<span class="muted" style="font-weight:500;margin-left:6px">· £{{ number_format($dayTakings, 0) }}</span>@endif</div>
 
                     @foreach($dayBookings as $b)
                         <a href="{{ route('bookings.show', $b) }}" class="bk-card s-{{ $b->status->value }}">
@@ -105,7 +131,8 @@
                                         <span title="Flagged by ETO audit — {{ implode('; ', $b->meta['audit_issues']) }}">⚠</span>
                                     @endif
                                     @if($b->looksDuplicated())
-                                        <span title="Possible duplicate — another booking looks like the same journey" style="color:#b32020;font-weight:700">⑂ dup?</span>
+                                        <span title="Possible duplicate — tap to review &amp; merge" style="color:#b32020;font-weight:700;cursor:pointer"
+                                              onclick="event.preventDefault();event.stopPropagation();window.location='{{ route('bookings.show', $b) }}#duplicate'">⑂ dup?</span>
                                     @endif
                                 </div>
                                 <div class="bk-route">{{ Str::limit($b->displayPickupAddress(), 26) }} <span class="arr">→</span> {{ Str::limit($b->displayDropoffAddress(), 26) }}</div>
@@ -119,6 +146,10 @@
 
                             <div class="bk-side">
                                 <span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span>
+                                @if(auth()->user()->isAdmin() && $b->driverWhatsAppLink())
+                                    <span class="bk-edit" title="WhatsApp {{ $b->driver?->name ?? 'the driver' }}"
+                                          onclick="event.preventDefault();event.stopPropagation();window.open('{{ $b->driverWhatsAppLink() }}','_blank','noopener')">💬 Driver</span>
+                                @endif
                                 @if(auth()->user()->isAdmin() && ! $b->status->isTerminal())
                                     <span class="bk-edit" title="Edit booking"
                                           onclick="event.preventDefault();event.stopPropagation();window.location='{{ route('bookings.edit', $b) }}'">✏️ Edit</span>

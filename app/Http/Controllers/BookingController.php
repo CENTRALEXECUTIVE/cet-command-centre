@@ -39,6 +39,53 @@ class BookingController extends Controller
             return redirect()->route('driver.jobs');
         }
 
+        // Sticky memory: remember the last time-filter + status the operator
+        // chose, and restore them when they land on /bookings bare (from the nav)
+        // by redirecting to the canonical URL so pagination/links stay consistent.
+        if ($request->filled('filter')) {
+            session(['bookings.filter' => $request->query('filter')]);
+        }
+        if ($request->has('status')) {
+            session(['bookings.status' => (string) $request->query('status')]);
+        }
+        if (! $request->hasAny(['filter', 'month', 'q', 'status', 'page'])
+            && (session('bookings.filter') || session('bookings.status'))) {
+            return redirect()->route('bookings.index', array_filter([
+                'filter' => session('bookings.filter'),
+                'status' => session('bookings.status') ?: null,
+            ]));
+        }
+
+        ['query' => $query, 'q' => $q, 'month' => $month, 'filter' => $filter, 'statusFilter' => $statusFilter]
+            = $this->applyBookingFilters($request);
+
+        $bookings = $query->paginate(30)->withQueryString();
+
+        // Remember this exact list view so a booking page can send the operator
+        // straight back to where they were (same month/filter/search/page).
+        session(['bookings.return_url' => $request->fullUrl()]);
+
+        return view('bookings.index', [
+            'bookings' => $bookings,
+            'q' => $q,
+            'filter' => $filter,
+            'month' => $month,
+            'statusFilter' => $statusFilter,
+            'attention' => $this->attentionItems($request, $q, $month, $statusFilter),
+        ]);
+    }
+
+    /**
+     * Build the bookings query from the request (search + time/month scope +
+     * status filter). Shared by the list and the CSV export so the two never
+     * disagree. Returns the query plus the resolved context for the view.
+     *
+     * @return array{query: \Illuminate\Database\Eloquent\Builder, q: string, month: ?Carbon, filter: string, statusFilter: ?string}
+     */
+    private function applyBookingFilters(Request $request): array
+    {
+        $user = $request->user();
+
         $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent']);
 
         // Corporate clients only ever see their own account's bookings.
@@ -96,19 +143,90 @@ class BookingController extends Controller
             $query->where('status', '!=', BookingStatus::Cancelled->value);
         }
 
-        $bookings = $query->paginate(30)->withQueryString();
+        return compact('query', 'q', 'month', 'filter', 'statusFilter');
+    }
 
-        // Remember this exact list view so a booking page can send the operator
-        // straight back to where they were (same month/filter/search/page).
-        session(['bookings.return_url' => $request->fullUrl()]);
+    /**
+     * Ops "needs attention" pins for the top of the list (admins only, on the
+     * live browse view): jobs unallocated within 2h of pickup, flagged by the
+     * ETO audit, or looking like a duplicate. Bounded to the next few days.
+     *
+     * @return \Illuminate\Support\Collection<int, array{booking: Booking, reasons: array<int, string>}>
+     */
+    private function attentionItems(Request $request, string $q, ?Carbon $month, ?string $statusFilter): \Illuminate\Support\Collection
+    {
+        // Only on the plain live view, and only for admins.
+        if ($q !== '' || $month || $statusFilter || ! $request->user()->isAdmin()) {
+            return collect();
+        }
 
-        return view('bookings.index', [
-            'bookings' => $bookings,
-            'q' => $q,
-            'filter' => $filter,
-            'month' => $month,
-            'statusFilter' => $statusFilter,
-        ]);
+        return Booking::with(['customer', 'driver', 'vehicleType', 'airport'])
+            ->whereNotIn('status', [
+                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
+            ])
+            ->whereBetween('pickup_at', [now(), now()->addDays(3)])
+            ->orderBy('pickup_at')
+            ->limit(80)
+            ->get()
+            ->map(function (Booking $b) {
+                $reasons = [];
+                if (! $b->driver_id && $b->pickup_at->lte(now()->addHours(2))) {
+                    $reasons[] = 'unallocated';
+                }
+                if (! empty($b->meta['audit_issues'])) {
+                    $reasons[] = 'audit';
+                }
+                if ($b->looksDuplicated()) {
+                    $reasons[] = 'duplicate';
+                }
+
+                return ['booking' => $b, 'reasons' => $reasons];
+            })
+            ->filter(fn ($x) => $x['reasons'] !== [])
+            ->take(10)
+            ->values();
+    }
+
+    /**
+     * CSV export of exactly the current list view (same month/filter/status/
+     * search). For payroll and accounts — one button, one file.
+     */
+    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        ['query' => $query, 'month' => $month, 'filter' => $filter] = $this->applyBookingFilters($request);
+
+        $tag = $month ? $month->format('Y-m') : ($filter ?: 'list');
+        $filename = 'cet-bookings-'.$tag.'-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Date', 'Time', 'Ref', 'ETO Ref', 'Customer', 'Pickup', 'Drop-off',
+                'Vehicle', 'Driver', 'Pax', 'Status', 'Fare', 'Payment']);
+
+            $query->chunk(200, function ($rows) use ($out) {
+                foreach ($rows as $b) {
+                    fputcsv($out, [
+                        $b->pickup_at?->format('Y-m-d'),
+                        $b->pickup_at?->format('H:i'),
+                        $b->reference,
+                        $b->external_reference,
+                        $b->displayCustomerName(),
+                        $b->displayPickupAddress(),
+                        $b->displayDropoffAddress(),
+                        $b->displayVehicleType(),
+                        $b->driver?->name ?? ($b->meta['driver_details']['name'] ?? 'Unassigned'),
+                        $b->passengerCount(),
+                        $b->status->label(),
+                        $b->fareAmount(),
+                        $b->payment_method?->label(),
+                    ]);
+                }
+            });
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function create(Request $request): View

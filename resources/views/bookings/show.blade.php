@@ -45,7 +45,7 @@
     @if(auth()->user()->isAdmin())
         @php $dupes = $booking->duplicateCandidates(); @endphp
         @if($dupes->isNotEmpty())
-            <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
+            <div id="duplicate" class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px;scroll-margin-top:16px">
                 <strong>⚠ Possible duplicate booking</strong>
                 <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off). Keep <strong>this</strong> copy and merge the other in — its driver, tips, calendar link and any missing details fold into this one, then it’s removed. <strong>Your Google Calendar isn’t touched.</strong></p>
                 @foreach($dupes as $d)

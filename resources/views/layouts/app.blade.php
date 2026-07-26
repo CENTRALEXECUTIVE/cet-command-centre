@@ -132,10 +132,20 @@
                 </a>
                 <form method="GET" action="{{ route('bookings.index') }}" role="search"
                       style="flex:1;max-width:340px;margin:0 12px;min-width:110px">
-                    <input type="search" name="q" value="{{ request('q') }}" placeholder="🔍 Search bookings…"
+                    <input type="search" id="global-search" name="q" value="{{ request('q') }}" placeholder="🔍 Search bookings…  ( / )"
                            aria-label="Search bookings"
                            style="width:100%;padding:7px 12px;border:1px solid rgba(128,128,128,.4);border-radius:8px;font-size:13px;background:#fff;color:#111">
                 </form>
+                <script>
+                    // Press "/" anywhere (outside a field) to jump to search.
+                    document.addEventListener('keydown', function (e) {
+                        if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+                        var t = e.target, tag = (t.tagName || '').toLowerCase();
+                        if (tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable) return;
+                        var box = document.getElementById('global-search');
+                        if (box) { e.preventDefault(); box.focus(); box.select(); }
+                    });
+                </script>
             @endif
             <div class="topbar-user">
                 <button type="button" class="theme-toggle" id="theme-toggle" title="Switch light / dark mode">🌙</button>

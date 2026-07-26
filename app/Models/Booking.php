@@ -444,6 +444,25 @@ class Booking extends Model
         return $this->duplicateCandidates()->isNotEmpty();
     }
 
+    /** The fare for this job (agreed final, else the quote), or null. */
+    public function fareAmount(): ?float
+    {
+        $amount = $this->final_price ?? $this->quoted_price;
+
+        return $amount !== null ? (float) $amount : null;
+    }
+
+    /**
+     * A wa.me deep link to message THIS job's driver (admin-side — the office
+     * has the driver's real number). Null when there's no usable driver number.
+     */
+    public function driverWhatsAppLink(): ?string
+    {
+        $wa = \App\Support\Phone::wa($this->driver?->phone ?? ($this->meta['driver_details']['phone'] ?? null));
+
+        return $wa ? 'https://wa.me/'.$wa : null;
+    }
+
     /**
      * If this job is completed but has NO review request, explain why (so the
      * office isn't left wondering). Returns null when a review exists, the job

@@ -128,6 +128,60 @@ class BookingTest extends TestCase
             ->assertSee('month=2026-07', false);
     }
 
+    public function test_admin_can_export_the_current_view_as_csv(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Booking::factory()->create(['external_reference' => 'EXP1', 'pickup_at' => '2026-07-15 10:00', 'quoted_price' => 120]);
+        Booking::factory()->create(['external_reference' => 'AUGX', 'pickup_at' => '2026-08-01 10:00']);
+
+        $res = $this->actingAs($admin)->get(route('bookings.export', ['month' => '2026-07']))->assertOk();
+        $csv = $res->streamedContent();
+        $this->assertStringContainsString('Customer', $csv);   // header row
+        $this->assertStringContainsString('EXP1', $csv);       // in the month
+        $this->assertStringNotContainsString('AUGX', $csv);    // other month excluded
+    }
+
+    public function test_a_driver_cannot_export_bookings(): void
+    {
+        $driver = User::factory()->driver()->create();
+        $this->actingAs($driver)->get(route('bookings.export'))->assertForbidden();
+    }
+
+    public function test_unallocated_soon_appears_on_the_needs_attention_panel(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Booking::factory()->create([
+            'driver_id' => null, 'status' => \App\Enums\BookingStatus::Pending, 'pickup_at' => now()->addHour(),
+        ]);
+
+        $this->actingAs($admin)->get(route('bookings.index'))
+            ->assertOk()
+            ->assertSee('Needs attention')
+            ->assertSee('Unallocated');
+    }
+
+    public function test_the_list_offers_a_whatsapp_link_to_the_driver(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['phone' => '+447700900123']);
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => now()->addDay()]);
+
+        $this->actingAs($admin)->get(route('bookings.index'))
+            ->assertOk()
+            ->assertSee('wa.me/447700900123');
+    }
+
+    public function test_the_list_remembers_your_last_filter(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Choose the Past view…
+        $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'past']))->assertOk();
+        // …then land on /bookings bare → bounced back to the remembered filter.
+        $this->actingAs($admin)->get(route('bookings.index'))
+            ->assertRedirect(route('bookings.index', ['filter' => 'past']));
+    }
+
     public function test_bookings_list_can_show_what_came_in_today(): void
     {
         $admin = User::factory()->admin()->create();
