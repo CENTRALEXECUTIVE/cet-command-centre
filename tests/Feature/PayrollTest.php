@@ -281,6 +281,37 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_the_office_can_correct_and_confirm_the_cash_amount_on_a_cash_job(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Hamza']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid – £98 Cash Due']])->save();
+
+        // Parsed from the line to start with, not yet confirmed.
+        $this->assertSame(98.0, $booking->cashDueToDriver());
+        $this->assertFalse($booking->cashConfirmed());
+
+        // The office spots the real figure is £90 and confirms it.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'confirm_cash', 'amount' => '90'])
+            ->assertRedirect();
+        $booking = $booking->fresh();
+
+        $this->assertSame(90.0, $booking->cashDueToDriver()); // override wins
+        $this->assertTrue($booking->cashConfirmed());
+        $this->assertTrue($booking->driverSettledByCustomer());
+        $this->assertNull($booking->driverPayRemaining()); // no business pay figure — nothing owed
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('✓ Confirmed')
+            ->assertSee('value="90.00"', false);
+    }
+
     public function test_a_cash_job_paid_by_card_to_the_business_flips_to_the_business_owing(): void
     {
         $admin = User::factory()->admin()->create();

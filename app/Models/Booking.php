@@ -906,6 +906,12 @@ class Booking extends Model
      */
     public function cashDueToDriver(): ?float
     {
+        // An office-confirmed/corrected amount always wins over the parsed line.
+        $override = $this->meta['payroll']['cash_collected'] ?? null;
+        if ($override !== null) {
+            return (float) $override;
+        }
+
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         if ($line !== '') {
             if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)
@@ -936,6 +942,12 @@ class Booking extends Model
     public function businessCollectedCash(): bool
     {
         return (bool) ($this->meta['payroll']['company_collected'] ?? false);
+    }
+
+    /** The office has eyeballed/confirmed the cash the driver collects. */
+    public function cashConfirmed(): bool
+    {
+        return (bool) ($this->meta['payroll']['cash_confirmed'] ?? false);
     }
 
     /**

@@ -562,12 +562,26 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'action' => ['required', 'in:set,record,tip,company_collected'],
+            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash'],
             'amount' => ['required_unless:action,company_collected', 'numeric', 'min:0', 'max:100000'],
             'method' => ['required_if:action,tip', 'in:cash,card'],
             'note' => ['nullable', 'string', 'max:200'],
             'collected' => ['nullable', 'boolean'],
         ]);
+
+        // A cash job: confirm (or correct) the cash the driver collects from the
+        // customer and move on. Stored as an override so a re-parse of the payment
+        // line can't undo the correction. Never owed by the business, so we stop
+        // here — nothing to "set" or "record".
+        if ($data['action'] === 'confirm_cash') {
+            $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+            $payroll['cash_collected'] = round((float) $data['amount'], 2);
+            $payroll['cash_confirmed'] = true;
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
+
+            return $this->afterPayroll($request, $booking)
+                ->with('status', 'Cash confirmed — £'.number_format($payroll['cash_collected'], 2).' collected by the driver from the customer.');
+        }
 
         // The 0.01% cash exception: the customer paid the BUSINESS by card, so the
         // business owes the driver. Toggle it and stop here — the office then sets

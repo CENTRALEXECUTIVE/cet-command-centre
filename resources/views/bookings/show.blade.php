@@ -371,16 +371,28 @@
             <h2>Driver payroll — {{ $booking->payrollDriverName() }}</h2>
             @if($booking->driverSettledByCustomer())
                 {{-- Cash job: the customer pays the driver directly on the day.
-                     Nothing to set, nothing owed by the business. --}}
-                @php $cash = $booking->cashDueToDriver(); @endphp
+                     Nothing owed by the business — just confirm the amount. --}}
+                @php $cash = $booking->cashDueToDriver(); $confirmed = $booking->cashConfirmed(); @endphp
                 <p style="margin:0 0 6px">
                     <span class="badge badge-complete">Cash job — settled with the driver</span>
+                    @if($confirmed)<span class="badge" style="background:#1f7a44;color:#fff">✓ Confirmed</span>@endif
                 </p>
-                <p class="muted" style="margin:0 0 4px">
-                    The driver collects @if($cash)<strong>£{{ number_format($cash, 2) }}</strong>@else the cash @endif from the customer directly on the day.
-                    <strong>Nothing is owed by the business</strong> — no pay to set here.
+                <p class="muted" style="margin:0 0 8px">
+                    The driver collects the cash from the customer directly on the day.
+                    <strong>Nothing is owed by the business.</strong>
                 </p>
-                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin-top:8px">
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                    @csrf
+                    <input type="hidden" name="action" value="confirm_cash">
+                    <div class="field" style="margin:0">
+                        <label for="cash-amount" style="font-size:12px">Cash the driver collects (£)</label>
+                        <input id="cash-amount" name="amount" type="number" step="0.01" min="0" inputmode="decimal"
+                               value="{{ $cash !== null ? number_format($cash, 2, '.', '') : '' }}" required style="width:130px">
+                    </div>
+                    <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">{{ $confirmed ? 'Update amount' : '✓ Confirm cash' }}</button>
+                </form>
+                <p class="hint" style="margin:6px 0 0">Wrong figure? Change it above and confirm — it won't touch the calendar.</p>
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin-top:10px">
                     @csrf
                     <input type="hidden" name="action" value="company_collected">
                     <input type="hidden" name="collected" value="1">
