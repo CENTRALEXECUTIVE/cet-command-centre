@@ -111,16 +111,22 @@ class StatusWatchdog
 
         // ── 1+2: set off (anything before En Route) ─────────────────────────
         if (in_array($status, [BookingStatus::Allocated, BookingStatus::Accepted], true)) {
+            $airportLanding = $this->isAirportPickup($booking) ? $this->flightLandingAt($booking) : null;
+
             if (now()->gte($booking->pickup_at->copy()->subMinutes(10))) {
                 $sent += $this->nudge($booking, 'set_off_urgent',
                     'URGENT: '.$booking->pickup_at->format('H:i').' pickup — set off now',
                     'URGENT: '.$booking->pickup_at->format('H:i').' pickup at '.$this->shortAddress($booking->pickup_address).' — set off now',
                     severity: 'critical');
-            } elseif (now()->gte($booking->pickup_at->copy()->subMinutes($this->setOffLeadMinutes($booking)))) {
-                $sent += $this->nudge($booking, 'set_off',
-                    '🚗 Time to set off — pickup at '.$booking->pickup_at->format('H:i'),
-                    'Time to set off for '.$this->shortAddress($booking->pickup_address).' — pickup at '.$booking->pickup_at->format('H:i'),
-                    severity: 'warning');
+            } elseif (now()->gte($this->setOffDeadline($booking))) {
+                // For an airport pickup, spell out the landing time and the "be
+                // there by" so the driver knows why it's time to go NOW.
+                [$title, $body] = $airportLanding
+                    ? ['🛬 Set off for '.$this->shortAddress($booking->pickup_address).' — lands '.$airportLanding->format('H:i'),
+                        'Flight lands '.$airportLanding->format('H:i').' — set off now to reach '.$this->shortAddress($booking->pickup_address).' by '.$airportLanding->copy()->addMinutes(self::AIRPORT_ARRIVE_AFTER_LANDING)->format('H:i')]
+                    : ['🚗 Time to set off — pickup at '.$booking->pickup_at->format('H:i'),
+                        'Time to set off for '.$this->shortAddress($booking->pickup_address).' — pickup at '.$booking->pickup_at->format('H:i')];
+                $sent += $this->nudge($booking, 'set_off', $title, $body, severity: 'warning');
             }
         }
 
@@ -274,6 +280,9 @@ class StatusWatchdog
         return $sent;
     }
 
+    /** Be at the airport this many minutes after the flight lands. */
+    private const AIRPORT_ARRIVE_AFTER_LANDING = 20;
+
     /**
      * Rule 1 lead time: drive time from the driver's last known position to the
      * pickup + a 5 min buffer, so a 30-min-away job is chased ~35 min before
@@ -281,6 +290,38 @@ class StatusWatchdog
      * pickups need a longer lead). Flat 30 without GPS/coords.
      */
     public function setOffLeadMinutes(Booking $booking): int
+    {
+        $drive = $this->driveMinutesToPickup($booking);
+
+        return $drive === null ? 30 : max(15, min(90, $drive + 5));
+    }
+
+    /**
+     * The absolute time by which the driver must have set off.
+     *
+     * For an AIRPORT PICKUP with a known landing time, this is driven by the
+     * flight, NOT the scheduled pickup: the driver must be at the airport ~20
+     * min after landing, so they must leave (drive time) before that. Uses the
+     * live landing time, so a delayed flight pushes it back and an early one
+     * pulls it forward. Drive time is the driver→airport estimate from GPS, or
+     * the job's own route length as a proxy (airport→home ≈ home→airport) when
+     * we don't have a live position. Everything else is pickup − lead.
+     */
+    public function setOffDeadline(Booking $booking): Carbon
+    {
+        if ($this->isAirportPickup($booking) && ($landing = $this->flightLandingAt($booking))) {
+            $drive = $this->driveMinutesToPickup($booking) ?? $this->estimatedDurationMinutes($booking);
+
+            return $landing->copy()
+                ->addMinutes(self::AIRPORT_ARRIVE_AFTER_LANDING)
+                ->subMinutes($drive + 5); // 5-min safety so they arrive a touch early
+        }
+
+        return $booking->pickup_at->copy()->subMinutes($this->setOffLeadMinutes($booking));
+    }
+
+    /** Estimated driving minutes from the driver's last position to the pickup, or null. */
+    private function driveMinutesToPickup(Booking $booking): ?int
     {
         $pickup = $this->coords($booking, 'pickup');
         $last = $booking->driver_id
@@ -290,12 +331,10 @@ class StatusWatchdog
             : null;
 
         if (! $pickup || ! $last) {
-            return 30;
+            return null;
         }
 
-        $drive = Geo::estimateDriveMinutes((float) $last->latitude, (float) $last->longitude, $pickup[0], $pickup[1]);
-
-        return max(15, min(90, $drive + 5));
+        return Geo::estimateDriveMinutes((float) $last->latitude, (float) $last->longitude, $pickup[0], $pickup[1]);
     }
 
     /* ── Geofence primitives ──────────────────────────────────────────────── */

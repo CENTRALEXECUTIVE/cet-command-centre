@@ -157,6 +157,34 @@ class StatusWatchdogTest extends TestCase
             $watchdog->completeBy($b->fresh())->timestamp, 2);
     }
 
+    public function test_airport_pickup_set_off_deadline_is_driven_by_the_flight_landing(): void
+    {
+        $watchdog = app(StatusWatchdog::class);
+
+        // Arrival at Manchester Airport → home in Sheffield. No live driver GPS,
+        // so the drive is estimated from the job's own route (airport→home ≈
+        // home→airport).
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(4), [
+            'pickup' => self::DROPOFF,  // airport coords
+            'dropoff' => self::PICKUP,  // home coords
+        ]);
+        $b->forceFill([
+            'pickup_address' => 'Manchester Airport (MAN), Terminal 2',
+            'meta' => array_merge($b->meta ?? [], ['journey_label' => 'Arrival']),
+        ])->save();
+
+        \App\Models\FlightMonitor::create([
+            'booking_id' => $b->id, 'flight_number' => 'BA123', 'flight_date' => '2026-07-15',
+            'estimated_arrival' => Carbon::parse('2026-07-15 14:00'), 'delay_minutes' => 0,
+        ]);
+
+        $drive = $watchdog->estimatedDurationMinutes($b->fresh());
+        // Be at the airport by 14:20 (landing + 20); leave by that minus drive + 5.
+        $expected = Carbon::parse('2026-07-15 14:20')->subMinutes($drive + 5);
+
+        $this->assertEqualsWithDelta($expected->timestamp, $watchdog->setOffDeadline($b->fresh())->timestamp, 2);
+    }
+
     public function test_urgent_escalation_ten_minutes_before_pickup(): void
     {
         $b = $this->job(BookingStatus::Allocated, now()->addMinutes(8));
