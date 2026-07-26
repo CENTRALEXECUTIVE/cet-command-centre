@@ -73,8 +73,9 @@ class BookingController extends Controller
             $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
             match ($filter) {
                 'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
-                // Bookings that CAME IN today (created today), for the dashboard tile.
-                'booked-today' => $query->whereDate('created_at', today())->orderByDesc('created_at'),
+                // Bookings that CAME IN today (created today), for the dashboard
+                // tile — listed in pickup-date order so the day headers read top-down.
+                'booked-today' => $query->whereDate('created_at', today())->orderBy('pickup_at'),
                 'past' => $query->where('pickup_at', '<', now()->startOfDay())->orderByDesc('pickup_at'),
                 'all' => $query->orderByDesc('pickup_at'),
                 default => $query->where('pickup_at', '>=', now()->startOfDay())->orderBy('pickup_at'), // upcoming
