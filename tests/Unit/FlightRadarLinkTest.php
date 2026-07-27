@@ -31,6 +31,12 @@ class FlightRadarLinkTest extends TestCase
             'airline name in brackets' => ['QR027 (Qatar Airways)', 'qr27'],
             'icao with airline name' => ['QTR027 (Qatar Airways)', 'qr27'],
             'name before the code' => ['British Airways BA1234', 'ba1234'],
+            // easyJet: IATA "U2" has a digit → FR24 needs the ICAO callsign EZY.
+            'easyjet iata to callsign' => ['U22366', 'ezy2366'],
+            'easyjet with trailing text' => ['U22366 arrives 19:10', 'ezy2366'],
+            'easyjet icao stays' => ['EZY2366', 'ezy2366'],
+            // Wizz Air: IATA "W6" has a digit → ICAO callsign WZZ.
+            'wizz iata to callsign' => ['W6 1234', 'wzz1234'],
         ];
     }
 

@@ -554,37 +554,70 @@ class Booking extends Model
     }
 
     /**
-     * Pull the airline code + flight number out of a value that may carry extra
-     * text — e.g. "QR027 (Qatar Airways)" or "BA 1234" → "QR27" (IATA where known,
-     * leading zeros stripped). The airline name in brackets and any spaces are
-     * ignored. Returns '' when there's no recognisable flight code.
+     * Pull the airline code + flight number + optional suffix out of a value that
+     * may carry extra text — "QR027 (Qatar Airways)", "BA 1234", "U22366 arrives
+     * 19:10". Handles IATA codes that contain a DIGIT (easyJet U2, Wizz W6) and
+     * 3-letter ICAO codes. Returns the IATA form, the ICAO callsign (when known)
+     * and the bare number. Null when there's no recognisable flight code.
+     *
+     * @return array{iata: string, icao: ?string, number: string, suffix: string}|null
      */
-    public static function cleanFlightCode(?string $flightNumber): string
+    private static function parseFlight(?string $flightNumber): ?array
     {
-        $raw = strtoupper((string) $flightNumber);
+        // Drop bracketed airline names so "(Qatar Airways)" can't be mis-parsed.
+        $raw = preg_replace('/\(.*?\)/', ' ', strtoupper((string) $flightNumber));
 
-        // First "airline code + number" token anywhere in the string, so the
-        // trailing "(Qatar Airways)" and stray spaces don't break it.
-        if (! preg_match('/\b([A-Z]{2,3})\s*0*(\d{1,4})([A-Z]?)\b/', $raw, $m)) {
-            return '';
+        // Airline code = 3-letter ICAO, OR a 2-char IATA code with at least one
+        // letter (letter+letter BA, letter+digit U2, or digit+letter 4U), then
+        // the flight number (leading zeros stripped) and an optional suffix.
+        if (! preg_match('/([A-Z]{3}|[A-Z]\d|\d[A-Z]|[A-Z]{2})\s*0*(\d{1,4})([A-Z]?)/', $raw, $m)) {
+            return null;
         }
 
-        $code = self::icaoToIata()[$m[1]] ?? $m[1];
+        $code = $m[1];
+        $icaoToIata = self::icaoToIata();
+        $iataToIcao = array_flip($icaoToIata);
 
-        return $code.$m[2].$m[3];
+        if (isset($icaoToIata[$code])) {          // gave us the ICAO code
+            $iata = $icaoToIata[$code];
+            $icao = $code;
+        } elseif (isset($iataToIcao[$code])) {    // gave us a known IATA code
+            $iata = $code;
+            $icao = $iataToIcao[$code];
+        } else {                                  // unknown carrier
+            $iata = $code;
+            $icao = null;
+        }
+
+        return ['iata' => $iata, 'icao' => $icao, 'number' => $m[2], 'suffix' => $m[3]];
     }
 
     /**
-     * Flightradar24's /data/flights/ URL is strict: it wants the IATA airline
-     * code and the flight number with NO leading zeros (e.g. "vs74"). Feeds often
-     * carry a 3-letter ICAO code, leading zeros, or the airline name in brackets,
-     * which just don't load — clean them up first.
+     * The tidy IATA flight code (e.g. "QR027 (Qatar Airways)" → "QR27", easyJet
+     * "U22366" → "U22366"), leading zeros stripped, extra text ignored. '' when
+     * there's no recognisable flight code.
+     */
+    public static function cleanFlightCode(?string $flightNumber): string
+    {
+        $p = self::parseFlight($flightNumber);
+
+        return $p ? $p['iata'].$p['number'].$p['suffix'] : '';
+    }
+
+    /**
+     * Flightradar24's /data/flights/ URL wants a clean airline code + number with
+     * no leading zeros. It can't parse a 2-char IATA code that contains a DIGIT
+     * (easyJet U2, Wizz W6) — for those we use the airline's all-letter ICAO
+     * CALLSIGN (EZY, WZZ), which is what FR24 tracks the flight under. Plain
+     * letter IATA codes (BA, VS) already load, so they're left as-is.
      */
     public static function normaliseFlightNumberForFr24(?string $flightNumber): string
     {
-        $clean = self::cleanFlightCode($flightNumber);
-        if ($clean !== '') {
-            return strtolower($clean);
+        $p = self::parseFlight($flightNumber);
+        if ($p) {
+            $code = (preg_match('/\d/', $p['iata']) && $p['icao']) ? $p['icao'] : $p['iata'];
+
+            return strtolower($code.$p['number'].$p['suffix']);
         }
 
         // Unrecognised format → a clean slug of whatever we were given.
