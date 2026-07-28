@@ -226,6 +226,12 @@ class BookingStatusService
 
     private function fireSideEffects(Booking $booking, BookingStatus $to): void
     {
+        // Progress pings to the office (set off / arrived / POB / complete) are
+        // only useful for LIVE jobs — today's and future ones. A past job (pickup
+        // before today) being marked up retroactively by an admin isn't live, so
+        // it must NOT buzz the office. Present + future only.
+        $liveJob = $booking->pickup_at && $booking->pickup_at->gte(now()->startOfDay());
+
         // "Here's your driver" the moment a driver is allocated. Force-reload the
         // driver/vehicle relations so a stale (rotation-time) driver isn't used.
         if ($to === BookingStatus::Allocated && $booking->driver_id) {
@@ -262,31 +268,38 @@ class BookingStatusService
 
             // Tell the office the driver has set off — a positive ping (info, not
             // an alarm). Shows in the alerts feed and pushes to admins who want it.
-            $driver = $booking->driverPublicName() ?: 'The driver';
-            $where = \Illuminate\Support\Str::before((string) $booking->pickup_address, ',');
-            $body = $driver.' has set off for the '.$booking->pickup_at->format('H:i').($where ? ' '.$where : '').' job';
-            \App\Models\WatchdogEvent::log('driver_set_off', $body, 'info', $booking);
-            $this->adminAlerts->notify('driver_set_off', '🚗 '.$driver.' has set off', $body, 'info', $booking);
+            // Live jobs only — a past job marked up later doesn't buzz the office.
+            if ($liveJob) {
+                $driver = $booking->driverPublicName() ?: 'The driver';
+                $where = \Illuminate\Support\Str::before((string) $booking->pickup_address, ',');
+                $body = $driver.' has set off for the '.$booking->pickup_at->format('H:i').($where ? ' '.$where : '').' job';
+                \App\Models\WatchdogEvent::log('driver_set_off', $body, 'info', $booking);
+                $this->adminAlerts->notify('driver_set_off', '🚗 '.$driver.' has set off', $body, 'info', $booking);
+            }
         }
 
         // "Your driver has arrived" — sent when the driver marks Arrived.
         if ($to === BookingStatus::Arrived) {
             $this->notifier->sendArrived($booking);
 
-            $driver = $booking->driverPublicName() ?: 'The driver';
-            $body = $driver.' has arrived at the pickup for the '.$booking->pickup_at->format('H:i').' '.($booking->displayCustomerName() ?: '').' job';
-            \App\Models\WatchdogEvent::log('driver_arrived', $body, 'info', $booking);
-            $this->adminAlerts->notify('driver_arrived', '📍 '.$driver.' arrived at pickup', $body, 'info', $booking);
+            if ($liveJob) {
+                $driver = $booking->driverPublicName() ?: 'The driver';
+                $body = $driver.' has arrived at the pickup for the '.$booking->pickup_at->format('H:i').' '.($booking->displayCustomerName() ?: '').' job';
+                \App\Models\WatchdogEvent::log('driver_arrived', $body, 'info', $booking);
+                $this->adminAlerts->notify('driver_arrived', '📍 '.$driver.' arrived at pickup', $body, 'info', $booking);
+            }
         }
 
         // "Passenger on board" — journey underway, reassures the booker.
         if ($to === BookingStatus::Collected) {
             $this->notifier->sendPassengerOnBoard($booking);
 
-            $driver = $booking->driverPublicName() ?: 'The driver';
-            $body = $driver.' has the passenger on board'.($booking->displayCustomerName() ? ' — '.$booking->displayCustomerName() : '').', en route to drop-off';
-            \App\Models\WatchdogEvent::log('driver_on_board', $body, 'info', $booking);
-            $this->adminAlerts->notify('driver_on_board', '🧍 '.$driver.' — passenger on board', $body, 'info', $booking);
+            if ($liveJob) {
+                $driver = $booking->driverPublicName() ?: 'The driver';
+                $body = $driver.' has the passenger on board'.($booking->displayCustomerName() ? ' — '.$booking->displayCustomerName() : '').', en route to drop-off';
+                \App\Models\WatchdogEvent::log('driver_on_board', $body, 'info', $booking);
+                $this->adminAlerts->notify('driver_on_board', '🧍 '.$driver.' — passenger on board', $body, 'info', $booking);
+            }
 
             // POB is effectively the end of phone contact — the passenger is in
             // the car. Keep the masked line alive for a short grace window (30
@@ -303,10 +316,12 @@ class BookingStatusService
         if ($to === BookingStatus::Complete) {
             $this->notifier->scheduleReviewRequest($booking);
 
-            $driver = $booking->driverPublicName() ?: 'The driver';
-            $body = $driver.' has completed the '.$booking->pickup_at->format('H:i').' '.($booking->displayCustomerName() ?: '').' job';
-            \App\Models\WatchdogEvent::log('driver_complete', $body, 'info', $booking);
-            $this->adminAlerts->notify('driver_complete', '🏁 '.$driver.' completed the job', $body, 'info', $booking);
+            if ($liveJob) {
+                $driver = $booking->driverPublicName() ?: 'The driver';
+                $body = $driver.' has completed the '.$booking->pickup_at->format('H:i').' '.($booking->displayCustomerName() ?: '').' job';
+                \App\Models\WatchdogEvent::log('driver_complete', $body, 'info', $booking);
+                $this->adminAlerts->notify('driver_complete', '🏁 '.$driver.' completed the job', $body, 'info', $booking);
+            }
         }
 
         // A cancellation frees capacity — notify the waiting list.

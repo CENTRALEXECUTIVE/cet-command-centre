@@ -93,6 +93,23 @@ class DriverAppTest extends TestCase
         }
     }
 
+    public function test_a_past_job_marked_up_later_does_not_ping_the_office(): void
+    {
+        // Admin retroactively marks up a job from two days ago — not live, so it
+        // must NOT buzz the office (only today's + future jobs do).
+        $admin = User::factory()->admin()->create();
+        $job = $this->jobFor($this->driver, ['status' => BookingStatus::EnRoute, 'pickup_at' => now()->subDays(2)]);
+        $svc = app(\App\Services\BookingStatusService::class);
+
+        $svc->forceTransition($job, BookingStatus::Arrived, $admin);
+        $svc->forceTransition($job->fresh(), BookingStatus::Collected, $admin);
+        $svc->forceTransition($job->fresh(), BookingStatus::Complete, $admin);
+
+        foreach (['driver_arrived', 'driver_on_board', 'driver_complete'] as $event) {
+            $this->assertDatabaseMissing('watchdog_events', ['booking_id' => $job->id, 'event_type' => $event]);
+        }
+    }
+
     public function test_driver_cannot_update_another_drivers_job(): void
     {
         $job = $this->jobFor(User::factory()->driver()->create(), ['status' => BookingStatus::Accepted]);
