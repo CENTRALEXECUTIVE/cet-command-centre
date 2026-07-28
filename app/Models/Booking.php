@@ -974,15 +974,31 @@ class Booking extends Model
      */
     public function isFullyPaid(): bool
     {
+        // Definitive: the booking is marked paid.
         if ($this->payment_status === 'paid') {
             return true;
         }
 
+        // The app's rule: a money emoji (💰 cash / 👀 card balance) means there's
+        // still a balance; NONE means fully paid. Honour a curated override first.
+        if (array_key_exists('money_emoji', $this->meta ?? [])) {
+            return blank($this->meta['money_emoji']);
+        }
+
+        // A cash or card job carries an outstanding balance by definition — never
+        // read it as paid off the payment line (a "to be paid by card" line was
+        // wrongly flagging card jobs as settled).
+        if (in_array($this->payment_method?->value, ['cash', 'card'], true)) {
+            return false;
+        }
+
+        // Account / none: trust a curated line that clearly says Paid, nothing due.
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
 
         return $line !== ''
             && preg_match('/\bpaid\b/i', $line)
-            && ! preg_match('/\b(due|outstanding|balance|deposit|cash)\b/i', $line);
+            && ! preg_match('/\b(due|outstanding|balance|deposit|cash|link)\b/i', $line)
+            && ! preg_match('/to\s*be\s*paid|pay\s*by/i', $line);
     }
 
     /**

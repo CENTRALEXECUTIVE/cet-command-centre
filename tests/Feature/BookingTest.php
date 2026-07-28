@@ -135,6 +135,19 @@ class BookingTest extends TestCase
         $this->assertFalse($b->isFullyPaid()); // still money to collect
     }
 
+    public function test_a_card_balance_job_is_not_flagged_paid_off_the_line(): void
+    {
+        // 👀 card-balance job (not settled) whose payment line mentions "paid".
+        $card = Booking::factory()->make(['payment_status' => 'pending', 'payment_method' => \App\Enums\PaymentMethod::Card->value]);
+        $card->forceFill(['meta' => ['payment_text' => '£100 to be paid by card link']]);
+        $this->assertFalse($card->isFullyPaid());
+
+        // A curated money emoji explicitly cleared → fully paid.
+        $done = Booking::factory()->make(['payment_status' => 'pending', 'payment_method' => \App\Enums\PaymentMethod::Card->value]);
+        $done->forceFill(['meta' => ['money_emoji' => '']]);
+        $this->assertTrue($done->isFullyPaid());
+    }
+
     public function test_bookings_can_be_filtered_by_driver_including_callsign_jobs(): void
     {
         $admin = User::factory()->admin()->create();
