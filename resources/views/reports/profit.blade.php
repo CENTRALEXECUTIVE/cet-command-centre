@@ -46,48 +46,22 @@
     @endif
 
     <div id="per-driver" class="card" style="scroll-margin-top:16px">
-        <h2 style="margin:0 0 8px">Commission per driver</h2>
+        <h2 style="margin:0 0 4px">Commission per driver</h2>
         @if($data['per_driver']->isEmpty())
             <p class="muted mb-0">No jobs with a fare this month. Set driver pay in <a href="{{ route('payroll.index', ['month' => $m]) }}">Payroll</a> and it appears here.</p>
         @else
-            <div style="overflow-x:auto">
-            <table>
-                <thead><tr><th>Driver</th><th>Jobs</th><th>Fares</th><th>Driver cost</th><th>Commission</th></tr></thead>
-                <tbody>
-                @foreach($data['per_driver'] as $d)
-                    <tr>
-                        <td>{{ $d['name'] }}</td>
-                        <td>{{ $d['jobs'] }}</td>
-                        <td>£{{ number_format($d['fares'], 2) }}</td>
-                        <td>£{{ number_format($d['cost'], 2) }}</td>
-                        <td><strong style="color:{{ $d['profit'] >= 0 ? '#1f7a44' : '#b32020' }}">£{{ number_format($d['profit'], 2) }}</strong></td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
-            </div>
+            @foreach($data['per_driver'] as $d)
+                @include('reports.partials.commission-row', ['r' => $d])
+            @endforeach
         @endif
     </div>
 
     @if($data['per_account']->isNotEmpty())
         <div class="card">
-            <h2 style="margin:0 0 8px">Per corporate account</h2>
-            <div style="overflow-x:auto">
-            <table>
-                <thead><tr><th>Account</th><th>Jobs</th><th>Fares</th><th>Driver cost</th><th>Commission</th></tr></thead>
-                <tbody>
-                @foreach($data['per_account'] as $a)
-                    <tr>
-                        <td>{{ $a['name'] }}</td>
-                        <td>{{ $a['jobs'] }}</td>
-                        <td>£{{ number_format($a['fares'], 2) }}</td>
-                        <td>£{{ number_format($a['cost'], 2) }}</td>
-                        <td><strong style="color:{{ $a['profit'] >= 0 ? '#1f7a44' : '#b32020' }}">£{{ number_format($a['profit'], 2) }}</strong></td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
-            </div>
+            <h2 style="margin:0 0 4px">Commission per corporate account</h2>
+            @foreach($data['per_account'] as $a)
+                @include('reports.partials.commission-row', ['r' => $a])
+            @endforeach
         </div>
     @endif
 
