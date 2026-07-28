@@ -75,7 +75,7 @@
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also
      has a Copy button so the driver can paste into any nav app, and a small
      Google Maps fallback for drivers who don't use Waze. --}}
-<div style="margin-bottom:16px">
+<div class="da-nav" style="margin-bottom:18px">
     <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
         <a class="btn btn-dark" style="flex:1;text-align:center"
            href="https://waze.com/ul?q={{ urlencode($booking->pickup_address) }}&navigate=yes"

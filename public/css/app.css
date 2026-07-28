@@ -345,15 +345,33 @@ html[data-theme="dark"] .date-today { background: var(--gold); color: #111; bord
 .job-tile:hover { text-decoration: none; box-shadow: var(--shadow); }
 .job-tile .top { display: flex; justify-content: space-between; align-items: center; }
 .job-tile .big-time { font-size: 20px; font-weight: 800; }
-.tap-actions { display: grid; gap: 10px; margin-top: 16px; }
-.tap-actions button { padding: 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
-.tap-accept { background: #1d4ed8; color: #fff; } .tap-go { background: var(--gold); color: var(--black); }
-.tap-collect { background: #5b2bc7; color: #fff; } .tap-complete { background: var(--green); color: #fff; }
-.tap-cancel { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; }
+.tap-actions { display: grid; gap: 12px; margin-top: 16px; }
+.tap-actions .status-form { margin: 0; }
+.tap-actions button {
+    width: 100%; padding: 18px; font-size: 17px; font-weight: 700; letter-spacing: .2px;
+    border: none; border-radius: 16px; cursor: pointer; color: #fff;
+    box-shadow: 0 10px 24px rgba(0,0,0,.26);
+    transition: transform .13s ease, box-shadow .13s ease, filter .13s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.tap-actions button:hover { filter: brightness(1.06); }
+.tap-actions button:active { transform: translateY(1px) scale(.985); box-shadow: 0 4px 12px rgba(0,0,0,.28); }
+.tap-accept  { background: linear-gradient(180deg, #3b6ef5 0%, #1d4ed8 100%); }
+.tap-go      { background: linear-gradient(180deg, #ffc94a 0%, #f5aa10 100%); color: #1a1200; }
+.tap-arrive  { background: linear-gradient(180deg, #ff8a1e 0%, #e06400 100%); }
+.tap-collect { background: linear-gradient(180deg, #7a45e0 0%, #5522b8 100%); }
+.tap-complete{ background: linear-gradient(180deg, #2fbf6f 0%, #189150 100%); }
+.tap-cancel  { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; box-shadow: none; }
 
-/* ----- New driver statuses (Phase: iCabbi-style) ----- */
+/* ----- Driver status badge tint ----- */
 .badge-arrived { background: #fde2c8; color: #9a4b00; }
-.tap-arrive { background: #ea6d00; color: #fff; }
+
+/* Driver navigation buttons — consistent, rounded, premium on the dark screen. */
+.da-nav .btn { border-radius: 14px; padding: 14px 16px; font-weight: 700; font-size: 15px; border: 1px solid rgba(255,255,255,.10); box-shadow: none; }
+.da-nav .btn-dark { background: linear-gradient(180deg, #202227 0%, #16171b 100%); color: #fff; }
+.da-nav .btn-ghost { background: rgba(255,255,255,.05); color: #eef1f4; }
+.da-nav .btn-ghost:hover { background: rgba(255,255,255,.09); }
+.da-nav .btn:active { transform: translateY(1px); }
 
 /* ===== ETO-style left sidebar shell (overrides earlier topbar) ===== */
 .app-shell { display: flex; min-height: 100vh; }
