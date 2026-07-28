@@ -37,15 +37,51 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-{{-- One-tap navigation: opens the driver's own Google/Waze/Apple Maps app. --}}
-<div style="display:flex;gap:8px;margin-bottom:16px">
-    <a class="btn btn-dark" style="flex:1;text-align:center"
-       href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->pickup_address) }}"
-       target="_blank" rel="noopener">🧭 Navigate to pickup</a>
-    <a class="btn btn-ghost" style="flex:1;text-align:center"
-       href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->destination_address) }}"
-       target="_blank" rel="noopener">Navigate to drop-off</a>
+{{-- One-tap navigation: opens Waze straight into navigation. Each address also
+     has a Copy button so the driver can paste into any nav app, and a small
+     Google Maps fallback for drivers who don't use Waze. --}}
+<div style="margin-bottom:16px">
+    <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
+        <a class="btn btn-dark" style="flex:1;text-align:center"
+           href="https://waze.com/ul?q={{ urlencode($booking->pickup_address) }}&navigate=yes"
+           target="_blank" rel="noopener">🧭 Waze to pickup</a>
+        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->pickup_address }}"
+                style="white-space:nowrap">📋 Copy</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:6px">
+        <a class="btn btn-ghost" style="flex:1;text-align:center"
+           href="https://waze.com/ul?q={{ urlencode($booking->destination_address) }}&navigate=yes"
+           target="_blank" rel="noopener">Waze to drop-off</a>
+        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->destination_address }}"
+                style="white-space:nowrap">📋 Copy</button>
+    </div>
+    <div class="hint" style="font-size:12px">
+        Prefer another app?
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->pickup_address) }}" target="_blank" rel="noopener">Google Maps · pickup</a> ·
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->destination_address) }}" target="_blank" rel="noopener">drop-off</a>
+    </div>
 </div>
+
+<script>
+    document.querySelectorAll('.js-copy-addr').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var addr = btn.getAttribute('data-addr') || '';
+            var done = function () {
+                var old = btn.innerHTML;
+                btn.innerHTML = '✓ Copied';
+                setTimeout(function () { btn.innerHTML = old; }, 1500);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(addr).then(done).catch(done);
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = addr; document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(ta); done();
+            }
+        });
+    });
+</script>
 
 <div id="job-map" style="height:220px;border-radius:10px;margin-bottom:16px;display:none"></div>
 <div id="map-cfg" data-pickup="{{ $booking->pickup_address }}" data-dropoff="{{ $booking->destination_address }}" hidden></div>

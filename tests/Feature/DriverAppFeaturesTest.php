@@ -88,8 +88,10 @@ class DriverAppFeaturesTest extends TestCase
 
         $this->actingAs($this->driver)->get(route('driver.job', $job))
             ->assertOk()
-            ->assertSee('Navigate to pickup')
-            ->assertSee('google.com/maps/dir', false);
+            ->assertSee('Waze to pickup')
+            ->assertSee('waze.com/ul', false)          // Waze deep link
+            ->assertSee('js-copy-addr', false)          // copy-address buttons
+            ->assertSee('google.com/maps/dir', false);  // Google fallback still there
     }
 
     public function test_earnings_page_totals_the_drivers_pay_not_the_fares(): void
