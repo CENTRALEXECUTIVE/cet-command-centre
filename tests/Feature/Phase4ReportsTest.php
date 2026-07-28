@@ -124,6 +124,29 @@ class Phase4ReportsTest extends TestCase
         $this->assertTrue($metrics->contains('Conversions'));
     }
 
+    public function test_ads_revenue_counts_bookings_that_came_through_in_the_period(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-15 12:00:00');
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        // Came through IN July, pickup in AUGUST → still counts (income that came in).
+        Booking::factory()->forVehicleType($exec)->create(['final_price' => 200, 'pickup_at' => '2026-08-10 09:00', 'created_at' => '2026-07-05 10:00']);
+        // Pickup in July but BOOKED in June → not this period's booking.
+        Booking::factory()->forVehicleType($exec)->create(['final_price' => 999, 'pickup_at' => '2026-07-20 09:00', 'created_at' => '2026-06-28 10:00']);
+        // Cancelled booking created in July → no income.
+        Booking::factory()->forVehicleType($exec)->create(['final_price' => 500, 'status' => BookingStatus::Cancelled->value, 'created_at' => '2026-07-06 10:00']);
+
+        $data = app(AdsDashboardService::class)->forPeriod(
+            \Illuminate\Support\Carbon::parse('2026-07-01')->startOfDay(),
+            \Illuminate\Support\Carbon::parse('2026-07-31')->endOfDay(),
+        );
+
+        $this->assertEquals(200.0, $data['revenue']); // only the July-created, non-cancelled one
+        $this->assertEquals(1, $data['jobs']);
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_admin_can_view_reports_pages(): void
     {
         $admin = User::factory()->admin()->create();

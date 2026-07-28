@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Cache;
  * Google Ads performance dashboard: live ROAS, spend vs revenue, and the budget
  * trigger alerts (40 conversions, 100 jobs, £14,000 revenue). Ad spend /
  * conversions come from ad_metrics (synced from Google Ads); jobs and revenue
- * are the actual completed-booking figures from the ReportService.
+ * are the bookings that CAME THROUGH in the period (by booking date), so they
+ * line up with the ad spend that generated them.
  */
 class AdsDashboardService
 {
@@ -24,7 +25,9 @@ class AdsDashboardService
     public function forPeriod(CarbonInterface $start, CarbonInterface $end): array
     {
         $ads = AdMetric::whereBetween('date', [$start->toDateString(), $end->toDateString()])->get();
-        $summary = $this->reports->summary($start, $end);
+        // Match ad spend to the bookings that CAME THROUGH in this window (by
+        // booking date), not by pickup date — that's what the ads generated.
+        $summary = $this->reports->createdSummary($start, $end);
 
         $spend = (float) $ads->sum('spend');
         $conversions = (int) $ads->sum('conversions');

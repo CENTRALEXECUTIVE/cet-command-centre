@@ -85,6 +85,31 @@ class ReportService
         ];
     }
 
+    /**
+     * Income from bookings that CAME THROUGH in the period — keyed on when the
+     * booking was created, not when the job runs. This is what to compare against
+     * Google Ads spend for the same window: the ads generated the bookings that
+     * came in that month, whatever date the pickup lands on. Cancelled/no-show
+     * excluded (no income).
+     *
+     * @return array{revenue: float, jobs: int, average_fare: float}
+     */
+    public function createdSummary(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $base = Booking::query()
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->whereBetween('created_at', [$start, $end]);
+
+        $jobs = (clone $base)->count();
+        $revenue = (float) (clone $base)->sum(DB::raw(self::REVENUE));
+
+        return [
+            'revenue' => round($revenue, 2),
+            'jobs' => $jobs,
+            'average_fare' => $jobs ? round($revenue / $jobs, 2) : 0.0,
+        ];
+    }
+
     /** @return array{revenue: float, jobs: int, average_fare: float} */
     public function summary(CarbonInterface $start, CarbonInterface $end): array
     {

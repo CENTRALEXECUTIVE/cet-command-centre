@@ -21,11 +21,11 @@
         </div>
     @endif
 
-    <p class="hint" style="margin:0 0 14px">Money into the business vs Google Ads spend, {{ $start->format('d M') }}–{{ $end->format('d M Y') }}. <strong>Revenue</strong> is every completed booking in this period (all bookings, not only ad-driven); <strong>ROAS</strong> is that revenue ÷ ad spend. For the full P&amp;L see <a href="{{ route('reports.profit', ['month' => $start->format('Y-m')]) }}">Profit</a>.</p>
+    <p class="hint" style="margin:0 0 14px">Google Ads spend vs the bookings that <strong>came through</strong> in this period, {{ $start->format('d M') }}–{{ $end->format('d M Y') }}. <strong>Revenue</strong> is every booking created in this window (by booking date, cancellations excluded — whatever date the pickup lands on); <strong>ROAS</strong> is that revenue ÷ ad spend. For the full P&amp;L see <a href="{{ route('reports.profit', ['month' => $start->format('Y-m')]) }}">Profit</a>.</p>
 
     <div class="grid grid-3" style="margin-bottom:16px">
         <div class="stat"><div class="n">£{{ number_format($data['spend'], 2) }}</div><div class="l">Google Ads spend</div></div>
-        <div class="stat"><div class="n">£{{ number_format($data['revenue'], 2) }}</div><div class="l">Business revenue · {{ $data['jobs'] }} jobs</div></div>
+        <div class="stat"><div class="n">£{{ number_format($data['revenue'], 2) }}</div><div class="l">Bookings that came in · {{ $data['jobs'] }}</div></div>
         <div class="stat"><div class="n">{{ $data['roas'] ? $data['roas'].'x' : '—' }}</div><div class="l">Revenue ÷ ad spend</div></div>
     </div>
     <div class="grid grid-3">
