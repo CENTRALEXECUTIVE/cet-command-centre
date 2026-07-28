@@ -407,7 +407,9 @@ class BookingTest extends TestCase
             'driver_id' => $driver->id,
             'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
             'journey_type' => 'one_way',
-            'pickup_at' => now()->addDays(2),
+            // Imminent (inside the "goes live" window) so the line opens as soon
+            // as a number exists, rather than being deferred.
+            'pickup_at' => now()->addMinutes(30),
         ]);
         $booking->customer->forceFill(['phone' => null])->save();
         $this->assertDatabaseCount('proxy_sessions', 0);
@@ -415,6 +417,7 @@ class BookingTest extends TestCase
         // Add the customer's number through the edit form — the line opens.
         $this->actingAs($admin)->put(route('bookings.update', $booking), $this->validPayload([
             'customer_phone' => '07700900123',
+            'pickup_at' => now()->addMinutes(30)->format('Y-m-d\TH:i'), // inside the window
         ]))->assertRedirect();
 
         $this->assertSame(1, \App\Models\ProxySession::where('booking_id', $booking->id)->open()->count());

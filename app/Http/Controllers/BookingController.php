@@ -483,6 +483,45 @@ class BookingController extends Controller
     }
 
     /**
+     * Per-booking masking timing: how many minutes BEFORE pickup the masked line
+     * goes live, and how many hours AFTER drop-off it closes. Applies to both
+     * legs of a return, and reflects the change straight away — opens the line if
+     * we're now inside the window, or closes it if the window's been pulled in.
+     */
+    public function maskingTiming(Request $request, Booking $booking, \App\Services\Telephony\TwilioProxyService $proxy): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'lead_minutes' => ['required', 'integer', 'min:0', 'max:1440'],
+            'grace_hours' => ['required', 'numeric', 'min:0', 'max:48'],
+        ]);
+
+        $legs = Booking::query()
+            ->where('id', $booking->id)
+            ->orWhere('id', $booking->linked_booking_id)
+            ->orWhere('linked_booking_id', $booking->id)
+            ->get();
+
+        foreach ($legs as $leg) {
+            $leg->forceFill(['meta' => array_merge($leg->meta ?? [], [
+                'masking_lead_minutes' => (int) $data['lead_minutes'],
+                'masking_grace_hours' => (float) $data['grace_hours'],
+            ])])->save();
+
+            // Reflect the new window now: open if due, pull it in if not yet.
+            $leg->refresh()->loadMissing('customer', 'driver');
+            if ($leg->driver && ! $leg->status->isTerminal() && $leg->maskingWindowOpen()) {
+                $proxy->openSession($leg, $leg->driver);
+            } elseif (! $leg->maskingWindowOpen()) {
+                $proxy->closeSession($leg, 'masking window not open yet');
+            }
+        }
+
+        return back()->with('status', "Masking timing saved — line goes live {$data['lead_minutes']} min before pickup, closes drop-off +{$data['grace_hours']}h.");
+    }
+
+    /**
      * Ask the assigned driver to share their location now: flag the request on
      * the booking and push their phone. Their job screen answers with a one-off
      * ping (works at any live stage, even before Set off).

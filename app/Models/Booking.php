@@ -384,6 +384,42 @@ class Booking extends Model
         return ($this->driver?->isAdmin() ?? false) || $this->maskingDisabled();
     }
 
+    /** Default masking timings — how long BEFORE pickup the line goes live, and
+     *  how long AFTER drop-off it stays open. Both overridable per booking. */
+    public const MASKING_LEAD_MINUTES = 90;
+
+    public const MASKING_GRACE_HOURS = 4;
+
+    /** Minutes before pickup the masked line goes live for this job. */
+    public function maskingLeadMinutes(): int
+    {
+        $v = $this->meta['masking_lead_minutes'] ?? null;
+
+        return $v !== null ? max(0, (int) $v) : self::MASKING_LEAD_MINUTES;
+    }
+
+    /** Hours after drop-off the masked line stays open for this job. */
+    public function maskingGraceHours(): float
+    {
+        $v = $this->meta['masking_grace_hours'] ?? null;
+
+        return $v !== null ? max(0, (float) $v) : self::MASKING_GRACE_HOURS;
+    }
+
+    /** When the masked line should go live — pickup minus the lead. Null if no pickup. */
+    public function maskingOpensAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->pickup_at?->copy()->subMinutes($this->maskingLeadMinutes());
+    }
+
+    /** Whether we're inside the window where the masked line should be live. */
+    public function maskingWindowOpen(): bool
+    {
+        $opensAt = $this->maskingOpensAt();
+
+        return $opensAt !== null && now()->gte($opensAt);
+    }
+
     /** The masked line the CUSTOMER dials/receives from (for driver-details messages). */
     public function customerMaskedNumber(): ?string
     {

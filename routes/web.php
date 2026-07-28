@@ -112,6 +112,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('bookings/{booking}/location', [BookingController::class, 'locationData'])->name('bookings.location');
         // Turn number masking off / on for a single job (e.g. a return leg).
         Route::post('bookings/{booking}/toggle-masking', [BookingController::class, 'toggleMasking'])->middleware('throttle:20,1')->name('bookings.toggle-masking');
+        // Per-booking masking timing: when the line goes live + when it closes.
+        Route::post('bookings/{booking}/masking-timing', [BookingController::class, 'maskingTiming'])->middleware('throttle:30,1')->name('bookings.masking-timing');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('bookings/{booking}/request-review', [BookingController::class, 'requestReview'])->middleware('throttle:30,1')->name('bookings.request-review');

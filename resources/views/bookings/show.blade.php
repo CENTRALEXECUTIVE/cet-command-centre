@@ -693,6 +693,32 @@
                 </form>
             @endif
 
+            {{-- Per-booking masking timing: when the line goes live + when it closes. --}}
+            @if($booking->driver_id && ! $ownerDriving && ! $maskingOff && ! $booking->status->isTerminal())
+                <form method="POST" action="{{ route('bookings.masking-timing', $booking) }}"
+                      style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:14px;padding-top:10px;border-top:1px solid rgba(128,128,128,.15)">
+                    @csrf
+                    <div class="field" style="margin:0">
+                        <label for="mask-lead" style="font-size:12px">Line goes live (min before pickup)</label>
+                        <input id="mask-lead" name="lead_minutes" type="number" min="0" max="1440" step="5"
+                               value="{{ $booking->maskingLeadMinutes() }}" style="width:130px">
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="mask-grace" style="font-size:12px">Closes (h after drop-off)</label>
+                        <input id="mask-grace" name="grace_hours" type="number" min="0" max="48" step="0.5"
+                               value="{{ rtrim(rtrim(number_format($booking->maskingGraceHours(), 1, '.', ''), '0'), '.') }}" style="width:110px">
+                    </div>
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Save timing</button>
+                    <span class="hint">
+                        @if($booking->maskingWindowOpen())
+                            <strong style="color:#1f7a44">● Live now</strong>
+                        @else
+                            Goes live <strong>{{ $booking->maskingOpensAt()?->format('D d M, H:i') ?? '—' }}</strong>
+                        @endif
+                    </span>
+                </form>
+            @endif
+
             @php
                 $md = $booking->meta['driver_details'] ?? null;
                 $hasDriver = (is_array($md) && !empty($md['name'])) || $booking->driver;

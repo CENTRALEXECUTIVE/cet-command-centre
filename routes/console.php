@@ -57,4 +57,4 @@ Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping();
 
 // Number masking safety net: close Proxy sessions past drop-off + 4h even if
 // a status change was missed. Twilio's own expiry backs this up.
-Schedule::command('cet:close-proxy-sessions')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('cet:close-proxy-sessions')->everyMinute()->withoutOverlapping();

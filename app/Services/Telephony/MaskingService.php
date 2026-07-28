@@ -83,13 +83,27 @@ class MaskingService
             BookingStatus::Cancelled->value,
             BookingStatus::NoShow->value,
         ];
+        // Wide fetch, then filter each job by its OWN live window (pickup minus
+        // the per-booking lead) and close time (drop-off plus the per-booking
+        // grace) — so the office can shorten/lengthen the window per booking.
         $bookings = Booking::with(['customer', 'driver'])
             ->whereNotIn('status', $terminal)
-            ->whereBetween('pickup_at', [now()->subHours(self::LOOKBEHIND_HOURS), now()->addMinutes(self::OPEN_BEFORE_MINUTES)])
+            ->whereBetween('pickup_at', [now()->subHours(12), now()->addHours(12)])
             ->orderBy('pickup_at') // nearest job wins if a caller has more than one
             ->get();
 
         foreach ($bookings as $booking) {
+            // Not yet live, or past its close time → this job's line is dead.
+            if (! $booking->maskingWindowOpen()) {
+                continue;
+            }
+            $duration = (int) ($booking->meta['duration_minutes'] ?? 60);
+            $closeAt = $booking->pickup_at->copy()->addMinutes($duration)
+                ->addMinutes((int) round($booking->maskingGraceHours() * 60));
+            if (now()->gt($closeAt)) {
+                continue;
+            }
+
             $customer = $this->normalise($booking->customer?->phone);
             // The driver's number comes from an assigned system driver, else the
             // manually-entered driver details — so masking works either way.

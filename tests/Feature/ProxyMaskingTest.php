@@ -68,7 +68,9 @@ class ProxyMaskingTest extends TestCase
         $booking = Booking::factory()->create([
             'status' => $status,
             'driver_id' => $driver?->id,
-            'pickup_at' => now()->addHours(3),
+            // Within the default 90-min "goes live" window so allocation opens
+            // the line immediately (deferral is covered by its own tests).
+            'pickup_at' => now()->addMinutes(30),
         ]);
         $booking->customer->forceFill(['phone' => self::REAL_CUSTOMER])->save();
 
@@ -91,6 +93,70 @@ class ProxyMaskingTest extends TestCase
         $this->assertNotNull($session->closes_at);
         // Audit trail has the open.
         $this->assertDatabaseHas('proxy_events', ['booking_id' => $booking->id, 'event_type' => 'session_opened']);
+    }
+
+    public function test_the_line_is_deferred_until_the_goes_live_window(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        // Pickup 5h away → outside the default 90-min window → allocate should
+        // NOT open the line yet.
+        $booking = Booking::factory()->create(['status' => BookingStatus::Pending, 'pickup_at' => now()->addHours(5)]);
+        $booking->customer->forceFill(['phone' => self::REAL_CUSTOMER])->save();
+
+        app(BookingStatusService::class)->allocateDriver($booking->fresh('customer'), $driver, $admin);
+        $this->assertNull(ProxySession::where('booking_id', $booking->id)->open()->first(), 'Line should be deferred');
+
+        // When the window arrives (30 min before pickup), the sweep opens it.
+        \Illuminate\Support\Carbon::setTestNow(now()->addHours(5)->subMinutes(30));
+        app(TwilioProxyService::class)->openDueSessions();
+        $this->assertNotNull(ProxySession::where('booking_id', $booking->id)->open()->first(), 'Line should be live now');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_office_can_shorten_the_lead_so_the_line_opens_now(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = $this->driver();
+        $booking = Booking::factory()->create(['status' => BookingStatus::Allocated, 'driver_id' => $driver->id, 'pickup_at' => now()->addHours(5)]);
+        $booking->customer->forceFill(['phone' => self::REAL_CUSTOMER])->save();
+
+        // Not live yet at the default 90-min lead.
+        $this->assertFalse($booking->fresh()->maskingWindowOpen());
+
+        // Widen the lead to 6h → now inside the window → saving opens the line.
+        $this->actingAs($admin)
+            ->post(route('bookings.masking-timing', $booking), ['lead_minutes' => 360, 'grace_hours' => 2])
+            ->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(360, $booking->maskingLeadMinutes());
+        $this->assertSame(2.0, $booking->maskingGraceHours());
+        $this->assertNotNull(ProxySession::where('booking_id', $booking->id)->open()->first());
+    }
+
+    public function test_the_close_time_follows_the_per_booking_grace(): void
+    {
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::Allocated, $driver);
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['masking_grace_hours' => 1])])->save();
+
+        $session = app(TwilioProxyService::class)->openSession($booking->fresh('customer'), $driver);
+
+        // drop-off (pickup + 60 min duration) + 1h grace, not the default 4h.
+        $expected = $booking->pickup_at->copy()->addMinutes(60)->addHour();
+        $this->assertTrue($session->closes_at->between($expected->copy()->subMinute(), $expected->copy()->addMinute()));
+    }
+
+    public function test_a_driver_cannot_set_masking_timing(): void
+    {
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::Allocated, $driver);
+
+        $this->actingAs($driver)
+            ->post(route('bookings.masking-timing', $booking), ['lead_minutes' => 30, 'grace_hours' => 2])
+            ->assertForbidden();
     }
 
     public function test_driver_job_screen_shows_only_the_masked_number(): void

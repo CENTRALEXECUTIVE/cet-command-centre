@@ -239,10 +239,14 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   get the masked line in driver-details messages (`customerMaskedNumber()`).
   Admins keep full visibility everywhere else.
 - `Telephony\TwilioProxyService` (raw HTTP, **no SDK — deliberate**, so deploys
-  need no composer step): opens a session on **Allocated**, closes on
-  complete/cancel/no-show/decline/un-tie, swaps on reassign; session expiry =
-  drop-off + 4h (`cet:close-proxy-sessions` every 5 min is the safety net,
-  Twilio `DateExpiry` backs it up). Silent no-op until
+  need no composer step): the masked line goes **live from pickup − a per-booking
+  lead** (default 90 min; `Booking::maskingLeadMinutes()`) rather than at
+  allocation — a job allocated early is DEFERRED and opened by
+  `cet:close-proxy-sessions` (now **every minute**) once inside the window. Closes
+  on complete/cancel/no-show/decline/un-tie, swaps on reassign; expiry = drop-off
+  + a per-booking grace (default 4h; `maskingGraceHours()`). Both editable on the
+  booking page (**Masking timing** → `bookings.masking-timing`), applied to both
+  legs. Twilio `DateExpiry` backs the close up. Silent no-op until
   `TWILIO_PROXY_SERVICE_SID` is set (uses existing `TWILIO_SID`/`TWILIO_AUTH_TOKEN`).
 - Audit: `proxy_events` (opens/closes/webhook callbacks at
   `/webhooks/twilio-proxy`, secret-guarded; message BODIES are stripped —

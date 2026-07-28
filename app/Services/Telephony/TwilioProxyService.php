@@ -71,6 +71,14 @@ class TwilioProxyService
             $this->closeSession($booking, 'driver reassigned');
         }
 
+        // Hold the line CLOSED until the job's "goes live" window (pickup minus
+        // the per-booking lead, default 90 min). A job allocated days ahead
+        // doesn't open a masked line until it's due — openDueSessions() (run
+        // every minute) opens it when the window arrives.
+        if (! $booking->maskingWindowOpen()) {
+            return null;
+        }
+
         $closesAt = $this->closesAtFor($booking);
 
         try {
@@ -215,7 +223,43 @@ class TwilioProxyService
     {
         $duration = (int) ($booking->meta['duration_minutes'] ?? 60);
 
-        return $booking->pickup_at->copy()->addMinutes($duration)->addHours(self::GRACE_HOURS);
+        return $booking->pickup_at->copy()->addMinutes($duration)->addMinutes((int) round($booking->maskingGraceHours() * 60));
+    }
+
+    /**
+     * Open the masked line for any allocated/accepted job that has just entered
+     * its "goes live" window but has no open session yet. Run every minute so a
+     * job allocated early still gets its line the moment the window opens.
+     * Silent no-op when Proxy isn't configured.
+     */
+    public function openDueSessions(): int
+    {
+        if (! $this->configured()) {
+            return 0;
+        }
+
+        $opened = 0;
+        Booking::with('driver')
+            ->whereNotNull('driver_id')
+            ->whereIn('status', [
+                \App\Enums\BookingStatus::Allocated->value,
+                \App\Enums\BookingStatus::Accepted->value,
+            ])
+            ->whereBetween('pickup_at', [now()->subHours(6), now()->addMinutes(Booking::MASKING_LEAD_MINUTES + 60)])
+            ->get()
+            ->each(function (Booking $booking) use (&$opened) {
+                if (! $booking->driver || ! $booking->maskingWindowOpen()) {
+                    return;
+                }
+                if ($booking->proxySessions()->open()->exists()) {
+                    return; // already live
+                }
+                if ($this->openSession($booking, $booking->driver)) {
+                    $opened++;
+                }
+            });
+
+        return $opened;
     }
 
     private function twilio(): \Illuminate\Http\Client\PendingRequest
