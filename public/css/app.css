@@ -353,7 +353,7 @@ html[data-theme="dark"] .date-today { background: var(--gold); color: #111; bord
 
 /* ----- New driver statuses (Phase: iCabbi-style) ----- */
 .badge-arrived { background: #fde2c8; color: #9a4b00; }
-.tap-arrive { background: #b25e00; color: #fff; }
+.tap-arrive { background: #ea6d00; color: #fff; }
 
 /* ===== ETO-style left sidebar shell (overrides earlier topbar) ===== */
 .app-shell { display: flex; min-height: 100vh; }
