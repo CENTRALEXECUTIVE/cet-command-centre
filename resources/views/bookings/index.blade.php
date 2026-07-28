@@ -42,9 +42,15 @@
                 @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
                 @if(!empty($month))<input type="hidden" name="month" value="{{ $month->format('Y-m') }}">@else<input type="hidden" name="filter" value="{{ $filter ?? 'upcoming' }}">@endif
                 <label for="bk-status" class="muted" style="font-size:13px">Status</label>
+                @php
+                    // Common statuses first; the unlikely Cancelled / No-show sit at the bottom.
+                    $statusOptions = collect(\App\Enums\BookingStatus::cases())
+                        ->sortBy(fn ($s) => in_array($s->value, ['cancelled', 'no_show'], true) ? 1 : 0)
+                        ->values();
+                @endphp
                 <select id="bk-status" name="status" onchange="this.form.submit()" style="width:auto">
                     <option value="">All active</option>
-                    @foreach(\App\Enums\BookingStatus::cases() as $st)
+                    @foreach($statusOptions as $st)
                         <option value="{{ $st->value }}" @selected(($statusFilter ?? null) === $st->value)>{{ $st->label() }}</option>
                     @endforeach
                 </select>
