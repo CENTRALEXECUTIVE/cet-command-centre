@@ -967,6 +967,25 @@ class Booking extends Model
     }
 
     /**
+     * Fully settled — nothing left to collect. True when the booking is marked
+     * paid, or the office-curated payment line says Paid with no cash/balance/
+     * deposit still due. Used for the "Paid" flag on the bookings list so the
+     * office doesn't have to open a booking to check.
+     */
+    public function isFullyPaid(): bool
+    {
+        if ($this->payment_status === 'paid') {
+            return true;
+        }
+
+        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
+
+        return $line !== ''
+            && preg_match('/\bpaid\b/i', $line)
+            && ! preg_match('/\b(due|outstanding|balance|deposit|cash)\b/i', $line);
+    }
+
+    /**
      * ---- Payroll (driver pay per job) --------------------------------------
      * Stored in meta['payroll'] so no migration is needed:
      *   ['pay' => 45.00, 'paid' => 20.00, 'history' => [{amount, at, by, note}]]

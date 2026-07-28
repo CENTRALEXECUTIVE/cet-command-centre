@@ -146,6 +146,9 @@
 
                             <div class="bk-side">
                                 <span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span>
+                                @if($b->isFullyPaid())
+                                    <span class="badge" style="background:#1f7a44;color:#fff" title="Fully paid — nothing to collect">💳 Paid</span>
+                                @endif
                                 @if(auth()->user()->isAdmin() && $b->driverWhatsAppLink())
                                     <span class="bk-edit" title="WhatsApp {{ $b->driver?->name ?? 'the driver' }}"
                                           onclick="event.preventDefault();event.stopPropagation();window.open('{{ $b->driverWhatsAppLink() }}','_blank','noopener')">💬 Driver</span>

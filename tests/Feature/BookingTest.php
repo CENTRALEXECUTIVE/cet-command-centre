@@ -114,6 +114,27 @@ class BookingTest extends TestCase
             ->assertOk()->assertSee($live->reference)->assertDontSee($cancelled->reference);
     }
 
+    public function test_paid_bookings_show_a_paid_flag_in_the_list(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $paid = Booking::factory()->create(['external_reference' => 'PAID1', 'pickup_at' => now()->addDay(), 'payment_status' => 'paid']);
+        $unpaid = Booking::factory()->create(['external_reference' => 'OWES1', 'pickup_at' => now()->addDay(), 'payment_status' => 'pending']);
+
+        $this->assertTrue($paid->isFullyPaid());
+        $this->assertFalse($unpaid->isFullyPaid());
+
+        $res = $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'upcoming']))->assertOk();
+        $res->assertSee('💳 Paid');
+    }
+
+    public function test_a_deposit_plus_cash_booking_is_not_flagged_paid(): void
+    {
+        $b = Booking::factory()->make(['payment_status' => 'pending']);
+        $b->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid – £90 Cash Due']]);
+
+        $this->assertFalse($b->isFullyPaid()); // still money to collect
+    }
+
     public function test_the_booking_page_links_back_to_the_list_view_you_came_from(): void
     {
         $admin = User::factory()->admin()->create();
