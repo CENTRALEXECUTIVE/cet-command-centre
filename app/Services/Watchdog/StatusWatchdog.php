@@ -654,7 +654,14 @@ class StatusWatchdog
         }
     }
 
-    /** Journey duration for the complete fallback: meta, else estimate, else 60. */
+    /**
+     * Journey duration (pickup → drop-off) for the complete fallback. Uses a
+     * stored duration if we have one, else the real pickup/drop-off coords
+     * (geocoded once, then the free straight-line estimate) — a flat 60-min
+     * default made long runs like Sheffield → Manchester (~1h40) nag to
+     * complete far too early. Falls back to a generous 90 min only when we
+     * genuinely can't geocode, so the nudge stays conservative.
+     */
     public function estimatedDurationMinutes(Booking $booking): int
     {
         $meta = (int) ($booking->meta['duration_minutes'] ?? 0);
@@ -662,15 +669,13 @@ class StatusWatchdog
             return $meta;
         }
 
-        $geo = $booking->meta['geo'] ?? [];
-        if (isset($geo['pickup'][0], $geo['dropoff'][0])) {
-            return Geo::estimateDriveMinutes(
-                (float) $geo['pickup'][0], (float) $geo['pickup'][1],
-                (float) $geo['dropoff'][0], (float) $geo['dropoff'][1],
-            );
+        $pickup = $this->coords($booking, 'pickup');
+        $dropoff = $this->coords($booking, 'dropoff');
+        if ($pickup && $dropoff) {
+            return Geo::estimateDriveMinutes($pickup[0], $pickup[1], $dropoff[0], $dropoff[1]);
         }
 
-        return 60;
+        return 90;
     }
 
     private function shortAddress(?string $address): string

@@ -273,6 +273,14 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   once); no-show/cancel and calendar imports push immediately. Per-admin prefs
   in `users.notification_preferences` (super-admin page **Settings →
   Notifications**), incl. a critical-only master switch + optional chime.
+- **Progress pings** (info, fired from `BookingStatusService`, each once): the
+  office is notified as the driver moves through **set off / arrived / passenger
+  on board / completed** (`driver_set_off` / `driver_arrived` / `driver_on_board`
+  / `driver_complete` in `ALERT_TYPES`, all default-on, muted by critical-only).
+  The **complete-fallback** nudge (asks the driver to update if a job's left
+  open) uses an accurate pickup→drop-off duration — `estimatedDurationMinutes`
+  geocodes both ends once then uses the free straight-line estimate (90 min only
+  when it truly can't geocode), so long runs don't nag early.
 - **Alerts feed**: `watchdog_events` (30-day retention, pruned by
   `cet:prune-gps`) → dashboard control-tower panel (30s poll, acknowledge
   flow) + unack-critical badge in the topbar (crash-safe pre-migration).

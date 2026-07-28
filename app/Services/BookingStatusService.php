@@ -272,11 +272,21 @@ class BookingStatusService
         // "Your driver has arrived" — sent when the driver marks Arrived.
         if ($to === BookingStatus::Arrived) {
             $this->notifier->sendArrived($booking);
+
+            $driver = $booking->driverPublicName() ?: 'The driver';
+            $body = $driver.' has arrived at the pickup for the '.$booking->pickup_at->format('H:i').' '.($booking->displayCustomerName() ?: '').' job';
+            \App\Models\WatchdogEvent::log('driver_arrived', $body, 'info', $booking);
+            $this->adminAlerts->notify('driver_arrived', '📍 '.$driver.' arrived at pickup', $body, 'info', $booking);
         }
 
         // "Passenger on board" — journey underway, reassures the booker.
         if ($to === BookingStatus::Collected) {
             $this->notifier->sendPassengerOnBoard($booking);
+
+            $driver = $booking->driverPublicName() ?: 'The driver';
+            $body = $driver.' has the passenger on board'.($booking->displayCustomerName() ? ' — '.$booking->displayCustomerName() : '').', en route to drop-off';
+            \App\Models\WatchdogEvent::log('driver_on_board', $body, 'info', $booking);
+            $this->adminAlerts->notify('driver_on_board', '🧍 '.$driver.' — passenger on board', $body, 'info', $booking);
 
             // POB is effectively the end of phone contact — the passenger is in
             // the car. Keep the masked line alive for a short grace window (30
@@ -292,6 +302,11 @@ class BookingStatusService
         // Review request 30 minutes after completion (delivered by the scheduler).
         if ($to === BookingStatus::Complete) {
             $this->notifier->scheduleReviewRequest($booking);
+
+            $driver = $booking->driverPublicName() ?: 'The driver';
+            $body = $driver.' has completed the '.$booking->pickup_at->format('H:i').' '.($booking->displayCustomerName() ?: '').' job';
+            \App\Models\WatchdogEvent::log('driver_complete', $body, 'info', $booking);
+            $this->adminAlerts->notify('driver_complete', '🏁 '.$driver.' completed the job', $body, 'info', $booking);
         }
 
         // A cancellation frees capacity — notify the waiting list.

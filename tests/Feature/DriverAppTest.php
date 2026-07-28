@@ -78,6 +78,21 @@ class DriverAppTest extends TestCase
         $this->assertDatabaseHas('watchdog_events', ['booking_id' => $job->id, 'event_type' => 'driver_set_off']);
     }
 
+    public function test_office_is_pinged_on_arrived_pob_and_complete(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $job = $this->jobFor($this->driver, ['status' => BookingStatus::EnRoute, 'pickup_at' => now()->addMinutes(10)]);
+        $svc = app(\App\Services\BookingStatusService::class);
+
+        $svc->forceTransition($job, BookingStatus::Arrived, $admin);
+        $svc->forceTransition($job->fresh(), BookingStatus::Collected, $admin);
+        $svc->forceTransition($job->fresh(), BookingStatus::Complete, $admin);
+
+        foreach (['driver_arrived', 'driver_on_board', 'driver_complete'] as $event) {
+            $this->assertDatabaseHas('watchdog_events', ['booking_id' => $job->id, 'event_type' => $event]);
+        }
+    }
+
     public function test_driver_cannot_update_another_drivers_job(): void
     {
         $job = $this->jobFor(User::factory()->driver()->create(), ['status' => BookingStatus::Accepted]);
