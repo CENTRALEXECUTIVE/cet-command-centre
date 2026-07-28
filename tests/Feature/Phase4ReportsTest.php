@@ -152,8 +152,16 @@ class Phase4ReportsTest extends TestCase
 
         $this->assertEqualsWithDelta(190.0, $data['revenue'], 0.01);        // 100 + 90 turnover
         $this->assertEqualsWithDelta(135.0, $data['driver_cost'], 0.01);    // 45 pay + 90 cash kept
-        $this->assertEqualsWithDelta(55.0, $data['profit'], 0.01);          // only the card margin
+        $this->assertEqualsWithDelta(55.0, $data['commission'], 0.01);      // only the card margin
+        $this->assertEqualsWithDelta(55.0, $data['net_profit'], 0.01);      // no ad spend this month
         $this->assertEqualsWithDelta(90.0, $data['cash_to_drivers'], 0.01);
+
+        // Ad spend eats into the net profit.
+        \App\Models\AdMetric::create(['date' => now()->startOfMonth()->toDateString(), 'campaign' => 'Test', 'spend' => 20, 'revenue' => 0, 'conversions' => 0, 'jobs' => 0]);
+        $data = app(ReportService::class)->profit(now()->startOfMonth(), now()->endOfMonth());
+        $this->assertEqualsWithDelta(55.0, $data['commission'], 0.01);      // margin unchanged
+        $this->assertEqualsWithDelta(20.0, $data['ad_spend'], 0.01);
+        $this->assertEqualsWithDelta(35.0, $data['net_profit'], 0.01);      // 55 − 20
     }
 
     public function test_non_admin_cannot_view_reports(): void

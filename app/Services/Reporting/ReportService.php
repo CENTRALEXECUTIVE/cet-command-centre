@@ -62,13 +62,19 @@ class ReportService
 
         $revenue = round($jobs->sum(fn (Booking $b) => $b->fareAmount() ?? 0), 2);
         $driverCost = round($jobs->sum(fn (Booking $b) => $b->driverCost()), 2);
+        $commission = round($revenue - $driverCost, 2); // the margin the business makes
+        $adSpend = round((float) \App\Models\AdMetric::whereBetween('date', [$start->toDateString(), $end->toDateString()])->sum('spend'), 2);
+        $netProfit = round($commission - $adSpend, 2);
 
         return [
             'jobs' => $jobs->count(),
             'revenue' => $revenue,
             'driver_cost' => $driverCost,
-            'profit' => round($revenue - $driverCost, 2),
-            'margin_pct' => $revenue > 0 ? (int) round(($revenue - $driverCost) / $revenue * 100) : 0,
+            'commission' => $commission,
+            'ad_spend' => $adSpend,
+            'net_profit' => $netProfit,
+            'margin_pct' => $revenue > 0 ? (int) round($commission / $revenue * 100) : 0,
+            'net_margin_pct' => $revenue > 0 ? (int) round($netProfit / $revenue * 100) : 0,
             'cash_to_drivers' => round($jobs->filter(fn (Booking $b) => $b->driverSettledByCustomer())
                 ->sum(fn (Booking $b) => $b->cashDueToDriver() ?? 0), 2),
             'per_driver' => $jobs->groupBy(fn (Booking $b) => $b->payrollDriverName())
