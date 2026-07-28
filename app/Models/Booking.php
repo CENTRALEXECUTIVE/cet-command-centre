@@ -967,38 +967,20 @@ class Booking extends Model
     }
 
     /**
-     * Fully settled — nothing left to collect. True when the booking is marked
-     * paid, or the office-curated payment line says Paid with no cash/balance/
-     * deposit still due. Used for the "Paid" flag on the bookings list so the
-     * office doesn't have to open a booking to check.
+     * Whether the DRIVER has been paid in full for this job — drives the flag on
+     * the bookings list so the office can see who still needs paying without
+     * opening each booking. True for a cash job the customer settled directly, or
+     * a pay figure that's been fully recorded as paid.
      */
-    public function isFullyPaid(): bool
+    public function driverFullyPaid(): bool
     {
-        // Definitive: the booking is marked paid.
-        if ($this->payment_status === 'paid') {
-            return true;
+        if ($this->driverSettledByCustomer()) {
+            return true; // cash — the driver already has it
         }
 
-        // The app's rule: a money emoji (💰 cash / 👀 card balance) means there's
-        // still a balance; NONE means fully paid. Honour a curated override first.
-        if (array_key_exists('money_emoji', $this->meta ?? [])) {
-            return blank($this->meta['money_emoji']);
-        }
+        $pay = $this->driverPay();
 
-        // A cash or card job carries an outstanding balance by definition — never
-        // read it as paid off the payment line (a "to be paid by card" line was
-        // wrongly flagging card jobs as settled).
-        if (in_array($this->payment_method?->value, ['cash', 'card'], true)) {
-            return false;
-        }
-
-        // Account / none: trust a curated line that clearly says Paid, nothing due.
-        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
-
-        return $line !== ''
-            && preg_match('/\bpaid\b/i', $line)
-            && ! preg_match('/\b(due|outstanding|balance|deposit|cash|link)\b/i', $line)
-            && ! preg_match('/to\s*be\s*paid|pay\s*by/i', $line);
+        return $pay !== null && ($this->driverPayRemaining() ?? 1) <= 0;
     }
 
     /**

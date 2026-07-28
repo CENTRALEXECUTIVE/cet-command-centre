@@ -114,38 +114,35 @@ class BookingTest extends TestCase
             ->assertOk()->assertSee($live->reference)->assertDontSee($cancelled->reference);
     }
 
-    public function test_paid_bookings_show_a_paid_flag_in_the_list(): void
+    public function test_the_list_flags_whether_the_driver_has_been_paid(): void
     {
         $admin = User::factory()->admin()->create();
-        $paid = Booking::factory()->create(['external_reference' => 'PAID1', 'pickup_at' => now()->addDay(), 'payment_status' => 'paid']);
-        $unpaid = Booking::factory()->create(['external_reference' => 'OWES1', 'pickup_at' => now()->addDay(), 'payment_status' => 'pending']);
+        $driver = User::factory()->driver()->create();
 
-        $this->assertTrue($paid->isFullyPaid());
-        $this->assertFalse($unpaid->isFullyPaid());
+        // Driver fully paid (£90 pay, £90 recorded) → "Driver paid".
+        $paid = Booking::factory()->create(['external_reference' => 'DP1', 'driver_id' => $driver->id, 'pickup_at' => now()->addDay(),
+            'payment_method' => \App\Enums\PaymentMethod::Card->value]);
+        $paid->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 90, 'history' => []]]])->save();
+        // Driver still owed £90 → "£90 owed", NOT paid.
+        $owed = Booking::factory()->create(['external_reference' => 'DO1', 'driver_id' => $driver->id, 'pickup_at' => now()->addDay(),
+            'payment_method' => \App\Enums\PaymentMethod::Card->value]);
+        $owed->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
 
-        $res = $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'upcoming']))->assertOk();
-        $res->assertSee('💳 Paid');
+        $this->assertTrue($paid->driverFullyPaid());
+        $this->assertFalse($owed->driverFullyPaid());
+
+        $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'upcoming']))
+            ->assertOk()
+            ->assertSee('💷 Driver paid')
+            ->assertSee('£90 owed');
     }
 
-    public function test_a_deposit_plus_cash_booking_is_not_flagged_paid(): void
+    public function test_a_cash_job_counts_as_driver_paid(): void
     {
-        $b = Booking::factory()->make(['payment_status' => 'pending']);
-        $b->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid – £90 Cash Due']]);
+        // Cash job — the driver collected the fare directly → already paid.
+        $b = Booking::factory()->make(['payment_method' => \App\Enums\PaymentMethod::Cash->value]);
 
-        $this->assertFalse($b->isFullyPaid()); // still money to collect
-    }
-
-    public function test_a_card_balance_job_is_not_flagged_paid_off_the_line(): void
-    {
-        // 👀 card-balance job (not settled) whose payment line mentions "paid".
-        $card = Booking::factory()->make(['payment_status' => 'pending', 'payment_method' => \App\Enums\PaymentMethod::Card->value]);
-        $card->forceFill(['meta' => ['payment_text' => '£100 to be paid by card link']]);
-        $this->assertFalse($card->isFullyPaid());
-
-        // A curated money emoji explicitly cleared → fully paid.
-        $done = Booking::factory()->make(['payment_status' => 'pending', 'payment_method' => \App\Enums\PaymentMethod::Card->value]);
-        $done->forceFill(['meta' => ['money_emoji' => '']]);
-        $this->assertTrue($done->isFullyPaid());
+        $this->assertTrue($b->driverFullyPaid());
     }
 
     public function test_bookings_can_be_filtered_by_driver_including_callsign_jobs(): void

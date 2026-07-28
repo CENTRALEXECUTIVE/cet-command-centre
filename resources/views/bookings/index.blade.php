@@ -150,8 +150,10 @@
 
                             <div class="bk-side">
                                 <span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span>
-                                @if($b->isFullyPaid())
-                                    <span class="badge" style="background:#1f7a44;color:#fff" title="Fully paid — nothing to collect">💳 Paid</span>
+                                @if($b->driverFullyPaid())
+                                    <span class="badge" style="background:#1f7a44;color:#fff" title="Driver paid for this job">💷 Driver paid</span>
+                                @elseif(($b->driverPayRemaining() ?? 0) > 0)
+                                    <span class="badge" style="background:#8a5a00;color:#fff" title="Owed to the driver">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed</span>
                                 @endif
                                 @if(auth()->user()->isAdmin() && $b->driverWhatsAppLink())
                                     <span class="bk-edit" title="WhatsApp {{ $b->driver?->name ?? 'the driver' }}"
