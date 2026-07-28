@@ -188,7 +188,7 @@ class Booking extends Model
         }
 
         $lines[] = '';
-        $lines[] = 'Open your job sheet (no login needed):';
+        $lines[] = 'Open your job sheet:';
         $lines[] = $this->driverLinkUrl();
 
         return implode("\n", $lines);
