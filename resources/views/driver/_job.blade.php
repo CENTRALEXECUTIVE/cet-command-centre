@@ -33,41 +33,13 @@
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
 
-{{-- PRIMARY ACTION — update the job status. Front and centre (right under the
-     job card) so the driver can act in one tap without scrolling. --}}
 @php
-    $next = $booking->status->nextStatuses();
     // Drivers can't cancel or mark no-show — only admins (the office).
+    $next = $booking->status->nextStatuses();
     if (! $viewerIsAdmin) {
         $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
     }
 @endphp
-@if(!empty($next))
-    <div class="tap-actions" style="margin-bottom:16px">
-        @foreach($next as $status)
-            @php
-                $class = match($status->value) {
-                    'accepted' => 'tap-accept', 'en_route' => 'tap-go',
-                    'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
-                    'complete' => 'tap-complete',
-                    default => 'tap-cancel',
-                };
-                $btnLabel = match($status->value) {
-                    'en_route' => '🚗 On My Way', 'arrived' => '📍 Arrived',
-                    'collected' => '🧍 Passenger On Board', 'complete' => '🏁 Completed',
-                    'accepted' => '✅ Accept job', default => $status->label(),
-                };
-            @endphp
-            <form method="POST" action="{{ $statusUrl }}" class="status-form">
-                @csrf
-                <input type="hidden" name="status" value="{{ $status->value }}">
-                <input type="hidden" name="lat" class="lat-input">
-                <input type="hidden" name="lng" class="lng-input">
-                <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
-            </form>
-        @endforeach
-    </div>
-@endif
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -120,6 +92,36 @@
 
 <div id="job-map" style="height:220px;border-radius:10px;margin-bottom:16px;display:none"></div>
 <div id="map-cfg" data-pickup="{{ $booking->pickup_address }}" data-dropoff="{{ $booking->destination_address }}" hidden></div>
+
+{{-- Status actions sit right under the navigation + map so they stay in easy
+     reach (thumb-friendly, no scrolling past all the details to find them),
+     while everything the driver needs to get moving comes first. --}}
+@if(!empty($next))
+    <div class="tap-actions" style="margin-bottom:16px">
+        @foreach($next as $status)
+            @php
+                $class = match($status->value) {
+                    'accepted' => 'tap-accept', 'en_route' => 'tap-go',
+                    'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
+                    'complete' => 'tap-complete',
+                    default => 'tap-cancel',
+                };
+                $btnLabel = match($status->value) {
+                    'en_route' => '🚗 On My Way', 'arrived' => '📍 Arrived',
+                    'collected' => '🧍 Passenger On Board', 'complete' => '🏁 Completed',
+                    'accepted' => '✅ Accept job', default => $status->label(),
+                };
+            @endphp
+            <form method="POST" action="{{ $statusUrl }}" class="status-form">
+                @csrf
+                <input type="hidden" name="status" value="{{ $status->value }}">
+                <input type="hidden" name="lat" class="lat-input">
+                <input type="hidden" name="lng" class="lng-input">
+                <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
+            </form>
+        @endforeach
+    </div>
+@endif
 
 <div class="card">
     <table>
