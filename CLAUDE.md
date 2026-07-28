@@ -239,15 +239,21 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   get the masked line in driver-details messages (`customerMaskedNumber()`).
   Admins keep full visibility everywhere else.
 - `Telephony\TwilioProxyService` (raw HTTP, **no SDK — deliberate**, so deploys
-  need no composer step): the masked line goes **live from pickup − a per-booking
-  lead** (default 90 min; `Booking::maskingLeadMinutes()`) rather than at
-  allocation — a job allocated early is DEFERRED and opened by
-  `cet:close-proxy-sessions` (now **every minute**) once inside the window. Closes
-  on complete/cancel/no-show/decline/un-tie, swaps on reassign; expiry = drop-off
-  + a per-booking grace (default 4h; `maskingGraceHours()`). Both editable on the
-  booking page (**Masking timing** → `bookings.masking-timing`), applied to both
-  legs. Twilio `DateExpiry` backs the close up. Silent no-op until
-  `TWILIO_PROXY_SERVICE_SID` is set (uses existing `TWILIO_SID`/`TWILIO_AUTH_TOKEN`).
+  need no composer step): opens a session on **Allocated** (the masked number is
+  on the driver's sheet **from allocation**), closes on
+  complete/cancel/no-show/decline/un-tie, swaps on reassign; expiry = drop-off +
+  a per-booking grace (default 4h; `maskingGraceHours()`). `cet:close-proxy-sessions`
+  runs **every minute** (closes expired + heals any missed open). Twilio `DateExpiry`
+  backs the close up. Silent no-op until `TWILIO_PROXY_SERVICE_SID` is set.
+- **Per-booking masking window** (`Booking::maskingLeadMinutes()` default 90,
+  `maskingGraceHours()` default 4, editable on the booking page →
+  `bookings.masking-timing`, applied to both legs): governs when calls/texts
+  CONNECT. On the **legacy switchboard bridge** (`MaskingService`, the fallback),
+  `resolve()` only bridges inside `[pickup − lead … drop-off + grace]`; a call/
+  text OUTSIDE it plays a tailored CET message (`officeMessage()`: too_early /
+  closed) instead of connecting. (Twilio Proxy sessions connect whenever open —
+  gating early Proxy calls at the Twilio layer would need a Proxy intercept
+  callback, not yet wired.)
 - Audit: `proxy_events` (opens/closes/webhook callbacks at
   `/webhooks/twilio-proxy`, secret-guarded; message BODIES are stripped —
   metadata only). Purged on the 90-day GPS schedule. WhatsApp masking is out

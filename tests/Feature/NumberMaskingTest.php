@@ -152,6 +152,45 @@ class NumberMaskingTest extends TestCase
         $this->assertEquals('+447700900222', $service->counterpartFor('07700900111'));
     }
 
+    public function test_an_early_call_plays_a_tailored_cet_message(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900111']);
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+        Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id, 'driver_id' => $driver->id,
+            'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addHours(5),
+        ]);
+
+        $service = app(MaskingService::class);
+        $resolved = $service->resolve('07700900111');
+
+        // Recognised as a known party, but too early → office message, no bridge.
+        $this->assertSame('too_early', $resolved['reason'] ?? null);
+        $twiml = $service->dialTwiml($resolved);
+        $this->assertStringNotContainsString('<Dial', $twiml);
+        $this->assertStringContainsString('opens closer to your pickup time', $twiml);
+    }
+
+    public function test_office_can_shorten_the_connect_window_per_booking(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900111']);
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+        $booking = Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id, 'driver_id' => $driver->id,
+            'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addHours(2),
+        ]);
+
+        $service = app(MaskingService::class);
+        // Default 90-min window → 2h out is too early.
+        $this->assertNull($service->counterpartFor('07700900111'));
+
+        // Widen the lead to 3h for THIS booking → now it connects.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['masking_lead_minutes' => 180])])->save();
+        $this->assertEquals('+447700900222', $service->counterpartFor('07700900111'));
+    }
+
     public function test_callee_sees_the_counterpart_cet_line_not_the_real_number(): void
     {
         $this->activeJob();

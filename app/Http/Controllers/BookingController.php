@@ -509,16 +509,15 @@ class BookingController extends Controller
                 'masking_grace_hours' => (float) $data['grace_hours'],
             ])])->save();
 
-            // Reflect the new window now: open if due, pull it in if not yet.
+            // The number is live from allocation — make sure the line is open (the
+            // window only gates when calls CONNECT, handled at call time).
             $leg->refresh()->loadMissing('customer', 'driver');
-            if ($leg->driver && ! $leg->status->isTerminal() && $leg->maskingWindowOpen()) {
+            if ($leg->driver && ! $leg->status->isTerminal()) {
                 $proxy->openSession($leg, $leg->driver);
-            } elseif (! $leg->maskingWindowOpen()) {
-                $proxy->closeSession($leg, 'masking window not open yet');
             }
         }
 
-        return back()->with('status', "Masking timing saved — line goes live {$data['lead_minutes']} min before pickup, closes drop-off +{$data['grace_hours']}h.");
+        return back()->with('status', "Masking timing saved — calls connect from {$data['lead_minutes']} min before pickup, stop drop-off +{$data['grace_hours']}h.");
     }
 
     /**

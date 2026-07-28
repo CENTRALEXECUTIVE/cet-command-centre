@@ -92,31 +92,49 @@ class MaskingService
             ->orderBy('pickup_at') // nearest job wins if a caller has more than one
             ->get();
 
-        foreach ($bookings as $booking) {
-            // Not yet live, or past its close time → this job's line is dead.
-            if (! $booking->maskingWindowOpen()) {
-                continue;
-            }
-            $duration = (int) ($booking->meta['duration_minutes'] ?? 60);
-            $closeAt = $booking->pickup_at->copy()->addMinutes($duration)
-                ->addMinutes((int) round($booking->maskingGraceHours() * 60));
-            if (now()->gt($closeAt)) {
-                continue;
-            }
+        // Remember a caller who IS on a job but is outside its live window, so we
+        // can play a tailored "not yet / all done" message instead of the generic
+        // one — but only if no OTHER job of theirs is currently connectable.
+        $outOfWindow = null;
 
+        foreach ($bookings as $booking) {
             $customer = $this->normalise($booking->customer?->phone);
             // The driver's number comes from an assigned system driver, else the
             // manually-entered driver details — so masking works either way.
             $driver = $this->normalise($booking->driver?->phone ?: ($booking->meta['driver_details']['phone'] ?? null));
 
-            // Customer calling → reach the driver; the driver sees the DRIVER line.
-            if ($customer && $customer === $from && $driver) {
+            $isCustomer = $customer && $customer === $from && $driver;
+            $isDriver = $driver && $driver === $from && $customer;
+            if (! $isCustomer && ! $isDriver) {
+                continue; // caller isn't a party on this job
+            }
+
+            // Inside this job's live window? (pickup − lead … drop-off + grace)
+            $duration = (int) ($booking->meta['duration_minutes'] ?? 60);
+            $closeAt = $booking->pickup_at->copy()->addMinutes($duration)
+                ->addMinutes((int) round($booking->maskingGraceHours() * 60));
+
+            if (! $booking->maskingWindowOpen()) {
+                $outOfWindow ??= ['office' => true, 'reason' => 'too_early', 'booking' => $booking];
+
+                continue;
+            }
+            if (now()->gt($closeAt)) {
+                $outOfWindow ??= ['office' => true, 'reason' => 'closed', 'booking' => $booking];
+
+                continue;
+            }
+
+            // Live → connect. Customer → driver, driver → customer.
+            if ($isCustomer) {
                 return ['dial' => $driver, 'caller_id' => $this->driverLine(), 'to' => 'driver', 'booking' => $booking];
             }
-            // Driver calling → reach the customer; the customer sees the CUSTOMER line.
-            if ($driver && $driver === $from && $customer) {
-                return ['dial' => $customer, 'caller_id' => $this->customerLine(), 'to' => 'customer', 'booking' => $booking];
-            }
+
+            return ['dial' => $customer, 'caller_id' => $this->customerLine(), 'to' => 'customer', 'booking' => $booking];
+        }
+
+        if ($outOfWindow) {
+            return $outOfWindow;
         }
 
         return null;
@@ -148,8 +166,24 @@ class MaskingService
                 ."<Response><Dial callerId=\"{$cid}\">{$to}</Dial></Response>";
         }
 
+        $say = htmlspecialchars($this->officeMessage(is_array($resolved) ? ($resolved['reason'] ?? null) : null), ENT_XML1);
+
         return '<?xml version="1.0" encoding="UTF-8"?>'
-            .'<Response><Say>Sorry, we could not connect your call. Please contact Central Executive Transfers directly.</Say></Response>';
+            ."<Response><Say>{$say}</Say></Response>";
+    }
+
+    /**
+     * The spoken/texted CET message when a call/text can't connect — tailored to
+     * WHY: too early (before the line goes live), all done (after the job), or the
+     * generic fallback for an unknown caller.
+     */
+    public function officeMessage(?string $reason = null): string
+    {
+        return match ($reason) {
+            'too_early' => 'Thanks for calling Central Executive Transfers. Your driver isn\'t reachable on this line just yet — it opens closer to your pickup time. For anything urgent please call the office.',
+            'closed' => 'Thanks for calling Central Executive Transfers. This journey\'s line has now closed. For anything further please call the office.',
+            default => 'Sorry, we could not connect your call. Please contact Central Executive Transfers directly.',
+        };
     }
 
     /**
@@ -160,7 +194,8 @@ class MaskingService
     public function forwardSms(string $fromNumber, string $body): bool
     {
         $resolved = $this->resolve($fromNumber);
-        if (! $resolved) {
+        // Not on a job, or on a job that's outside its live window → don't bridge.
+        if (! $resolved || empty($resolved['dial'])) {
             return false;
         }
 

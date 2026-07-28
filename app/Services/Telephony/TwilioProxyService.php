@@ -71,14 +71,6 @@ class TwilioProxyService
             $this->closeSession($booking, 'driver reassigned');
         }
 
-        // Hold the line CLOSED until the job's "goes live" window (pickup minus
-        // the per-booking lead, default 90 min). A job allocated days ahead
-        // doesn't open a masked line until it's due — openDueSessions() (run
-        // every minute) opens it when the window arrives.
-        if (! $booking->maskingWindowOpen()) {
-            return null;
-        }
-
         $closesAt = $this->closesAtFor($booking);
 
         try {
@@ -227,10 +219,10 @@ class TwilioProxyService
     }
 
     /**
-     * Open the masked line for any allocated/accepted job that has just entered
-     * its "goes live" window but has no open session yet. Run every minute so a
-     * job allocated early still gets its line the moment the window opens.
-     * Silent no-op when Proxy isn't configured.
+     * Safety net: open the masked line for any live allocated/accepted job that
+     * somehow has no open session yet (e.g. a Twilio hiccup at allocation). The
+     * line is live from allocation, so there's no time gate here — this just
+     * heals gaps. Silent no-op when Proxy isn't configured.
      */
     public function openDueSessions(): int
     {
@@ -245,14 +237,11 @@ class TwilioProxyService
                 \App\Enums\BookingStatus::Allocated->value,
                 \App\Enums\BookingStatus::Accepted->value,
             ])
-            ->whereBetween('pickup_at', [now()->subHours(6), now()->addMinutes(Booking::MASKING_LEAD_MINUTES + 60)])
+            ->whereBetween('pickup_at', [now()->subHours(6), now()->addHours(48)])
             ->get()
             ->each(function (Booking $booking) use (&$opened) {
-                if (! $booking->driver || ! $booking->maskingWindowOpen()) {
+                if (! $booking->driver || $booking->proxySessions()->open()->exists()) {
                     return;
-                }
-                if ($booking->proxySessions()->open()->exists()) {
-                    return; // already live
                 }
                 if ($this->openSession($booking, $booking->driver)) {
                     $opened++;
