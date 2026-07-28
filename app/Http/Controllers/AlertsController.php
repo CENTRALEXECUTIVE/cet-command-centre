@@ -29,9 +29,12 @@ class AlertsController extends Controller
         $events = WatchdogEvent::with('booking')
             // Only what still needs attention: once an alert is acknowledged
             // (dealt with) it drops off the feed. Routine per-status-change log
-            // rows are excluded — they're noise, not alerts.
+            // rows are excluded — they're noise, not alerts. Anything older than
+            // a day is stale — it drops off on its own so the feed stays live and
+            // doesn't hoard yesterday's alerts.
             ->whereNull('acknowledged_at')
             ->where('event_type', '!=', 'status_changed')
+            ->where('occurred_at', '>=', now()->subDay())
             ->orderByDesc('occurred_at')
             ->orderByDesc('id')
             ->limit(20)
@@ -61,5 +64,13 @@ class AlertsController extends Controller
             'ok' => true,
             'critical' => WatchdogEvent::unacknowledgedCritical()->count(),
         ]);
+    }
+
+    /** Acknowledge every outstanding alert in one go — clears the whole feed. */
+    public function acknowledgeAll(Request $request): JsonResponse
+    {
+        WatchdogEvent::whereNull('acknowledged_at')->update(['acknowledged_at' => now()]);
+
+        return response()->json(['ok' => true, 'critical' => 0]);
     }
 }

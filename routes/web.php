@@ -209,6 +209,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('alerts/feed', [\App\Http\Controllers\AlertsController::class, 'feed'])->name('alerts.feed');
         Route::post('alerts/{event}/ack', [\App\Http\Controllers\AlertsController::class, 'acknowledge'])
             ->middleware('throttle:60,1')->name('alerts.ack');
+        Route::post('alerts/ack-all', [\App\Http\Controllers\AlertsController::class, 'acknowledgeAll'])
+            ->middleware('throttle:30,1')->name('alerts.ackAll');
         Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
         Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
 

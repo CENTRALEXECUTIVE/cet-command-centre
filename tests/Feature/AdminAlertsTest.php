@@ -290,6 +290,32 @@ class AdminAlertsTest extends TestCase
         $this->actingAs($driver)->getJson(route('alerts.feed'))->assertForbidden();
     }
 
+    public function test_clear_all_acknowledges_every_outstanding_alert(): void
+    {
+        $admin = $this->admin();
+        WatchdogEvent::log('admin_unallocated', 'one', 'critical');
+        WatchdogEvent::log('admin_unacted', 'two', 'critical');
+        WatchdogEvent::log('driver_set_off', 'three', 'info');
+
+        $this->actingAs($admin)->postJson(route('alerts.ackAll'))
+            ->assertOk()->assertJson(['ok' => true, 'critical' => 0]);
+
+        // Feed is now empty — nothing outstanding.
+        $this->assertSame([], $this->actingAs($admin)->getJson(route('alerts.feed'))->json('events'));
+        $this->assertSame(0, WatchdogEvent::whereNull('acknowledged_at')->count());
+    }
+
+    public function test_stale_alerts_older_than_a_day_drop_off_the_feed(): void
+    {
+        $admin = $this->admin();
+        WatchdogEvent::log('admin_unallocated', 'yesterday', 'critical');
+        WatchdogEvent::query()->update(['occurred_at' => now()->subDays(2)]);
+        WatchdogEvent::log('admin_unallocated', 'today', 'critical');
+
+        $titles = collect($this->actingAs($admin)->getJson(route('alerts.feed'))->json('events'))->pluck('title')->all();
+        $this->assertSame(['today'], $titles); // the 2-day-old one is gone
+    }
+
     public function test_acknowledging_a_critical_clears_the_badge(): void
     {
         $admin = $this->admin();

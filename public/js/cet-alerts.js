@@ -17,7 +17,24 @@
     var chimeOn = panel.dataset.chime === '1';
     var alarmOn = panel.dataset.alarm === '1';
     var silenceBtn = document.getElementById('alerts-silence');
+    var clearBtn = document.getElementById('alerts-clear');
     var seen = null; // ids seen last poll (null until first render)
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            if (!confirm('Clear all live alerts? This marks them all as dealt with.')) return;
+            fetch(clearBtn.dataset.clear, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+            }).then(function (r) { return r.json(); }).then(function (d) {
+                seen = {};
+                list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
+                clearBtn.style.display = 'none';
+                badge(d.critical);
+                stopAlarm(true);
+            }).catch(function () {});
+        });
+    }
     var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     var ICONS = { info: '✓', warning: '⚠', critical: '🔴' };
@@ -107,6 +124,8 @@
         var known = seen || {};
         seen = {};
         var hadNewCritical = false;
+
+        if (clearBtn) clearBtn.style.display = data.events.length ? '' : 'none';
 
         if (!data.events.length) {
             list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
