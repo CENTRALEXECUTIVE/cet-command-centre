@@ -17,9 +17,8 @@
     <div class="da-hero-time">{{ $booking->pickup_at->format('D d M') }} · <span>{{ $booking->pickup_at->format('H:i') }}</span></div>
     <div class="da-hero-name">{{ $booking->displayName() }}@if($booking->hasChildSeat()) <span title="Child seat required">🚼</span>@endif</div>
     <div class="da-hero-route">
-        <span>{{ \Illuminate\Support\Str::limit($booking->displayPickupAddress(), 34) }}</span>
-        <span class="arr">→</span>
-        <span>{{ \Illuminate\Support\Str::limit($booking->displayDropoffAddress(), 34) }}</span>
+        <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
+        <span class="da-addr">🏁 {{ $booking->displayDropoffAddress() }}</span>
     </div>
     <div class="da-hero-chips">
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>

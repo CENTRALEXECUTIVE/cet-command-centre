@@ -572,7 +572,8 @@ body.driver-app .da-back { color: #9aa0a6; font-size: 13px; display: inline-bloc
 .da-hero-time { color: #b9bdc4; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; }
 .da-hero-time span { color: var(--gold); font-size: 30px; font-weight: 800; letter-spacing: 0; }
 .da-hero-name { color: #fff; font-size: 24px; font-weight: 800; margin: 2px 0 10px; }
-.da-hero-route { color: #cfd3d8; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.da-hero-route { color: #eef1f4; font-size: 15px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.da-hero-route .da-addr { line-height: 1.35; word-break: break-word; }
 .da-hero-route .arr { color: var(--gold); font-weight: 800; }
 .da-hero-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .da-chip { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
