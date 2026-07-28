@@ -93,36 +93,6 @@
 <div id="job-map" style="height:220px;border-radius:10px;margin-bottom:16px;display:none"></div>
 <div id="map-cfg" data-pickup="{{ $booking->pickup_address }}" data-dropoff="{{ $booking->destination_address }}" hidden></div>
 
-{{-- Status actions sit right under the navigation + map so they stay in easy
-     reach (thumb-friendly, no scrolling past all the details to find them),
-     while everything the driver needs to get moving comes first. --}}
-@if(!empty($next))
-    <div class="tap-actions" style="margin-bottom:16px">
-        @foreach($next as $status)
-            @php
-                $class = match($status->value) {
-                    'accepted' => 'tap-accept', 'en_route' => 'tap-go',
-                    'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
-                    'complete' => 'tap-complete',
-                    default => 'tap-cancel',
-                };
-                $btnLabel = match($status->value) {
-                    'en_route' => '🚗 On My Way', 'arrived' => '📍 Arrived',
-                    'collected' => '🧍 Passenger On Board', 'complete' => '🏁 Completed',
-                    'accepted' => '✅ Accept job', default => $status->label(),
-                };
-            @endphp
-            <form method="POST" action="{{ $statusUrl }}" class="status-form">
-                @csrf
-                <input type="hidden" name="status" value="{{ $status->value }}">
-                <input type="hidden" name="lat" class="lat-input">
-                <input type="hidden" name="lng" class="lng-input">
-                <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
-            </form>
-        @endforeach
-    </div>
-@endif
-
 <div class="card">
     <table>
         <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
@@ -201,7 +171,38 @@
     💬 Message the office
 </a>
 
-@if(empty($next))
+{{-- Status actions live LAST in the page (navigation, map and details come
+     first), but the bar is position:sticky so it stays pinned to the bottom of
+     the screen the whole time — the driver never has to scroll to find "On My
+     Way / Arrived / Passenger On Board / Completed". --}}
+@if(!empty($next))
+    <div class="da-actionbar">
+        <div class="tap-actions">
+            @foreach($next as $status)
+                @php
+                    $class = match($status->value) {
+                        'accepted' => 'tap-accept', 'en_route' => 'tap-go',
+                        'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
+                        'complete' => 'tap-complete',
+                        default => 'tap-cancel',
+                    };
+                    $btnLabel = match($status->value) {
+                        'en_route' => '🚗 On My Way', 'arrived' => '📍 Arrived',
+                        'collected' => '🧍 Passenger On Board', 'complete' => '🏁 Completed',
+                        'accepted' => '✅ Accept job', default => $status->label(),
+                    };
+                @endphp
+                <form method="POST" action="{{ $statusUrl }}" class="status-form">
+                    @csrf
+                    <input type="hidden" name="status" value="{{ $status->value }}">
+                    <input type="hidden" name="lat" class="lat-input">
+                    <input type="hidden" name="lng" class="lng-input">
+                    <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
+                </form>
+            @endforeach
+        </div>
+    </div>
+@else
     <div class="card"><p class="muted mb-0">This job is {{ $booking->status->label() }} — no further action.</p></div>
 @endif
 

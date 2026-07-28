@@ -639,12 +639,16 @@ body.driver-app .job-tile .big-time { color: var(--gold); font-size: 22px; font-
 body.driver-app .job-tile .meta { color: #cdd1d6; }
 body.driver-app .job-tile[data-offer] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 8px 26px rgba(251,186,42,.18); }
 
-/* Sticky action bar — the status buttons pinned to the thumb zone */
+/* Sticky action bar — the status buttons stay pinned to the thumb zone at the
+   bottom of the screen the whole time, so the driver never scrolls to find
+   "On My Way / Arrived / Passenger On Board / Completed". Content dissolves
+   into the solid backdrop as it scrolls behind the buttons. */
 .da-actionbar { position: sticky; bottom: 0; z-index: 20; margin: 18px -24px -24px;
-    padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(14,15,18,0) 0%, #0e0f12 24%); }
-.da-actionbar .tap-actions { margin: 0; grid-auto-rows: 1fr; }
-.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+    padding: 20px 24px calc(16px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(14,15,18,0) 0%, #0e0f12 42%);
+    pointer-events: none; }
+.da-actionbar .tap-actions { margin: 0; grid-auto-rows: 1fr; pointer-events: auto; }
+.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 8px 22px rgba(0,0,0,.5); }
 
 /* ═══ Dashboard — modern command deck ══════════════════════════════════════ */
 .dash-hero { position: relative; overflow: hidden; border-radius: 20px; margin-bottom: 18px;
