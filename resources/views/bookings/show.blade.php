@@ -704,7 +704,7 @@
                                value="{{ $booking->maskingLeadMinutes() }}" style="width:150px">
                     </div>
                     <div class="field" style="margin:0">
-                        <label for="mask-grace" style="font-size:12px">Calls stop (h after drop-off)</label>
+                        <label for="mask-grace" style="font-size:12px">Backstop close (h after drop-off)</label>
                         <input id="mask-grace" name="grace_hours" type="number" min="0" max="48" step="0.5"
                                value="{{ rtrim(rtrim(number_format($booking->maskingGraceHours(), 1, '.', ''), '0'), '.') }}" style="width:130px">
                     </div>
@@ -717,7 +717,7 @@
                         @endif
                     </span>
                 </form>
-                <p class="hint" style="margin:-4px 0 12px">The masked number is on the driver's job screen from allocation. A call or text <strong>before</strong> the connect time (or after it closes) plays a Central Executive Transfers message instead of connecting.</p>
+                <p class="hint" style="margin:-4px 0 12px">The masked number is on the driver's job screen from allocation. A call or text <strong>before</strong> the connect time plays a Central Executive Transfers message instead of connecting. <strong>Marking the job Complete closes the line straight away</strong> — the backstop only kicks in if a job is never marked complete.</p>
             @endif
 
             @php
