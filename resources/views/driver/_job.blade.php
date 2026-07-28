@@ -172,10 +172,12 @@
 </a>
 
 {{-- Status actions live LAST in the page (navigation, map and details come
-     first), but the bar is position:sticky so it stays pinned to the bottom of
-     the screen the whole time — the driver never has to scroll to find "On My
-     Way / Arrived / Passenger On Board / Completed". --}}
+     first), but the bar is fixed to the bottom edge of the screen so it's
+     always visible — the driver never has to scroll to find "On My Way /
+     Arrived / Passenger On Board / Completed". The spacer reserves matching
+     room so the content above never hides behind the bar. --}}
 @if(!empty($next))
+    <div class="da-actionbar-spacer" aria-hidden="true"></div>
     <div class="da-actionbar">
         <div class="tap-actions">
             @foreach($next as $status)

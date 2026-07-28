@@ -639,16 +639,23 @@ body.driver-app .job-tile .big-time { color: var(--gold); font-size: 22px; font-
 body.driver-app .job-tile .meta { color: #cdd1d6; }
 body.driver-app .job-tile[data-offer] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 8px 26px rgba(251,186,42,.18); }
 
-/* Sticky action bar — the status buttons stay pinned to the thumb zone at the
-   bottom of the screen the whole time, so the driver never scrolls to find
-   "On My Way / Arrived / Passenger On Board / Completed". Content dissolves
-   into the solid backdrop as it scrolls behind the buttons. */
-.da-actionbar { position: sticky; bottom: 0; z-index: 20; margin: 18px -24px -24px;
-    padding: 20px 24px calc(16px + env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(14,15,18,0) 0%, #0e0f12 42%);
-    pointer-events: none; }
-.da-actionbar .tap-actions { margin: 0; grid-auto-rows: 1fr; pointer-events: auto; }
-.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 8px 22px rgba(0,0,0,.5); }
+/* Fixed action bar — the status buttons sit at the very bottom edge of the
+   screen and are always visible without scrolling ("On My Way / Arrived /
+   Passenger On Board / Completed"). It's a solid bar pinned to the viewport
+   bottom, NOT a floating overlay, so it never covers the map or details. The
+   .da-actionbar-spacer below reserves matching space so the last content
+   scrolls fully clear of it. */
+.da-actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: #0e0f12; border-top: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 -12px 30px rgba(0,0,0,.55); }
+.da-actionbar .tap-actions { margin: 0 auto; max-width: 608px; grid-auto-rows: 1fr; }
+.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+/* Reserve room so nothing hides behind the fixed bar at the end of the page. */
+.da-actionbar-spacer { height: calc(112px + env(safe-area-inset-bottom)); }
+/* On desktop the driver job renders in the main column beside the 240px
+   sidebar — keep the fixed bar out from under it. */
+@media (min-width: 901px) { .app-shell .da-actionbar { left: 240px; } }
 
 /* ═══ Dashboard — modern command deck ══════════════════════════════════════ */
 .dash-hero { position: relative; overflow: hidden; border-radius: 20px; margin-bottom: 18px;
