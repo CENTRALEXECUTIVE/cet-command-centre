@@ -80,6 +80,28 @@ class EtoBookingImportTest extends TestCase
         $this->assertEquals('MAN', $booking->airport->code); // detected from "(MAN)"
         $this->assertEquals('BA123', $booking->flight_number);
         $this->assertEquals('24/03/2025', $booking->pickup_at->format('d/m/Y'));
+        $this->assertEquals('21/03/2025', $booking->created_at->format('d/m/Y')); // ETO "Created at", not import time
+        @unlink($path);
+    }
+
+    public function test_reimport_corrects_the_created_date_on_an_existing_booking(): void
+    {
+        // A booking that arrived earlier (e.g. via the calendar) with today's
+        // created_at — the ETO re-import should stamp its real booking date.
+        $existing = Booking::factory()->create([
+            'source_system' => 'eto', 'external_reference' => 'ZWR6MM',
+            'created_at' => now(), 'pickup_at' => '2025-03-24 22:05',
+        ]);
+
+        $path = $this->csv([[
+            'Journey date' => '24/03/2025 22:05', 'Reference number' => 'ZWR6MM',
+            'Vehicle type' => 'Executive', 'Status' => 'Completed', 'Total' => '200.00',
+            'Created at' => '21/03/2025 01:44',
+        ]]);
+
+        app(EtoBookingImporter::class)->import($path);
+
+        $this->assertEquals('21/03/2025', $existing->fresh()->created_at->format('d/m/Y'));
         @unlink($path);
     }
 

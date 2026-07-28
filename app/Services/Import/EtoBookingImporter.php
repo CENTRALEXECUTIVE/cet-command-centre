@@ -175,7 +175,17 @@ class EtoBookingImporter
             }
         }
 
-        $booking->forceFill($fields)->save();
+        $booking->forceFill($fields);
+
+        // Correct the "came through" date to ETO's original creation date, so a
+        // booking that first arrived via the calendar (created_at = import time)
+        // reports in the month it was actually booked — this drives the ads /
+        // revenue "bookings that came in" figures.
+        if ($created = $this->parseDate($data['Created at'] ?? '')) {
+            $booking->created_at = $created;
+        }
+
+        $booking->save();
 
         return 'updated';
     }
