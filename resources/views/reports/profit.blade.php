@@ -51,7 +51,7 @@
             <p class="muted mb-0">No jobs with a fare this month. Set driver pay in <a href="{{ route('payroll.index', ['month' => $m]) }}">Payroll</a> and it appears here.</p>
         @else
             @foreach($data['per_driver'] as $d)
-                @include('reports.partials.commission-row', ['r' => $d])
+                @include('reports.partials.commission-row', ['r' => $d, 'href' => route('bookings.index', ['driver' => $d['name'], 'month' => $m])])
             @endforeach
         @endif
     </div>

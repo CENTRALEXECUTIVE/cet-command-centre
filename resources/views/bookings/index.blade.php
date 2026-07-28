@@ -69,6 +69,10 @@
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} that came in <strong>today</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
     @endif
 
+    @if(!empty($driverName))
+        <p class="page-sub" style="margin:8px 0 0"><strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} for driver <strong>{{ $driverName }}</strong>@if(!empty($month)) in {{ $month->format('F Y') }}@endif — <a href="{{ route('bookings.index', ['month' => $month?->format('Y-m')]) }}">clear driver</a></p>
+    @endif
+
     {{-- Needs attention: unallocated soon, flagged duplicate, or audit issue. --}}
     @if(!empty($attention) && $attention->isNotEmpty())
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin:14px 0 0;padding:12px 14px">

@@ -1297,11 +1297,36 @@ class Booking extends Model
             return null;
         }
 
-        $map = app()->has('cet.driverNameMap')
+        return static::driverNameMap()[$key] ?? null;
+    }
+
+    /** The {alias → full name} lookup, memoised per request. */
+    public static function driverNameMap(): array
+    {
+        return app()->has('cet.driverNameMap')
             ? app('cet.driverNameMap')
             : app()->instance('cet.driverNameMap', static::buildDriverNameMap());
+    }
 
-        return $map[$key] ?? null;
+    /**
+     * Every name string that resolves to this driver's full name — the full
+     * name plus any callsign / first name / login local-part that maps to it.
+     * Lets a bookings filter catch exactly the jobs payroll groups under a
+     * driver, callsign-tagged ones included.
+     *
+     * @return array<int, string> lower-cased
+     */
+    public static function driverNameAliases(string $fullName): array
+    {
+        $full = mb_strtolower(trim($fullName));
+        $aliases = [$full];
+        foreach (static::driverNameMap() as $key => $mapsTo) {
+            if (mb_strtolower($mapsTo) === $full) {
+                $aliases[] = $key;
+            }
+        }
+
+        return array_values(array_unique($aliases));
     }
 
     /**

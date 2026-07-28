@@ -56,7 +56,7 @@ class BookingController extends Controller
             ]));
         }
 
-        ['query' => $query, 'q' => $q, 'month' => $month, 'filter' => $filter, 'statusFilter' => $statusFilter]
+        ['query' => $query, 'q' => $q, 'month' => $month, 'filter' => $filter, 'statusFilter' => $statusFilter, 'driverName' => $driverName]
             = $this->applyBookingFilters($request);
 
         $bookings = $query->paginate(30)->withQueryString();
@@ -71,6 +71,7 @@ class BookingController extends Controller
             'filter' => $filter,
             'month' => $month,
             'statusFilter' => $statusFilter,
+            'driverName' => $driverName ?: null,
             'attention' => $this->attentionItems($request, $q, $month, $statusFilter),
         ]);
     }
@@ -101,6 +102,20 @@ class BookingController extends Controller
                     ->orWhere('external_reference', 'like', "%{$q}%")
                     ->orWhere('meta->lead_name', 'like', "%{$q}%")
                     ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"));
+            });
+        }
+
+        // Driver filter (from the Profit page) — every job that payroll groups
+        // under this driver, matching the assigned driver's name OR a callsign /
+        // manual name that resolves to it, so the list matches the commission count.
+        $driverName = trim((string) $request->query('driver'));
+        if ($driverName !== '') {
+            $aliases = Booking::driverNameAliases($driverName);
+            $query->where(function ($sub) use ($driverName, $aliases) {
+                $sub->whereHas('driver', fn ($d) => $d->where('name', $driverName));
+                foreach ($aliases as $alias) {
+                    $sub->orWhereRaw("lower(json_extract(meta, '$.driver_details.name')) = ?", [$alias]);
+                }
             });
         }
 
@@ -143,7 +158,7 @@ class BookingController extends Controller
             $query->where('status', '!=', BookingStatus::Cancelled->value);
         }
 
-        return compact('query', 'q', 'month', 'filter', 'statusFilter');
+        return compact('query', 'q', 'month', 'filter', 'statusFilter', 'driverName');
     }
 
     /**

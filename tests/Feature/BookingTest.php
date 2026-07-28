@@ -135,6 +135,27 @@ class BookingTest extends TestCase
         $this->assertFalse($b->isFullyPaid()); // still money to collect
     }
 
+    public function test_bookings_can_be_filtered_by_driver_including_callsign_jobs(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $abdi = User::factory()->driver()->create(['name' => 'Abdirazak Hassan']);
+        \App\Models\DriverProfile::create(['user_id' => $abdi->id, 'callsign' => 'Abdi']);
+
+        // Allocated to his login…
+        $mine = Booking::factory()->create(['external_reference' => 'MINE1', 'driver_id' => $abdi->id, 'pickup_at' => now()->addDay()]);
+        // …and one tagged only with his callsign "Abdi" (no login link).
+        $callsign = Booking::factory()->create(['external_reference' => 'CALL1', 'driver_id' => null, 'pickup_at' => now()->addDay()]);
+        $callsign->forceFill(['meta' => ['driver_details' => ['name' => 'Abdi']]])->save();
+        // Someone else's job — must not show.
+        $other = Booking::factory()->create(['external_reference' => 'OTHER1', 'driver_id' => User::factory()->driver()->create()->id, 'pickup_at' => now()->addDay()]);
+
+        $this->actingAs($admin)->get(route('bookings.index', ['driver' => 'Abdirazak Hassan', 'filter' => 'all']))
+            ->assertOk()
+            ->assertSee($mine->reference)
+            ->assertSee($callsign->reference)   // callsign job included, matching the commission count
+            ->assertDontSee($other->reference);
+    }
+
     public function test_the_booking_page_links_back_to_the_list_view_you_came_from(): void
     {
         $admin = User::factory()->admin()->create();
