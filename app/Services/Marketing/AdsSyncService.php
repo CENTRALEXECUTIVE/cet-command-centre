@@ -123,6 +123,77 @@ class AdsSyncService
         return $count;
     }
 
+    /** Google Ads keyword-report headers → our Keyword fields. */
+    private const KEYWORD_ALIASES = [
+        'keyword' => 'keyword', 'search keyword' => 'keyword', 'keyword text' => 'keyword',
+        'match type' => 'match_type', 'keyword match type' => 'match_type',
+        'campaign' => 'campaign',
+        'clicks' => 'clicks',
+        'impr.' => 'impressions', 'impr' => 'impressions', 'impressions' => 'impressions',
+        'conversions' => 'conversions', 'conv.' => 'conversions', 'conv' => 'conversions',
+        'cost' => 'cost', 'spend' => 'cost',
+        'avg. cpc' => 'max_cpc', 'max cpc' => 'max_cpc', 'max. cpc' => 'max_cpc', 'avg cpc' => 'max_cpc',
+        'status' => 'status', 'keyword status' => 'status',
+        'avg. position' => 'avg_position', 'avg position' => 'avg_position',
+    ];
+
+    /**
+     * Import a Google Ads KEYWORD report CSV (keyword-level performance) into the
+     * keywords table for review. Handles the raw Google Ads download (preamble
+     * rows, "Impr."/"Conv." headers, currency symbols) — keyed on keyword +
+     * match type + campaign so re-importing refreshes rather than duplicates.
+     *
+     * @return int Keywords imported/updated.
+     */
+    public function importKeywordsCsv(string $path): int
+    {
+        $rows = array_map('str_getcsv', file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+
+        $header = null;
+        while (($row = array_shift($rows)) !== null) {
+            $mapped = array_map(fn ($h) => self::KEYWORD_ALIASES[strtolower(trim((string) $h))] ?? strtolower(trim((string) $h)), $row);
+            if (in_array('keyword', $mapped, true)) {
+                $header = $mapped;
+                break;
+            }
+        }
+        if ($header === null) {
+            return 0;
+        }
+
+        $count = 0;
+        foreach ($rows as $row) {
+            $data = array_combine($header, array_pad($row, count($header), null));
+            $keyword = trim((string) ($data['keyword'] ?? ''));
+            if ($keyword === '' || stripos($keyword, 'total') !== false) {
+                continue; // blank or Google's "Total:" summary row
+            }
+
+            $matchType = strtolower(trim((string) ($data['match_type'] ?? '')));
+            $status = strtolower(trim((string) ($data['status'] ?? '')));
+
+            \App\Models\Keyword::updateOrCreate(
+                [
+                    'keyword' => $keyword,
+                    'match_type' => $matchType !== '' ? $matchType : null,
+                    'campaign' => $data['campaign'] ?? null,
+                ],
+                [
+                    'status' => str_contains($status, 'pause') ? 'paused' : 'enabled',
+                    'clicks' => (int) $this->num($data['clicks'] ?? null),
+                    'impressions' => (int) $this->num($data['impressions'] ?? null),
+                    'conversions' => (int) $this->num($data['conversions'] ?? null),
+                    'cost' => $this->num($data['cost'] ?? null),
+                    'max_cpc' => $this->num($data['max_cpc'] ?? null),
+                    'avg_position' => $this->num($data['avg_position'] ?? null) ?: null,
+                ],
+            );
+            $count++;
+        }
+
+        return $count;
+    }
+
     /** Parse a number from a Google Ads cell (strips £/$, thousands commas, spaces). */
     private function num(mixed $value): float
     {

@@ -7,6 +7,17 @@
 
     @if($errors->any())<div class="alert alert-error">{{ $errors->first() }}</div>@endif
 
+    {{-- Bulk import from a Google Ads keyword report. --}}
+    <div class="card" style="margin-bottom:16px">
+        <h2 style="margin:0 0 4px">Upload Google Ads keyword report</h2>
+        <p class="hint" style="margin:0 0 10px">Export the <strong>Keywords</strong> report from Google Ads as CSV and drop it here — clicks, impressions, conversions and cost import per keyword for review. Re-importing refreshes the figures.</p>
+        <form method="POST" action="{{ route('marketing.keywords.import') }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            @csrf
+            <input type="file" name="file" accept=".csv,text/csv" required>
+            <button class="btn btn-primary" style="padding:8px 16px">Import keywords</button>
+        </form>
+    </div>
+
     <div class="grid grid-3" style="margin-bottom:20px">
         <div class="stat"><div class="n">{{ number_format($totals['clicks']) }}</div><div class="l">Clicks</div></div>
         <div class="stat"><div class="n">{{ $totals['conversions'] }}</div><div class="l">Conversions</div></div>

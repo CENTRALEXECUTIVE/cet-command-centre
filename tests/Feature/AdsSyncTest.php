@@ -94,4 +94,39 @@ class AdsSyncTest extends TestCase
         $this->assertEquals('15.15', $m->roas);          // 1360 / 89.79
         @unlink($path);
     }
+
+    public function test_keyword_report_import(): void
+    {
+        $csv = "Keyword,Match type,Campaign,Clicks,Impr.,Conversions,Cost,Status\n"
+            ."\"airport transfers sheffield\",Phrase,Airport,120,\"3,400\",8,\"£240.50\",Enabled\n"
+            ."\"executive taxi\",Exact,Exec,40,900,2,\"£88.00\",Enabled\n"
+            ."Total: keywords,,,160,4300,10,328.50,\n";
+        $path = tempnam(sys_get_temp_dir(), 'kw').'.csv';
+        file_put_contents($path, $csv);
+
+        $imported = app(AdsSyncService::class)->importKeywordsCsv($path);
+
+        $this->assertSame(2, $imported); // "Total:" row skipped
+        $kw = \App\Models\Keyword::where('keyword', 'airport transfers sheffield')->first();
+        $this->assertNotNull($kw);
+        $this->assertSame(120, $kw->clicks);
+        $this->assertSame(3400, $kw->impressions);
+        $this->assertEquals(240.50, (float) $kw->cost);
+
+        // Re-import refreshes rather than duplicates.
+        app(AdsSyncService::class)->importKeywordsCsv($path);
+        $this->assertSame(2, \App\Models\Keyword::count());
+
+        @unlink($path);
+    }
+
+    public function test_admin_can_upload_a_keyword_report_from_the_page(): void
+    {
+        $admin = \App\Models\User::factory()->admin()->create();
+        $csv = "Keyword,Match type,Clicks,Impr.,Conversions,Cost\nsheffield chauffeur,Phrase,10,200,1,£30\n";
+        $file = \Illuminate\Http\Testing\File::createWithContent('keywords.csv', $csv);
+
+        $this->actingAs($admin)->post(route('marketing.keywords.import'), ['file' => $file])->assertRedirect();
+        $this->assertSame(1, \App\Models\Keyword::where('keyword', 'sheffield chauffeur')->count());
+    }
 }

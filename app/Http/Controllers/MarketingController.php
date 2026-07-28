@@ -54,6 +54,18 @@ class MarketingController extends Controller
         return back()->with('status', 'Keyword removed.');
     }
 
+    /** Upload a Google Ads keyword report (CSV) to review keyword performance. */
+    public function importKeywords(Request $request, \App\Services\Marketing\AdsSyncService $ads): RedirectResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
+
+        $count = $ads->importKeywordsCsv($request->file('file')->getRealPath());
+
+        return back()->with('status', $count > 0
+            ? "{$count} keyword(s) imported from the Google Ads report."
+            : "No keywords found — make sure it's the Google Ads keyword report CSV (with a Keyword column).");
+    }
+
     // ----- SEO -----------------------------------------------------------
 
     public function seo(): View

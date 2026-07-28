@@ -258,6 +258,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('marketing/ads', [ReportController::class, 'ads'])->name('marketing.ads');
         Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
         Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');
+        Route::post('marketing/keywords/import', [MarketingController::class, 'importKeywords'])->middleware('throttle:20,1')->name('marketing.keywords.import');
         Route::delete('marketing/keywords/{keyword}', [MarketingController::class, 'destroyKeyword'])->name('marketing.keywords.destroy');
         Route::get('marketing/seo', [MarketingController::class, 'seo'])->name('marketing.seo');
         Route::post('marketing/seo', [MarketingController::class, 'storeSeo'])->name('marketing.seo.store');
