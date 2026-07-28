@@ -40,6 +40,45 @@ class ReportService
             ->whereBetween('pickup_at', [$start, $end]);
     }
 
+    /**
+     * Profit view for the period: turnover (fares of jobs that ran), the driver
+     * cost (cash the drivers kept on cash jobs + pay the business hands out on
+     * card/account jobs), and the margin left — broken down per driver and per
+     * corporate account. fare − driverCost lands on the business's real take
+     * (a cash job nets just the deposit the business kept).
+     *
+     * @return array{jobs:int, revenue:float, driver_cost:float, profit:float, margin_pct:int, cash_to_drivers:float, per_driver:Collection, per_account:Collection}
+     */
+    public function profit(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $jobs = $this->completed($start, $end)->with(['driver', 'corporateAccount'])->get();
+
+        $breakdown = function (Collection $group, string $name): array {
+            $fares = round($group->sum(fn (Booking $b) => $b->fareAmount() ?? 0), 2);
+            $cost = round($group->sum(fn (Booking $b) => $b->driverCost()), 2);
+
+            return ['name' => $name, 'jobs' => $group->count(), 'fares' => $fares, 'cost' => $cost, 'profit' => round($fares - $cost, 2)];
+        };
+
+        $revenue = round($jobs->sum(fn (Booking $b) => $b->fareAmount() ?? 0), 2);
+        $driverCost = round($jobs->sum(fn (Booking $b) => $b->driverCost()), 2);
+
+        return [
+            'jobs' => $jobs->count(),
+            'revenue' => $revenue,
+            'driver_cost' => $driverCost,
+            'profit' => round($revenue - $driverCost, 2),
+            'margin_pct' => $revenue > 0 ? (int) round(($revenue - $driverCost) / $revenue * 100) : 0,
+            'cash_to_drivers' => round($jobs->filter(fn (Booking $b) => $b->driverSettledByCustomer())
+                ->sum(fn (Booking $b) => $b->cashDueToDriver() ?? 0), 2),
+            'per_driver' => $jobs->groupBy(fn (Booking $b) => $b->payrollDriverName())
+                ->map($breakdown)->sortByDesc('profit')->values(),
+            'per_account' => $jobs->filter(fn (Booking $b) => $b->corporateAccount)
+                ->groupBy(fn (Booking $b) => $b->corporateAccount->name)
+                ->map($breakdown)->sortByDesc('fares')->values(),
+        ];
+    }
+
     /** @return array{revenue: float, jobs: int, average_fare: float} */
     public function summary(CarbonInterface $start, CarbonInterface $end): array
     {

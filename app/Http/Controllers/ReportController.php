@@ -33,6 +33,18 @@ class ReportController extends Controller
         ]);
     }
 
+    public function profit(Request $request): View
+    {
+        $month = $request->query('month');
+        $start = ($month ? Carbon::createFromFormat('Y-m', $month, config('app.timezone')) : now())->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        return view('reports.profit', [
+            'month' => $start,
+            'data' => $this->reports->profit($start, $end),
+        ]);
+    }
+
     public function ads(Request $request): View
     {
         [$start, $end] = $this->range($request);

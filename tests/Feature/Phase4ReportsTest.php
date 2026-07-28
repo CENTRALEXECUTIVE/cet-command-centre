@@ -130,6 +130,30 @@ class Phase4ReportsTest extends TestCase
 
         $this->actingAs($admin)->get(route('reports.revenue'))->assertOk()->assertSee('Revenue Reports');
         $this->actingAs($admin)->get(route('reports.ads'))->assertOk()->assertSee('Google Ads');
+        $this->actingAs($admin)->get(route('reports.profit'))->assertOk()->assertSee('Profit');
+    }
+
+    public function test_profit_nets_driver_cost_and_treats_cash_correctly(): void
+    {
+        $driver = User::factory()->driver()->create(['name' => 'Cost Carl']);
+
+        $when = now()->startOfMonth(); // definitely this month and already run
+
+        // Card job: £100 fare, £45 driver pay → business keeps £55.
+        $card = $this->completedJob(100, $driver->id);
+        $card->forceFill(['payment_method' => \App\Enums\PaymentMethod::Card->value, 'pickup_at' => $when,
+            'meta' => ['payroll' => ['pay' => 45, 'paid' => 0, 'history' => []]]])->save();
+
+        // Cash job: £90 fare, driver keeps the £90 cash → business keeps £0 of it.
+        $cash = $this->completedJob(90, $driver->id);
+        $cash->forceFill(['payment_method' => \App\Enums\PaymentMethod::Cash->value, 'pickup_at' => $when])->save();
+
+        $data = app(ReportService::class)->profit(now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertEqualsWithDelta(190.0, $data['revenue'], 0.01);        // 100 + 90 turnover
+        $this->assertEqualsWithDelta(135.0, $data['driver_cost'], 0.01);    // 45 pay + 90 cash kept
+        $this->assertEqualsWithDelta(55.0, $data['profit'], 0.01);          // only the card margin
+        $this->assertEqualsWithDelta(90.0, $data['cash_to_drivers'], 0.01);
     }
 
     public function test_non_admin_cannot_view_reports(): void

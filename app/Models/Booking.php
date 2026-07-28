@@ -1073,6 +1073,24 @@ class Booking extends Model
         return max(0, round($pay - $this->driverPaidAmount(), 2));
     }
 
+    /**
+     * What this job costs the business in driver earnings — for the profit view.
+     * On a cash job the driver keeps the cash they collect, so THAT is the cost
+     * (plus any extra the business pays on top); on a card/account job the cost
+     * is just the driver pay the business hands over. So fare − driverCost lands
+     * on the business's real margin (a cash job nets the deposit it kept).
+     */
+    public function driverCost(): float
+    {
+        $pay = $this->driverPay() ?? 0.0;
+
+        if ($this->driverSettledByCustomer()) {
+            return round(($this->cashDueToDriver() ?? 0.0) + $pay, 2);
+        }
+
+        return round($pay, 2);
+    }
+
     /** @return array<int, array{amount: float, at: string, by: ?string, note: ?string}> */
     public function driverPayHistory(): array
     {

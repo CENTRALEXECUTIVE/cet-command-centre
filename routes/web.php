@@ -248,6 +248,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('driver-document/{document}/review', [\App\Http\Controllers\Admin\DriverDocumentController::class, 'review'])->name('driver-documents.review');
         Route::get('review', [\App\Http\Controllers\ReviewController::class, 'index'])->name('review.index');
         Route::post('review/backfill-prices', [\App\Http\Controllers\ReviewController::class, 'backfillPrices'])->middleware('throttle:6,1')->name('review.backfill-prices');
+        Route::get('reports/profit', [ReportController::class, 'profit'])->name('reports.profit');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
 
