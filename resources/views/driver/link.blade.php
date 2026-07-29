@@ -16,7 +16,7 @@
         <span class="link-tag">Driver job</span>
     </div>
 
-    <main class="container" style="max-width:640px;padding:18px 24px 48px">
+    <main class="container" style="max-width:640px;padding:18px 16px 48px">
         @if(session('status'))
             <div class="alert alert-success">{{ session('status') }}</div>
         @endif

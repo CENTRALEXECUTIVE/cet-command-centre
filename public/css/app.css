@@ -345,33 +345,15 @@ html[data-theme="dark"] .date-today { background: var(--gold); color: #111; bord
 .job-tile:hover { text-decoration: none; box-shadow: var(--shadow); }
 .job-tile .top { display: flex; justify-content: space-between; align-items: center; }
 .job-tile .big-time { font-size: 20px; font-weight: 800; }
-.tap-actions { display: grid; gap: 12px; margin-top: 16px; }
-.tap-actions .status-form { margin: 0; }
-.tap-actions button {
-    width: 100%; padding: 18px; font-size: 17px; font-weight: 700; letter-spacing: .2px;
-    border: none; border-radius: 16px; cursor: pointer; color: #fff;
-    box-shadow: 0 10px 24px rgba(0,0,0,.26);
-    transition: transform .13s ease, box-shadow .13s ease, filter .13s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-.tap-actions button:hover { filter: brightness(1.06); }
-.tap-actions button:active { transform: translateY(1px) scale(.985); box-shadow: 0 4px 12px rgba(0,0,0,.28); }
-.tap-accept  { background: linear-gradient(180deg, #3b6ef5 0%, #1d4ed8 100%); }
-.tap-go      { background: linear-gradient(180deg, #ffc94a 0%, #f5aa10 100%); color: #1a1200; }
-.tap-arrive  { background: linear-gradient(180deg, #ff8a1e 0%, #e06400 100%); }
-.tap-collect { background: linear-gradient(180deg, #7a45e0 0%, #5522b8 100%); }
-.tap-complete{ background: linear-gradient(180deg, #2fbf6f 0%, #189150 100%); }
-.tap-cancel  { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; box-shadow: none; }
+.tap-actions { display: grid; gap: 10px; margin-top: 16px; }
+.tap-actions button { padding: 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
+.tap-accept { background: #1d4ed8; color: #fff; } .tap-go { background: var(--gold); color: var(--black); }
+.tap-collect { background: #5b2bc7; color: #fff; } .tap-complete { background: var(--green); color: #fff; }
+.tap-cancel { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; }
+.tap-arrive { background: #b25e00; color: #fff; }
 
 /* ----- Driver status badge tint ----- */
 .badge-arrived { background: #fde2c8; color: #9a4b00; }
-
-/* Driver navigation buttons — consistent, rounded, premium on the dark screen. */
-.da-nav .btn { border-radius: 14px; padding: 14px 16px; font-weight: 700; font-size: 15px; border: 1px solid rgba(255,255,255,.10); box-shadow: none; }
-.da-nav .btn-dark { background: linear-gradient(180deg, #202227 0%, #16171b 100%); color: #fff; }
-.da-nav .btn-ghost { background: rgba(255,255,255,.05); color: #eef1f4; }
-.da-nav .btn-ghost:hover { background: rgba(255,255,255,.09); }
-.da-nav .btn:active { transform: translateY(1px); }
 
 /* ===== ETO-style left sidebar shell (overrides earlier topbar) ===== */
 .app-shell { display: flex; min-height: 100vh; }
@@ -639,23 +621,12 @@ body.driver-app .job-tile .big-time { color: var(--gold); font-size: 22px; font-
 body.driver-app .job-tile .meta { color: #cdd1d6; }
 body.driver-app .job-tile[data-offer] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 8px 26px rgba(251,186,42,.18); }
 
-/* Fixed action bar — the status buttons sit at the very bottom edge of the
-   screen and are always visible without scrolling ("On My Way / Arrived /
-   Passenger On Board / Completed"). It's a solid bar pinned to the viewport
-   bottom, NOT a floating overlay, so it never covers the map or details. The
-   .da-actionbar-spacer below reserves matching space so the last content
-   scrolls fully clear of it. */
-.da-actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    background: #0e0f12; border-top: 1px solid rgba(255,255,255,.10);
-    box-shadow: 0 -12px 30px rgba(0,0,0,.55); }
-.da-actionbar .tap-actions { margin: 0 auto; max-width: 608px; grid-auto-rows: 1fr; }
-.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
-/* Reserve room so nothing hides behind the fixed bar at the end of the page. */
-.da-actionbar-spacer { height: calc(112px + env(safe-area-inset-bottom)); }
-/* On desktop the driver job renders in the main column beside the 240px
-   sidebar — keep the fixed bar out from under it. */
-@media (min-width: 901px) { .app-shell .da-actionbar { left: 240px; } }
+/* Sticky action bar — the status buttons pinned to the thumb zone */
+.da-actionbar { position: sticky; bottom: 0; z-index: 20; margin: 18px -24px -24px;
+    padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(14,15,18,0) 0%, #0e0f12 24%); }
+.da-actionbar .tap-actions { margin: 0; grid-auto-rows: 1fr; }
+.da-actionbar .tap-actions button { border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
 
 /* ═══ Dashboard — modern command deck ══════════════════════════════════════ */
 .dash-hero { position: relative; overflow: hidden; border-radius: 20px; margin-bottom: 18px;

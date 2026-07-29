@@ -33,21 +33,13 @@
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
 
-@php
-    // Drivers can't cancel or mark no-show — only admins (the office).
-    $next = $booking->status->nextStatuses();
-    if (! $viewerIsAdmin) {
-        $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
-    }
-@endphp
-
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also
      has a Copy button so the driver can paste into any nav app, and a small
      Google Maps fallback for drivers who don't use Waze. --}}
-<div class="da-nav" style="margin-bottom:18px">
+<div style="margin-bottom:16px">
     <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
         <a class="btn btn-dark" style="flex:1;text-align:center"
            href="https://waze.com/ul?q={{ urlencode($booking->pickup_address) }}&navigate=yes"
@@ -171,38 +163,38 @@
     💬 Message the office
 </a>
 
-{{-- Status actions live LAST in the page (navigation, map and details come
-     first), but the bar is fixed to the bottom edge of the screen so it's
-     always visible — the driver never has to scroll to find "On My Way /
-     Arrived / Passenger On Board / Completed". The spacer reserves matching
-     room so the content above never hides behind the bar. --}}
+@php
+    $next = $booking->status->nextStatuses();
+    // Drivers can't cancel or mark no-show — only admins (the office).
+    if (! $viewerIsAdmin) {
+        $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
+    }
+@endphp
 @if(!empty($next))
-    <div class="da-actionbar-spacer" aria-hidden="true"></div>
     <div class="da-actionbar">
-        <div class="tap-actions">
-            @foreach($next as $status)
-                @php
-                    $class = match($status->value) {
-                        'accepted' => 'tap-accept', 'en_route' => 'tap-go',
-                        'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
-                        'complete' => 'tap-complete',
-                        default => 'tap-cancel',
-                    };
-                    $btnLabel = match($status->value) {
-                        'en_route' => '🚗 On My Way', 'arrived' => '📍 Arrived',
-                        'collected' => '🧍 Passenger On Board', 'complete' => '🏁 Completed',
-                        'accepted' => '✅ Accept job', default => $status->label(),
-                    };
-                @endphp
-                <form method="POST" action="{{ $statusUrl }}" class="status-form">
-                    @csrf
-                    <input type="hidden" name="status" value="{{ $status->value }}">
-                    <input type="hidden" name="lat" class="lat-input">
-                    <input type="hidden" name="lng" class="lng-input">
-                    <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
-                </form>
-            @endforeach
-        </div>
+    <div class="tap-actions">
+        @foreach($next as $status)
+            @php
+                $class = match($status->value) {
+                    'accepted' => 'tap-accept', 'en_route' => 'tap-go',
+                    'arrived' => 'tap-arrive', 'collected' => 'tap-collect',
+                    'complete' => 'tap-complete',
+                    default => 'tap-cancel',
+                };
+                $btnLabel = match($status->value) {
+                    'en_route' => 'On My Way', 'collected' => 'Passenger On Board',
+                    'complete' => 'Completed', default => $status->label(),
+                };
+            @endphp
+            <form method="POST" action="{{ $statusUrl }}" class="status-form">
+                @csrf
+                <input type="hidden" name="status" value="{{ $status->value }}">
+                <input type="hidden" name="lat" class="lat-input">
+                <input type="hidden" name="lng" class="lng-input">
+                <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
+            </form>
+        @endforeach
+    </div>
     </div>
 @else
     <div class="card"><p class="muted mb-0">This job is {{ $booking->status->label() }} — no further action.</p></div>
