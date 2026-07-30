@@ -46,32 +46,80 @@ class CalendarJobImporter
         }
 
         // No reference (or unmatched) → the event carries no id we know. Fall back
-        // to the journey itself: same pickup minute AND a matching phone, drop-off
-        // or customer name. Requires at least one identifier so we never collapse
-        // two genuinely different jobs that merely share a pickup time.
+        // to the journey itself, but the caller's IDENTITY must match — same phone,
+        // OR same customer name AND same drop-off. A shared drop-off ALONE is not
+        // the same journey: two different customers going to the same airport at
+        // the same minute are two real bookings, and matching on drop-off alone
+        // would wrongly say the second is "already in bookings" and skip it.
         $pickup = $parsed['pickup_at'] ?? null;
         $phone = $parsed['customer_phone'] ?? null;
         $dropoff = $parsed['destination_address'] ?? null;
         $name = $parsed['customer_name'] ?? null;
 
-        if ($pickup && ($phone || $dropoff || $name)) {
-            return Booking::whereBetween('pickup_at', [
-                $pickup->copy()->subMinute(),
-                $pickup->copy()->addMinute(),
-            ])->where(function ($q) use ($phone, $dropoff, $name) {
-                if ($phone) {
-                    $q->orWhereHas('customer', fn ($c) => $c->where('phone', $phone));
+        if ($pickup && ($phone || $name)) {
+            $window = [$pickup->copy()->subMinute(), $pickup->copy()->addMinute()];
+
+            if ($phone) {
+                $byPhone = Booking::whereBetween('pickup_at', $window)
+                    ->whereHas('customer', fn ($c) => $c->where('phone', $phone))
+                    ->first();
+                if ($byPhone) {
+                    return $byPhone;
                 }
-                if ($dropoff) {
-                    $q->orWhere('destination_address', $dropoff);
-                }
-                if ($name) {
-                    $q->orWhereHas('customer', fn ($c) => $c->where('name', $name));
-                }
-            })->first();
+            }
+
+            if ($name && $dropoff) {
+                return Booking::whereBetween('pickup_at', $window)
+                    ->where('destination_address', $dropoff)
+                    ->whereHas('customer', fn ($c) => $c->where('name', $name))
+                    ->first();
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Force-import a calendar job as a genuinely SEPARATE booking, after the
+     * operator confirmed our matching tied it to the wrong existing booking (the
+     * classic case: a return leg matched to its outbound). Clears the two ways it
+     * gets wrongly claimed — a stale calendar-event link pointing this Google
+     * event at another booking, and a merged-reference alias holding its
+     * reference — then imports fresh. The Google Calendar itself is never touched;
+     * we only tidy our local links.
+     */
+    public function importAsSeparate(array $parsed, ?User $creator = null): Booking
+    {
+        return DB::transaction(function () use ($parsed, $creator) {
+            if (! empty($parsed['event_id'])) {
+                \App\Models\CalendarEvent::where('google_event_id', $parsed['event_id'])->delete();
+            }
+            if (! empty($parsed['reference'])) {
+                $this->releaseMergedReference($parsed['reference']);
+            }
+
+            return $this->import($parsed, $creator);
+        });
+    }
+
+    /**
+     * Drop a reference from another booking's merged_references alias list, so it
+     * no longer claims a job the operator has said is separate. Only touches a
+     * booking holding it as a MERGED alias — never one that owns it live.
+     */
+    private function releaseMergedReference(string $reference): void
+    {
+        $owner = Booking::resolveByReference($reference);
+        if (! $owner || $owner->external_reference === $reference) {
+            return;
+        }
+
+        $meta = $owner->meta ?? [];
+        $meta['merged_references'] = array_values(array_filter(
+            (array) ($meta['merged_references'] ?? []),
+            fn ($r) => $r !== $reference,
+        ));
+        $owner->forceFill(['meta' => $meta])->save();
     }
 
     /**

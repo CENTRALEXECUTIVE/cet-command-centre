@@ -17,6 +17,30 @@
     </div>
     <p class="page-sub"><a href="{{ route('dashboard') }}">← Dashboard</a></p>
 
+    {{-- A manual "add to bookings" matched an existing booking — but the match can
+         be wrong (a return leg vs its outbound). Let the operator add it anyway as
+         a separate booking; that also clears whatever wrongly claimed it. --}}
+    @if(session('force_add_event'))
+        <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div>
+                <strong>⚠ Looks like it's already booked — but check</strong>
+                <div class="muted" style="font-size:13px">{{ session('force_add_message') }}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;white-space:nowrap">
+                @if(session('force_add_matched_url'))
+                    <a href="{{ session('force_add_matched_url') }}" class="btn btn-light" style="padding:7px 14px">Open {{ session('force_add_matched') }}</a>
+                @endif
+                <form method="POST" action="{{ route('jobs.import') }}" style="margin:0"
+                      onsubmit="return confirm('Add this as a NEW, separate booking? It won\'t be linked to {{ session('force_add_matched') }}.')">
+                    @csrf
+                    <input type="hidden" name="event_id" value="{{ session('force_add_event') }}">
+                    <input type="hidden" name="force" value="1">
+                    <button class="btn btn-primary">＋ Add as a separate booking</button>
+                </form>
+            </div>
+        </div>
+    @endif
+
     {{-- Calendar-only jobs (on Google, not yet in the system). One tap pulls
          them ALL into bookings so they hit the dispatch board and follow the
          rules. The 5-min calendar refresh does this automatically too. --}}

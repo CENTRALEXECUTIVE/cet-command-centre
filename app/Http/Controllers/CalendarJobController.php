@@ -27,20 +27,30 @@ class CalendarJobController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $data = $request->validate(['event_id' => ['required', 'string']]);
+        $data = $request->validate([
+            'event_id' => ['required', 'string'],
+            'force' => ['sometimes', 'boolean'],
+        ]);
 
         $parsed = $this->calendar->eventToBookingData($data['event_id']);
         if (! $parsed || ! $parsed['pickup_at']) {
             return back()->with('status', 'Could not read that calendar event — try refreshing the day.');
         }
 
-        // Already in the system? Just go there.
-        if ($existing = $this->importer->existingBookingFor($parsed)) {
-            return redirect()->route('bookings.show', $existing)
-                ->with('status', 'This job is already in bookings.');
+        // Already in the system? Offer to open it OR add it as a separate booking
+        // — the match can be wrong (a return leg matched to its outbound, or a
+        // reference merged away). Only skip this check on an explicit "force".
+        if (! $request->boolean('force') && $existing = $this->importer->existingBookingFor($parsed)) {
+            return back()
+                ->with('force_add_event', $data['event_id'])
+                ->with('force_add_matched', $existing->reference)
+                ->with('force_add_matched_url', route('bookings.show', $existing))
+                ->with('force_add_message', "This matched an existing booking — {$existing->reference} · {$existing->displayCustomerName()} · {$existing->pickup_at->format('D d M, H:i')}. If that's the same job, open it; if it's a different journey, add it as a separate booking.");
         }
 
-        $booking = $this->importer->import($parsed, $request->user());
+        $booking = $request->boolean('force')
+            ? $this->importer->importAsSeparate($parsed, $request->user())
+            : $this->importer->import($parsed, $request->user());
 
         $this->notifier->ensureReminders($booking->load('customer'));
 
