@@ -28,7 +28,21 @@
     </form>
 
     @php $c = $comparison['current']; @endphp
-    <p class="muted" style="font-size:13px;margin:0 0 8px"><strong>Completed</strong> = trips already done (money taken). <strong>Booked</strong> = everything on the books, including trips still to come.</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px"><strong>Made this period</strong> = bookings that came in (were booked) in these dates, whatever day the trip runs — ETO's “Created” date. <strong>Completed</strong> = trips already done (money taken). <strong>Booked</strong> = everything on the books by trip date, including trips still to come.</p>
+
+    {{-- Bookings MADE in the period (by created date), not by trip date — "how
+         many came in this month" regardless of when the pickup lands. --}}
+    <div class="grid grid-3" style="margin-bottom:14px">
+        <div class="stat" style="border-color:var(--gold);border-width:2px">
+            <div class="n">{{ $created['jobs'] ?? 0 }}</div>
+            <div class="l">🆕 Bookings made this period (came in)</div>
+        </div>
+        <div class="stat">
+            <div class="n">£{{ number_format($created['revenue'] ?? 0, 2) }}</div>
+            <div class="l">Value of bookings made</div>
+        </div>
+        <div class="stat"><div class="n">£{{ number_format($created['average_fare'] ?? 0, 2) }}</div><div class="l">Average new-booking fare</div></div>
+    </div>
     <div class="grid grid-3" style="margin-bottom:14px">
         <div class="stat">
             <div class="n">£{{ number_format($c['revenue'], 2) }}</div>

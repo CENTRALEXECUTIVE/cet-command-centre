@@ -73,6 +73,40 @@ class ReviewTest extends TestCase
             ->assertOk()->assertSee('Old Client Ltd');
     }
 
+    public function test_made_this_period_counts_bookings_by_when_they_were_created(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-15 12:00:00'));
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $cust = Customer::create(['name' => 'Made Cust', 'phone' => '07700900097']);
+
+        $make = function ($createdAt, $pickupAt, $price) use ($cust, $exec) {
+            $b = Booking::create([
+                'reference' => Booking::generateReference(), 'customer_id' => $cust->id,
+                'vehicle_type_id' => $exec->id, 'pickup_at' => $pickupAt,
+                'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+                'status' => 'pending', 'payment_method' => 'card', 'quoted_price' => $price,
+            ]);
+            $b->forceFill(['created_at' => $createdAt])->save();
+        };
+
+        // Booked THIS month, trip runs next month → counts as "made this period".
+        $make(now()->subDays(3), now()->addDays(20), 200);
+        // Booked LAST month, trip runs this month → NOT made this period.
+        $make(now()->subMonth(), now()->addDays(2), 300);
+
+        $res = $this->actingAs($admin)
+            ->get(route('review.index', [
+                'start' => now()->startOfMonth()->toDateString(),
+                'end' => now()->endOfMonth()->toDateString(),
+            ]))
+            ->assertOk();
+
+        // Only the booking CREATED this month is counted, valued at its fare.
+        $this->assertEquals(1, $res->viewData('created')['jobs']);
+        $this->assertEquals(200.0, $res->viewData('created')['revenue']);
+    }
+
     public function test_review_is_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

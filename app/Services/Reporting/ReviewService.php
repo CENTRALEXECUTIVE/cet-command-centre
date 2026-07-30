@@ -39,6 +39,10 @@ class ReviewService
         $adsAnalysis = $this->ads->analysis($start, $end);
         $dataHealth = $this->reports->dataHealth($start, $end);
         $reserved = $this->reports->reservedSummary($start, $end);
+        // Bookings MADE in the period — keyed on when they were booked (ETO's
+        // "Created" date → created_at), not when the trip runs. "How many came in
+        // this month" regardless of pickup date.
+        $created = $this->reports->createdSummary($start, $end);
 
         // Pipeline counts (not just completed) for the period.
         $pipeline = Booking::whereBetween('pickup_at', [$start, $end])
@@ -61,6 +65,7 @@ class ReviewService
             'pipeline' => $pipeline,
             'dataHealth' => $dataHealth,
             'reserved' => $reserved,
+            'created' => $created,
             'adsAnalysis' => $adsAnalysis,
         ];
 
