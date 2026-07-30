@@ -155,8 +155,20 @@ class EtoBookingImporter
         [, $paymentStatus] = $this->mapPayment($data['Payments'] ?? '', $status);
         $total = $this->money($data['Total'] ?? null);
 
+        // WORKFLOW STATUS is owned by live ops once a booking is being worked.
+        // The ETO export is only a snapshot: it still lists jobs we've already
+        // allocated and dispatched as "Confirmed", which maps to Pending. Writing
+        // that back would silently UNALLOCATE a live booking (no history, no
+        // alert) — the office allocated a driver and sent the link, then a
+        // routine re-import dragged it back to Pending. So only accept ETO's
+        // status for a booking still sitting in Pending (never worked here); an
+        // allocated / accepted / en-route / arrived / on-board booking is left
+        // exactly as ops set it. Completed/Cancelled reconciliation of genuinely
+        // historical (still-Pending) bookings keeps working.
+        $applyStatus = $booking->status === BookingStatus::Pending && $status !== BookingStatus::Pending;
+        $effectiveStatus = $applyStatus ? $status : $booking->status;
+
         $fields = [
-            'status' => $status->value,
             'payment_status' => $paymentStatus,
             'meta' => array_merge($booking->meta ?? [], array_filter([
                 // ETO is authoritative on luggage — backfill the breakdown so a
@@ -168,9 +180,12 @@ class EtoBookingImporter
                 'total_amount' => $total,
             ])),
         ];
+        if ($applyStatus) {
+            $fields['status'] = $status->value;
+        }
         if ($total !== null) {
             $fields['quoted_price'] = $total;
-            if ($status === BookingStatus::Complete) {
+            if ($effectiveStatus === BookingStatus::Complete) {
                 $fields['final_price'] = $total;
             }
         }

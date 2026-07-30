@@ -147,6 +147,34 @@ class EtoBookingImportTest extends TestCase
         $this->assertEquals(BookingStatus::Complete, $existing->status); // marked complete
     }
 
+    public function test_reimport_never_unallocates_a_live_booking(): void
+    {
+        // Booking has been allocated to a driver and the link sent. ETO still
+        // lists it as "Confirmed" (→ Pending) because the job isn't done yet.
+        $driver = \App\Models\User::factory()->create(['role' => \App\Enums\UserRole::Driver->value]);
+        $existing = \App\Models\Booking::create([
+            'reference' => \App\Models\Booking::generateReference(),
+            'external_reference' => 'LIVE99', 'source_system' => 'eto',
+            'customer_id' => \App\Models\Customer::create(['name' => 'Y', 'phone' => '07000000123'])->id,
+            'vehicle_type_id' => \App\Models\VehicleType::where('slug', 'executive')->first()->id,
+            'pickup_at' => now()->addHours(3), 'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => BookingStatus::Allocated->value, 'driver_id' => $driver->id,
+            'payment_method' => 'card',
+        ]);
+
+        app(EtoBookingImporter::class)->import($this->csv([[
+            'Journey date' => '24/03/2025 22:05', 'Reference number' => 'LIVE99',
+            'Vehicle type' => 'Executive', 'Status' => 'Confirmed', 'Total' => '150.00',
+            'Payments' => 'Pending, Card, 150',
+        ]]));
+
+        $existing->refresh();
+        // Status and driver are untouched — the re-import only refreshed money.
+        $this->assertEquals(BookingStatus::Allocated, $existing->status);
+        $this->assertEquals($driver->id, $existing->driver_id);
+        $this->assertEquals(150.00, (float) $existing->quoted_price);
+    }
+
     public function test_vehicle_and_payment_mapping(): void
     {
         $path = $this->csv([[
