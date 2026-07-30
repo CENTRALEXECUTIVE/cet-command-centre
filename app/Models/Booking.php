@@ -457,6 +457,8 @@ class Booking extends Model
 
         $name = \Illuminate\Support\Str::lower(trim((string) ($this->displayCustomerName() ?? '')));
         $dropoff = \Illuminate\Support\Str::lower(trim((string) $this->destination_address));
+        $myNotDupe = $this->notDuplicateKeys();
+        $myKeys = $this->bookingKeys();
 
         return static::query()
             ->where('id', '!=', $this->id)
@@ -464,14 +466,50 @@ class Booking extends Model
             ->whereBetween('pickup_at', [$this->pickup_at->copy()->subMinute(), $this->pickup_at->copy()->addMinute()])
             ->with('customer')
             ->get()
-            ->filter(function (self $b) use ($name, $dropoff) {
+            ->filter(function (self $b) use ($name, $dropoff, $myNotDupe, $myKeys) {
                 $bName = \Illuminate\Support\Str::lower(trim((string) ($b->displayCustomerName() ?? '')));
                 $bDrop = \Illuminate\Support\Str::lower(trim((string) $b->destination_address));
 
-                return ($name !== '' && $bName === $name)
+                $looksSame = ($name !== '' && $bName === $name)
                     || ($dropoff !== '' && $bDrop === $dropoff);
+                if (! $looksSame) {
+                    return false;
+                }
+
+                // The operator confirmed this pair is NOT a duplicate — two real
+                // separate jobs that happen to share a time. Stay quiet about it
+                // (checked both ways, since the flag is written on both records).
+                $bKeys = $b->bookingKeys();
+                if (array_intersect($bKeys, $myNotDupe) || array_intersect($myKeys, $b->notDuplicateKeys())) {
+                    return false;
+                }
+
+                return true;
             })
             ->values();
+    }
+
+    /** Stable identifiers for this booking (its own ref + any external ref). */
+    public function bookingKeys(): array
+    {
+        return array_values(array_filter([$this->reference, $this->external_reference], fn ($v) => filled($v)));
+    }
+
+    /** References the operator has confirmed are NOT the same journey as this one. */
+    public function notDuplicateKeys(): array
+    {
+        return array_map('strval', (array) ($this->meta['not_duplicate_refs'] ?? []));
+    }
+
+    /**
+     * Record that $other is a genuinely separate booking (not a duplicate of
+     * this one) so it's never flagged again. Keyed by stable reference so it
+     * survives a re-import. Symmetric — call once per side.
+     */
+    public function markNotDuplicateOf(self $other): void
+    {
+        $keys = array_values(array_unique(array_merge($this->notDuplicateKeys(), $other->bookingKeys())));
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['not_duplicate_refs' => $keys])])->save();
     }
 
     /** True when another live booking looks like the same journey. */

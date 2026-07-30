@@ -450,6 +450,32 @@ class BookingController extends Controller
             ->with('status', "Merged {$mergedRef} into this booking — one record now. Google Calendar was not touched.");
     }
 
+    /**
+     * Mark a flagged pair as NOT a duplicate — two genuinely separate jobs that
+     * just share a pickup time (e.g. two customers booked for the same minute).
+     * Recorded on BOTH bookings so neither flags the other again, and keyed by
+     * reference so it survives a re-import.
+     */
+    public function keepSeparate(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['dupe_id' => ['required', 'integer']]);
+        $other = Booking::findOrFail($data['dupe_id']);
+        if ($other->id === $booking->id) {
+            throw ValidationException::withMessages(['dupe_id' => 'A booking cannot be separated from itself.']);
+        }
+
+        $booking->markNotDuplicateOf($other);
+        $other->markNotDuplicateOf($booking);
+
+        $ref = $other->external_reference ?: $other->reference;
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Marked {$ref} as a separate booking — these two won't be flagged as duplicates again.");
+    }
+
     /** @return array<string, mixed> */
     /**
      * Toggle number masking for a single job. Turning it OFF frees both sides

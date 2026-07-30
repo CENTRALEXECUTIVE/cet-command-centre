@@ -63,6 +63,39 @@ class BookingMergeTest extends TestCase
         $this->assertSame(10.0, $survivor->tipsTotal());
     }
 
+    public function test_marking_a_pair_not_a_duplicate_stops_the_flag_both_ways(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $at = now()->addDay()->setTime(13, 45);
+
+        // Two genuinely different customers, same drop-off, same minute — flagged
+        // as a possible duplicate, but they're two real separate jobs.
+        $a = $this->booking([
+            'customer_id' => Customer::factory()->create(['name' => 'Alice'])->id,
+            'pickup_at' => $at, 'destination_address' => 'Manchester Airport T1',
+            'reference' => 'CET-AAA', 'external_reference' => 'ETO-AAA',
+        ]);
+        $b = $this->booking([
+            'customer_id' => Customer::factory()->create(['name' => 'Bob'])->id,
+            'pickup_at' => $at, 'destination_address' => 'Manchester Airport T1',
+            'reference' => 'CET-BBB', 'external_reference' => 'ETO-BBB',
+        ]);
+
+        // Flagged before the decision.
+        $this->assertTrue($a->fresh()->looksDuplicated());
+        $this->assertTrue($b->fresh()->looksDuplicated());
+
+        $this->actingAs($admin)
+            ->post(route('bookings.keep-separate', $a), ['dupe_id' => $b->id])
+            ->assertRedirect(route('bookings.show', $a));
+
+        // Both records survive, and neither flags the other any more.
+        $this->assertNotNull($a->fresh());
+        $this->assertNotNull($b->fresh());
+        $this->assertFalse($a->fresh()->looksDuplicated());
+        $this->assertFalse($b->fresh()->looksDuplicated());
+    }
+
     public function test_merging_leaves_only_one_queued_reminder(): void
     {
         $admin = User::factory()->admin()->create();

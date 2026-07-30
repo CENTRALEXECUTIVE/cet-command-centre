@@ -51,15 +51,23 @@
                 @foreach($dupes as $d)
                     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(179,32,32,.15)">
                         <span><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</span>
-                        <form method="POST" action="{{ route('bookings.merge', $booking) }}" style="margin:0"
-                              onsubmit="return confirm('Merge {{ $d->reference }} into this booking? The other copy is removed. This does NOT touch Google Calendar.')">
-                            @csrf
-                            <input type="hidden" name="dupe_id" value="{{ $d->id }}">
-                            <button class="btn" style="background:#b32020;color:#fff;padding:7px 14px;font-size:13px">⇄ Merge into this one</button>
-                        </form>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <form method="POST" action="{{ route('bookings.merge', $booking) }}" style="margin:0"
+                                  onsubmit="return confirm('Merge {{ $d->reference }} into this booking? The other copy is removed. This does NOT touch Google Calendar.')">
+                                @csrf
+                                <input type="hidden" name="dupe_id" value="{{ $d->id }}">
+                                <button class="btn" style="background:#b32020;color:#fff;padding:7px 14px;font-size:13px">⇄ Merge into this one</button>
+                            </form>
+                            <form method="POST" action="{{ route('bookings.keep-separate', $booking) }}" style="margin:0"
+                                  onsubmit="return confirm('Mark {{ $d->reference }} as a SEPARATE booking? They stay as two records and won\'t be flagged as duplicates again.')">
+                                @csrf
+                                <input type="hidden" name="dupe_id" value="{{ $d->id }}">
+                                <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px" title="These are two genuinely different jobs — stop flagging them">Not a duplicate — keep separate</button>
+                            </form>
+                        </div>
                     </div>
                 @endforeach
-                <p class="hint" style="margin:8px 0 0">Tip: do this from the copy that’s already <strong>allocated to a driver</strong>, so the allocation stays put.</p>
+                <p class="hint" style="margin:8px 0 0">Tip: merge from the copy that’s already <strong>allocated to a driver</strong>, so the allocation stays put. Two real jobs at the same time? Tap <strong>keep separate</strong> and they won’t be flagged again.</p>
             </div>
         @endif
     @endif

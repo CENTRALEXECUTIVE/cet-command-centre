@@ -103,6 +103,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('bookings/{booking}/merge', [BookingController::class, 'merge'])->middleware('throttle:30,1')->name('bookings.merge');
+        Route::post('bookings/{booking}/keep-separate', [BookingController::class, 'keepSeparate'])->middleware('throttle:30,1')->name('bookings.keep-separate');
         Route::post('bookings/{booking}/driver-details', [BookingController::class, 'setDriverDetails'])->middleware('throttle:30,1')->name('bookings.driver-details');
         Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
         Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
