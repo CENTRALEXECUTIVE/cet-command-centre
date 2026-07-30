@@ -86,11 +86,19 @@ class MaskingService
         // Wide fetch, then filter each job by its OWN live window (pickup minus
         // the per-booking lead) and close time (drop-off plus the per-booking
         // grace) — so the office can shorten/lengthen the window per booking.
+        //
+        // When a caller is a party on MORE THAN ONE live job at once (e.g. two
+        // pickups booked for the same minute), caller ID alone can't say which
+        // they mean — so route to the one that's most ACTIVE (on board > arrived
+        // > en route > accepted > allocated), then the soonest pickup. That gets
+        // a driver working two same-time jobs onto the one that's actually
+        // happening rather than an arbitrary DB order.
         $bookings = Booking::with(['customer', 'driver'])
             ->whereNotIn('status', $terminal)
             ->whereBetween('pickup_at', [now()->subHours(12), now()->addHours(12)])
-            ->orderBy('pickup_at') // nearest job wins if a caller has more than one
-            ->get();
+            ->get()
+            ->sortBy(fn (Booking $b) => [-$this->activeRank($b->status), $b->pickup_at->timestamp])
+            ->values();
 
         // Remember a caller who IS on a job but is outside its live window, so we
         // can play a tailored "not yet / all done" message instead of the generic
@@ -138,6 +146,22 @@ class MaskingService
         }
 
         return null;
+    }
+
+    /**
+     * How "live" a status is, for choosing between concurrent jobs a caller is on
+     * — the higher, the more the driver is actively working it right now.
+     */
+    private function activeRank(BookingStatus $status): int
+    {
+        return match ($status) {
+            BookingStatus::Collected => 5,
+            BookingStatus::Arrived => 4,
+            BookingStatus::EnRoute => 3,
+            BookingStatus::Accepted => 2,
+            BookingStatus::Allocated => 1,
+            default => 0,
+        };
     }
 
     /**
@@ -232,16 +256,58 @@ class MaskingService
         return $this->customerLine() ?? config('services.twilio_masking.proxy_number');
     }
 
+    /**
+     * Normalise any UK number to E.164 (+44…) so a stored number and the caller
+     * ID Twilio presents compare equal AND the number is dialable. Handles the
+     * real-world spread we see in imported/typed data: 07…, +44…, 44… (no plus),
+     * 0044…, a stray trunk 0 after the country code (+44 (0)7…), and a bare
+     * 10-digit mobile with the leading 0 dropped. A number we can't confidently
+     * place is returned digits-only with a leading + rather than silently broken.
+     */
     private function normalise(?string $number): ?string
     {
         if (blank($number)) {
             return null;
         }
-        $number = preg_replace('/[^0-9+]/', '', $number);
-        if (Str::startsWith($number, '0')) {
-            $number = '+44'.substr($number, 1);
+
+        $n = preg_replace('/[^0-9+]/', '', $number);
+        // Strip any '+' (even mid-string from bad formatting); rebuild cleanly.
+        $hadPlus = Str::startsWith($n, '+');
+        $digits = str_replace('+', '', $n);
+        if ($digits === '') {
+            return null;
         }
 
-        return $number;
+        // 00 international prefix → country code.
+        if (Str::startsWith($digits, '00')) {
+            $digits = substr($digits, 2);
+            $hadPlus = true;
+        }
+
+        // Already carries the UK country code (with or without the +).
+        if ($hadPlus || Str::startsWith($digits, '44')) {
+            if (Str::startsWith($digits, '44')) {
+                // Drop a trunk 0 written after the country code: 44(0)7… → 447…
+                if (Str::startsWith($digits, '440')) {
+                    $digits = '44'.substr($digits, 3);
+                }
+
+                return '+'.$digits;
+            }
+
+            return '+'.$digits; // some other +CC number (kept as given)
+        }
+
+        // UK local: 07… → +447…
+        if (Str::startsWith($digits, '0')) {
+            return '+44'.substr($digits, 1);
+        }
+
+        // Bare 10-digit mobile with the leading 0 dropped (7…) → +447…
+        if (strlen($digits) === 10 && Str::startsWith($digits, '7')) {
+            return '+44'.$digits;
+        }
+
+        return '+'.$digits;
     }
 }

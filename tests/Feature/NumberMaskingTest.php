@@ -78,6 +78,86 @@ class NumberMaskingTest extends TestCase
         $this->assertSame('+447700900111', $service->resolve('07395565934')['dial']);
     }
 
+    public function test_number_formats_still_match_and_dial(): void
+    {
+        // Real imported/typed data comes in many shapes. All of these must
+        // normalise to the same E.164 number so matching AND dialling work.
+        foreach (['447700900222', '+44 (0)7700 900222', '00447700900222', '7700900222'] as $driverPhone) {
+            $customer = Customer::factory()->create(['phone' => '07700900111']);
+            $driver = User::factory()->driver()->create(['phone' => $driverPhone]);
+            DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+            $booking = Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+                'customer_id' => $customer->id, 'driver_id' => $driver->id,
+                'status' => BookingStatus::EnRoute->value, 'pickup_at' => now()->addHour(),
+            ]);
+
+            $service = app(MaskingService::class);
+            // The driver (whatever format his number is stored in) reaches the customer…
+            $this->assertSame('+447700900111', $service->counterpartFor($driverPhone), "driver dial for {$driverPhone}");
+            // …and a call from the E.164 form Twilio presents matches the same job.
+            $this->assertSame('+447700900111', $service->counterpartFor('+447700900222'), "e164 match for {$driverPhone}");
+
+            $booking->forceDelete();
+            $driver->forceDelete();
+            $customer->forceDelete();
+        }
+    }
+
+    public function test_two_different_jobs_at_the_same_time_each_bridge_to_their_own_customer(): void
+    {
+        $vt = VehicleType::where('slug', 'executive')->first();
+        $at = now()->addHour();
+
+        $cust1 = Customer::factory()->create(['phone' => '07700900111']);
+        $drv1 = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $drv1->id, 'is_third_party' => true]);
+        Booking::factory()->forVehicleType($vt)->create([
+            'customer_id' => $cust1->id, 'driver_id' => $drv1->id,
+            'status' => BookingStatus::EnRoute->value, 'pickup_at' => $at,
+        ]);
+
+        $cust2 = Customer::factory()->create(['phone' => '07700900333']);
+        $drv2 = User::factory()->driver()->create(['phone' => '07700900444']);
+        DriverProfile::create(['user_id' => $drv2->id, 'is_third_party' => true]);
+        Booking::factory()->forVehicleType($vt)->create([
+            'customer_id' => $cust2->id, 'driver_id' => $drv2->id,
+            'status' => BookingStatus::EnRoute->value, 'pickup_at' => $at,
+        ]);
+
+        $service = app(MaskingService::class);
+        // Each driver reaches ONLY their own customer — no cross-wiring.
+        $this->assertSame('+447700900111', $service->counterpartFor('07700900222'));
+        $this->assertSame('+447700900333', $service->counterpartFor('07700900444'));
+        // And each customer reaches only their own driver.
+        $this->assertSame('+447700900222', $service->counterpartFor('07700900111'));
+        $this->assertSame('+447700900444', $service->counterpartFor('07700900333'));
+    }
+
+    public function test_a_driver_on_two_same_time_jobs_reaches_the_more_active_one(): void
+    {
+        // Same driver double-booked for the same minute. Caller ID can't say which
+        // customer he means, so route to the job that's most active right now.
+        $vt = VehicleType::where('slug', 'executive')->first();
+        $at = now()->addHour();
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+
+        $waiting = Customer::factory()->create(['phone' => '07700900111']);
+        Booking::factory()->forVehicleType($vt)->create([
+            'customer_id' => $waiting->id, 'driver_id' => $driver->id,
+            'status' => BookingStatus::Allocated->value, 'pickup_at' => $at,
+        ]);
+
+        $onboard = Customer::factory()->create(['phone' => '07700900333']);
+        Booking::factory()->forVehicleType($vt)->create([
+            'customer_id' => $onboard->id, 'driver_id' => $driver->id,
+            'status' => BookingStatus::Collected->value, 'pickup_at' => $at,
+        ]);
+
+        // The passenger-on-board job wins over the merely-allocated one.
+        $this->assertSame('+447700900333', app(MaskingService::class)->counterpartFor('07700900222'));
+    }
+
     public function test_unknown_caller_has_no_counterpart(): void
     {
         $this->activeJob();
