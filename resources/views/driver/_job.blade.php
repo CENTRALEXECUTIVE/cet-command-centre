@@ -13,6 +13,9 @@
     $stopsReached = $booking->stopsReached();
     $onBoard = $booking->status === \App\Enums\BookingStatus::Collected;
     $nextStop = $onBoard ? $booking->nextViaStop() : null;
+    // Drop-off navigation only appears once the passenger is on board and every
+    // stop has been reached — keeps the page clean until it's actually needed.
+    $showDropoff = $onBoard && $booking->allViaStopsReached();
 @endphp
 
 @unless($linkMode)
@@ -66,17 +69,19 @@
                     style="white-space:nowrap">📋 Copy</button>
         </div>
     @endforeach
-    <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:6px">
-        <a class="btn btn-ghost" style="flex:1;text-align:center"
-           href="https://waze.com/ul?q={{ urlencode($booking->destination_address) }}&navigate=yes"
-           target="_blank" rel="noopener">Waze to drop-off</a>
-        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->destination_address }}"
-                style="white-space:nowrap">📋 Copy</button>
-    </div>
+    @if($showDropoff)
+        <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:6px">
+            <a class="btn btn-ghost" style="flex:1;text-align:center"
+               href="https://waze.com/ul?q={{ urlencode($booking->destination_address) }}&navigate=yes"
+               target="_blank" rel="noopener">🏁 Waze to drop-off</a>
+            <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->destination_address }}"
+                    style="white-space:nowrap">📋 Copy</button>
+        </div>
+    @endif
     <div class="hint" style="font-size:12px">
         Prefer another app?
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->pickup_address) }}" target="_blank" rel="noopener">Google Maps · pickup</a> ·
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->destination_address) }}" target="_blank" rel="noopener">drop-off</a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->pickup_address) }}" target="_blank" rel="noopener">Google Maps · pickup</a>@if($showDropoff) ·
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->destination_address) }}" target="_blank" rel="noopener">drop-off</a>@endif
     </div>
 </div>
 
