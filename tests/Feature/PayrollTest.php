@@ -281,6 +281,32 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_a_balance_pending_line_is_not_read_as_cash_to_the_driver(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Wed Driver']);
+
+        // Wedding-style booking: deposit paid, the balance is settled by CARD to
+        // the business. The line says "Balance Pending" — no "cash" — so it must
+        // NOT read as cash for the driver to collect.
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'pickup_at' => '2026-07-06 09:00',
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £30 Paid – £320 Balance Pending']])->save();
+
+        $this->assertNull($booking->cashDueToDriver());        // nothing to collect in cash
+        $this->assertFalse($booking->driverSettledByCustomer()); // business owes the driver
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertDontSee('Cash job — settled with the driver');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_the_office_can_correct_and_confirm_the_cash_amount_on_a_cash_job(): void
     {
         $admin = User::factory()->admin()->create();

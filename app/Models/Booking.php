@@ -1046,11 +1046,13 @@ class Booking extends Model
         // The office-curated payment line — the calendar's, else the booking's own.
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         if ($line !== '') {
-            // Pull out JUST the amount still to collect (cash) — the driver never
+            // Pull out JUST the amount still to collect IN CASH — the driver never
             // needs the deposit-already-paid part, only what to take on the day.
-            // Handle both orders: "£110 Cash Due" and "Cash £90".
-            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)
-                || preg_match('/(?:cash|collect|outstanding|balance|due)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
+            // Handle both orders: "£110 Cash Due" and "Cash £90". Requires an
+            // explicit CASH/collect word: a bare "balance pending" is NOT cash —
+            // that balance may be settled by card to the business.
+            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|cash|to collect|collect)/i', $line, $m)
+                || preg_match('/(?:cash|collect)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
                 return '£'.$m[1].' to collect (cash)';
             }
             if (preg_match('/paid/i', $line)) {
@@ -1124,8 +1126,11 @@ class Booking extends Model
 
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         if ($line !== '') {
-            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|to collect|cash|due|outstanding|balance)/i', $line, $m)
-                || preg_match('/(?:cash|collect|outstanding|balance|due)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
+            // Only an explicit CASH/collect line means the driver takes cash. A
+            // bare "£320 Balance Pending" is not cash — it may be a card balance
+            // owed to the business, so it must not read as cash to the driver.
+            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|cash|to collect|collect)/i', $line, $m)
+                || preg_match('/(?:cash|collect)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
                 return (float) str_replace(',', '', $m[1]);
             }
             if (preg_match('/paid/i', $line)) {
