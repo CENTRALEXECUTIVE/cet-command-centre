@@ -136,7 +136,7 @@ class BookingNotifier
             'Hi '.$this->firstName($booking).',',
             '',
             'This is a reminder that your pick-up is scheduled for '
-                .$this->whenPhrase($booking->pickup_at).' at *'.$booking->pickup_at->format('H:i').'*',
+                .$this->whenPhrase($booking->pickup_at).' at *'.$this->timeLabel($booking->pickup_at).'*',
         ];
 
         if ($block = $this->driverBlock($booking)) {
@@ -148,6 +148,19 @@ class BookingNotifier
         $lines[] = self::FOOTER;
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Pickup time for messages — always 24-hour (e.g. 05:00, 14:30). A MORNING
+     * time (before noon) gets " AM" appended so an early start reads clearly as
+     * the morning, not the afternoon — still 24-hour, just tagged: "05:00 AM".
+     * Midday/afternoon/evening stay plain 24-hour.
+     */
+    private function timeLabel(Carbon $pickup): string
+    {
+        $time = $pickup->format('H:i');
+
+        return $pickup->hour < 12 ? $time.' AM' : $time;
     }
 
     /** "today" / "tomorrow" relative to now, else an ordinal date like "5th July". */
@@ -453,7 +466,9 @@ class BookingNotifier
             return null;
         }
 
-        $body = $block."\n\n".self::FOOTER;
+        $body = 'Hi '.$this->firstName($booking).','."\n\n"
+            .'Please find your driver\'s details below:'."\n\n"
+            .$block."\n\n".self::FOOTER;
 
         return $this->whatsApp->send($to, $body, [
             'type' => 'driver_details',

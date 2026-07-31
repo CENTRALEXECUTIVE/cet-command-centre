@@ -464,6 +464,41 @@ class WhatsAppMessagingTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_a_morning_pickup_time_is_tagged_am_but_stays_24_hour(): void
+    {
+        $notifier = app(\App\Services\Messaging\BookingNotifier::class);
+
+        // Morning → 24-hour time with " AM" appended.
+        $morning = $this->makeBooking();
+        $morning->forceFill(['pickup_at' => now()->addDays(2)->setTime(5, 0)])->save();
+        $this->assertStringContainsString('at *05:00 AM*', $notifier->reminderBody($morning->fresh()));
+
+        // Afternoon → plain 24-hour, no AM/PM.
+        $afternoon = $this->makeBooking();
+        $afternoon->forceFill(['pickup_at' => now()->addDays(2)->setTime(14, 30)])->save();
+        $body = $notifier->reminderBody($afternoon->fresh());
+        $this->assertStringContainsString('at *14:30*', $body);
+        $this->assertStringNotContainsString('14:30 AM', $body);
+        $this->assertStringNotContainsString('PM', $body);
+    }
+
+    public function test_driver_details_message_greets_the_customer_with_an_intro_line(): void
+    {
+        $booking = $this->makeBooking();
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Kash Khan', 'email' => 'kash@cet.test']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id]);
+        $admin = User::factory()->admin()->create();
+        app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
+
+        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
+        $this->assertNotNull($msg);
+        $this->assertStringStartsWith('Hi ', $msg->body);
+        $this->assertStringContainsString("Please find your driver's details below:", $msg->body);
+        $this->assertStringContainsString('*Driver details*', $msg->body);
+        // Greeting/intro come BEFORE the driver block.
+        $this->assertLessThan(strpos($msg->body, '*Driver details*'), strpos($msg->body, "Please find your driver's details below:"));
+    }
+
     public function test_reminder_greets_the_lead_passenger_not_the_booker(): void
     {
         $booking = $this->makeBooking(); // customer = James Watson
