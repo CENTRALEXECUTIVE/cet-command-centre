@@ -295,6 +295,33 @@
                             <button class="btn btn-ghost" style="padding:7px 12px;font-size:13px;color:var(--red)">Remove</button>
                         </form>
                     </div>
+
+                    {{-- This car's OWN pay — separate from the lead driver and the other cars. --}}
+                    @php $carPay = $booking->extraDriverPay($d['token']); $carRemain = $booking->extraDriverPayRemaining($d['token']); @endphp
+                    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
+                        <div style="font-size:13px;margin-bottom:6px">
+                            <strong>Pay:</strong>
+                            @if($carPay === null)<span class="muted">not set yet</span>
+                            @else £{{ number_format($carPay, 2) }} · <span style="color:#1f7a44">£{{ number_format($booking->extraDriverPaidAmount($d['token']), 2) }} paid</span> · @if($carRemain > 0)<strong style="color:#b8860b">£{{ number_format($carRemain, 2) }} owed</strong>@else<span class="badge badge-complete">Settled</span>@endif
+                            @endif
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <form method="POST" action="{{ route('bookings.extra-drivers.payroll', $booking) }}" style="display:flex;gap:6px;margin:0">
+                                @csrf
+                                <input type="hidden" name="token" value="{{ $d['token'] }}"><input type="hidden" name="action" value="set">
+                                <input type="number" step="0.01" min="0" name="amount" value="{{ $carPay }}" placeholder="Pay £" style="width:110px">
+                                <button class="btn btn-light" style="padding:6px 12px;font-size:13px">Set pay</button>
+                            </form>
+                            @if(($carRemain ?? 0) > 0)
+                                <form method="POST" action="{{ route('bookings.extra-drivers.payroll', $booking) }}" style="display:flex;gap:6px;margin:0">
+                                    @csrf
+                                    <input type="hidden" name="token" value="{{ $d['token'] }}"><input type="hidden" name="action" value="record">
+                                    <input type="number" step="0.01" min="0" name="amount" placeholder="Paid £" style="width:110px">
+                                    <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px">Record payment</button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             @endforeach
 

@@ -59,7 +59,7 @@
     @forelse($drivers as $d)
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-                <h2 style="margin:0">{{ $d['name'] }}</h2>
+                <h2 style="margin:0">{{ $d['name'] }}@if($d['extra'] ?? false) <span class="badge" style="background:#5b2bc7;color:#fff;font-size:11px;vertical-align:middle">extra car</span>@endif</h2>
                 <div style="font-size:14px">
                     £{{ number_format($d['pay'], 2) }} total
                     · <span style="color:#1f7a44">£{{ number_format($d['paid'], 2) }} paid</span>
@@ -69,6 +69,26 @@
             </div>
             <div style="margin-top:10px">
                 <div style="overflow-x:auto">
+                @if($d['extra'] ?? false)
+                <table>
+                    <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Car</th><th>Pays</th><th>Paid</th><th>Remaining</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach($d['car_jobs'] as $r)
+                        @php $e = $r['entry']; $rem = max(0, (float)($e['pay'] ?? 0) - (float)($e['paid'] ?? 0)); @endphp
+                        <tr>
+                            <td class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</td>
+                            <td>{{ $r['booking']->pickup_at->format('d M, H:i') }}</td>
+                            <td>{{ $r['booking']->displayName() }}</td>
+                            <td>Car {{ $r['car'] }}</td>
+                            <td>£{{ number_format((float)($e['pay'] ?? 0), 2) }}</td>
+                            <td>£{{ number_format((float)($e['paid'] ?? 0), 2) }}</td>
+                            <td>@if($rem > 0)<strong style="color:#b8860b">£{{ number_format($rem, 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
+                            <td><a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px">Open →</a></td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                @else
                 <table>
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
@@ -86,6 +106,7 @@
                     @endforeach
                     </tbody>
                 </table>
+                @endif
                 </div>
             </div>
         </div>

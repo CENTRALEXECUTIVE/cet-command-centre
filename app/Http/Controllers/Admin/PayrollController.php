@@ -46,8 +46,37 @@ class PayrollController extends Controller
                 'tips' => round($jobs->sum(fn (Booking $b) => $b->tipsTotal()), 2),
                 'card_tips_owed' => round($jobs->sum(fn (Booking $b) => $b->cardTipsOwed()), 2),
             ])
-            ->sortByDesc('remaining')
             ->values();
+
+        // Extra cars on multi-car jobs are paid separately — one payroll row per
+        // extra driver (grouped by name), independent of the lead driver.
+        $extraRows = collect();
+        foreach ($bookings as $b) {
+            foreach ($b->extraDrivers() as $d) {
+                if (($d['pay'] ?? null) === null) {
+                    continue; // not relevant to payroll until a pay figure is set
+                }
+                $extraRows->push(['name' => $d['name'] ?? 'Extra driver', 'booking' => $b, 'entry' => $d, 'car' => $b->extraDriverCarNumber($d['token'] ?? '')]);
+            }
+        }
+        $extraDrivers = $extraRows->groupBy('name')->map(function ($rows, $name) {
+            $pay = round($rows->sum(fn ($r) => (float) ($r['entry']['pay'] ?? 0)), 2);
+            $paid = round($rows->sum(fn ($r) => (float) ($r['entry']['paid'] ?? 0)), 2);
+
+            return [
+                'name' => $name,
+                'jobs' => collect(),         // extra rows render their own car table
+                'car_jobs' => $rows->values(),
+                'extra' => true,
+                'pay' => $pay,
+                'paid' => $paid,
+                'remaining' => round(max(0, $pay - $paid), 2),
+                'tips' => 0.0,
+                'card_tips_owed' => 0.0,
+            ];
+        })->values();
+
+        $drivers = $drivers->concat($extraDrivers)->sortByDesc('remaining')->values();
 
         // Totals come from ALL drivers (the tiles always show the full picture).
         $totals = [

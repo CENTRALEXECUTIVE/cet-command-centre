@@ -517,6 +517,32 @@ class BookingController extends Controller
         return back()->with('status', 'Removed that car from the job.');
     }
 
+    /** Set pay / record a payment for ONE extra car — paid separately per car. */
+    public function extraDriverPayroll(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'action' => ['required', 'in:set,record'],
+            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'note' => ['nullable', 'string', 'max:200'],
+        ]);
+        $car = $booking->extraDriver($data['token']);
+        abort_if($car === null, 404);
+
+        $amount = round((float) $data['amount'], 2);
+        if ($data['action'] === 'set') {
+            $booking->setExtraDriverPay($data['token'], $amount);
+            $status = "Pay for {$car['name']} set to £".number_format($amount, 2).'.';
+        } else {
+            $booking->recordExtraDriverPayment($data['token'], $amount, $request->user()->name, $data['note'] ?? null);
+            $status = '£'.number_format($amount, 2)." recorded as paid to {$car['name']}.";
+        }
+
+        return back()->with('status', $status);
+    }
+
     /**
      * Mark a flagged pair as NOT a duplicate — two genuinely separate jobs that
      * just share a pickup time (e.g. two customers booked for the same minute).

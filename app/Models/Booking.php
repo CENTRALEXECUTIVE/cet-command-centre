@@ -334,16 +334,67 @@ class Booking extends Model
         return null;
     }
 
-    /** Update one extra car's per-car status. */
-    public function setExtraDriverStatus(string $token, string $status): void
+    /** Mutate a single extra-car entry in place (by token) and persist. */
+    private function updateExtraDriver(string $token, callable $mutate): void
     {
         $extras = $this->extraDrivers();
         foreach ($extras as $i => $d) {
             if (($d['token'] ?? null) === $token) {
-                $extras[$i]['status'] = $status;
+                $extras[$i] = $mutate($d);
             }
         }
         $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => array_values($extras)])])->save();
+    }
+
+    /** Update one extra car's per-car status. */
+    public function setExtraDriverStatus(string $token, string $status): void
+    {
+        $this->updateExtraDriver($token, function (array $d) use ($status) {
+            $d['status'] = $status;
+
+            return $d;
+        });
+    }
+
+    /* Per-car PAYROLL — each extra car is paid separately from the lead driver
+     * and from each other. Pay/paid/history live inside the car's own entry. */
+
+    public function extraDriverPay(string $token): ?float
+    {
+        $d = $this->extraDriver($token);
+
+        return isset($d['pay']) && $d['pay'] !== null ? (float) $d['pay'] : null;
+    }
+
+    public function extraDriverPaidAmount(string $token): float
+    {
+        return (float) ($this->extraDriver($token)['paid'] ?? 0);
+    }
+
+    public function extraDriverPayRemaining(string $token): ?float
+    {
+        $pay = $this->extraDriverPay($token);
+
+        return $pay === null ? null : round(max(0.0, $pay - $this->extraDriverPaidAmount($token)), 2);
+    }
+
+    public function setExtraDriverPay(string $token, float $amount): void
+    {
+        $this->updateExtraDriver($token, function (array $d) use ($amount) {
+            $d['pay'] = round($amount, 2);
+
+            return $d;
+        });
+    }
+
+    public function recordExtraDriverPayment(string $token, float $amount, ?string $by = null, ?string $note = null): void
+    {
+        $this->updateExtraDriver($token, function (array $d) use ($amount, $by, $note) {
+            $d['paid'] = round((float) ($d['paid'] ?? 0) + $amount, 2);
+            $d['history'][] = ['amount' => round($amount, 2), 'at' => now()->toDateTimeString(), 'by' => $by, 'note' => $note];
+
+            return $d;
+        });
     }
 
     public function extraDriverLinkUrl(string $token): string

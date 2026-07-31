@@ -97,6 +97,38 @@ class ExtraDriverTest extends TestCase
         $this->assertCount(0, $booking->fresh()->extraDrivers());
     }
 
+    public function test_each_extra_car_is_paid_separately_and_shows_on_payroll(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Wedding Party'])->id,
+                'pickup_at' => '2026-07-06 14:00', 'status' => BookingStatus::Complete->value,
+            ]);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Car2 Carl']);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Car3 Cara']);
+        $booking->refresh();
+        [$t2, $t3] = [$booking->extraDrivers()[0]['token'], $booking->extraDrivers()[1]['token']];
+
+        // Set each car's pay separately, then part-pay one.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $booking), ['token' => $t2, 'action' => 'set', 'amount' => '80'])->assertRedirect();
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $booking), ['token' => $t3, 'action' => 'set', 'amount' => '90'])->assertRedirect();
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $booking), ['token' => $t2, 'action' => 'record', 'amount' => '30'])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(80.0, $booking->extraDriverPay($t2));
+        $this->assertSame(50.0, $booking->extraDriverPayRemaining($t2)); // 80 − 30
+        $this->assertSame(90.0, $booking->extraDriverPayRemaining($t3)); // untouched
+
+        // They appear on the payroll page as their own rows.
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => '2026-07']))->assertOk();
+        $res->assertSee('Car2 Carl')->assertSee('Car3 Cara')->assertSee('extra car', false);
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
