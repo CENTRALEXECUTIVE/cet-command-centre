@@ -499,6 +499,27 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertLessThan(strpos($msg->body, '*Driver details*'), strpos($msg->body, "Please find your driver's details below:"));
     }
 
+    public function test_an_old_driver_details_message_re_renders_with_the_greeting(): void
+    {
+        $booking = $this->makeBooking();
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Kash Khan', 'email' => 'kash@cet.test']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id]);
+        $booking->forceFill(['driver_id' => $driver->id])->save();
+
+        // A message stored in the OLD format (block only, no greeting).
+        $old = Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'driver_details',
+            'to_address' => $booking->customer->phone, 'status' => 'sent',
+            'body' => "*Driver details*\n• Driver Name: Kash\n\n*Central Executive Transfers*",
+        ]);
+
+        // Displayed body re-renders live and now carries the greeting + intro.
+        $rendered = $old->fresh()->renderedBody();
+        $this->assertStringStartsWith('Hi ', $rendered);
+        $this->assertStringContainsString("Please find your driver's details below:", $rendered);
+    }
+
     public function test_reminder_greets_the_lead_passenger_not_the_booker(): void
     {
         $booking = $this->makeBooking(); // customer = James Watson

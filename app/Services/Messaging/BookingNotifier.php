@@ -458,17 +458,31 @@ class BookingNotifier
      * the driver's name and the car (make, colour, registration) so they know
      * exactly who and what to look for. Skipped if no driver/number is set.
      */
-    public function sendDriverDetails(Booking $booking): ?Message
+    /**
+     * The full customer-facing "driver details" message: a greeting, the intro
+     * line, the *Driver details* block, then the sign-off. Rendered live (from the
+     * current driver/vehicle) so the booking page and re-sends always show the
+     * up-to-date wording. Null when there's no driver to describe yet.
+     */
+    public function driverDetailsBody(Booking $booking): ?string
     {
-        $to = $booking->customerContactNumber();
         $block = $this->driverBlock($booking);
-        if (blank($to) || ! $block) {
+        if (! $block) {
             return null;
         }
 
-        $body = 'Hi '.$this->firstName($booking).','."\n\n"
+        return 'Hi '.$this->firstName($booking).','."\n\n"
             .'Please find your driver\'s details below:'."\n\n"
             .$block."\n\n".self::FOOTER;
+    }
+
+    public function sendDriverDetails(Booking $booking): ?Message
+    {
+        $to = $booking->customerContactNumber();
+        $body = $this->driverDetailsBody($booking);
+        if (blank($to) || ! $body) {
+            return null;
+        }
 
         return $this->whatsApp->send($to, $body, [
             'type' => 'driver_details',

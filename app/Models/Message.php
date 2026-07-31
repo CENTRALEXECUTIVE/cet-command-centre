@@ -75,7 +75,17 @@ class Message extends Model
      */
     public function renderedBody(): string
     {
-        $body = (string) $this->body;
+        // Driver-details messages are re-rendered live from the current driver /
+        // vehicle (and current wording) so the booking page and any re-send always
+        // reflect what's actually on the job now — not the text frozen when the
+        // driver was first allocated. Falls back to the stored body if we can't.
+        if ($this->type === 'driver_details' && $this->booking) {
+            $live = app(\App\Services\Messaging\BookingNotifier::class)->driverDetailsBody($this->booking);
+            $body = $live ?: (string) $this->body;
+        } else {
+            $body = (string) $this->body;
+        }
+
         $host = parse_url((string) config('app.url'), PHP_URL_HOST);
         if (! $host) {
             return $body;
