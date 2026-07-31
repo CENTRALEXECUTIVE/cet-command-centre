@@ -487,6 +487,37 @@ class BookingController extends Controller
     }
 
     /**
+     * Add an EXTRA driver/car to a multi-car job (e.g. a 3-car wedding). Each
+     * gets its own shareable link and its own per-car status.
+     */
+    public function addExtraDriver(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'reg' => ['nullable', 'string', 'max:20'],
+            'car' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $booking->addExtraDriver($data);
+
+        return back()->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
+    }
+
+    /** Remove an extra car from a multi-car job. */
+    public function removeExtraDriver(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['token' => ['required', 'string']]);
+        $booking->removeExtraDriver($data['token']);
+
+        return back()->with('status', 'Removed that car from the job.');
+    }
+
+    /**
      * Mark a flagged pair as NOT a duplicate — two genuinely separate jobs that
      * just share a pickup time (e.g. two customers booked for the same minute).
      * Recorded on BOTH bookings so neither flags the other again, and keyed by

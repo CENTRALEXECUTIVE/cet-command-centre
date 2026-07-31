@@ -261,6 +261,108 @@ class Booking extends Model
         return implode("\n", $lines);
     }
 
+    /* ── Additional drivers (multi-car jobs, e.g. a 3-car wedding) ─────────────
+     * The primary driver stays on driver_id (Car 1 / lead). Each EXTRA car is a
+     * name/phone + its own shareable link token and its own per-car status, all
+     * stored in meta['extra_drivers'] (no migration). Extra drivers reach the
+     * customer via the office (no masking), and their GPS isn't tracked — only
+     * their status is, so the office sees each car's progress independently.
+     */
+
+    /** @return array<int, array<string, mixed>> */
+    public function extraDrivers(): array
+    {
+        return array_values($this->meta['extra_drivers'] ?? []);
+    }
+
+    public function hasExtraDrivers(): bool
+    {
+        return count($this->extraDrivers()) > 0;
+    }
+
+    /** Total cars on the job (lead + extras) — 1 unless it's a multi-car job. */
+    public function carCount(): int
+    {
+        return 1 + count($this->extraDrivers());
+    }
+
+    /** Add an extra car; returns its new link token. */
+    public function addExtraDriver(array $attrs): string
+    {
+        $token = \Illuminate\Support\Str::random(40);
+        $extras = $this->extraDrivers();
+        $extras[] = [
+            'token' => $token,
+            'name' => trim((string) ($attrs['name'] ?? '')) ?: 'Driver',
+            'phone' => trim((string) ($attrs['phone'] ?? '')),
+            'reg' => trim((string) ($attrs['reg'] ?? '')),
+            'car' => trim((string) ($attrs['car'] ?? '')),
+            'status' => BookingStatus::Allocated->value,
+        ];
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => array_values($extras)])])->save();
+
+        return $token;
+    }
+
+    public function removeExtraDriver(string $token): void
+    {
+        $extras = array_values(array_filter($this->extraDrivers(), fn ($d) => ($d['token'] ?? null) !== $token));
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => $extras])])->save();
+    }
+
+    /** The extra-car entry for a token, or null. */
+    public function extraDriver(string $token): ?array
+    {
+        foreach ($this->extraDrivers() as $d) {
+            if (($d['token'] ?? null) === $token) {
+                return $d;
+            }
+        }
+
+        return null;
+    }
+
+    /** Its position for display ("Car 2 of 3"). Lead is Car 1, so extras start at 2. */
+    public function extraDriverCarNumber(string $token): ?int
+    {
+        foreach ($this->extraDrivers() as $i => $d) {
+            if (($d['token'] ?? null) === $token) {
+                return $i + 2;
+            }
+        }
+
+        return null;
+    }
+
+    /** Update one extra car's per-car status. */
+    public function setExtraDriverStatus(string $token, string $status): void
+    {
+        $extras = $this->extraDrivers();
+        foreach ($extras as $i => $d) {
+            if (($d['token'] ?? null) === $token) {
+                $extras[$i]['status'] = $status;
+            }
+        }
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => array_values($extras)])])->save();
+    }
+
+    public function extraDriverLinkUrl(string $token): string
+    {
+        return route('driver.car', $token);
+    }
+
+    /** Resolve the booking that owns an extra-car token (unique 40-char string). */
+    public static function byExtraDriverToken(string $token): ?self
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        return static::where('meta', 'like', '%'.$token.'%')->get()
+            ->first(fn (self $b) => $b->extraDriver($token) !== null);
+    }
+
     /**
      * A journey signature: the pickup minute + the customer (phone if we have
      * it, else the name). Two records that share it are the same journey. Null

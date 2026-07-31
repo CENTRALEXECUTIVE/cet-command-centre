@@ -104,6 +104,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('bookings/{booking}/merge', [BookingController::class, 'merge'])->middleware('throttle:30,1')->name('bookings.merge');
         Route::post('bookings/{booking}/keep-separate', [BookingController::class, 'keepSeparate'])->middleware('throttle:30,1')->name('bookings.keep-separate');
+        Route::post('bookings/{booking}/extra-drivers', [BookingController::class, 'addExtraDriver'])->middleware('throttle:30,1')->name('bookings.extra-drivers.add');
+        Route::post('bookings/{booking}/extra-drivers/remove', [BookingController::class, 'removeExtraDriver'])->middleware('throttle:30,1')->name('bookings.extra-drivers.remove');
         Route::post('bookings/{booking}/driver-details', [BookingController::class, 'setDriverDetails'])->middleware('throttle:30,1')->name('bookings.driver-details');
         Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
         Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
@@ -331,6 +333,12 @@ Route::post('job/{token}/status', [\App\Http\Controllers\Driver\LinkController::
     ->middleware('throttle:60,1')->name('driver.link.status');
 Route::post('job/{token}/reach-stop', [\App\Http\Controllers\Driver\LinkController::class, 'reachStop'])
     ->middleware('throttle:60,1')->name('driver.link.reach-stop');
+
+// Additional-car links on a multi-car job (each extra driver, tracked per car).
+Route::get('car/{token}', [\App\Http\Controllers\Driver\ExtraDriverController::class, 'show'])
+    ->middleware('throttle:60,1')->name('driver.car');
+Route::post('car/{token}/status', [\App\Http\Controllers\Driver\ExtraDriverController::class, 'updateStatus'])
+    ->middleware('throttle:60,1')->name('driver.car.status');
 Route::post('job/{token}/location', [\App\Http\Controllers\Driver\LinkController::class, 'location'])
     ->middleware('throttle:120,1')->name('driver.link.location');
 

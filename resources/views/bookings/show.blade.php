@@ -257,6 +257,60 @@
         </script>
     @endif
 
+    {{-- Additional drivers for a MULTI-CAR job (e.g. a 3-car wedding). Each gets
+         their own link and their own per-car status, tracked separately. --}}
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        @php $extraDrivers = $booking->extraDrivers(); @endphp
+        <div class="card">
+            <h2 style="margin:0 0 4px">🚗 Extra cars — multi-car job</h2>
+            <p class="hint" style="margin:0 0 12px">For a job that needs more than one car, add each extra driver here. They get their own link and their own status buttons, so you can track each car separately. Extra drivers contact the customer via the office.</p>
+
+            @foreach($extraDrivers as $i => $d)
+                @php
+                    $carNo = $i + 2;
+                    $st = \App\Enums\BookingStatus::from($d['status'] ?? 'allocated');
+                    $carLink = $booking->extraDriverLinkUrl($d['token']);
+                    $carPhone = \App\Support\Phone::wa($d['phone'] ?? null);
+                    $carMsg = "Central Executive Transfers\n\n".$booking->displayName()."\n".$booking->pickup_at->format('D d/m/Y H:i')."\n\nYou're Car {$carNo}. Open your job sheet:\n{$carLink}";
+                @endphp
+                <div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                        <strong>Car {{ $carNo }} — {{ $d['name'] }}</strong>
+                        <span class="badge badge-{{ $st->value }}">{{ $st->label() }}</span>
+                    </div>
+                    @if(!empty($d['phone']) || !empty($d['reg']) || !empty($d['car']))
+                        <div class="hint" style="margin:4px 0 8px">{{ trim(implode(' · ', array_filter([$d['phone'] ?? '', $d['car'] ?? '', $d['reg'] ?? '']))) }}</div>
+                    @endif
+                    <input type="text" value="{{ $carLink }}" readonly onclick="this.select()" style="font-size:12px;margin-bottom:8px">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                        <button type="button" class="btn btn-primary copy-link" data-link="{{ $carLink }}" style="padding:7px 14px;font-size:13px">⧉ Copy link</button>
+                        @if($carPhone)
+                            <a href="https://wa.me/{{ $carPhone }}?text={{ rawurlencode($carMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:7px 14px;font-size:13px">📲 Send</a>
+                        @endif
+                        <span class="copy-link-done hint" style="color:#1f8b4c"></span>
+                        <form method="POST" action="{{ route('bookings.extra-drivers.remove', $booking) }}" style="margin:0;margin-left:auto"
+                              onsubmit="return confirm('Remove Car {{ $carNo }} ({{ $d['name'] }}) from this job?')">
+                            @csrf
+                            <input type="hidden" name="token" value="{{ $d['token'] }}">
+                            <button class="btn btn-ghost" style="padding:7px 12px;font-size:13px;color:var(--red)">Remove</button>
+                        </form>
+                    </div>
+                </div>
+            @endforeach
+
+            <form method="POST" action="{{ route('bookings.extra-drivers.add', $booking) }}" style="margin-top:8px">
+                @csrf
+                <div class="grid grid-2">
+                    <div class="field"><label for="ex-name">Driver name <span class="req">*</span></label><input id="ex-name" name="name" required placeholder="e.g. Sam Jones"></div>
+                    <div class="field"><label for="ex-phone">Phone <span class="muted">(for you to send the link)</span></label><input id="ex-phone" name="phone" placeholder="07…"></div>
+                    <div class="field"><label for="ex-reg">Vehicle reg</label><input id="ex-reg" name="reg" style="text-transform:uppercase"></div>
+                    <div class="field"><label for="ex-car">Make &amp; model</label><input id="ex-car" name="car" placeholder="e.g. Black Mercedes V-Class"></div>
+                </div>
+                <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">＋ Add another car</button>
+            </form>
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
         {{-- Live driver location. "Request location" pushes the driver's phone to
              share where they are right now (works even before Set off); once
