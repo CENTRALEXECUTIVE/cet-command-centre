@@ -6,6 +6,13 @@
     $viewerIsAdmin = $linkMode ? false : (auth()->user()?->isAdmin() ?? false);
     $statusUrl = $statusUrl ?? route('driver.job.status', $booking);
     $locationStoreUrl = $locationStoreUrl ?? route('driver.locations.store');
+    $stopUrl = $stopUrl ?? route('driver.job.reach-stop', $booking);
+
+    // Multi-stop journeys (a "via" between pickup and drop-off).
+    $viaStops = $booking->viaStops();
+    $stopsReached = $booking->stopsReached();
+    $onBoard = $booking->status === \App\Enums\BookingStatus::Collected;
+    $nextStop = $onBoard ? $booking->nextViaStop() : null;
 @endphp
 
 @unless($linkMode)
@@ -18,6 +25,9 @@
     <div class="da-hero-name">{{ $booking->displayName() }}@if($booking->hasChildSeat()) <span title="Child seat required">🚼</span>@endif</div>
     <div class="da-hero-route">
         <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
+        @foreach($viaStops as $i => $stop)
+            <span class="da-addr" style="{{ $i < $stopsReached ? 'opacity:.55' : '' }}">🔀 Via {{ $i + 1 }}: {{ $stop }}{{ $i < $stopsReached ? ' ✓ done' : '' }}</span>
+        @endforeach
         <span class="da-addr">🏁 {{ $booking->displayDropoffAddress() }}</span>
     </div>
     <div class="da-hero-chips">
@@ -47,6 +57,15 @@
         <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->pickup_address }}"
                 style="white-space:nowrap">📋 Copy</button>
     </div>
+    @foreach($viaStops as $i => $stop)
+        <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:6px">
+            <a class="btn btn-ghost" style="flex:1;text-align:center;{{ $i < $stopsReached ? 'opacity:.55' : '' }}"
+               href="https://waze.com/ul?q={{ urlencode($stop) }}&navigate=yes"
+               target="_blank" rel="noopener">🔀 Waze to stop {{ $i + 1 }}{{ $i < $stopsReached ? ' ✓' : '' }}</a>
+            <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $stop }}"
+                    style="white-space:nowrap">📋 Copy</button>
+        </div>
+    @endforeach
     <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:6px">
         <a class="btn btn-ghost" style="flex:1;text-align:center"
            href="https://waze.com/ul?q={{ urlencode($booking->destination_address) }}&navigate=yes"
@@ -89,8 +108,8 @@
     <table>
         <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
         <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
-        @foreach($booking->stops as $stop)
-            <tr><th>Via {{ $stop->sequence }}</th><td>{{ $stop->address }}</td></tr>
+        @foreach($viaStops as $i => $stop)
+            <tr><th>Via {{ $i + 1 }}</th><td>{{ $stop }}{!! $i < $stopsReached ? ' <span style="color:#1f7a44;font-weight:700">✓ reached</span>' : '' !!}</td></tr>
         @endforeach
         <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
         @if($booking->displayFlightNumber())
@@ -169,8 +188,29 @@
     if (! $viewerIsAdmin) {
         $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
     }
+    // The passenger is on board but there's still a via stop to reach — the job
+    // isn't finished, so guide the driver to the next stop instead of offering
+    // Complete straight away.
+    $awaitingStop = $onBoard && $nextStop !== null;
 @endphp
-@if(!empty($next))
+
+@if($awaitingStop)
+    {{-- Multi-stop: travel to the next stop, then tap through it. --}}
+    <div class="card" style="border-left:4px solid #7a45e0;background:rgba(122,69,224,.08);margin-bottom:12px">
+        <div style="font-weight:800;font-size:15px">🔀 Travel to the next stop — {{ $stopsReached + 1 }} of {{ count($viaStops) }}</div>
+        <div style="margin:6px 0 10px;font-size:15px">{{ $nextStop }}</div>
+        <a class="btn btn-dark" style="display:block;text-align:center"
+           href="https://waze.com/ul?q={{ urlencode($nextStop) }}&navigate=yes" target="_blank" rel="noopener">🧭 Waze to this stop</a>
+    </div>
+    <div class="da-actionbar">
+    <div class="tap-actions">
+        <form method="POST" action="{{ $stopUrl }}">
+            @csrf
+            <button type="submit" class="tap-collect" style="width:100%">Reached stop {{ $stopsReached + 1 }} — Passenger On Board</button>
+        </form>
+    </div>
+    </div>
+@elseif(!empty($next))
     <div class="da-actionbar">
     <div class="tap-actions">
         @foreach($next as $status)
@@ -183,7 +223,8 @@
                 };
                 $btnLabel = match($status->value) {
                     'en_route' => 'On My Way', 'collected' => 'Passenger On Board',
-                    'complete' => 'Completed', default => $status->label(),
+                    'complete' => count($viaStops) ? 'Completed (final drop-off)' : 'Completed',
+                    default => $status->label(),
                 };
             @endphp
             <form method="POST" action="{{ $statusUrl }}" class="status-form">

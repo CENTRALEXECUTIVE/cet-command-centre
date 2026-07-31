@@ -59,6 +59,20 @@ class LinkController extends Controller
         return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
     }
 
+    /** Multi-stop journeys via the shareable link — tap through each via stop. */
+    public function reachStop(Request $request, string $token): RedirectResponse
+    {
+        $booking = $this->resolve($token);
+
+        if ($booking->status === BookingStatus::Collected && ! $booking->allViaStopsReached()) {
+            $booking->markStopReached();
+        }
+
+        return back()->with('status', $booking->allViaStopsReached()
+            ? 'Reached the last stop — you can complete the job at drop-off.'
+            : 'Stop reached — head to the next one.');
+    }
+
     public function location(Request $request, string $token, DriverLocationService $locations): JsonResponse
     {
         $booking = $this->resolve($token);

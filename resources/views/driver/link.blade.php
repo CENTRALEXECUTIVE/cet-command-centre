@@ -71,6 +71,7 @@
                 'linkMode' => true,
                 'statusUrl' => route('driver.link.status', $token),
                 'locationStoreUrl' => route('driver.link.location', $token),
+                'stopUrl' => route('driver.link.reach-stop', $token),
             ])
 
             <p class="hint" style="text-align:center;margin-top:20px">Private link for this job · Central Executive Transfers</p>

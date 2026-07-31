@@ -119,6 +119,53 @@ class DriverAppTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_via_stop_shows_on_the_job_and_guides_the_driver_through_it(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900222']);
+        $job = $this->jobFor($this->driver, [
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Collected, // passenger already on board at pickup
+            'pickup_at' => now()->addHours(1),
+            'destination_address' => 'Manchester Airport (MAN)',
+        ]);
+        \App\Models\BookingStop::create(['booking_id' => $job->id, 'sequence' => 1, 'address' => '10 Ecclesall Road, Sheffield']);
+
+        // The job screen shows the stop and, since POB is done, guides to it —
+        // Complete is NOT offered yet.
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()
+            ->assertSee('10 Ecclesall Road, Sheffield')
+            ->assertSee('Travel to the next stop')
+            ->assertSee('Reached stop 1 — Passenger On Board')
+            ->assertDontSee('Completed (final drop-off)');
+
+        // Tap through the stop → counter advances, now Complete is offered.
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job))->assertRedirect();
+        $this->assertEquals(1, $job->fresh()->stopsReached());
+
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()
+            ->assertSee('Completed (final drop-off)')
+            ->assertDontSee('Travel to the next stop');
+
+        // And Complete still works from there.
+        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'complete'])->assertRedirect();
+        $this->assertEquals(BookingStatus::Complete, $job->fresh()->status);
+    }
+
+    public function test_via_stops_come_from_eto_via_when_there_is_no_stop_row(): void
+    {
+        $job = $this->jobFor($this->driver, [
+            'status' => BookingStatus::Collected,
+            'pickup_at' => now()->addHours(1),
+            'meta' => ['eto_via' => 'Sheffield Train Station'],
+        ]);
+
+        $this->assertSame(['Sheffield Train Station'], $job->viaStops());
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()->assertSee('Sheffield Train Station');
+    }
+
     public function test_public_tracking_page_renders_via_token(): void
     {
         $customer = Customer::factory()->create(['phone' => '07700900111']);

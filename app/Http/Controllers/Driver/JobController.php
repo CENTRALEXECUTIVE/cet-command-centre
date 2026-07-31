@@ -33,7 +33,7 @@ class JobController extends Controller
             default => [today()->startOfDay(), today()->endOfDay(), 'Today'],
         };
 
-        $jobs = Booking::with(['customer', 'vehicleType', 'airport'])
+        $jobs = Booking::with(['customer', 'vehicleType', 'airport', 'stops'])
             ->forDriver($driverId)
             ->whereBetween('pickup_at', [$from, $to])
             ->whereNotIn('status', [BookingStatus::Cancelled->value])
@@ -74,6 +74,24 @@ class JobController extends Controller
         }
 
         return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
+    }
+
+    /**
+     * Multi-stop journeys: the driver taps "reached" at each via stop while the
+     * passenger is on board, so the screen guides them to the next stop before
+     * the final drop-off. Only advances while there's a stop still to reach.
+     */
+    public function reachStop(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+
+        if ($booking->status === BookingStatus::Collected && ! $booking->allViaStopsReached()) {
+            $booking->markStopReached();
+        }
+
+        return back()->with('status', $booking->allViaStopsReached()
+            ? 'Reached the last stop — you can complete the job at drop-off.'
+            : 'Stop reached — head to the next one.');
     }
 
     /**

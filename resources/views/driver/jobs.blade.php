@@ -37,8 +37,15 @@
                     <strong>{{ $b->displayName() }}</strong> &middot; {{ $b->vehicleType?->name }}
                     {{ $b->airport?->code ? '· '.$b->airport->code : '' }}<br>
                     {{ \Illuminate\Support\Str::limit($b->pickup_address, 50) }}<br>
+                    @php $jVia = $b->viaStops(); @endphp
+                    @foreach($jVia as $i => $stop)
+                        <span class="muted">🔀 via {{ \Illuminate\Support\Str::limit($stop, 46) }}</span><br>
+                    @endforeach
                     <span class="muted">→ {{ \Illuminate\Support\Str::limit($b->destination_address, 50) }}</span>
                 </div>
+                @if(count($jVia))
+                    <div style="margin-top:6px"><span class="badge" style="background:#5b2bc7;color:#fff">🔀 {{ count($jVia) }} stop{{ count($jVia) === 1 ? '' : 's' }} en route</span></div>
+                @endif
             </a>
             @if($isOffer)
                 <div style="display:flex;gap:8px;margin-top:10px">

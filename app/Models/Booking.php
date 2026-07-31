@@ -91,6 +91,62 @@ class Booking extends Model
         return $this->hasMany(BookingStop::class)->orderBy('sequence');
     }
 
+    /**
+     * Intermediate stops (via points) for this journey — the places the driver
+     * must travel to BETWEEN pickup and drop-off. Taken from the stops table
+     * (structured) or, failing that, ETO's free-text "Via" field. Returns the
+     * addresses in order.
+     *
+     * @return array<int, string>
+     */
+    public function viaStops(): array
+    {
+        $fromTable = $this->stops->pluck('address')
+            ->map(fn ($a) => trim((string) $a))->filter()->values()->all();
+        if ($fromTable) {
+            return $fromTable;
+        }
+
+        $via = trim((string) ($this->meta['eto_via'] ?? ''));
+        if ($via === '') {
+            return [];
+        }
+
+        // ETO occasionally joins multiple vias with a semicolon or newline.
+        return array_values(array_filter(array_map('trim', preg_split('/\s*[;\n]\s*/', $via))));
+    }
+
+    public function hasViaStops(): bool
+    {
+        return count($this->viaStops()) > 0;
+    }
+
+    /** How many via stops the driver has already reached (tapped through). */
+    public function stopsReached(): int
+    {
+        return max(0, (int) ($this->meta['stops_reached'] ?? 0));
+    }
+
+    /** The next via stop the driver should travel to, or null if all are done. */
+    public function nextViaStop(): ?string
+    {
+        return $this->viaStops()[$this->stopsReached()] ?? null;
+    }
+
+    /** True once every via stop has been reached (so drop-off/Complete is next). */
+    public function allViaStopsReached(): bool
+    {
+        return $this->stopsReached() >= count($this->viaStops());
+    }
+
+    /** Advance the "reached" counter by one stop (capped at the total). */
+    public function markStopReached(): void
+    {
+        $meta = $this->meta ?? [];
+        $meta['stops_reached'] = min(count($this->viaStops()), $this->stopsReached() + 1);
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
     public function statusHistory(): HasMany
     {
         return $this->hasMany(BookingStatusHistory::class);
