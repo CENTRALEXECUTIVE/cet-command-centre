@@ -101,18 +101,29 @@ class Booking extends Model
      */
     public function viaStops(): array
     {
+        // 1) Structured stops from the booking form (the stops table).
         $fromTable = $this->stops->pluck('address')
             ->map(fn ($a) => trim((string) $a))->filter()->values()->all();
         if ($fromTable) {
             return $fromTable;
         }
 
+        // 2) Intake paths (Outlook / ETO email, paste-a-booking, the calendar
+        //    description) store stops as a plain list in meta['stops'].
+        $fromMeta = array_values(array_filter(array_map(
+            fn ($s) => trim((string) (is_array($s) ? ($s['address'] ?? '') : $s)),
+            (array) ($this->meta['stops'] ?? []),
+        )));
+        if ($fromMeta) {
+            return $fromMeta;
+        }
+
+        // 3) The ETO CSV import's free-text "Via" field (one or more, joined).
         $via = trim((string) ($this->meta['eto_via'] ?? ''));
         if ($via === '') {
             return [];
         }
 
-        // ETO occasionally joins multiple vias with a semicolon or newline.
         return array_values(array_filter(array_map('trim', preg_split('/\s*[;\n]\s*/', $via))));
     }
 

@@ -166,6 +166,24 @@ class DriverAppTest extends TestCase
             ->assertOk()->assertSee('Sheffield Train Station');
     }
 
+    public function test_via_stops_come_from_meta_stops_list_intake(): void
+    {
+        // Bookings from the Outlook / ETO-email intake (and paste-a-booking) store
+        // stops as a plain list in meta['stops'] — these must show too.
+        $job = $this->jobFor($this->driver, [
+            'status' => BookingStatus::Allocated,
+            'pickup_at' => now()->addHours(1),
+            'meta' => ['stops' => ['15 Middlewood Road, Sheffield']],
+        ]);
+
+        $this->assertSame(['15 Middlewood Road, Sheffield'], $job->viaStops());
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()->assertSee('15 Middlewood Road, Sheffield');
+        // And it's flagged on the jobs list card.
+        $this->actingAs($this->driver)->get(route('driver.jobs', ['filter' => 'today']))
+            ->assertOk()->assertSee('stop en route');
+    }
+
     public function test_public_tracking_page_renders_via_token(): void
     {
         $customer = Customer::factory()->create(['phone' => '07700900111']);
