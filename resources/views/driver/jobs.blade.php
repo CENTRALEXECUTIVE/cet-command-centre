@@ -39,7 +39,7 @@
                     {{ \Illuminate\Support\Str::limit($b->pickup_address, 50) }}<br>
                     @php $jVia = $b->viaStops(); @endphp
                     @foreach($jVia as $i => $stop)
-                        <span class="muted">🔀 via {{ \Illuminate\Support\Str::limit($stop, 46) }}</span><br>
+                        <span class="muted">🔀 Stop {{ $i + 1 }}: {{ \Illuminate\Support\Str::limit($stop, 44) }}</span><br>
                     @endforeach
                     <span class="muted">→ {{ \Illuminate\Support\Str::limit($b->destination_address, 50) }}</span>
                 </div>

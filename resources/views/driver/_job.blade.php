@@ -26,7 +26,7 @@
     <div class="da-hero-route">
         <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
         @foreach($viaStops as $i => $stop)
-            <span class="da-addr" style="{{ $i < $stopsReached ? 'opacity:.55' : '' }}">🔀 Via {{ $i + 1 }}: {{ $stop }}{{ $i < $stopsReached ? ' ✓ done' : '' }}</span>
+            <span class="da-addr" style="{{ $i < $stopsReached ? 'opacity:.55' : '' }}">🔀 Stop {{ $i + 1 }}: {{ $stop }}{{ $i < $stopsReached ? ' ✓ done' : '' }}</span>
         @endforeach
         <span class="da-addr">🏁 {{ $booking->displayDropoffAddress() }}</span>
     </div>
@@ -109,7 +109,7 @@
         <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
         <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
         @foreach($viaStops as $i => $stop)
-            <tr><th>Via {{ $i + 1 }}</th><td>{{ $stop }}{!! $i < $stopsReached ? ' <span style="color:#1f7a44;font-weight:700">✓ reached</span>' : '' !!}</td></tr>
+            <tr><th>Stop {{ $i + 1 }}</th><td>{{ $stop }}{!! $i < $stopsReached ? ' <span style="color:#1f7a44;font-weight:700">✓ reached</span>' : '' !!}</td></tr>
         @endforeach
         <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
         @if($booking->displayFlightNumber())
