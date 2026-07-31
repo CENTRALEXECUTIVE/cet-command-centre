@@ -27,24 +27,35 @@
         <button class="btn {{ $active === 'custom' ? 'btn-dark' : 'btn-light' }}" type="submit" style="padding:9px 16px">Apply</button>
     </form>
 
-    @php $c = $comparison['current']; @endphp
-    <p class="muted" style="font-size:13px;margin:0 0 8px"><strong>Made this period</strong> = bookings that came in (were booked) in these dates, whatever day the trip runs — ETO's “Created” date. <strong>Completed</strong> = trips already done (money taken). <strong>Booked</strong> = everything on the books by trip date, including trips still to come.</p>
+    @php
+        $c = $comparison['current'];
+        // Every stat below links to the exact list behind it. Base window params
+        // reused for each drill-through (dates come from the chosen period).
+        $win = ['from' => $start->toDateString(), 'to' => $end->toDateString()];
+        $lnkMade      = route('bookings.index', $win + ['by' => 'created']);
+        $lnkCompleted = route('bookings.index', $win + ['by' => 'pickup', 'ran' => 1]);
+        $lnkBooked    = route('bookings.index', $win + ['by' => 'pickup']);
+        $lnkPaid      = route('bookings.index', $win + ['by' => 'pickup', 'payment' => 'paid']);
+        $lnkOwing     = route('bookings.index', $win + ['by' => 'pickup', 'payment' => 'unpaid']);
+        $lnkCancelled = route('bookings.index', $win + ['by' => 'pickup', 'status' => 'cancelled']);
+    @endphp
+    <p class="muted" style="font-size:13px;margin:0 0 8px">Every figure below is clickable — tap it to see the exact bookings behind it. <strong>Made this period</strong> = bookings that came in (were booked) in these dates, whatever day the trip runs — ETO's “Created” date. <strong>Completed</strong> = trips already done (money taken). <strong>Booked</strong> = everything on the books by trip date, including trips still to come.</p>
 
     {{-- Bookings MADE in the period (by created date), not by trip date — "how
          many came in this month" regardless of when the pickup lands. --}}
     <div class="grid grid-3" style="margin-bottom:14px">
-        <div class="stat" style="border-color:var(--gold);border-width:2px">
+        <a href="{{ $lnkMade }}" class="stat stat-link" style="border-color:var(--gold);border-width:2px">
             <div class="n">{{ $created['jobs'] ?? 0 }}</div>
             <div class="l">🆕 Bookings made this period (came in)</div>
-        </div>
-        <div class="stat">
+        </a>
+        <a href="{{ $lnkMade }}" class="stat stat-link">
             <div class="n">£{{ number_format($created['revenue'] ?? 0, 2) }}</div>
             <div class="l">Value of bookings made</div>
-        </div>
-        <div class="stat"><div class="n">£{{ number_format($created['average_fare'] ?? 0, 2) }}</div><div class="l">Average new-booking fare</div></div>
+        </a>
+        <a href="{{ $lnkMade }}" class="stat stat-link"><div class="n">£{{ number_format($created['average_fare'] ?? 0, 2) }}</div><div class="l">Average new-booking fare</div></a>
     </div>
     <div class="grid grid-3" style="margin-bottom:14px">
-        <div class="stat">
+        <a href="{{ $lnkCompleted }}" class="stat stat-link">
             <div class="n">£{{ number_format($c['revenue'], 2) }}</div>
             <div class="l">💷 Completed — money taken so far
                 @if(!is_null($comparison['revenue_change_pct']))
@@ -52,35 +63,35 @@
                         {{ $comparison['revenue_change_pct'] >= 0 ? '▲' : '▼' }} {{ abs($comparison['revenue_change_pct']) }}%</span>
                 @endif
             </div>
-        </div>
-        <div class="stat"><div class="n">{{ $c['jobs'] }}</div><div class="l">Trips completed</div></div>
-        <div class="stat"><div class="n">£{{ number_format($c['average_fare'], 2) }}</div><div class="l">Average fare</div></div>
+        </a>
+        <a href="{{ $lnkCompleted }}" class="stat stat-link"><div class="n">{{ $c['jobs'] }}</div><div class="l">Trips completed</div></a>
+        <a href="{{ $lnkCompleted }}" class="stat stat-link"><div class="n">£{{ number_format($c['average_fare'], 2) }}</div><div class="l">Average fare</div></a>
     </div>
     <div class="grid grid-3" style="margin-bottom:24px">
-        <div class="stat" style="border-color:var(--gold)">
+        <a href="{{ $lnkBooked }}" class="stat stat-link" style="border-color:var(--gold)">
             <div class="n">£{{ number_format($reserved['revenue'] ?? 0, 2) }}</div>
             <div class="l">📖 Booked — total incl. upcoming</div>
-        </div>
-        <div class="stat"><div class="n">{{ $reserved['jobs'] ?? 0 }}</div><div class="l">Total trips booked</div></div>
-        <div class="stat">
+        </a>
+        <a href="{{ $lnkBooked }}" class="stat stat-link"><div class="n">{{ $reserved['jobs'] ?? 0 }}</div><div class="l">Total trips booked</div></a>
+        <a href="{{ $lnkBooked }}" class="stat stat-link">
             <div class="n" style="color:#b8860b">£{{ number_format(max(0, ($reserved['revenue'] ?? 0) - $c['revenue']), 2) }}</div>
             <div class="l">Still to come (upcoming trips)</div>
-        </div>
+        </a>
     </div>
 
     <div class="grid grid-3" style="margin-bottom:24px">
-        <div class="stat">
+        <a href="{{ $lnkPaid }}" class="stat stat-link">
             <div class="n" style="color:#1f7a44">£{{ number_format($payments['collected'], 2) }}</div>
             <div class="l">Collected (paid)</div>
-        </div>
-        <div class="stat">
+        </a>
+        <a href="{{ $lnkOwing }}" class="stat stat-link">
             <div class="n">£{{ number_format($payments['outstanding'], 2) }}</div>
             <div class="l">Cash to collect — upcoming jobs (driver collects on the day)</div>
-        </div>
-        <div class="stat">
+        </a>
+        <a href="{{ $lnkCancelled }}" class="stat stat-link">
             <div class="n">{{ $cancellations['cancelled'] }} <span style="font-size:16px;font-weight:400">({{ $cancellations['rate_pct'] }}%)</span></div>
             <div class="l">Cancellations / no-shows</div>
-        </div>
+        </a>
     </div>
 
     {{-- AI / business review --}}
@@ -110,7 +121,7 @@
         @forelse($monthly as $m)
             @php $hasUpcoming = ($m['booked_revenue'] ?? $m['revenue']) > $m['revenue'] + 0.01; @endphp
             <div style="display:flex;align-items:center;gap:12px;margin:6px 0">
-                <span style="width:72px;flex:none;color:var(--muted,#666);font-size:13px">{{ $m['label'] }}</span>
+                <a href="{{ route('bookings.index', ['month' => $m['month']]) }}" style="width:72px;flex:none;color:var(--muted,#666);font-size:13px" title="See {{ $m['label'] }} bookings">{{ $m['label'] }}</a>
                 <span style="flex:1;background:rgba(128,128,128,.15);border-radius:5px;overflow:hidden;position:relative">
                     {{-- booked (lighter) behind, earned (gold) in front --}}
                     <span style="position:absolute;inset:0;height:20px;border-radius:5px;background:rgba(251,186,42,.35);width:{{ max(1, round(($m['booked_revenue'] ?? $m['revenue']) / $maxRev * 100)) }}%"></span>
@@ -136,7 +147,9 @@
                 <thead><tr><th>Vehicle</th><th>Jobs</th><th>Revenue</th></tr></thead>
                 <tbody>
                 @forelse($byVehicle as $v)
-                    <tr><td>{{ $v->vehicleType->name ?? '—' }}</td><td>{{ $v->jobs }}</td>
+                    @php $vurl = route('bookings.index', $win + ['by' => 'pickup', 'ran' => 1, 'vehicle' => $v->vehicle_type_id]); @endphp
+                    <tr style="cursor:pointer" onclick="window.location='{{ $vurl }}'">
+                        <td><a href="{{ $vurl }}">{{ $v->vehicleType->name ?? '—' }}</a></td><td>{{ $v->jobs }}</td>
                         <td>£{{ number_format($v->revenue, 2) }}</td></tr>
                 @empty
                     <tr><td colspan="3">No completed jobs in this period.</td></tr>
@@ -151,7 +164,9 @@
                 <thead><tr><th>Customer</th><th>Jobs</th><th>Revenue</th></tr></thead>
                 <tbody>
                 @forelse($topCustomers as $x)
-                    <tr><td>{{ $x->customer->name ?? 'Unknown' }}</td><td>{{ $x->jobs }}</td>
+                    @php $curl = route('bookings.index', $win + ['by' => 'pickup', 'q' => $x->customer->name ?? '']); @endphp
+                    <tr style="cursor:pointer" onclick="window.location='{{ $curl }}'">
+                        <td><a href="{{ $curl }}">{{ $x->customer->name ?? 'Unknown' }}</a></td><td>{{ $x->jobs }}</td>
                         <td>£{{ number_format($x->revenue, 2) }}</td></tr>
                 @empty
                     <tr><td colspan="3">No data.</td></tr>
@@ -179,12 +194,12 @@
         </div>
 
         <div class="card">
-            <h2>Ad spend</h2>
+            <h2>Ad spend <a href="{{ route('marketing.ads') }}" style="font-size:13px;font-weight:400">full ads report →</a></h2>
             <div class="grid grid-2" style="gap:12px">
-                <div class="stat"><div class="n">£{{ number_format($ads['spend'], 2) }}</div><div class="l">Spend</div></div>
-                <div class="stat"><div class="n">{{ $ads['roas'] ? $ads['roas'].'×' : '—' }}</div><div class="l">ROAS (revenue ÷ spend)</div></div>
-                <div class="stat"><div class="n">{{ $ads['conversions'] }}</div><div class="l">Conversions</div></div>
-                <div class="stat"><div class="n">{{ $ads['cost_per_conversion'] ? '£'.$ads['cost_per_conversion'] : '—' }}</div><div class="l">Cost / conversion</div></div>
+                <a href="{{ route('marketing.ads') }}" class="stat stat-link"><div class="n">£{{ number_format($ads['spend'], 2) }}</div><div class="l">Spend</div></a>
+                <a href="{{ route('marketing.ads') }}" class="stat stat-link"><div class="n">{{ $ads['roas'] ? $ads['roas'].'×' : '—' }}</div><div class="l">ROAS (revenue ÷ spend)</div></a>
+                <a href="{{ route('marketing.ads') }}" class="stat stat-link"><div class="n">{{ $ads['conversions'] }}</div><div class="l">Conversions</div></a>
+                <a href="{{ route('marketing.ads') }}" class="stat stat-link"><div class="n">{{ $ads['cost_per_conversion'] ? '£'.$ads['cost_per_conversion'] : '—' }}</div><div class="l">Cost / conversion</div></a>
             </div>
         </div>
     </div>

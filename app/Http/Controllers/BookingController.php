@@ -48,7 +48,7 @@ class BookingController extends Controller
         if ($request->has('status')) {
             session(['bookings.status' => (string) $request->query('status')]);
         }
-        if (! $request->hasAny(['filter', 'month', 'q', 'status', 'page'])
+        if (! $request->hasAny(['filter', 'month', 'q', 'status', 'page', 'from', 'to', 'by', 'driver', 'payment', 'ran', 'vehicle'])
             && (session('bookings.filter') || session('bookings.status'))) {
             return redirect()->route('bookings.index', array_filter([
                 'filter' => session('bookings.filter'),
@@ -119,6 +119,15 @@ class BookingController extends Controller
             });
         }
 
+        // A date RANGE from the Review page — from/to over either the trip date
+        // (by=pickup, default) or the booked/created date (by=created). ran=1
+        // keeps only jobs that have already run (the "Completed" lens). This is
+        // how every figure on the Review page drills through to its exact list.
+        $from = $request->date('from');
+        $to = $request->date('to');
+        $rangeField = $request->query('by') === 'created' ? 'created_at' : 'pickup_at';
+        $rangeMode = (bool) ($from || $to);
+
         // A specific MONTH view (YYYY-MM) — every booking that month, for payroll
         // and month-end checks. Takes precedence over the quick tabs.
         $monthParam = (string) $request->query('month');
@@ -126,7 +135,16 @@ class BookingController extends Controller
             ? Carbon::createFromFormat('Y-m', $monthParam, config('app.timezone'))->startOfMonth()
             : null;
 
-        if ($month) {
+        if ($rangeMode) {
+            $start = ($from ?? $to)->copy()->startOfDay();
+            $end = ($to ?? $from)->copy()->endOfDay();
+            $query->whereBetween($rangeField, [$start, $end]);
+            if ($request->boolean('ran')) {
+                $query->where('pickup_at', '<=', now()); // only jobs that have run
+            }
+            $query->orderByDesc('pickup_at');
+            $filter = 'range';
+        } elseif ($month) {
             $query->whereBetween('pickup_at', [$month, $month->copy()->endOfMonth()])->orderBy('pickup_at');
             $filter = 'month';
         } else {
@@ -152,10 +170,28 @@ class BookingController extends Controller
         $statusFilter = in_array($status, BookingStatus::values(), true) ? $status : null;
         if ($statusFilter) {
             $query->where('status', $statusFilter);
+        } elseif ($rangeMode) {
+            // Range drill-through matches the Review figures, which exclude BOTH
+            // cancelled and no-show (neither is revenue/a journey that ran).
+            $query->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value]);
         } elseif ($q === '') {
             // Hide cancelled only in the browse view; a search should still find
             // a cancelled booking when you're looking one up by name/reference.
             $query->where('status', '!=', BookingStatus::Cancelled->value);
+        }
+
+        // Vehicle-type filter (from the Review "revenue by vehicle" table).
+        $vehicle = (int) $request->query('vehicle');
+        if ($vehicle > 0) {
+            $query->where('vehicle_type_id', $vehicle);
+        }
+
+        // Payment split (from the Review page): paid vs still-owing.
+        $payment = $request->query('payment');
+        if ($payment === 'paid') {
+            $query->where('payment_status', 'paid');
+        } elseif ($payment === 'unpaid') {
+            $query->where('payment_status', '!=', 'paid');
         }
 
         return compact('query', 'q', 'month', 'filter', 'statusFilter', 'driverName');

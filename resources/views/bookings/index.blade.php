@@ -69,7 +69,15 @@
             @endif
         </div>
     </div>
-    @if(!empty($month))
+    @if(request()->hasAny(['from', 'to']))
+        @php
+            $rf = request('from'); $rt = request('to');
+            $byCreated = request('by') === 'created';
+            $lens = $byCreated ? 'booked (came in)' : (request()->boolean('ran') ? 'completed' : 'with pickup');
+            $payTag = request('payment') === 'paid' ? ' · paid' : (request('payment') === 'unpaid' ? ' · owing' : '');
+        @endphp
+        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} <strong>{{ $lens }}</strong> between <strong>{{ \Illuminate\Support\Carbon::parse($rf ?: $rt)->format('D d M Y') }}</strong> and <strong>{{ \Illuminate\Support\Carbon::parse($rt ?: $rf)->format('D d M Y') }}</strong>{{ $payTag }} — <a href="{{ route('review.index') }}">← back to Review</a></p>
+    @elseif(!empty($month))
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} in <strong>{{ $month->format('F Y') }}</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
     @elseif(($filter ?? '') === 'booked-today')
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} that came in <strong>today</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>

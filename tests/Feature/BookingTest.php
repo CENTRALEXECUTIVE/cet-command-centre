@@ -95,6 +95,28 @@ class BookingTest extends TestCase
         $response->assertSee('July 2026', false);
     }
 
+    public function test_review_drill_through_filters_by_date_range_and_created_vs_pickup(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Booked in July, trip runs in August.
+        $madeInJuly = Booking::factory()->create(['external_reference' => 'MADEJUL', 'pickup_at' => '2026-08-12 09:00', 'status' => \App\Enums\BookingStatus::Pending]);
+        $madeInJuly->forceFill(['created_at' => '2026-07-05 10:00'])->save();
+        // Booked in June, trip runs in July.
+        $tripInJuly = Booking::factory()->create(['external_reference' => 'TRIPJUL', 'pickup_at' => '2026-07-20 09:00', 'status' => \App\Enums\BookingStatus::Pending]);
+        $tripInJuly->forceFill(['created_at' => '2026-06-25 10:00'])->save();
+
+        $win = ['from' => '2026-07-01', 'to' => '2026-07-31'];
+
+        // by=created → only the one BOOKED in July.
+        $this->actingAs($admin)->get(route('bookings.index', $win + ['by' => 'created']))
+            ->assertOk()->assertSee($madeInJuly->reference)->assertDontSee($tripInJuly->reference);
+
+        // by=pickup → only the one whose TRIP is in July.
+        $this->actingAs($admin)->get(route('bookings.index', $win + ['by' => 'pickup']))
+            ->assertOk()->assertSee($tripInJuly->reference)->assertDontSee($madeInJuly->reference);
+    }
+
     public function test_the_bookings_count_excludes_cancelled_but_a_filter_can_show_them(): void
     {
         $admin = User::factory()->admin()->create();
