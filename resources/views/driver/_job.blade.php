@@ -46,9 +46,6 @@
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also
      has a Copy button so the driver can paste into any nav app, and a small
      Google Maps fallback for drivers who don't use Waze. --}}
@@ -105,9 +102,6 @@
         });
     });
 </script>
-
-<div id="job-map" style="height:220px;border-radius:10px;margin-bottom:16px;display:none"></div>
-<div id="map-cfg" data-pickup="{{ $booking->pickup_address }}" data-dropoff="{{ $booking->destination_address }}" hidden></div>
 
 <div class="card">
     <table>
@@ -265,48 +259,6 @@
             }, { enableHighAccuracy: true, timeout: 5000 });
         });
     });
-
-    // ---- Job map (OpenStreetMap): pins for pickup/drop-off + a live "you" dot.
-    var CETmap = null, CETbounds = [], CETme = null;
-    (function () {
-        var cfg = document.getElementById('map-cfg');
-        var el = document.getElementById('job-map');
-        if (!cfg || !el || typeof L === 'undefined') return;
-
-        function ensureMap(lat, lng) {
-            if (!CETmap) {
-                el.style.display = 'block';
-                CETmap = L.map('job-map').setView([lat, lng], 12);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap', maxZoom: 18
-                }).addTo(CETmap);
-            }
-        }
-        function pin(address, label) {
-            if (!address) return;
-            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address),
-                  { headers: { 'Accept': 'application/json' } })
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (!d || !d.length) return;
-                    var lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
-                    ensureMap(lat, lng);
-                    L.marker([lat, lng]).addTo(CETmap).bindPopup(label);
-                    CETbounds.push([lat, lng]);
-                    if (CETbounds.length > 1) CETmap.fitBounds(CETbounds, { padding: [30, 30] });
-                }).catch(function () {});
-        }
-        pin(cfg.dataset.pickup, 'Pickup');
-        pin(cfg.dataset.dropoff, 'Drop-off');
-
-        window.CETshowMe = function (lat, lng) {
-            ensureMap(lat, lng);
-            var icon = L.divIcon({ className: '', html: '<div style="background:#1d4ed8;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1d4ed8"></div>', iconSize: [16, 16] });
-            if (!CETme) { CETme = L.marker([lat, lng], { icon: icon, zIndexOffset: 1000 }).addTo(CETmap).bindPopup('You'); }
-            else { CETme.setLatLng([lat, lng]); }
-            CETmap.setView([lat, lng], 14);
-        };
-    })();
 </script>
 @endverbatim
 <script src="{{ asset('js/cet-flight.js') }}"></script>
