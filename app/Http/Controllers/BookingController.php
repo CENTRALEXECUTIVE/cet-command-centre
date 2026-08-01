@@ -142,9 +142,10 @@ class BookingController extends Controller
             if ($request->boolean('ran')) {
                 $query->where('pickup_at', '<=', now()); // only jobs that have run
             }
-            // Order by the field being ranged on: a "came in" (created) view lists
-            // newest booking first (the order they came in); a pickup view by trip.
-            $query->orderByDesc($rangeField);
+            // Chronological by the field being ranged on: a "came in" (created)
+            // view reads first-of-month → last (the order they were booked); a
+            // pickup view reads earliest trip → latest.
+            $query->orderBy($rangeField);
             $filter = 'range';
         } elseif ($month) {
             $query->whereBetween('pickup_at', [$month, $month->copy()->endOfMonth()])->orderBy('pickup_at');

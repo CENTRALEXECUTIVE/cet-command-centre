@@ -118,13 +118,15 @@
         </div>
     @else
         @php
-            $grouped = $bookings->getCollection()->groupBy(fn ($b) => $b->pickup_at->toDateString());
-            $dayLabel = function ($dateStr) {
+            // A "came in" (created-date) view groups by the day the booking was
+            // MADE and labels it "Booked …", so it reads 1st → end of month in the
+            // order the jobs came in. Everything else groups by pickup date.
+            $byCreated = request('by') === 'created' && request()->hasAny(['from', 'to']);
+            $grouped = $bookings->getCollection()->groupBy(fn ($b) => ($byCreated ? $b->created_at : $b->pickup_at)->toDateString());
+            $dayLabel = function ($dateStr) use ($byCreated) {
                 $d = \Illuminate\Support\Carbon::parse($dateStr);
-                if ($d->isToday()) return 'Today';
-                if ($d->isTomorrow()) return 'Tomorrow';
-                if ($d->isYesterday()) return 'Yesterday';
-                return $d->format('D d M Y');
+                $label = $d->isToday() ? 'Today' : ($d->isYesterday() ? 'Yesterday' : ($d->isTomorrow() ? 'Tomorrow' : $d->format('D d M Y')));
+                return $byCreated ? 'Booked '.$label : $label;
             };
         @endphp
 

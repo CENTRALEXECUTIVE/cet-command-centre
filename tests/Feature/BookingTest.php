@@ -108,9 +108,10 @@ class BookingTest extends TestCase
 
         $win = ['from' => '2026-07-01', 'to' => '2026-07-31'];
 
-        // by=created → only the one BOOKED in July.
+        // by=created → only the one BOOKED in July, grouped by its booked date.
         $this->actingAs($admin)->get(route('bookings.index', $win + ['by' => 'created']))
-            ->assertOk()->assertSee($madeInJuly->reference)->assertDontSee($tripInJuly->reference);
+            ->assertOk()->assertSee($madeInJuly->reference)->assertDontSee($tripInJuly->reference)
+            ->assertSee('Booked '); // day headers reflect when it came in
 
         // by=pickup → only the one whose TRIP is in July.
         $this->actingAs($admin)->get(route('bookings.index', $win + ['by' => 'pickup']))
