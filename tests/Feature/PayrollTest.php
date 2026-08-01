@@ -153,6 +153,9 @@ class PayrollTest extends TestCase
 
     public function test_setting_pay_from_the_payroll_list_returns_there_and_clears_the_job(): void
     {
+        // Pin mid-month so the pickup (start-of-month + 2) has definitely run,
+        // whatever the real date — otherwise it flakes on the 1st/2nd of a month.
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
         $admin = User::factory()->admin()->create();
         $driver = User::factory()->driver()->create(['name' => 'Maj Khan']);
         $booking = Booking::factory()->create([
@@ -177,6 +180,8 @@ class PayrollTest extends TestCase
         // …and the job is gone from the list (fresh render).
         $this->actingAs($admin)->get(route('payroll.index'))
             ->assertDontSee('completed job(s) have no driver pay set');
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_setting_pay_from_the_booking_page_returns_to_the_payroll_section(): void

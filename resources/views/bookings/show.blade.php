@@ -261,9 +261,9 @@
          their own link and their own per-car status, tracked separately. --}}
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         @php $extraDrivers = $booking->extraDrivers(); @endphp
-        <div class="card">
-            <h2 style="margin:0 0 4px">🚗 Extra cars — multi-car job</h2>
-            <p class="hint" style="margin:0 0 12px">For a job that needs more than one car, add each extra driver here. They get their own link and their own status buttons, so you can track each car separately. Extra drivers contact the customer via the office.</p>
+        <details class="card"{{ count($extraDrivers) ? ' open' : '' }}>
+            <summary style="cursor:pointer;font-weight:700;font-size:17px">🚗 Extra cars — multi-car job <span class="muted" style="font-weight:400;font-size:13px">{{ count($extraDrivers) ? '— '.count($extraDrivers).' extra '.\Illuminate\Support\Str::plural('car', count($extraDrivers)) : '— add a car for a wedding / group job' }}</span></summary>
+            <p class="hint" style="margin:12px 0 12px">For a job that needs more than one car, add each extra driver here. They get their own link and their own status buttons, so you can track each car separately. Extra drivers contact the customer via the office.</p>
 
             @foreach($extraDrivers as $i => $d)
                 @php
@@ -335,7 +335,7 @@
                 </div>
                 <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">＋ Add another car</button>
             </form>
-        </div>
+        </details>
     @endif
 
     @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())

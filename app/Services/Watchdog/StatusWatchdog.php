@@ -325,8 +325,19 @@ class StatusWatchdog
     public function setOffLeadMinutes(Booking $booking): int
     {
         $drive = $this->driveMinutesToPickup($booking);
+        if ($drive !== null) {
+            return max(15, min(150, $drive + 5));
+        }
 
-        return $drive === null ? 30 : max(15, min(90, $drive + 5));
+        // No live position. For an AIRPORT pickup the drive TO the airport is
+        // roughly the fare's own route length (airport → home ≈ home → airport),
+        // so use that as the lead — a distant airport needs a long head start.
+        // e.g. a 1pm Manchester Airport pickup on a ~1h30 route → set off ~11:25.
+        if ($this->isAirportPickup($booking)) {
+            return max(30, min(150, $this->estimatedDurationMinutes($booking) + 5));
+        }
+
+        return 30;
     }
 
     /**
@@ -603,10 +614,13 @@ class StatusWatchdog
      */
     public function completeBy(Booking $booking): Carbon
     {
+        // The real pickup → drop-off drive time, then a 30-min buffer on top,
+        // so "is the job complete?" never fires until the journey should truly
+        // be finished (drop-off + settle) — not while they're still driving.
         $drive = $this->estimatedDurationMinutes($booking);
 
         if ($pob = $this->pobAt($booking)) {
-            return $pob->copy()->addMinutes($drive + 15);
+            return $pob->copy()->addMinutes($drive + self::COMPLETE_BUFFER_MINUTES);
         }
 
         if ($this->isAirportPickup($booking)) {
@@ -616,8 +630,11 @@ class StatusWatchdog
             return $anchor->copy()->addMinutes(120 + $drive); // clear the airport + drive home
         }
 
-        return $booking->pickup_at->copy()->addMinutes($drive + 15);
+        return $booking->pickup_at->copy()->addMinutes($drive + self::COMPLETE_BUFFER_MINUTES);
     }
+
+    /** Buffer added after the pickup → drop-off drive before asking "complete?". */
+    public const COMPLETE_BUFFER_MINUTES = 30;
 
     /** When the driver marked the customer on-board (POB), or null. */
     private function pobAt(Booking $booking): ?Carbon

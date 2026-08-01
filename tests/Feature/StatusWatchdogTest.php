@@ -133,19 +133,35 @@ class StatusWatchdogTest extends TestCase
         $this->assertNudged($b, 'set_off');
     }
 
-    public function test_lead_time_is_drive_plus_five_clamped_between_15_and_90(): void
+    public function test_lead_time_is_drive_plus_five_clamped_between_15_and_150(): void
     {
         $watchdog = app(StatusWatchdog::class);
 
-        // Driver very far away (London → hours of driving) → clamped DOWN to 90.
+        // Driver very far away (London → hours of driving) → clamped DOWN to 150.
         $far = $this->job(BookingStatus::Allocated, now()->addHours(6), ['pickup' => self::PICKUP]);
         $this->ping($far, 51.5074, -0.1278, now()->subMinutes(5));
-        $this->assertSame(90, $watchdog->setOffLeadMinutes($far->fresh()));
+        $this->assertSame(150, $watchdog->setOffLeadMinutes($far->fresh()));
 
         // Driver already next door (couple of streets) → clamped UP to 15.
         $near = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
         $this->ping($near, 53.4010, -1.5010, now()->subMinutes(5));
         $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
+    }
+
+    public function test_airport_pickup_without_gps_leads_by_the_route_length(): void
+    {
+        // No live position + an airport pickup: the driver still has to DRIVE to
+        // the airport, roughly the fare's own route length — so the lead is that,
+        // not a flat 30. A ~1h30 route → set off ~95 min before, not 30.
+        $watchdog = app(StatusWatchdog::class);
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(3), [
+            'pickup' => self::PICKUP, 'dropoff' => self::DROPOFF,
+        ]);
+        $b->forceFill(['pickup_address' => 'Manchester Airport (MAN), Terminal 2'])->save();
+
+        $route = $watchdog->estimatedDurationMinutes($b->fresh());
+        $this->assertSame(max(30, min(150, $route + 5)), $watchdog->setOffLeadMinutes($b->fresh()));
+        $this->assertGreaterThan(30, $watchdog->setOffLeadMinutes($b->fresh()));
     }
 
     public function test_complete_by_is_anchored_to_when_the_customer_boarded(): void
@@ -161,7 +177,7 @@ class StatusWatchdogTest extends TestCase
 
         $drive = $watchdog->estimatedDurationMinutes($b->fresh());
         $this->assertEqualsWithDelta(
-            $pob->copy()->addMinutes($drive + 15)->timestamp,
+            $pob->copy()->addMinutes($drive + 30)->timestamp,
             $watchdog->completeBy($b->fresh())->timestamp, 2);
     }
 
