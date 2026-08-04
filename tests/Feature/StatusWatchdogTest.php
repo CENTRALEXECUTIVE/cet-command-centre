@@ -148,22 +148,24 @@ class StatusWatchdogTest extends TestCase
         $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
     }
 
-    public function test_without_gps_the_lead_comes_from_the_firth_park_base(): void
+    public function test_without_gps_the_lead_comes_from_the_sheffield_base_plus_buffer(): void
     {
-        // No live position: the lead is estimated from the Firth Park base to the
-        // pickup, so a driver who hasn't shared GPS is still chased at the right
-        // time — a distant pickup gets a long head start, a local one a short one.
+        // No live position: the lead is the Sheffield base → pickup drive plus the
+        // base buffer ("Sheffield + 10 mins"), so a driver who hasn't shared GPS is
+        // still chased at the right time — a distant pickup gets a long head start.
         $watchdog = app(StatusWatchdog::class);
+        $buffer = (int) config('cet.base.buffer_minutes');
+        $lead = fn (array $coords) => max(15, min(150, \App\Support\Geo::estimateDriveMinutes(
+            config('cet.base.lat'), config('cet.base.lng'), $coords[0], $coords[1]) + $buffer));
 
         // Distant pickup (Manchester Airport coords) → long lead, well over 30.
         $far = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::DROPOFF]);
-        $drive = \App\Support\Geo::estimateDriveMinutes(config('cet.base.lat'), config('cet.base.lng'), self::DROPOFF[0], self::DROPOFF[1]);
-        $this->assertSame(max(15, min(150, $drive + 5)), $watchdog->setOffLeadMinutes($far->fresh()));
+        $this->assertSame($lead(self::DROPOFF), $watchdog->setOffLeadMinutes($far->fresh()));
         $this->assertGreaterThan(30, $watchdog->setOffLeadMinutes($far->fresh()));
 
-        // Pickup right by the base → short lead (clamped to the 15-min floor).
+        // A local pickup → a short lead (base drive + the 10-min buffer).
         $near = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
-        $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
+        $this->assertSame($lead(self::PICKUP), $watchdog->setOffLeadMinutes($near->fresh()));
     }
 
     public function test_complete_by_is_anchored_to_when_the_customer_boarded(): void

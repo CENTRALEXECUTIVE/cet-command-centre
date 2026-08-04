@@ -324,13 +324,19 @@ class StatusWatchdog
      */
     public function setOffLeadMinutes(Booking $booking): int
     {
-        // Prefer the driver's live position; otherwise estimate from the Firth
-        // Park base (most drivers live there), so a driver who hasn't shared GPS
-        // still gets chased at the right time — a distant pickup gets a long lead,
-        // a local one a short one.
-        $drive = $this->driveMinutesToPickup($booking) ?? $this->baseToPickupMinutes($booking);
-        if ($drive !== null) {
-            return max(15, min(150, $drive + 5));
+        // Prefer the driver's live position (drive + 5 min buffer).
+        $gpsDrive = $this->driveMinutesToPickup($booking);
+        if ($gpsDrive !== null) {
+            return max(15, min(150, $gpsDrive + 5));
+        }
+
+        // No live GPS → estimate from the Sheffield base and add the base buffer
+        // ("Sheffield + 10 mins"), so a driver who hasn't shared GPS still gets
+        // chased at the right time — a distant pickup gets a long lead, a local
+        // one a short one.
+        $baseDrive = $this->baseToPickupMinutes($booking);
+        if ($baseDrive !== null) {
+            return max(15, min(150, $baseDrive + (int) config('cet.base.buffer_minutes', 10)));
         }
 
         // No coords at all (couldn't geocode the pickup). An airport pickup still
