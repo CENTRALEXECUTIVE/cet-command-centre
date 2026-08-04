@@ -117,4 +117,14 @@ return [
 
     // Flight delay (minutes) that triggers an automatic pickup adjustment.
     'flight_delay_threshold' => 15,
+
+    // Driver "home base" — most drivers live around Firth Park, Sheffield. When a
+    // driver hasn't shared live GPS yet, the watchdog estimates the drive from
+    // here to the pickup so the "time to set off" nudge fires at the right time
+    // (a distant airport gets a long head start; a local pickup a short one).
+    // Background only — never shown in the UI. Coords are env-overridable.
+    'base' => [
+        'lat' => (float) env('CET_BASE_LAT', 53.4206),   // Firth Park, Sheffield (S5)
+        'lng' => (float) env('CET_BASE_LNG', -1.4590),
+    ],
 ];

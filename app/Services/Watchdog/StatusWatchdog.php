@@ -324,20 +324,47 @@ class StatusWatchdog
      */
     public function setOffLeadMinutes(Booking $booking): int
     {
-        $drive = $this->driveMinutesToPickup($booking);
+        // Prefer the driver's live position; otherwise estimate from the Firth
+        // Park base (most drivers live there), so a driver who hasn't shared GPS
+        // still gets chased at the right time — a distant pickup gets a long lead,
+        // a local one a short one.
+        $drive = $this->driveMinutesToPickup($booking) ?? $this->baseToPickupMinutes($booking);
         if ($drive !== null) {
             return max(15, min(150, $drive + 5));
         }
 
-        // No live position. For an AIRPORT pickup the drive TO the airport is
-        // roughly the fare's own route length (airport → home ≈ home → airport),
-        // so use that as the lead — a distant airport needs a long head start.
-        // e.g. a 1pm Manchester Airport pickup on a ~1h30 route → set off ~11:25.
+        // No coords at all (couldn't geocode the pickup). An airport pickup still
+        // needs a generous head start; anything else falls back to a flat 30.
         if ($this->isAirportPickup($booking)) {
             return max(30, min(150, $this->estimatedDurationMinutes($booking) + 5));
         }
 
         return 30;
+    }
+
+    /**
+     * Estimated driving minutes from the Firth Park base to the pickup — the
+     * fallback used when a driver hasn't shared live GPS yet. Free straight-line
+     * estimate; null if we can't geocode the pickup or have no base configured.
+     */
+    private function baseToPickupMinutes(Booking $booking): ?int
+    {
+        $base = $this->baseCoords();
+        $pickup = $this->coords($booking, 'pickup');
+        if (! $base || ! $pickup) {
+            return null;
+        }
+
+        return Geo::estimateDriveMinutes($base[0], $base[1], $pickup[0], $pickup[1]);
+    }
+
+    /** @return array{0: float, 1: float}|null */
+    private function baseCoords(): ?array
+    {
+        $lat = config('cet.base.lat');
+        $lng = config('cet.base.lng');
+
+        return ($lat !== null && $lng !== null) ? [(float) $lat, (float) $lng] : null;
     }
 
     /**
@@ -354,7 +381,9 @@ class StatusWatchdog
     public function setOffDeadline(Booking $booking): Carbon
     {
         if ($this->isAirportPickup($booking) && ($landing = $this->flightLandingAt($booking))) {
-            $drive = $this->driveMinutesToPickup($booking) ?? $this->estimatedDurationMinutes($booking);
+            $drive = $this->driveMinutesToPickup($booking)
+                ?? $this->baseToPickupMinutes($booking)
+                ?? $this->estimatedDurationMinutes($booking);
 
             return $landing->copy()
                 ->addMinutes(self::AIRPORT_ARRIVE_AFTER_LANDING)

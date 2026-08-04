@@ -148,20 +148,22 @@ class StatusWatchdogTest extends TestCase
         $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
     }
 
-    public function test_airport_pickup_without_gps_leads_by_the_route_length(): void
+    public function test_without_gps_the_lead_comes_from_the_firth_park_base(): void
     {
-        // No live position + an airport pickup: the driver still has to DRIVE to
-        // the airport, roughly the fare's own route length — so the lead is that,
-        // not a flat 30. A ~1h30 route → set off ~95 min before, not 30.
+        // No live position: the lead is estimated from the Firth Park base to the
+        // pickup, so a driver who hasn't shared GPS is still chased at the right
+        // time — a distant pickup gets a long head start, a local one a short one.
         $watchdog = app(StatusWatchdog::class);
-        $b = $this->job(BookingStatus::Allocated, now()->addHours(3), [
-            'pickup' => self::PICKUP, 'dropoff' => self::DROPOFF,
-        ]);
-        $b->forceFill(['pickup_address' => 'Manchester Airport (MAN), Terminal 2'])->save();
 
-        $route = $watchdog->estimatedDurationMinutes($b->fresh());
-        $this->assertSame(max(30, min(150, $route + 5)), $watchdog->setOffLeadMinutes($b->fresh()));
-        $this->assertGreaterThan(30, $watchdog->setOffLeadMinutes($b->fresh()));
+        // Distant pickup (Manchester Airport coords) → long lead, well over 30.
+        $far = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::DROPOFF]);
+        $drive = \App\Support\Geo::estimateDriveMinutes(config('cet.base.lat'), config('cet.base.lng'), self::DROPOFF[0], self::DROPOFF[1]);
+        $this->assertSame(max(15, min(150, $drive + 5)), $watchdog->setOffLeadMinutes($far->fresh()));
+        $this->assertGreaterThan(30, $watchdog->setOffLeadMinutes($far->fresh()));
+
+        // Pickup right by the base → short lead (clamped to the 15-min floor).
+        $near = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
+        $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
     }
 
     public function test_complete_by_is_anchored_to_when_the_customer_boarded(): void
@@ -204,8 +206,7 @@ class StatusWatchdogTest extends TestCase
         $watchdog = app(StatusWatchdog::class);
 
         // Arrival at Manchester Airport → home in Sheffield. No live driver GPS,
-        // so the drive is estimated from the job's own route (airport→home ≈
-        // home→airport).
+        // so the drive TO the airport is estimated from the Firth Park base.
         $b = $this->job(BookingStatus::Allocated, now()->addHours(4), [
             'pickup' => self::DROPOFF,  // airport coords
             'dropoff' => self::PICKUP,  // home coords
@@ -220,7 +221,7 @@ class StatusWatchdogTest extends TestCase
             'estimated_arrival' => Carbon::parse('2026-07-15 14:00'), 'delay_minutes' => 0,
         ]);
 
-        $drive = $watchdog->estimatedDurationMinutes($b->fresh());
+        $drive = \App\Support\Geo::estimateDriveMinutes(config('cet.base.lat'), config('cet.base.lng'), self::DROPOFF[0], self::DROPOFF[1]);
         // Be at the airport by 14:20 (landing + 20); leave by that minus drive + 5.
         $expected = Carbon::parse('2026-07-15 14:20')->subMinutes($drive + 5);
 
