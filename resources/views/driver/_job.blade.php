@@ -115,6 +115,9 @@
             <tr><th>Flight</th><td>
                 <span class="mono">{{ $booking->displayFlightNumber() }}</span>
                 <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:4px 12px;font-size:13px;margin-left:6px">✈ Track flight</a>
+                {{-- Google flight status — always resolves, even the regional /
+                     codeshare numbers Flightradar24 sometimes can't find. --}}
+                <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:4px 12px;font-size:13px;margin-left:6px">Live status</a>
             </td></tr>
         @endif
         @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif

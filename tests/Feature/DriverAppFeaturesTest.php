@@ -94,6 +94,18 @@ class DriverAppFeaturesTest extends TestCase
             ->assertSee('google.com/maps/dir', false);  // Google fallback still there
     }
 
+    public function test_flight_row_offers_both_flightradar_and_google_live_status(): void
+    {
+        $job = $this->job(BookingStatus::Accepted, ['flight_number' => 'LH4086']);
+
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()
+            ->assertSee('Track flight')                       // Flightradar24 (main)
+            ->assertSee('flightradar24.com', false)
+            ->assertSee('Live status')                        // Google status (always works)
+            ->assertSee('google.com/search', false);
+    }
+
     public function test_earnings_page_totals_the_drivers_pay_not_the_fares(): void
     {
         // Fares £100 + £50, but the driver is PAID £40 + £30 (set by the office)
