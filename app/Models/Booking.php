@@ -165,22 +165,27 @@ class Booking extends Model
 
     /**
      * ---- Waiting time -------------------------------------------------------
-     * The customer gets a free grace period once the driver has ARRIVED at the
-     * pickup; only after it does billable waiting time start counting. The
-     * driver's job screen shows a live timer built from arrivedAt(); the final
-     * billable figure is captured when the passenger boards.
+     * The customer gets a free grace period once the driver is AT the pickup;
+     * only after it does billable waiting time start counting. Crucially the
+     * clock is anchored to when the driver's GPS actually confirms them at the
+     * pickup — NOT to the "Arrived" tap — so tapping Arrived from home (or
+     * without sharing location) never starts the timer. The final billable
+     * figure is frozen when the passenger boards.
      */
 
-    /** Minutes of free waiting the customer gets after the driver arrives. */
+    /** How close to the pickup a GPS ping must be to count as "at the pickup". */
+    public const WAITING_GEOFENCE_M = 200;
+
+    /** Minutes of free waiting the customer gets once the driver is at pickup. */
     public function waitingGraceMinutes(): int
     {
         return max(0, (int) config('cet.waiting_grace_minutes', 15));
     }
 
     /**
-     * When the driver marked ARRIVED at the pickup — the anchor for the waiting
-     * timer. Uses the most recent transition into "arrived" from the audit
-     * trail, so it survives page reloads. Null until the driver has arrived.
+     * When the driver marked ARRIVED at the pickup, from the audit trail. This
+     * is only the EARLIEST the waiting clock could start — it isn't the anchor
+     * on its own (see waitingStartedAt). Null until the driver has arrived.
      */
     public function arrivedAt(): ?\Illuminate\Support\Carbon
     {
@@ -192,18 +197,70 @@ class Booking extends Model
             ->sortByDesc('created_at')->first()?->created_at;
     }
 
+    /** Geocoded pickup coordinates [lat, lng] from meta['geo'], or null. */
+    public function pickupCoords(): ?array
+    {
+        $geo = $this->meta['geo']['pickup'] ?? null;
+
+        return isset($geo[0], $geo[1]) ? [(float) $geo[0], (float) $geo[1]] : null;
+    }
+
     /**
-     * Billable waiting minutes so far (whole minutes past the grace period),
-     * measured from arrival to $at (default now). 0 while inside the grace
-     * period or before the driver has arrived.
+     * When the waiting clock actually starts: the first GPS ping that puts the
+     * driver INSIDE the pickup geofence at or after the Arrived tap. Anchoring
+     * to a confirmed-at-pickup position (not the tap) is what stops a driver who
+     * taps "Arrived" at home from running up waiting time.
+     *
+     * If the pickup can't be geocoded we can't verify presence, so we fall back
+     * to the Arrived tap — but ONLY when location is actually being shared (a
+     * ping exists since arrival). No location shared → no confirmed start.
+     * Null means "not confirmed at the pickup yet" (timer hasn't started).
      */
-    public function waitingBillableMinutes(?\Illuminate\Support\Carbon $at = null): int
+    public function waitingStartedAt(): ?\Illuminate\Support\Carbon
     {
         $arrived = $this->arrivedAt();
         if (! $arrived) {
+            return null;
+        }
+
+        $pings = $this->driverLocations()
+            ->where('captured_at', '>=', $arrived)
+            ->orderBy('captured_at')->get();
+
+        $pickup = $this->pickupCoords();
+        if ($pickup !== null) {
+            foreach ($pings as $p) {
+                $m = \App\Support\Geo::haversineMeters((float) $p->latitude, (float) $p->longitude, $pickup[0], $pickup[1]);
+                if ($m <= self::WAITING_GEOFENCE_M) {
+                    return $p->captured_at;
+                }
+            }
+
+            return null; // arrived, but never confirmed at the pickup
+        }
+
+        // No coords to check against — trust the tap only if location is live.
+        return $pings->isNotEmpty() ? $arrived : null;
+    }
+
+    /** True once the driver's GPS has confirmed them at the pickup. */
+    public function waitingConfirmedAtPickup(): bool
+    {
+        return $this->waitingStartedAt() !== null;
+    }
+
+    /**
+     * Billable waiting minutes so far (whole minutes past the grace period),
+     * measured from the confirmed-at-pickup start to $at (default now). 0 while
+     * inside the grace period, before arrival, or before GPS confirms presence.
+     */
+    public function waitingBillableMinutes(?\Illuminate\Support\Carbon $at = null): int
+    {
+        $start = $this->waitingStartedAt();
+        if (! $start) {
             return 0;
         }
-        $elapsed = $arrived->diffInMinutes($at ?? now());
+        $elapsed = $start->diffInMinutes($at ?? now());
 
         return (int) max(0, $elapsed - $this->waitingGraceMinutes());
     }
@@ -219,7 +276,9 @@ class Booking extends Model
     /** Freeze the waiting time onto the booking (called when the passenger boards). */
     public function recordWaitingTime(): void
     {
-        if (! $this->arrivedAt()) {
+        // Only records when GPS confirmed the driver at the pickup — a home tap
+        // with no location shared leaves nothing to charge.
+        if (! $this->waitingConfirmedAtPickup()) {
             return;
         }
         $meta = $this->meta ?? [];

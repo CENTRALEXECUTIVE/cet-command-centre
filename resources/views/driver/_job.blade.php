@@ -46,54 +46,120 @@
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
 
-{{-- Waiting time. Once the driver has ARRIVED, the customer gets a free grace
-     period (15 min); the billable timer only starts counting after it. Live,
-     built from the arrival time so it survives reloads. No messages are sent —
-     it's purely a display for the driver. --}}
+{{-- Waiting time. Once the driver is AT the pickup with location sharing on,
+     the customer gets a free grace period (15 min); the billable timer only
+     starts counting after it. It will NOT run unless GPS is live and the driver
+     is actually at the pickup — tapping "Arrived" from home doesn't start it.
+     Location is required: if it's off, the card prompts for it. No messages are
+     sent and no money is shown — it's purely a time display for the driver. --}}
 @if($booking->status === \App\Enums\BookingStatus::Arrived && $booking->arrivedAt())
+    @php $wpc = $booking->pickupCoords(); @endphp
     <div id="waiting-timer" class="card"
-         data-arrived="{{ $booking->arrivedAt()->timestamp }}"
          data-grace="{{ $booking->waitingGraceMinutes() * 60 }}"
          data-now="{{ now()->timestamp }}"
-         style="text-align:center;border-left:4px solid #1f7a44;background:rgba(31,122,68,.08)">
+         data-started="{{ $booking->waitingStartedAt()?->timestamp }}"
+         data-plat="{{ $wpc[0] ?? '' }}"
+         data-plng="{{ $wpc[1] ?? '' }}"
+         data-radius="{{ \App\Models\Booking::WAITING_GEOFENCE_M }}"
+         style="text-align:center;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10)">
         <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.06em">Waiting at pickup</div>
         <div id="waiting-main" style="font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;margin:4px 0;line-height:1.1">—</div>
         <div id="waiting-sub" class="muted" style="font-size:13px">First {{ $booking->waitingGraceMinutes() }} minutes are free.</div>
+        <button type="button" id="waiting-loc" class="btn btn-primary" style="display:none;padding:8px 16px;font-size:14px;margin-top:8px">📍 Turn on location</button>
     </div>
     <script>
     (function () {
         var el = document.getElementById('waiting-timer');
         if (!el) { return; }
-        var arrived = parseInt(el.dataset.arrived, 10);
         var grace = parseInt(el.dataset.grace, 10);
         var serverNow = parseInt(el.dataset.now, 10);
+        var startedSrv = el.dataset.started ? parseInt(el.dataset.started, 10) : null;
+        var plat = el.dataset.plat !== '' ? parseFloat(el.dataset.plat) : null;
+        var plng = el.dataset.plng !== '' ? parseFloat(el.dataset.plng) : null;
+        var radius = parseInt(el.dataset.radius, 10) || 200;
         // Trust the server clock, not the phone's: offset corrects a wrong device time.
         var offset = serverNow - Math.floor(Date.now() / 1000);
         var main = document.getElementById('waiting-main');
         var sub = document.getElementById('waiting-sub');
+        var locBtn = document.getElementById('waiting-loc');
         var graceMin = Math.round(grace / 60);
+        var clientStart = null; // client-observed at-pickup moment (until the server firms it up)
+
+        if (locBtn) {
+            locBtn.addEventListener('click', function () {
+                if (window.CETstart) { window.CETstart(); }
+                else if (window.CETsendNow) { window.CETsendNow(); }
+            });
+        }
         function fmt(s) {
             s = Math.max(0, Math.floor(s));
             var m = Math.floor(s / 60), r = s % 60;
             return m + ':' + (r < 10 ? '0' : '') + r;
         }
-        function tick() {
-            var now = Math.floor(Date.now() / 1000) + offset;
-            var elapsed = now - arrived;
+        function serverEpoch() { return Math.floor(Date.now() / 1000) + offset; }
+        function meters(aLat, aLng, bLat, bLng) {
+            var R = 6371000, p = Math.PI / 180;
+            var dLat = (bLat - aLat) * p, dLng = (bLng - aLng) * p;
+            var x = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(aLat * p) * Math.cos(bLat * p) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+        }
+        function paint(border, bg, colour) { el.style.borderLeftColor = border; el.style.background = bg; main.style.color = colour; }
+        function showBtn(show) { if (locBtn) { locBtn.style.display = show ? 'inline-block' : 'none'; } }
+
+        function runTimer(startEpoch) {
+            showBtn(false);
+            var elapsed = serverEpoch() - startEpoch;
             if (elapsed < grace) {
-                el.style.borderLeftColor = '#1f7a44';
-                el.style.background = 'rgba(31,122,68,.08)';
-                main.style.color = '#1f7a44';
+                paint('#1f7a44', 'rgba(31,122,68,.08)', '#1f7a44');
                 main.textContent = fmt(grace - elapsed) + ' left';
                 sub.textContent = 'Free waiting — the timer starts after this.';
             } else {
-                el.style.borderLeftColor = '#c0392b';
-                el.style.background = 'rgba(192,57,43,.09)';
-                main.style.color = '#c0392b';
+                paint('#c0392b', 'rgba(192,57,43,.09)', '#c0392b');
                 main.textContent = '⏱ ' + fmt(elapsed - grace);
                 sub.textContent = 'Waiting time (after the free ' + graceMin + ' min).';
             }
         }
+
+        function tick() {
+            // Server already confirmed the driver at the pickup → authoritative,
+            // no need to re-check GPS on the client.
+            if (startedSrv) { runTimer(startedSrv); return; }
+
+            var gps = window.CETgps || null;
+            var fresh = gps && gps.at && (Date.now() - gps.at < 60000);
+            var active = gps && gps.sharing && gps.ok && fresh && gps.pos;
+
+            if (!active) {
+                paint('#FBBA2A', 'rgba(251,186,42,.12)', '#8a6d00');
+                main.textContent = '📍 Location needed';
+                sub.textContent = 'Turn on location sharing — your waiting time needs it.';
+                showBtn(true);
+                clientStart = null;
+                return;
+            }
+
+            // Location is live. Are we actually at the pickup?
+            var atPickup = true;
+            if (plat !== null && plng !== null) {
+                atPickup = meters(gps.pos.lat, gps.pos.lng, plat, plng) <= radius;
+            }
+            if (!atPickup) {
+                paint('#FBBA2A', 'rgba(251,186,42,.10)', '#8a6d00');
+                main.textContent = 'Not at pickup yet';
+                sub.textContent = 'Your waiting time starts once you reach the pickup.';
+                showBtn(false);
+                clientStart = null;
+                return;
+            }
+
+            // At the pickup and sharing live — start the clock. Anchor to the
+            // first moment we saw it; the server firms this up within a ping or
+            // two and takes over (data-started) on the next load.
+            if (clientStart === null) { clientStart = serverEpoch(); }
+            runTimer(clientStart);
+        }
+
         tick();
         setInterval(tick, 1000);
     })();

@@ -20,6 +20,10 @@
     if (!cfg || cfg.dataset.active !== '1') return;
     if (box) box.style.display = 'block';
 
+    // Published live GPS state so other features (e.g. the waiting-time timer)
+    // can tell whether location is active and where the driver is.
+    window.CETgps = window.CETgps || { pos: null, ok: false, sharing: false, at: 0 };
+
     var dot = document.getElementById('track-dot');
     var label = document.getElementById('track-label');
     var last = document.getElementById('track-last');
@@ -32,6 +36,7 @@
         if (label) label.textContent = 'This phone can’t share location.';
         if (dot) dot.textContent = '🔴';
         if (toggleBtn) toggleBtn.style.display = 'none';
+        window.CETgps = { pos: null, ok: false, sharing: false, at: Date.now() };
         return;
     }
 
@@ -85,15 +90,21 @@
 
     function onFix(pos) {
         lastPos = pos;
+        window.CETgps = {
+            pos: { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy },
+            ok: true, sharing: sharing, at: Date.now()
+        };
         if (window.CETshowMe) window.CETshowMe(pos.coords.latitude, pos.coords.longitude);
         if (sharing) send(pos, false);
     }
     function onErr() {
+        window.CETgps = { pos: null, ok: false, sharing: sharing, at: Date.now() };
         setState('🔴', 'Location permission needed', 'Allow location for this site, then tap “Send my location now”.');
     }
 
     function start() {
         sharing = true;
+        window.CETgps.sharing = true;
         if (toggleBtn) toggleBtn.textContent = '⏸ Stop sharing';
         setState('🟡', 'Getting your location…', 'The office can see you on the Live map.');
         requestWakeLock();
@@ -106,11 +117,17 @@
     }
     function pause() {
         sharing = false;
+        window.CETgps.sharing = false;
+        window.CETgps.ok = false;
         if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
         releaseWakeLock();
         if (toggleBtn) toggleBtn.textContent = '▶ Start sharing';
         setState('⚪', 'Sharing paused', 'The office can’t see your location while paused.');
     }
+
+    // Let other features (the waiting-time card) turn location on / force a ping.
+    window.CETstart = start;
+    window.CETsendNow = function () { if (!sharing) start(); else if (lastPos) send(lastPos, true); };
     function finish() {
         if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
         releaseWakeLock();
