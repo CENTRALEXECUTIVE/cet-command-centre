@@ -234,6 +234,53 @@
         </div>
     @endif
 
+    {{-- Offer the job to a driver — a short brief with the vital info and the
+         fare to the driver (their payroll pay, so the two always match). --}}
+    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+        @php $offerMsg = $booking->driverOfferMessage(); @endphp
+        <div class="card">
+            <h2 style="margin:0 0 4px">📤 Offer this job to a driver</h2>
+            <p class="hint" style="margin:0 0 10px">A short brief to send a driver so they can take the job. The <strong>Fare to you</strong> is the driver’s pay — set it below (same figure as Driver payroll) and it fills into the message automatically.</p>
+
+            @if($booking->driverPay() === null)
+                <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.12);margin:0 0 12px">
+                    <strong>Set the fare to the driver</strong>
+                    <p class="hint" style="margin:4px 0 8px">The message shows <strong>£____</strong> until this is set. It’s the same figure as the driver’s pay.</p>
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        @csrf
+                        <input type="hidden" name="action" value="set">
+                        <span style="font-weight:700">£</span>
+                        <input type="number" step="0.01" min="0" name="amount" placeholder="130" required style="max-width:120px">
+                        <button class="btn btn-primary" style="padding:8px 14px;font-size:14px">Set fare</button>
+                    </form>
+                </div>
+            @endif
+
+            <textarea id="offer-msg" readonly rows="10" onclick="this.select()" style="width:100%;font-family:inherit;font-size:14px;line-height:1.5;white-space:pre-wrap">{{ $offerMsg }}</textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+                <button type="button" class="btn btn-primary" id="offer-copy" style="padding:9px 16px;font-size:14px">⧉ Copy message</button>
+                <a href="https://wa.me/?text={{ rawurlencode($offerMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:9px 16px;font-size:14px">📲 Share on WhatsApp</a>
+                <span id="offer-copy-done" class="hint" style="color:#1f8b4c"></span>
+            </div>
+        </div>
+        <script>
+            (function () {
+                var btn = document.getElementById('offer-copy');
+                if (!btn) { return; }
+                btn.addEventListener('click', function () {
+                    var ta = document.getElementById('offer-msg');
+                    var done = document.getElementById('offer-copy-done');
+                    var finish = function () { if (done) { done.textContent = '✓ Copied'; } };
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(ta.value).then(finish).catch(finish);
+                    } else {
+                        ta.select(); try { document.execCommand('copy'); } catch (e) {} finish();
+                    }
+                });
+            })();
+        </script>
+    @endif
+
     {{-- Shareable driver link — its own card so it's easy to find. Send it to a
          cover driver and they get the full job page (details, cash to collect,
          masked number, navigate, status, live GPS) with no login. --}}

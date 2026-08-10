@@ -1495,6 +1495,96 @@ class Booking extends Model
     }
 
     /**
+     * ---- Driver job offer ---------------------------------------------------
+     * A short brief the office can send to a driver to OFFER the job — the vital
+     * info plus "Fare to you". The fare is the driver's pay (driverPay), set in
+     * the payroll section, so the offer and the payroll figure always match. If
+     * the pay isn't set yet the amount is left blank on purpose.
+     */
+
+    /** The "Fare to you" line value, e.g. "£130 Cash", or a blank placeholder. */
+    public function driverOfferFare(): string
+    {
+        $pay = $this->driverPay();
+        $method = $this->hasCashToCollect() ? 'Cash' : 'Bank transfer';
+        if ($pay === null) {
+            return '£____'; // set the driver's pay to fill this in
+        }
+
+        return '£'.rtrim(rtrim(number_format($pay, 2), '0'), '.').' '.$method;
+    }
+
+    /** Luggage line for the offer, appending a pram/buggy etc. spotted in notes. */
+    private function offerLuggageLine(): ?string
+    {
+        // Keep the office's own wording ("2 Suitcases"), not the normalised
+        // "2 bags" — prefer the calendar/booking text, fall back to the breakdown.
+        $luggage = trim((string) ($this->calendarField('Luggage')
+            ?: ($this->meta['luggage_text'] ?? '')
+            ?: $this->luggage
+            ?: $this->luggageBreakdown()));
+        $haystack = strtolower(($this->special_requests ?? '').' '.($this->meta['luggage_text'] ?? ''));
+        $extras = [];
+        foreach (['pram' => 'Pram', 'buggy' => 'Buggy', 'pushchair' => 'Pushchair', 'stroller' => 'Stroller', 'wheelchair' => 'Wheelchair', 'golf' => 'Golf clubs'] as $kw => $label) {
+            if (str_contains($haystack, $kw) && ! str_contains(strtolower($luggage), strtolower($label))) {
+                $extras[] = $label;
+            }
+        }
+        $parts = array_filter(array_merge([$luggage !== '' ? $luggage : null], $extras));
+
+        return $parts ? implode(' + ', $parts) : null;
+    }
+
+    /** Child-seat line for the offer (customer's own, or the seats we provide). */
+    private function offerChildSeatLine(): ?string
+    {
+        $notes = strtolower(($this->special_requests ?? '').' '.($this->meta['notes'] ?? ''));
+        if (preg_match('/own (car ?)?seat|bringing (a |their )?(own )?(car ?)?seat/i', $notes)) {
+            return 'Customer has own car seat';
+        }
+
+        return $this->displayChildSeats() ?: null;
+    }
+
+    /**
+     * The full "Job Available" offer message for a driver — vital info + the fare
+     * to the driver. Ready to copy or send on WhatsApp.
+     */
+    public function driverOfferMessage(): string
+    {
+        $lines = ['Job Available – '.($this->pickup_at?->format('d/m/y') ?? '')];
+        $lines[] = '';
+
+        $pickup = $this->displayPickupAddress() ?: $this->pickup_address;
+        $dropoff = $this->displayDropoffAddress() ?: $this->destination_address;
+        $lines[] = '📍 '.trim((string) $pickup).' → '.trim((string) $dropoff);
+
+        if ($this->pickup_at) {
+            // "08:00 am" style.
+            $lines[] = '🕒 Pickup: '.$this->pickup_at->format('h:i a');
+        }
+
+        $pax = (int) $this->passengerCount();
+        if ($pax > 0) {
+            $lines[] = '👥 '.$pax.' '.\Illuminate\Support\Str::plural('Passenger', $pax);
+        }
+
+        if ($luggage = $this->offerLuggageLine()) {
+            $lines[] = '🧳 '.$luggage;
+        }
+        if ($seat = $this->offerChildSeatLine()) {
+            $lines[] = '👶 '.$seat;
+        }
+        if ($vehicle = $this->displayVehicleType()) {
+            $lines[] = '🚐 '.$vehicle;
+        }
+
+        $lines[] = '💷 Fare to you: '.$this->driverOfferFare();
+
+        return implode("\n", $lines);
+    }
+
+    /**
      * Whether the DRIVER has been paid in full for this job — drives the flag on
      * the bookings list so the office can see who still needs paying without
      * opening each booking. True for a cash job the customer settled directly, or
