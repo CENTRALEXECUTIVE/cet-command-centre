@@ -1210,11 +1210,17 @@ class Booking extends Model
 
         // Nothing in cash. Decide between an explicit "prepaid" reassurance and
         // "unknown" (null) — a card/prepaid job should read as collect nothing.
+        // A CASH job is never given the "paid" reassurance off its status alone:
+        // cashDueToDriver() only returns nothing for a cash job when the office
+        // has confirmed £0 or the business took the money, both of which mean
+        // there really is nothing to collect.
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         $method = $this->payment_method?->value ?? null;
-        if ($this->payment_status === 'paid'
+        $isCashJob = $method === 'cash';
+        if ($this->businessCollectedCash()
+            || (! $isCashJob && $this->payment_status === 'paid')
             || in_array($method, ['card', 'account'], true)
-            || ($line !== '' && preg_match('/paid/i', $line))) {
+            || (! $isCashJob && $line !== '' && preg_match('/paid/i', $line))) {
             return 'Paid — collect nothing';
         }
 
@@ -1266,10 +1272,17 @@ class Booking extends Model
      */
     public function cashDueToDriver(): ?float
     {
-        // An office-confirmed/corrected amount always wins over the parsed line.
+        // An office-confirmed/corrected amount always wins over everything else.
+        // (This is how a genuinely fully-prepaid cash job is set to £0.)
         $override = $this->meta['payroll']['cash_collected'] ?? null;
         if ($override !== null) {
             return (float) $override;
+        }
+
+        // The business took the money itself (e.g. card tapped in the car), so the
+        // driver collects nothing from the customer.
+        if ($this->businessCollectedCash()) {
+            return null;
         }
 
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
@@ -1277,20 +1290,18 @@ class Booking extends Model
         $fare = $this->final_price ?? $this->quoted_price;
 
         if ($line !== '') {
-            // 1) An explicit CASH/collect amount in the line — trust it. A bare
-            //    "£320 Balance Pending" is NOT cash (may be a card balance).
+            // 1) An explicit CASH/collect amount in the line — trust it, whatever
+            //    the payment_method (a card-method booking can still carry a
+            //    "£90 cash due" note). A bare "£320 Balance Pending" is NOT cash.
             if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|cash|to collect|collect)/i', $line, $m)
                 || preg_match('/(?:cash|collect)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
                 return (float) str_replace(',', '', $m[1]);
             }
 
-            // 2) A "Deposit £X Paid …" line on a CASH job where the balance amount
-            //    isn't readable (e.g. the calendar Payment line wrapped and the
-            //    "£130 Cash Due" part got truncated). A deposit means there IS a
-            //    balance, and on a cash job it's collected in cash — so work it out
-            //    as fare − deposit. This is the safety net that stops a cash job
-            //    ever reading as "collect nothing". Deliberately NOT gated on
-            //    payment_status: "Deposit £10 Paid" often mis-sets status to paid.
+            // 2) A "Deposit £X …" line on a CASH job with a known fare → the
+            //    balance is collected in cash: fare − deposit. Covers the case
+            //    where the cash amount itself wasn't readable (e.g. the calendar
+            //    Payment line wrapped and the "£130 Cash Due" tail was truncated).
             if ($isCashJob && $fare && preg_match('/deposit\D*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $dep)) {
                 $deposit = (float) str_replace(',', '', $dep[1]);
                 if ((float) $fare > $deposit) {
@@ -1298,14 +1309,22 @@ class Booking extends Model
                 }
             }
 
-            // 3) Fully paid on a NON-cash job → nothing for the driver to collect.
+            // 3) A NON-cash job whose line reads "paid" → nothing to collect.
+            //    (A CASH job is deliberately NOT short-circuited here: ETO writes
+            //    "Deposit £10 paid" and the importer then flags the whole booking
+            //    as paid — that word must NEVER stop a cash job collecting.)
             if (! $isCashJob && preg_match('/paid/i', $line)) {
                 return null;
             }
         }
 
-        // 4) An unpaid cash job with no usable line — the whole fare is cash.
-        if ($isCashJob && $this->payment_status !== 'paid' && $fare) {
+        // 4) It IS a cash job → the driver collects cash. Default to the whole
+        //    fare when nothing more specific was found. NOT gated on
+        //    payment_status: a deposit-paid cash job is wrongly stamped "paid" on
+        //    import, and that must never read as "collect nothing". If a cash job
+        //    was genuinely prepaid in full, the office sets the confirmed cash to
+        //    £0 (the override above), which is the only thing that suppresses it.
+        if ($isCashJob && $fare) {
             return (float) $fare;
         }
 

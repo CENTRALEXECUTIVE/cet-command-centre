@@ -447,6 +447,56 @@ class PayrollTest extends TestCase
         $this->assertSame('£130 to collect (cash)', $booking->driverCollectLine());
     }
 
+    public function test_a_cash_job_wrongly_stamped_paid_on_import_still_collects_the_fare(): void
+    {
+        // ETO writes "Deposit £20 paid, balance cash" and the importer, seeing the
+        // word "paid", stamps the whole booking payment_status = paid. On a CASH
+        // job that must NEVER read as "collect nothing" — the £180 is still due.
+        $driver = User::factory()->driver()->create(['name' => 'Import Cash']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+            'payment_status' => 'paid',   // wrongly set by the import
+            'quoted_price' => 180,
+            'final_price' => 180,
+        ]);
+
+        $this->assertSame(180.0, $booking->cashDueToDriver());
+        $this->assertSame('£180 to collect (cash)', $booking->driverCollectLine());
+    }
+
+    public function test_a_card_note_on_a_cash_method_job_is_still_collected(): void
+    {
+        // Payment method is card but the office wrote "£90 cash due" on the line —
+        // the explicit cash note wins and the driver collects it.
+        $driver = User::factory()->driver()->create(['name' => 'Noted Cash']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'quoted_price' => 200,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £110 Paid – £90 Cash Due']])->save();
+
+        $this->assertSame(90.0, $booking->cashDueToDriver());
+        $this->assertSame('£90 to collect (cash)', $booking->driverCollectLine());
+    }
+
+    public function test_a_cash_job_the_business_collected_by_card_shows_collect_nothing(): void
+    {
+        // Office marked it: the customer actually paid the business by card. The
+        // driver collects nothing even though it's a cash-method job.
+        $driver = User::factory()->driver()->create(['name' => 'Biz Card']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+            'quoted_price' => 150,
+        ]);
+        $booking->forceFill(['meta' => ['payroll' => ['company_collected' => true]]])->save();
+
+        $this->assertNull($booking->cashDueToDriver());
+        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
+    }
+
     public function test_an_unpaid_cash_job_with_no_line_collects_the_whole_fare(): void
     {
         $driver = User::factory()->driver()->create(['name' => 'Plain Cash']);
