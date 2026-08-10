@@ -1196,30 +1196,25 @@ class Booking extends Model
      */
     public function driverCollectLine(): ?string
     {
-        // The office-curated payment line — the calendar's, else the booking's own.
-        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
-        if ($line !== '') {
-            // Pull out JUST the amount still to collect IN CASH — the driver never
-            // needs the deposit-already-paid part, only what to take on the day.
-            // Handle both orders: "£110 Cash Due" and "Cash £90". Requires an
-            // explicit CASH/collect word: a bare "balance pending" is NOT cash —
-            // that balance may be settled by card to the business.
-            if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|cash|to collect|collect)/i', $line, $m)
-                || preg_match('/(?:cash|collect)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
-                return '£'.$m[1].' to collect (cash)';
-            }
-            if (preg_match('/paid/i', $line)) {
-                return 'Paid — collect nothing';
-            }
+        // Single source of truth: whatever cashDueToDriver() works out is what the
+        // driver collects. Deriving the words from that number here means the two
+        // can NEVER disagree — the bug where the driver saw "collect nothing" on a
+        // cash job while the office saw cash due cannot recur.
+        $cash = $this->cashDueToDriver();
+        if ($cash !== null && $cash > 0.001) {
+            // Clean amount: "£130" not "£130.00", but keep pennies when present.
+            $amount = rtrim(rtrim(number_format($cash, 2), '0'), '.');
+
+            return '£'.$amount.' to collect (cash)';
         }
 
-        // No usable calendar line — fall back to the booking's own fields.
-        $amount = $this->final_price ?? $this->quoted_price;
-        if (($this->payment_method?->value ?? null) === 'cash'
-            && $this->payment_status !== 'paid' && $amount) {
-            return '£'.number_format((float) $amount, 2).' to collect (cash)';
-        }
-        if ($this->payment_status === 'paid') {
+        // Nothing in cash. Decide between an explicit "prepaid" reassurance and
+        // "unknown" (null) — a card/prepaid job should read as collect nothing.
+        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
+        $method = $this->payment_method?->value ?? null;
+        if ($this->payment_status === 'paid'
+            || in_array($method, ['card', 'account'], true)
+            || ($line !== '' && preg_match('/paid/i', $line))) {
             return 'Paid — collect nothing';
         }
 
@@ -1278,24 +1273,40 @@ class Booking extends Model
         }
 
         $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
+        $isCashJob = ($this->payment_method?->value ?? null) === 'cash';
+        $fare = $this->final_price ?? $this->quoted_price;
+
         if ($line !== '') {
-            // Only an explicit CASH/collect line means the driver takes cash. A
-            // bare "£320 Balance Pending" is not cash — it may be a card balance
-            // owed to the business, so it must not read as cash to the driver.
+            // 1) An explicit CASH/collect amount in the line — trust it. A bare
+            //    "£320 Balance Pending" is NOT cash (may be a card balance).
             if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|cash|to collect|collect)/i', $line, $m)
                 || preg_match('/(?:cash|collect)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
                 return (float) str_replace(',', '', $m[1]);
             }
-            if (preg_match('/paid/i', $line)) {
-                return null; // curated line says fully paid — nothing to collect
+
+            // 2) A "Deposit £X Paid …" line on a CASH job where the balance amount
+            //    isn't readable (e.g. the calendar Payment line wrapped and the
+            //    "£130 Cash Due" part got truncated). A deposit means there IS a
+            //    balance, and on a cash job it's collected in cash — so work it out
+            //    as fare − deposit. This is the safety net that stops a cash job
+            //    ever reading as "collect nothing". Deliberately NOT gated on
+            //    payment_status: "Deposit £10 Paid" often mis-sets status to paid.
+            if ($isCashJob && $fare && preg_match('/deposit\D*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $dep)) {
+                $deposit = (float) str_replace(',', '', $dep[1]);
+                if ((float) $fare > $deposit) {
+                    return round((float) $fare - $deposit, 2);
+                }
+            }
+
+            // 3) Fully paid on a NON-cash job → nothing for the driver to collect.
+            if (! $isCashJob && preg_match('/paid/i', $line)) {
+                return null;
             }
         }
 
-        // No usable line — an unpaid cash job means the whole fare is cash.
-        if (($this->payment_method?->value ?? null) === 'cash' && $this->payment_status !== 'paid') {
-            $amount = $this->final_price ?? $this->quoted_price;
-
-            return $amount ? (float) $amount : null;
+        // 4) An unpaid cash job with no usable line — the whole fare is cash.
+        if ($isCashJob && $this->payment_status !== 'paid' && $fare) {
+            return (float) $fare;
         }
 
         return null;

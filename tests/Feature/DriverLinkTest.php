@@ -35,7 +35,7 @@ class DriverLinkTest extends TestCase
             ->assertOk()
             ->assertSee('Manchester Airport (MAN), Terminal 1')
             ->assertSee('5 Moorbridge Crescent, Barnsley')
-            ->assertSee('£120.00')                // cash to collect
+            ->assertSee('£120')                   // cash to collect
             ->assertSee('to collect')
             ->assertSee('On My Way');             // a working status button
     }

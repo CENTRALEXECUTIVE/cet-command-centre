@@ -156,7 +156,7 @@ class DispatchControlAndDriverPrivacyTest extends TestCase
         $this->actingAs($driver)->get(route('driver.job', $booking))
             ->assertOk()
             ->assertSee('Collect')
-            ->assertSee('£90.00')
+            ->assertSee('£90')
             ->assertSee('to collect');
     }
 

@@ -428,6 +428,69 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_a_truncated_deposit_line_on_a_cash_job_still_shows_cash_to_collect(): void
+    {
+        // The exact bug: the calendar Payment line wrapped and only "Deposit £10
+        // Paid" survived — the "£130 Cash Due" tail was lost. It's a CASH job with
+        // a £140 fare, so the driver must collect £130, NOT "collect nothing".
+        $driver = User::factory()->driver()->create(['name' => 'Yaz Driver']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+            'quoted_price' => 140,
+            'final_price' => 140,
+        ]);
+        // Note: no cash amount readable — only the deposit survived the wrap.
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid']])->save();
+
+        $this->assertSame(130.0, $booking->cashDueToDriver());
+        $this->assertSame('£130 to collect (cash)', $booking->driverCollectLine());
+    }
+
+    public function test_an_unpaid_cash_job_with_no_line_collects_the_whole_fare(): void
+    {
+        $driver = User::factory()->driver()->create(['name' => 'Plain Cash']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+            'quoted_price' => 75,
+        ]);
+
+        $this->assertSame(75.0, $booking->cashDueToDriver());
+        $this->assertSame('£75 to collect (cash)', $booking->driverCollectLine());
+    }
+
+    public function test_a_card_balance_pending_job_tells_the_driver_to_collect_nothing(): void
+    {
+        // A card booking with a balance still owed to the BUSINESS by card — the
+        // driver collects nothing, and must be told so (not left blank/unknown).
+        $driver = User::factory()->driver()->create(['name' => 'Card Driver']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'quoted_price' => 200,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £50 Paid – £150 Balance Pending']])->save();
+
+        $this->assertNull($booking->cashDueToDriver());
+        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
+    }
+
+    public function test_a_fully_prepaid_card_job_tells_the_driver_to_collect_nothing(): void
+    {
+        $driver = User::factory()->driver()->create(['name' => 'Prepaid Driver']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'payment_status' => 'paid',
+            'quoted_price' => 120,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Paid £120 (Stripe)']])->save();
+
+        $this->assertNull($booking->cashDueToDriver());
+        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();
