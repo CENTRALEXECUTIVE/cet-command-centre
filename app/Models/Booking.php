@@ -290,9 +290,25 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
+    /**
+     * The booking's calendar event. There is no unique constraint on
+     * calendar_events.booking_id and several code paths can create a row, so a
+     * booking may hold more than one. Without an explicit order a plain hasOne
+     * returns an ARBITRARY row per query — which made the driver's Payment/
+     * "Collect" line flip between reloads (one event said "Paid", another "£X
+     * Cash Due"). latestOfMany pins it to the newest event so every read is
+     * deterministic. (Money correctness is further guaranteed in cashDueToDriver
+     * by reading every payment source, not just this one.)
+     */
     public function calendarEvent(): HasOne
     {
-        return $this->hasOne(CalendarEvent::class);
+        return $this->hasOne(CalendarEvent::class)->orderByDesc('id');
+    }
+
+    /** All calendar-event rows for this booking (there can be more than one). */
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(CalendarEvent::class);
     }
 
     public function payments(): HasMany
@@ -1341,13 +1357,19 @@ class Booking extends Model
         // cashDueToDriver() only returns nothing for a cash job when the office
         // has confirmed £0 or the business took the money, both of which mean
         // there really is nothing to collect.
-        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         $method = $this->payment_method?->value ?? null;
         $isCashJob = $method === 'cash';
+        $anyPaid = false;
+        foreach ($this->paymentLines() as $line) {
+            if (preg_match('/paid/i', $line)) {
+                $anyPaid = true;
+                break;
+            }
+        }
         if ($this->businessCollectedCash()
             || (! $isCashJob && $this->payment_status === 'paid')
             || in_array($method, ['card', 'account'], true)
-            || (! $isCashJob && $line !== '' && preg_match('/paid/i', $line))) {
+            || (! $isCashJob && $anyPaid)) {
             return 'Paid — collect nothing';
         }
 
@@ -1392,10 +1414,39 @@ class Booking extends Model
     }
 
     /**
+     * Every "Payment" line held for this booking: from ALL calendar-event rows
+     * (a booking can have more than one, with differing text) and the booking's
+     * own stored payment_text. Reading every source — not just one arbitrary
+     * calendar row — is what makes the driver's collect amount deterministic and
+     * safe: a stale/duplicate "Paid" copy can never hide a real "Cash Due" line.
+     *
+     * @return string[]
+     */
+    public function paymentLines(): array
+    {
+        $lines = [];
+        foreach ($this->calendarEvents as $event) {
+            $v = $event->descriptionValue('Payment');
+            if (filled($v)) {
+                $lines[] = $v;
+            }
+        }
+        if (filled($this->meta['payment_text'] ?? null)) {
+            $lines[] = $this->meta['payment_text'];
+        }
+
+        return $lines;
+    }
+
+    /**
      * The cash the driver physically collects from the customer on the day, as a
      * number (e.g. 90.00 from "Deposit £10 Paid – £90 Cash Due"). Null when the
      * job is fully prepaid / card, i.e. there's nothing for the driver to collect.
-     * Mirrors driverCollectLine()'s parsing so the two never disagree.
+     *
+     * DETERMINISTIC & SAFE: it scans every payment source we hold and, when they
+     * disagree, always favours COLLECTING (an explicit cash figure from any
+     * source wins; the largest is taken) — so opening the link twice can never
+     * flip between "Paid" and a cash amount, and it never under-collects.
      */
     public function cashDueToDriver(): ?float
     {
@@ -1412,40 +1463,42 @@ class Booking extends Model
             return null;
         }
 
-        $line = trim((string) ($this->displayPayment() ?: ($this->meta['payment_text'] ?? '')));
         $isCashJob = ($this->payment_method?->value ?? null) === 'cash';
         $fare = $this->final_price ?? $this->quoted_price;
 
-        if ($line !== '') {
-            // 1) An explicit CASH/collect amount in the line — trust it, whatever
-            //    the payment_method (a card-method booking can still carry a
-            //    "£90 cash due" note). A bare "£320 Balance Pending" is NOT cash.
+        // Parse every payment line we hold, gathering any explicit cash-to-collect
+        // figures and any deposit figures.
+        $cashAmounts = [];
+        $deposits = [];
+        foreach ($this->paymentLines() as $line) {
+            // A bare "£320 Balance Pending" is NOT cash (may be a card balance);
+            // an explicit CASH/collect word is required.
             if (preg_match('/£\s?([\d,]+(?:\.\d{1,2})?)\s*(?:cash due|cash|to collect|collect)/i', $line, $m)
                 || preg_match('/(?:cash|collect)[^£]*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $m)) {
-                return (float) str_replace(',', '', $m[1]);
+                $cashAmounts[] = (float) str_replace(',', '', $m[1]);
             }
-
-            // 2) A "Deposit £X …" line on a CASH job with a known fare → the
-            //    balance is collected in cash: fare − deposit. Covers the case
-            //    where the cash amount itself wasn't readable (e.g. the calendar
-            //    Payment line wrapped and the "£130 Cash Due" tail was truncated).
-            if ($isCashJob && $fare && preg_match('/deposit\D*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $dep)) {
-                $deposit = (float) str_replace(',', '', $dep[1]);
-                if ((float) $fare > $deposit) {
-                    return round((float) $fare - $deposit, 2);
-                }
-            }
-
-            // 3) A NON-cash job whose line reads "paid" → nothing to collect.
-            //    (A CASH job is deliberately NOT short-circuited here: ETO writes
-            //    "Deposit £10 paid" and the importer then flags the whole booking
-            //    as paid — that word must NEVER stop a cash job collecting.)
-            if (! $isCashJob && preg_match('/paid/i', $line)) {
-                return null;
+            if (preg_match('/deposit\D*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $dep)) {
+                $deposits[] = (float) str_replace(',', '', $dep[1]);
             }
         }
 
-        // 4) It IS a cash job → the driver collects cash. Default to the whole
+        // 1) An explicit cash figure in ANY source → take the largest. Never let
+        //    a stale "Paid" copy make the driver under-collect.
+        if ($cashAmounts) {
+            return max($cashAmounts);
+        }
+
+        // 2) Deposit paid on a CASH job with a known fare → the balance is cash:
+        //    fare − the smallest deposit seen (i.e. the most that could be owed).
+        //    Covers a wrapped/truncated line where the cash amount was lost.
+        if ($isCashJob && $fare && $deposits) {
+            $deposit = min($deposits);
+            if ((float) $fare > $deposit) {
+                return round((float) $fare - $deposit, 2);
+            }
+        }
+
+        // 3) It IS a cash job → the driver collects cash. Default to the whole
         //    fare when nothing more specific was found. NOT gated on
         //    payment_status: a deposit-paid cash job is wrongly stamped "paid" on
         //    import, and that must never read as "collect nothing". If a cash job
@@ -1455,6 +1508,7 @@ class Booking extends Model
             return (float) $fare;
         }
 
+        // 4) Non-cash job with no cash figure anywhere → nothing to collect.
         return null;
     }
 

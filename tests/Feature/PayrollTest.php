@@ -541,6 +541,58 @@ class PayrollTest extends TestCase
         $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
     }
 
+    public function test_duplicate_calendar_events_never_flip_the_collect_amount(): void
+    {
+        // The reported bug: a booking with TWO calendar_events rows — one whose
+        // Payment line reads "Paid", one that reads "£130 Cash Due". With an
+        // unordered hasOne the driver link flipped between them on each reload.
+        // The collect amount must be stable AND favour collecting the cash.
+        $booking = Booking::factory()->create([
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'quoted_price' => 140,
+            'final_price' => 140,
+        ]);
+        // Older event: a stale "Paid" line.
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* Deposit £10 Paid",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        // Newer event: the correct cash-due line.
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* Deposit £10 Paid – £130 Cash Due",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        // Stable across repeated fresh loads, and always the cash amount.
+        for ($i = 0; $i < 5; $i++) {
+            $fresh = Booking::find($booking->id);
+            $this->assertSame(130.0, $fresh->cashDueToDriver());
+            $this->assertSame('£130 to collect (cash)', $fresh->driverCollectLine());
+        }
+    }
+
+    public function test_a_paid_only_duplicate_cannot_hide_a_cash_due_line(): void
+    {
+        // Even if the "Paid" copy happens to be the newest event, the explicit
+        // cash figure from the other source still wins — never under-collect.
+        $booking = Booking::factory()->create([
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'quoted_price' => 200, 'final_price' => 200,
+            'meta' => ['payment_text' => 'Deposit £40 Paid – £160 Cash Due'],
+        ]);
+        // A later calendar event that only says "Paid".
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* Paid",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->assertSame(160.0, $booking->fresh()->cashDueToDriver());
+        $this->assertSame('£160 to collect (cash)', $booking->fresh()->driverCollectLine());
+    }
+
     public function test_drivers_cannot_touch_payroll(): void
     {
         $driver = User::factory()->driver()->create();
