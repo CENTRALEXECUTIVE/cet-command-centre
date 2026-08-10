@@ -25,6 +25,21 @@ Route::get('/', function () {
     return redirect()->route(auth()->check() ? 'dashboard' : 'login');
 });
 
+// Deploy helper: reset the WEB PHP OPcache so a git deploy is picked up
+// immediately (php artisan optimize:clear does NOT touch OPcache, so stale
+// bytecode could otherwise be served to some requests after a deploy). Guarded
+// by a token derived from APP_KEY — no extra env needed. Called by
+// `php artisan cet:opcache-clear`.
+Route::get('__cet/opcache/{token}', function (string $token) {
+    $key = (string) config('app.key');
+    $expected = $key !== '' ? hash_hmac('sha256', 'opcache-reset', $key) : '';
+    abort_unless($expected !== '' && hash_equals($expected, $token), 404);
+
+    $reset = function_exists('opcache_reset') ? (bool) opcache_reset() : false;
+
+    return response()->json(['opcache_reset' => $reset, 'at' => now()->toIso8601String()]);
+})->name('cet.opcache');
+
 // ----- PWA assets ----------------------------------------------------------
 // Served as static files by the webserver in production; these routes make
 // them available under any server config (and in tests). No auth — the
