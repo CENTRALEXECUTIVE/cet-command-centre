@@ -292,6 +292,10 @@ class BookingStatusService
 
         // "Passenger on board" — journey underway, reassures the booker.
         if ($to === BookingStatus::Collected) {
+            // Freeze the waiting time (billable minutes past the grace period)
+            // now the passenger is in the car and the wait has ended.
+            $booking->recordWaitingTime();
+
             $this->notifier->sendPassengerOnBoard($booking);
 
             if ($liveJob) {

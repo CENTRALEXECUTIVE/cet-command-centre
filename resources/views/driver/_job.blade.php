@@ -46,6 +46,60 @@
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
 
+{{-- Waiting time. Once the driver has ARRIVED, the customer gets a free grace
+     period (15 min); the billable timer only starts counting after it. Live,
+     built from the arrival time so it survives reloads. No messages are sent —
+     it's purely a display for the driver. --}}
+@if($booking->status === \App\Enums\BookingStatus::Arrived && $booking->arrivedAt())
+    <div id="waiting-timer" class="card"
+         data-arrived="{{ $booking->arrivedAt()->timestamp }}"
+         data-grace="{{ $booking->waitingGraceMinutes() * 60 }}"
+         data-now="{{ now()->timestamp }}"
+         style="text-align:center;border-left:4px solid #1f7a44;background:rgba(31,122,68,.08)">
+        <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.06em">Waiting at pickup</div>
+        <div id="waiting-main" style="font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;margin:4px 0;line-height:1.1">—</div>
+        <div id="waiting-sub" class="muted" style="font-size:13px">First {{ $booking->waitingGraceMinutes() }} minutes are free.</div>
+    </div>
+    <script>
+    (function () {
+        var el = document.getElementById('waiting-timer');
+        if (!el) { return; }
+        var arrived = parseInt(el.dataset.arrived, 10);
+        var grace = parseInt(el.dataset.grace, 10);
+        var serverNow = parseInt(el.dataset.now, 10);
+        // Trust the server clock, not the phone's: offset corrects a wrong device time.
+        var offset = serverNow - Math.floor(Date.now() / 1000);
+        var main = document.getElementById('waiting-main');
+        var sub = document.getElementById('waiting-sub');
+        var graceMin = Math.round(grace / 60);
+        function fmt(s) {
+            s = Math.max(0, Math.floor(s));
+            var m = Math.floor(s / 60), r = s % 60;
+            return m + ':' + (r < 10 ? '0' : '') + r;
+        }
+        function tick() {
+            var now = Math.floor(Date.now() / 1000) + offset;
+            var elapsed = now - arrived;
+            if (elapsed < grace) {
+                el.style.borderLeftColor = '#1f7a44';
+                el.style.background = 'rgba(31,122,68,.08)';
+                main.style.color = '#1f7a44';
+                main.textContent = fmt(grace - elapsed) + ' left';
+                sub.textContent = 'Free waiting — the timer starts after this.';
+            } else {
+                el.style.borderLeftColor = '#c0392b';
+                el.style.background = 'rgba(192,57,43,.09)';
+                main.style.color = '#c0392b';
+                main.textContent = '⏱ ' + fmt(elapsed - grace);
+                sub.textContent = 'Waiting time (after the free ' + graceMin + ' min).';
+            }
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+    </script>
+@endif
+
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also
      has a Copy button so the driver can paste into any nav app, and a small
      Google Maps fallback for drivers who don't use Waze. --}}

@@ -63,6 +63,11 @@ return [
     // hammering the database.
     'gps_live_seconds' => (int) env('CET_GPS_LIVE_SECONDS', 20),
 
+    // Free waiting time the customer gets once the driver has arrived at the
+    // pickup. The waiting timer on the driver's job screen only starts counting
+    // billable time AFTER this grace period elapses.
+    'waiting_grace_minutes' => (int) env('CET_WAITING_GRACE_MINUTES', 15),
+
     // Compliance: how many days before expiry an item becomes "due soon" and a
     // WhatsApp renewal reminder is sent.
     'compliance_warn_days' => 30,

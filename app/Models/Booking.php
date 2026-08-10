@@ -163,6 +163,74 @@ class Booking extends Model
         return $this->hasMany(BookingStatusHistory::class);
     }
 
+    /**
+     * ---- Waiting time -------------------------------------------------------
+     * The customer gets a free grace period once the driver has ARRIVED at the
+     * pickup; only after it does billable waiting time start counting. The
+     * driver's job screen shows a live timer built from arrivedAt(); the final
+     * billable figure is captured when the passenger boards.
+     */
+
+    /** Minutes of free waiting the customer gets after the driver arrives. */
+    public function waitingGraceMinutes(): int
+    {
+        return max(0, (int) config('cet.waiting_grace_minutes', 15));
+    }
+
+    /**
+     * When the driver marked ARRIVED at the pickup — the anchor for the waiting
+     * timer. Uses the most recent transition into "arrived" from the audit
+     * trail, so it survives page reloads. Null until the driver has arrived.
+     */
+    public function arrivedAt(): ?\Illuminate\Support\Carbon
+    {
+        $history = $this->relationLoaded('statusHistory')
+            ? $this->statusHistory
+            : $this->statusHistory()->get();
+
+        return $history->where('to_status', BookingStatus::Arrived->value)
+            ->sortByDesc('created_at')->first()?->created_at;
+    }
+
+    /**
+     * Billable waiting minutes so far (whole minutes past the grace period),
+     * measured from arrival to $at (default now). 0 while inside the grace
+     * period or before the driver has arrived.
+     */
+    public function waitingBillableMinutes(?\Illuminate\Support\Carbon $at = null): int
+    {
+        $arrived = $this->arrivedAt();
+        if (! $arrived) {
+            return 0;
+        }
+        $elapsed = $arrived->diffInMinutes($at ?? now());
+
+        return (int) max(0, $elapsed - $this->waitingGraceMinutes());
+    }
+
+    /** The billable waiting minutes recorded when the passenger boarded, if any. */
+    public function recordedWaitingMinutes(): ?int
+    {
+        $v = $this->meta['waiting']['billable_minutes'] ?? null;
+
+        return $v === null ? null : (int) $v;
+    }
+
+    /** Freeze the waiting time onto the booking (called when the passenger boards). */
+    public function recordWaitingTime(): void
+    {
+        if (! $this->arrivedAt()) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        $meta['waiting'] = [
+            'billable_minutes' => $this->waitingBillableMinutes(),
+            'grace_minutes' => $this->waitingGraceMinutes(),
+            'recorded_at' => now()->toIso8601String(),
+        ];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
     public function calendarEvent(): HasOne
     {
         return $this->hasOne(CalendarEvent::class);

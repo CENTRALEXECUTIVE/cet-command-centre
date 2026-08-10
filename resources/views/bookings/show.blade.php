@@ -33,6 +33,10 @@
                 <span class="bh-chip warn">💳 {{ ucfirst($booking->payment_status ?? 'pending') }}</span>
             @endif
             @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->displayFlightNumber() }}</span>@endif
+            @php $waited = $booking->recordedWaitingMinutes() ?? ($booking->status === \App\Enums\BookingStatus::Arrived ? $booking->waitingBillableMinutes() : null); @endphp
+            @if($waited !== null && $waited > 0)
+                <span class="bh-chip warn" title="Billable waiting time past the free {{ $booking->waitingGraceMinutes() }} min{{ $booking->recordedWaitingMinutes() === null ? ' (still waiting)' : '' }}">⏱ {{ $waited }} min waiting</span>
+            @endif
         </div>
         <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
     </div>
