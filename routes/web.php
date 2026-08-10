@@ -182,6 +182,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('jobs/{booking}', [JobController::class, 'show'])->name('job');
         Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
         Route::post('jobs/{booking}/reach-stop', [JobController::class, 'reachStop'])->middleware('throttle:60,1')->name('job.reach-stop');
+        Route::post('jobs/{booking}/ack-cash', [JobController::class, 'acknowledgeCash'])->middleware('throttle:60,1')->name('job.ack-cash');
         Route::post('jobs/{booking}/decline', [JobController::class, 'decline'])->name('job.decline');
         // Answer an office location request with a one-off ping.
         Route::post('jobs/{booking}/location', [JobController::class, 'shareLocation'])->middleware('throttle:60,1')->name('job.location');
@@ -334,6 +335,8 @@ Route::post('job/{token}/status', [\App\Http\Controllers\Driver\LinkController::
     ->middleware('throttle:60,1')->name('driver.link.status');
 Route::post('job/{token}/reach-stop', [\App\Http\Controllers\Driver\LinkController::class, 'reachStop'])
     ->middleware('throttle:60,1')->name('driver.link.reach-stop');
+Route::post('job/{token}/ack-cash', [\App\Http\Controllers\Driver\LinkController::class, 'acknowledgeCash'])
+    ->middleware('throttle:60,1')->name('driver.link.ack-cash');
 
 // Additional-car links on a multi-car job (each extra driver, tracked per car).
 Route::get('car/{token}', [\App\Http\Controllers\Driver\ExtraDriverController::class, 'show'])

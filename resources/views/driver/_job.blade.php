@@ -7,6 +7,7 @@
     $statusUrl = $statusUrl ?? route('driver.job.status', $booking);
     $locationStoreUrl = $locationStoreUrl ?? route('driver.locations.store');
     $stopUrl = $stopUrl ?? route('driver.job.reach-stop', $booking);
+    $ackCashUrl = $ackCashUrl ?? route('driver.job.ack-cash', $booking);
 
     // Multi-stop journeys (a "via" between pickup and drop-off).
     $viaStops = $booking->viaStops();
@@ -230,6 +231,27 @@
         setInterval(tick, 1000);
     })();
     </script>
+@endif
+
+{{-- Cash-collection reminder. On a cash job the driver is reminded to collect
+     the cash and taps OK to acknowledge. The amount is whatever's actually due
+     on this booking (not a fixed figure) and re-prompts if it changes. --}}
+@if($booking->hasCashToCollect())
+    @if($booking->cashCollectAcknowledged())
+        <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">
+            <div style="font-weight:700;font-size:14px">✓ Cash to collect — confirmed</div>
+            <div class="muted" style="font-size:13px;margin-top:2px">Collect <strong>{{ $booking->cashToCollectDisplay() }}</strong> in cash from the customer.</div>
+        </div>
+    @else
+        <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.16);margin-bottom:16px">
+            <div style="font-weight:800;font-size:16px">💷 Collect the cash</div>
+            <p style="margin:6px 0 10px;font-size:15px">This is a <strong>cash job</strong> — please collect <strong>{{ $booking->cashToCollectDisplay() }}</strong> from the customer.</p>
+            <form method="POST" action="{{ $ackCashUrl }}">
+                @csrf
+                <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:15px">OK — I’ll collect it</button>
+            </form>
+        </div>
+    @endif
 @endif
 
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also

@@ -1376,6 +1376,65 @@ class Booking extends Model
         return null;
     }
 
+    /** True when the driver has cash to physically collect from the customer. */
+    public function hasCashToCollect(): bool
+    {
+        $cash = $this->cashDueToDriver();
+
+        return $cash !== null && $cash > 0.001;
+    }
+
+    /** Just the cash amount to collect, formatted "£130" (or null if none). */
+    public function cashToCollectDisplay(): ?string
+    {
+        $cash = $this->cashDueToDriver();
+        if ($cash === null || $cash <= 0.001) {
+            return null;
+        }
+
+        return '£'.rtrim(rtrim(number_format($cash, 2), '0'), '.');
+    }
+
+    /**
+     * The driver has seen and OK'd the "collect the cash" reminder for the amount
+     * currently due. If the amount later changes, this returns false again so the
+     * driver is re-reminded for the new figure.
+     */
+    public function cashCollectAcknowledged(): bool
+    {
+        $ack = $this->meta['cash_ack'] ?? null;
+        if (! $ack || ! isset($ack['amount'])) {
+            return false;
+        }
+        $cash = $this->cashDueToDriver();
+
+        return $cash !== null && abs((float) $ack['amount'] - $cash) < 0.01;
+    }
+
+    /** Record the driver acknowledging they'll collect the cash on this job. */
+    public function acknowledgeCashCollect(?User $by = null): void
+    {
+        $cash = $this->cashDueToDriver();
+        if ($cash === null || $cash <= 0.001) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        $meta['cash_ack'] = [
+            'amount' => round($cash, 2),
+            'at' => now()->toIso8601String(),
+            'by' => $by?->id,
+        ];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** When the driver acknowledged the cash reminder, or null. */
+    public function cashCollectAckAt(): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->meta['cash_ack']['at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
     /**
      * Whether the DRIVER has been paid in full for this job — drives the flag on
      * the bookings list so the office can see who still needs paying without

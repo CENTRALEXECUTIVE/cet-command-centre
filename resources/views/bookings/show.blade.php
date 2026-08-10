@@ -37,6 +37,13 @@
             @if($waited !== null && $waited > 0)
                 <span class="bh-chip warn" title="Billable waiting time past the free {{ $booking->waitingGraceMinutes() }} min{{ $booking->recordedWaitingMinutes() === null ? ' (still waiting)' : '' }}">⏱ {{ $waited }} min waiting</span>
             @endif
+            @if($booking->hasCashToCollect())
+                @if($booking->cashCollectAcknowledged())
+                    <span class="bh-chip ok" title="Driver confirmed the cash reminder{{ $booking->cashCollectAckAt() ? ' at '.$booking->cashCollectAckAt()->format('D d M, H:i') : '' }}">💷 {{ $booking->cashToCollectDisplay() }} cash · driver ✓</span>
+                @else
+                    <span class="bh-chip warn" title="Driver has not yet acknowledged the cash reminder">💷 {{ $booking->cashToCollectDisplay() }} cash · not confirmed</span>
+                @endif
+            @endif
         </div>
         <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
     </div>

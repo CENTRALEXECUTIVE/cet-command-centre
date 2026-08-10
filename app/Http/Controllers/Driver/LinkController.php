@@ -73,6 +73,15 @@ class LinkController extends Controller
             : 'Stop reached — head to the next one.');
     }
 
+    /** Driver OKs the "collect the cash" reminder via the shareable link. */
+    public function acknowledgeCash(string $token): RedirectResponse
+    {
+        $booking = $this->resolve($token);
+        $booking->acknowledgeCashCollect($booking->driver);
+
+        return back()->with('status', 'Thanks — noted you’ll collect the cash.');
+    }
+
     public function location(Request $request, string $token, DriverLocationService $locations): JsonResponse
     {
         $booking = $this->resolve($token);

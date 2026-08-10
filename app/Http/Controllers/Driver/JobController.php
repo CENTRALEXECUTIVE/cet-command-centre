@@ -94,6 +94,15 @@ class JobController extends Controller
             : 'Stop reached — head to the next one.');
     }
 
+    /** Driver OKs the "collect the cash" reminder on a cash job. */
+    public function acknowledgeCash(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+        $booking->acknowledgeCashCollect($request->user());
+
+        return back()->with('status', 'Thanks — noted you’ll collect the cash.');
+    }
+
     /**
      * Answer an office "request location": record a one-off position for this
      * job (works even before Set off) so the office can see where the driver is.
