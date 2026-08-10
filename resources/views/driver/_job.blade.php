@@ -46,6 +46,72 @@
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
 
+{{-- Location permission gate. A browser only shows the "Allow location" prompt
+     over HTTPS and — on iPhone especially — in response to a TAP, not on page
+     load. So we ask explicitly: this shows until permission is granted and the
+     button triggers the native prompt on tap. Location is required for tracking,
+     navigation and waiting time. Hidden for admins (they aren't the driver). --}}
+@unless($viewerIsAdmin)
+    <div id="loc-gate" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.12)">
+        <div style="font-weight:800;font-size:15px">📍 Turn on location for this job</div>
+        <p class="hint" id="loc-gate-msg" style="margin:6px 0 10px">Central Executive needs your location for tracking, navigation and your waiting time. Tap below and choose <strong>Allow</strong>.</p>
+        <button type="button" id="loc-gate-btn" class="btn btn-primary" style="padding:9px 18px;font-size:15px">Allow location</button>
+    </div>
+    <script>
+    (function () {
+        var gate = document.getElementById('loc-gate');
+        if (!gate) { return; }
+        var btn = document.getElementById('loc-gate-btn');
+        var msg = document.getElementById('loc-gate-msg');
+        if (!('geolocation' in navigator)) {
+            gate.style.display = 'block';
+            msg.textContent = 'This browser can’t share location. Open the link in Safari or Chrome.';
+            if (btn) { btn.style.display = 'none'; }
+            return;
+        }
+        function show() { gate.style.display = 'block'; }
+        function granted() {
+            gate.style.display = 'none';
+            // If live tracking is active on this page, make sure it's running.
+            if (window.CETstart) { window.CETstart(); }
+        }
+        function blocked() {
+            show();
+            msg.innerHTML = 'Location looks blocked for this site. Open your browser’s settings for this page, set <strong>Location</strong> to <strong>Allow</strong>, then reload.';
+            if (btn) { btn.textContent = 'Try again'; }
+        }
+        function ask() {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                // Publish a fix straight away so the waiting timer sees location.
+                window.CETgps = { pos: { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }, ok: true, sharing: true, at: Date.now() };
+                granted();
+            }, function (err) {
+                if (err && err.code === 1) { blocked(); } // PERMISSION_DENIED
+                else { show(); }                           // transient — allow a retry
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        }
+        if (btn) { btn.addEventListener('click', ask); }
+
+        // Use the Permissions API where available to set the right initial state
+        // without nagging a driver who has already allowed it.
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'geolocation' }).then(function (st) {
+                if (st.state === 'granted') { granted(); }
+                else if (st.state === 'denied') { blocked(); }
+                else { show(); }
+                st.onchange = function () {
+                    if (st.state === 'granted') { granted(); }
+                    else if (st.state === 'denied') { blocked(); }
+                };
+            }).catch(show);
+        } else {
+            // Older iOS Safari has no Permissions API — show the invite; the tap prompts.
+            show();
+        }
+    })();
+    </script>
+@endunless
+
 {{-- Waiting time. Once the driver is AT the pickup with location sharing on,
      the customer gets a free grace period (15 min); the billable timer only
      starts counting after it. It will NOT run unless GPS is live and the driver

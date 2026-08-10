@@ -40,6 +40,19 @@ class DriverLinkTest extends TestCase
             ->assertSee('On My Way');             // a working status button
     }
 
+    public function test_the_link_shows_the_allow_location_gate(): void
+    {
+        // The link must be able to prompt for location — a tap-driven gate that
+        // triggers the browser's native permission prompt.
+        $booking = Booking::factory()->create(['status' => BookingStatus::Accepted]);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('loc-gate')
+            ->assertSee('Allow location')
+            ->assertSee('Turn on location for this job');
+    }
+
     public function test_the_token_resolves_via_the_column_and_a_legacy_meta_token(): void
     {
         // New booking → token lands on the indexed column.
