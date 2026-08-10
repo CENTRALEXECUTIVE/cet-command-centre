@@ -139,6 +139,13 @@
             </form>
         </div>
     @endif
+@elseif($booking->paymentNeedsChecking())
+    {{-- FAILSAFE: a balance may be owed but we couldn't read the exact amount.
+         Never let the driver assume it's paid — tell them to confirm. --}}
+    <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.16);margin-bottom:16px">
+        <div style="font-weight:800;font-size:16px">💷 Check the payment</div>
+        <p style="margin:6px 0 0;font-size:15px">There may be a <strong>balance to collect</strong> on this job. <strong>Do not assume it’s paid</strong> — confirm with the office what to collect before you leave.</p>
+    </div>
 @endif
 
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also

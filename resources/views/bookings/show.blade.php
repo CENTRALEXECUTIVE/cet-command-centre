@@ -43,6 +43,8 @@
                 @else
                     <span class="bh-chip warn" title="Driver has not yet acknowledged the cash reminder">💷 {{ $booking->cashToCollectDisplay() }} cash · not confirmed</span>
                 @endif
+            @elseif($booking->paymentNeedsChecking())
+                <span class="bh-chip warn" title="A balance may be owed but the amount isn't clear on the booking — the driver is told to check with the office">💷 payment unclear — check</span>
             @endif
         </div>
         <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>

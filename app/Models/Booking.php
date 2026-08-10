@@ -1336,18 +1336,79 @@ class Booking extends Model
     }
 
     /**
+     * Words in a payment line that mean money is (or may be) owed on the day —
+     * a deposit was paid, a balance is pending, cash is due, and so on. Used by
+     * the failsafe so the driver is never wrongly told "collect nothing".
+     */
+    private const OUTSTANDING_SIGNAL = '/deposit|balance|outstanding|remaining|owing|owed|\bcash\b|to collect|\bcollect\b|to pay|part[ -]?paid|\bdue\b|pending/i';
+
+    /** All payment text we hold, lower-cased and joined, for signal scanning. */
+    private function paymentBlob(): string
+    {
+        return trim(strtolower(implode("\n", $this->paymentLines())));
+    }
+
+    /**
+     * There is a sign money is owed on the day that we could NOT turn into a
+     * definite cash figure (a truncated "Deposit £10 Paid", a bare "Balance
+     * Pending", the word "cash" with no readable amount…). In that case the
+     * driver must confirm with the office — we must never say "collect nothing".
+     */
+    public function paymentNeedsChecking(): bool
+    {
+        // A known cash amount, or the office/ business having settled it, means
+        // there's nothing uncertain to check.
+        if ($this->hasCashToCollect() || $this->businessCollectedCash()) {
+            return false;
+        }
+
+        $blob = $this->paymentBlob();
+        if ($blob === '') {
+            // A cash-method job with no readable fare still isn't "nothing".
+            return ($this->payment_method?->value ?? null) === 'cash'
+                && ($this->final_price ?? $this->quoted_price) === null;
+        }
+
+        return (bool) preg_match(self::OUTSTANDING_SIGNAL, $blob)
+            && ! $this->paymentLooksFullySettled();
+    }
+
+    /**
+     * Confident the fare is fully settled: a paid/settled word with NO
+     * outstanding-balance language anywhere, or an account (invoiced) job with
+     * none. Deliberately strict — anything that hints at a balance fails this,
+     * so "collect nothing" is only ever shown when it's genuinely safe.
+     */
+    public function paymentLooksFullySettled(): bool
+    {
+        if ($this->businessCollectedCash()) {
+            return true;
+        }
+        $blob = $this->paymentBlob();
+        if ($blob !== '' && preg_match(self::OUTSTANDING_SIGNAL, $blob)) {
+            return false; // any outstanding language → not confidently settled
+        }
+        // A cash-method job is never "confidently settled" off its own fields —
+        // only the override / business-collected above can settle it.
+        if (($this->payment_method?->value ?? null) === 'cash') {
+            return false;
+        }
+
+        return $this->payment_status === 'paid'
+            || ($this->payment_method?->value ?? null) === 'account'
+            || ($blob !== '' && (bool) preg_match('/\bpaid\b|settled|prepaid/i', $blob));
+    }
+
+    /**
      * What the driver must physically COLLECT from the customer on this job.
      * Prefers the office-curated calendar Payment line (e.g. "Deposit £10 Paid
      * – £110 Cash Due"); otherwise derives a cash amount for an unpaid cash job.
-     * Returns null when there's nothing to collect (fully prepaid) or unknown —
-     * so a card/prepaid job never shows the fare on the driver's screen.
+     * Never claims "collect nothing" while any payment source hints a balance is
+     * owed — it says "check with the office" instead (the failsafe).
      */
     public function driverCollectLine(): ?string
     {
-        // Single source of truth: whatever cashDueToDriver() works out is what the
-        // driver collects. Deriving the words from that number here means the two
-        // can NEVER disagree — the bug where the driver saw "collect nothing" on a
-        // cash job while the office saw cash due cannot recur.
+        // 1) A definite cash amount → show it.
         $cash = $this->cashDueToDriver();
         if ($cash !== null && $cash > 0.001) {
             // Clean amount: "£130" not "£130.00", but keep pennies when present.
@@ -1356,28 +1417,21 @@ class Booking extends Model
             return '£'.$amount.' to collect (cash)';
         }
 
-        // Nothing in cash. Decide between an explicit "prepaid" reassurance and
-        // "unknown" (null) — a card/prepaid job should read as collect nothing.
-        // A CASH job is never given the "paid" reassurance off its status alone:
-        // cashDueToDriver() only returns nothing for a cash job when the office
-        // has confirmed £0 or the business took the money, both of which mean
-        // there really is nothing to collect.
-        $method = $this->payment_method?->value ?? null;
-        $isCashJob = $method === 'cash';
-        $anyPaid = false;
-        foreach ($this->paymentLines() as $line) {
-            if (preg_match('/paid/i', $line)) {
-                $anyPaid = true;
-                break;
-            }
+        // 2) FAILSAFE: never tell a driver "collect nothing" when money might be
+        //    owed. If any payment source shows an outstanding balance we couldn't
+        //    turn into a number (a truncated "Deposit £10 Paid", a bare "Balance
+        //    Pending", the word "cash", etc.) tell them to CHECK — do not claim
+        //    it's paid. This is what stops the "cash job says paid" error dead.
+        if ($this->paymentNeedsChecking()) {
+            return 'Payment may be due — check the amount with the office';
         }
-        if ($this->businessCollectedCash()
-            || (! $isCashJob && $this->payment_status === 'paid')
-            || in_array($method, ['card', 'account'], true)
-            || (! $isCashJob && $anyPaid)) {
+
+        // 3) Only say "collect nothing" when we're genuinely confident it's paid.
+        if ($this->businessCollectedCash() || $this->paymentLooksFullySettled()) {
             return 'Paid — collect nothing';
         }
 
+        // 4) Nothing known → say nothing (no false reassurance).
         return null;
     }
 

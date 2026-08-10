@@ -510,10 +510,11 @@ class PayrollTest extends TestCase
         $this->assertSame('£75 to collect (cash)', $booking->driverCollectLine());
     }
 
-    public function test_a_card_balance_pending_job_tells_the_driver_to_collect_nothing(): void
+    public function test_a_card_balance_pending_job_tells_the_driver_to_check_not_collect_nothing(): void
     {
-        // A card booking with a balance still owed to the BUSINESS by card — the
-        // driver collects nothing, and must be told so (not left blank/unknown).
+        // "Balance Pending" is ambiguous — it might be settled by card to the
+        // business, or it might be cash. The driver must NEVER be told "collect
+        // nothing" here; the failsafe tells them to check with the office.
         $driver = User::factory()->driver()->create(['name' => 'Card Driver']);
         $booking = Booking::factory()->create([
             'driver_id' => $driver->id,
@@ -523,7 +524,45 @@ class PayrollTest extends TestCase
         $booking->forceFill(['meta' => ['payment_text' => 'Deposit £50 Paid – £150 Balance Pending']])->save();
 
         $this->assertNull($booking->cashDueToDriver());
-        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
+        $this->assertTrue($booking->paymentNeedsChecking());
+        $this->assertStringContainsString('check the amount with the office', $booking->driverCollectLine());
+        $this->assertStringNotContainsString('collect nothing', (string) $booking->driverCollectLine());
+    }
+
+    public function test_failsafe_a_truncated_deposit_card_job_never_says_collect_nothing(): void
+    {
+        // THE reported bug: a card-method job where the cash-due tail was lost,
+        // leaving only "Deposit £10 Paid". It must NOT read as "Paid — collect
+        // nothing" just because the method is card — the failsafe says "check".
+        $driver = User::factory()->driver()->create(['name' => 'Yaz Driver']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'payment_status' => 'paid', // wrongly stamped from "Deposit £10 Paid"
+            'quoted_price' => 140, 'final_price' => 140,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid']])->save();
+
+        $this->assertTrue($booking->paymentNeedsChecking());
+        $this->assertStringNotContainsString('collect nothing', (string) $booking->driverCollectLine());
+        $this->assertStringContainsString('check the amount with the office', $booking->driverCollectLine());
+    }
+
+    public function test_failsafe_a_cash_word_never_reads_as_collect_nothing(): void
+    {
+        // Any mention of "cash" with no readable amount must trigger a check,
+        // never "collect nothing".
+        $driver = User::factory()->driver()->create(['name' => 'Cash Word']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'payment_status' => 'paid',
+            'quoted_price' => 100,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Balance in cash to driver']])->save();
+
+        $this->assertStringNotContainsString('collect nothing', (string) $booking->driverCollectLine());
+        $this->assertTrue($booking->paymentNeedsChecking());
     }
 
     public function test_a_fully_prepaid_card_job_tells_the_driver_to_collect_nothing(): void
