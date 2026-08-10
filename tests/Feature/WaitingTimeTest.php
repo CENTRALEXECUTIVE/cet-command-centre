@@ -134,32 +134,36 @@ class WaitingTimeTest extends TestCase
         Carbon::setTestNow();
     }
 
-    public function test_the_driver_screen_shows_the_waiting_timer_when_arrived(): void
+    public function test_the_driver_never_sees_a_waiting_timer(): void
     {
+        // It's a background/office feature — the driver must NOT see a countdown
+        // or a "waiting time" label, so they don't chase the office about charging.
         Carbon::setTestNow('2026-08-11 09:20:00');
         $booking = $this->arrived(Carbon::parse('2026-08-11 09:00:00'));
 
         $this->get(route('driver.link', $booking->driverLinkToken()))
             ->assertOk()
-            ->assertSee('waiting-timer')
-            ->assertSee('Waiting at pickup')
-            ->assertSee('Turn on location')          // the prompt affordance
-            ->assertSee('First 15 minutes are free.');
+            ->assertDontSee('waiting-timer')
+            ->assertDontSee('Waiting at pickup')
+            ->assertDontSee('minutes are free');
 
         Carbon::setTestNow();
     }
 
-    public function test_the_waiting_timer_is_hidden_before_the_driver_arrives(): void
+    public function test_the_office_sees_the_waiting_minutes_on_the_booking_page(): void
     {
-        $driver = User::factory()->driver()->create();
-        $booking = Booking::factory()->create([
-            'driver_id' => $driver->id,
-            'status' => BookingStatus::EnRoute,
-        ]);
+        // The office-facing side: they can look up the waiting time when a driver
+        // mentions a customer kept them waiting.
+        Carbon::setTestNow('2026-08-11 09:30:00');
+        $admin = User::factory()->admin()->create();
+        // At the pickup since 09:00 → 30 min − 15 grace = 15 billable, live.
+        $booking = $this->arrived(Carbon::parse('2026-08-11 09:00:00'));
 
-        $this->get(route('driver.link', $booking->driverLinkToken()))
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
             ->assertOk()
-            ->assertDontSee('waiting-timer');
+            ->assertSee('15 min waiting');
+
+        Carbon::setTestNow();
     }
 
     public function test_waiting_time_is_frozen_when_the_passenger_boards(): void
