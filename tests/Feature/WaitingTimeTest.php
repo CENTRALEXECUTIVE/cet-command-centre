@@ -30,7 +30,7 @@ class WaitingTimeTest extends TestCase
      * @param  array|null  $pickup     geocoded pickup coords stored on the booking
      * @param  array|null  $pingCoord  where the driver's GPS puts them (null = no ping)
      */
-    private function arrived(Carbon $arrivedAt, ?array $pickup = self::PICKUP, ?array $pingCoord = self::PICKUP, ?Carbon $pingAt = null): Booking
+    private function arrived(Carbon $arrivedAt, ?array $pickup = self::PICKUP, ?array $pingCoord = self::PICKUP, ?Carbon $pingAt = null, ?float $accuracy = null): Booking
     {
         $driver = User::factory()->driver()->create(['name' => 'Wait Driver']);
         $booking = Booking::factory()->create([
@@ -51,6 +51,7 @@ class WaitingTimeTest extends TestCase
                 'driver_id' => $driver->id,
                 'latitude' => $pingCoord[0],
                 'longitude' => $pingCoord[1],
+                'accuracy' => $accuracy,
                 'captured_at' => $pingAt ?? $arrivedAt,
             ]);
         }
@@ -130,6 +131,41 @@ class WaitingTimeTest extends TestCase
 
         $this->assertEquals(Carbon::parse('2026-08-11 09:40:00'), $booking->waitingStartedAt());
         $this->assertSame(5, $booking->waitingBillableMinutes());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_a_small_gps_error_still_counts_as_at_the_pickup(): void
+    {
+        Carbon::setTestNow('2026-08-11 09:00:00');
+        // A fix ~250 m from the pickup — just outside the 200 m geofence — but
+        // the ping reports 150 m accuracy, so the tolerance covers it: a genuine
+        // arrival with a slightly-off GPS fix must still start the clock.
+        $nearby = [53.38335, -1.4701]; // ~250 m north of PICKUP
+        $booking = $this->arrived(
+            Carbon::parse('2026-08-11 08:30:00'),
+            pickup: self::PICKUP,
+            pingCoord: $nearby,
+            accuracy: 150.0,
+        );
+
+        $this->assertTrue($booking->waitingConfirmedAtPickup());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_a_gross_gps_mismatch_from_home_is_still_excluded(): void
+    {
+        Carbon::setTestNow('2026-08-11 09:00:00');
+        // Even a very optimistic accuracy can't drag a fix 4 km away into range.
+        $booking = $this->arrived(
+            Carbon::parse('2026-08-11 08:30:00'),
+            pickup: self::PICKUP,
+            pingCoord: self::HOME,
+            accuracy: 500.0,
+        );
+
+        $this->assertFalse($booking->waitingConfirmedAtPickup());
 
         Carbon::setTestNow();
     }

@@ -231,12 +231,17 @@ class Booking extends Model
         if ($pickup !== null) {
             foreach ($pings as $p) {
                 $m = \App\Support\Geo::haversineMeters((float) $p->latitude, (float) $p->longitude, $pickup[0], $pickup[1]);
-                if ($m <= self::WAITING_GEOFENCE_M) {
+                // Forgive a "little GPS error": widen the geofence by the ping's
+                // own reported accuracy (capped), so a genuine arrival with a
+                // slightly-off fix still counts — while a gross mismatch (tapped
+                // Arrived from home, miles away) is still excluded.
+                $tolerance = min((float) ($p->accuracy ?? 0), self::WAITING_GEOFENCE_M);
+                if ($m <= self::WAITING_GEOFENCE_M + $tolerance) {
                     return $p->captured_at;
                 }
             }
 
-            return null; // arrived, but never confirmed at the pickup
+            return null; // arrived, but never confirmed anywhere near the pickup
         }
 
         // No coords to check against — trust the tap only if location is live.

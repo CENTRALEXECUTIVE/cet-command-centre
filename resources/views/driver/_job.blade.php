@@ -341,20 +341,22 @@
 @verbatim
 <script>
     // Capture GPS at the moment of a one-tap status change so the audit trail
-    // records where the driver was. Submits with or without a fix.
+    // records where the driver was. The status change (Arrived, etc.) ALWAYS
+    // goes through — GPS is best-effort only and never blocks or holds it up.
     document.querySelectorAll('.status-form').forEach(function (form) {
         form.addEventListener('submit', function (e) {
             if (form.dataset.located || !navigator.geolocation) return;
             e.preventDefault();
+            var sent = false;
+            var go = function () { if (!sent) { sent = true; form.dataset.located = '1'; form.submit(); } };
+            // Hard fallback: submit no matter what after 4s, so a slow or stuck
+            // GPS can never leave the driver unable to tap Arrived.
+            setTimeout(go, 4000);
             navigator.geolocation.getCurrentPosition(function (pos) {
                 form.querySelector('.lat-input').value = pos.coords.latitude;
                 form.querySelector('.lng-input').value = pos.coords.longitude;
-                form.dataset.located = '1';
-                form.submit();
-            }, function () {
-                form.dataset.located = '1';
-                form.submit();
-            }, { enableHighAccuracy: true, timeout: 5000 });
+                go();
+            }, go, { enableHighAccuracy: true, timeout: 4000 });
         });
     });
 </script>
