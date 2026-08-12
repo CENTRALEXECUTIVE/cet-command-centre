@@ -51,6 +51,7 @@ class StoreBookingRequest extends FormRequest
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'special_requests' => ['nullable', 'string', 'max:1000'],
+            'driver_notes' => ['nullable', 'string', 'max:2000'],
 
             // Return leg (paired booking)
             'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],

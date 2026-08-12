@@ -148,6 +148,15 @@
     </div>
 @endif
 
+{{-- Notes from the office for the driver — extra info the customer gave.
+     Prominent so it isn't missed. --}}
+@if($booking->driverNotes())
+    <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
+        <div style="font-weight:800;font-size:15px">📝 Notes</div>
+        <p style="margin:6px 0 0;font-size:15px;white-space:pre-wrap">{{ $booking->driverNotes() }}</p>
+    </div>
+@endif
+
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also
      has a Copy button so the driver can paste into any nav app, and a small
      Google Maps fallback for drivers who don't use Waze. --}}
@@ -245,7 +254,8 @@
         @else
             <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
         @endif
-        @if($booking->special_requests)<tr><th>Notes</th><td>{{ $booking->special_requests }}</td></tr>@endif
+        @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
+        @if($booking->driverNotes())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
     </table>
 </div>
 

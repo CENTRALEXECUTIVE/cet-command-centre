@@ -109,6 +109,7 @@ class BookingService
                     'booster_seats' => (int) ($data['booster_seats'] ?? 0),
                     'infant_seats' => (int) ($data['infant_seats'] ?? 0),
                     'child_seat' => (int) ($data['child_seats'] ?? 0) + (int) ($data['booster_seats'] ?? 0) + (int) ($data['infant_seats'] ?? 0) > 0,
+                    'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
                 ]),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],
@@ -225,7 +226,11 @@ class BookingService
             'flight_number' => $data['flight_number'] ?? null,
             'passengers' => $data['passengers'],
             'luggage' => $luggage,
-            'meta' => array_filter(['suitcases' => $suitcases, 'hand_luggage' => $handLuggage]),
+            'meta' => array_filter([
+                'suitcases' => $suitcases,
+                'hand_luggage' => $handLuggage,
+                'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
+            ]),
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,
             // The quoted price is the TOTAL for the journey — keep it on the

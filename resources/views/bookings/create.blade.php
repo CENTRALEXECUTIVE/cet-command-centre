@@ -233,10 +233,15 @@
         <div class="eto-section collapsible closed" data-collapsible>
             <div class="head"><span class="ico">⚙️</span> Advanced <span class="grow"></span> <span class="chev">▾</span></div>
             <div class="body">
-                <div class="field" style="margin-bottom:0">
+                <div class="field">
                     <label for="special_requests">Special requests</label>
                     <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests') }}</textarea>
                     @error('special_requests') <div class="error">{{ $message }}</div> @enderror
+                </div>
+                <div class="field" style="margin-bottom:0">
+                    <label for="driver_notes">📝 Notes for the driver</label>
+                    <textarea id="driver_notes" name="driver_notes" placeholder="Extra info the customer gave — e.g. call on arrival, side entrance, luggage help needed…">{{ old('driver_notes') }}</textarea>
+                    @error('driver_notes') <div class="error">{{ $message }}</div> @enderror
                 </div>
             </div>
         </div>

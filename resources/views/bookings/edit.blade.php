@@ -148,9 +148,14 @@
                         <input id="infant_seats" type="number" name="infant_seats" min="0" max="8" value="{{ old('infant_seats', $booking->meta['infant_seats'] ?? 0) }}">
                     </div>
                 </div>
-                <div class="field" style="margin-bottom:0">
+                <div class="field">
                     <label for="special_requests">Special requests</label>
                     <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests', $booking->special_requests) }}</textarea>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                    <label for="driver_notes">📝 Notes for the driver</label>
+                    <textarea id="driver_notes" name="driver_notes" placeholder="Extra info the customer gave — e.g. call on arrival, side entrance, luggage help needed…">{{ old('driver_notes', $booking->driverNotes()) }}</textarea>
+                    <p class="hint" style="margin:4px 0 0">The driver sees this on their job screen. Use it for anything the customer told you that the driver should know.</p>
                 </div>
             </div>
         </div>

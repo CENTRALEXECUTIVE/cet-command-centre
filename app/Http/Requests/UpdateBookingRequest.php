@@ -49,6 +49,7 @@ class UpdateBookingRequest extends FormRequest
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
             'special_requests' => ['nullable', 'string', 'max:1000'],
+            'driver_notes' => ['nullable', 'string', 'max:2000'],
 
             // Commercials
             'payment_method' => ['required', Rule::in(PaymentMethod::values())],

@@ -1327,6 +1327,18 @@ class Booking extends Model
     }
 
     /**
+     * Free-form notes the office adds for the DRIVER (extra info the customer
+     * gave — "call on arrival", "side entrance", etc.). Stored in meta so an ETO
+     * re-import or calendar sync never wipes it. Shown on the driver's job screen.
+     */
+    public function driverNotes(): ?string
+    {
+        $notes = trim((string) ($this->meta['driver_notes'] ?? ''));
+
+        return $notes !== '' ? $notes : null;
+    }
+
+    /**
      * Payment line exactly as printed on the calendar, e.g. "Paid £350 (Stripe)",
      * or null so the booking's own structured payment fields are shown instead.
      */
