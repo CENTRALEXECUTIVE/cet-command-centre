@@ -1298,15 +1298,31 @@ class Booking extends Model
      */
     public function displayChildSeats(): ?string
     {
+        // FAILSAFE: the calendar's own office-verified line is authoritative and
+        // wins when present — e.g. "🚼 1 Child Seat". This stops a stale/wrong
+        // meta count (child_seats accidentally set to the passenger count, say)
+        // ever surfacing as "7 child seats". The calendar is the source of truth.
+        $cal = $this->calendarField('Child Seats / Booster Seats / Infant Seats');
+        if ($cal !== null) {
+            $clean = trim(preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]/u', '', $cal));
+            $clean = trim(preg_replace('/\s+/', ' ', $clean));
+            if ($clean === '' || preg_match('/^(none|n\/?a|no\b|nil|0\b)/i', $clean)) {
+                return null;
+            }
+
+            return $clean;
+        }
+
+        // No calendar line — use the structured counts, but never more seats than
+        // there are passengers (a hard sanity cap against corrupt data).
+        $cap = max(1, (int) ($this->passengers ?? 8));
         $parts = [];
         foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $metaKey => $word) {
-            // The booking's OWN count wins (it's what the office edits); fall back
-            // to the calendar text only when the booking doesn't carry a count.
             $n = $this->meta[$metaKey] ?? null;
             if ($n === null || $n === '') {
                 $n = $this->calendarField(ucwords(str_replace('_', ' ', $metaKey)));
             }
-            $n = (int) $n;
+            $n = min((int) $n, $cap);
             if ($n > 0) {
                 $parts[] = $n.' '.$word.' '.\Illuminate\Support\Str::plural('seat', $n);
             }

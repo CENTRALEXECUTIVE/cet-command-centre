@@ -111,6 +111,33 @@ class DriverJobOfferTest extends TestCase
             ->assertSee('£____');
     }
 
+    public function test_child_seats_use_the_calendar_not_a_wrong_meta_count(): void
+    {
+        // The reported bug: meta['child_seats'] was 7 (= passengers) but the
+        // calendar says "1 Child Seat". The offer must show 1, never 7.
+        $booking = $this->offerJob(['passengers' => 7, 'special_requests' => null]);
+        $booking->forceFill(['meta' => ['child_seats' => 7, 'payroll' => ['pay' => 130]]])->save();
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Passengers: 7\n• Child Seats / Booster Seats / Infant Seats: 🚼 1 Child Seat\n• Vehicle Type: Minibus",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $msg = $booking->fresh()->driverOfferMessage();
+        $this->assertStringContainsString('👶 1 Child Seat', $msg);
+        $this->assertStringNotContainsString('7 child seat', $msg);
+    }
+
+    public function test_child_seat_count_is_capped_at_the_passenger_count(): void
+    {
+        // A corrupt count with no calendar to check against is still capped so
+        // the driver never sees an impossible number.
+        $booking = Booking::factory()->create(['passengers' => 4]);
+        $booking->forceFill(['meta' => ['child_seats' => 99]])->save();
+
+        $this->assertSame('4 child seats', $booking->fresh()->displayChildSeats());
+    }
+
     public function test_setting_the_fare_from_the_offer_card_updates_the_message(): void
     {
         $admin = User::factory()->admin()->create();
