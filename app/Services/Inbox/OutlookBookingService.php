@@ -303,8 +303,10 @@ class OutlookBookingService
             $label = 'Transfer';
         }
 
-        $childSeats = (int) ($parsed['child_seats'] ?? 0);
-        $boosterSeats = (int) ($parsed['booster_seats'] ?? 0);
+        // GUARD: never more seats than passengers (impossible data).
+        $pax = max(1, (int) ($parsed['passengers'] ?? 1));
+        $childSeats = min((int) ($parsed['child_seats'] ?? 0), $pax);
+        $boosterSeats = min((int) ($parsed['booster_seats'] ?? 0), $pax);
 
         return array_filter([
             'journey_label' => $label,

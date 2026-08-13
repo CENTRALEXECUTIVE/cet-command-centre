@@ -1303,7 +1303,7 @@ class Booking extends Model
         // "🚼 1 Child Seat". Parsed FLEXIBLY (any label wording), so a
         // stale/wrong meta count (child_seats accidentally set to the passenger
         // count, say) can never surface as "7 child seats". Calendar = truth.
-        $cal = $this->childSeatsFromCalendar();
+        $cal = $this->calendarChildSeats();
         if ($cal !== null) {
             return ($cal === '' || preg_match('/^(none|n\/?a|no\b|nil|0)/i', $cal)) ? null : $cal;
         }
@@ -1333,7 +1333,7 @@ class Booking extends Model
      * "Child Seat:", etc.). Returns the cleaned value (e.g. "1 Child Seat", or
      * "None"), or null when the description has no seats line at all.
      */
-    private function childSeatsFromCalendar(): ?string
+    public function calendarChildSeats(): ?string
     {
         $desc = (string) ($this->calendarEvent?->description ?? '');
         if ($desc === '') {

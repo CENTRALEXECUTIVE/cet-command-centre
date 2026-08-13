@@ -105,10 +105,12 @@ class BookingService
                 'meta' => array_merge($booking->meta ?? [], [
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
-                    'child_seats' => (int) ($data['child_seats'] ?? 0),
-                    'booster_seats' => (int) ($data['booster_seats'] ?? 0),
-                    'infant_seats' => (int) ($data['infant_seats'] ?? 0),
-                    'child_seat' => (int) ($data['child_seats'] ?? 0) + (int) ($data['booster_seats'] ?? 0) + (int) ($data['infant_seats'] ?? 0) > 0,
+                    // GUARD: never store more of any seat type than there are
+                    // passengers — an impossible count can never be saved.
+                    'child_seats' => $childCap = min((int) ($data['child_seats'] ?? 0), $pax = max(1, (int) ($data['passengers'] ?? 1))),
+                    'booster_seats' => $boosterCap = min((int) ($data['booster_seats'] ?? 0), $pax),
+                    'infant_seats' => $infantCap = min((int) ($data['infant_seats'] ?? 0), $pax),
+                    'child_seat' => ($childCap + $boosterCap + $infantCap) > 0,
                     'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
                 ]),
                 'special_requests' => $data['special_requests'] ?? null,

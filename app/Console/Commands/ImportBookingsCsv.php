@@ -101,8 +101,9 @@ class ImportBookingsCsv extends Command
                 'payment_text' => $this->paymentText($get('Total'), $get('Payment Status'), $get('Payment Method')),
                 'money_emoji' => $this->moneyEmoji($notes, $payStatus, $payMethod, str_ends_with($ref, 'b')),
                 'child_seat' => $childSeat,
-                'child_seats' => (int) $get('Child Seats'),
-                'booster_seats' => (int) $get('Booster Seats'),
+                // GUARD: never more seats than passengers (impossible data).
+                'child_seats' => min((int) $get('Child Seats'), max(1, (int) ($get('Passengers') ?: 1))),
+                'booster_seats' => min((int) $get('Booster Seats'), max(1, (int) ($get('Passengers') ?: 1))),
                 'meet_and_greet' => $meetGreet,
                 'contact_no' => $phone,
                 'booker_name' => $booker,
