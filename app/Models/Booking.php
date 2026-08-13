@@ -1298,31 +1298,22 @@ class Booking extends Model
      */
     public function displayChildSeats(): ?string
     {
-        // FAILSAFE: the calendar's own office-verified line is authoritative and
-        // wins when present — e.g. "🚼 1 Child Seat". This stops a stale/wrong
-        // meta count (child_seats accidentally set to the passenger count, say)
-        // ever surfacing as "7 child seats". The calendar is the source of truth.
-        $cal = $this->calendarField('Child Seats / Booster Seats / Infant Seats');
+        // FAILSAFE #1: the calendar's own office-verified seats line is
+        // authoritative and wins whenever the booking has one — e.g.
+        // "🚼 1 Child Seat". Parsed FLEXIBLY (any label wording), so a
+        // stale/wrong meta count (child_seats accidentally set to the passenger
+        // count, say) can never surface as "7 child seats". Calendar = truth.
+        $cal = $this->childSeatsFromCalendar();
         if ($cal !== null) {
-            $clean = trim(preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]/u', '', $cal));
-            $clean = trim(preg_replace('/\s+/', ' ', $clean));
-            if ($clean === '' || preg_match('/^(none|n\/?a|no\b|nil|0\b)/i', $clean)) {
-                return null;
-            }
-
-            return $clean;
+            return ($cal === '' || preg_match('/^(none|n\/?a|no\b|nil|0)/i', $cal)) ? null : $cal;
         }
 
-        // No calendar line — use the structured counts, but never more seats than
-        // there are passengers (a hard sanity cap against corrupt data).
+        // No calendar seats line — use the structured counts, but FAILSAFE #2:
+        // never more seats than there are passengers (a hard cap on corrupt data).
         $cap = max(1, (int) ($this->passengers ?? 8));
         $parts = [];
         foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $metaKey => $word) {
-            $n = $this->meta[$metaKey] ?? null;
-            if ($n === null || $n === '') {
-                $n = $this->calendarField(ucwords(str_replace('_', ' ', $metaKey)));
-            }
-            $n = min((int) $n, $cap);
+            $n = min((int) ($this->meta[$metaKey] ?? 0), $cap);
             if ($n > 0) {
                 $parts[] = $n.' '.$word.' '.\Illuminate\Support\Str::plural('seat', $n);
             }
@@ -1334,6 +1325,28 @@ class Booking extends Model
         }
 
         return implode(' · ', $parts);
+    }
+
+    /**
+     * The child-seat text from the calendar description, parsed flexibly so any
+     * label wording works ("Child Seats / Booster Seats / Infant Seats:",
+     * "Child Seat:", etc.). Returns the cleaned value (e.g. "1 Child Seat", or
+     * "None"), or null when the description has no seats line at all.
+     */
+    private function childSeatsFromCalendar(): ?string
+    {
+        $desc = (string) ($this->calendarEvent?->description ?? '');
+        if ($desc === '') {
+            return null;
+        }
+        // Find a line that mentions child/booster/infant + "seat" then a colon,
+        // and capture the value after it — whatever the exact label reads.
+        if (! preg_match('/(?:child|booster|infant)[^\n:]*seats?[^\n:]*:\s*([^\n]+)/i', $desc, $m)) {
+            return null;
+        }
+        $val = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]/u', '', $m[1]);
+
+        return trim(preg_replace('/\s+/', ' ', $val));
     }
 
     /** Whether this job carries any child/booster/infant seat (for the 🚼 mark). */

@@ -128,6 +128,24 @@ class DriverJobOfferTest extends TestCase
         $this->assertStringNotContainsString('7 child seat', $msg);
     }
 
+    public function test_the_driver_link_shows_the_calendar_child_seats_not_bad_meta(): void
+    {
+        // End-to-end via the real driver link, with the exact calendar wording
+        // from the reported booking and a corrupt meta count.
+        $booking = $this->offerJob(['passengers' => 7, 'special_requests' => null]);
+        $booking->forceFill(['meta' => ['child_seats' => 7]])->save();
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "🚼 Booking Confirmation – Arrival\n• Passengers: 7\n• Child Seats / Booster Seats / Infant Seats: 🚼 1 Child Seat\n• Vehicle Type: Minibus",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('1 Child Seat')
+            ->assertDontSee('7 child seats');
+    }
+
     public function test_child_seat_count_is_capped_at_the_passenger_count(): void
     {
         // A corrupt count with no calendar to check against is still capped so
