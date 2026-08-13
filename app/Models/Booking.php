@@ -1309,11 +1309,18 @@ class Booking extends Model
         }
 
         // No calendar seats line — use the structured counts, but FAILSAFE #2:
-        // never more seats than there are passengers (a hard cap on corrupt data).
-        $cap = max(1, (int) ($this->passengers ?? 8));
+        // a count at or above the passenger total is the tell-tale sign of the
+        // "child_seats = passengers" corruption, so it is DROPPED (never shown);
+        // anything else is still capped at the passenger total. This means the
+        // driver can never see "7 child seats" even if the calendar can't be read.
+        $pax = max(1, (int) ($this->passengers ?? 8));
         $parts = [];
         foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $metaKey => $word) {
-            $n = min((int) ($this->meta[$metaKey] ?? 0), $cap);
+            $n = (int) ($this->meta[$metaKey] ?? 0);
+            if ($pax >= 3 && $n >= $pax) {
+                $n = 0; // corrupt "= passengers" value — drop it
+            }
+            $n = min($n, $pax);
             if ($n > 0) {
                 $parts[] = $n.' '.$word.' '.\Illuminate\Support\Str::plural('seat', $n);
             }

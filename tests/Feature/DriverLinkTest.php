@@ -84,13 +84,13 @@ class DriverLinkTest extends TestCase
 
     public function test_child_seat_count_is_faithful_and_correctable(): void
     {
-        // The booking's OWN count is authoritative and wins over a stale import.
+        // The booking's OWN count is authoritative (no calendar to defer to).
         $booking = Booking::factory()->create([
-            'status' => BookingStatus::Accepted, 'meta' => ['child_seats' => 1],
+            'status' => BookingStatus::Accepted, 'passengers' => 4, 'meta' => ['child_seats' => 1],
         ]);
         $this->assertSame('1 child seat', $booking->displayChildSeats());
 
-        // Corrected to a mix → proper singular/plural wording.
+        // Corrected to a mix → proper singular/plural wording (valid for 4 pax).
         $booking->forceFill(['meta' => ['child_seats' => 2, 'booster_seats' => 1]])->save();
         $this->assertSame('2 child seats · 1 booster seat', $booking->fresh()->displayChildSeats());
     }

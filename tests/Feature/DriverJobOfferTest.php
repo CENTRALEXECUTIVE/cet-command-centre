@@ -146,14 +146,20 @@ class DriverJobOfferTest extends TestCase
             ->assertDontSee('7 child seats');
     }
 
-    public function test_child_seat_count_is_capped_at_the_passenger_count(): void
+    public function test_a_corrupt_count_with_no_calendar_is_dropped_not_shown(): void
     {
-        // A corrupt count with no calendar to check against is still capped so
-        // the driver never sees an impossible number.
+        // A count at/above the passenger total with no calendar to verify is the
+        // corruption signature — it's dropped entirely so the driver never sees
+        // an impossible number.
         $booking = Booking::factory()->create(['passengers' => 4]);
         $booking->forceFill(['meta' => ['child_seats' => 99]])->save();
 
-        $this->assertSame('4 child seats', $booking->fresh()->displayChildSeats());
+        $this->assertNull($booking->fresh()->displayChildSeats());
+
+        // A sensible count with no calendar is still shown as-is.
+        $ok = Booking::factory()->create(['passengers' => 6]);
+        $ok->forceFill(['meta' => ['child_seats' => 2]])->save();
+        $this->assertSame('2 child seats', $ok->fresh()->displayChildSeats());
     }
 
     public function test_setting_the_fare_from_the_offer_card_updates_the_message(): void
