@@ -112,6 +112,11 @@ class BookingService
                     'infant_seats' => $infantCap = min((int) ($data['infant_seats'] ?? 0), $pax),
                     'child_seat' => ($childCap + $boosterCap + $infantCap) > 0,
                     'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
+                    // Mark the booking as manually edited so the operator's values
+                    // win over the calendar in the display (otherwise a booking
+                    // that came from the calendar shows the calendar value and the
+                    // edit looks like it did nothing).
+                    'manually_edited_at' => now()->toIso8601String(),
                 ]),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],

@@ -139,6 +139,13 @@ class BookingNotifier
                 .$this->whenPhrase($booking->pickup_at).' at *'.$this->timeLabel($booking->pickup_at).'*',
         ];
 
+        // Airport pick-ups: ask the customer to keep us posted — most importantly
+        // to text "LANDED" so we can send the driver in to meet them.
+        if ($air = $this->airportArrivalBlock($booking)) {
+            $lines[] = '';
+            $lines[] = $air;
+        }
+
         if ($block = $this->driverBlock($booking)) {
             $lines[] = '';
             $lines[] = $block;
@@ -174,6 +181,33 @@ class BookingNotifier
             $date->equalTo($today->copy()->addDay()) => 'tomorrow',
             default => $pickup->format('jS F'),
         };
+    }
+
+    /**
+     * Airport ARRIVAL instructions for the reminder — asks the customer to keep
+     * us updated, most importantly to text "LANDED" so we can send the driver in.
+     * Null for non-airport pick-ups.
+     */
+    private function airportArrivalBlock(Booking $booking): ?string
+    {
+        if (! $booking->isAirportPickup()) {
+            return null;
+        }
+
+        $flight = $booking->displayFlightNumber();
+        $lines = [
+            '✈️ *Please keep us updated*',
+            'When you land'.($flight ? ' on flight '.$flight : '').', please *text us "LANDED"* on this number so we can send your driver straight in to meet you.',
+            'Also let us know as soon as you can if your flight is *delayed* or the *flight number changes*.',
+        ];
+
+        if ($booking->displayMeetAndGreet()) {
+            $lines[] = 'Once you\'re through to arrivals, your driver will be waiting with a name board.';
+        } else {
+            $lines[] = 'We\'ll text you your driver\'s details and where to meet once you\'re on the ground.';
+        }
+
+        return implode("\n", $lines);
     }
 
     /**

@@ -1136,8 +1136,9 @@ class Booking extends Model
      */
     public function luggageBreakdown(): string
     {
-        // The calendar is the source of truth — mirror its Luggage line verbatim.
-        if ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage')) {
+        // The calendar is the source of truth — mirror its Luggage line verbatim,
+        // UNLESS the office has manually edited the booking (then its own counts win).
+        if (! $this->manuallyEdited() && ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage'))) {
             return $fromCalendar;
         }
 
@@ -1159,8 +1160,9 @@ class Booking extends Model
     /** Compact luggage for the bookings table, e.g. "2 case · 1 hand" or "—". */
     public function luggageShort(): string
     {
-        // Mirror the calendar's Luggage line when there's an event.
-        if ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage')) {
+        // Mirror the calendar's Luggage line when there's an event — unless the
+        // office has manually edited the booking (then its own counts win).
+        if (! $this->manuallyEdited() && ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage'))) {
             return $fromCalendar;
         }
 
@@ -1186,12 +1188,15 @@ class Booking extends Model
      */
     public function passengerCount(): ?int
     {
+        $own = $this->passengers !== null ? (int) $this->passengers : null;
+        $cal = null;
         $fromCalendar = $this->calendarEvent?->descriptionValue('Passengers');
         if ($fromCalendar !== null && preg_match('/\d+/', $fromCalendar, $m)) {
-            return (int) $m[0];
+            $cal = (int) $m[0];
         }
 
-        return $this->passengers !== null ? (int) $this->passengers : null;
+        // A manual edit wins over the calendar; otherwise the calendar wins.
+        return $this->manuallyEdited() ? ($own ?? $cal) : ($cal ?? $own);
     }
 
     /**
@@ -1205,37 +1210,63 @@ class Booking extends Model
         return $this->calendarEvent?->descriptionValue($label);
     }
 
-    /** Pickup address — the calendar's "Pickup Location" wins, else our own. */
+    /**
+     * Has the office manually edited this booking in the app? Set by
+     * BookingService::updateFromForm. When true the operator's edited values win
+     * over the calendar in the display accessors — otherwise the calendar (the
+     * source of truth for un-touched imports) wins. This is what makes an edit
+     * actually show: without it, a booking that came from the calendar always
+     * displayed the calendar value and the edit looked like it did nothing.
+     */
+    public function manuallyEdited(): bool
+    {
+        return ! empty($this->meta['manually_edited_at']);
+    }
+
+    /**
+     * Choose which source to display. Once the booking has been manually edited,
+     * the operator's own value wins (calendar fills a blank); otherwise the
+     * calendar wins (own value fills a blank). Empty strings count as blank.
+     */
+    private function editable(?string $calendar, ?string $own): ?string
+    {
+        $calendar = ($calendar !== null && trim($calendar) !== '') ? $calendar : null;
+        $own = ($own !== null && trim((string) $own) !== '') ? $own : null;
+
+        return $this->manuallyEdited() ? ($own ?? $calendar) : ($calendar ?? $own);
+    }
+
+    /** Pickup address — a manual edit wins, else the calendar, else our own. */
     public function displayPickupAddress(): ?string
     {
-        return $this->calendarField('Pickup Location') ?: $this->pickup_address;
+        return $this->editable($this->calendarField('Pickup Location'), $this->pickup_address);
     }
 
-    /** Drop-off address — the calendar's "Drop-off Location" wins, else our own. */
+    /** Drop-off address — a manual edit wins, else the calendar, else our own. */
     public function displayDropoffAddress(): ?string
     {
-        return $this->calendarField('Drop-off Location') ?: $this->destination_address;
+        return $this->editable($this->calendarField('Drop-off Location'), $this->destination_address);
     }
 
-    /** Flight number — the calendar's "Flight Number" wins, else our own. */
+    /** Flight number — a manual edit wins, else the calendar, else our own. */
     public function displayFlightNumber(): ?string
     {
-        $flight = $this->calendarField('Flight Number') ?: $this->flight_number;
+        $flight = $this->editable($this->calendarField('Flight Number'), $this->flight_number);
 
         // The builder prints "N/A" where there's no flight — treat that as none.
         return ($flight && strcasecmp(trim($flight), 'N/A') !== 0) ? $flight : null;
     }
 
-    /** Vehicle type name — the calendar's "Vehicle Type" wins, else our own. */
+    /** Vehicle type name — a manual edit wins, else the calendar, else our own. */
     public function displayVehicleType(): ?string
     {
-        return $this->calendarField('Vehicle Type') ?: $this->vehicleType?->name;
+        return $this->editable($this->calendarField('Vehicle Type'), $this->vehicleType?->name);
     }
 
-    /** Customer/lead name — the calendar's "Customer Name" wins, else our own. */
+    /** Customer/lead name — a manual edit wins, else the calendar, else our own. */
     public function displayCustomerName(): ?string
     {
-        return $this->calendarField('Customer Name') ?: $this->customer?->name;
+        return $this->editable($this->calendarField('Customer Name'), $this->customer?->name);
     }
 
     /** Contact number — the calendar's "Contact No" wins, else the customer's. */
@@ -1293,26 +1324,64 @@ class Booking extends Model
     }
 
     /**
+     * Is this an airport PICK-UP (an arrival) — i.e. the customer is being
+     * collected from an airport? Used to add the "text us LANDED" instructions to
+     * the booking reminder. Detected from the calendar's Arrival label, the
+     * pickup address mentioning an airport, or the linked airport code appearing
+     * in the pickup location.
+     */
+    public function isAirportPickup(): bool
+    {
+        if (str_contains(strtolower((string) ($this->meta['journey_label'] ?? '')), 'arrival')) {
+            return true;
+        }
+
+        $pickup = strtolower((string) $this->displayPickupAddress());
+        if ($pickup !== '' && str_contains($pickup, 'airport')) {
+            return true;
+        }
+
+        $code = strtolower((string) ($this->airport?->code ?? ''));
+        if ($code !== '' && $pickup !== ''
+            && (str_contains($pickup, '('.$code.')') || preg_match('/\b'.preg_quote($code, '/').'\b/', $pickup))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Child/booster/infant seats for the driver — the calendar's counts win,
      * else the booking's own meta. e.g. "4 child · 1 booster", or null when none.
      */
     public function displayChildSeats(): ?string
     {
-        // FAILSAFE #1: the calendar's own office-verified seats line is
-        // authoritative and wins whenever the booking has one — e.g.
-        // "🚼 1 Child Seat". Parsed FLEXIBLY (any label wording), so a
-        // stale/wrong meta count (child_seats accidentally set to the passenger
-        // count, say) can never surface as "7 child seats". Calendar = truth.
         $cal = $this->calendarChildSeats();
-        if ($cal !== null) {
-            return ($cal === '' || preg_match('/^(none|n\/?a|no\b|nil|0)/i', $cal)) ? null : $cal;
+        $calResult = $cal === null
+            ? null
+            : (($cal === '' || preg_match('/^(none|n\/?a|no\b|nil|0)/i', $cal)) ? null : $cal);
+
+        // A manual edit wins: use the office's own counts, falling back to the
+        // calendar. Otherwise the calendar's office-verified line is authoritative
+        // whenever present (FAILSAFE #1 — a stale/wrong meta count can never
+        // surface as "7 child seats"), falling back to the counts only when the
+        // calendar has no seats line at all.
+        if ($this->manuallyEdited()) {
+            return $this->childSeatsFromMeta() ?? $calResult;
         }
 
-        // No calendar seats line — use the structured counts, but FAILSAFE #2:
-        // a count at or above the passenger total is the tell-tale sign of the
-        // "child_seats = passengers" corruption, so it is DROPPED (never shown);
-        // anything else is still capped at the passenger total. This means the
-        // driver can never see "7 child seats" even if the calendar can't be read.
+        return $cal !== null ? $calResult : $this->childSeatsFromMeta();
+    }
+
+    /**
+     * Child-seat text from the structured meta counts. FAILSAFE #2: a count at
+     * or above the passenger total is the tell-tale sign of the
+     * "child_seats = passengers" corruption, so it is DROPPED (never shown);
+     * anything else is capped at the passenger total. So the driver can never see
+     * "7 child seats" even if the calendar can't be read.
+     */
+    private function childSeatsFromMeta(): ?string
+    {
         $pax = max(1, (int) ($this->passengers ?? 8));
         $parts = [];
         foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $metaKey => $word) {
@@ -1327,7 +1396,6 @@ class Booking extends Model
         }
 
         if ($parts === []) {
-            // Only a yes/no flag with no count → assume a single seat.
             return (bool) ($this->meta['child_seat'] ?? false) ? '1 child seat' : null;
         }
 
