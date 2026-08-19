@@ -116,15 +116,14 @@ class EditVisibilityAndAirportReminderTest extends TestCase
             ->assertDontSee('22 Broad Elms Lane, Sheffield');
     }
 
-    public function test_airport_pickup_reminder_asks_the_customer_to_text_landed(): void
+    public function test_airport_pickup_reminder_asks_the_customer_to_message_when_landed(): void
     {
         $booking = $this->calendarBooking(['flight_number' => 'EZY2104']);
 
         $body = app(BookingNotifier::class)->reminderBody($booking->fresh());
 
-        $this->assertStringContainsString('LANDED', $body);
-        $this->assertStringContainsString('EZY2104', $body);
-        $this->assertStringContainsString('delayed', $body);
+        $this->assertStringContainsString('landed', $body);
+        $this->assertStringContainsString('drop us a message', $body);
     }
 
     public function test_a_non_airport_pickup_has_no_landed_instructions(): void
@@ -137,6 +136,6 @@ class EditVisibilityAndAirportReminderTest extends TestCase
 
         $body = app(BookingNotifier::class)->reminderBody($booking->fresh());
 
-        $this->assertStringNotContainsString('LANDED', $body);
+        $this->assertStringNotContainsString('landed', $body);
     }
 }

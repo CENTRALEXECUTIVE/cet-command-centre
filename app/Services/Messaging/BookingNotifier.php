@@ -194,20 +194,7 @@ class BookingNotifier
             return null;
         }
 
-        $flight = $booking->displayFlightNumber();
-        $lines = [
-            '✈️ *Please keep us updated*',
-            'When you land'.($flight ? ' on flight '.$flight : '').', please *text us "LANDED"* on this number so we can send your driver straight in to meet you.',
-            'Also let us know as soon as you can if your flight is *delayed* or the *flight number changes*.',
-        ];
-
-        if ($booking->displayMeetAndGreet()) {
-            $lines[] = 'Once you\'re through to arrivals, your driver will be waiting with a name board.';
-        } else {
-            $lines[] = 'We\'ll text you your driver\'s details and where to meet once you\'re on the ground.';
-        }
-
-        return implode("\n", $lines);
+        return '✈️ Please drop us a message when you\'ve *landed* so we can get your driver to you.';
     }
 
     /**
