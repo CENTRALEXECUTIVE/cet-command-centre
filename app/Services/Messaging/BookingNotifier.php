@@ -194,7 +194,7 @@ class BookingNotifier
             return null;
         }
 
-        return '✈️ Please drop us a message when you\'ve *landed* so we can get your driver to you.';
+        return '✈️ Please drop us a message once you\'ve landed so we can arrange for your driver to meet you.';
     }
 
     /**
