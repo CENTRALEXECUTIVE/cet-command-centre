@@ -157,7 +157,7 @@ class DashboardController extends Controller
                 'pickup' => $m->booking->pickup_at,
                 'due' => $m->scheduled_for,
                 'is_due' => $m->scheduled_for->lte(now()),
-                'url' => route('bookings.show', $m->booking),
+                'url' => route('bookings.show', $m->booking).'#reminders',
             ])
             ->values()
             ->all();
@@ -199,7 +199,7 @@ class DashboardController extends Controller
                 'pickup' => $m->booking->pickup_at,
                 'due' => $m->scheduled_for,
                 'is_due' => $m->scheduled_for->lte(now()),
-                'url' => route('bookings.show', $m->booking),
+                'url' => route('bookings.show', $m->booking).'#reminders',
             ])
             ->values()
             ->all();

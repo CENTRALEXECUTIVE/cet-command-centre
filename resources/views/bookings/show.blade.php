@@ -764,7 +764,7 @@
             $chan = ['whatsapp' => '🟢 WhatsApp', 'sms' => '💬 SMS', 'email' => '✉️ Email'];
             $mstatus = ['sent' => 'complete', 'queued' => 'pending', 'failed' => 'cancelled'];
         @endphp
-        <div class="card">
+        <div id="comms" class="card" style="scroll-margin-top:16px">
             <h2>Customer Comms</h2>
             <p class="hint" style="margin-top:-8px">The button opens WhatsApp with the number <em>and</em> message ready — hit send, then mark it done. <strong>Send from WhatsApp Business</strong> (use a device signed into the business number, so it goes from the right account).</p>
 
@@ -783,6 +783,13 @@
                 $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
             @endphp
 
+            {{-- Numbers & masking collapsed by default to keep the page clean —
+                 the masked customer line still shows in the summary at a glance. --}}
+            <details style="border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+                <summary style="cursor:pointer;font-weight:700;font-size:14px">🔒 Contact numbers &amp; masking
+                    @if($maskedForCustomer)<span class="muted" style="font-weight:400">— give the customer <span class="mono">{{ $maskedForCustomer }}</span></span>@endif
+                </summary>
+                <div style="margin-top:12px">
             <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔒 Real numbers — office{{ $realNumbers ? '' : ' only, never given out' }}</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                 <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
@@ -869,6 +876,8 @@
                 </form>
                 <p class="hint" style="margin:-4px 0 12px">The masked number is on the driver's job screen from allocation. A call or text <strong>before</strong> the connect time plays a Central Executive Transfers message instead of connecting. <strong>Marking the job Complete closes the line straight away</strong> — the backstop only kicks in if a job is never marked complete.</p>
             @endif
+                </div>
+            </details>
 
             @php
                 $md = $booking->meta['driver_details'] ?? null;
@@ -902,6 +911,7 @@
                 </form>
             </details>
 
+            <div id="reminders" style="scroll-margin-top:16px"></div>
             @forelse($messages as $m)
                 <div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,.12)">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
