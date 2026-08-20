@@ -97,6 +97,40 @@ class User extends Authenticatable
         return $this->hasOne(DriverProfile::class);
     }
 
+    /**
+     * The driver's "known as" nickname — how the OFFICE refers to them (e.g.
+     * "Hamza E Class"), or null. NEVER used in customer-facing messages.
+     */
+    public function nickname(): ?string
+    {
+        $nick = trim((string) ($this->driverProfile?->nickname ?? ''));
+
+        return $nick !== '' ? $nick : null;
+    }
+
+    /**
+     * The internal label for the office — the nickname when set, else the real
+     * name. Use this on Command Centre screens so staff recognise who it is;
+     * reminders and anything sent to a customer must use ->name (the real name).
+     */
+    public function knownAs(): string
+    {
+        return $this->nickname() ?? $this->name;
+    }
+
+    /**
+     * Real name with the nickname in brackets when they differ — for admin
+     * screens where showing both is clearest, e.g. "Hamza Ali (E Class)".
+     */
+    public function nameWithNickname(): string
+    {
+        $nick = $this->nickname();
+
+        return ($nick !== null && strcasecmp($nick, $this->name) !== 0)
+            ? $this->name.' ('.$nick.')'
+            : $this->name;
+    }
+
     public function driverDocuments(): HasMany
     {
         return $this->hasMany(DriverDocument::class);

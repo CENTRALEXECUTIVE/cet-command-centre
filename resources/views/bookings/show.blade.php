@@ -23,7 +23,7 @@
         <div class="bh-chips">
             @if($booking->airport)<span class="bh-chip">✈ {{ $booking->airport->code }}</span>@endif
             @if($booking->displayVehicleType())<span class="bh-chip">🚘 {{ $booking->displayVehicleType() }}</span>@endif
-            <span class="bh-chip">👤 {{ $booking->driver?->name ?? ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}</span>
+            <span class="bh-chip">👤 {{ $booking->driver ? $booking->driver->nameWithNickname() : ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}</span>
             <span class="bh-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
             @if($booking->displayPayment())
                 <span class="bh-chip {{ str_contains(strtolower($booking->displayPayment()), 'paid') ? 'ok' : '' }}">💳 {{ $booking->displayPayment() }}</span>
@@ -210,7 +210,7 @@
                         <option value="">Choose a driver…</option>
                         @foreach($allocatableDrivers as $d)
                             @php $reg = $d->driverProfile?->defaultVehicle?->registration; @endphp
-                            <option value="{{ $d->id }}" @selected($booking->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}@if($reg) ({{ $reg }})@endif</option>
+                            <option value="{{ $d->id }}" @selected($booking->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}{{ $d->nickname() ? ' · '.$d->nickname() : '' }}@if($reg) ({{ $reg }})@endif</option>
                         @endforeach
                     </select>
                     <button class="btn btn-primary" style="padding:8px 16px">{{ $booking->driver_id ? 'Reassign' : 'Assign' }}</button>

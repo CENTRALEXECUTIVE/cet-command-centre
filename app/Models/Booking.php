@@ -2096,6 +2096,52 @@ class Booking extends Model
         return static::driverNameMap()[$key] ?? null;
     }
 
+    /**
+     * Resolve a calendar driver tag / callsign / name onto the actual system
+     * driver (User), or null when it doesn't clearly map to one (e.g. "COVER").
+     */
+    public static function resolveDriverUser(string $name): ?User
+    {
+        $full = static::resolveDriverFullName($name);
+        if ($full === null) {
+            return null;
+        }
+        $target = mb_strtolower(trim($full));
+
+        return User::whereHas('driverProfile')->get()
+            ->first(fn (User $u) => mb_strtolower(trim($u->name)) === $target);
+    }
+
+    /**
+     * If the calendar named a driver (the title tag, stored in meta['driver_tag'])
+     * and this booking has no driver yet, assign that driver here — matching the
+     * calendar WITHOUT touching it. Returns true if a driver was assigned. Does
+     * NOT open masking or push (those are for the manual allocate flow) — it just
+     * mirrors who the calendar already shows.
+     */
+    public function autoAssignDriverFromCalendarTag(): bool
+    {
+        if (filled($this->driver_id)) {
+            return false; // never override an existing assignment
+        }
+        $tag = trim((string) ($this->meta['driver_tag'] ?? ''));
+        if ($tag === '') {
+            return false;
+        }
+        $driver = static::resolveDriverUser($tag);
+        if (! $driver) {
+            return false;
+        }
+
+        $attrs = ['driver_id' => $driver->id];
+        if ($this->status === BookingStatus::Pending) {
+            $attrs['status'] = BookingStatus::Allocated->value;
+        }
+        $this->forceFill($attrs)->save();
+
+        return true;
+    }
+
     /** The {alias → full name} lookup, memoised per request. */
     public static function driverNameMap(): array
     {

@@ -57,7 +57,7 @@
                 <tbody>
                     @foreach($users as $u)
                         <tr style="{{ $u->is_active ? '' : 'opacity:.5' }}">
-                            <td>{{ $u->name }}</td>
+                            <td>{{ $u->name }}@if($u->nickname())<span class="muted" style="font-size:12px"> · {{ $u->nickname() }}</span>@endif</td>
                             <td class="muted" style="font-size:13px">{{ $u->email }}</td>
                             <td>
                                 @if($u->is_super_admin)<span class="badge" style="background:#0b0b0b;color:#FBBA2A">Super admin</span>

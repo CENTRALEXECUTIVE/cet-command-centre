@@ -175,7 +175,11 @@ class CalendarJobImporter
                 'synced_at' => now(),
             ]);
 
-            return $booking;
+            // If the calendar names a driver in the title, assign them here
+            // (matching the calendar — never changing it).
+            $booking->autoAssignDriverFromCalendarTag();
+
+            return $booking->refresh();
         });
     }
 

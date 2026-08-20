@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\DriverProfile;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,7 @@ class UserController extends Controller
             'email_verified_at' => now(),
         ]);
         $this->forcePasswordChange($user); // set their own on first sign-in
+        $this->syncNickname($user, $data['nickname'] ?? null);
 
         return redirect()->route('users.index')
             ->with('new_credentials', $this->credentialCard($user, $password));
@@ -91,6 +93,7 @@ class UserController extends Controller
             $user->password = $data['password'];
         }
         $user->save();
+        $this->syncNickname($user, $data['nickname'] ?? null);
 
         // An admin resetting SOMEONE ELSE'S password → they must pick their own
         // on next sign-in. Resetting your own password doesn't force a change.
@@ -164,6 +167,7 @@ class UserController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'nickname' => ['nullable', 'string', 'max:60'],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user?->id)],
             'phone' => ['nullable', 'string', 'max:32'],
             'password' => [$user ? 'nullable' : 'nullable', 'string', 'min:8', 'max:72'],
@@ -171,6 +175,24 @@ class UserController extends Controller
             'is_super_admin' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
+    }
+
+    /**
+     * Save the driver's "known as" nickname on their driver profile. Only drivers
+     * (and admins who also drive) carry one; an empty value clears it.
+     */
+    private function syncNickname(User $user, ?string $nickname): void
+    {
+        $nickname = trim((string) $nickname) ?: null;
+        if (! $user->isDriver() && ! $user->isAdmin()) {
+            return; // corporate clients don't have a driver nickname
+        }
+        $profile = DriverProfile::firstOrNew(['user_id' => $user->id]);
+        if (! $profile->exists && $nickname === null) {
+            return; // nothing to store and no profile to touch
+        }
+        $profile->nickname = $nickname;
+        $profile->save();
     }
 
     /** Only a super admin may create/manage admin or super-admin accounts. */

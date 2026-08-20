@@ -158,20 +158,45 @@ class DriverRosterService
     private function findExistingDriver(string $name): ?User
     {
         $lower = Str::lower(trim($name));
+        if ($lower === '') {
+            return null;
+        }
 
         // Any real account with a driver profile — INCLUDING admin/directors who
         // also drive (Abdi, Majid) — so the roster attaches to them, not a clone.
-        return User::where('email', 'not like', '%@cet-drivers.local')
+        $candidates = User::where('email', 'not like', '%@cet-drivers.local')
             ->whereHas('driverProfile')
             ->with('driverProfile')
-            ->get()
-            ->first(function (User $u) use ($lower) {
-                $local = Str::lower(Str::before((string) $u->email, '@'));
-                $callsign = Str::lower((string) ($u->driverProfile?->callsign ?? ''));
-                $first = Str::lower(Str::before((string) $u->name, ' '));
+            ->get();
 
-                return $local === $lower || $callsign === $lower || $first === $lower;
-            });
+        // 1) An UNAMBIGUOUS match: the full name, the callsign, or the login
+        //    local-part matches exactly. This is definitely the same person.
+        $exact = $candidates->first(function (User $u) use ($lower) {
+            $local = Str::lower(Str::before((string) $u->email, '@'));
+            $callsign = Str::lower(trim((string) ($u->driverProfile?->callsign ?? '')));
+
+            return Str::lower(trim((string) $u->name)) === $lower
+                || ($callsign !== '' && $callsign === $lower)
+                || (ctype_alpha($local) && $local === $lower);
+        });
+        if ($exact) {
+            return $exact;
+        }
+
+        // 2) First-name-only match is allowed ONLY when the incoming name is a
+        //    single word (no surname to tell people apart) AND exactly one driver
+        //    has that first name. So "Hamza" attaches to the sole Hamza, but
+        //    "Hamza Ali" and "Hamza Khan" stay as two different people.
+        if (! str_contains($lower, ' ')) {
+            $byFirst = $candidates->filter(
+                fn (User $u) => Str::lower(Str::before(trim((string) $u->name), ' ')) === $lower
+            );
+            if ($byFirst->count() === 1) {
+                return $byFirst->first();
+            }
+        }
+
+        return null;
     }
 
     /** "Black Mercedes V Class" → [colour, make, model]. */

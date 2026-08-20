@@ -20,7 +20,11 @@
             <div class="head"><span class="ico">👤</span> Account</div>
             <div class="body">
                 <div class="grid grid-2">
-                    <div class="field"><label for="name">Full name <span class="req">*</span></label><input id="name" name="name" value="{{ old('name', $user->name) }}" required></div>
+                    <div class="field"><label for="name">Full name <span class="req">*</span></label><input id="name" name="name" value="{{ old('name', $user->name) }}" required>
+                        <span class="hint">Their real name — used on booking reminders and anything the customer sees.</span></div>
+                    <div class="field"><label for="nickname">Known as <span class="muted">(office only)</span></label>
+                        <input id="nickname" name="nickname" value="{{ old('nickname', $user->nickname()) }}" placeholder="e.g. Hamza E Class">
+                        <span class="hint">How you refer to them on the Command Centre so you know who it is. Never shown to customers.</span></div>
                     <div class="field"><label for="email">Email (login) <span class="req">*</span></label><input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
                     <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" value="{{ old('phone', $user->phone) }}" placeholder="07…"></div>
                     <div class="field"><label for="password">{{ $user->exists ? 'Reset password' : 'Password' }}</label>
