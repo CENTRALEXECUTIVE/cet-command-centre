@@ -548,6 +548,23 @@ class PayrollTest extends TestCase
         $this->assertStringContainsString('check the amount with the office', $booking->driverCollectLine());
     }
 
+    public function test_a_deposit_plus_cash_due_covering_both_legs_collects_the_cash(): void
+    {
+        // The exact reported line: "Deposit £20 Paid – £210 Cash Due (covers both
+        // legs)". The driver must collect £210, never "collect nothing".
+        $driver = User::factory()->driver()->create(['name' => 'Both Legs']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'payment_status' => 'paid',
+            'quoted_price' => 230, 'final_price' => 230,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £20 Paid – £210 Cash Due (covers both legs)']])->save();
+
+        $this->assertSame(210.0, $booking->cashDueToDriver());
+        $this->assertSame('£210 to collect (cash)', $booking->driverCollectLine());
+    }
+
     public function test_failsafe_a_cash_word_never_reads_as_collect_nothing(): void
     {
         // Any mention of "cash" with no readable amount must trigger a check,
