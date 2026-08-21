@@ -156,6 +156,15 @@ class BookingController extends Controller
             $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
             match ($filter) {
                 'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
+                // Jobs a driver is out on RIGHT NOW (set off → not yet completed),
+                // matching the dashboard's "Active now" count — recency-guarded so
+                // a job stuck in a driving status days ago can't show. Not tied to
+                // today's date, so a late-night job that crossed midnight still shows.
+                'active' => $query->whereIn('status', [
+                    BookingStatus::EnRoute->value,
+                    BookingStatus::Arrived->value,
+                    BookingStatus::Collected->value,
+                ])->where('pickup_at', '>=', now()->subHours(12))->orderBy('pickup_at'),
                 // Bookings that CAME IN today (created today), for the dashboard
                 // tile — listed in pickup-date order so the day headers read top-down.
                 'booked-today' => $query->whereDate('created_at', today())->orderBy('pickup_at'),

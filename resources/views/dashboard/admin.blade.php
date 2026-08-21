@@ -34,7 +34,7 @@
             <div class="kpi-n" data-countup="{{ $pendingCount }}">{{ $pendingCount }}</div>
             <div class="kpi-l">Awaiting allocation</div>
         </a>
-        <a class="kpi {{ $activeCount > 0 ? 'ok' : '' }}" href="{{ route('despatch.board') }}">
+        <a class="kpi {{ $activeCount > 0 ? 'ok' : '' }}" href="{{ route('bookings.index', ['filter' => 'active']) }}">
             <div class="kpi-ico">🚗</div>
             <div class="kpi-n" data-countup="{{ $activeCount }}">{{ $activeCount }}</div>
             <div class="kpi-l">Active now</div>
