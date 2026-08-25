@@ -96,6 +96,28 @@ class DriverLinkTest extends TestCase
         $this->assertSame('2 child seats · 1 booster seat', $booking->fresh()->displayChildSeats());
     }
 
+    public function test_calendar_child_seats_never_show_a_stray_markdown_asterisk(): void
+    {
+        // The calendar wraps labels in markdown bold: "• *Child Seats:* 3". The
+        // closing "*" must NOT leak into the value — the driver must see "3",
+        // never "* 3" (the "🚼 * 3" chip bug).
+        $booking = Booking::factory()->create(['status' => BookingStatus::Accepted, 'passengers' => 3]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Child Seats:* 3\n• *Vehicle:* Minibus 8 Seater",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        $this->assertSame('3', $booking->calendarChildSeats());
+        $this->assertSame('3', $booking->displayChildSeats());
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('🚼 3')
+            ->assertDontSee('* 3');
+    }
+
     public function test_bad_and_finished_links_show_a_branded_message_not_a_crash(): void
     {
         // Unknown token → a tidy "not active" page, never a raw 404 or crash.

@@ -1415,13 +1415,20 @@ class Booking extends Model
             return null;
         }
         // Find a line that mentions child/booster/infant + "seat" then a colon,
-        // and capture the value after it — whatever the exact label reads.
-        if (! preg_match('/(?:child|booster|infant)[^\n:]*seats?[^\n:]*:\s*([^\n]+)/i', $desc, $m)) {
+        // and capture the value after it — whatever the exact label reads. The
+        // `\*?` after the colon consumes the calendar's closing markdown-bold
+        // asterisk ("• *Child Seats:* 3"), exactly as descriptionValue() does —
+        // without it the value captured as "* 3" and the driver saw "🚼 * 3".
+        if (! preg_match('/(?:child|booster|infant)[^\n:]*seats?[^\n:]*:\*?\s*([^\n]+)/i', $desc, $m)) {
             return null;
         }
         $val = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]/u', '', $m[1]);
+        $val = trim(preg_replace('/\s+/', ' ', $val));
+        // Backstop: strip any stray markdown-bold asterisks the label wraps in,
+        // so a value can never render with a leading/trailing "*".
+        $val = trim($val, " *");
 
-        return trim(preg_replace('/\s+/', ' ', $val));
+        return $val !== '' ? $val : null;
     }
 
     /** Whether this job carries any child/booster/infant seat (for the 🚼 mark). */
