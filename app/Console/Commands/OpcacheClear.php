@@ -47,14 +47,20 @@ class OpcacheClear extends Command
             $res = Http::timeout(10)->withoutVerifying()->get($url);
             if ($res->successful() && $res->json('opcache_reset') === true) {
                 $this->info('Web OPcache reset OK.');
-            } else {
-                $this->warn('OPcache reset call to '.$url.' returned HTTP '.$res->status()
-                    .'. Check APP_URL, or use your host\'s "Restart PHP" control.');
+
+                return self::SUCCESS;
             }
+            $this->warn('OPcache reset call returned HTTP '.$res->status().'.');
         } catch (\Throwable $e) {
-            $this->warn('Could not reach '.$url.' to reset the web OPcache ('.$e->getMessage()
-                .'). Use your host\'s "Restart PHP" control instead.');
+            $this->warn('Could not reach the site to reset the web OPcache ('.$e->getMessage().').');
         }
+
+        // The CLI couldn't reach the web SAPI. Give a manual fallback: opening
+        // this URL in a browser resets the web OPcache directly.
+        $this->newLine();
+        $this->line('  To clear it manually, open this once in your browser:');
+        $this->line('  '.$url);
+        $this->line('  (or use your host\'s "Restart PHP" control.)');
 
         return self::SUCCESS;
     }
