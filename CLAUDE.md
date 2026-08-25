@@ -92,6 +92,17 @@ There were no server backups. This must never happen again.
 - Migrations that would pollute test runs are guarded with
   `if (app()->environment('testing')) return;`. `phpunit.xml` pins
   `APP_TIMEZONE=UTC` for deterministic time tests.
+- **Stale-code / OPcache (the "sometimes right, sometimes wrong" bug):** the
+  #1 cause of "I fixed it but the driver still sees the old value" is NOT the
+  code — it's LiteSpeed/lsphp workers serving OLD compiled bytecode from
+  OPcache after a `git reset --hard` deploy. Because each worker has its own
+  cache, some requests run new code and some run old, so the same link flips
+  between correct and wrong. This is handled durably by **`public/.user.ini`**
+  (`opcache.validate_timestamps=1`, `revalidate_freq=0`) so every worker
+  re-checks files each request; `php artisan cet:opcache-clear` also hammers the
+  reset endpoint across the whole pool. If a fix "isn't showing," suspect the
+  deploy/OPcache BEFORE touching the logic — verify the code with `php artisan
+  tinker` first. `bin/deploy.sh` / `bin/auto-deploy.sh` restart PHP too.
 
 ## Non-negotiable rules (safety)
 

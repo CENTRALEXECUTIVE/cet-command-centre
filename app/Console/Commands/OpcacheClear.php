@@ -43,17 +43,33 @@ class OpcacheClear extends Command
         $token = hash_hmac('sha256', 'opcache-reset', $key);
         $url = rtrim((string) config('app.url'), '/').'/__cet/opcache/'.$token;
 
-        try {
-            $res = Http::timeout(10)->withoutVerifying()->get($url);
-            if ($res->successful() && $res->json('opcache_reset') === true) {
-                $this->info('Web OPcache reset OK.');
-
-                return self::SUCCESS;
+        // Each lsphp worker can hold its OWN OPcache, so a single reset call only
+        // clears the one worker that happens to answer it — leaving others still
+        // serving stale bytecode (the "sometimes right, sometimes wrong" driver
+        // link). Hit the endpoint many times so the reset lands on every worker
+        // in the pool; `.user.ini` (revalidate on every request) then keeps them
+        // fresh so future deploys don't need this at all.
+        $ok = 0;
+        $failed = 0;
+        for ($i = 0; $i < 40; $i++) {
+            try {
+                $res = Http::timeout(10)->connectTimeout(5)->withoutVerifying()->get($url);
+                if ($res->successful() && $res->json('opcache_reset') === true) {
+                    $ok++;
+                } else {
+                    $failed++;
+                }
+            } catch (\Throwable $e) {
+                $failed++;
             }
-            $this->warn('OPcache reset call returned HTTP '.$res->status().'.');
-        } catch (\Throwable $e) {
-            $this->warn('Could not reach the site to reset the web OPcache ('.$e->getMessage().').');
         }
+
+        if ($ok > 0) {
+            $this->info("Web OPcache reset OK ({$ok} worker hits).");
+
+            return self::SUCCESS;
+        }
+        $this->warn('OPcache reset could not be confirmed ('.$failed.' attempts failed).');
 
         // The CLI couldn't reach the web SAPI. Give a manual fallback: opening
         // this URL in a browser resets the web OPcache directly.
