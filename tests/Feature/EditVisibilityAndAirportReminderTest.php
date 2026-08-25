@@ -138,6 +138,51 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame(3, $booking->passengerCount());
     }
 
+    public function test_editing_one_field_leaves_every_other_field_matching_the_calendar(): void
+    {
+        // The calendar carries passengers 7, a Minibus, and 2+2 luggage. The
+        // office edits ONLY the drop-off. Every OTHER field must keep mirroring
+        // the calendar — not fall back to a stored default/blank.
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'pickup_address' => 'Manchester Airport M90 1QX',
+            'destination_address' => '22 Broad Elms Lane, Sheffield',
+            'passengers' => 1, 'luggage' => 0,
+            'meta' => ['suitcases' => 0, 'hand_luggage' => 0],
+        ]);
+        $vt = VehicleType::where('name', 'V Class')->first(); // capacity 7, exact name
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Customer Name: Claire\n• Passengers: 7\n"
+                ."• Luggage: 2 Suitcases and 2 Hand Luggage\n"
+                ."• Pickup Location: Manchester Airport M90 1QX\n"
+                ."• Drop-off Location: 22 Broad Elms Lane, Sheffield\n• Vehicle Type: V Class",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking->fresh()), [
+            'customer_name' => 'Claire', 'customer_phone' => '07700900000',
+            'vehicle_type_id' => $vt->id,
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'pickup_address' => 'Manchester Airport M90 1QX',
+            'destination_address' => '99 Edited Street, Rotherham', // the ONLY change
+            'passengers' => 7,                 // resubmitted same as calendar
+            'suitcases' => 2, 'hand_luggage' => 2, // resubmitted same as calendar
+            'payment_method' => 'cash', 'journey_type' => 'one_way',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $booking = $booking->fresh();
+        // The edited field wins…
+        $this->assertSame('99 Edited Street, Rotherham', $booking->displayDropoffAddress());
+        // …and every untouched field still matches the calendar.
+        $this->assertSame(7, $booking->passengerCount());
+        $this->assertSame('2 Suitcases and 2 Hand Luggage', $booking->luggageShort());
+        $this->assertSame('Manchester Airport M90 1QX', $booking->displayPickupAddress());
+        // Only the drop-off is recorded as edited.
+        $this->assertSame(['destination_address'], $booking->meta['edited_fields']);
+    }
+
     public function test_an_edit_updates_the_driver_link_automatically(): void
     {
         $admin = User::factory()->admin()->create();

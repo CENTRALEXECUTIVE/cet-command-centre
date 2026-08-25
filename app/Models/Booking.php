@@ -1160,7 +1160,7 @@ class Booking extends Model
     private function calendarLuggageWins(): bool
     {
         return $this->calendarLuggageLine() !== null
-            && ! ($this->manuallyEdited() && $this->ownLuggageEntered());
+            && ! ($this->fieldEdited('luggage') && $this->ownLuggageEntered());
     }
 
     /**
@@ -1268,8 +1268,9 @@ class Booking extends Model
             $cal = (int) $m[0];
         }
 
-        // A manual edit wins over the calendar; otherwise the calendar wins.
-        return $this->manuallyEdited() ? ($own ?? $cal) : ($cal ?? $own);
+        // The calendar wins unless the office actually changed the passenger
+        // count — so a stored default (1) can't hide the calendar's real figure.
+        return $this->fieldEdited('passengers') ? ($own ?? $cal) : ($cal ?? $own);
     }
 
     /**
@@ -1297,34 +1298,58 @@ class Booking extends Model
     }
 
     /**
-     * Choose which source to display. Once the booking has been manually edited,
-     * the operator's own value wins (calendar fills a blank); otherwise the
+     * Did the office actually change THIS field when it edited the booking?
+     *
+     * The calendar is the source of truth, so a field only stops mirroring the
+     * calendar when the operator genuinely changed it — recorded per-field in
+     * meta['edited_fields'] by BookingService::updateFromForm. This is what makes
+     * "every field matches the calendar" true: an edit to one field (say the
+     * drop-off) never blanks or sta-les any OTHER field.
+     *
+     * Legacy edits (marked before per-field tracking existed — a
+     * manually_edited_at with no edited_fields list) keep the old whole-booking
+     * behaviour so an existing edit is never silently lost; re-saving the booking
+     * upgrades it to per-field.
+     */
+    public function fieldEdited(?string $field): bool
+    {
+        $edited = $this->meta['edited_fields'] ?? null;
+        if (is_array($edited)) {
+            return $field !== null && in_array($field, $edited, true);
+        }
+
+        return $this->manuallyEdited();
+    }
+
+    /**
+     * Choose which source to display for one field. When the office actually
+     * changed that field, its value wins (calendar fills a blank); otherwise the
      * calendar wins (own value fills a blank). Empty strings count as blank.
      */
-    private function editable(?string $calendar, ?string $own): ?string
+    private function editable(?string $calendar, ?string $own, ?string $field = null): ?string
     {
         $calendar = ($calendar !== null && trim($calendar) !== '') ? $calendar : null;
         $own = ($own !== null && trim((string) $own) !== '') ? $own : null;
 
-        return $this->manuallyEdited() ? ($own ?? $calendar) : ($calendar ?? $own);
+        return $this->fieldEdited($field) ? ($own ?? $calendar) : ($calendar ?? $own);
     }
 
     /** Pickup address — a manual edit wins, else the calendar, else our own. */
     public function displayPickupAddress(): ?string
     {
-        return $this->editable($this->calendarField('Pickup Location'), $this->pickup_address);
+        return $this->editable($this->calendarField('Pickup Location'), $this->pickup_address, 'pickup_address');
     }
 
     /** Drop-off address — a manual edit wins, else the calendar, else our own. */
     public function displayDropoffAddress(): ?string
     {
-        return $this->editable($this->calendarField('Drop-off Location'), $this->destination_address);
+        return $this->editable($this->calendarField('Drop-off Location'), $this->destination_address, 'destination_address');
     }
 
     /** Flight number — a manual edit wins, else the calendar, else our own. */
     public function displayFlightNumber(): ?string
     {
-        $flight = $this->editable($this->calendarField('Flight Number'), $this->flight_number);
+        $flight = $this->editable($this->calendarField('Flight Number'), $this->flight_number, 'flight_number');
 
         // The builder prints "N/A" where there's no flight — treat that as none.
         return ($flight && strcasecmp(trim($flight), 'N/A') !== 0) ? $flight : null;
@@ -1333,13 +1358,13 @@ class Booking extends Model
     /** Vehicle type name — a manual edit wins, else the calendar, else our own. */
     public function displayVehicleType(): ?string
     {
-        return $this->editable($this->calendarField('Vehicle Type'), $this->vehicleType?->name);
+        return $this->editable($this->calendarField('Vehicle Type'), $this->vehicleType?->name, 'vehicle_type');
     }
 
     /** Customer/lead name — a manual edit wins, else the calendar, else our own. */
     public function displayCustomerName(): ?string
     {
-        return $this->editable($this->calendarField('Customer Name'), $this->customer?->name);
+        return $this->editable($this->calendarField('Customer Name'), $this->customer?->name, 'customer_name');
     }
 
     /** Contact number — the calendar's "Contact No" wins, else the customer's. */
@@ -1434,12 +1459,12 @@ class Booking extends Model
             ? null
             : (($cal === '' || preg_match('/^(none|n\/?a|no\b|nil|0)/i', $cal)) ? null : $cal);
 
-        // A manual edit wins: use the office's own counts, falling back to the
-        // calendar. Otherwise the calendar's office-verified line is authoritative
-        // whenever present (FAILSAFE #1 — a stale/wrong meta count can never
-        // surface as "7 child seats"), falling back to the counts only when the
-        // calendar has no seats line at all.
-        if ($this->manuallyEdited()) {
+        // Only an actual edit of the child seats uses the office's own counts
+        // (falling back to the calendar). Otherwise the calendar's office-verified
+        // line is authoritative whenever present (FAILSAFE #1 — a stale/wrong meta
+        // count can never surface as "7 child seats"), falling back to the counts
+        // only when the calendar has no seats line at all.
+        if ($this->fieldEdited('child_seats')) {
             return $this->childSeatsFromMeta() ?? $calResult;
         }
 

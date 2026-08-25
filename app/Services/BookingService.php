@@ -93,6 +93,37 @@ class BookingService
 
             [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
+            $pax = max(1, (int) ($data['passengers'] ?? 1));
+            // GUARD: never store more of any seat type than there are passengers.
+            $childCap = min((int) ($data['child_seats'] ?? 0), $pax);
+            $boosterCap = min((int) ($data['booster_seats'] ?? 0), $pax);
+            $infantCap = min((int) ($data['infant_seats'] ?? 0), $pax);
+            $driverNotes = trim((string) ($data['driver_notes'] ?? '')) ?: null;
+            $vehicleName = optional(VehicleType::find($data['vehicle_type_id'] ?? null))->name;
+
+            // Work out WHICH fields the office actually changed, by comparing each
+            // submitted value against what the booking currently DISPLAYS (the
+            // calendar, where it's the source). Only these fields override the
+            // calendar afterwards — every untouched field keeps mirroring it, so
+            // an edit to one field never blanks or stales another.
+            $editedFields = $this->changedFields($booking, [
+                'pickup_address' => [$booking->displayPickupAddress(), $data['pickup_address'] ?? null],
+                'destination_address' => [$booking->displayDropoffAddress(), $data['destination_address'] ?? null],
+                'flight_number' => [$booking->displayFlightNumber(), $data['flight_number'] ?? null],
+                'passengers' => [$booking->passengerCount(), $data['passengers'] ?? null],
+                'vehicle_type' => [$booking->displayVehicleType(), $vehicleName],
+                'customer_name' => [$booking->displayName(), $data['customer_name'] ?? null],
+                'luggage' => [$booking->displaySuitcases().'+'.$booking->displayHandLuggage(), $suitcases.'+'.$handLuggage],
+                'child_seats' => [
+                    ($booking->meta['child_seats'] ?? 0).'/'.($booking->meta['booster_seats'] ?? 0).'/'.($booking->meta['infant_seats'] ?? 0),
+                    $childCap.'/'.$boosterCap.'/'.$infantCap,
+                ],
+            ]);
+            // A later edit adds to the set — never drops a field edited before.
+            $editedFields = array_values(array_unique(array_merge(
+                (array) ($booking->meta['edited_fields'] ?? []), $editedFields,
+            )));
+
             $booking->fill([
                 'vehicle_type_id' => $data['vehicle_type_id'],
                 'airport_id' => $data['airport_id'] ?? null,
@@ -105,18 +136,16 @@ class BookingService
                 'meta' => array_merge($booking->meta ?? [], [
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
-                    // GUARD: never store more of any seat type than there are
-                    // passengers — an impossible count can never be saved.
-                    'child_seats' => $childCap = min((int) ($data['child_seats'] ?? 0), $pax = max(1, (int) ($data['passengers'] ?? 1))),
-                    'booster_seats' => $boosterCap = min((int) ($data['booster_seats'] ?? 0), $pax),
-                    'infant_seats' => $infantCap = min((int) ($data['infant_seats'] ?? 0), $pax),
+                    'child_seats' => $childCap,
+                    'booster_seats' => $boosterCap,
+                    'infant_seats' => $infantCap,
                     'child_seat' => ($childCap + $boosterCap + $infantCap) > 0,
-                    'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
-                    // Mark the booking as manually edited so the operator's values
-                    // win over the calendar in the display (otherwise a booking
-                    // that came from the calendar shows the calendar value and the
-                    // edit looks like it did nothing).
+                    'driver_notes' => $driverNotes,
+                    // Mark the booking edited, and record exactly which fields the
+                    // office changed. Untouched fields keep mirroring the calendar
+                    // (the source of truth); only edited fields win over it.
                     'manually_edited_at' => now()->toIso8601String(),
+                    'edited_fields' => $editedFields,
                 ]),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],
@@ -139,6 +168,28 @@ class BookingService
 
             return $booking->refresh();
         });
+    }
+
+    /**
+     * Given [field => [currentlyDisplayed, submitted]] pairs, return the keys
+     * whose submitted value is non-blank and actually differs from what the
+     * booking currently shows. Whitespace/case-insensitive so a cosmetic
+     * re-type isn't counted as a change.
+     *
+     * @param  array<string, array{0:mixed,1:mixed}>  $pairs
+     * @return array<int, string>
+     */
+    private function changedFields(Booking $booking, array $pairs): array
+    {
+        $norm = fn ($v) => strtolower(trim(preg_replace('/\s+/', ' ', (string) ($v ?? ''))));
+        $changed = [];
+        foreach ($pairs as $key => [$before, $after]) {
+            if ($norm($after) !== '' && $norm($before) !== $norm($after)) {
+                $changed[] = $key;
+            }
+        }
+
+        return $changed;
     }
 
     private function resolveCustomer(array $data): Customer
