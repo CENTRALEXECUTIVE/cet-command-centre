@@ -315,10 +315,11 @@
     <div class="card" style="border-left:4px solid #7a45e0;background:rgba(122,69,224,.08);margin-bottom:12px">
         <div style="font-weight:800;font-size:15px">🔀 Travel to the next drop-off — {{ $stopsReached + 1 }} of {{ count($viaStops) }}</div>
         <div style="margin:6px 0 10px;font-size:15px">{{ $nextStop }}</div>
-        {{-- color:#111 is set inline on purpose: this anchor sits inside a .card,
+        {{-- color:#000 is set inline on purpose: this anchor sits inside a .card,
              where "body.driver-app .card a" would otherwise paint it gold — gold
-             text on the gold button = invisible label (only the emoji showed). --}}
-        <a class="btn btn-dark" style="display:block;text-align:center;font-weight:700;color:#111"
+             text on the gold button = invisible label (only the emoji showed).
+             Black is forced so the label is always readable on the gold button. --}}
+        <a class="btn btn-dark" style="display:block;text-align:center;font-weight:800;color:#000"
            href="https://waze.com/ul?q={{ urlencode($nextStop) }}&navigate=yes" target="_blank" rel="noopener">🧭 Navigate to this drop-off (Waze)</a>
     </div>
     <div class="da-actionbar">
