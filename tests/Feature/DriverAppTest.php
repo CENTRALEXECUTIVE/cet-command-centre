@@ -135,8 +135,9 @@ class DriverAppTest extends TestCase
         $this->actingAs($this->driver)->get(route('driver.job', $job))
             ->assertOk()
             ->assertSee('10 Ecclesall Road, Sheffield')
-            ->assertSee('Travel to the next stop')
-            ->assertSee('Reached stop 1 — Passenger On Board')
+            ->assertSee('Travel to the next drop-off')
+            ->assertSee('Reached stop 1 — Dropped off') // on board already → a drop-off, not a pickup
+            ->assertDontSee('Passenger On Board')       // never implies collecting them again
             ->assertDontSee('Completed (final drop-off)')
             ->assertDontSee('Waze to drop-off'); // hidden until the stop is done
 
@@ -148,7 +149,7 @@ class DriverAppTest extends TestCase
             ->assertOk()
             ->assertSee('Completed (final drop-off)')
             ->assertSee('Waze to drop-off') // now shown — heading to drop-off
-            ->assertDontSee('Travel to the next stop');
+            ->assertDontSee('Travel to the next drop-off');
 
         // And Complete still works from there.
         $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'complete'])->assertRedirect();

@@ -309,18 +309,20 @@
 @endphp
 
 @if($awaitingStop)
-    {{-- Multi-stop: travel to the next stop, then tap through it. --}}
+    {{-- Multi-stop: the passenger is already on board (collected at pickup / on
+         the outbound), so an intermediate stop is a DROP-OFF — never a pickup.
+         Guide the driver there, then tap through it. --}}
     <div class="card" style="border-left:4px solid #7a45e0;background:rgba(122,69,224,.08);margin-bottom:12px">
-        <div style="font-weight:800;font-size:15px">🔀 Travel to the next stop — {{ $stopsReached + 1 }} of {{ count($viaStops) }}</div>
+        <div style="font-weight:800;font-size:15px">🔀 Travel to the next drop-off — {{ $stopsReached + 1 }} of {{ count($viaStops) }}</div>
         <div style="margin:6px 0 10px;font-size:15px">{{ $nextStop }}</div>
-        <a class="btn btn-dark" style="display:block;text-align:center"
-           href="https://waze.com/ul?q={{ urlencode($nextStop) }}&navigate=yes" target="_blank" rel="noopener">🧭 Waze to this stop</a>
+        <a class="btn btn-dark" style="display:block;text-align:center;font-weight:700"
+           href="https://waze.com/ul?q={{ urlencode($nextStop) }}&navigate=yes" target="_blank" rel="noopener">🧭 Navigate to this drop-off (Waze)</a>
     </div>
     <div class="da-actionbar">
     <div class="tap-actions">
         <form method="POST" action="{{ $stopUrl }}">
             @csrf
-            <button type="submit" class="tap-collect" style="width:100%">Reached stop {{ $stopsReached + 1 }} — Passenger On Board</button>
+            <button type="submit" class="tap-collect" style="width:100%">Reached stop {{ $stopsReached + 1 }} — Dropped off</button>
         </form>
     </div>
     </div>
