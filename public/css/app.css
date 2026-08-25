@@ -589,7 +589,7 @@ body.driver-app .card { background: #16171b; border: 1px solid rgba(255,255,255,
     border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.35); color: #e9e9ea; }
 body.driver-app .card th { color: #8b9096; border-bottom-color: rgba(255,255,255,.07); }
 body.driver-app .card td { border-bottom-color: rgba(255,255,255,.06); color: #e9e9ea; }
-body.driver-app .card a { color: var(--gold); }
+body.driver-app .card a:not(.btn) { color: var(--gold); } /* not buttons — a .btn keeps its own text colour, else gold-on-gold hides the label */
 body.driver-app .muted { color: #9aa0a6; }
 body.driver-app .collect-amount { color: #6fdd9c; font-size: 15px; } /* money to collect — stands out */
 
