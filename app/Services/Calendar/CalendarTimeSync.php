@@ -101,7 +101,9 @@ class CalendarTimeSync
             return false;
         }
 
-        $bookingChanged = $booking->pickup_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i');
+        // A time edited in CET wins (per-field): never auto-align it to the slot.
+        $bookingChanged = ! $booking->fieldEdited('pickup_at')
+            && $booking->pickup_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i');
         $slotChanged = ! $event->start_at || $event->start_at->format('Y-m-d H:i') !== $target->format('Y-m-d H:i');
 
         if ($bookingChanged) {
@@ -200,9 +202,12 @@ class CalendarTimeSync
             $event->forceFill(['google_event_id' => $live['id'], 'sync_status' => 'synced'])->save();
         }
 
-        // 1. Pickup time — the calendar's start is the truth.
+        // 1. Pickup time — the calendar's start is the truth, UNLESS the office
+        //    has edited the time in CET (per-field: a CET edit wins). Auto-sync
+        //    never overwrites a time the operator changed in the app.
         $liveStart = $live['start'];
-        if (! $booking->pickup_at || $booking->pickup_at->format('Y-m-d H:i') !== $liveStart->format('Y-m-d H:i')) {
+        if (! $booking->fieldEdited('pickup_at')
+            && (! $booking->pickup_at || $booking->pickup_at->format('Y-m-d H:i') !== $liveStart->format('Y-m-d H:i'))) {
             $changes['Pickup time'] = [
                 'from' => $booking->pickup_at?->format('D d M Y, H:i'),
                 'to' => $liveStart->format('D d M Y, H:i'),

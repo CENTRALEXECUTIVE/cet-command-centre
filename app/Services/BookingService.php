@@ -107,6 +107,10 @@ class BookingService
             // calendar afterwards — every untouched field keeps mirroring it, so
             // an edit to one field never blanks or stales another.
             $editedFields = $this->changedFields($booking, [
+                'pickup_at' => [
+                    optional($booking->pickup_at)->format('Y-m-d H:i'),
+                    $this->normaliseDateTime($data['pickup_at'] ?? null),
+                ],
                 'pickup_address' => [$booking->displayPickupAddress(), $data['pickup_address'] ?? null],
                 'destination_address' => [$booking->displayDropoffAddress(), $data['destination_address'] ?? null],
                 'flight_number' => [$booking->displayFlightNumber(), $data['flight_number'] ?? null],
@@ -179,6 +183,19 @@ class BookingService
      * @param  array<string, array{0:mixed,1:mixed}>  $pairs
      * @return array<int, string>
      */
+    /** Normalise a submitted datetime-local value to "Y-m-d H:i" for comparison. */
+    private function normaliseDateTime(mixed $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+        try {
+            return \Illuminate\Support\Carbon::parse($value)->format('Y-m-d H:i');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function changedFields(Booking $booking, array $pairs): array
     {
         $norm = fn ($v) => strtolower(trim(preg_replace('/\s+/', ' ', (string) ($v ?? ''))));

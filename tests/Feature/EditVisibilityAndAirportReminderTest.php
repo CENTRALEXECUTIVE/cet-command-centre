@@ -100,6 +100,32 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame(2, $booking->displayHandLuggage());
     }
 
+    public function test_a_time_edited_in_cet_is_not_overwritten_by_the_calendar_sync(): void
+    {
+        // The calendar slot says 09:00; the office edits the pickup to 10:30 in
+        // CET. A later live calendar align must NOT drag it back to 09:00 —
+        // per-field: the CET edit wins.
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'pickup_at' => now()->addDay()->setTime(10, 30),
+            'meta' => [
+                'manually_edited_at' => now()->toIso8601String(),
+                'edited_fields' => ['pickup_at'],
+            ],
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Date and Time: ".now()->addDay()->format('d/m/Y')." – 09:00",
+            'start_at' => now()->addDay()->setTime(9, 0),
+            'end_at' => now()->addDay()->setTime(10, 0), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        app(\App\Services\Calendar\CalendarTimeSync::class)->alignToCalendarSlot($booking);
+
+        $this->assertSame('10:30', $booking->fresh()->pickup_at->format('H:i'));
+    }
+
     public function test_a_real_luggage_edit_still_wins_over_the_calendar(): void
     {
         $booking = Booking::factory()->create([
@@ -144,8 +170,10 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         // office edits ONLY the drop-off. Every OTHER field must keep mirroring
         // the calendar — not fall back to a stored default/blank.
         $admin = User::factory()->admin()->create();
+        $pickupAt = now()->addDay()->setTime(11, 50)->setSeconds(0);
         $booking = Booking::factory()->create([
             'status' => BookingStatus::Accepted,
+            'pickup_at' => $pickupAt,
             'pickup_address' => 'Manchester Airport M90 1QX',
             'destination_address' => '22 Broad Elms Lane, Sheffield',
             'passengers' => 1, 'luggage' => 0,
@@ -164,7 +192,7 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->actingAs($admin)->put(route('bookings.update', $booking->fresh()), [
             'customer_name' => 'Claire', 'customer_phone' => '07700900000',
             'vehicle_type_id' => $vt->id,
-            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'pickup_at' => $pickupAt->format('Y-m-d\TH:i'), // resubmitted unchanged
             'pickup_address' => 'Manchester Airport M90 1QX',
             'destination_address' => '99 Edited Street, Rotherham', // the ONLY change
             'passengers' => 7,                 // resubmitted same as calendar
