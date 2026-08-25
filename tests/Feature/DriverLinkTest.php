@@ -72,6 +72,7 @@ class DriverLinkTest extends TestCase
     {
         $booking = Booking::factory()->create([
             'status' => BookingStatus::Accepted,
+            'passengers' => 4, // pin so the "implausible count" failsafe never fires
             'meta' => ['child_seats' => 2],
         ]);
 

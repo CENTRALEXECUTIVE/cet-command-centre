@@ -1472,6 +1472,14 @@ class Booking extends Model
      */
     public function paymentNeedsChecking(): bool
     {
+        // A return leg collects nothing on the day — the fare was taken on the
+        // outbound leg — so there is never anything uncertain to "check" here,
+        // even when its calendar Payment line carries outstanding-balance wording
+        // like "…covers both legs".
+        if ($this->is_return_leg && ! $this->hasCashToCollect()) {
+            return false;
+        }
+
         // A known cash amount, or the office/ business having settled it, means
         // there's nothing uncertain to check.
         if ($this->hasCashToCollect() || $this->businessCollectedCash()) {
@@ -1531,6 +1539,12 @@ class Booking extends Model
             $amount = rtrim(rtrim(number_format($cash, 2), '0'), '.');
 
             return '£'.$amount.' to collect (cash)';
+        }
+
+        // 1b) A return leg collects nothing on the day — the fare was taken on the
+        //     outbound leg. Say so plainly (never "Payment may be due").
+        if ($this->is_return_leg) {
+            return 'Cash collected on the outbound leg — collect nothing';
         }
 
         // 2) FAILSAFE: never tell a driver "collect nothing" when money might be
@@ -1775,10 +1789,21 @@ class Booking extends Model
     public function cashDueToDriver(): ?float
     {
         // An office-confirmed/corrected amount always wins over everything else.
-        // (This is how a genuinely fully-prepaid cash job is set to £0.)
+        // (This is how a genuinely fully-prepaid cash job is set to £0, and the
+        // only way to put a cash figure on a return leg.)
         $override = $this->meta['payroll']['cash_collected'] ?? null;
         if ($override !== null) {
             return (float) $override;
+        }
+
+        // A RETURN leg never collects cash: the whole fare is taken once, on the
+        // outbound leg (that's why the calendar shows no money emoji on a return —
+        // see CalendarEventBuilder::paymentEmoji). Without this a return whose
+        // calendar Payment line reads "…covers both legs" would wrongly tell the
+        // driver to collect the fare a second time. Only the office override above
+        // can ever put cash on a return.
+        if ($this->is_return_leg) {
+            return null;
         }
 
         // The business took the money itself (e.g. card tapped in the car), so the

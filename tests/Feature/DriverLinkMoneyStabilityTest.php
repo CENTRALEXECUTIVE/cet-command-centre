@@ -72,6 +72,77 @@ class DriverLinkMoneyStabilityTest extends TestCase
         }
     }
 
+    public function test_a_return_leg_collects_nothing_even_with_both_legs_wording(): void
+    {
+        // A return leg whose calendar Payment line mentions cash ("…covers both
+        // legs") must NOT tell the driver to collect — the fare is taken on the
+        // outbound leg. It must say so plainly, never "Payment may be due".
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'payment_method' => PaymentMethod::Cash->value,
+            'quoted_price' => 210, 'final_price' => 210,
+            'is_return_leg' => true,
+            'journey_type' => 'return',
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* £210 Cash Due – covers both legs",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        $this->assertNull($booking->cashDueToDriver());
+        $this->assertFalse($booking->hasCashToCollect());
+        $this->assertFalse($booking->paymentNeedsChecking());
+        $this->assertSame('Cash collected on the outbound leg — collect nothing', $booking->driverCollectLine());
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertDontSee('Payment may be due')
+            ->assertDontSee('Check the payment')
+            ->assertDontSee('Collect the cash')
+            ->assertSee('collect nothing');
+    }
+
+    public function test_the_outbound_leg_still_collects_the_cash(): void
+    {
+        // Same paired booking, the OUTBOUND leg: the driver DOES collect.
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'payment_method' => PaymentMethod::Cash->value,
+            'quoted_price' => 210, 'final_price' => 210,
+            'is_return_leg' => false,
+            'journey_type' => 'return',
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* £210 Cash Due – covers both legs",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        $this->assertSame(210.0, $booking->cashDueToDriver());
+        $this->assertTrue($booking->hasCashToCollect());
+        $this->assertSame('£210 to collect (cash)', $booking->driverCollectLine());
+    }
+
+    public function test_office_can_still_override_cash_on_a_return_leg(): void
+    {
+        // The office override is the one thing that can put cash on a return leg
+        // (the rare split where the return driver takes the money).
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'payment_method' => PaymentMethod::Cash->value,
+            'quoted_price' => 210, 'final_price' => 210,
+            'is_return_leg' => true,
+            'journey_type' => 'return',
+            'meta' => ['payroll' => ['cash_collected' => 90]],
+        ]);
+
+        $this->assertSame(90.0, $booking->cashDueToDriver());
+        $this->assertSame('£90 to collect (cash)', $booking->driverCollectLine());
+    }
+
     public function test_opcache_reset_route_rejects_a_bad_token(): void
     {
         $this->get('/__cet/opcache/not-the-token')->assertNotFound();
