@@ -70,11 +70,27 @@ class CashCollectReminderTest extends TestCase
         $this->assertTrue($booking->cashCollectAcknowledged());
         $this->assertSame(90.0, (float) $booking->meta['cash_ack']['amount']);
 
-        // The reminder now shows the confirmed state, not the OK button.
+        // The reminder now shows the confirmed state, not the OK button — but the
+        // CASH AMOUNT MUST STILL BE VISIBLE. Confirming never hides what to collect.
         $this->get(route('driver.link', $booking->driverLinkToken()))
             ->assertOk()
             ->assertSee('Cash to collect — confirmed')
-            ->assertDontSee('OK — I’ll collect it', false);
+            ->assertDontSee('OK — I’ll collect it', false)
+            ->assertSee('£90')                       // still shown in the confirmed card
+            ->assertSee('£90 to collect (cash)');    // and in the details Collect row
+    }
+
+    public function test_the_outbound_cash_amount_is_visible_in_the_collect_row(): void
+    {
+        // The amount always appears in the details Collect row on an outbound cash
+        // job — before acknowledgement and regardless of the reminder card state.
+        $driver = User::factory()->driver()->create();
+        $booking = $this->cashJob($driver, 130);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('Collect')
+            ->assertSee('£130 to collect (cash)');
     }
 
     public function test_logged_in_driver_acknowledges_the_reminder(): void
