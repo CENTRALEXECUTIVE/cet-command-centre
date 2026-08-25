@@ -36,7 +36,13 @@ class CalendarEvent extends Model
      */
     public function descriptionValue(string $label): ?string
     {
-        $pattern = '/'.preg_quote($label, '/').':\*?\s*([^\n]+)/i';
+        // Match the label tolerantly: hyphens and spaces are interchangeable and
+        // optional, so "Drop-off Location" also matches the calendar's
+        // "Drop off Location" / "Dropoff Location" (and vice-versa). Without this
+        // a single wording difference makes a whole field read as "Unknown".
+        $tokens = preg_split('/[\s-]+/', trim($label), -1, PREG_SPLIT_NO_EMPTY) ?: [$label];
+        $labelPattern = implode('[\s-]*', array_map(fn ($t) => preg_quote($t, '/'), $tokens));
+        $pattern = '/'.$labelPattern.'\s*:\*?\s*([^\n]+)/i';
         if (! preg_match($pattern, (string) $this->description, $m)) {
             return null;
         }

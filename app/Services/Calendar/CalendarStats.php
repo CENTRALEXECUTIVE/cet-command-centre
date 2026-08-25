@@ -268,7 +268,12 @@ class CalendarStats
     /** Value of a "• *Label:* value" line from the description (plain text). */
     private function field(string $description, string $label): ?string
     {
-        if (preg_match('/'.preg_quote($label, '/').':\*?\s*(.+)/', $description, $m)) {
+        // Hyphen/space-tolerant label match, so the calendar's "Drop off Location"
+        // (space) is still picked up by "Drop-off Location" and vice-versa —
+        // otherwise the field imports as blank/"Unknown".
+        $tokens = preg_split('/[\s-]+/', trim($label), -1, PREG_SPLIT_NO_EMPTY) ?: [$label];
+        $labelPattern = implode('[\s-]*', array_map(fn ($t) => preg_quote($t, '/'), $tokens));
+        if (preg_match('/'.$labelPattern.'\s*:\*?\s*(.+)/i', $description, $m)) {
             return trim(explode("\n", $m[1])[0]) ?: null;
         }
 
