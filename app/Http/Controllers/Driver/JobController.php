@@ -48,6 +48,9 @@ class JobController extends Controller
         $this->authoriseOwnership($request, $booking);
         $booking->load(['customer', 'vehicleType', 'airport', 'stops', 'calendarEvent']);
 
+        // Keep the job screen in step with the LIVE calendar (read-only).
+        app(\App\Services\Calendar\LiveCalendarRefresh::class)->refresh($booking);
+
         return view('driver.job', compact('booking'));
     }
 

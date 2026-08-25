@@ -96,6 +96,34 @@ class DriverLinkTest extends TestCase
         $this->assertSame('2 child seats · 1 booster seat', $booking->fresh()->displayChildSeats());
     }
 
+    public function test_the_link_pulls_the_live_calendar_when_opened(): void
+    {
+        // A booking whose SAVED copy says 1 child seat…
+        $booking = Booking::factory()->create(['status' => BookingStatus::Accepted, 'passengers' => 3]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x', 'google_event_id' => 'evt-1',
+            'description' => "📑 Booking Confirmation\n• *Child Seats:* 1",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        // …but the office has since changed the LIVE calendar to 2. Opening the
+        // link syncs from the live calendar (mocked here) before rendering.
+        $this->mock(\App\Services\Calendar\CalendarTimeSync::class, function ($m) {
+            $m->shouldReceive('scan')->once()->andReturnUsing(function (Booking $b) {
+                $b->calendarEvent->forceFill([
+                    'description' => "📑 Booking Confirmation\n• *Child Seats:* 2",
+                ])->save();
+
+                return ['status' => 'ok', 'changes' => [], 'diag' => []];
+            });
+        });
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('🚼 2')
+            ->assertDontSee('🚼 1');
+    }
+
     public function test_calendar_child_seats_never_show_a_stray_markdown_asterisk(): void
     {
         // The calendar wraps labels in markdown bold: "• *Child Seats:* 3". The

@@ -32,6 +32,11 @@ class LinkController extends Controller
         $booking = Booking::byDriverLinkToken($token);
         $booking?->load(['customer', 'vehicleType', 'airport', 'stops', 'calendarEvent', 'driver']);
 
+        // Pull the LIVE calendar event so the driver always sees what's on the
+        // calendar right now, not a stale import-time snapshot. Read-only; a
+        // short per-event cache keeps repeated opens off the Google API.
+        app(\App\Services\Calendar\LiveCalendarRefresh::class)->refresh($booking);
+
         return view('driver.link', ['booking' => $booking, 'token' => $token]);
     }
 
