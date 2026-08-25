@@ -127,11 +127,11 @@
                     </div>
                     <div class="field">
                         <label for="suitcases">Suitcases</label>
-                        <input id="suitcases" type="number" name="suitcases" min="0" max="30" value="{{ old('suitcases', $booking->meta['suitcases'] ?? $booking->luggage) }}">
+                        <input id="suitcases" type="number" name="suitcases" min="0" max="30" value="{{ old('suitcases', $booking->displaySuitcases()) }}">
                     </div>
                     <div class="field">
                         <label for="hand_luggage">Hand luggage</label>
-                        <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', $booking->meta['hand_luggage'] ?? 0) }}">
+                        <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', $booking->displayHandLuggage()) }}">
                     </div>
                 </div>
                 <div class="grid grid-3">

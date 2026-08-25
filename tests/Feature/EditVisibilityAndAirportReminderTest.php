@@ -69,6 +69,54 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame('Manchester Airport M90 1QX', $booking->displayPickupAddress());
     }
 
+    public function test_editing_a_booking_does_not_blank_luggage_it_still_mirrors_the_calendar(): void
+    {
+        // A calendar-sourced booking with 0/0 stored counts (luggage never
+        // captured). The calendar says 2 + 2. Editing it for another reason
+        // (allocating a driver) sets the manual-edit marker — but that must NOT
+        // blank the luggage down to "0 · 0"; the calendar still wins.
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'passengers' => 1, 'luggage' => 0,
+            'meta' => ['suitcases' => 0, 'hand_luggage' => 0],
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => '*Claire MAN Return (COVER)*', 'location' => 'x',
+            'description' => "• Customer Name: Claire\n• Luggage: 2 Suitcases and 2 Hand Luggage\n• Vehicle Type: Executive",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        // Allocated to a cover driver → a manual edit, but luggage untouched.
+        $booking->forceFill(['meta' => array_merge($booking->fresh()->meta ?? [], [
+            'manually_edited_at' => now()->toIso8601String(),
+        ])])->save();
+        $booking = $booking->fresh();
+
+        $this->assertTrue($booking->manuallyEdited());
+        $this->assertSame('2 Suitcases and 2 Hand Luggage', $booking->luggageShort());
+        $this->assertSame('2 Suitcases and 2 Hand Luggage', $booking->luggageBreakdown());
+        // The edit form pre-fills the real luggage, so re-saving can't zero it.
+        $this->assertSame(2, $booking->displaySuitcases());
+        $this->assertSame(2, $booking->displayHandLuggage());
+    }
+
+    public function test_a_real_luggage_edit_still_wins_over_the_calendar(): void
+    {
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted, 'passengers' => 3,
+            'meta' => ['suitcases' => 4, 'hand_luggage' => 1, 'manually_edited_at' => now()->toIso8601String()],
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Luggage: 2 Suitcases and 2 Hand Luggage",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        // The office genuinely entered 4 + 1 — that wins over the calendar's 2 + 2.
+        $this->assertSame('4 cases · 1 hand', $booking->luggageShort());
+    }
+
     public function test_saving_an_edit_through_the_form_marks_it_and_shows(): void
     {
         $admin = User::factory()->admin()->create();

@@ -1129,6 +1129,76 @@ class Booking extends Model
     }
 
     /**
+     * The calendar's own Luggage line (e.g. "2 Suitcases and 2 Hand Luggage"),
+     * or null when there's no event or it reads as "None". The source of truth.
+     */
+    private function calendarLuggageLine(): ?string
+    {
+        $cal = trim((string) $this->calendarEvent?->descriptionValue('Luggage'));
+
+        return ($cal !== '' && strcasecmp($cal, 'None') !== 0) ? $cal : null;
+    }
+
+    /**
+     * Has the office actually entered luggage of its own (a non-zero count)?
+     * A calendar-sourced booking has 0/0 stored, so this stays false — which
+     * lets the calendar keep winning even after the booking is edited for some
+     * OTHER reason (e.g. allocating a driver). Only a real luggage entry (or a
+     * genuine total) counts. Stops an edit silently blanking luggage to "0 · 0".
+     */
+    private function ownLuggageEntered(): bool
+    {
+        [$suitcases, $hand] = $this->luggageCounts();
+        if (($suitcases !== null || $hand !== null) && ((int) $suitcases + (int) $hand) > 0) {
+            return true;
+        }
+
+        return (int) $this->luggage > 0;
+    }
+
+    /** True when the calendar's Luggage line should win for display right now. */
+    private function calendarLuggageWins(): bool
+    {
+        return $this->calendarLuggageLine() !== null
+            && ! ($this->manuallyEdited() && $this->ownLuggageEntered());
+    }
+
+    /**
+     * Suitcase / hand-luggage counts to SHOW (and to pre-fill the edit form
+     * with), parsed from the calendar's Luggage line when that's the winning
+     * source, else the booking's own counts. Ensures editing a calendar-sourced
+     * booking pre-fills the real luggage instead of 0 — so an edit never blanks
+     * it. Returns [suitcases, hand].
+     *
+     * @return array{0:int,1:int}
+     */
+    public function displayLuggageCounts(): array
+    {
+        if ($this->calendarLuggageWins()) {
+            $line = (string) $this->calendarLuggageLine();
+            preg_match('/(\d+)\s*suitcase/i', $line, $s);
+            preg_match('/(\d+)\s*hand/i', $line, $h);
+            if ($s || $h) {
+                return [(int) ($s[1] ?? 0), (int) ($h[1] ?? 0)];
+            }
+        }
+
+        [$suitcases, $hand] = $this->luggageCounts();
+
+        return [(int) $suitcases, (int) $hand];
+    }
+
+    public function displaySuitcases(): int
+    {
+        return $this->displayLuggageCounts()[0];
+    }
+
+    public function displayHandLuggage(): int
+    {
+        return $this->displayLuggageCounts()[1];
+    }
+
+    /**
      * Luggage shown as a suitcases + hand-luggage breakdown, e.g.
      * "2 suitcases · 1 hand luggage" — both counts matter to the driver and the
      * vehicle choice. Falls back to the combined "N bags" total only when no
@@ -1136,10 +1206,13 @@ class Booking extends Model
      */
     public function luggageBreakdown(): string
     {
-        // The calendar is the source of truth — mirror its Luggage line verbatim,
-        // UNLESS the office has manually edited the booking (then its own counts win).
-        if (! $this->manuallyEdited() && ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage'))) {
-            return $fromCalendar;
+        // The calendar is the source of truth — mirror its Luggage line verbatim.
+        // It only yields to the booking's own counts when the office has manually
+        // edited the booking AND actually entered luggage of its own; a blank
+        // 0/0 (a calendar-sourced booking never captured counts) never overrides
+        // the calendar, so an unrelated edit can't blank the luggage.
+        if ($this->calendarLuggageWins()) {
+            return $this->calendarLuggageLine();
         }
 
         [$suitcases, $hand] = $this->luggageCounts();
@@ -1160,10 +1233,10 @@ class Booking extends Model
     /** Compact luggage for the bookings table, e.g. "2 case · 1 hand" or "—". */
     public function luggageShort(): string
     {
-        // Mirror the calendar's Luggage line when there's an event — unless the
-        // office has manually edited the booking (then its own counts win).
-        if (! $this->manuallyEdited() && ($fromCalendar = $this->calendarEvent?->descriptionValue('Luggage'))) {
-            return $fromCalendar;
+        // Same rule as luggageBreakdown: the calendar wins unless the office has
+        // manually edited the booking AND entered luggage of its own.
+        if ($this->calendarLuggageWins()) {
+            return $this->calendarLuggageLine();
         }
 
         [$suitcases, $hand] = $this->luggageCounts();
