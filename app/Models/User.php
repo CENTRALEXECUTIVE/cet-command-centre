@@ -62,6 +62,7 @@ class User extends Authenticatable
         'reminder_due' => 'Pickup reminder due to send',
         'no_show_cancel' => 'No-show / cancellation',
         'calendar_import' => 'New booking from the calendar',
+        'flight_update' => 'Flight delay / cancellation / early landing',
     ];
 
     /** Preference defaults: every alert on, critical-only off, chime/alarm off. */
