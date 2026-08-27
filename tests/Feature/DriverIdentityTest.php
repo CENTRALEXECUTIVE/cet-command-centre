@@ -75,12 +75,14 @@ class DriverIdentityTest extends TestCase
         $this->assertSame('Hamza E Class', $driver->knownAs());
         $this->assertSame('Hamza Ali (Hamza E Class)', $driver->nameWithNickname());
 
-        // A reminder for a job with this driver uses the REAL name, never the nickname.
+        // A reminder for a job with this driver uses only the FIRST name — never
+        // the nickname ("E Class") and never the surname.
         $booking = Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => now()->addDay()]);
         $booking->forceFill(['meta' => ['driver_details' => ['name' => $driver->name, 'phone' => '07700900000']]])->save();
         $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
 
-        $this->assertStringContainsString('Hamza Ali', $body);
+        $this->assertStringContainsString('Driver Name: Hamza', $body);
+        $this->assertStringNotContainsString('Hamza Ali', $body); // surname withheld from customers
         $this->assertStringNotContainsString('E Class', $body);
     }
 

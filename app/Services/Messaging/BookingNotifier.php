@@ -194,6 +194,13 @@ class BookingNotifier
             return null;
         }
 
+        // On a RETURN journey the customer already has their driver (kept from the
+        // outbound leg), so point them straight to the driver rather than the
+        // office. On the outbound leg the office coordinates the meet.
+        if ($booking->is_return_leg) {
+            return '✈️ Please message your driver directly once you\'ve landed so they can arrange to meet you.';
+        }
+
         return '✈️ Please drop us a message once you\'ve landed so we can arrange for your driver to meet you.';
     }
 
@@ -234,7 +241,10 @@ class BookingNotifier
     private function formatDriverBlock(?string $name, ?string $phone, ?string $reg, ?string $car): string
     {
         $lines = ['*Driver details*'];
-        $lines[] = '• Driver Name: '.$name;
+        // Customers only ever see the driver's FIRST NAME — the directory name can
+        // carry extra info (vehicle class, surname: "Hamza V Class Khan") for the
+        // office, but none of that goes out to the customer. First word only.
+        $lines[] = '• Driver Name: '.$this->firstWord($name);
         if (filled($phone)) {
             $lines[] = '• Driver Contact Number: '.$phone;
         }
@@ -246,6 +256,14 @@ class BookingNotifier
         }
 
         return implode("\n", $lines);
+    }
+
+    /** The first word of a name, trimmed — e.g. "Hamza V Class" → "Hamza". */
+    private function firstWord(?string $name): string
+    {
+        $name = trim((string) $name);
+
+        return $name === '' ? '' : Str::before($name, ' ');
     }
 
     /**

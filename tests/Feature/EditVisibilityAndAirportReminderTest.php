@@ -259,4 +259,31 @@ class EditVisibilityAndAirportReminderTest extends TestCase
 
         $this->assertStringNotContainsString('landed', $body);
     }
+
+    public function test_a_return_airport_reminder_points_the_customer_to_their_driver(): void
+    {
+        $booking = $this->calendarBooking(['flight_number' => 'EZY2104', 'is_return_leg' => true, 'journey_type' => 'return']);
+
+        $body = app(BookingNotifier::class)->reminderBody($booking->fresh());
+
+        $this->assertStringContainsString('message your driver directly', $body);
+        $this->assertStringNotContainsString('drop us a message', $body); // not the office on a return
+    }
+
+    public function test_customer_reminder_uses_only_the_drivers_first_name(): void
+    {
+        $driver = User::factory()->driver()->create(['name' => 'Hamza V Class Khan']);
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'driver_id' => $driver->id,
+            'pickup_at' => now()->addDay(),
+        ]);
+        $booking->forceFill(['meta' => ['driver_details' => ['name' => 'Hamza V Class Khan', 'phone' => '07700900000']]])->save();
+
+        $body = app(BookingNotifier::class)->reminderBody($booking->fresh());
+
+        $this->assertStringContainsString('Driver Name: Hamza', $body);
+        $this->assertStringNotContainsString('V Class', $body);
+        $this->assertStringNotContainsString('Khan', $body);
+    }
 }
