@@ -58,3 +58,9 @@ Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping();
 // Number masking safety net: close Proxy sessions past drop-off + 4h even if
 // a status change was missed. Twilio's own expiry backs this up.
 Schedule::command('cet:close-proxy-sessions')->everyMinute()->withoutOverlapping();
+
+// Self-deploy: pull and apply the latest code from the deploy branch every few
+// minutes, using this same scheduler cron — so a pushed fix goes live on its
+// own with no separate cron to maintain. No-op when up to date. Turn off with
+// CET_AUTO_DEPLOY=false in the environment.
+Schedule::command('cet:auto-deploy')->everyFiveMinutes()->withoutOverlapping();
