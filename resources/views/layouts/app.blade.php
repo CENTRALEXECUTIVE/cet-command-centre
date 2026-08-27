@@ -50,7 +50,8 @@
                     <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.jobs') || request()->routeIs('driver.job') || request()->routeIs('driver.earnings') ? 'active' : '' }}">🚘 My jobs</a>
                 @endif
                 @if($u->isAdmin())
-                    <a href="{{ route('payroll.index') }}" class="{{ request()->routeIs('payroll.*') ? 'active' : '' }}">💷 Payroll</a>
+                    <a href="{{ route('payroll.index') }}" class="{{ request()->routeIs('payroll.index') ? 'active' : '' }}">💷 Payroll</a>
+                    <a href="{{ route('payroll.daily') }}" class="{{ request()->routeIs('payroll.daily') ? 'active' : '' }}">🧾 Cash &amp; pay (day)</a>
                 @endif
                 @if($u->isDriver() && ! $u->isAdmin())
                     <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">📄 My documents</a>

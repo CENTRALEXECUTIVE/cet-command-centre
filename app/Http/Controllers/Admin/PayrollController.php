@@ -17,6 +17,65 @@ use Illuminate\View\View;
  */
 class PayrollController extends Controller
 {
+    /**
+     * End-of-day cash & pay reconciliation for one day. Shows, per driver, the
+     * cash they collected from customers (which they hold), what the job pays
+     * them, and the single NET figure that settles up:
+     *
+     *   net = pay − cash in hand − already paid + card tips owed
+     *
+     * A positive net is money the business hands the driver; a negative net is
+     * cash the driver hands back (they collected more than their pay). So at the
+     * end of a shift every driver settles to exactly their earnings.
+     */
+    public function daily(Request $request): View
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $date = $request->query('date');
+        $day = ($date ? Carbon::createFromFormat('Y-m-d', $date, config('app.timezone')) : now())->startOfDay();
+        $end = $day->copy()->endOfDay();
+
+        $jobs = Booking::with(['driver', 'customer'])
+            ->whereBetween('pickup_at', [$day, $end])
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->orderBy('pickup_at')
+            ->get();
+
+        $drivers = $jobs
+            ->filter(fn (Booking $b) => $b->driver_id || $b->driverPay() !== null || $b->driverSettledByCustomer())
+            ->groupBy(fn (Booking $b) => $b->payrollDriverName())
+            ->map(function ($group, $name) {
+                $pay = round($group->sum(fn (Booking $b) => $b->driverPay() ?? 0), 2);
+                $cash = round($group->sum(fn (Booking $b) => $b->driverSettledByCustomer() ? ($b->cashDueToDriver() ?? 0) : 0), 2);
+                $paid = round($group->sum(fn (Booking $b) => $b->driverPaidAmount()), 2);
+                $cardTips = round($group->sum(fn (Booking $b) => $b->cardTipsOwed()), 2);
+
+                return [
+                    'name' => $name,
+                    'jobs' => $group->values(),
+                    'count' => $group->count(),
+                    'pay' => $pay,
+                    'cash' => $cash,
+                    'card_tips' => $cardTips,
+                    'net' => round($pay - $cash - $paid + $cardTips, 2), // + business owes / − driver owes
+                ];
+            })
+            ->sortByDesc('count')->values();
+
+        return view('admin.payroll.daily', [
+            'day' => $day,
+            'drivers' => $drivers,
+            'totals' => [
+                'jobs' => $jobs->count(),
+                'cash_collected' => round($drivers->sum('cash'), 2),
+                'to_pay_out' => round($drivers->sum(fn ($d) => max(0, $d['net'])), 2),
+                'to_collect_back' => round($drivers->sum(fn ($d) => max(0, -$d['net'])), 2),
+                'card_tips' => round($drivers->sum('card_tips'), 2),
+            ],
+        ]);
+    }
+
     public function index(Request $request): View
     {
         abort_unless($request->user()->isAdmin(), 403);

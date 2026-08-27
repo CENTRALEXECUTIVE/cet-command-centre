@@ -134,6 +134,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Per-booking masking timing: when the line goes live + when it closes.
         Route::post('bookings/{booking}/masking-timing', [BookingController::class, 'maskingTiming'])->middleware('throttle:30,1')->name('bookings.masking-timing');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
+        Route::get('cash-summary', [\App\Http\Controllers\Admin\PayrollController::class, 'daily'])->name('payroll.daily');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('bookings/{booking}/request-review', [BookingController::class, 'requestReview'])->middleware('throttle:30,1')->name('bookings.request-review');
         // Correct the customer record's phone to this booking's calendar contact.
