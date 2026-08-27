@@ -41,6 +41,56 @@ class CalendarTimeSyncTest extends TestCase
         return new CalendarTimeSync($google);
     }
 
+    public function test_scan_never_overwrites_a_pickup_time_edited_in_cet(): void
+    {
+        // The office edited the time in CET (10:20). The scheduled calendar
+        // refresh (scan) must NOT drag it back to the calendar's 09:00.
+        $booking = $this->bookingWithEvent('2026-07-15 10:20:00');
+        $booking->forceFill(['meta' => [
+            'manually_edited_at' => now()->toIso8601String(),
+            'edited_fields' => ['pickup_at'],
+        ]])->save();
+        $booking = $booking->fresh(['calendarEvent']);
+
+        $google = \Mockery::mock(GoogleCalendarService::class);
+        $google->shouldReceive('configured')->andReturnTrue();
+        $google->shouldReceive('active')->andReturnTrue();
+        // No reference match → falls back to the stored event id, read live at 09:00.
+        $google->shouldReceive('findEventWithDiagnostics')->andReturn(['event' => null, 'diag' => []]);
+        $google->shouldReceive('readEvent')->andReturn([
+            'start' => Carbon::parse('2026-07-15 09:00:00'),
+            'end' => Carbon::parse('2026-07-15 10:00:00'),
+            'title' => '*Test MAN (ABDI)*',
+            'location' => 'Manchester Airport',
+            'description' => '📑 Booking Confirmation',
+        ]);
+
+        (new CalendarTimeSync($google))->scan($booking);
+
+        // The CET edit stands — 10:20, not the calendar's 09:00.
+        $this->assertSame('10:20', $booking->fresh()->pickup_at->format('H:i'));
+    }
+
+    public function test_scan_still_follows_the_calendar_time_when_not_edited(): void
+    {
+        // A booking NOT edited in CET still tracks the live calendar time.
+        $booking = $this->bookingWithEvent('2026-07-15 10:20:00');
+
+        $google = \Mockery::mock(GoogleCalendarService::class);
+        $google->shouldReceive('configured')->andReturnTrue();
+        $google->shouldReceive('active')->andReturnTrue();
+        $google->shouldReceive('findEventWithDiagnostics')->andReturn(['event' => null, 'diag' => []]);
+        $google->shouldReceive('readEvent')->andReturn([
+            'start' => Carbon::parse('2026-07-15 09:00:00'),
+            'end' => Carbon::parse('2026-07-15 10:00:00'),
+            'title' => '*Test MAN (ABDI)*', 'location' => 'x', 'description' => '📑 Booking Confirmation',
+        ]);
+
+        (new CalendarTimeSync($google))->scan($booking);
+
+        $this->assertSame('09:00', $booking->fresh()->pickup_at->format('H:i'));
+    }
+
     public function test_pull_time_moves_the_booking_to_the_live_calendar_time(): void
     {
         $booking = $this->bookingWithEvent('2026-07-15 07:45:00'); // wrong (an hour late)

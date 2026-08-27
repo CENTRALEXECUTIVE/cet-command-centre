@@ -100,6 +100,29 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame(2, $booking->displayHandLuggage());
     }
 
+    public function test_editing_only_the_time_through_the_form_records_it_as_edited(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $vt = VehicleType::where('name', 'V Class')->first(); // seats 7
+        $original = now()->addDay()->setTime(10, 20)->setSeconds(0);
+        $booking = $this->calendarBooking(['pickup_at' => $original]);
+
+        // Resubmit everything unchanged EXCEPT the pickup time (10:20 → 12:45).
+        $this->actingAs($admin)->put(route('bookings.update', $booking->fresh()), [
+            'customer_name' => 'Test', 'customer_phone' => '07700900000',
+            'vehicle_type_id' => $vt->id,
+            'pickup_at' => $original->copy()->setTime(12, 45)->format('Y-m-d\TH:i'),
+            'pickup_address' => 'Manchester Airport M90 1QX',
+            'destination_address' => '22 Broad Elms Lane, Sheffield',
+            'passengers' => 7, 'payment_method' => 'cash', 'journey_type' => 'one_way',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertContains('pickup_at', $booking->meta['edited_fields']);
+        $this->assertSame('12:45', $booking->pickup_at->format('H:i'));
+        $this->assertTrue($booking->fieldEdited('pickup_at'));
+    }
+
     public function test_a_time_edited_in_cet_is_not_overwritten_by_the_calendar_sync(): void
     {
         // The calendar slot says 09:00; the office edits the pickup to 10:30 in
