@@ -1563,6 +1563,34 @@ class Booking extends Model
      */
     private const OUTSTANDING_SIGNAL = '/deposit|balance|outstanding|remaining|owing|owed|\bcash\b|to collect|\bcollect\b|to pay|part[ -]?paid|\bdue\b|pending/i';
 
+    /**
+     * Words in a payment line that mean the DRIVER physically collects money on
+     * the day — cash. A card/account balance that just reads "pending" does NOT
+     * match, because that's paid to the OFFICE by card (the office chases it), not
+     * collected by the driver.
+     */
+    private const CASH_COLLECT_SIGNAL = '/\bcash\b|to collect|\bcollect\b/i';
+
+    /** True when the payment line explicitly involves the driver collecting cash. */
+    private function mentionsCashCollection(): bool
+    {
+        $blob = $this->paymentBlob();
+
+        return $blob !== '' && (bool) preg_match(self::CASH_COLLECT_SIGNAL, $blob);
+    }
+
+    /**
+     * Does the DRIVER collect on this job at all? Only on a cash-method job, or
+     * when a payment line explicitly mentions cash. A plain card/account job —
+     * even one with a pending balance — is settled with the office by card, so the
+     * driver collects nothing (the office takes the payment and chases it).
+     */
+    private function driverCollectsOnThisJob(): bool
+    {
+        return ($this->payment_method?->value ?? null) === 'cash'
+            || $this->mentionsCashCollection();
+    }
+
     /** All payment text we hold, lower-cased and joined, for signal scanning. */
     private function paymentBlob(): string
     {
@@ -1588,6 +1616,14 @@ class Booking extends Model
         // A known cash amount, or the office/ business having settled it, means
         // there's nothing uncertain to check.
         if ($this->hasCashToCollect() || $this->businessCollectedCash()) {
+            return false;
+        }
+
+        // A card/account job the driver doesn't collect on: even a pending balance
+        // is the OFFICE's to take by card and chase, so the driver collects
+        // nothing and has nothing to check. (An explicit "cash" line would have
+        // made driverCollectsOnThisJob true and kept the check below.)
+        if (! $this->driverCollectsOnThisJob()) {
             return false;
         }
 
@@ -1659,6 +1695,14 @@ class Booking extends Model
         //    it's paid. This is what stops the "cash job says paid" error dead.
         if ($this->paymentNeedsChecking()) {
             return 'Payment may be due — check the amount with the office';
+        }
+
+        // 2b) A card/account job the driver doesn't collect on: the customer pays
+        //     the OFFICE by card. Even if the balance is still pending, the office
+        //     takes and chases it — the driver collects nothing. (A cash line would
+        //     have shown a cash amount or a "check" above.)
+        if (! $this->driverCollectsOnThisJob()) {
+            return 'Paid — collect nothing';
         }
 
         // 3) Only say "collect nothing" when we're genuinely confident it's paid.

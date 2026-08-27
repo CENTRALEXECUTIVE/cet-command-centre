@@ -562,11 +562,11 @@ class PayrollTest extends TestCase
         $this->assertSame('£75 to collect (cash)', $booking->driverCollectLine());
     }
 
-    public function test_a_card_balance_pending_job_tells_the_driver_to_check_not_collect_nothing(): void
+    public function test_a_card_balance_pending_job_shows_collect_nothing_office_handles_it(): void
     {
-        // "Balance Pending" is ambiguous — it might be settled by card to the
-        // business, or it might be cash. The driver must NEVER be told "collect
-        // nothing" here; the failsafe tells them to check with the office.
+        // A CARD job with a pending balance (no "cash" mention): the customer pays
+        // the OFFICE by card, and the office chases it — the DRIVER collects
+        // nothing. It must NOT tell the driver to collect or to check.
         $driver = User::factory()->driver()->create(['name' => 'Card Driver']);
         $booking = Booking::factory()->create([
             'driver_id' => $driver->id,
@@ -576,28 +576,44 @@ class PayrollTest extends TestCase
         $booking->forceFill(['meta' => ['payment_text' => 'Deposit £50 Paid – £150 Balance Pending']])->save();
 
         $this->assertNull($booking->cashDueToDriver());
-        $this->assertTrue($booking->paymentNeedsChecking());
-        $this->assertStringContainsString('check the amount with the office', $booking->driverCollectLine());
-        $this->assertStringNotContainsString('collect nothing', (string) $booking->driverCollectLine());
+        $this->assertFalse($booking->paymentNeedsChecking());
+        $this->assertFalse($booking->hasCashToCollect());
+        $this->assertStringContainsString('collect nothing', (string) $booking->driverCollectLine());
     }
 
-    public function test_failsafe_a_truncated_deposit_card_job_never_says_collect_nothing(): void
+    public function test_a_card_job_with_a_lost_cash_tail_but_no_cash_word_collects_nothing(): void
     {
-        // THE reported bug: a card-method job where the cash-due tail was lost,
-        // leaving only "Deposit £10 Paid". It must NOT read as "Paid — collect
-        // nothing" just because the method is card — the failsafe says "check".
+        // A card-method job showing only "Deposit £10 Paid" (no "cash" word): the
+        // driver collects nothing — the office handles the card balance.
         $driver = User::factory()->driver()->create(['name' => 'Yaz Driver']);
         $booking = Booking::factory()->create([
             'driver_id' => $driver->id,
             'payment_method' => \App\Enums\PaymentMethod::Card->value,
-            'payment_status' => 'paid', // wrongly stamped from "Deposit £10 Paid"
+            'payment_status' => 'paid',
             'quoted_price' => 140, 'final_price' => 140,
         ]);
         $booking->forceFill(['meta' => ['payment_text' => 'Deposit £10 Paid']])->save();
 
+        $this->assertFalse($booking->paymentNeedsChecking());
+        $this->assertStringContainsString('collect nothing', (string) $booking->driverCollectLine());
+    }
+
+    public function test_a_card_job_that_says_cash_still_makes_the_driver_check_or_collect(): void
+    {
+        // The exception you called out: a booking whose payment line SAYS cash — a
+        // remaining cash balance — still makes the driver collect (or check when
+        // the amount can't be read), even on a card-method job.
+        $driver = User::factory()->driver()->create(['name' => 'Cash Line']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'payment_method' => \App\Enums\PaymentMethod::Card->value,
+            'quoted_price' => 200,
+        ]);
+        $booking->forceFill(['meta' => ['payment_text' => 'Deposit £50 Paid – balance in cash to driver']])->save();
+
         $this->assertTrue($booking->paymentNeedsChecking());
-        $this->assertStringNotContainsString('collect nothing', (string) $booking->driverCollectLine());
         $this->assertStringContainsString('check the amount with the office', $booking->driverCollectLine());
+        $this->assertStringNotContainsString('collect nothing', (string) $booking->driverCollectLine());
     }
 
     public function test_a_deposit_plus_cash_due_covering_both_legs_collects_the_cash(): void
