@@ -45,6 +45,43 @@ class ReportController extends Controller
         ]);
     }
 
+    /** Business review: every corporate account ranked by bookings. */
+    public function businesses(Request $request): View
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $businesses = $this->reports->businessBreakdown();
+
+        return view('reports.businesses', [
+            'businesses' => $businesses,
+            'totals' => [
+                'businesses' => $businesses->count(),
+                'bookings' => $businesses->sum('bookings'),
+                'revenue' => round($businesses->sum('revenue'), 2),
+                'repeat_customers' => $businesses->sum('repeat_customers'),
+            ],
+        ]);
+    }
+
+    /** One business in detail — its customers, repeat clients and spend. */
+    public function business(Request $request, \App\Models\CorporateAccount $account): View
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $customers = $this->reports->businessCustomers($account->id);
+
+        return view('reports.business', [
+            'account' => $account,
+            'customers' => $customers,
+            'totals' => [
+                'bookings' => $customers->sum('bookings'),
+                'revenue' => round($customers->sum('revenue'), 2),
+                'customers' => $customers->count(),
+                'repeat_customers' => $customers->where('repeat', true)->count(),
+            ],
+        ]);
+    }
+
     public function ads(Request $request): View
     {
         [$start, $end] = $this->range($request);

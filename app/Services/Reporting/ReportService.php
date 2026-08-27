@@ -32,6 +32,86 @@ class ReportService
             ->whereBetween('pickup_at', [$start, $end]);
     }
 
+    /**
+     * Business review: every corporate account with its booking activity, so the
+     * office can see who books the most, how many repeat customers each has, and
+     * the revenue each brings in. A booking belongs to a business by its own
+     * corporate_account_id, or (fallback) its customer's — so JELD-WEN's jobs all
+     * roll up under JELD-WEN even when only the customer carries the link.
+     * Cancelled jobs are excluded. Ranked by total bookings, most first.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function businessBreakdown(): Collection
+    {
+        $bookings = Booking::query()
+            ->where('status', '!=', BookingStatus::Cancelled->value)
+            ->with(['customer', 'corporateAccount'])
+            ->get()
+            ->filter(fn (Booking $b) => $b->corporate_account_id || $b->customer?->corporate_account_id);
+
+        return $bookings
+            ->groupBy(fn (Booking $b) => $b->corporate_account_id ?: $b->customer->corporate_account_id)
+            ->map(function (Collection $group) {
+                $first = $group->first();
+                $account = $first->corporateAccount ?: $first->customer?->corporateAccount;
+
+                $byCustomer = $group->groupBy('customer_id');
+                $top = $byCustomer->sortByDesc(fn (Collection $g) => $g->count())->first();
+                $lastAt = $group->pluck('pickup_at')->filter()->max();
+
+                return [
+                    'account' => $account,
+                    'id' => $account?->id,
+                    'name' => $account?->name ?? 'Unknown business',
+                    'bookings' => $group->count(),
+                    'completed' => $group->filter(fn (Booking $b) => $b->pickup_at
+                        && $b->pickup_at->lte(now()) && $b->status !== BookingStatus::NoShow)->count(),
+                    'upcoming' => $group->filter(fn (Booking $b) => $b->pickup_at && $b->pickup_at->gt(now()))->count(),
+                    'revenue' => round($group->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2),
+                    'customers' => $byCustomer->count(),
+                    'repeat_customers' => $byCustomer->filter(fn (Collection $g) => $g->count() >= 2)->count(),
+                    'top_customer' => $top?->first()?->customer?->name,
+                    'top_customer_count' => $top?->count() ?? 0,
+                    'last_booking' => $lastAt?->format('d M Y'),
+                ];
+            })
+            ->sortByDesc('bookings')
+            ->values();
+    }
+
+    /**
+     * One business in detail: every customer who's travelled with them, ranked by
+     * booking count, with each customer's spend and last trip — so a repeat client
+     * is obvious at a glance.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function businessCustomers(int $accountId): Collection
+    {
+        return Booking::query()
+            ->where('status', '!=', BookingStatus::Cancelled->value)
+            ->where(fn ($q) => $q->where('corporate_account_id', $accountId)
+                ->orWhereHas('customer', fn ($c) => $c->where('corporate_account_id', $accountId)))
+            ->with('customer')
+            ->get()
+            ->groupBy('customer_id')
+            ->map(function (Collection $group) {
+                $lastAt = $group->pluck('pickup_at')->filter()->max();
+
+                return [
+                    'customer' => $group->first()->customer,
+                    'name' => $group->first()->customer?->name ?? 'Unknown',
+                    'bookings' => $group->count(),
+                    'revenue' => round($group->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2),
+                    'last_booking' => $lastAt?->format('d M Y'),
+                    'repeat' => $group->count() >= 2,
+                ];
+            })
+            ->sortByDesc('bookings')
+            ->values();
+    }
+
     /** Non-cancelled jobs in the period, INCLUDING future ones (for payment split). */
     private function scheduled(CarbonInterface $start, CarbonInterface $end): Builder
     {
