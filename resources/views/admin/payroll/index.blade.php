@@ -125,16 +125,22 @@
         <div class="card"><p class="muted mb-0">No driver pay recorded for {{ $month->format('F Y') }} yet — set "Job pays the driver" on any booking and it appears here.</p></div>
     @endforelse
 
-    {{-- Whole-row click opens the booking (pulls all its info), while the
-         "Mark paid" button and "Open →" link keep their own action. --}}
-    <style>tr.rowlink{cursor:pointer}tr.rowlink:hover td{background:rgba(251,186,42,.06)}</style>
+    {{-- Anywhere on a job row opens that booking (name, reference, date, any
+         cell). The "Mark paid" button and "Open →" link keep their own action.
+         Delegated on the document so it works no matter when this runs. --}}
+    <style>
+        tr.rowlink{cursor:pointer}
+        tr.rowlink:hover td{background:rgba(251,186,42,.08)}
+        tr.rowlink:active td{background:rgba(251,186,42,.16)}
+    </style>
     <script>
-        document.querySelectorAll('tr.rowlink').forEach(function (row) {
-            row.addEventListener('click', function (e) {
-                if (e.target.closest('a,button,form,input,[data-norowlink]')) return;
-                var href = row.getAttribute('data-href');
-                if (href) window.location = href;
-            });
+        document.addEventListener('click', function (e) {
+            var row = e.target.closest('tr.rowlink');
+            if (!row) return;
+            // Let real controls (Mark paid, Open →, inputs) do their own thing.
+            if (e.target.closest('a,button,form,input,label,[data-norowlink]')) return;
+            var href = row.getAttribute('data-href');
+            if (href) window.location = href;
         });
     </script>
 @endsection
