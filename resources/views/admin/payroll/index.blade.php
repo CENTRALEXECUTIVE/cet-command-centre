@@ -75,7 +75,7 @@
                     <tbody>
                     @foreach($d['car_jobs'] as $r)
                         @php $e = $r['entry']; $rem = max(0, (float)($e['pay'] ?? 0) - (float)($e['paid'] ?? 0)); @endphp
-                        <tr>
+                        <tr class="rowlink" data-href="{{ route('bookings.show', $r['booking']) }}">
                             <td class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</td>
                             <td>{{ $r['booking']->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $r['booking']->displayName() }}</td>
@@ -83,7 +83,7 @@
                             <td>£{{ number_format((float)($e['pay'] ?? 0), 2) }}</td>
                             <td>£{{ number_format((float)($e['paid'] ?? 0), 2) }}</td>
                             <td>@if($rem > 0)<strong style="color:#b8860b">£{{ number_format($rem, 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
-                            <td><a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px">Open →</a></td>
+                            <td><a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px" data-norowlink>Open →</a></td>
                         </tr>
                     @endforeach
                     </tbody>
@@ -93,7 +93,7 @@
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
                     @foreach($d['jobs'] as $b)
-                        <tr>
+                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}</td>
@@ -101,7 +101,18 @@
                             <td>@if($b->driverSettledByCustomer())<span class="muted">cash</span>@else£{{ number_format($b->driverPaidAmount(), 2) }}@endif</td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted" title="Customer paid the driver directly">paid by customer</span>@elseif(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
                             <td>@if($b->tipsTotal() > 0)💛 £{{ number_format($b->tipsTotal(), 2) }}@else<span class="muted">—</span>@endif</td>
-                            <td><a href="{{ route('bookings.show', $b) }}" style="font-size:13px">Open →</a></td>
+                            <td style="white-space:nowrap">
+                                @if($b->driverPay() !== null && ! $b->driverSettledByCustomer() && ($b->driverPayRemaining() ?? 0) > 0)
+                                    <form method="POST" action="{{ route('bookings.payroll', $b) }}" style="display:inline" data-norowlink>
+                                        @csrf
+                                        <input type="hidden" name="action" value="mark_paid">
+                                        <input type="hidden" name="from" value="payroll">
+                                        <input type="hidden" name="month" value="{{ $month->format('Y-m') }}">
+                                        <button type="submit" class="btn btn-primary" style="padding:5px 12px;font-size:13px">✓ Mark paid</button>
+                                    </form>
+                                @endif
+                                <a href="{{ route('bookings.show', $b) }}" style="font-size:13px;margin-left:6px" data-norowlink>Open →</a>
+                            </td>
                         </tr>
                     @endforeach
                     </tbody>
@@ -113,4 +124,17 @@
     @empty
         <div class="card"><p class="muted mb-0">No driver pay recorded for {{ $month->format('F Y') }} yet — set "Job pays the driver" on any booking and it appears here.</p></div>
     @endforelse
+
+    {{-- Whole-row click opens the booking (pulls all its info), while the
+         "Mark paid" button and "Open →" link keep their own action. --}}
+    <style>tr.rowlink{cursor:pointer}tr.rowlink:hover td{background:rgba(251,186,42,.06)}</style>
+    <script>
+        document.querySelectorAll('tr.rowlink').forEach(function (row) {
+            row.addEventListener('click', function (e) {
+                if (e.target.closest('a,button,form,input,[data-norowlink]')) return;
+                var href = row.getAttribute('data-href');
+                if (href) window.location = href;
+            });
+        });
+    </script>
 @endsection

@@ -44,6 +44,58 @@ class PayrollTest extends TestCase
         $this->assertSame('cash Friday', $booking->driverPayHistory()[0]['note']);
     }
 
+    public function test_one_tap_mark_paid_settles_the_whole_remaining(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Maj Khan']);
+        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
+        $booking->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 20, 'history' => []]]])->save();
+
+        // One tap marks the £70 that's left as paid → nothing remaining.
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'mark_paid', 'from' => 'payroll'])
+            ->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertSame(90.0, $booking->driverPaidAmount());
+        $this->assertSame(0.0, $booking->driverPayRemaining());
+        $this->assertTrue($booking->driverFullyPaid());
+        $this->assertSame('Marked paid in full', $booking->driverPayHistory()[0]['note']);
+    }
+
+    public function test_mark_paid_is_a_safe_no_op_when_nothing_is_owed(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create();
+        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
+        $booking->forceFill(['meta' => ['payroll' => ['pay' => 50, 'paid' => 50, 'history' => []]]])->save();
+
+        $this->actingAs($admin)
+            ->post(route('bookings.payroll', $booking), ['action' => 'mark_paid'])
+            ->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertSame(50.0, $booking->driverPaidAmount()); // unchanged, no double-pay
+        $this->assertCount(0, $booking->driverPayHistory());
+    }
+
+    public function test_the_bookings_list_shows_a_tap_to_pay_action_for_admins(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create();
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::Complete,
+            'pickup_at' => now()->subDay(),
+        ]);
+        $booking->forceFill(['meta' => ['payroll' => ['pay' => 100, 'paid' => 0, 'history' => []]]])->save();
+
+        $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'all']))
+            ->assertOk()
+            ->assertSee('tap to pay')
+            ->assertSee('markpaid-'.$booking->id, false);
+    }
+
     public function test_booking_page_shows_the_payroll_section(): void
     {
         $admin = User::factory()->admin()->create();

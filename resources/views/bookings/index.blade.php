@@ -169,7 +169,12 @@
                                 @if($b->driverFullyPaid())
                                     <span class="badge" style="background:#1f7a44;color:#fff" title="Driver paid for this job">💷 Driver paid</span>
                                 @elseif(($b->driverPayRemaining() ?? 0) > 0)
-                                    <span class="badge" style="background:#8a5a00;color:#fff" title="Owed to the driver">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed</span>
+                                    @if(auth()->user()->isAdmin())
+                                        <span class="badge" style="background:#8a5a00;color:#fff;cursor:pointer" title="Tap to mark this job paid to the driver"
+                                              onclick="event.preventDefault();event.stopPropagation();if(confirm('Mark £{{ number_format($b->driverPayRemaining(), 2) }} paid to {{ addslashes($b->payrollDriverName()) }} for this job?'))document.getElementById('markpaid-{{ $b->id }}').submit();">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed · tap to pay</span>
+                                    @else
+                                        <span class="badge" style="background:#8a5a00;color:#fff" title="Owed to the driver">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed</span>
+                                    @endif
                                 @endif
                                 @if(auth()->user()->isAdmin() && $b->driverWhatsAppLink())
                                     <span class="bk-edit" title="WhatsApp {{ $b->driver?->name ?? 'the driver' }}"
@@ -181,6 +186,15 @@
                                 @endif
                             </div>
                         </a>
+                        @if(auth()->user()->isAdmin() && ! $b->driverFullyPaid() && ($b->driverPayRemaining() ?? 0) > 0)
+                            {{-- One-tap "mark driver paid" for this card (a form can't sit inside the
+                                 card's own <a>, so it lives here and the badge submits it). --}}
+                            <form id="markpaid-{{ $b->id }}" method="POST" action="{{ route('bookings.payroll', $b) }}" style="display:none">
+                                @csrf
+                                <input type="hidden" name="action" value="mark_paid">
+                                <input type="hidden" name="from" value="bookings">
+                            </form>
+                        @endif
                     @endforeach
                 </div>
             @endforeach

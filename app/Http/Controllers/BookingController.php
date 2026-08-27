@@ -887,12 +887,39 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash'],
-            'amount' => ['required_unless:action,company_collected', 'numeric', 'min:0', 'max:100000'],
+            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash,mark_paid'],
+            'amount' => [\Illuminate\Validation\Rule::requiredIf(
+                fn () => in_array($request->input('action'), ['set', 'record', 'tip', 'confirm_cash'], true)
+            ), 'nullable', 'numeric', 'min:0', 'max:100000'],
             'method' => ['required_if:action,tip', 'in:cash,card'],
             'note' => ['nullable', 'string', 'max:200'],
             'collected' => ['nullable', 'boolean'],
         ]);
+
+        // One-tap "Mark paid": record whatever is still owed as handed over, so the
+        // whole job is settled in a single click from the payroll list or a booking
+        // card. No-op (and never negative) when there's nothing left to pay.
+        if ($data['action'] === 'mark_paid') {
+            $remaining = $booking->driverPayRemaining() ?? 0.0;
+            if ($booking->driverPay() === null) {
+                return $this->afterPayroll($request, $booking)
+                    ->with('status', 'Set this job\'s driver pay first, then mark it paid.');
+            }
+            if ($remaining > 0.001) {
+                $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+                $payroll['paid'] = round(((float) ($payroll['paid'] ?? 0)) + $remaining, 2);
+                $payroll['history'][] = [
+                    'amount' => round($remaining, 2),
+                    'at' => now()->toDateTimeString(),
+                    'by' => $request->user()->name,
+                    'note' => 'Marked paid in full',
+                ];
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
+            }
+
+            return $this->afterPayroll($request, $booking)
+                ->with('status', $booking->payrollDriverName().' marked paid in full for this job.');
+        }
 
         // A cash job: confirm (or correct) the cash the driver collects from the
         // customer and move on. Stored as an override so a re-parse of the payment
@@ -971,6 +998,12 @@ class BookingController extends Controller
             $month = preg_match('/^\d{4}-\d{2}$/', (string) $request->input('month')) ? $request->input('month') : null;
 
             return redirect()->to(route('payroll.index', array_filter(['month' => $month])).'#missing-pay');
+        }
+
+        // From the bookings list: stay on that list (same filter/page/scroll) so
+        // the "Driver paid" badge just flips in place.
+        if ($request->input('from') === 'bookings') {
+            return redirect()->back();
         }
 
         return redirect()->to(route('bookings.show', $booking).'#payroll');
