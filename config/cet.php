@@ -120,8 +120,11 @@ return [
     // Shared secret guarding inbound webhooks (e.g. Twilio missed-call).
     'webhook_secret' => env('CET_WEBHOOK_SECRET', ''),
 
-    // Flight delay (minutes) that triggers an automatic pickup adjustment.
+    // Flight delay (minutes) that triggers an automatic pickup adjustment, and
+    // how many hours BEFORE pickup to start watching a flight. A tighter window
+    // means far fewer API calls — enough to stay inside a free flight-data tier.
     'flight_delay_threshold' => 15,
+    'flight_monitor_window_hours' => env('CET_FLIGHT_WINDOW_HOURS', 6),
 
     // Driver "home base" for the set-off watchdog. When a driver hasn't shared
     // live GPS yet, the watchdog estimates the drive from here (Sheffield) to the
