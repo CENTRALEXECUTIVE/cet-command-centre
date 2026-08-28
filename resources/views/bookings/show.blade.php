@@ -387,8 +387,27 @@
 
             <form method="POST" action="{{ route('bookings.extra-drivers.add', $booking) }}" style="margin-top:8px">
                 @csrf
+                <div class="field">
+                    <label for="ex-driver-pick">Pick a driver <span class="muted">(or start typing the name below)</span></label>
+                    <select id="ex-driver-pick">
+                        <option value="">— Choose a saved driver, or type one below —</option>
+                        @foreach($jobDrivers as $d)
+                            <option value="{{ $loop->index }}"
+                                data-name="{{ $d['name'] }}" data-phone="{{ $d['phone'] }}"
+                                data-reg="{{ $d['reg'] }}" data-car="{{ $d['car'] }}">{{ $d['name'] }}@if($d['reg']) · {{ $d['reg'] }}@endif</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div class="grid grid-2">
-                    <div class="field"><label for="ex-name">Driver name <span class="req">*</span></label><input id="ex-name" name="name" required placeholder="e.g. Sam Jones"></div>
+                    <div class="field">
+                        <label for="ex-name">Driver name <span class="req">*</span></label>
+                        <input id="ex-name" name="name" required placeholder="e.g. Sam Jones" list="ex-driver-names" autocomplete="off">
+                        <datalist id="ex-driver-names">
+                            @foreach($jobDrivers as $d)
+                                <option value="{{ $d['name'] }}">@if($d['reg']){{ $d['reg'] }}@endif</option>
+                            @endforeach
+                        </datalist>
+                    </div>
                     <div class="field"><label for="ex-phone">Phone <span class="muted">(for you to send the link)</span></label><input id="ex-phone" name="phone" placeholder="07…"></div>
                     <div class="field"><label for="ex-reg">Vehicle reg</label><input id="ex-reg" name="reg" style="text-transform:uppercase"></div>
                     <div class="field"><label for="ex-car">Make &amp; model</label><input id="ex-car" name="car" placeholder="e.g. Black Mercedes V-Class"></div>
@@ -1041,6 +1060,34 @@
                 document.getElementById('d-phone').value = o.getAttribute('data-phone') || '';
                 document.getElementById('d-reg').value = o.getAttribute('data-reg') || '';
                 document.getElementById('d-car').value = o.getAttribute('data-car') || '';
+            });
+        })();
+
+        // Extra-driver picker: choose from the dropdown OR type the name (the
+        // datalist filters as you type), and the phone/reg/car prefill.
+        (function () {
+            var pick = document.getElementById('ex-driver-pick');
+            var name = document.getElementById('ex-name');
+            if (!pick || !name) return;
+            var fill = function (n, p, r, c) {
+                name.value = n || name.value;
+                document.getElementById('ex-phone').value = p || '';
+                document.getElementById('ex-reg').value = r || '';
+                document.getElementById('ex-car').value = c || '';
+            };
+            pick.addEventListener('change', function () {
+                var o = pick.options[pick.selectedIndex];
+                if (!o || !o.value) return;
+                fill(o.getAttribute('data-name'), o.getAttribute('data-phone'), o.getAttribute('data-reg'), o.getAttribute('data-car'));
+            });
+            // Typing a known name (or picking it from the datalist) prefills too.
+            name.addEventListener('input', function () {
+                var match = Array.prototype.find.call(pick.options, function (o) {
+                    return o.value && (o.getAttribute('data-name') || '').toLowerCase() === name.value.trim().toLowerCase();
+                });
+                if (match) {
+                    fill(match.getAttribute('data-name'), match.getAttribute('data-phone'), match.getAttribute('data-reg'), match.getAttribute('data-car'));
+                }
             });
         })();
         document.querySelectorAll('.copy-msg').forEach(function (btn) {

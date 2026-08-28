@@ -36,6 +36,20 @@ class ExtraDriverTest extends TestCase
             ]);
     }
 
+    public function test_extra_driver_form_offers_a_driver_picker_and_typeahead(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Sam Jones']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'callsign' => 'Sam']);
+        $booking = $this->booking();
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('ex-driver-pick', false)      // the dropdown
+            ->assertSee('ex-driver-names', false)      // the type-ahead datalist
+            ->assertSee('Sam');                        // the driver appears as an option
+    }
+
     public function test_admin_adds_extra_cars_and_each_gets_its_own_link(): void
     {
         $admin = User::factory()->admin()->create();
