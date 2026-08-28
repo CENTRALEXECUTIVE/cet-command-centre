@@ -1449,6 +1449,40 @@ class Booking extends Model
     }
 
     /**
+     * The airport this job touches (to OR from), as its 3-letter code — for
+     * counting how often a driver ran an airport. Prefers the linked airport
+     * record; falls back to a "(MAN)" style code in the pickup/drop-off address,
+     * validated against the known airport list. This catches calendar-imported
+     * and pasted jobs, which never set airport_id. Null when it's not an airport
+     * run at all. Each leg of a round trip is its own booking, so an outbound
+     * drop-off at MAN and a return pickup from MAN each resolve to MAN and count
+     * as two separate jobs.
+     */
+    public function airportCode(): ?string
+    {
+        if (filled($this->airport?->code)) {
+            return strtoupper($this->airport->code);
+        }
+
+        $blob = trim(((string) $this->pickup_address).' '.((string) $this->destination_address));
+        if (preg_match('/\(([A-Za-z]{3})\)/', $blob, $m)) {
+            $code = strtoupper($m[1]);
+            if (in_array($code, self::knownAirportCodes(), true)) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    /** All configured airport codes (cached), upper-cased, for address matching. */
+    private static function knownAirportCodes(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('airport_codes', 1800, fn () => \App\Models\Airport::query()
+            ->pluck('code')->filter()->map(fn ($c) => strtoupper((string) $c))->values()->all());
+    }
+
+    /**
      * Child/booster/infant seats for the driver — the calendar's counts win,
      * else the booking's own meta. e.g. "4 child · 1 booster", or null when none.
      */

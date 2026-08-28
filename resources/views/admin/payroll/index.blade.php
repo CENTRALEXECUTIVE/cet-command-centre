@@ -70,7 +70,7 @@
 
             @unless($d['extra'] ?? false)
                 @php
-                    $airportCounts = collect($d['jobs'])->map(fn ($b) => $b->airport?->code)->filter()->countBy()->sortDesc();
+                    $airportCounts = collect($d['jobs'])->map(fn ($b) => $b->airportCode())->filter()->countBy()->sortDesc();
                 @endphp
                 @if($airportCounts->isNotEmpty())
                     <div class="airport-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center">
@@ -109,7 +109,7 @@
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
                     @foreach($d['jobs'] as $b)
-                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->airport?->code }}">
+                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->airportCode() }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}</td>

@@ -100,21 +100,27 @@ class PayrollTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $driver = User::factory()->driver()->create(['name' => 'Abdi Ali']);
-        $man = \App\Models\Airport::create(['code' => 'MAN', 'name' => 'Manchester', 'is_active' => true]);
-        $lba = \App\Models\Airport::create(['code' => 'LBA', 'name' => 'Leeds Bradford', 'is_active' => true]);
+        \App\Models\Airport::create(['code' => 'MAN', 'name' => 'Manchester', 'is_active' => true]);
+        \App\Models\Airport::create(['code' => 'LBA', 'name' => 'Leeds Bradford', 'is_active' => true]);
+        \Illuminate\Support\Facades\Cache::forget('airport_codes');
+        $when = now()->startOfMonth()->addDays(2);
 
-        // Two MAN jobs, one LBA job for this driver this month.
-        foreach ([$man, $man, $lba] as $airport) {
-            Booking::factory()->create([
-                'driver_id' => $driver->id, 'airport_id' => $airport->id,
-                'status' => BookingStatus::Complete, 'pickup_at' => now()->startOfMonth()->addDays(2),
-            ])->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
-        }
+        $make = fn (array $attrs) => Booking::factory()->create(array_merge([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when,
+        ], $attrs))->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
+
+        // A round trip = TWO separate bookings, both MAN: outbound drops off AT
+        // Manchester, the return picks up FROM Manchester. No airport_id set
+        // (calendar-style) — the code is read from the address.
+        $make(['pickup_address' => '10 Home St, Sheffield', 'destination_address' => 'Manchester Airport (MAN)']);
+        $make(['pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => '10 Home St, Sheffield']);
+        // One Leeds Bradford job.
+        $make(['pickup_address' => 'Leeds Bradford Airport (LBA)', 'destination_address' => '5 Park Rd, Leeds']);
 
         $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('Airports (to/from)')
-            ->assertSee('MAN · 2')     // went to/from MAN twice
+            ->assertSee('MAN · 2')     // to MAN + from MAN = two separate jobs
             ->assertSee('LBA · 1');
     }
 
