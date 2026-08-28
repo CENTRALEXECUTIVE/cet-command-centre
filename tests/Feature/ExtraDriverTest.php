@@ -36,56 +36,45 @@ class ExtraDriverTest extends TestCase
             ]);
     }
 
-    public function test_extra_cars_can_be_matched_onto_the_return_leg(): void
+    public function test_outbound_can_match_cars_onto_a_chosen_booking(): void
     {
         $admin = User::factory()->admin()->create();
         $outbound = $this->booking();
+        // The return leg — SAME customer, not linked in the DB, chosen by hand.
         $return = Booking::factory()
             ->forVehicleType(VehicleType::where('slug', 'executive')->first())
-            ->create(['is_return_leg' => true, 'pickup_at' => now()->addDays(2), 'status' => BookingStatus::Allocated->value]);
-        // Link the pair both ways.
-        $outbound->forceFill(['linked_booking_id' => $return->id])->save();
-        $return->forceFill(['linked_booking_id' => $outbound->id])->save();
+            ->create([
+                'customer_id' => $outbound->customer_id,
+                'is_return_leg' => true, 'pickup_at' => now()->addDays(2),
+                'status' => BookingStatus::Allocated->value,
+            ]);
 
-        // Two cars on the outbound.
         $outbound->addExtraDriver(['name' => 'Sam Jones', 'phone' => '07700900001', 'reg' => 'AB19XYZ', 'car' => 'Black V Class']);
         $outbound->addExtraDriver(['name' => 'Lee Ford', 'phone' => '07700900002', 'reg' => 'CD20ABC', 'car' => 'Grey Estate']);
 
-        $this->actingAs($admin)->post(route('bookings.extra-drivers.copy', $outbound->fresh()))->assertRedirect();
+        // The outbound page offers the picker with the return as a target.
+        $this->actingAs($admin)->get(route('bookings.show', $outbound->fresh()))
+            ->assertOk()
+            ->assertSee('Match these cars to another booking')
+            ->assertSee($return->reference);
+
+        // Pick that booking → both cars copied over.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.copy', $outbound->fresh()), [
+            'target_booking_id' => $return->id,
+        ])->assertRedirect();
 
         $return = $return->fresh();
         $names = collect($return->extraDrivers())->pluck('name')->all();
         $this->assertContains('Sam Jones', $names);
         $this->assertContains('Lee Ford', $names);
-        // Each got its OWN fresh link token (not the outbound's).
+        // Each got its OWN fresh link token.
         $outboundTokens = collect($outbound->fresh()->extraDrivers())->pluck('token');
         $returnTokens = collect($return->extraDrivers())->pluck('token');
         $this->assertEmpty($outboundTokens->intersect($returnTokens));
 
         // Re-running doesn't duplicate.
-        $this->actingAs($admin)->post(route('bookings.extra-drivers.copy', $outbound->fresh()))->assertRedirect();
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.copy', $outbound->fresh()), ['target_booking_id' => $return->id])->assertRedirect();
         $this->assertCount(2, $return->fresh()->extraDrivers());
-    }
-
-    public function test_the_return_leg_can_match_cars_from_the_outbound(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $outbound = $this->booking();
-        $return = Booking::factory()
-            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
-            ->create(['is_return_leg' => true, 'pickup_at' => now()->addDays(2), 'status' => BookingStatus::Allocated->value]);
-        $outbound->forceFill(['linked_booking_id' => $return->id])->save();
-        $return->forceFill(['linked_booking_id' => $outbound->id])->save();
-
-        $outbound->addExtraDriver(['name' => 'Sam Jones', 'reg' => 'AB19XYZ', 'car' => 'Black V Class']);
-
-        // From the RETURN leg, pull the outbound's cars in ("match outbound").
-        $this->actingAs($admin)->post(route('bookings.extra-drivers.match-linked', $return->fresh()))->assertRedirect();
-
-        $this->assertContains('Sam Jones', collect($return->fresh()->extraDrivers())->pluck('name')->all());
-        // The return page shows the "Match cars from the outbound leg" button.
-        $this->actingAs($admin)->get(route('bookings.show', $return->fresh()))
-            ->assertOk()->assertSee('Match cars from the outbound leg');
     }
 
     public function test_extra_driver_form_offers_a_driver_picker_and_typeahead(): void

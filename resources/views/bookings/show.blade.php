@@ -415,27 +415,29 @@
                 <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">＋ Add another car</button>
             </form>
 
-            {{-- Pull the linked leg's cars onto THIS one (e.g. on the return, "match
-                 outbound"). Shown whenever the paired leg has cars. --}}
-            @if($booking->linkedBooking?->hasExtraDrivers())
-                @php $srcLeg = $booking->linkedBooking->is_return_leg ? 'return' : 'outbound'; @endphp
-                <form method="POST" action="{{ route('bookings.extra-drivers.match-linked', $booking) }}" style="margin-top:10px"
-                      onsubmit="return confirm('Match the {{ count($booking->linkedBooking->extraDrivers()) }} car(s) from the {{ $srcLeg }} leg onto this one? Each gets its own link.')">
-                    @csrf
-                    <button class="btn btn-primary" style="padding:7px 14px;font-size:13px">↔ Match cars from the {{ $srcLeg }} leg</button>
-                </form>
-                <p class="hint" style="margin:6px 0 0">Copies the same drivers/cars from {{ $srcLeg }} leg <a href="{{ route('bookings.show', $booking->linkedBooking) }}">{{ $booking->linkedBooking->reference }}</a> onto this one, each with its own link.</p>
-            @endif
-
-            {{-- Push this leg's cars onto the paired leg. --}}
-            @if($booking->linkedBooking && $booking->hasExtraDrivers())
-                @php $leg = $booking->linkedBooking->is_return_leg ? 'return' : 'outbound'; @endphp
-                <form method="POST" action="{{ route('bookings.extra-drivers.copy', $booking) }}" style="margin-top:10px"
-                      onsubmit="return confirm('Copy these {{ count($booking->extraDrivers()) }} car(s) onto the {{ $leg }} leg? Each gets its own link.')">
-                    @csrf
-                    <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px">↔ Match these cars to the {{ $leg }} leg</button>
-                </form>
-                <p class="hint" style="margin:6px 0 0">Puts the same drivers/cars on the paired {{ $leg }} journey (<a href="{{ route('bookings.show', $booking->linkedBooking) }}">{{ $booking->linkedBooking->reference }}</a>), each with its own link.</p>
+            {{-- Match these cars onto ANOTHER booking (usually the return). Pick the
+                 target — the customer's other bookings are listed (linked leg first),
+                 each copied car gets its own link. --}}
+            @if($booking->hasExtraDrivers() && $matchTargets->isNotEmpty())
+                <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+                    <form method="POST" action="{{ route('bookings.extra-drivers.copy', $booking) }}"
+                          onsubmit="return confirm('Match these {{ count($booking->extraDrivers()) }} car(s) onto the booking you picked? Each gets its own link.')">
+                        @csrf
+                        <label for="match-target" style="font-weight:600;font-size:14px">↔ Match these cars to another booking</label>
+                        <p class="hint" style="margin:4px 0 8px">e.g. the customer's return leg — the same drivers &amp; vehicles get copied over, each with its own link.</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            <select id="match-target" name="target_booking_id" required style="min-width:240px">
+                                <option value="">— Choose the booking to match to —</option>
+                                @foreach($matchTargets as $t)
+                                    <option value="{{ $t->id }}">
+                                        {{ $t->reference }}{{ $t->is_return_leg ? ' (return)' : '' }} · {{ $t->pickup_at?->format('D d M, H:i') }} · {{ \Illuminate\Support\Str::limit($t->pickup_address, 18) }} → {{ \Illuminate\Support\Str::limit($t->destination_address, 18) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">Match cars to this booking</button>
+                        </div>
+                    </form>
+                </div>
             @endif
         </details>
     @endif

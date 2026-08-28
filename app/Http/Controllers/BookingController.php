@@ -518,40 +518,34 @@ class BookingController extends Controller
         return back()->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
     }
 
-    /** Copy this job's extra cars onto its paired leg (the return/outbound). */
+    /**
+     * Copy this job's extra cars onto ANOTHER booking the operator picks (usually
+     * the return leg). Defaults to the linked leg when no target is chosen.
+     */
     public function copyExtraDrivers(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $target = $booking->linkedBooking;
+        $data = $request->validate([
+            'target_booking_id' => ['nullable', 'integer', 'exists:bookings,id'],
+        ]);
+
+        $target = ! empty($data['target_booking_id'])
+            ? Booking::find($data['target_booking_id'])
+            : $booking->linkedBooking;
+
         if (! $target) {
-            return back()->with('status', 'This booking has no linked return leg to copy the cars to.');
+            return back()->with('status', 'Pick which booking to match the cars to.');
+        }
+        if ($target->is($booking)) {
+            return back()->with('status', "That's this same booking — pick the other leg.");
         }
 
         $added = $booking->copyExtraDriversTo($target);
-        $leg = $target->is_return_leg ? 'return' : 'outbound';
 
         return back()->with('status', $added > 0
-            ? "Matched {$added} car(s) onto the {$leg} leg — each has its own link to send."
-            : "The {$leg} leg already has these cars.");
-    }
-
-    /** Pull the paired leg's extra cars onto THIS booking (e.g. "match outbound"). */
-    public function matchExtraDriversFromLinked(Request $request, Booking $booking): RedirectResponse
-    {
-        abort_unless($request->user()->isAdmin(), 403);
-
-        $source = $booking->linkedBooking;
-        if (! $source || ! $source->hasExtraDrivers()) {
-            return back()->with('status', 'The linked leg has no extra cars to match.');
-        }
-
-        $added = $source->copyExtraDriversTo($booking);
-        $leg = $source->is_return_leg ? 'return' : 'outbound';
-
-        return back()->with('status', $added > 0
-            ? "Matched {$added} car(s) from the {$leg} leg — each has its own link to send."
-            : "This leg already has those cars.");
+            ? "Matched {$added} car(s) onto {$target->reference} — each has its own link to send."
+            : "{$target->reference} already has these cars.");
     }
 
     /** Remove an extra car from a multi-car job. */
@@ -836,7 +830,21 @@ class BookingController extends Controller
         // had open (their month/filter/search/page), falling back to the list.
         $backUrl = session('bookings.return_url', route('bookings.index'));
 
-        return compact('booking', 'auditLogs', 'auditLogTotal', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan', 'backUrl');
+        // Candidate bookings to match extra cars onto (the return leg etc.): the
+        // same customer's OTHER non-cancelled bookings, newest first, with the
+        // linked leg surfaced first when there is one.
+        $matchTargets = collect();
+        if ($request->user()->isAdmin() && $booking->hasExtraDrivers() && $booking->customer_id) {
+            $matchTargets = Booking::where('customer_id', $booking->customer_id)
+                ->where('id', '!=', $booking->id)
+                ->where('status', '!=', BookingStatus::Cancelled->value)
+                ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$booking->linked_booking_id ?? 0])
+                ->orderByDesc('pickup_at')
+                ->limit(25)
+                ->get(['id', 'reference', 'external_reference', 'pickup_at', 'pickup_address', 'destination_address', 'is_return_leg']);
+        }
+
+        return compact('booking', 'auditLogs', 'auditLogTotal', 'messages', 'jobDrivers', 'allocatableDrivers', 'canScan', 'backUrl', 'matchTargets');
     }
 
     /**

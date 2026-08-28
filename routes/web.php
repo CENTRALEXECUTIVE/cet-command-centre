@@ -122,7 +122,6 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/extra-drivers', [BookingController::class, 'addExtraDriver'])->middleware('throttle:30,1')->name('bookings.extra-drivers.add');
         Route::post('bookings/{booking}/extra-drivers/remove', [BookingController::class, 'removeExtraDriver'])->middleware('throttle:30,1')->name('bookings.extra-drivers.remove');
         Route::post('bookings/{booking}/extra-drivers/copy', [BookingController::class, 'copyExtraDrivers'])->middleware('throttle:30,1')->name('bookings.extra-drivers.copy');
-        Route::post('bookings/{booking}/extra-drivers/match-linked', [BookingController::class, 'matchExtraDriversFromLinked'])->middleware('throttle:30,1')->name('bookings.extra-drivers.match-linked');
         Route::post('bookings/{booking}/extra-drivers/payroll', [BookingController::class, 'extraDriverPayroll'])->middleware('throttle:60,1')->name('bookings.extra-drivers.payroll');
         Route::post('bookings/{booking}/driver-details', [BookingController::class, 'setDriverDetails'])->middleware('throttle:30,1')->name('bookings.driver-details');
         Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
