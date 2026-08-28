@@ -294,7 +294,18 @@
             <h2 style="margin:0 0 4px">🔗 Driver link — no login @if($booking->hasExtraDrivers())<span class="muted" style="font-weight:400;font-size:13px">· Car 1 of {{ $booking->carCount() }}</span>@endif</h2>
             <p class="hint" style="margin:0 0 12px">Send this to the driver. It opens their full job sheet — details, cash to collect, the contact number, navigation and the status buttons — with live tracking, no account needed.</p>
             @if($booking->hasExtraDrivers())
-                <p class="hint" style="margin:0 0 12px">👤 This lead car carries <strong>{{ $booking->leadCarPassengers() }}</strong> of {{ $booking->passengerCount() }} passengers (the rest ride in the extra cars below).</p>
+                <div style="background:var(--panel,#f7f7f9);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px">
+                    <form method="POST" action="{{ route('bookings.extra-drivers.passengers', $booking) }}" style="display:flex;gap:8px;align-items:center;margin:0;flex-wrap:wrap">
+                        @csrf
+                        <input type="hidden" name="token" value="lead">
+                        <label style="font-size:14px"><strong>👤 Passengers in this lead car:</strong></label>
+                        <input type="number" min="0" max="60" name="passengers" value="{{ $booking->leadCarPassengersSet() ? $booking->leadCarPassengers() : '' }}" placeholder="{{ $booking->leadCarPassengers() }}" style="width:80px">
+                        <button class="btn btn-light" style="padding:6px 12px;font-size:13px">Set</button>
+                        <span class="hint" style="margin:0">
+                            @if($booking->leadCarPassengersSet())set by hand · of {{ $booking->passengerCount() }} total@else auto: the {{ $booking->leadCarPassengers() }} left after the extra cars (of {{ $booking->passengerCount() }} total)@endif
+                        </span>
+                    </form>
+                </div>
             @endif
             <input type="text" value="{{ $driverLink }}" readonly onclick="this.select()" style="font-size:12px;margin-bottom:10px">
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">

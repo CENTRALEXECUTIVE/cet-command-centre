@@ -519,7 +519,10 @@ class BookingController extends Controller
         return back()->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
     }
 
-    /** Set how many passengers ride in one extra car (shown on that car's link). */
+    /**
+     * Set how many passengers ride in one car (shown on that car's link). The
+     * lead car uses the token "lead"; extra cars use their own token.
+     */
     public function setExtraDriverPassengers(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
@@ -528,13 +531,23 @@ class BookingController extends Controller
             'token' => ['required', 'string'],
             'passengers' => ['nullable', 'integer', 'min:0', 'max:60'],
         ]);
+        $n = $data['passengers'] ?? null;
+
+        if ($data['token'] === 'lead') {
+            $booking->setLeadCarPassengers($n);
+
+            return back()->with('status', $n !== null
+                ? "Lead car set to carry {$n} passenger(s)."
+                : 'Lead car back to the remaining passengers automatically.');
+        }
+
         $car = $booking->extraDriver($data['token']);
         abort_if($car === null, 404);
 
-        $booking->setExtraDriverPassengers($data['token'], $data['passengers'] ?? null);
+        $booking->setExtraDriverPassengers($data['token'], $n);
 
-        return back()->with('status', ($data['passengers'] ?? null) !== null
-            ? "Car set to carry {$data['passengers']} passenger(s)."
+        return back()->with('status', $n !== null
+            ? "Car set to carry {$n} passenger(s)."
             : 'Cleared this car’s passenger count.');
     }
 

@@ -561,9 +561,10 @@ class Booking extends Model
     }
 
     /**
-     * The lead car's own share of the party on a multi-car job: the total minus
-     * whatever the extra cars are carrying. Falls back to the full head-count
-     * when it isn't a multi-car job or nothing's been split yet.
+     * The lead car's own share of the party on a multi-car job. The office can
+     * set it explicitly (meta['lead_car_passengers']); otherwise it's worked out
+     * as the total minus whatever the extra cars carry. Falls back to the full
+     * head-count when it isn't a multi-car job or nothing's been split yet.
      */
     public function leadCarPassengers(): ?int
     {
@@ -572,12 +573,38 @@ class Booking extends Model
             return $total;
         }
 
+        // Explicit override wins — the operator typed this car's count by hand.
+        $set = $this->meta['lead_car_passengers'] ?? null;
+        if ($set !== null && $set !== '') {
+            return max(0, (int) $set);
+        }
+
         $assigned = 0;
         foreach ($this->extraDrivers() as $d) {
             $assigned += (int) ($d['passengers'] ?? 0);
         }
 
         return max(0, $total - $assigned);
+    }
+
+    /** Whether the lead car's passenger count was set by hand (vs. auto-remainder). */
+    public function leadCarPassengersSet(): bool
+    {
+        $set = $this->meta['lead_car_passengers'] ?? null;
+
+        return $set !== null && $set !== '';
+    }
+
+    /** Set (or clear, with null) how many passengers ride in the lead car. */
+    public function setLeadCarPassengers(?int $n): void
+    {
+        $meta = $this->meta ?? [];
+        if ($n === null) {
+            unset($meta['lead_car_passengers']);
+        } else {
+            $meta['lead_car_passengers'] = max(0, $n);
+        }
+        $this->forceFill(['meta' => $meta])->save();
     }
 
     /* Per-car PAYROLL — each extra car is paid separately from the lead driver

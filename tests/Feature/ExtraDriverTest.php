@@ -223,6 +223,38 @@ class ExtraDriverTest extends TestCase
         $this->assertNull($booking->fresh()->extraDriverPassengers($t2));
     }
 
+    public function test_the_lead_car_passenger_count_can_be_set_by_hand(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Big Group'])->id,
+                'pickup_at' => now()->addDay(),
+                'passengers' => 7,
+                'status' => BookingStatus::Allocated->value,
+            ]);
+        // Two extra cars carry all 7 → lead auto-remainder is 0.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Car2', 'passengers' => '4']);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Car3', 'passengers' => '3']);
+        $this->assertSame(0, $booking->fresh()->leadCarPassengers());
+
+        // The office sets the lead car by hand — the override wins.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.passengers', $booking), ['token' => 'lead', 'passengers' => '3'])->assertRedirect();
+        $booking->refresh();
+        $this->assertTrue($booking->leadCarPassengersSet());
+        $this->assertSame(3, $booking->leadCarPassengers());
+
+        // The lead driver's own link shows the set count.
+        $this->get(route('driver.link', $booking->driverLinkToken()))->assertOk()->assertSee('3 in your car');
+
+        // Clearing it returns to the auto-remainder (0 here).
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.passengers', $booking), ['token' => 'lead', 'passengers' => ''])->assertRedirect();
+        $booking->refresh();
+        $this->assertFalse($booking->leadCarPassengersSet());
+        $this->assertSame(0, $booking->leadCarPassengers());
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
