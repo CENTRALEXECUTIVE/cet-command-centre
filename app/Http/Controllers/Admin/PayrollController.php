@@ -98,6 +98,9 @@ class PayrollController extends Controller
             ->groupBy(fn (Booking $b) => $b->payrollDriverName())
             ->map(fn ($jobs, $name) => [
                 'name' => $name,
+                // The driver's user record (for the clickable name → their
+                // directory details), from the first job that has one.
+                'driver_id' => $jobs->pluck('driver')->filter()->first()?->id,
                 'jobs' => $jobs->values(),
                 'pay' => round($jobs->sum(fn (Booking $b) => $b->driverPay()), 2),
                 'paid' => round($jobs->sum(fn (Booking $b) => $b->driverPaidAmount()), 2),

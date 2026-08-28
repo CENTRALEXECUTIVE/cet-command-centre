@@ -96,6 +96,20 @@ class PayrollTest extends TestCase
             ->assertSee('markpaid-'.$booking->id, false);
     }
 
+    public function test_payroll_driver_name_links_to_their_directory_details(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Maj Khan']);
+        Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Complete,
+            'pickup_at' => now()->startOfMonth()->addDays(2),
+        ])->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
+
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
+            ->assertOk()
+            ->assertSee(route('drivers.edit', $driver->id), false);
+    }
+
     public function test_payroll_shows_a_per_driver_airport_filter_with_counts(): void
     {
         $admin = User::factory()->admin()->create();

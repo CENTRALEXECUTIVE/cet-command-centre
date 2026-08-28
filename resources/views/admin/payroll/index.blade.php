@@ -59,7 +59,14 @@
     @forelse($drivers as $d)
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-                <h2 style="margin:0">{{ $d['name'] }}@if($d['extra'] ?? false) <span class="badge" style="background:#5b2bc7;color:#fff;font-size:11px;vertical-align:middle">extra car</span>@endif</h2>
+                <h2 style="margin:0">
+                    @if(! ($d['extra'] ?? false) && ($d['driver_id'] ?? null))
+                        <a href="{{ route('drivers.edit', $d['driver_id']) }}" title="Open {{ $d['name'] }}'s directory details to check/confirm">{{ $d['name'] }} ↗</a>
+                    @else
+                        {{ $d['name'] }}
+                    @endif
+                    @if($d['extra'] ?? false) <span class="badge" style="background:#5b2bc7;color:#fff;font-size:11px;vertical-align:middle">extra car</span>@endif
+                </h2>
                 <div style="font-size:14px">
                     £{{ number_format($d['pay'], 2) }} total
                     · <span style="color:#1f7a44">£{{ number_format($d['paid'], 2) }} paid</span>
