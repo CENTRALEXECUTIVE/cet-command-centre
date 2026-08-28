@@ -305,6 +305,20 @@ class StatusWatchdog
                 severity: 'critical');
         }
 
+        // Child seat needed but no driver has confirmed picking it up from the
+        // office. Fires from 2h before pickup until someone confirms — capped so
+        // it reminds a few times without spamming. Safety-critical, so it runs
+        // even after set-off (a driver who left without the seat needs chasing).
+        if ($booking->hasChildSeat()
+            && ! $booking->anyChildSeatConfirmed()
+            && now()->gte($booking->pickup_at->copy()->subHours(2))) {
+            $seats = $booking->displayChildSeats();
+            $sent += (int) $this->admins->send($booking, 'admin_child_seats', 'child_seats',
+                '🚼 Child seat not confirmed — '.$time.' '.$where,
+                'Driver hasn’t confirmed collecting the '.$seats.' for the '.$time.' '.$where.' job — check they’ve got it.',
+                severity: 'warning', maxSends: 3, repeatMinutes: 30);
+        }
+
         // NB: no "GPS lost mid-job" office alert. A web app stops sending GPS the
         // moment the driver backgrounds the app, so this would cry wolf on nearly
         // every job. (If we ever ship a native app with true background tracking,

@@ -8,6 +8,7 @@
     $locationStoreUrl = $locationStoreUrl ?? route('driver.locations.store');
     $stopUrl = $stopUrl ?? route('driver.job.reach-stop', $booking);
     $ackCashUrl = $ackCashUrl ?? route('driver.job.ack-cash', $booking);
+    $ackChildSeatsUrl = $ackChildSeatsUrl ?? route('driver.job.child-seats', $booking);
 
     // Multi-stop journeys (a "via" between pickup and drop-off).
     $viaStops = $booking->viaStops();
@@ -156,6 +157,27 @@
         <div style="font-weight:800;font-size:15px">📝 Notes</div>
         <p style="margin:6px 0 0;font-size:15px;white-space:pre-wrap">{{ $booking->driverNotes() }}</p>
     </div>
+@endif
+
+{{-- Child-seat pickup. A job carrying a child/booster/infant seat needs the
+     driver to collect the seat from the office and confirm it here, so it's
+     never forgotten. Until confirmed, the office is nudged. --}}
+@if($booking->displayChildSeats())
+    @if($booking->childSeatsCollected())
+        <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">
+            <div style="font-weight:700;font-size:14px">✓ Child seat collected</div>
+            <div class="muted" style="font-size:13px;margin-top:2px">{{ $booking->displayChildSeats() }} — confirmed picked up from the office.</div>
+        </div>
+    @else
+        <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.16);margin-bottom:16px">
+            <div style="font-weight:800;font-size:16px">🚼 Collect the child seat</div>
+            <p style="margin:6px 0 10px;font-size:15px">This job needs a <strong>{{ $booking->displayChildSeats() }}</strong>. Pick it up from the office before you set off, then confirm here.</p>
+            <form method="POST" action="{{ $ackChildSeatsUrl }}">
+                @csrf
+                <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:15px">✓ I’ve collected the child seat</button>
+            </form>
+        </div>
+    @endif
 @endif
 
 {{-- One-tap navigation: opens Waze straight into navigation. Each address also

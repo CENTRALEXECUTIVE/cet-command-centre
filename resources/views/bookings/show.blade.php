@@ -46,6 +46,13 @@
             @elseif($booking->paymentNeedsChecking())
                 <span class="bh-chip warn" title="A balance may be owed but the amount isn't clear on the booking — the driver is told to check with the office">💷 payment unclear — check</span>
             @endif
+            @if($booking->displayChildSeats())
+                @if($booking->anyChildSeatConfirmed())
+                    <span class="bh-chip ok" title="Driver confirmed collecting the child seat{{ $booking->childSeatsCollectedAt() ? ' at '.$booking->childSeatsCollectedAt()->format('D d M, H:i') : '' }}">🚼 {{ $booking->displayChildSeats() }} · collected ✓</span>
+                @else
+                    <span class="bh-chip warn" title="Driver has not yet confirmed collecting the child seat from the office">🚼 {{ $booking->displayChildSeats() }} · not collected</span>
+                @endif
+            @endif
         </div>
         <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
     </div>

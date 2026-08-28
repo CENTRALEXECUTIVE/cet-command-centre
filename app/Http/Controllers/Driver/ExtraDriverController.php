@@ -60,4 +60,16 @@ class ExtraDriverController extends Controller
 
         return back()->with('status', 'Car status updated to '.$to->label().'.');
     }
+
+    /** Extra-car driver confirms they've collected the child seat(s) from the office. */
+    public function confirmChildSeats(string $token): RedirectResponse
+    {
+        $booking = Booking::byExtraDriverToken($token);
+        $car = $booking?->extraDriver($token);
+        abort_if(! $booking || ! $car, 404);
+
+        $booking->confirmExtraDriverChildSeats($token, null);
+
+        return back()->with('status', 'Thanks — child seat collection confirmed.');
+    }
 }

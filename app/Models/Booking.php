@@ -560,6 +560,22 @@ class Booking extends Model
         });
     }
 
+    /** Whether an extra car's driver has confirmed they've collected the child seat(s). */
+    public function extraDriverChildSeatsCollected(string $token): bool
+    {
+        return isset($this->extraDriver($token)['child_seats_collected']['at']);
+    }
+
+    /** Record an extra car's driver confirming child-seat collection. */
+    public function confirmExtraDriverChildSeats(string $token, ?User $by = null): void
+    {
+        $this->updateExtraDriver($token, function (array $d) use ($by) {
+            $d['child_seats_collected'] = ['at' => now()->toIso8601String(), 'by' => $by?->id];
+
+            return $d;
+        });
+    }
+
     /**
      * The lead car's own share of the party on a multi-car job. The office can
      * set it explicitly (meta['lead_car_passengers']); otherwise it's worked out
@@ -1941,6 +1957,58 @@ class Booking extends Model
         $at = $this->meta['cash_ack']['at'] ?? null;
 
         return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    /* ---- Child-seat collection ----------------------------------------------
+     * A job carrying a child/booster/infant seat needs the driver to physically
+     * pick the seat up from the office. The driver confirms on their link; until
+     * they do, the office is nudged to make sure it isn't forgotten. */
+
+    /** Whether the driver has confirmed they've collected the child seat(s). */
+    public function childSeatsCollected(): bool
+    {
+        return isset($this->meta['child_seats_collected']['at']);
+    }
+
+    /** When the driver confirmed child-seat collection, or null. */
+    public function childSeatsCollectedAt(): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->meta['child_seats_collected']['at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    /** Record the driver confirming they've collected the child seat(s) from the office. */
+    public function confirmChildSeatsCollected(?User $by = null): void
+    {
+        if (! $this->hasChildSeat()) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        $meta['child_seats_collected'] = [
+            'at' => now()->toIso8601String(),
+            'by' => $by?->id,
+        ];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /**
+     * Whether ANY driver on the job (lead or an extra car) has confirmed the
+     * child seat is collected. Used by the office nudge so a multi-car job where
+     * a different car carries the seat doesn't keep alerting.
+     */
+    public function anyChildSeatConfirmed(): bool
+    {
+        if ($this->childSeatsCollected()) {
+            return true;
+        }
+        foreach ($this->extraDrivers() as $d) {
+            if (isset($d['child_seats_collected']['at'])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

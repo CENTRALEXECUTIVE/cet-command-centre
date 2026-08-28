@@ -67,6 +67,25 @@
                 </div>
             @endif
 
+            {{-- Child-seat pickup for THIS car — confirm you've collected it. --}}
+            @if($booking->displayChildSeats())
+                @if($booking->extraDriverChildSeatsCollected($token))
+                    <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">
+                        <div style="font-weight:700;font-size:14px">✓ Child seat collected</div>
+                        <div class="muted" style="font-size:13px;margin-top:2px">{{ $booking->displayChildSeats() }} — confirmed picked up from the office.</div>
+                    </div>
+                @else
+                    <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.16);margin-bottom:16px">
+                        <div style="font-weight:800;font-size:16px">🚼 Collect the child seat</div>
+                        <p style="margin:6px 0 10px;font-size:15px">This job needs a <strong>{{ $booking->displayChildSeats() }}</strong>. Pick it up from the office before you set off, then confirm here.</p>
+                        <form method="POST" action="{{ route('driver.car.child-seats', $token) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:15px">✓ I’ve collected the child seat</button>
+                        </form>
+                    </div>
+                @endif
+            @endif
+
             {{-- Navigation (Waze), with a Copy button for any nav app. --}}
             <div style="margin-bottom:16px">
                 <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">

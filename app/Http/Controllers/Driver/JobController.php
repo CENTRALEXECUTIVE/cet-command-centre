@@ -106,6 +106,15 @@ class JobController extends Controller
         return back()->with('status', 'Thanks — noted you’ll collect the cash.');
     }
 
+    /** Driver confirms they've collected the child seat(s) from the office. */
+    public function confirmChildSeats(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+        $booking->confirmChildSeatsCollected($request->user());
+
+        return back()->with('status', 'Thanks — child seat collection confirmed.');
+    }
+
     /**
      * Answer an office "request location": record a one-off position for this
      * job (works even before Set off) so the office can see where the driver is.
