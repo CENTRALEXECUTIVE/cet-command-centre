@@ -67,6 +67,27 @@ class ExtraDriverTest extends TestCase
         $this->assertCount(2, $return->fresh()->extraDrivers());
     }
 
+    public function test_the_return_leg_can_match_cars_from_the_outbound(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $outbound = $this->booking();
+        $return = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create(['is_return_leg' => true, 'pickup_at' => now()->addDays(2), 'status' => BookingStatus::Allocated->value]);
+        $outbound->forceFill(['linked_booking_id' => $return->id])->save();
+        $return->forceFill(['linked_booking_id' => $outbound->id])->save();
+
+        $outbound->addExtraDriver(['name' => 'Sam Jones', 'reg' => 'AB19XYZ', 'car' => 'Black V Class']);
+
+        // From the RETURN leg, pull the outbound's cars in ("match outbound").
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.match-linked', $return->fresh()))->assertRedirect();
+
+        $this->assertContains('Sam Jones', collect($return->fresh()->extraDrivers())->pluck('name')->all());
+        // The return page shows the "Match cars from the outbound leg" button.
+        $this->actingAs($admin)->get(route('bookings.show', $return->fresh()))
+            ->assertOk()->assertSee('Match cars from the outbound leg');
+    }
+
     public function test_extra_driver_form_offers_a_driver_picker_and_typeahead(): void
     {
         $admin = User::factory()->admin()->create();

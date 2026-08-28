@@ -536,6 +536,24 @@ class BookingController extends Controller
             : "The {$leg} leg already has these cars.");
     }
 
+    /** Pull the paired leg's extra cars onto THIS booking (e.g. "match outbound"). */
+    public function matchExtraDriversFromLinked(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $source = $booking->linkedBooking;
+        if (! $source || ! $source->hasExtraDrivers()) {
+            return back()->with('status', 'The linked leg has no extra cars to match.');
+        }
+
+        $added = $source->copyExtraDriversTo($booking);
+        $leg = $source->is_return_leg ? 'return' : 'outbound';
+
+        return back()->with('status', $added > 0
+            ? "Matched {$added} car(s) from the {$leg} leg — each has its own link to send."
+            : "This leg already has those cars.");
+    }
+
     /** Remove an extra car from a multi-car job. */
     public function removeExtraDriver(Request $request, Booking $booking): RedirectResponse
     {

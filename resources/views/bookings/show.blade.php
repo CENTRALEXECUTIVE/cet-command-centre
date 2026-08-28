@@ -415,6 +415,19 @@
                 <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">＋ Add another car</button>
             </form>
 
+            {{-- Pull the linked leg's cars onto THIS one (e.g. on the return, "match
+                 outbound"). Shown whenever the paired leg has cars. --}}
+            @if($booking->linkedBooking?->hasExtraDrivers())
+                @php $srcLeg = $booking->linkedBooking->is_return_leg ? 'return' : 'outbound'; @endphp
+                <form method="POST" action="{{ route('bookings.extra-drivers.match-linked', $booking) }}" style="margin-top:10px"
+                      onsubmit="return confirm('Match the {{ count($booking->linkedBooking->extraDrivers()) }} car(s) from the {{ $srcLeg }} leg onto this one? Each gets its own link.')">
+                    @csrf
+                    <button class="btn btn-primary" style="padding:7px 14px;font-size:13px">↔ Match cars from the {{ $srcLeg }} leg</button>
+                </form>
+                <p class="hint" style="margin:6px 0 0">Copies the same drivers/cars from {{ $srcLeg }} leg <a href="{{ route('bookings.show', $booking->linkedBooking) }}">{{ $booking->linkedBooking->reference }}</a> onto this one, each with its own link.</p>
+            @endif
+
+            {{-- Push this leg's cars onto the paired leg. --}}
             @if($booking->linkedBooking && $booking->hasExtraDrivers())
                 @php $leg = $booking->linkedBooking->is_return_leg ? 'return' : 'outbound'; @endphp
                 <form method="POST" action="{{ route('bookings.extra-drivers.copy', $booking) }}" style="margin-top:10px"
