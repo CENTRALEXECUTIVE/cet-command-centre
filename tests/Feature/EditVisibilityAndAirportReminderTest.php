@@ -294,6 +294,32 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertStringNotContainsString('drop us a message', $body); // not the office on a return
     }
 
+    public function test_a_multi_car_reminder_lists_every_car(): void
+    {
+        $lead = User::factory()->driver()->create(['name' => 'Arfan Khan']);
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'driver_id' => $lead->id,
+            'pickup_at' => now()->addDay(),
+        ]);
+        $booking->forceFill(['meta' => [
+            'driver_details' => ['name' => 'Arfan Khan', 'phone' => '07700900001', 'reg' => 'MT68AVG'],
+            'extra_drivers' => [
+                ['token' => 'x1', 'name' => 'Sam Jones', 'phone' => '07700900002', 'reg' => 'AB19XYZ', 'car' => 'Black Mercedes V Class', 'status' => 'allocated'],
+            ],
+        ]])->save();
+
+        $body = app(BookingNotifier::class)->reminderBody($booking->fresh());
+
+        $this->assertStringContainsString('2 cars', $body);
+        $this->assertStringContainsString('*Car 1*', $body);
+        $this->assertStringContainsString('*Car 2*', $body);
+        $this->assertStringContainsString('Arfan', $body);   // first name only
+        $this->assertStringContainsString('Sam', $body);
+        $this->assertStringContainsString('AB19XYZ', $body);
+        $this->assertStringNotContainsString('Khan', $body);  // surname withheld
+    }
+
     public function test_customer_reminder_uses_only_the_drivers_first_name(): void
     {
         $driver = User::factory()->driver()->create(['name' => 'Hamza V Class Khan']);

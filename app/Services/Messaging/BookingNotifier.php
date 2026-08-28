@@ -207,17 +207,39 @@ class BookingNotifier
      */
     private function driverBlock(Booking $booking): ?string
     {
-        // Number masking: when a Proxy session is open, the customer gets the
-        // masked CET line instead of the driver's real number. Falls back to
-        // the real number only while masking isn't live.
+        // Multi-car job (e.g. a 3-car wedding): list EVERY car so the group knows
+        // all the drivers coming, not just the lead.
+        if ($booking->hasExtraDrivers()) {
+            return $this->multiCarBlock($booking);
+        }
+
+        $lead = $this->leadCarDetails($booking);
+        if ($lead === null) {
+            return null;
+        }
+
+        return $this->formatDriverBlock($lead['name'], $lead['phone'], $lead['reg'], $lead['car']);
+    }
+
+    /**
+     * The lead car's details [name, phone, reg, car] — the operator-entered
+     * details for this job if present, else the assigned driver + vehicle. The
+     * phone is the masked line when a Proxy session is open, else the real number.
+     *
+     * @return array{name: ?string, phone: ?string, reg: ?string, car: ?string}|null
+     */
+    private function leadCarDetails(Booking $booking): ?array
+    {
         $masked = $booking->customerMaskedNumber();
 
-        // Operator-entered details for this specific job (any driver, incl. cover).
         $manual = $booking->meta['driver_details'] ?? null;
         if (is_array($manual) && filled($manual['name'] ?? null)) {
-            return $this->formatDriverBlock(
-                $manual['name'], $masked ?: ($manual['phone'] ?? null), $manual['reg'] ?? null, $manual['car'] ?? null
-            );
+            return [
+                'name' => $manual['name'],
+                'phone' => $masked ?: ($manual['phone'] ?? null),
+                'reg' => $manual['reg'] ?? null,
+                'car' => $manual['car'] ?? null,
+            ];
         }
 
         $driver = $booking->driver;
@@ -228,15 +250,49 @@ class BookingNotifier
         $vehicle = $booking->vehicle ?? $driver->driverProfile?->defaultVehicle;
         $car = trim(implode(' ', array_filter([$vehicle?->colour, $vehicle?->make, $vehicle?->model])));
 
-        return $this->formatDriverBlock(
-            $this->driverDisplayName($driver), $masked ?: $driver->phone, $vehicle?->registration, $car
-        );
+        return [
+            'name' => $this->driverDisplayName($driver),
+            'phone' => $masked ?: $driver->phone,
+            'reg' => $vehicle?->registration,
+            'car' => $car,
+        ];
+    }
+
+    /**
+     * A multi-car job's driver block: a header with the car count, then one block
+     * per car (Car 1 = lead, Car 2/3… = the extra cars). Extra cars aren't masked
+     * (they reach the customer via the office), so their own number is shown.
+     */
+    private function multiCarBlock(Booking $booking): ?string
+    {
+        $cars = [];
+        if ($lead = $this->leadCarDetails($booking)) {
+            $cars[] = $lead;
+        }
+        foreach ($booking->extraDrivers() as $d) {
+            $cars[] = [
+                'name' => $d['name'] ?? 'Driver',
+                'phone' => $d['phone'] ?? null,
+                'reg' => $d['reg'] ?? null,
+                'car' => $d['car'] ?? null,
+            ];
+        }
+        if ($cars === []) {
+            return null;
+        }
+
+        $blocks = ['*Your drivers — '.count($cars).' cars*'];
+        foreach ($cars as $i => $c) {
+            $blocks[] = $this->formatDriverBlock($c['name'], $c['phone'], $c['reg'], $c['car'], 'Car '.($i + 1));
+        }
+
+        return implode("\n\n", $blocks);
     }
 
     /** Format the WhatsApp "• Driver details" block from raw values. */
-    private function formatDriverBlock(?string $name, ?string $phone, ?string $reg, ?string $car): string
+    private function formatDriverBlock(?string $name, ?string $phone, ?string $reg, ?string $car, string $heading = 'Driver details'): string
     {
-        $lines = ['*Driver details*'];
+        $lines = ['*'.$heading.'*'];
         // Customers only ever see the driver's FIRST NAME — the directory name can
         // carry extra info (vehicle class, surname: "Hamza V Class Khan") for the
         // office, but none of that goes out to the customer. First word only.

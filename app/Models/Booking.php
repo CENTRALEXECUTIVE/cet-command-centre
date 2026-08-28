@@ -1465,21 +1465,54 @@ class Booking extends Model
         }
 
         $blob = trim(((string) $this->pickup_address).' '.((string) $this->destination_address));
-        if (preg_match('/\(([A-Za-z]{3})\)/', $blob, $m)) {
-            $code = strtoupper($m[1]);
-            if (in_array($code, self::knownAirportCodes(), true)) {
-                return $code;
+        $lower = strtolower($blob);
+        $airports = self::knownAirports();
+
+        // 1) An explicit "(MAN)" style code, validated against the known list.
+        if (preg_match('/\(([A-Za-z]{3})\)/', $blob, $m) && isset($airports[strtoupper($m[1])])) {
+            return strtoupper($m[1]);
+        }
+
+        // 2) The airport's NAME alongside the word "airport" (so a plain city
+        //    address like "10 Manchester Road" is NOT mistaken for the airport).
+        if (str_contains($lower, 'airport')) {
+            foreach ($airports as $code => $name) {
+                if ($name !== '' && str_contains($lower, strtolower($name))) {
+                    return $code;
+                }
             }
         }
 
         return null;
     }
 
-    /** All configured airport codes (cached), upper-cased, for address matching. */
-    private static function knownAirportCodes(): array
+    /** True when this is a free-roam (non-fixed, hourly/roaming) job, not a transfer. */
+    public function isFreeRoam(): bool
     {
-        return \Illuminate\Support\Facades\Cache::remember('airport_codes', 1800, fn () => \App\Models\Airport::query()
-            ->pluck('code')->filter()->map(fn ($c) => strtoupper((string) $c))->values()->all());
+        foreach ([$this->meta['where'] ?? '', $this->meta['journey_label'] ?? '', $this->calendarEvent?->title ?? ''] as $s) {
+            if (str_contains(strtolower((string) $s), 'roam')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * A single tag for grouping/filtering a job by what it is: the airport code
+     * (to or from), "Free Roam", or null for a plain point-to-point transfer.
+     */
+    public function journeyFilterTag(): ?string
+    {
+        return $this->airportCode() ?? ($this->isFreeRoam() ? 'Free Roam' : null);
+    }
+
+    /** Configured airports as code => name (cached, upper-cased codes). */
+    private static function knownAirports(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('airport_code_names', 1800, fn () => \App\Models\Airport::query()
+            ->get(['code', 'name'])->filter(fn ($a) => filled($a->code))
+            ->mapWithKeys(fn ($a) => [strtoupper((string) $a->code) => (string) $a->name])->all());
     }
 
     /**

@@ -102,7 +102,7 @@ class PayrollTest extends TestCase
         $driver = User::factory()->driver()->create(['name' => 'Abdi Ali']);
         \App\Models\Airport::create(['code' => 'MAN', 'name' => 'Manchester', 'is_active' => true]);
         \App\Models\Airport::create(['code' => 'LBA', 'name' => 'Leeds Bradford', 'is_active' => true]);
-        \Illuminate\Support\Facades\Cache::forget('airport_codes');
+        \Illuminate\Support\Facades\Cache::forget('airport_code_names');
         $when = now()->startOfMonth()->addDays(2);
 
         $make = fn (array $attrs) => Booking::factory()->create(array_merge([
@@ -110,18 +110,23 @@ class PayrollTest extends TestCase
         ], $attrs))->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
 
         // A round trip = TWO separate bookings, both MAN: outbound drops off AT
-        // Manchester, the return picks up FROM Manchester. No airport_id set
-        // (calendar-style) — the code is read from the address.
-        $make(['pickup_address' => '10 Home St, Sheffield', 'destination_address' => 'Manchester Airport (MAN)']);
+        // Manchester (by name, no code), the return picks up FROM Manchester (by
+        // code). No airport_id set (calendar-style).
+        $make(['pickup_address' => '10 Home St, Sheffield', 'destination_address' => 'Manchester Airport, Terminal 2']);
         $make(['pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => '10 Home St, Sheffield']);
-        // One Leeds Bradford job.
+        // One Leeds Bradford job, and a free-roam job.
         $make(['pickup_address' => 'Leeds Bradford Airport (LBA)', 'destination_address' => '5 Park Rd, Leeds']);
+        Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => $when,
+            'pickup_address' => 'Sheffield', 'destination_address' => 'around town',
+        ])->forceFill(['meta' => ['where' => 'FREE ROAM', 'payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
 
         $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
-            ->assertSee('Airports (to/from)')
-            ->assertSee('MAN · 2')     // to MAN + from MAN = two separate jobs
-            ->assertSee('LBA · 1');
+            ->assertSee('Filter by journey')
+            ->assertSee('MAN · 2')       // to MAN (by name) + from MAN (by code) = two jobs
+            ->assertSee('LBA · 1')
+            ->assertSee('Free Roam · 1');
     }
 
     public function test_booking_page_shows_the_payroll_section(): void

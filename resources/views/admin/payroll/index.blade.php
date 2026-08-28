@@ -70,14 +70,14 @@
 
             @unless($d['extra'] ?? false)
                 @php
-                    $airportCounts = collect($d['jobs'])->map(fn ($b) => $b->airportCode())->filter()->countBy()->sortDesc();
+                    $journeyCounts = collect($d['jobs'])->map(fn ($b) => $b->journeyFilterTag())->filter()->countBy()->sortDesc();
                 @endphp
-                @if($airportCounts->isNotEmpty())
+                @if($journeyCounts->isNotEmpty())
                     <div class="airport-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center">
-                        <span class="muted" style="font-size:12px">✈ Airports (to/from):</span>
+                        <span class="muted" style="font-size:12px">Filter by journey:</span>
                         <button type="button" class="ap-chip ap-active" data-airport="">All</button>
-                        @foreach($airportCounts as $code => $count)
-                            <button type="button" class="ap-chip" data-airport="{{ $code }}">{{ $code }} · {{ $count }}</button>
+                        @foreach($journeyCounts as $tag => $count)
+                            <button type="button" class="ap-chip" data-airport="{{ $tag }}">{{ $tag === 'Free Roam' ? '🕗' : '✈' }} {{ $tag }} · {{ $count }}</button>
                         @endforeach
                     </div>
                 @endif
@@ -109,7 +109,7 @@
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
                     @foreach($d['jobs'] as $b)
-                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->airportCode() }}">
+                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}</td>
