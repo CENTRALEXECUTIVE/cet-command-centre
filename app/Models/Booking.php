@@ -458,6 +458,32 @@ class Booking extends Model
         $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => $extras])])->save();
     }
 
+    /**
+     * Copy this job's extra cars onto ANOTHER booking (its paired return/outbound
+     * leg), each getting a fresh link + status of its own. Skips any car the
+     * target already has (matched on name + reg). Returns how many were added.
+     */
+    public function copyExtraDriversTo(Booking $target): int
+    {
+        $key = fn (array $d) => strtolower(trim(($d['name'] ?? '').'|'.($d['reg'] ?? '')));
+        $existing = array_map($key, $target->extraDrivers());
+
+        $added = 0;
+        foreach ($this->extraDrivers() as $d) {
+            if (in_array($key($d), $existing, true)) {
+                continue;
+            }
+            $target->addExtraDriver([
+                'name' => $d['name'] ?? 'Driver', 'phone' => $d['phone'] ?? '',
+                'reg' => $d['reg'] ?? '', 'car' => $d['car'] ?? '',
+            ]);
+            $existing[] = $key($d);
+            $added++;
+        }
+
+        return $added;
+    }
+
     /** The extra-car entry for a token, or null. */
     public function extraDriver(string $token): ?array
     {

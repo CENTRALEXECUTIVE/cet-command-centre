@@ -36,6 +36,37 @@ class ExtraDriverTest extends TestCase
             ]);
     }
 
+    public function test_extra_cars_can_be_matched_onto_the_return_leg(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $outbound = $this->booking();
+        $return = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create(['is_return_leg' => true, 'pickup_at' => now()->addDays(2), 'status' => BookingStatus::Allocated->value]);
+        // Link the pair both ways.
+        $outbound->forceFill(['linked_booking_id' => $return->id])->save();
+        $return->forceFill(['linked_booking_id' => $outbound->id])->save();
+
+        // Two cars on the outbound.
+        $outbound->addExtraDriver(['name' => 'Sam Jones', 'phone' => '07700900001', 'reg' => 'AB19XYZ', 'car' => 'Black V Class']);
+        $outbound->addExtraDriver(['name' => 'Lee Ford', 'phone' => '07700900002', 'reg' => 'CD20ABC', 'car' => 'Grey Estate']);
+
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.copy', $outbound->fresh()))->assertRedirect();
+
+        $return = $return->fresh();
+        $names = collect($return->extraDrivers())->pluck('name')->all();
+        $this->assertContains('Sam Jones', $names);
+        $this->assertContains('Lee Ford', $names);
+        // Each got its OWN fresh link token (not the outbound's).
+        $outboundTokens = collect($outbound->fresh()->extraDrivers())->pluck('token');
+        $returnTokens = collect($return->extraDrivers())->pluck('token');
+        $this->assertEmpty($outboundTokens->intersect($returnTokens));
+
+        // Re-running doesn't duplicate.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.copy', $outbound->fresh()))->assertRedirect();
+        $this->assertCount(2, $return->fresh()->extraDrivers());
+    }
+
     public function test_extra_driver_form_offers_a_driver_picker_and_typeahead(): void
     {
         $admin = User::factory()->admin()->create();

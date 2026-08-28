@@ -414,6 +414,16 @@
                 </div>
                 <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">＋ Add another car</button>
             </form>
+
+            @if($booking->linkedBooking && $booking->hasExtraDrivers())
+                @php $leg = $booking->linkedBooking->is_return_leg ? 'return' : 'outbound'; @endphp
+                <form method="POST" action="{{ route('bookings.extra-drivers.copy', $booking) }}" style="margin-top:10px"
+                      onsubmit="return confirm('Copy these {{ count($booking->extraDrivers()) }} car(s) onto the {{ $leg }} leg? Each gets its own link.')">
+                    @csrf
+                    <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px">↔ Match these cars to the {{ $leg }} leg</button>
+                </form>
+                <p class="hint" style="margin:6px 0 0">Puts the same drivers/cars on the paired {{ $leg }} journey (<a href="{{ route('bookings.show', $booking->linkedBooking) }}">{{ $booking->linkedBooking->reference }}</a>), each with its own link.</p>
+            @endif
         </details>
     @endif
 

@@ -518,6 +518,24 @@ class BookingController extends Controller
         return back()->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
     }
 
+    /** Copy this job's extra cars onto its paired leg (the return/outbound). */
+    public function copyExtraDrivers(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $target = $booking->linkedBooking;
+        if (! $target) {
+            return back()->with('status', 'This booking has no linked return leg to copy the cars to.');
+        }
+
+        $added = $booking->copyExtraDriversTo($target);
+        $leg = $target->is_return_leg ? 'return' : 'outbound';
+
+        return back()->with('status', $added > 0
+            ? "Matched {$added} car(s) onto the {$leg} leg — each has its own link to send."
+            : "The {$leg} leg already has these cars.");
+    }
+
     /** Remove an extra car from a multi-car job. */
     public function removeExtraDriver(Request $request, Booking $booking): RedirectResponse
     {
