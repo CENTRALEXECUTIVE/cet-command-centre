@@ -41,7 +41,7 @@ class UpdateBookingRequest extends FormRequest
             'via_stops' => ['nullable', 'array', 'max:10'],
             'via_stops.*' => ['nullable', 'string', 'max:500'],
             'flight_number' => ['nullable', 'string', 'max:32'],
-            'passengers' => ['required', 'integer', 'min:1', 'max:16'],
+            'passengers' => ['required', 'integer', 'min:1', 'max:60'],
             'luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
@@ -70,11 +70,20 @@ class UpdateBookingRequest extends FormRequest
     {
         $validator->after(function (Validator $validator) {
             $vehicleType = VehicleType::find($this->input('vehicle_type_id'));
-            if ($vehicleType && (int) $this->input('passengers') > $vehicleType->passenger_capacity) {
-                $validator->errors()->add(
-                    'passengers',
-                    "The {$vehicleType->name} seats up to {$vehicleType->passenger_capacity} passengers."
-                );
+            if (! $vehicleType) {
+                return;
+            }
+
+            // Capacity is across ALL cars on the job (lead + extra cars), so a big
+            // group split over several vehicles is allowed once the cars are added.
+            $booking = $this->route('booking');
+            $cars = $booking instanceof \App\Models\Booking ? max(1, $booking->carCount()) : 1;
+            $seats = $vehicleType->passenger_capacity * $cars;
+
+            if ((int) $this->input('passengers') > $seats) {
+                $validator->errors()->add('passengers', $cars > 1
+                    ? "Your {$cars} cars seat up to {$seats} passengers — add another car for a bigger group."
+                    : "The {$vehicleType->name} seats up to {$vehicleType->passenger_capacity} — add extra cars (below) for a bigger group.");
             }
         });
     }

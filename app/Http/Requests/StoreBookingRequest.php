@@ -46,7 +46,7 @@ class StoreBookingRequest extends FormRequest
             'via_stops' => ['nullable', 'array', 'max:10'],
             'via_stops.*' => ['nullable', 'string', 'max:500'],
             'flight_number' => ['nullable', 'string', 'max:32'],
-            'passengers' => ['required', 'integer', 'min:1', 'max:16'],
+            'passengers' => ['required', 'integer', 'min:1', 'max:60'],
             'luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],

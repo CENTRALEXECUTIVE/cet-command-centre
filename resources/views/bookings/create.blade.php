@@ -147,7 +147,7 @@
                     <span class="lbl">Passengers <span class="req">*</span><span class="sub">People travelling</span></span>
                     <div class="stepper" data-stepper>
                         <button type="button" data-dec>−</button>
-                        <input id="passengers" type="number" name="passengers" min="1" max="16" value="{{ old('passengers', 1) }}" required>
+                        <input id="passengers" type="number" name="passengers" min="1" max="60" value="{{ old('passengers', 1) }}" required>
                         <button type="button" data-inc>+</button>
                     </div>
                 </div>

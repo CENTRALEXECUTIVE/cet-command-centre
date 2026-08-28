@@ -358,6 +358,35 @@ class BookingTest extends TestCase
             ->assertSessionHasErrors('passengers');
     }
 
+    public function test_a_big_group_is_allowed_across_multiple_cars(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $vClass = VehicleType::where('name', 'V Class')->first(); // seats 7
+        $booking = Booking::factory()->create([
+            'vehicle_type_id' => $vClass->id, 'passengers' => 6,
+            'pickup_at' => now()->addDay(), 'status' => 'accepted',
+        ]);
+
+        $payload = [
+            'customer_name' => 'Big Group', 'customer_phone' => '07700900000',
+            'vehicle_type_id' => $vClass->id,
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 20, 'payment_method' => 'cash', 'journey_type' => 'one_way',
+        ];
+
+        // With ONE car, 20 in a V Class (7) is rejected — with a helpful message.
+        $this->actingAs($admin)->put(route('bookings.update', $booking), $payload)
+            ->assertSessionHasErrors('passengers');
+
+        // Add two more cars (3 × 7 = 21 seats) → 20 is now accepted.
+        $booking->addExtraDriver(['name' => 'Car 2', 'reg' => 'A']);
+        $booking->addExtraDriver(['name' => 'Car 3', 'reg' => 'B']);
+        $this->actingAs($admin)->put(route('bookings.update', $booking->fresh()), $payload)
+            ->assertSessionHasNoErrors();
+        $this->assertSame(20, $booking->fresh()->passengers);
+    }
+
     public function test_cost_code_is_mandatory_for_corporate_accounts(): void
     {
         $admin = User::factory()->admin()->create();

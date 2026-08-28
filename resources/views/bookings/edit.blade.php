@@ -123,7 +123,7 @@
                     </div>
                     <div class="field">
                         <label for="passengers">Passengers <span class="req">*</span></label>
-                        <input id="passengers" type="number" name="passengers" min="1" max="16" value="{{ old('passengers', $booking->passengers) }}" required>
+                        <input id="passengers" type="number" name="passengers" min="1" max="60" value="{{ old('passengers', $booking->passengers) }}" required>
                     </div>
                     <div class="field">
                         <label for="suitcases">Suitcases</label>
