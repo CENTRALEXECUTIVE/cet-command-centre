@@ -194,14 +194,10 @@ class BookingNotifier
             return null;
         }
 
-        // On a RETURN journey the customer already has their driver (kept from the
-        // outbound leg), so point them straight to the driver rather than the
-        // office. On the outbound leg the office coordinates the meet.
-        if ($booking->is_return_leg) {
-            return '✈️ Please message your driver directly once you\'ve landed so they can arrange to meet you.';
-        }
-
-        return '✈️ Please drop us a message once you\'ve landed so we can arrange for your driver to meet you.';
+        // On every airport pickup the customer messages their DRIVER directly once
+        // they've landed (the driver's details are in the same message), rather
+        // than the office.
+        return '✈️ Please message your driver directly once you\'ve landed so they can arrange to meet you.';
     }
 
     /**

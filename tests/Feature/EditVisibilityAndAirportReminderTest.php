@@ -267,7 +267,8 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $body = app(BookingNotifier::class)->reminderBody($booking->fresh());
 
         $this->assertStringContainsString('landed', $body);
-        $this->assertStringContainsString('drop us a message', $body);
+        $this->assertStringContainsString('message your driver directly', $body);
+        $this->assertStringNotContainsString('drop us a message', $body);
     }
 
     public function test_a_non_airport_pickup_has_no_landed_instructions(): void
