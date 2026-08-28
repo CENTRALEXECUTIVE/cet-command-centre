@@ -155,7 +155,7 @@
                                               onclick="event.preventDefault();event.stopPropagation();window.location='{{ route('bookings.show', $b) }}#duplicate'">⑂ dup?</span>
                                     @endif
                                 </div>
-                                <div class="bk-route">{{ Str::limit($b->displayPickupAddress(), 26) }} <span class="arr">→</span> {{ Str::limit($b->displayDropoffAddress(), 26) }}</div>
+                                <div class="bk-route">{{ Str::limit($b->displayPickupAddress(), 26) }} @if($b->hasViaStops())<span class="arr" title="{{ count($b->viaStops()) }} stop(s): {{ implode(' · ', $b->viaStops()) }}">→ 🔀 →</span>@else<span class="arr">→</span>@endif {{ Str::limit($b->displayDropoffAddress(), 26) }}</div>
                                 <div class="bk-tags">
                                     <span>{{ $b->displayVehicleType() }}</span>
                                     <span>·</span><span>{{ $b->passengerCount() }} pax</span>

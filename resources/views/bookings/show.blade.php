@@ -463,8 +463,8 @@
             <table>
                 <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M Y, H:i') }}</td></tr>
                 <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
-                @foreach($booking->stops as $stop)
-                    <tr><th>Via {{ $stop->sequence }}</th><td>{{ $stop->address }}</td></tr>
+                @foreach($booking->viaStops() as $i => $stop)
+                    <tr><th>Via {{ $i + 1 }}</th><td>🔀 {{ $stop }}</td></tr>
                 @endforeach
                 <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
                 @if($booking->airport)<tr><th>Airport</th><td>{{ $booking->airport->code }} — {{ $booking->airport->name }}</td></tr>@endif

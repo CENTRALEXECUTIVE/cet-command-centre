@@ -272,7 +272,9 @@ class BookingNotifier
         foreach ($booking->extraDrivers() as $d) {
             $cars[] = [
                 'name' => $d['name'] ?? 'Driver',
-                'phone' => $d['phone'] ?? null,
+                // Only the LEAD driver's number goes to the customer — the group
+                // coordinates through them, so extra cars carry no contact line.
+                'phone' => null,
                 'reg' => $d['reg'] ?? null,
                 'car' => $d['car'] ?? null,
             ];

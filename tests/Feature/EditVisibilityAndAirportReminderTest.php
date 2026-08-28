@@ -318,6 +318,9 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertStringContainsString('Sam', $body);
         $this->assertStringContainsString('AB19XYZ', $body);
         $this->assertStringNotContainsString('Khan', $body);  // surname withheld
+        // ONLY the lead driver's number goes out; the extra car carries none.
+        $this->assertStringContainsString('07700900001', $body);
+        $this->assertStringNotContainsString('07700900002', $body);
     }
 
     public function test_customer_reminder_uses_only_the_drivers_first_name(): void

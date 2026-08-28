@@ -591,4 +591,22 @@ class BookingTest extends TestCase
         $b->forceFill(['status' => 'cancelled'])->save();
         $this->assertFalse($a->fresh()->looksDuplicated());
     }
+
+    public function test_a_via_stop_from_the_calendar_shows_on_the_booking_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // A stop that only lives in meta (calendar/paste origin), not the stops table.
+        $booking = Booking::factory()->create([
+            'pickup_address' => '36 St Davids Dr, Barnsley',
+            'destination_address' => "Ponti's Italian Kitchen, Stocksbridge",
+            'meta' => ['stops' => ['Meadowhall Shopping Centre, Sheffield']],
+        ]);
+
+        $this->assertTrue($booking->hasViaStops());
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Via 1')
+            ->assertSee('Meadowhall Shopping Centre, Sheffield');
+    }
 }

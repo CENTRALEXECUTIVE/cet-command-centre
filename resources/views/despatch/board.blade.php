@@ -56,6 +56,7 @@
                             <a href="{{ route('bookings.show', $b) }}" style="color:inherit"><strong>{{ $b->displayName() }}</strong></a><br>
                             {{ $b->airport?->code ? $b->airport->code.' · ' : '' }}{{ $b->displayVehicleType() }}<br>
                             {{ \Illuminate\Support\Str::limit($b->displayPickupAddress(), 30) }}<br>
+                            @if($b->hasViaStops())<span title="{{ implode(' · ', $b->viaStops()) }}">🔀 {{ count($b->viaStops()) }} stop{{ count($b->viaStops()) === 1 ? '' : 's' }} on the way</span><br>@endif
                             {{ $b->passengerCount() }} pax · {{ $b->luggageShort() }}<br>
                             Driver: {{ $b->driver?->name ?? '—' }}
                             @if($b->status->isTracked() && isset($pingAges[$b->id]))
