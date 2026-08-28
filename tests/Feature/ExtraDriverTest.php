@@ -95,6 +95,8 @@ class ExtraDriverTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $booking = $this->booking();
+        // The office note the driver needs to see must reach every car.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['driver_notes' => 'Ring the buzzer for flat 3'])])->save();
 
         $this->actingAs($admin)
             ->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Sam Jones', 'phone' => '07700900222', 'car' => 'Black V-Class'])
@@ -105,10 +107,11 @@ class ExtraDriverTest extends TestCase
         $this->assertSame(2, $booking->carCount());
 
         $token = $booking->extraDrivers()[0]['token'];
-        // The extra-car link opens the job sheet for Car 2.
+        // The extra-car link opens the job sheet for Car 2, with the office note.
         $this->get(route('driver.car', $token))->assertOk()
             ->assertSee('Car 2 of 2')
             ->assertSee('Nick Wedding')
+            ->assertSee('Ring the buzzer for flat 3')
             ->assertSee('Accept job'); // first status button for an allocated car
     }
 

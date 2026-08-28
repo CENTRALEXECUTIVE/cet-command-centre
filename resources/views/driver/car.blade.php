@@ -58,6 +58,15 @@
                 <div class="alert alert-error">{{ $errors->first() }}</div>
             @endif
 
+            {{-- Notes from the office for the driver — extra info the customer gave.
+                 Prominent so it isn't missed. Same note every car on the job sees. --}}
+            @if($booking->driverNotes())
+                <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
+                    <div style="font-weight:800;font-size:15px">📝 Notes</div>
+                    <p style="margin:6px 0 0;font-size:15px;white-space:pre-wrap">{{ $booking->driverNotes() }}</p>
+                </div>
+            @endif
+
             {{-- Navigation (Waze), with a Copy button for any nav app. --}}
             <div style="margin-bottom:16px">
                 <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
@@ -83,7 +92,8 @@
                     <tr><th>Passengers</th><td>{{ ($car['passengers'] ?? null) !== null ? $car['passengers'].' in your car (of '.$booking->passengerCount().' total)' : $booking->passengerCount() }}</td></tr>
                     <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                     <tr><th>Contact</th><td><span class="muted">Via the office — tap “Message the office” below</span></td></tr>
-                    @if($booking->special_requests)<tr><th>Notes</th><td>{{ $booking->special_requests }}</td></tr>@endif
+                    @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
+                    @if($booking->driverNotes())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
                 </table>
             </div>
 
