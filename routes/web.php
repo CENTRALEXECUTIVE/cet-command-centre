@@ -274,7 +274,6 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('review/backfill-prices', [\App\Http\Controllers\ReviewController::class, 'backfillPrices'])->middleware('throttle:6,1')->name('review.backfill-prices');
         Route::get('reports/profit', [ReportController::class, 'profit'])->name('reports.profit');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
-        Route::get('businesses', [ReportController::class, 'businesses'])->name('reports.businesses');
         Route::get('businesses/{account}', [ReportController::class, 'business'])->name('reports.business');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
 

@@ -84,7 +84,7 @@ class PayrollController extends Controller
         $start = ($month ? Carbon::createFromFormat('Y-m', $month, config('app.timezone')) : now())->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
-        $bookings = Booking::with(['driver', 'customer'])
+        $bookings = Booking::with(['driver', 'customer', 'airport'])
             ->whereBetween('pickup_at', [$start, $end])
             ->whereNotIn('status', [BookingStatus::Cancelled->value])
             ->orderBy('pickup_at')

@@ -2,7 +2,7 @@
 @section('title', $account->name)
 
 @section('content')
-    <a href="{{ route('reports.businesses') }}" class="da-back" style="display:inline-block;margin-bottom:10px">← All businesses</a>
+    <a href="{{ route('review.index') }}" class="da-back" style="display:inline-block;margin-bottom:10px">← Back to Review</a>
 
     <div>
         <h1 class="page-title" style="margin-bottom:2px">{{ $account->name }}</h1>

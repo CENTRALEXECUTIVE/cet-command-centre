@@ -33,54 +33,6 @@ class ReportService
     }
 
     /**
-     * Business review: every corporate account with its booking activity, so the
-     * office can see who books the most, how many repeat customers each has, and
-     * the revenue each brings in. A booking belongs to a business by its own
-     * corporate_account_id, or (fallback) its customer's — so JELD-WEN's jobs all
-     * roll up under JELD-WEN even when only the customer carries the link.
-     * Cancelled jobs are excluded. Ranked by total bookings, most first.
-     *
-     * @return Collection<int, array<string, mixed>>
-     */
-    public function businessBreakdown(): Collection
-    {
-        $bookings = Booking::query()
-            ->where('status', '!=', BookingStatus::Cancelled->value)
-            ->with(['customer', 'corporateAccount'])
-            ->get()
-            ->filter(fn (Booking $b) => $b->corporate_account_id || $b->customer?->corporate_account_id);
-
-        return $bookings
-            ->groupBy(fn (Booking $b) => $b->corporate_account_id ?: $b->customer->corporate_account_id)
-            ->map(function (Collection $group) {
-                $first = $group->first();
-                $account = $first->corporateAccount ?: $first->customer?->corporateAccount;
-
-                $byCustomer = $group->groupBy('customer_id');
-                $top = $byCustomer->sortByDesc(fn (Collection $g) => $g->count())->first();
-                $lastAt = $group->pluck('pickup_at')->filter()->max();
-
-                return [
-                    'account' => $account,
-                    'id' => $account?->id,
-                    'name' => $account?->name ?? 'Unknown business',
-                    'bookings' => $group->count(),
-                    'completed' => $group->filter(fn (Booking $b) => $b->pickup_at
-                        && $b->pickup_at->lte(now()) && $b->status !== BookingStatus::NoShow)->count(),
-                    'upcoming' => $group->filter(fn (Booking $b) => $b->pickup_at && $b->pickup_at->gt(now()))->count(),
-                    'revenue' => round($group->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2),
-                    'customers' => $byCustomer->count(),
-                    'repeat_customers' => $byCustomer->filter(fn (Collection $g) => $g->count() >= 2)->count(),
-                    'top_customer' => $top?->first()?->customer?->name,
-                    'top_customer_count' => $top?->count() ?? 0,
-                    'last_booking' => $lastAt?->format('d M Y'),
-                ];
-            })
-            ->sortByDesc('bookings')
-            ->values();
-    }
-
-    /**
      * One business in detail: every customer who's travelled with them, ranked by
      * booking count, with each customer's spend and last trip — so a repeat client
      * is obvious at a glance.
@@ -254,6 +206,47 @@ class ReportService
             ->orderByDesc('revenue')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * Top customers for the Review page, but with corporate customers ROLLED UP
+     * under their business: every JELD-WEN / LB Foster passenger counts toward the
+     * one business line, while private customers stay as themselves. Ranked by
+     * revenue. Each row carries a type ('business'|'customer'), an id and a
+     * clickable url — a business opens its rebooking breakdown, a private customer
+     * their booking history.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function topEntities(CarbonInterface $start, CarbonInterface $end, int $limit = 12): Collection
+    {
+        $jobs = $this->completed($start, $end)
+            ->with(['customer:id,name,corporate_account_id', 'customer.corporateAccount:id,name', 'corporateAccount:id,name'])
+            ->get(['id', 'customer_id', 'corporate_account_id', 'final_price', 'quoted_price']);
+
+        return $jobs
+            ->groupBy(function (Booking $b) {
+                $acct = $b->corporate_account_id ?: $b->customer?->corporate_account_id;
+
+                return $acct ? 'a'.$acct : 'c'.$b->customer_id;
+            })
+            ->map(function (Collection $group) {
+                $first = $group->first();
+                $account = $first->corporateAccount ?: $first->customer?->corporateAccount;
+                $revenue = round($group->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2);
+
+                return [
+                    'type' => $account ? 'business' : 'customer',
+                    'id' => $account?->id ?? $first->customer_id,
+                    'name' => $account?->name ?? ($first->customer?->name ?? 'Unknown'),
+                    'jobs' => $group->count(),
+                    'revenue' => $revenue,
+                    'customers' => $account ? $group->pluck('customer_id')->filter()->unique()->count() : 1,
+                ];
+            })
+            ->sortByDesc('revenue')
+            ->take($limit)
+            ->values();
     }
 
     /** Top routes by volume (pickup → destination). */

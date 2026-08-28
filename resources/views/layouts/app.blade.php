@@ -88,8 +88,7 @@
                 <details class="nav-fold" @if($inMarketing) open @endif>
                     <summary>Marketing &amp; reports</summary>
                     <a href="{{ route('marketing.studio') }}" class="{{ request()->routeIs('marketing.studio*') ? 'active' : '' }}">🎨 Marketing Studio</a>
-                    <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') ? 'active' : '' }}">Review</a>
-                    <a href="{{ route('reports.businesses') }}" class="{{ request()->routeIs('reports.businesses') || request()->routeIs('reports.business') ? 'active' : '' }}">🏢 Business review</a>
+                    <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') || request()->routeIs('reports.business') ? 'active' : '' }}">Review</a>
                     <a href="{{ route('marketing.ads') }}" class="{{ request()->routeIs('marketing.ads') ? 'active' : '' }}">Google Ads</a>
                     <a href="{{ route('marketing.keywords') }}" class="{{ request()->routeIs('marketing.keywords*') ? 'active' : '' }}">Keywords</a>
                     <a href="{{ route('marketing.seo') }}" class="{{ request()->routeIs('marketing.seo*') ? 'active' : '' }}">SEO</a>

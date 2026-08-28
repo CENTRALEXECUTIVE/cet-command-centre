@@ -29,7 +29,8 @@ class ReviewService
     {
         $comparison = $this->reports->comparison($start, $end);
         $byVehicle = $this->reports->byVehicleType($start, $end);
-        $topCustomers = $this->reports->topCustomers($start, $end);
+        // Corporate customers rolled up under their business (JELD-WEN, LB Foster…).
+        $topCustomers = $this->reports->topEntities($start, $end);
         $topRoutes = $this->reports->topRoutes($start, $end, 5);
         $byDriver = $this->reports->earningsByDriver($start, $end);
         $monthly = $this->reports->monthlyRevenue($start, $end);
@@ -117,7 +118,7 @@ class ReviewService
     {
         $c = $data['comparison'];
         $vehicles = $data['byVehicle']->map(fn ($v) => ($v->vehicleType->name ?? 'Other').": {$v->jobs} jobs, £".round($v->revenue))->implode('; ');
-        $customers = $data['topCustomers']->take(5)->map(fn ($x) => ($x->customer->name ?? 'Unknown').' (£'.round($x->revenue).')')->implode(', ');
+        $customers = $data['topCustomers']->take(5)->map(fn ($x) => ($x['name'] ?? 'Unknown').' (£'.round($x['revenue'] ?? 0).')')->implode(', ');
         $ads = $data['ads'];
 
         return "Period {$data['start']->toFormattedDateString()} – {$data['end']->toFormattedDateString()}.\n"

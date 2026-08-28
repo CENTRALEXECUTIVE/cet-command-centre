@@ -67,6 +67,22 @@
                     @if($d['tips'] > 0) · <span style="color:#b8860b">💛 £{{ number_format($d['tips'], 2) }} tips @if($d['card_tips_owed'] > 0)(£{{ number_format($d['card_tips_owed'], 2) }} card owed)@endif</span>@endif
                 </div>
             </div>
+
+            @unless($d['extra'] ?? false)
+                @php
+                    $airportCounts = collect($d['jobs'])->map(fn ($b) => $b->airport?->code)->filter()->countBy()->sortDesc();
+                @endphp
+                @if($airportCounts->isNotEmpty())
+                    <div class="airport-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center">
+                        <span class="muted" style="font-size:12px">✈ Airports (to/from):</span>
+                        <button type="button" class="ap-chip ap-active" data-airport="">All</button>
+                        @foreach($airportCounts as $code => $count)
+                            <button type="button" class="ap-chip" data-airport="{{ $code }}">{{ $code }} · {{ $count }}</button>
+                        @endforeach
+                    </div>
+                @endif
+            @endunless
+
             <div style="margin-top:10px">
                 <div style="overflow-x:auto">
                 @if($d['extra'] ?? false)
@@ -93,7 +109,7 @@
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
                     @foreach($d['jobs'] as $b)
-                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}">
+                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->airport?->code }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}</td>
@@ -132,15 +148,35 @@
         tr.rowlink{cursor:pointer}
         tr.rowlink:hover td{background:rgba(251,186,42,.08)}
         tr.rowlink:active td{background:rgba(251,186,42,.16)}
+        .ap-chip{cursor:pointer;padding:4px 10px;border-radius:999px;border:1px solid rgba(128,128,128,.25);
+                 background:rgba(128,128,128,.08);font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .ap-chip.ap-active{background:var(--gold, #FBBA2A);color:#111;border-color:var(--gold, #FBBA2A)}
     </style>
     <script>
+        // Whole-row click opens the booking.
         document.addEventListener('click', function (e) {
             var row = e.target.closest('tr.rowlink');
             if (!row) return;
-            // Let real controls (Mark paid, Open →, inputs) do their own thing.
             if (e.target.closest('a,button,form,input,label,[data-norowlink]')) return;
             var href = row.getAttribute('data-href');
             if (href) window.location = href;
+        });
+
+        // Per-driver airport filter: tap a chip to show only that driver's jobs
+        // to/from that airport (how many times they did it), "All" resets.
+        document.querySelectorAll('.airport-filter').forEach(function (bar) {
+            var card = bar.closest('.card');
+            bar.querySelectorAll('.ap-chip').forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    var code = chip.getAttribute('data-airport') || '';
+                    bar.querySelectorAll('.ap-chip').forEach(function (c) { c.classList.remove('ap-active'); });
+                    chip.classList.add('ap-active');
+                    card.querySelectorAll('tbody tr').forEach(function (row) {
+                        var ra = row.getAttribute('data-airport') || '';
+                        row.style.display = (!code || ra === code) ? '' : 'none';
+                    });
+                });
+            });
         });
     </script>
 @endsection

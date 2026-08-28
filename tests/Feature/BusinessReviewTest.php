@@ -2,89 +2,88 @@
 
 namespace Tests\Feature;
 
-use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\CorporateAccount;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class BusinessReviewTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_ranks_businesses_by_bookings_and_counts_repeat_customers(): void
+    private function ranJob(array $attrs): Booking
     {
-        $admin = User::factory()->admin()->create();
+        return Booking::factory()->create(array_merge([
+            'pickup_at' => now()->subDays(2), // has run
+        ], $attrs));
+    }
 
+    public function test_top_entities_rolls_corporate_customers_up_under_their_business(): void
+    {
         $jeldwen = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);
-        $lbFoster = CorporateAccount::create(['name' => 'LB Foster', 'slug' => 'lb', 'account_code' => 'LB', 'is_active' => true]);
+        $tj = Customer::factory()->create(['name' => 'TJ Curran', 'corporate_account_id' => $jeldwen->id]);
+        $bill = Customer::factory()->create(['name' => 'Bill', 'corporate_account_id' => $jeldwen->id]);
+        $this->ranJob(['customer_id' => $tj->id, 'corporate_account_id' => $jeldwen->id, 'final_price' => 200]);
+        $this->ranJob(['customer_id' => $bill->id, 'corporate_account_id' => $jeldwen->id, 'final_price' => 150]);
 
-        // JELD-WEN: one customer with 3 trips (a repeat), one with 1 → 4 bookings.
-        $alice = Customer::factory()->create(['name' => 'Alice', 'corporate_account_id' => $jeldwen->id]);
-        $bob = Customer::factory()->create(['name' => 'Bob', 'corporate_account_id' => $jeldwen->id]);
-        Booking::factory()->count(3)->create(['corporate_account_id' => $jeldwen->id, 'customer_id' => $alice->id, 'final_price' => 100]);
-        Booking::factory()->create(['corporate_account_id' => $jeldwen->id, 'customer_id' => $bob->id, 'final_price' => 50]);
+        // A private customer stays separate.
+        $priv = Customer::factory()->create(['name' => 'Jane Private']);
+        $this->ranJob(['customer_id' => $priv->id, 'final_price' => 300]);
 
-        // LB Foster: 1 booking.
-        $carol = Customer::factory()->create(['name' => 'Carol', 'corporate_account_id' => $lbFoster->id]);
-        Booking::factory()->create(['corporate_account_id' => $lbFoster->id, 'customer_id' => $carol->id, 'final_price' => 80]);
+        $rows = app(\App\Services\Reporting\ReportService::class)
+            ->topEntities(now()->subMonth(), now());
 
-        // A cancelled JELD-WEN booking must NOT count.
-        Booking::factory()->create(['corporate_account_id' => $jeldwen->id, 'customer_id' => $bob->id, 'status' => BookingStatus::Cancelled, 'final_price' => 999]);
+        $jw = $rows->firstWhere('name', 'JELD-WEN');
+        $this->assertNotNull($jw);
+        $this->assertSame('business', $jw['type']);
+        $this->assertSame(2, $jw['jobs']);      // TJ + Bill under one line
+        $this->assertSame(2, $jw['customers']);
+        $this->assertSame(350.0, $jw['revenue']);
 
-        $data = app(\App\Services\Reporting\ReportService::class)->businessBreakdown();
+        // No individual corporate names appear as their own row.
+        $this->assertNull($rows->firstWhere('name', 'TJ Curran'));
+        $this->assertNull($rows->firstWhere('name', 'Bill'));
 
-        // Ranked: JELD-WEN (4) first, LB Foster (1) second.
-        $this->assertSame('JELD-WEN', $data[0]['name']);
-        $this->assertSame(4, $data[0]['bookings']);
-        $this->assertSame(2, $data[0]['customers']);
-        $this->assertSame(1, $data[0]['repeat_customers']);   // only Alice booked 2+
-        $this->assertSame('Alice', $data[0]['top_customer']);
-        $this->assertSame(3, $data[0]['top_customer_count']);
-        $this->assertSame(350.0, $data[0]['revenue']);        // cancelled £999 excluded
-
-        $this->assertSame('LB Foster', $data[1]['name']);
-        $this->assertSame(1, $data[1]['bookings']);
+        // The private customer is its own row.
+        $jane = $rows->firstWhere('name', 'Jane Private');
+        $this->assertSame('customer', $jane['type']);
     }
 
-    public function test_a_bookings_business_falls_back_to_the_customers_account(): void
-    {
-        // Booking has no corporate_account_id, but its customer belongs to one.
-        $account = CorporateAccount::create(['name' => 'Forged Solutions', 'slug' => 'fs', 'account_code' => 'FS', 'is_active' => true]);
-        $cust = Customer::factory()->create(['corporate_account_id' => $account->id]);
-        Booking::factory()->create(['corporate_account_id' => null, 'customer_id' => $cust->id, 'final_price' => 120]);
-
-        $data = app(\App\Services\Reporting\ReportService::class)->businessBreakdown();
-
-        $this->assertSame('Forged Solutions', $data[0]['name']);
-        $this->assertSame(1, $data[0]['bookings']);
-    }
-
-    public function test_the_business_review_pages_render_for_an_admin(): void
+    public function test_the_review_page_shows_businesses_grouped_and_links_to_the_breakdown(): void
     {
         $admin = User::factory()->admin()->create();
-        $account = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);
-        $cust = Customer::factory()->create(['name' => 'Dave', 'corporate_account_id' => $account->id]);
-        Booking::factory()->count(2)->create(['corporate_account_id' => $account->id, 'customer_id' => $cust->id, 'final_price' => 90]);
+        $jeldwen = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);
+        $tj = Customer::factory()->create(['name' => 'TJ Curran', 'corporate_account_id' => $jeldwen->id]);
+        $this->ranJob(['customer_id' => $tj->id, 'corporate_account_id' => $jeldwen->id, 'final_price' => 200]);
 
-        $this->actingAs($admin)->get(route('reports.businesses'))
+        $this->actingAs($admin)->get(route('review.index', ['preset' => 'all']))
             ->assertOk()
-            ->assertSee('Business review')
             ->assertSee('JELD-WEN')
-            ->assertSee('View customers →');
+            ->assertSee(route('reports.business', $jeldwen->id), false);
+    }
+
+    public function test_the_business_breakdown_shows_each_customers_rebooking_count(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $account = CorporateAccount::create(['name' => 'LB Foster', 'slug' => 'lb', 'account_code' => 'LB', 'is_active' => true]);
+        $tj = Customer::factory()->create(['name' => 'TJ Curran', 'corporate_account_id' => $account->id]);
+        // TJ has re-booked 3 times.
+        Booking::factory()->count(3)->create(['customer_id' => $tj->id, 'corporate_account_id' => $account->id, 'final_price' => 90]);
 
         $this->actingAs($admin)->get(route('reports.business', $account))
             ->assertOk()
-            ->assertSee('JELD-WEN')
-            ->assertSee('Dave')
+            ->assertSee('LB Foster')
+            ->assertSee('TJ Curran')
             ->assertSee('repeat');
     }
 
-    public function test_non_admins_cannot_view_the_business_review(): void
+    public function test_non_admins_cannot_view_the_business_breakdown(): void
     {
+        $account = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);
         $driver = User::factory()->driver()->create();
-        $this->actingAs($driver)->get(route('reports.businesses'))->assertForbidden();
+        $this->actingAs($driver)->get(route('reports.business', $account))->assertForbidden();
     }
 }

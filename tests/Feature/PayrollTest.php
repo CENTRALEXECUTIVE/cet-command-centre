@@ -96,6 +96,28 @@ class PayrollTest extends TestCase
             ->assertSee('markpaid-'.$booking->id, false);
     }
 
+    public function test_payroll_shows_a_per_driver_airport_filter_with_counts(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Abdi Ali']);
+        $man = \App\Models\Airport::create(['code' => 'MAN', 'name' => 'Manchester', 'is_active' => true]);
+        $lba = \App\Models\Airport::create(['code' => 'LBA', 'name' => 'Leeds Bradford', 'is_active' => true]);
+
+        // Two MAN jobs, one LBA job for this driver this month.
+        foreach ([$man, $man, $lba] as $airport) {
+            Booking::factory()->create([
+                'driver_id' => $driver->id, 'airport_id' => $airport->id,
+                'status' => BookingStatus::Complete, 'pickup_at' => now()->startOfMonth()->addDays(2),
+            ])->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
+        }
+
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
+            ->assertOk()
+            ->assertSee('Airports (to/from)')
+            ->assertSee('MAN · 2')     // went to/from MAN twice
+            ->assertSee('LBA · 1');
+    }
+
     public function test_booking_page_shows_the_payroll_section(): void
     {
         $admin = User::factory()->admin()->create();

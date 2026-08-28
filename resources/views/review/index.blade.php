@@ -159,15 +159,25 @@
         </div>
 
         <div class="card">
-            <h2>Top customers</h2>
+            <h2>Top customers &amp; businesses</h2>
+            <p class="muted" style="font-size:12px;margin:0 0 8px">Corporate passengers are grouped under their business — tap a business to see how often each of their people has re-booked.</p>
             <table class="table">
-                <thead><tr><th>Customer</th><th>Jobs</th><th>Revenue</th></tr></thead>
+                <thead><tr><th>Customer / business</th><th>Jobs</th><th>Revenue</th></tr></thead>
                 <tbody>
                 @forelse($topCustomers as $x)
-                    @php $curl = route('bookings.index', $win + ['by' => 'pickup', 'q' => $x->customer->name ?? '']); @endphp
+                    @php
+                        $curl = $x['type'] === 'business'
+                            ? route('reports.business', $x['id'])
+                            : route('bookings.index', $win + ['by' => 'pickup', 'q' => $x['name']]);
+                    @endphp
                     <tr style="cursor:pointer" onclick="window.location='{{ $curl }}'">
-                        <td><a href="{{ $curl }}">{{ $x->customer->name ?? 'Unknown' }}</a></td><td>{{ $x->jobs }}</td>
-                        <td>£{{ number_format($x->revenue, 2) }}</td></tr>
+                        <td>
+                            <a href="{{ $curl }}">{{ $x['name'] }}</a>
+                            @if($x['type'] === 'business')<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;vertical-align:middle;margin-left:4px">🏢 {{ $x['customers'] }} {{ \Illuminate\Support\Str::plural('customer', $x['customers']) }}</span>@endif
+                        </td>
+                        <td>{{ $x['jobs'] }}</td>
+                        <td>£{{ number_format($x['revenue'], 2) }}</td>
+                    </tr>
                 @empty
                     <tr><td colspan="3">No data.</td></tr>
                 @endforelse
