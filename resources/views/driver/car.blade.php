@@ -45,7 +45,8 @@
                     <span class="badge" style="background:#5b2bc7;color:#fff">🚗 Car {{ $carNumber }} of {{ $carTotal }}</span>
                     <span class="badge badge-{{ $carStatus->value }}">{{ $carStatus->label() }}</span>
                     @if($booking->airport)<span class="da-chip">✈ {{ $booking->airport->code }}</span>@endif
-                    <span class="da-chip">👤 {{ $booking->passengerCount() }} pax</span>
+                    @php $carPax = $car['passengers'] ?? null; @endphp
+                    <span class="da-chip">👤 {{ $carPax !== null ? $carPax : $booking->passengerCount() }} pax @if($carPax !== null)<span style="opacity:.7">in your car</span>@endif</span>
                     <span class="da-chip">🧳 {{ $booking->luggageBreakdown() }}</span>
                 </div>
                 @if(!empty($car['reg']) || !empty($car['car']))
@@ -79,7 +80,7 @@
                     <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
                     <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
                     <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
-                    <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
+                    <tr><th>Passengers</th><td>{{ ($car['passengers'] ?? null) !== null ? $car['passengers'].' in your car (of '.$booking->passengerCount().' total)' : $booking->passengerCount() }}</td></tr>
                     <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                     <tr><th>Contact</th><td><span class="muted">Via the office — tap “Message the office” below</span></td></tr>
                     @if($booking->special_requests)<tr><th>Notes</th><td>{{ $booking->special_requests }}</td></tr>@endif

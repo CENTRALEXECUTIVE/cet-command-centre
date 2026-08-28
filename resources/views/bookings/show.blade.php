@@ -291,8 +291,11 @@
             $linkMsg = $booking->driverLinkMessage();
         @endphp
         <div class="card">
-            <h2 style="margin:0 0 4px">🔗 Driver link — no login</h2>
+            <h2 style="margin:0 0 4px">🔗 Driver link — no login @if($booking->hasExtraDrivers())<span class="muted" style="font-weight:400;font-size:13px">· Car 1 of {{ $booking->carCount() }}</span>@endif</h2>
             <p class="hint" style="margin:0 0 12px">Send this to the driver. It opens their full job sheet — details, cash to collect, the contact number, navigation and the status buttons — with live tracking, no account needed.</p>
+            @if($booking->hasExtraDrivers())
+                <p class="hint" style="margin:0 0 12px">👤 This lead car carries <strong>{{ $booking->leadCarPassengers() }}</strong> of {{ $booking->passengerCount() }} passengers (the rest ride in the extra cars below).</p>
+            @endif
             <input type="text" value="{{ $driverLink }}" readonly onclick="this.select()" style="font-size:12px;margin-bottom:10px">
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <button type="button" class="btn btn-primary copy-link" data-link="{{ $driverLink }}" style="padding:9px 16px;font-size:14px">⧉ Copy link</button>
@@ -356,6 +359,19 @@
                         </form>
                     </div>
 
+                    {{-- How many passengers ride in THIS car (shown on the driver's own link). --}}
+                    @php $carPax = $booking->extraDriverPassengers($d['token']); @endphp
+                    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
+                        <form method="POST" action="{{ route('bookings.extra-drivers.passengers', $booking) }}" style="display:flex;gap:6px;align-items:center;margin:0;flex-wrap:wrap">
+                            @csrf
+                            <input type="hidden" name="token" value="{{ $d['token'] }}">
+                            <label style="font-size:13px"><strong>👤 Passengers in this car:</strong></label>
+                            <input type="number" min="0" max="60" name="passengers" value="{{ $carPax }}" placeholder="—" style="width:80px">
+                            <button class="btn btn-light" style="padding:6px 12px;font-size:13px">Set</button>
+                            @if($carPax === null)<span class="hint" style="margin:0">not split — shows the whole party</span>@endif
+                        </form>
+                    </div>
+
                     {{-- This car's OWN pay — separate from the lead driver and the other cars. --}}
                     @php $carPay = $booking->extraDriverPay($d['token']); $carRemain = $booking->extraDriverPayRemaining($d['token']); @endphp
                     <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
@@ -411,6 +427,7 @@
                     <div class="field"><label for="ex-phone">Phone <span class="muted">(for you to send the link)</span></label><input id="ex-phone" name="phone" placeholder="07…"></div>
                     <div class="field"><label for="ex-reg">Vehicle reg</label><input id="ex-reg" name="reg" style="text-transform:uppercase"></div>
                     <div class="field"><label for="ex-car">Make &amp; model</label><input id="ex-car" name="car" placeholder="e.g. Black Mercedes V-Class"></div>
+                    <div class="field"><label for="ex-pax">Passengers in this car <span class="muted">(optional)</span></label><input id="ex-pax" name="passengers" type="number" min="0" max="60" placeholder="e.g. 4"></div>
                 </div>
                 <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">＋ Add another car</button>
             </form>

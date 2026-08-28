@@ -445,6 +445,10 @@ class Booking extends Model
             'phone' => trim((string) ($attrs['phone'] ?? '')),
             'reg' => trim((string) ($attrs['reg'] ?? '')),
             'car' => trim((string) ($attrs['car'] ?? '')),
+            // How many passengers THIS car carries (null = not split yet).
+            'passengers' => isset($attrs['passengers']) && $attrs['passengers'] !== null && $attrs['passengers'] !== ''
+                ? max(0, (int) $attrs['passengers'])
+                : null,
             'status' => BookingStatus::Allocated->value,
         ];
         $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => array_values($extras)])])->save();
@@ -476,6 +480,7 @@ class Booking extends Model
             $target->addExtraDriver([
                 'name' => $d['name'] ?? 'Driver', 'phone' => $d['phone'] ?? '',
                 'reg' => $d['reg'] ?? '', 'car' => $d['car'] ?? '',
+                'passengers' => $d['passengers'] ?? null,
             ]);
             $existing[] = $key($d);
             $added++;
@@ -528,6 +533,51 @@ class Booking extends Model
 
             return $d;
         });
+    }
+
+    /* Per-car PASSENGER SPLIT — on a multi-car job each car carries part of the
+     * party. Store how many ride in each extra car; the lead car takes the rest
+     * so every driver's link shows just their own head-count. */
+
+    /** How many passengers ride in a given extra car, or null if not split yet. */
+    public function extraDriverPassengers(string $token): ?int
+    {
+        $d = $this->extraDriver($token);
+        if ($d === null) {
+            return null;
+        }
+
+        return isset($d['passengers']) && $d['passengers'] !== null ? (int) $d['passengers'] : null;
+    }
+
+    /** Set (or clear, with null) how many passengers ride in one extra car. */
+    public function setExtraDriverPassengers(string $token, ?int $n): void
+    {
+        $this->updateExtraDriver($token, function (array $d) use ($n) {
+            $d['passengers'] = $n !== null ? max(0, $n) : null;
+
+            return $d;
+        });
+    }
+
+    /**
+     * The lead car's own share of the party on a multi-car job: the total minus
+     * whatever the extra cars are carrying. Falls back to the full head-count
+     * when it isn't a multi-car job or nothing's been split yet.
+     */
+    public function leadCarPassengers(): ?int
+    {
+        $total = $this->passengerCount();
+        if ($total === null || ! $this->hasExtraDrivers()) {
+            return $total;
+        }
+
+        $assigned = 0;
+        foreach ($this->extraDrivers() as $d) {
+            $assigned += (int) ($d['passengers'] ?? 0);
+        }
+
+        return max(0, $total - $assigned);
     }
 
     /* Per-car PAYROLL — each extra car is paid separately from the lead driver

@@ -37,7 +37,8 @@
     <div class="da-hero-chips">
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
         @if($booking->airport)<span class="da-chip">✈ {{ $booking->airport->code }}</span>@endif
-        <span class="da-chip">👤 {{ $booking->passengerCount() }} {{ \Illuminate\Support\Str::plural('passenger', (int) $booking->passengerCount()) }}</span>
+        @php $jobPax = $booking->hasExtraDrivers() ? $booking->leadCarPassengers() : $booking->passengerCount(); @endphp
+        <span class="da-chip">👤 {{ $jobPax }} {{ \Illuminate\Support\Str::plural('passenger', (int) $jobPax) }}@if($booking->hasExtraDrivers())<span style="opacity:.7"> in your car</span>@endif</span>
         <span class="da-chip">🧳 {{ $booking->luggageBreakdown() }}</span>
         @if($booking->displayChildSeats())<span class="da-chip">🚼 {{ $booking->displayChildSeats() }}</span>@endif
     </div>
@@ -233,7 +234,7 @@
         @endif
         @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif
         <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
-        <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
+        <tr><th>Passengers</th><td>{{ $booking->hasExtraDrivers() ? $booking->leadCarPassengers().' in your car (of '.$booking->passengerCount().' total)' : $booking->passengerCount() }}</td></tr>
         <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
         {{-- Child seats — KEY info for the driver (right seat fitted for the age). --}}
         @if($booking->displayChildSeats())

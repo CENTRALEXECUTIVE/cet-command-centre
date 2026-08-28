@@ -511,11 +511,31 @@ class BookingController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'reg' => ['nullable', 'string', 'max:20'],
             'car' => ['nullable', 'string', 'max:80'],
+            'passengers' => ['nullable', 'integer', 'min:0', 'max:60'],
         ]);
 
         $booking->addExtraDriver($data);
 
         return back()->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
+    }
+
+    /** Set how many passengers ride in one extra car (shown on that car's link). */
+    public function setExtraDriverPassengers(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'passengers' => ['nullable', 'integer', 'min:0', 'max:60'],
+        ]);
+        $car = $booking->extraDriver($data['token']);
+        abort_if($car === null, 404);
+
+        $booking->setExtraDriverPassengers($data['token'], $data['passengers'] ?? null);
+
+        return back()->with('status', ($data['passengers'] ?? null) !== null
+            ? "Car set to carry {$data['passengers']} passenger(s)."
+            : 'Cleared this car’s passenger count.');
     }
 
     /**

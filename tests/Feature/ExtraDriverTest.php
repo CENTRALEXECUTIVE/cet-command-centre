@@ -184,6 +184,45 @@ class ExtraDriverTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_each_car_can_carry_its_own_passenger_count(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Big Group'])->id,
+                'pickup_at' => now()->addDay(),
+                'passengers' => 10,
+                'status' => BookingStatus::Allocated->value,
+            ]);
+
+        // Add two extra cars, one with a passenger split set on the form.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Sam Jones', 'passengers' => '4'])->assertRedirect();
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Lee Ford'])->assertRedirect();
+
+        $booking->refresh();
+        [$t2, $t3] = [$booking->extraDrivers()[0]['token'], $booking->extraDrivers()[1]['token']];
+
+        $this->assertSame(4, $booking->extraDriverPassengers($t2));
+        $this->assertNull($booking->extraDriverPassengers($t3));
+
+        // Set the second car's count via the endpoint.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.passengers', $booking), ['token' => $t3, 'passengers' => '2'])->assertRedirect();
+        $booking->refresh();
+        $this->assertSame(2, $booking->extraDriverPassengers($t3));
+
+        // Lead car takes the remainder: 10 − 4 − 2 = 4.
+        $this->assertSame(4, $booking->leadCarPassengers());
+
+        // The extra car's own link shows ITS count, not the whole party.
+        $this->get(route('driver.car', $t2))->assertOk()
+            ->assertSee('4 in your car');
+
+        // Clearing a car's count falls back to the whole-party display.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.passengers', $booking), ['token' => $t2, 'passengers' => ''])->assertRedirect();
+        $this->assertNull($booking->fresh()->extraDriverPassengers($t2));
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
