@@ -20,6 +20,8 @@ use Illuminate\View\View;
  */
 class ExtraDriverController extends Controller
 {
+    public function __construct(private readonly \App\Services\Watchdog\AdminAlerts $adminAlerts) {}
+
     /** Statuses an extra driver may set from their link (no cancel/no-show). */
     private const ALLOWED = ['accepted', 'en_route', 'arrived', 'collected', 'complete'];
 
@@ -57,8 +59,38 @@ class ExtraDriverController extends Controller
         }
 
         $booking->setExtraDriverStatus($token, $to->value);
+        $this->pingOffice($booking, $car, $to);
 
         return back()->with('status', 'Car status updated to '.$to->label().'.');
+    }
+
+    /**
+     * Notify the office as an extra car moves through the job (set off / arrived /
+     * on board / completed) — the same progress pings the lead driver fires, so
+     * the office is kept up to date on EVERY vehicle, not just the main one. Uses
+     * the same alert types, so each admin's notification toggles apply as usual.
+     *
+     * @param  array<string, mixed>  $car
+     */
+    private function pingOffice(Booking $booking, array $car, BookingStatus $to): void
+    {
+        $carNo = $booking->extraDriverCarNumber($car['token'] ?? '') ?? '?';
+        $label = 'Car '.$carNo.' ('.($car['name'] ?? 'Driver').')';
+        $time = $booking->pickup_at?->format('H:i') ?? '';
+
+        [$type, $title, $body] = match ($to) {
+            BookingStatus::EnRoute => ['driver_set_off', '🚗 '.$label.' has set off', $label.' has set off for the '.$time.' job'],
+            BookingStatus::Arrived => ['driver_arrived', '📍 '.$label.' arrived at pickup', $label.' has arrived at the pickup for the '.$time.' job'],
+            BookingStatus::Collected => ['driver_on_board', '🧍 '.$label.' — passenger on board', $label.' has the passenger on board'],
+            BookingStatus::Complete => ['driver_complete', '🏁 '.$label.' completed', $label.' has completed the '.$time.' job'],
+            default => [null, null, null],
+        };
+        if ($type === null) {
+            return;
+        }
+
+        \App\Models\WatchdogEvent::log($type, $body, 'info', $booking);
+        $this->adminAlerts->notify($type, $title, $body, 'info', $booking);
     }
 
     /** Extra-car driver confirms they've collected the child seat(s) from the office. */

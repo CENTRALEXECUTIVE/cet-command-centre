@@ -288,6 +288,30 @@ class ExtraDriverTest extends TestCase
             ->assertSee('1 of 2'); // Car 2 arrived, Car 1 not yet
     }
 
+    public function test_extra_car_status_changes_notify_the_office(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->booking();
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Sam Jones']);
+        $token = $booking->fresh()->extraDrivers()[0]['token'];
+
+        // Car 2 accepts (no ping) then sets off and arrives (office pinged).
+        $this->post(route('driver.car.status', $token), ['status' => 'accepted'])->assertRedirect();
+        $this->post(route('driver.car.status', $token), ['status' => 'en_route'])->assertRedirect();
+        $this->post(route('driver.car.status', $token), ['status' => 'arrived'])->assertRedirect();
+
+        // The office feed gets a set-off and an arrived event naming the car.
+        $this->assertDatabaseHas('watchdog_events', [
+            'booking_id' => $booking->id, 'event_type' => 'driver_set_off',
+        ]);
+        $this->assertDatabaseHas('watchdog_events', [
+            'booking_id' => $booking->id, 'event_type' => 'driver_arrived',
+        ]);
+        $arrived = \App\Models\WatchdogEvent::where('booking_id', $booking->id)
+            ->where('event_type', 'driver_arrived')->latest('id')->first();
+        $this->assertStringContainsString('Car 2', (string) $arrived->title);
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
