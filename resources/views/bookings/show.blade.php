@@ -338,6 +338,81 @@
         </script>
     @endif
 
+    {{-- All cars at a glance on a multi-car job: the lead PLUS every extra car,
+         each with its own current stage + a progress strip, so the office can
+         see who's arrived without opening each link. Each car updates from its
+         own driver link independently. --}}
+    @if(auth()->user()->isAdmin() && $booking->hasExtraDrivers())
+        @php
+            $stageSeq = [
+                'allocated' => ['🧭', 'Allocated'],
+                'accepted' => ['✅', 'Accepted'],
+                'en_route' => ['🚗', 'On the way'],
+                'arrived' => ['📍', 'Arrived'],
+                'collected' => ['🧳', 'On board'],
+                'complete' => ['🏁', 'Dropped off'],
+            ];
+            $stageKeys = array_keys($stageSeq);
+
+            // Lead car milestone times from its status history.
+            $leadStamps = [];
+            foreach ($booking->statusHistory->sortBy('created_at') as $h) {
+                if (isset($stageSeq[$h->to_status]) && ! isset($leadStamps[$h->to_status])) {
+                    $leadStamps[$h->to_status] = $h->created_at;
+                }
+            }
+
+            $allCars = [[
+                'no' => 1,
+                'name' => $booking->driver?->name ?? ($booking->meta['driver_details']['name'] ?? 'Lead driver'),
+                'status' => $booking->status->value,
+                'stamps' => $leadStamps,
+            ]];
+            foreach ($booking->extraDrivers() as $i => $d) {
+                $stamps = [];
+                foreach (($d['stamps'] ?? []) as $k => $iso) {
+                    try { $stamps[$k] = \Illuminate\Support\Carbon::parse($iso); } catch (\Throwable) {}
+                }
+                $allCars[] = [
+                    'no' => $i + 2,
+                    'name' => $d['name'] ?? 'Driver',
+                    'status' => $d['status'] ?? 'allocated',
+                    'stamps' => $stamps,
+                ];
+            }
+
+            $arrived = collect($allCars)->filter(fn ($c) => in_array($c['status'], ['arrived', 'collected', 'complete'], true))->count();
+        @endphp
+        <div class="card">
+            <h2 style="margin:0 0 4px">🚦 All cars — live status</h2>
+            <p class="hint" style="margin:0 0 12px"><strong>{{ $arrived }} of {{ count($allCars) }}</strong> {{ \Illuminate\Support\Str::plural('car', count($allCars)) }} at pickup or beyond. Each car updates from its own driver link.</p>
+            @foreach($allCars as $car)
+                @php
+                    $curIdx = array_search($car['status'], $stageKeys, true);
+                    $isOff = in_array($car['status'], ['cancelled', 'no_show', 'pending'], true);
+                    [$cIcon, $cLabel] = $stageSeq[$car['status']] ?? ['•', ucfirst(str_replace('_', ' ', $car['status']))];
+                    $atPickup = in_array($car['status'], ['arrived', 'collected', 'complete'], true);
+                    $curStamp = $car['stamps'][$car['status']] ?? null;
+                @endphp
+                <div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,.12)">
+                    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">
+                        <strong style="font-size:14px">Car {{ $car['no'] }} — {{ $car['name'] }}</strong>
+                        <span style="font-size:13px;{{ $atPickup ? 'color:#1f7a44;font-weight:700' : ($isOff ? 'color:var(--muted,#888)' : '') }}">
+                            {{ $cIcon }} {{ $cLabel }}@if($curStamp) · {{ $curStamp->format('H:i') }}@endif
+                        </span>
+                    </div>
+                    <div style="display:flex;gap:4px;margin-top:8px">
+                        @foreach($stageKeys as $sk)
+                            @php $reached = $curIdx !== false && ! $isOff && array_search($sk, $stageKeys, true) <= $curIdx; @endphp
+                            <span title="{{ $stageSeq[$sk][1] }}{{ isset($car['stamps'][$sk]) ? ' · '.$car['stamps'][$sk]->format('d M H:i') : '' }}"
+                                  style="flex:1;height:8px;border-radius:4px;background:{{ $reached ? '#1f9d55' : 'rgba(128,128,128,.18)' }}"></span>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     {{-- Additional drivers for a MULTI-CAR job (e.g. a 3-car wedding). Each gets
          their own link and their own per-car status, tracked separately. --}}
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())

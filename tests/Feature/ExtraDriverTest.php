@@ -258,6 +258,36 @@ class ExtraDriverTest extends TestCase
         $this->assertSame(0, $booking->leadCarPassengers());
     }
 
+    public function test_all_cars_live_status_panel_shows_each_cars_progress(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Lead Larry']);
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Nick Wedding'])->id,
+                'pickup_at' => now()->addDay(), 'driver_id' => $driver->id,
+                'status' => BookingStatus::Allocated->value,
+            ]);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Sam Jones']);
+        $token = $booking->fresh()->extraDrivers()[0]['token'];
+
+        // Car 2 sets off then arrives — stamps recorded per stage.
+        $this->post(route('driver.car.status', $token), ['status' => 'accepted'])->assertRedirect();
+        $this->post(route('driver.car.status', $token), ['status' => 'en_route'])->assertRedirect();
+        $this->post(route('driver.car.status', $token), ['status' => 'arrived'])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertNotNull($booking->extraDriverStampAt($token, 'arrived'));
+
+        // The booking page shows the consolidated panel with both cars.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('All cars — live status')
+            ->assertSee('Car 1 — Lead Larry')
+            ->assertSee('Car 2 — Sam Jones')
+            ->assertSee('1 of 2'); // Car 2 arrived, Car 1 not yet
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

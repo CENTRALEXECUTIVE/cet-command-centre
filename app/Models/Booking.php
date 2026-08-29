@@ -450,6 +450,9 @@ class Booking extends Model
                 ? max(0, (int) $attrs['passengers'])
                 : null,
             'status' => BookingStatus::Allocated->value,
+            // When each stage was first reached, so the office sees each car's
+            // progress (allocated → … → dropped off) with times, like the lead.
+            'stamps' => ['allocated' => now()->toIso8601String()],
         ];
         $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => array_values($extras)])])->save();
 
@@ -525,14 +528,26 @@ class Booking extends Model
         $this->forceFill(['meta' => array_merge($this->meta ?? [], ['extra_drivers' => array_values($extras)])])->save();
     }
 
-    /** Update one extra car's per-car status. */
+    /** Update one extra car's per-car status, stamping the stage the first time reached. */
     public function setExtraDriverStatus(string $token, string $status): void
     {
         $this->updateExtraDriver($token, function (array $d) use ($status) {
             $d['status'] = $status;
+            $d['stamps'] = $d['stamps'] ?? [];
+            if (! isset($d['stamps'][$status])) {
+                $d['stamps'][$status] = now()->toIso8601String();
+            }
 
             return $d;
         });
+    }
+
+    /** When an extra car first reached a given stage, or null if not yet (or unstamped). */
+    public function extraDriverStampAt(string $token, string $status): ?\Illuminate\Support\Carbon
+    {
+        $iso = $this->extraDriver($token)['stamps'][$status] ?? null;
+
+        return $iso ? \Illuminate\Support\Carbon::parse($iso) : null;
     }
 
     /* Per-car PASSENGER SPLIT — on a multi-car job each car carries part of the
