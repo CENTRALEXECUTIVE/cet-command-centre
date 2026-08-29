@@ -644,6 +644,34 @@ class BookingController extends Controller
             ->with('status', "Marked {$ref} as a separate booking — these two won't be flagged as duplicates again.");
     }
 
+    /**
+     * Record (or clear) a cancellation charge on a cancelled/no-show booking:
+     * the fee kept from the customer and the driver's share. Keeps the job on
+     * payroll (driver's cut) and in revenue (the fee) instead of vanishing.
+     */
+    public function setCancellationCharge(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if ($request->boolean('clear')) {
+            $booking->clearCancellationCharge();
+
+            return back()->with('status', 'Cancellation charge removed — original fare restored.');
+        }
+
+        $data = $request->validate([
+            'fee' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'driver_pay' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+        ]);
+
+        $driverPay = ($data['driver_pay'] ?? null) !== null && $data['driver_pay'] !== ''
+            ? (float) $data['driver_pay'] : null;
+        $booking->setCancellationCharge((float) $data['fee'], $driverPay, $request->user());
+
+        return back()->with('status', 'Cancellation charge saved — £'.number_format((float) $data['fee'], 2).' kept'
+            .($driverPay !== null ? ', £'.number_format($driverPay, 2).' to '.$booking->payrollDriverName() : '').'.');
+    }
+
     /** @return array<string, mixed> */
     /**
      * Toggle number masking for a single job. Turning it OFF frees both sides

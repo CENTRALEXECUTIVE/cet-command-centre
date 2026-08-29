@@ -1028,6 +1028,81 @@ class Booking extends Model
         return $amount !== null ? (float) $amount : null;
     }
 
+    /* ---- Cancellation charge -------------------------------------------------
+     * A job cancelled late is often still charged (e.g. 50%), and the driver
+     * still earns their share. Recorded here so a charged cancellation counts on
+     * payroll (driver's cut) and in revenue (the fee), instead of vanishing like
+     * a free cancellation. Stored in meta (no migration). */
+
+    /** The amount charged to the customer for a cancelled/no-show job, or null. */
+    public function cancellationFee(): ?float
+    {
+        $v = $this->meta['cancellation']['fee'] ?? null;
+
+        return $v !== null ? (float) $v : null;
+    }
+
+    /** The driver's pay for a charged cancellation, or null. */
+    public function cancellationDriverPay(): ?float
+    {
+        $v = $this->meta['cancellation']['driver_pay'] ?? null;
+
+        return $v !== null ? (float) $v : null;
+    }
+
+    /** The full fare the job would have been, before the cancellation charge. */
+    public function cancellationOriginalFare(): ?float
+    {
+        $v = $this->meta['cancellation']['original_fare'] ?? null;
+
+        return $v !== null ? (float) $v : null;
+    }
+
+    /** True when this is a cancelled/no-show job that still carries a charge. */
+    public function hasCancellationCharge(): bool
+    {
+        return in_array($this->status, [BookingStatus::Cancelled, BookingStatus::NoShow], true)
+            && $this->cancellationFee() !== null && $this->cancellationFee() > 0.001;
+    }
+
+    /**
+     * Record (or update) a cancellation charge: the fee kept from the customer
+     * and the driver's share. The fee becomes the job's final price so revenue
+     * counts it; the driver's cut goes through the normal payroll block so it
+     * shows on Payroll and can be marked paid like any other job.
+     */
+    public function setCancellationCharge(float $fee, ?float $driverPay, ?User $by = null): void
+    {
+        $meta = $this->meta ?? [];
+        $meta['cancellation'] = [
+            'fee' => round($fee, 2),
+            'driver_pay' => $driverPay !== null ? round($driverPay, 2) : null,
+            // Remember the original fare once, so re-editing the charge keeps it.
+            'original_fare' => $meta['cancellation']['original_fare'] ?? $this->fareAmount(),
+            'at' => now()->toIso8601String(),
+            'by' => $by?->id,
+        ];
+        if ($driverPay !== null) {
+            $payroll = $meta['payroll'] ?? [];
+            $payroll['pay'] = round($driverPay, 2);
+            $meta['payroll'] = $payroll;
+        }
+        $this->final_price = round($fee, 2);
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Remove a cancellation charge, restoring the original fare. */
+    public function clearCancellationCharge(): void
+    {
+        $meta = $this->meta ?? [];
+        $original = $meta['cancellation']['original_fare'] ?? null;
+        unset($meta['cancellation']);
+        if ($original !== null) {
+            $this->final_price = $original;
+        }
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
     /**
      * A wa.me deep link to message THIS job's driver (admin-side — the office
      * has the driver's real number). Null when there's no usable driver number.

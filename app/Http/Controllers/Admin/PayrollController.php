@@ -38,7 +38,9 @@ class PayrollController extends Controller
 
         $jobs = Booking::with(['driver', 'customer'])
             ->whereBetween('pickup_at', [$day, $end])
-            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->where(fn ($q) => $q
+                ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                ->orWhereNotNull('meta->cancellation->fee')) // charged cancellations still pay the driver
             ->orderBy('pickup_at')
             ->get();
 
@@ -86,7 +88,9 @@ class PayrollController extends Controller
 
         $bookings = Booking::with(['driver', 'customer', 'airport'])
             ->whereBetween('pickup_at', [$start, $end])
-            ->whereNotIn('status', [BookingStatus::Cancelled->value])
+            ->where(fn ($q) => $q
+                ->whereNotIn('status', [BookingStatus::Cancelled->value])
+                ->orWhereNotNull('meta->cancellation->fee')) // charged cancellations still pay the driver
             ->orderBy('pickup_at')
             ->get();
 

@@ -61,6 +61,53 @@
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
 
+    {{-- Cancellation charge — for a cancelled/no-show job that's still charged
+         (e.g. 50%). Records the fee kept + the driver's share, so it counts on
+         payroll and in revenue instead of vanishing like a free cancellation. --}}
+    @if(auth()->user()->isAdmin() && in_array($booking->status, [\App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow], true))
+        @php
+            $baseFare = $booking->cancellationOriginalFare() ?? $booking->fareAmount();
+            $hasCharge = $booking->hasCancellationCharge();
+        @endphp
+        <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.08);margin-bottom:16px">
+            <h2 style="margin:0 0 4px">🚫 Cancelled — charge &amp; driver pay</h2>
+            @if($hasCharge)
+                <p style="margin:0 0 10px;font-size:15px">
+                    Charging <strong>£{{ number_format($booking->cancellationFee(), 2) }}</strong>{{ $baseFare ? ' of the £'.number_format($baseFare, 2).' fare' : '' }}.
+                    Driver gets <strong>£{{ number_format($booking->cancellationDriverPay() ?? 0, 2) }}</strong>. This shows on Payroll and in revenue.
+                </p>
+            @else
+                <p class="hint" style="margin:0 0 10px">This job is cancelled. If you're still charging the customer (e.g. 50%), record it here so the driver still gets paid and the money is counted.</p>
+            @endif
+
+            <form method="POST" action="{{ route('bookings.cancellation-charge', $booking) }}" id="cancel-charge-form">
+                @csrf
+                <div class="grid grid-2" style="gap:12px">
+                    <div class="field">
+                        <label for="cc-fee">Charge to customer (£)</label>
+                        <input id="cc-fee" type="number" step="0.01" min="0" name="fee" value="{{ $booking->cancellationFee() }}" placeholder="e.g. {{ $baseFare ? number_format($baseFare / 2, 2, '.', '') : '52.50' }}">
+                    </div>
+                    <div class="field">
+                        <label for="cc-driver">Driver pay (£)</label>
+                        <input id="cc-driver" type="number" step="0.01" min="0" name="driver_pay" value="{{ $booking->cancellationDriverPay() }}" placeholder="the driver's 50%">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+                    @if($baseFare)
+                        <button type="button" class="btn btn-light" style="padding:6px 12px;font-size:13px"
+                                onclick="document.getElementById('cc-fee').value='{{ number_format($baseFare / 2, 2, '.', '') }}'">Charge 50% (£{{ number_format($baseFare / 2, 2) }})</button>
+                    @endif
+                    <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">Save charge</button>
+                    @if($hasCharge)
+                        <button type="submit" name="clear" value="1" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;color:var(--red)"
+                                onclick="return confirm('Remove the cancellation charge and restore the original fare?')">Remove charge</button>
+                    @endif
+                </div>
+                <p class="hint" style="margin:8px 0 0">Set the driver's pay here — it flows to <a href="{{ route('payroll.index') }}">Payroll</a> like any job. Leave it blank if the driver isn't paid for this one.</p>
+            </form>
+        </div>
+    @endif
+
     {{-- Possible duplicate — another live booking looks like the same journey. --}}
     @if(auth()->user()->isAdmin())
         @php $dupes = $booking->duplicateCandidates(); @endphp

@@ -127,6 +127,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/driver-details', [BookingController::class, 'setDriverDetails'])->middleware('throttle:30,1')->name('bookings.driver-details');
         Route::post('bookings/{booking}/sync-time', [BookingController::class, 'syncTime'])->middleware('throttle:30,1')->name('bookings.sync-time');
         Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
+        Route::post('bookings/{booking}/cancellation-charge', [BookingController::class, 'setCancellationCharge'])->middleware('throttle:30,1')->name('bookings.cancellation-charge');
         Route::post('bookings/{booking}/scan-calendar', [BookingController::class, 'scanCalendar'])->middleware('throttle:30,1')->name('bookings.scan-calendar');
         // Ask the driver to share their location now + poll their latest ping.
         Route::post('bookings/{booking}/request-location', [BookingController::class, 'requestLocation'])->middleware('throttle:20,1')->name('bookings.request-location');

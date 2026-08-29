@@ -27,8 +27,14 @@ class ReportService
     private function completed(CarbonInterface $start, CarbonInterface $end): Builder
     {
         return Booking::query()
-            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
-            ->where('pickup_at', '<=', now()) // revenue is earned only once a job has run
+            ->where(function (Builder $q) {
+                // A job that has run (not cancelled, pickup passed) …
+                $q->where(fn (Builder $qq) => $qq
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->where('pickup_at', '<=', now()))
+                    // … OR a charged cancellation, whose fee is earned at cancel time.
+                    ->orWhereNotNull('meta->cancellation->fee');
+            })
             ->whereBetween('pickup_at', [$start, $end]);
     }
 
@@ -163,7 +169,11 @@ class ReportService
     private function scheduled(CarbonInterface $start, CarbonInterface $end): Builder
     {
         return Booking::query()
-            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->where(function (Builder $q) {
+                $q->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    // Charged cancellations still count toward money on the books.
+                    ->orWhereNotNull('meta->cancellation->fee');
+            })
             ->whereBetween('pickup_at', [$start, $end]);
     }
 
