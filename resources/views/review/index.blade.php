@@ -39,7 +39,25 @@
         $lnkOwing     = route('bookings.index', $win + ['by' => 'pickup', 'payment' => 'unpaid']);
         $lnkCancelled = route('bookings.index', $win + ['by' => 'pickup', 'status' => 'cancelled']);
     @endphp
-    <p class="muted" style="font-size:13px;margin:0 0 8px">Every figure below is clickable — tap it to see the exact bookings behind it. <strong>Made this period</strong> = bookings that came in (were booked) in these dates, whatever day the trip runs — ETO's “Created” date. <strong>Completed</strong> = trips already done (money taken). <strong>Booked</strong> = everything on the books by trip date, including trips still to come.</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">Every figure below is clickable — tap it to see the exact bookings behind it. <strong>Came in</strong> = bookings placed in these dates (ETO's “Created” date), whatever day the trip runs. <strong>Completed</strong> = trips already done (money taken). <strong>Total trips</strong> = everything on the books by trip date, including trips still to come.</p>
+
+    {{-- The two headline figures the office watches: what came IN this period vs
+         the total ON THE BOOKS for this period. They measure different things and
+         rarely match — the note spells out why, so 14k next to 16k never reads as
+         a bug. --}}
+    <div class="card" style="border-left:4px solid var(--gold);margin-bottom:16px">
+        <div class="grid grid-2" style="gap:16px">
+            <a href="{{ $lnkMade }}" class="stat stat-link" style="text-align:left">
+                <div class="n">£{{ number_format($created['revenue'] ?? 0, 2) }} <span style="font-size:15px;font-weight:500;color:var(--muted,#888)">· {{ $created['jobs'] ?? 0 }} {{ \Illuminate\Support\Str::plural('booking', $created['jobs'] ?? 0) }}</span></div>
+                <div class="l">🆕 Came in this period — new bookings placed (counted by the day they were booked)</div>
+            </a>
+            <a href="{{ $lnkBooked }}" class="stat stat-link" style="text-align:left">
+                <div class="n">£{{ number_format($reserved['revenue'] ?? 0, 2) }} <span style="font-size:15px;font-weight:500;color:var(--muted,#888)">· {{ $reserved['jobs'] ?? 0 }} {{ \Illuminate\Support\Str::plural('trip', $reserved['jobs'] ?? 0) }}</span></div>
+                <div class="l">📖 Total trips for this period — everything on the books (counted by trip date, incl. upcoming)</div>
+            </a>
+        </div>
+        <p class="hint" style="margin:10px 0 0">These two differ on purpose: <strong>came in</strong> counts a booking on the day it was <em>placed</em>; <strong>total trips</strong> counts it on the day the <em>trip runs</em>. A trip booked last month but running this month lands in the total, not in came-in — so the two rarely match. It isn't an error.</p>
+    </div>
 
     {{-- Bookings MADE in the period (by created date), not by trip date — "how
          many came in this month" regardless of when the pickup lands. --}}
@@ -70,7 +88,7 @@
     <div class="grid grid-3" style="margin-bottom:24px">
         <a href="{{ $lnkBooked }}" class="stat stat-link" style="border-color:var(--gold)">
             <div class="n">£{{ number_format($reserved['revenue'] ?? 0, 2) }}</div>
-            <div class="l">📖 Booked — total incl. upcoming</div>
+            <div class="l">📖 Total trips (by trip date, this range)</div>
         </a>
         <a href="{{ $lnkBooked }}" class="stat stat-link"><div class="n">{{ $reserved['jobs'] ?? 0 }}</div><div class="l">Total trips booked</div></a>
         <a href="{{ $lnkBooked }}" class="stat stat-link">
@@ -116,7 +134,7 @@
 
     {{-- Monthly revenue trend --}}
     <div class="card">
-        <h2>Monthly revenue <span class="muted" style="font-weight:400;font-size:13px">— completed money; “booked” shown when a month still has upcoming trips</span></h2>
+        <h2>Monthly revenue <span class="muted" style="font-weight:400;font-size:13px">— each full calendar month by trip date (not the range above): bold = completed money, “booked” = total incl. upcoming trips</span></h2>
         @php $maxRev = max(1, (float) ($monthly->max('booked_revenue') ?? $monthly->max('revenue') ?? 1)); @endphp
         @forelse($monthly as $m)
             @php $hasUpcoming = ($m['booked_revenue'] ?? $m['revenue']) > $m['revenue'] + 0.01; @endphp

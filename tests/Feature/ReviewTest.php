@@ -163,6 +163,17 @@ class ReviewTest extends TestCase
         $this->assertEquals(2, $res->viewData('reserved')['jobs']);
     }
 
+    public function test_review_shows_both_headline_figures_with_a_reconciliation_note(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('review.index', ['preset' => 'this_year']))
+            ->assertOk()
+            ->assertSee('Came in this period')                 // new bookings placed
+            ->assertSee('Total trips for this period')         // everything on the books
+            ->assertSee('rarely match');                       // the reconciliation note
+    }
+
     public function test_admin_can_manually_request_a_review_overriding_the_once_rule(): void
     {
         $admin = User::factory()->admin()->create();
