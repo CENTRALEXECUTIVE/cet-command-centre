@@ -315,6 +315,19 @@ class ReportService
      */
     public function topEntities(CarbonInterface $start, CarbonInterface $end, int $limit = 12): Collection
     {
+        return $this->entities($start, $end)->take($limit)->values();
+    }
+
+    /**
+     * EVERY customer/business active in the period (businesses rolled up), ranked
+     * by revenue, each row carrying a 'repeat' flag (2+ bookings in the window).
+     * topEntities takes the head of this for the leaderboard; the Review page uses
+     * the whole list to count and list repeat customers.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function entities(CarbonInterface $start, CarbonInterface $end): Collection
+    {
         $map = $this->corporateNameMap();
         $accounts = \App\Models\CorporateAccount::get(['id', 'name'])->keyBy('id');
 
@@ -341,10 +354,10 @@ class ReportService
                     'jobs' => $group->count(),
                     'revenue' => $revenue,
                     'customers' => $account ? $group->pluck('customer_id')->filter()->unique()->count() : 1,
+                    'repeat' => $group->count() >= 2,
                 ];
             })
             ->sortByDesc('revenue')
-            ->take($limit)
             ->values();
     }
 

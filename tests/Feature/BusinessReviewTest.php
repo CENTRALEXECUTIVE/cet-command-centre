@@ -145,6 +145,26 @@ class BusinessReviewTest extends TestCase
         $this->assertSame('customer', $jane['type']);
     }
 
+    public function test_the_review_page_counts_and_lists_repeat_customers(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // A repeat private customer (2 trips) and a one-off customer (1 trip).
+        $rita = Customer::factory()->create(['name' => 'Repeat Rita']);
+        $this->ranJob(['customer_id' => $rita->id, 'final_price' => 100]);
+        $this->ranJob(['customer_id' => $rita->id, 'final_price' => 120]);
+        $once = Customer::factory()->create(['name' => 'One-Off Ollie']);
+        $this->ranJob(['customer_id' => $once->id, 'final_price' => 90]);
+
+        $res = $this->actingAs($admin)->get(route('review.index', ['preset' => 'all']))->assertOk();
+
+        // One repeat customer, and the page names them plus a 'See all' toggle.
+        $this->assertCount(1, $res->viewData('repeatCustomers'));
+        $res->assertSee('Repeat customer', false)
+            ->assertSee('See all 1 repeat customer')
+            ->assertSee('Repeat Rita');
+    }
+
     public function test_non_admins_cannot_view_the_business_breakdown(): void
     {
         $account = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);

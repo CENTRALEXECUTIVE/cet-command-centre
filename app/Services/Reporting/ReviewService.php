@@ -30,7 +30,10 @@ class ReviewService
         $comparison = $this->reports->comparison($start, $end);
         $byVehicle = $this->reports->byVehicleType($start, $end);
         // Corporate customers rolled up under their business (JELD-WEN, LB Foster…).
-        $topCustomers = $this->reports->topEntities($start, $end);
+        // The full list feeds both the leaderboard and the repeat-customer count.
+        $entities = $this->reports->entities($start, $end);
+        $topCustomers = $entities->take(12);
+        $repeatCustomers = $entities->where('repeat', true)->values();
         $topRoutes = $this->reports->topRoutes($start, $end, 5);
         $byDriver = $this->reports->earningsByDriver($start, $end);
         $monthly = $this->reports->monthlyRevenue($start, $end);
@@ -57,6 +60,7 @@ class ReviewService
             'comparison' => $comparison,
             'byVehicle' => $byVehicle,
             'topCustomers' => $topCustomers,
+            'repeatCustomers' => $repeatCustomers,
             'topRoutes' => $topRoutes,
             'byDriver' => $byDriver,
             'monthly' => $monthly,

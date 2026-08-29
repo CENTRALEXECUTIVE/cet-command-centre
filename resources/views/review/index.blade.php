@@ -177,8 +177,21 @@
         </div>
 
         <div class="card">
+            @php
+                $repeat = collect($repeatCustomers ?? []);
+                $repeatCount = $repeat->count();
+                $repeatBookings = (int) $repeat->sum('jobs');
+            @endphp
             <h2>Top customers &amp; businesses</h2>
             <p class="muted" style="font-size:12px;margin:0 0 8px">Corporate passengers are grouped under their business — tap a business to see how often each of their people has re-booked.</p>
+
+            {{-- Repeat-customer headline: how many customers/businesses booked more
+                 than once in this period, and the full list to see who they are. --}}
+            <div class="stat" style="text-align:left;border-color:var(--gold);margin-bottom:10px">
+                <div class="n">🔁 {{ $repeatCount }}</div>
+                <div class="l">Repeat {{ \Illuminate\Support\Str::plural('customer', $repeatCount) }} (2+ bookings this period) · {{ $repeatBookings }} {{ \Illuminate\Support\Str::plural('booking', $repeatBookings) }} between them</div>
+            </div>
+
             <table class="table">
                 <thead><tr><th>Customer / business</th><th>Jobs</th><th>Revenue</th></tr></thead>
                 <tbody>
@@ -192,6 +205,7 @@
                         <td>
                             <a href="{{ $curl }}">{{ $x['name'] }}</a>
                             @if($x['type'] === 'business')<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;vertical-align:middle;margin-left:4px">🏢 {{ $x['customers'] }} {{ \Illuminate\Support\Str::plural('customer', $x['customers']) }}</span>@endif
+                            @if(!empty($x['repeat']))<span class="badge" style="background:#1f7a44;color:#fff;font-size:10px;vertical-align:middle;margin-left:4px">🔁 repeat</span>@endif
                         </td>
                         <td>{{ $x['jobs'] }}</td>
                         <td>£{{ number_format($x['revenue'], 2) }}</td>
@@ -201,6 +215,33 @@
                 @endforelse
                 </tbody>
             </table>
+
+            {{-- The full repeat list, collapsed so it doesn't dominate the page. --}}
+            @if($repeatCount > 0)
+                <details style="margin-top:12px">
+                    <summary style="cursor:pointer;font-weight:600;font-size:14px">See all {{ $repeatCount }} repeat {{ \Illuminate\Support\Str::plural('customer', $repeatCount) }}</summary>
+                    <table class="table" style="margin-top:8px">
+                        <thead><tr><th>Customer / business</th><th>Bookings</th><th>Revenue</th></tr></thead>
+                        <tbody>
+                        @foreach($repeat as $x)
+                            @php
+                                $rurl = $x['type'] === 'business'
+                                    ? route('reports.business', $x['id'])
+                                    : route('bookings.index', $win + ['by' => 'pickup', 'q' => $x['name']]);
+                            @endphp
+                            <tr style="cursor:pointer" onclick="window.location='{{ $rurl }}'">
+                                <td>
+                                    <a href="{{ $rurl }}">{{ $x['name'] }}</a>
+                                    @if($x['type'] === 'business')<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;vertical-align:middle;margin-left:4px">🏢 {{ $x['customers'] }} {{ \Illuminate\Support\Str::plural('customer', $x['customers']) }}</span>@endif
+                                </td>
+                                <td>{{ $x['jobs'] }}×</td>
+                                <td>£{{ number_format($x['revenue'], 2) }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </details>
+            @endif
         </div>
     </div>
 
