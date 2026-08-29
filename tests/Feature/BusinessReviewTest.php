@@ -80,6 +80,71 @@ class BusinessReviewTest extends TestCase
             ->assertSee('repeat');
     }
 
+    public function test_an_untagged_booking_is_grouped_by_its_booker(): void
+    {
+        // No corporate_account_id on the booking or customer — the only link is
+        // that LB Foster's contact, Abi Atkin, booked it.
+        $account = CorporateAccount::create(['name' => 'LB Foster', 'slug' => 'lb-foster', 'account_code' => 'LBFOSTER', 'is_active' => true]);
+        $account->contacts()->create(['name' => 'Abi Atkin', 'is_primary' => true]);
+
+        $traveller = Customer::factory()->create(['name' => 'TJ Curran']);
+        $this->ranJob(['customer_id' => $traveller->id, 'final_price' => 120, 'meta' => ['booked_by' => 'Abi Atkin']]);
+
+        $rows = app(\App\Services\Reporting\ReportService::class)->topEntities(now()->subMonth(), now());
+
+        $lb = $rows->firstWhere('name', 'LB Foster');
+        $this->assertNotNull($lb);
+        $this->assertSame('business', $lb['type']);
+        $this->assertSame(1, $lb['jobs']);
+        // The traveller doesn't appear as their own row.
+        $this->assertNull($rows->firstWhere('name', 'TJ Curran'));
+    }
+
+    public function test_an_untagged_booking_is_grouped_by_email_domain(): void
+    {
+        $account = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jeld-wen', 'account_code' => 'JELDWEN', 'is_active' => true]);
+        $traveller = Customer::factory()->create(['name' => 'Christian Michels', 'email' => 'christian.michels@jeldwen.com']);
+        $this->ranJob(['customer_id' => $traveller->id, 'final_price' => 175]);
+
+        $rows = app(\App\Services\Reporting\ReportService::class)->topEntities(now()->subMonth(), now());
+
+        $jw = $rows->firstWhere('name', 'JELD-WEN');
+        $this->assertNotNull($jw);
+        $this->assertSame(1, $jw['jobs']);
+        $this->assertNull($rows->firstWhere('name', 'Christian Michels'));
+    }
+
+    public function test_the_breakdown_includes_untagged_bookings_matched_by_booker(): void
+    {
+        $account = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jeld-wen', 'account_code' => 'JELDWEN', 'is_active' => true]);
+        $account->contacts()->create(['name' => 'Jackie Donoghue']);
+        $traveller = Customer::factory()->create(['name' => 'Christian Michels']);
+        Booking::factory()->count(2)->create([
+            'customer_id' => $traveller->id, 'final_price' => 90,
+            'pickup_at' => now()->subDays(2), 'meta' => ['booked_by' => 'Jackie Donoghue'],
+        ]);
+
+        $rows = app(\App\Services\Reporting\ReportService::class)->businessCustomers($account->id);
+
+        $christian = $rows->firstWhere('name', 'Christian Michels');
+        $this->assertNotNull($christian);
+        $this->assertSame(2, $christian['bookings']);
+        $this->assertTrue($christian['repeat']);
+    }
+
+    public function test_a_private_customer_is_not_dragged_into_a_business(): void
+    {
+        CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jeld-wen', 'account_code' => 'JELDWEN', 'is_active' => true]);
+        $priv = Customer::factory()->create(['name' => 'Jane Private', 'email' => 'jane@gmail.com']);
+        $this->ranJob(['customer_id' => $priv->id, 'final_price' => 300]);
+
+        $rows = app(\App\Services\Reporting\ReportService::class)->topEntities(now()->subMonth(), now());
+
+        $jane = $rows->firstWhere('name', 'Jane Private');
+        $this->assertNotNull($jane);
+        $this->assertSame('customer', $jane['type']);
+    }
+
     public function test_non_admins_cannot_view_the_business_breakdown(): void
     {
         $account = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);

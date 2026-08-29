@@ -24,6 +24,15 @@ class CorporateAccount extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // The Review page caches a name→account lookup; bust it when a business
+        // is added/renamed/removed so grouping picks the change up at once.
+        $forget = fn () => \Illuminate\Support\Facades\Cache::forget('corporate_name_map');
+        static::saved($forget);
+        static::deleted($forget);
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(CorporateContact::class);

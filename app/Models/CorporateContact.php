@@ -16,6 +16,15 @@ class CorporateContact extends Model
         return ['is_primary' => 'boolean'];
     }
 
+    protected static function booted(): void
+    {
+        // Adding a booker (contact) to a business must roll their bookings up on
+        // the Review page immediately — bust the cached name→account lookup.
+        $forget = fn () => \Illuminate\Support\Facades\Cache::forget('corporate_name_map');
+        static::saved($forget);
+        static::deleted($forget);
+    }
+
     public function corporateAccount(): BelongsTo
     {
         return $this->belongsTo(CorporateAccount::class);

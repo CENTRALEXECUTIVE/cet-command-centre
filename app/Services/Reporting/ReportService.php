@@ -37,16 +37,22 @@ class ReportService
      * booking count, with each customer's spend and last trip — so a repeat client
      * is obvious at a glance.
      *
+     * A booking belongs to the business when it's tagged directly, when the
+     * traveller's customer record is, OR when it was booked by / for the business
+     * (booker name, contact name, or the company's email domain) — so a JELD-WEN
+     * passenger the office never hand-tagged still rolls up here.
+     *
      * @return Collection<int, array<string, mixed>>
      */
     public function businessCustomers(int $accountId): Collection
     {
+        $map = $this->corporateNameMap();
+
         return Booking::query()
             ->where('status', '!=', BookingStatus::Cancelled->value)
-            ->where(fn ($q) => $q->where('corporate_account_id', $accountId)
-                ->orWhereHas('customer', fn ($c) => $c->where('corporate_account_id', $accountId)))
             ->with('customer')
             ->get()
+            ->filter(fn (Booking $b) => $this->accountIdForBooking($b, $map) === $accountId)
             ->groupBy('customer_id')
             ->map(function (Collection $group) {
                 $lastAt = $group->pluck('pickup_at')->filter()->max();
@@ -62,6 +68,95 @@ class ReportService
             })
             ->sortByDesc('bookings')
             ->values();
+    }
+
+    /**
+     * Resolve which corporate account (if any) a booking belongs to, trying every
+     * signal in turn: the booking's own tag, the traveller's customer tag, then a
+     * fuzzy match of the booker name / traveller name / email domain against the
+     * business's names, codes, slugs and named contacts. Returns the account id or
+     * null for a genuinely private customer.
+     *
+     * @param  array<string, int>  $map  normalised identifier => account id
+     */
+    public function accountIdForBooking(Booking $b, array $map): ?int
+    {
+        if ($b->corporate_account_id) {
+            return (int) $b->corporate_account_id;
+        }
+        if ($b->customer?->corporate_account_id) {
+            return (int) $b->customer->corporate_account_id;
+        }
+
+        // Fuzzy: does any business identifier appear in the booker, the traveller
+        // name, or the email? (≥4 chars, so a short code can't false-match.)
+        $haystacks = array_map(
+            fn ($s) => $this->normaliseName($s),
+            [$this->bookerText($b), $b->customer?->name, $b->customer?->email]
+        );
+
+        foreach ($map as $key => $id) {
+            if (strlen($key) < 4) {
+                continue;
+            }
+            foreach ($haystacks as $h) {
+                if ($h !== '' && str_contains($h, $key)) {
+                    return $id;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * A lookup of every corporate business identifier — its name, slug, account
+     * code, and each named contact — normalised to a bare lower-case key, mapping
+     * to the account id. Cached briefly (the report is read far more than the
+     * accounts change), so grouping a page of bookings stays cheap.
+     *
+     * @return array<string, int>
+     */
+    public function corporateNameMap(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('corporate_name_map', 300, function () {
+            $map = [];
+            foreach (\App\Models\CorporateAccount::with('contacts')->get() as $account) {
+                foreach ([$account->name, $account->slug, $account->account_code] as $identifier) {
+                    $key = $this->normaliseName($identifier);
+                    if ($key !== '') {
+                        $map[$key] = $account->id;
+                    }
+                }
+                foreach ($account->contacts as $contact) {
+                    $key = $this->normaliseName($contact->name);
+                    if ($key !== '') {
+                        $map[$key] = $account->id;
+                    }
+                }
+            }
+
+            return $map;
+        });
+    }
+
+    /** The booker text on a booking (who placed it), across the import/paste sources. */
+    private function bookerText(Booking $b): ?string
+    {
+        foreach (['booked_by', 'booker_name', 'eto_customer'] as $key) {
+            $value = trim((string) ($b->meta[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /** Lower-case, alphanumeric-only form of a name for fuzzy matching. */
+    private function normaliseName(?string $value): string
+    {
+        return (string) preg_replace('/[^a-z0-9]+/', '', strtolower(trim((string) $value)));
     }
 
     /** Non-cancelled jobs in the period, INCLUDING future ones (for payment split). */
@@ -220,19 +315,23 @@ class ReportService
      */
     public function topEntities(CarbonInterface $start, CarbonInterface $end, int $limit = 12): Collection
     {
+        $map = $this->corporateNameMap();
+        $accounts = \App\Models\CorporateAccount::get(['id', 'name'])->keyBy('id');
+
         $jobs = $this->completed($start, $end)
-            ->with(['customer:id,name,corporate_account_id', 'customer.corporateAccount:id,name', 'corporateAccount:id,name'])
-            ->get(['id', 'customer_id', 'corporate_account_id', 'final_price', 'quoted_price']);
+            ->with(['customer:id,name,email,corporate_account_id'])
+            ->get(['id', 'customer_id', 'corporate_account_id', 'final_price', 'quoted_price', 'meta']);
 
         return $jobs
-            ->groupBy(function (Booking $b) {
-                $acct = $b->corporate_account_id ?: $b->customer?->corporate_account_id;
+            ->groupBy(function (Booking $b) use ($map) {
+                $acct = $this->accountIdForBooking($b, $map);
 
                 return $acct ? 'a'.$acct : 'c'.$b->customer_id;
             })
-            ->map(function (Collection $group) {
+            ->map(function (Collection $group) use ($map, $accounts) {
                 $first = $group->first();
-                $account = $first->corporateAccount ?: $first->customer?->corporateAccount;
+                $accountId = $this->accountIdForBooking($first, $map);
+                $account = $accountId ? $accounts->get($accountId) : null;
                 $revenue = round($group->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2);
 
                 return [
