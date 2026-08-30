@@ -60,12 +60,11 @@
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
                 <h2 style="margin:0">
-                    @if(! ($d['extra'] ?? false) && ($d['driver_id'] ?? null))
+                    @if($d['driver_id'] ?? null)
                         <a href="{{ route('drivers.edit', $d['driver_id']) }}" title="Open {{ $d['name'] }}'s directory details to check/confirm">{{ $d['name'] }} ↗</a>
                     @else
                         {{ $d['name'] }}
                     @endif
-                    @if($d['extra'] ?? false) <span class="badge" style="background:#5b2bc7;color:#fff;font-size:11px;vertical-align:middle">extra car</span>@endif
                 </h2>
                 <div style="font-size:14px">
                     £{{ number_format($d['pay'], 2) }} total
@@ -75,10 +74,10 @@
                 </div>
             </div>
 
-            @unless($d['extra'] ?? false)
-                @php
-                    $journeyCounts = collect($d['jobs'])->map(fn ($b) => $b->journeyFilterTag())->filter()->countBy()->sortDesc();
-                @endphp
+            @php $leadJobs = collect($d['jobs']); $carJobs = collect($d['car_jobs']); @endphp
+
+            @if($leadJobs->isNotEmpty())
+                @php $journeyCounts = $leadJobs->map(fn ($b) => $b->journeyFilterTag())->filter()->countBy()->sortDesc(); @endphp
                 @if($journeyCounts->isNotEmpty())
                     <div class="airport-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center">
                         <span class="muted" style="font-size:12px">Filter by journey:</span>
@@ -88,34 +87,12 @@
                         @endforeach
                     </div>
                 @endif
-            @endunless
 
-            <div style="margin-top:10px">
-                <div style="overflow-x:auto">
-                @if($d['extra'] ?? false)
-                <table>
-                    <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Car</th><th>Pays</th><th>Paid</th><th>Remaining</th><th></th></tr></thead>
-                    <tbody>
-                    @foreach($d['car_jobs'] as $r)
-                        @php $e = $r['entry']; $rem = max(0, (float)($e['pay'] ?? 0) - (float)($e['paid'] ?? 0)); @endphp
-                        <tr class="rowlink" data-href="{{ route('bookings.show', $r['booking']) }}">
-                            <td class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</td>
-                            <td>{{ $r['booking']->pickup_at->format('d M, H:i') }}</td>
-                            <td>{{ $r['booking']->displayName() }}</td>
-                            <td>Car {{ $r['car'] }}</td>
-                            <td>£{{ number_format((float)($e['pay'] ?? 0), 2) }}</td>
-                            <td>£{{ number_format((float)($e['paid'] ?? 0), 2) }}</td>
-                            <td>@if($rem > 0)<strong style="color:#b8860b">£{{ number_format($rem, 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
-                            <td><a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px" data-norowlink>Open →</a></td>
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-                @else
+                <div style="margin-top:10px"><div style="overflow-x:auto">
                 <table>
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
-                    @foreach($d['jobs'] as $b)
+                    @foreach($leadJobs as $b)
                         <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
@@ -140,9 +117,32 @@
                     @endforeach
                     </tbody>
                 </table>
-                @endif
+                </div></div>
+            @endif
+
+            @if($carJobs->isNotEmpty())
+                <p class="hint" style="margin:12px 0 4px"><span class="badge" style="background:#5b2bc7;color:#fff;font-size:11px">extra car</span> Jobs {{ $d['name'] }} covered as an extra vehicle on a multi-car booking.</p>
+                <div style="overflow-x:auto">
+                <table>
+                    <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Car</th><th>Pays</th><th>Paid</th><th>Remaining</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach($carJobs as $r)
+                        @php $e = $r['entry']; $rem = max(0, (float)($e['pay'] ?? 0) - (float)($e['paid'] ?? 0)); @endphp
+                        <tr class="rowlink" data-href="{{ route('bookings.show', $r['booking']) }}">
+                            <td class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</td>
+                            <td>{{ $r['booking']->pickup_at->format('d M, H:i') }}</td>
+                            <td>{{ $r['booking']->displayName() }}</td>
+                            <td>Car {{ $r['car'] }}</td>
+                            <td>£{{ number_format((float)($e['pay'] ?? 0), 2) }}</td>
+                            <td>£{{ number_format((float)($e['paid'] ?? 0), 2) }}</td>
+                            <td>@if($rem > 0)<strong style="color:#b8860b">£{{ number_format($rem, 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
+                            <td><a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px" data-norowlink>Open →</a></td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
                 </div>
-            </div>
+            @endif
         </div>
     @empty
         <div class="card"><p class="muted mb-0">No driver pay recorded for {{ $month->format('F Y') }} yet — set "Job pays the driver" on any booking and it appears here.</p></div>

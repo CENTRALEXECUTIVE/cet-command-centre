@@ -97,13 +97,19 @@ class PayrollController extends Controller
         // A job is relevant to payroll if it has pay set OR carries a tip.
         $relevant = $bookings->filter(fn (Booking $b) => $b->driverPay() !== null || $b->tipsTotal() > 0);
 
-        // Per-driver totals: pay, paid, remaining, tips, and their jobs for the drill-down.
-        $drivers = $relevant
-            ->groupBy(fn (Booking $b) => $b->payrollDriverName())
-            ->map(fn ($jobs, $name) => [
-                'name' => $name,
-                // The driver's user record (for the clickable name → their
-                // directory details), from the first job that has one.
+        // ONE row per driver NAME. A driver who also runs an extra car on a
+        // multi-car job is NOT split into a separate "extra car" section — their
+        // extra-car pay is folded into their own named row, so each person shows
+        // once with everything they're owed.
+        $blank = fn (string $name) => [
+            'name' => $name, 'driver_id' => null,
+            'jobs' => collect(), 'car_jobs' => collect(),
+            'pay' => 0.0, 'paid' => 0.0, 'remaining' => 0.0, 'tips' => 0.0, 'card_tips_owed' => 0.0,
+        ];
+
+        $rows = [];
+        foreach ($relevant->groupBy(fn (Booking $b) => $b->payrollDriverName()) as $name => $jobs) {
+            $rows[$name] = array_merge($blank($name), [
                 'driver_id' => $jobs->pluck('driver')->filter()->first()?->id,
                 'jobs' => $jobs->values(),
                 'pay' => round($jobs->sum(fn (Booking $b) => $b->driverPay()), 2),
@@ -111,38 +117,36 @@ class PayrollController extends Controller
                 'remaining' => round($jobs->sum(fn (Booking $b) => $b->driverPayRemaining() ?? 0), 2),
                 'tips' => round($jobs->sum(fn (Booking $b) => $b->tipsTotal()), 2),
                 'card_tips_owed' => round($jobs->sum(fn (Booking $b) => $b->cardTipsOwed()), 2),
-            ])
-            ->values();
+            ]);
+        }
 
-        // Extra cars on multi-car jobs are paid separately — one payroll row per
-        // extra driver (grouped by name), independent of the lead driver.
-        $extraRows = collect();
+        // Extra cars → fold into the same-named driver's row (create one if the
+        // driver only ran extra cars this month).
         foreach ($bookings as $b) {
             foreach ($b->extraDrivers() as $d) {
                 if (($d['pay'] ?? null) === null) {
-                    continue; // not relevant to payroll until a pay figure is set
+                    continue; // no pay figure set yet
                 }
-                $extraRows->push(['name' => $d['name'] ?? 'Extra driver', 'booking' => $b, 'entry' => $d, 'car' => $b->extraDriverCarNumber($d['token'] ?? '')]);
+                $name = $d['name'] ?? 'Extra driver';
+                $rows[$name] ??= $blank($name);
+                $pay = (float) ($d['pay'] ?? 0);
+                $paid = (float) ($d['paid'] ?? 0);
+                $rows[$name]['car_jobs'] = $rows[$name]['car_jobs']->push([
+                    'booking' => $b, 'entry' => $d, 'car' => $b->extraDriverCarNumber($d['token'] ?? ''),
+                ]);
+                $rows[$name]['pay'] = round($rows[$name]['pay'] + $pay, 2);
+                $rows[$name]['paid'] = round($rows[$name]['paid'] + $paid, 2);
+                $rows[$name]['remaining'] = round($rows[$name]['remaining'] + max(0, $pay - $paid), 2);
+                // Best-effort link to the driver's directory when they only ran
+                // extra cars (no lead job to borrow the id from).
+                if (! $rows[$name]['driver_id']) {
+                    $rows[$name]['driver_id'] = \App\Models\User::where('role', \App\Enums\UserRole::Driver->value)
+                        ->where('name', $name)->value('id');
+                }
             }
         }
-        $extraDrivers = $extraRows->groupBy('name')->map(function ($rows, $name) {
-            $pay = round($rows->sum(fn ($r) => (float) ($r['entry']['pay'] ?? 0)), 2);
-            $paid = round($rows->sum(fn ($r) => (float) ($r['entry']['paid'] ?? 0)), 2);
 
-            return [
-                'name' => $name,
-                'jobs' => collect(),         // extra rows render their own car table
-                'car_jobs' => $rows->values(),
-                'extra' => true,
-                'pay' => $pay,
-                'paid' => $paid,
-                'remaining' => round(max(0, $pay - $paid), 2),
-                'tips' => 0.0,
-                'card_tips_owed' => 0.0,
-            ];
-        })->values();
-
-        $drivers = $drivers->concat($extraDrivers)->sortByDesc('remaining')->values();
+        $drivers = collect(array_values($rows))->sortByDesc('remaining')->values();
 
         // Totals come from ALL drivers (the tiles always show the full picture).
         $totals = [

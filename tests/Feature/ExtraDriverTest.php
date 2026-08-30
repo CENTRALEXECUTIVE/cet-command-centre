@@ -312,6 +312,42 @@ class ExtraDriverTest extends TestCase
         $this->assertStringContainsString('Car 2', (string) $arrived->title);
     }
 
+    public function test_extra_car_pay_folds_into_the_drivers_own_payroll_row(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $kash = User::factory()->driver()->create(['name' => 'Kash']);
+
+        // Kash's OWN lead job (pay £120).
+        $lead = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Lead Cust'])->id,
+                'driver_id' => $kash->id, 'pickup_at' => '2026-07-06 09:00',
+                'status' => BookingStatus::Complete->value, 'payment_method' => 'card',
+            ]);
+        $this->actingAs($admin)->post(route('bookings.payroll', $lead), ['action' => 'set', 'amount' => '120']);
+
+        // Kash ALSO covers an extra car on someone else's multi-car job (pay £95).
+        $wedding = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Nick Wedding'])->id,
+                'pickup_at' => '2026-07-06 14:00', 'status' => BookingStatus::Complete->value,
+            ]);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $wedding), ['name' => 'Kash']);
+        $token = $wedding->fresh()->extraDrivers()[0]['token'];
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $wedding), ['token' => $token, 'action' => 'set', 'amount' => '95']);
+
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => '2026-07']))->assertOk();
+
+        // ONE Kash row, combining both (£120 + £95 = £215) — no separate section.
+        $res->assertSee('Kash')->assertSee('£215.00 total')->assertSee('extra car');
+        $this->assertSame(1, substr_count($res->getContent(), '>Kash ↗<') + substr_count($res->getContent(), '>Kash<'));
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
