@@ -850,19 +850,38 @@
                     💸 Pay this job to someone else
                     @if($booking->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px">→ {{ $booking->payTo() }}</span>@endif
                 </summary>
-                <p class="hint" style="margin:8px 0 8px">When another driver (e.g. Kash) supplied the driver for this job, pay them instead. This job's pay moves into their payroll total; the driver who drove it won't be owed it separately.</p>
+                <p class="hint" style="margin:8px 0 8px">When another driver supplied the driver for this job, pay them instead. This job's pay moves into their payroll total; the driver who drove it won't be owed it separately.</p>
                 <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
                     @csrf
                     <input type="hidden" name="action" value="set_payee">
                     <div class="field" style="margin:0">
-                        <label for="payee" style="font-size:12px">Pay to</label>
-                        <input id="payee" name="payee" list="payee-drivers" value="{{ $booking->meta['pay_to'] ?? '' }}" placeholder="e.g. Kash" style="width:200px" autocomplete="off">
-                        <datalist id="payee-drivers">
-                            @foreach(($jobDrivers ?? []) as $d)<option value="{{ $d['name'] }}"></option>@endforeach
-                        </datalist>
+                        <label for="payee-pick" style="font-size:12px">Pick a driver</label>
+                        <select id="payee-pick" style="width:200px">
+                            <option value="">— Choose a driver —</option>
+                            @php $seenPayee = []; @endphp
+                            @foreach(($jobDrivers ?? []) as $d)
+                                @if($d['name'] && ! in_array(strtolower($d['name']), $seenPayee, true))
+                                    @php $seenPayee[] = strtolower($d['name']); @endphp
+                                    <option value="{{ $d['name'] }}" @selected(($booking->meta['pay_to'] ?? '') === $d['name'])>{{ $d['name'] }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="payee" style="font-size:12px">…or type a name</label>
+                        <input id="payee" name="payee" value="{{ $booking->meta['pay_to'] ?? '' }}" style="width:180px" autocomplete="off">
                     </div>
                     <button class="btn btn-light" style="padding:8px 14px;font-size:13px">Save</button>
                 </form>
+                <script>
+                    (function () {
+                        var pick = document.getElementById('payee-pick');
+                        var input = document.getElementById('payee');
+                        if (pick && input) {
+                            pick.addEventListener('change', function () { if (pick.value) input.value = pick.value; });
+                        }
+                    })();
+                </script>
                 @if($booking->payTo())
                     <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin-top:8px">
                         @csrf
