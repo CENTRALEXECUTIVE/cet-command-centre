@@ -64,6 +64,7 @@ class User extends Authenticatable
         'calendar_import' => 'New booking from the calendar',
         'flight_update' => 'Flight delay / cancellation / early landing',
         'child_seats' => 'Child seat not confirmed collected',
+        'web_booking' => 'New booking request from the website',
     ];
 
     /** Preference defaults: every alert on, critical-only off, chime/alarm off. */

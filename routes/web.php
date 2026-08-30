@@ -378,6 +378,10 @@ Route::get('widget/quote', [\App\Http\Controllers\Widget\BookingWidgetController
     ->middleware('throttle:180,1')->name('widget.mini');
 Route::post('widget/quote/price', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'price'])
     ->middleware('throttle:60,1')->name('widget.price');
+Route::get('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'book'])
+    ->middleware('throttle:180,1')->name('widget.book');
+Route::post('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'store'])
+    ->middleware('throttle:20,1')->name('widget.book.store');
 
 // ----- Public customer TIP page (token in URL, no login) ------------------
 // The customer thanks the driver with a card tip via Square-hosted checkout.
