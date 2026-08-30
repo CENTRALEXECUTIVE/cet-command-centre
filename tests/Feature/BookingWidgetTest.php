@@ -107,6 +107,31 @@ class BookingWidgetTest extends TestCase
         $this->assertSame(0, \App\Models\Booking::count());
     }
 
+    public function test_mark_fare_paid_is_idempotent(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $booking = \App\Models\Booking::factory()->forVehicleType($executive)->create(['payment_status' => 'pending']);
+
+        $this->assertTrue($booking->markFarePaid('sq_pay_1', 100.0));
+        $this->assertSame('paid', $booking->fresh()->payment_status);
+        // Same Square payment id again → no double record.
+        $this->assertFalse($booking->fresh()->markFarePaid('sq_pay_1', 100.0));
+    }
+
+    public function test_the_pay_link_must_be_signed(): void
+    {
+        $booking = \App\Models\Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create(['quoted_price' => 100]);
+
+        // Unsigned → rejected.
+        $this->get(route('widget.pay', $booking))->assertForbidden();
+
+        // Signed, but Square isn't configured in tests → graceful "confirm later".
+        $signed = \Illuminate\Support\Facades\URL::temporarySignedRoute('widget.pay', now()->addHour(), ['booking' => $booking->id]);
+        $this->get($signed)->assertRedirect(route('widget.paid', ['unavailable' => 1]));
+    }
+
     public function test_a_web_booking_requires_contact_and_a_future_time(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

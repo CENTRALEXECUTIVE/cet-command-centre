@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\VehicleType;
+use App\Services\Payments\SquareBookingPaymentService;
 use App\Services\Pricing\QuoteService;
 use App\Services\Watchdog\AdminAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 
 /**
@@ -26,6 +28,7 @@ class BookingWidgetController extends Controller
     public function __construct(
         private readonly QuoteService $quotes,
         private readonly AdminAlerts $adminAlerts,
+        private readonly SquareBookingPaymentService $payments,
     ) {}
 
     /** Domains allowed to embed the widget in an iframe. */
@@ -152,8 +155,47 @@ class BookingWidgetController extends Controller
                 .' → '.\Illuminate\Support\Str::limit($data['destination_address'], 30).'. Confirm it.',
             'info', $booking);
 
+        // Offer online card payment only when Square is live AND we have a firm
+        // price to charge (a fixed-matrix fare). "Price on request" stays office-
+        // confirmed first — never charge a guess.
+        $payUrl = null;
+        if ($this->payments->enabled() && $quote['fixed'] && ($quote['price'] ?? 0) > 0) {
+            $payUrl = URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id]);
+        }
+
         return response()
-            ->view('widget.book', ['vehicleTypes' => collect(), 'done' => true, 'ref' => $booking->reference])
+            ->view('widget.book', [
+                'vehicleTypes' => collect(),
+                'done' => true,
+                'ref' => $booking->reference,
+                'payUrl' => $payUrl,
+                'payAmount' => $quote['price'] ?? null,
+            ])
+            ->header('Content-Security-Policy', $this->frameAncestors());
+    }
+
+    /** Send the customer to Square to pay their fare (signed link from the thanks page). */
+    public function pay(Request $request, Booking $booking): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->hasValidSignature(), 403);
+
+        $amount = (float) ($booking->quoted_price ?? 0);
+        $url = $amount > 0
+            ? $this->payments->createCheckoutUrl($booking, $amount, route('widget.paid'))
+            : null;
+
+        if (! $url) {
+            return redirect()->route('widget.paid', ['unavailable' => 1]);
+        }
+
+        return redirect()->away($url);
+    }
+
+    /** Post-payment landing (Square redirects here). Status confirmed by webhook. */
+    public function paid(Request $request): \Illuminate\Http\Response
+    {
+        return response()
+            ->view('widget.paid', ['unavailable' => $request->boolean('unavailable')])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
 

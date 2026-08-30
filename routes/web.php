@@ -382,6 +382,21 @@ Route::get('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController:
     ->middleware('throttle:180,1')->name('widget.book');
 Route::post('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'store'])
     ->middleware('throttle:20,1')->name('widget.book.store');
+Route::get('widget/pay/{booking}', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'pay'])
+    ->middleware('throttle:20,1')->name('widget.pay');
+Route::get('widget/paid', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'paid'])
+    ->middleware('throttle:60,1')->name('widget.paid');
+
+// Customer account widget — look up & manage your own bookings (session-verified).
+// Path is /my-account so it never clashes with the corporate portal's /account.
+Route::get('my-account', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'show'])
+    ->middleware('throttle:180,1')->name('widget.account');
+Route::post('my-account/verify', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'verify'])
+    ->middleware('throttle:10,1')->name('widget.account.verify');
+Route::post('my-account/logout', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'logout'])
+    ->middleware('throttle:30,1')->name('widget.account.logout');
+Route::post('my-account/booking/{booking}/request', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'requestChange'])
+    ->middleware('throttle:20,1')->name('widget.account.request');
 
 // ----- Public customer TIP page (token in URL, no login) ------------------
 // The customer thanks the driver with a card tip via Square-hosted checkout.

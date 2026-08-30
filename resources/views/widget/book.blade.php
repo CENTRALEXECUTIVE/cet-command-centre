@@ -44,8 +44,16 @@
                 <h2 style="margin:8px 0 4px">Booking request received</h2>
                 <p style="color:var(--muted);margin:0">
                     Thank you{{ isset($ref) ? ' — your reference is '.$ref : '' }}.
-                    Our office will confirm your journey and price shortly. No payment has been taken.
+                    Our office will confirm your journey and price shortly.
                 </p>
+                @if(!empty($payUrl))
+                    <a href="{{ $payUrl }}" class="cet-btn" style="display:block;margin-top:16px;text-decoration:none;text-align:center">
+                        Pay now to secure it{{ $payAmount ? ' · £'.number_format($payAmount, 0) : '' }}
+                    </a>
+                    <p class="cet-foot" style="margin-top:8px">Secure card payment by Square. Prefer to pay later? No problem — we'll be in touch.</p>
+                @else
+                    <p class="cet-foot" style="margin-top:10px">No payment has been taken.</p>
+                @endif
             </div>
         @else
             <form id="cet-book" action="{{ route('widget.book.store') }}" method="POST" autocomplete="off">

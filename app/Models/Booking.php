@@ -2543,6 +2543,28 @@ class Booking extends Model
      * so a re-delivered webhook never double-counts. Returns true if it was newly
      * recorded, false if it was already logged.
      */
+    /**
+     * Mark the fare PAID from a Square card payment (web-widget checkout).
+     * Idempotent by Square payment id held in meta, so a repeated webhook can't
+     * double-record. Returns true when it actually marked it paid.
+     */
+    public function markFarePaid(string $paymentId, float $amount): bool
+    {
+        $meta = $this->meta ?? [];
+        if (($meta['square_payment']['id'] ?? null) === $paymentId) {
+            return false; // already recorded
+        }
+        $meta['square_payment'] = [
+            'id' => $paymentId,
+            'amount' => round($amount, 2),
+            'at' => now()->toIso8601String(),
+        ];
+        $this->payment_status = 'paid';
+        $this->forceFill(['meta' => $meta])->save();
+
+        return true;
+    }
+
     public function logSquareTip(float $amount, string $paymentId, ?string $note = null): bool
     {
         // Idempotent: the DB unique index on square_payment_id is the real guard.

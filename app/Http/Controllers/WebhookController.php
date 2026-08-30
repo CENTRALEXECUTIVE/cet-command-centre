@@ -103,7 +103,11 @@ class WebhookController extends Controller
             return response()->json(['error' => 'bad signature'], 403);
         }
 
-        $booking = $square->recordTipFromWebhook($request->json()->all());
+        // One Square webhook covers both driver TIPS (TIP- orders) and booking
+        // FARE payments (FARE- orders); each service ignores the other's prefix.
+        $payload = $request->json()->all();
+        $booking = $square->recordTipFromWebhook($payload)
+            ?? app(\App\Services\Payments\SquareBookingPaymentService::class)->recordFareFromWebhook($payload);
 
         return response()->json(['recorded' => (bool) $booking]);
     }
