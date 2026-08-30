@@ -108,6 +108,16 @@ class QuoteService
     /** The fixed price for a destination, preferring the most specific pickup zone. */
     private function fixedPrice(string $destKey, array $zones, string $slug): ?float
     {
+        // Estate is always Executive + uplift (default £10) — derived, never the
+        // stored figure, so it can't drift (see FixedPriceService for the same rule).
+        if ($slug === 'estate') {
+            $executive = $this->fixedPrice($destKey, $zones, 'executive');
+
+            return $executive !== null
+                ? round($executive + (float) config('cet.estate_over_executive', 10), 2)
+                : null;
+        }
+
         foreach ($zones as $zone) { // most specific first (e.g. s20 before sheffield)
             foreach (self::RULES as $rule) {
                 if (in_array($destKey, $rule['dests'], true) && in_array($zone, $rule['zones'], true)) {

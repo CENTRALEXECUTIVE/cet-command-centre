@@ -39,17 +39,49 @@ class FixedPriceService
 
     /**
      * Find the fixed price for a zone, destination and vehicle type, or null.
+     *
+     * ESTATE RULE: an Estate fare is always the Executive fare + a fixed uplift
+     * (config cet.estate_over_executive, default £10). We derive it from the
+     * Executive row rather than trusting a stored Estate figure, so the ETO
+     * "some rows say +£5" inconsistency can never reach a customer.
      */
     public function lookup(int|PricingZone $zone, string $destination, VehicleType $vehicleType): ?FixedPrice
     {
         $zoneId = $zone instanceof PricingZone ? $zone->id : $zone;
 
+        if ($vehicleType->slug === 'estate') {
+            return $this->deriveEstate($zoneId, $destination, $vehicleType);
+        }
+
+        return $this->row($zoneId, $destination, $vehicleType->id);
+    }
+
+    private function row(int $zoneId, string $destination, int $vehicleTypeId): ?FixedPrice
+    {
         return FixedPrice::query()
             ->where('is_active', true)
             ->where('pricing_zone_id', $zoneId)
             ->where('destination_slug', $this->destinationSlug($destination))
-            ->where('vehicle_type_id', $vehicleType->id)
+            ->where('vehicle_type_id', $vehicleTypeId)
             ->first();
+    }
+
+    /** Estate = Executive + uplift, as an in-memory row (falls back to a stored Estate row). */
+    private function deriveEstate(int $zoneId, string $destination, VehicleType $estate): ?FixedPrice
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $execRow = $executive ? $this->row($zoneId, $destination, $executive->id) : null;
+
+        if (! $execRow) {
+            return $this->row($zoneId, $destination, $estate->id); // no exec fare → stored estate, if any
+        }
+
+        $derived = $execRow->replicate();
+        $derived->id = $execRow->id; // for the breakdown reference (never saved)
+        $derived->vehicle_type_id = $estate->id;
+        $derived->price = round((float) $execRow->price + (float) config('cet.estate_over_executive', 10), 2);
+
+        return $derived;
     }
 
     /** Resolve the zone for a postcode by its outward code (e.g. "S20"). */

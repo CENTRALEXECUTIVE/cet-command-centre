@@ -106,6 +106,11 @@ return [
         'stopover' => (float) env('CET_SURCHARGE_STOPOVER', 10),
     ],
 
+    // Estate is always priced at the Executive fare PLUS this uplift (default
+    // £10). Derived at quote time so a stored Estate figure can never drift (the
+    // ETO matrix had some rows at +£5 by mistake — this makes it always +£10).
+    'estate_over_executive' => (float) env('CET_ESTATE_OVER_EXECUTIVE', 10),
+
     // "Paste a booking": the free deterministic parser always runs first and
     // costs nothing. Set true ONLY if you also want the paid AI to fill gaps
     // on messy unstructured messages (uses the Anthropic API = costs money).
