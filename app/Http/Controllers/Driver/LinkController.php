@@ -96,6 +96,15 @@ class LinkController extends Controller
         return back()->with('status', 'Thanks — child seat collection confirmed.');
     }
 
+    /** Driver confirms they've read the office notes for this job. */
+    public function confirmNotes(string $token): RedirectResponse
+    {
+        $booking = $this->resolve($token);
+        $booking->confirmDriverNotesRead($booking->driver);
+
+        return back()->with('status', 'Thanks — noted you’ve read the job notes.');
+    }
+
     public function location(Request $request, string $token, DriverLocationService $locations): JsonResponse
     {
         $booking = $this->resolve($token);

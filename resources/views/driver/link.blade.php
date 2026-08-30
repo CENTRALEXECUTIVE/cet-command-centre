@@ -73,6 +73,8 @@
                 'locationStoreUrl' => route('driver.link.location', $token),
                 'stopUrl' => route('driver.link.reach-stop', $token),
                 'ackCashUrl' => route('driver.link.ack-cash', $token),
+                'ackChildSeatsUrl' => route('driver.link.child-seats', $token),
+                'ackNotesUrl' => route('driver.link.notes-ack', $token),
             ])
 
             <p class="hint" style="text-align:center;margin-top:20px">Private link for this job · Central Executive Transfers</p>

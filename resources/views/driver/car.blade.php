@@ -63,7 +63,15 @@
             @if($booking->driverNotes())
                 <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
                     <div style="font-weight:800;font-size:15px">📝 Notes</div>
-                    <p style="margin:6px 0 0;font-size:15px;white-space:pre-wrap">{{ $booking->driverNotes() }}</p>
+                    <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{{ $booking->driverNotes() }}</p>
+                    @if($booking->extraDriverNotesAcknowledged($token))
+                        <div style="font-weight:700;font-size:13px;color:#1f7a44">✓ You’ve confirmed you read these notes</div>
+                    @else
+                        <form method="POST" action="{{ route('driver.car.notes-ack', $token) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-dark" style="width:100%;padding:10px;font-size:14px;color:#111">✓ I’ve read these notes</button>
+                        </form>
+                    @endif
                 </div>
             @endif
 

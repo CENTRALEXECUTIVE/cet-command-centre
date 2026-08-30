@@ -1823,6 +1823,52 @@ class Booking extends Model
         return $notes !== '' ? $notes : null;
     }
 
+    /* ---- Driver notes read-receipt -------------------------------------------
+     * When the office leaves notes for the driver, the driver taps to confirm
+     * they've read them (like the child-seat pickup confirm), so the office knows
+     * it landed. Booking-level for the lead driver; per-car for extra drivers. */
+
+    /** Whether the lead driver has confirmed reading the office notes. */
+    public function driverNotesAcknowledged(): bool
+    {
+        return isset($this->meta['driver_notes_ack']['at']);
+    }
+
+    /** When the lead driver confirmed reading the notes, or null. */
+    public function driverNotesAckAt(): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->meta['driver_notes_ack']['at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    /** Record the driver confirming they've read the office notes. */
+    public function confirmDriverNotesRead(?User $by = null): void
+    {
+        if ($this->driverNotes() === null) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        $meta['driver_notes_ack'] = ['at' => now()->toIso8601String(), 'by' => $by?->id];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Whether an extra car's driver has confirmed reading the office notes. */
+    public function extraDriverNotesAcknowledged(string $token): bool
+    {
+        return isset($this->extraDriver($token)['notes_ack']['at']);
+    }
+
+    /** Record an extra car's driver confirming they've read the office notes. */
+    public function confirmExtraDriverNotesRead(string $token, ?User $by = null): void
+    {
+        $this->updateExtraDriver($token, function (array $d) use ($by) {
+            $d['notes_ack'] = ['at' => now()->toIso8601String(), 'by' => $by?->id];
+
+            return $d;
+        });
+    }
+
     /**
      * Payment line exactly as printed on the calendar, e.g. "Paid £350 (Stripe)",
      * or null so the booking's own structured payment fields are shown instead.
