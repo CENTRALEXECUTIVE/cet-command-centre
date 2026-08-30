@@ -537,11 +537,18 @@
                                 <button class="btn btn-light" style="padding:6px 12px;font-size:13px">Set pay</button>
                             </form>
                             @if(($carRemain ?? 0) > 0)
+                                {{-- One tap: mark this car paid in full for the amount set. --}}
+                                <form method="POST" action="{{ route('bookings.extra-drivers.payroll', $booking) }}" style="margin:0">
+                                    @csrf
+                                    <input type="hidden" name="token" value="{{ $d['token'] }}"><input type="hidden" name="action" value="record">
+                                    <input type="hidden" name="amount" value="{{ number_format($carRemain, 2, '.', '') }}">
+                                    <button class="btn btn-primary" style="padding:6px 12px;font-size:13px">✓ Mark paid (£{{ number_format($carRemain, 2) }})</button>
+                                </form>
                                 <form method="POST" action="{{ route('bookings.extra-drivers.payroll', $booking) }}" style="display:flex;gap:6px;margin:0">
                                     @csrf
                                     <input type="hidden" name="token" value="{{ $d['token'] }}"><input type="hidden" name="action" value="record">
-                                    <input type="number" step="0.01" min="0" name="amount" placeholder="Paid £" style="width:110px">
-                                    <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px">Record payment</button>
+                                    <input type="number" step="0.01" min="0" name="amount" value="{{ number_format($carRemain, 2, '.', '') }}" placeholder="Paid £" style="width:110px">
+                                    <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px">Part pay</button>
                                 </form>
                             @endif
                         </div>
@@ -813,19 +820,29 @@
                 </form>
 
                 @if($pay !== null && $left > 0)
-                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                    {{-- One tap: record the full amount you set as paid. --}}
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="align-self:end;margin:0">
                         @csrf
-                        <input type="hidden" name="action" value="record">
-                        <div class="field" style="margin:0">
-                            <label for="paid-amount" style="font-size:12px">Record payment (£)</label>
-                            <input id="paid-amount" name="amount" type="number" step="0.01" min="0.01" value="{{ $left }}" required style="width:130px">
-                        </div>
-                        <div class="field" style="margin:0">
-                            <label for="paid-note" style="font-size:12px">Note (optional)</label>
-                            <input id="paid-note" name="note" placeholder="e.g. bank transfer" style="width:170px">
-                        </div>
-                        <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">✓ Record paid</button>
+                        <input type="hidden" name="action" value="mark_paid">
+                        <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">✓ Mark paid in full (£{{ number_format($left, 2) }})</button>
                     </form>
+
+                    <details style="align-self:end">
+                        <summary class="muted" style="cursor:pointer;font-size:12px;padding:8px 0">Pay only part of it?</summary>
+                        <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:6px">
+                            @csrf
+                            <input type="hidden" name="action" value="record">
+                            <div class="field" style="margin:0">
+                                <label for="paid-amount" style="font-size:12px">Record payment (£)</label>
+                                <input id="paid-amount" name="amount" type="number" step="0.01" min="0.01" value="{{ $left }}" required style="width:130px">
+                            </div>
+                            <div class="field" style="margin:0">
+                                <label for="paid-note" style="font-size:12px">Note (optional)</label>
+                                <input id="paid-note" name="note" placeholder="e.g. bank transfer" style="width:170px">
+                            </div>
+                            <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">✓ Record paid</button>
+                        </form>
+                    </details>
                 @endif
             </div>
             @endif {{-- driverSettledByCustomer --}}
