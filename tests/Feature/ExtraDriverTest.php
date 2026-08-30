@@ -348,6 +348,34 @@ class ExtraDriverTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_an_extra_car_can_be_marked_paid_from_the_payroll_page(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Wedding'])->id,
+                'pickup_at' => '2026-07-06 14:00', 'status' => BookingStatus::Complete->value,
+            ]);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Kash']);
+        $token = $booking->fresh()->extraDrivers()[0]['token'];
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $booking), ['token' => $token, 'action' => 'set', 'amount' => '95']);
+
+        // Payroll offers a Mark paid button while it's owed.
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => '2026-07']))->assertOk()
+            ->assertSee('Mark paid');
+
+        // Record the full remaining as paid → settled.
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $booking), [
+            'token' => $token, 'action' => 'record', 'amount' => '95',
+        ])->assertRedirect();
+
+        $this->assertSame(0.0, $booking->fresh()->extraDriverPayRemaining($token));
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

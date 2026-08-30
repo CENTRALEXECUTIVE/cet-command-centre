@@ -174,7 +174,18 @@
                             <td>£{{ number_format((float)($e['pay'] ?? 0), 2) }}</td>
                             <td>£{{ number_format((float)($e['paid'] ?? 0), 2) }}</td>
                             <td>@if($rem > 0)<strong style="color:#b8860b">£{{ number_format($rem, 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
-                            <td><a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px" data-norowlink>Open →</a></td>
+                            <td style="white-space:nowrap">
+                                @if($rem > 0)
+                                    <form method="POST" action="{{ route('bookings.extra-drivers.payroll', $r['booking']) }}" style="display:inline" data-norowlink>
+                                        @csrf
+                                        <input type="hidden" name="token" value="{{ $r['entry']['token'] }}">
+                                        <input type="hidden" name="action" value="record">
+                                        <input type="hidden" name="amount" value="{{ number_format($rem, 2, '.', '') }}">
+                                        <button type="submit" class="btn btn-primary" style="padding:5px 12px;font-size:13px">✓ Mark paid</button>
+                                    </form>
+                                @endif
+                                <a href="{{ route('bookings.show', $r['booking']) }}" style="font-size:13px;margin-left:6px" data-norowlink>Open →</a>
+                            </td>
                         </tr>
                     @endforeach
                     </tbody>
