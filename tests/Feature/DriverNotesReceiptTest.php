@@ -73,6 +73,26 @@ class DriverNotesReceiptTest extends TestCase
             ->assertSee('notes · read ✓', false);
     }
 
+    public function test_special_requests_also_count_as_notes_to_confirm(): void
+    {
+        // No office "Notes for the driver", but the customer's special requests
+        // (where ETO comments land) still surface a note to read + confirm.
+        $driver = User::factory()->driver()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create()->id,
+                'driver_id' => $driver->id, 'pickup_at' => now()->addDay(),
+                'status' => BookingStatus::Allocated->value,
+                'special_requests' => 'Please call the passenger on arrival',
+            ]);
+
+        $this->assertSame('Please call the passenger on arrival', $booking->driverReadNotes());
+        $this->get(route('driver.link', $booking->driverLinkToken()))->assertOk()
+            ->assertSee('Please call the passenger on arrival')
+            ->assertSee('I’ve read these notes', false);
+    }
+
     public function test_an_extra_car_confirms_notes_per_car(): void
     {
         $admin = User::factory()->admin()->create();

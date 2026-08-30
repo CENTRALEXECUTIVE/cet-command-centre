@@ -130,6 +130,11 @@ class EtoBookingImporter
                     'eto_customer' => $this->clean($data['Customer'] ?? ''),
                     'eto_via' => $this->decode($data['Via'] ?? '') ?: null,
                     'eto_meet_greet' => $this->clean($data['Meet & Greet'] ?? ''),
+                    // Driver-facing comments/notes from ETO → the notes card + the
+                    // driver's read-receipt. Column name varies across exports.
+                    'driver_notes' => $this->decode(
+                        $data['Comments'] ?? $data['Notes'] ?? $data['Booking notes'] ?? $data['Special requests'] ?? ''
+                    ) ?: null,
                     'total_amount' => $total,
                 ]),
             ]);

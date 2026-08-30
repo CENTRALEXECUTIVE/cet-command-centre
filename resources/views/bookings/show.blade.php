@@ -53,7 +53,7 @@
                     <span class="bh-chip warn" title="Driver has not yet confirmed collecting the child seat from the office">🚼 {{ $booking->displayChildSeats() }} · not collected</span>
                 @endif
             @endif
-            @if($booking->driverNotes())
+            @if($booking->driverReadNotes())
                 @if($booking->driverNotesAcknowledged())
                     <span class="bh-chip ok" title="Driver confirmed reading the notes{{ $booking->driverNotesAckAt() ? ' at '.$booking->driverNotesAckAt()->format('D d M, H:i') : '' }}">📝 notes · read ✓</span>
                 @else

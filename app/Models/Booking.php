@@ -1823,6 +1823,22 @@ class Booking extends Model
         return $notes !== '' ? $notes : null;
     }
 
+    /**
+     * The note the driver must READ and confirm: the office "Notes for the driver"
+     * if set, otherwise the customer's special requests (where ETO comments /
+     * "call on arrival" style instructions land). This is what drives the notes
+     * card + read-receipt, so an imported job with comments still asks for a tap.
+     */
+    public function driverReadNotes(): ?string
+    {
+        if (($notes = $this->driverNotes()) !== null) {
+            return $notes;
+        }
+        $special = trim((string) ($this->special_requests ?? ''));
+
+        return $special !== '' ? $special : null;
+    }
+
     /* ---- Driver notes read-receipt -------------------------------------------
      * When the office leaves notes for the driver, the driver taps to confirm
      * they've read them (like the child-seat pickup confirm), so the office knows
@@ -1845,7 +1861,7 @@ class Booking extends Model
     /** Record the driver confirming they've read the office notes. */
     public function confirmDriverNotesRead(?User $by = null): void
     {
-        if ($this->driverNotes() === null) {
+        if ($this->driverReadNotes() === null) {
             return;
         }
         $meta = $this->meta ?? [];
