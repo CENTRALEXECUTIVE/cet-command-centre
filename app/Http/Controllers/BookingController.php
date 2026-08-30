@@ -1100,6 +1100,13 @@ class BookingController extends Controller
     private function afterPayroll(Request $request, Booking $booking): RedirectResponse
     {
         if ($request->input('from') === 'payroll') {
+            // Preserve whichever period the payroll page was on — a custom date
+            // range (from+to) or a month — so paying doesn't reset the view.
+            $rangeFrom = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('range_from')) ? $request->input('range_from') : null;
+            $rangeTo = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('range_to')) ? $request->input('range_to') : null;
+            if ($rangeFrom && $rangeTo) {
+                return redirect()->to(route('payroll.index', ['from' => $rangeFrom, 'to' => $rangeTo]).'#missing-pay');
+            }
             $month = preg_match('/^\d{4}-\d{2}$/', (string) $request->input('month')) ? $request->input('month') : null;
 
             return redirect()->to(route('payroll.index', array_filter(['month' => $month])).'#missing-pay');

@@ -5,30 +5,38 @@
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
         <div>
             <h1 class="page-title" style="margin-bottom:2px">Driver payroll</h1>
-            <p class="page-sub">Who's been paid, and what's still owed, for {{ $month->format('F Y') }}. Pay is set on each booking.</p>
+            <p class="page-sub">Who's been paid, and what's still owed, for <strong>{{ $rangeLabel }}</strong>. Pay is set on each booking.</p>
             <p style="margin:6px 0 0;font-weight:600">
-                <span class="mono">{{ $completedCount }}</span> job{{ $completedCount === 1 ? '' : 's' }} completed this month ·
+                <span class="mono">{{ $completedCount }}</span> job{{ $completedCount === 1 ? '' : 's' }} completed ·
                 <span style="color:#1f7a44">{{ $paidCount }} driver paid</span>@if($missingPay->count() > 0) ·
                 <a href="#missing-pay" style="color:#b8860b;text-decoration:none">{{ $missingPay->count() }} still need pay set →</a>@endif
             </p>
             @if($totals['remaining'] > 0)
-                <p class="hint" style="margin:2px 0 0">…plus <a href="{{ route('payroll.index', ['month' => $month->format('Y-m'), 'filter' => 'owed']) }}" style="color:#b8860b">£{{ number_format($totals['remaining'], 2) }} still owed</a> on jobs that already have pay set.</p>
+                <p class="hint" style="margin:2px 0 0">…plus <a href="{{ route('payroll.index', $periodParam + ['filter' => 'owed']) }}" style="color:#b8860b">£{{ number_format($totals['remaining'], 2) }} still owed</a> on jobs that already have pay set.</p>
             @endif
         </div>
-        <form method="GET" action="{{ route('payroll.index') }}">
-            <input type="month" name="month" value="{{ $month->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
-        </form>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <form method="GET" action="{{ route('payroll.index') }}">
+                <input type="month" name="month" value="{{ $month->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
+            </form>
+            <form method="GET" action="{{ route('payroll.index') }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+                <span class="hint">or range:</span>
+                <input type="date" name="from" value="{{ $periodParam['from'] ?? '' }}" style="width:auto" aria-label="From date">
+                <input type="date" name="to" value="{{ $periodParam['to'] ?? '' }}" style="width:auto" aria-label="To date">
+                <button class="btn btn-light" style="padding:6px 12px;font-size:13px">Apply</button>
+            </form>
+        </div>
     </div>
 
     @php $m = $month->format('Y-m'); @endphp
     <div class="deck" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px">
-        <a href="{{ route('payroll.index', ['month' => $m, 'filter' => 'all']) }}" class="kpi" style="text-decoration:none;color:inherit;{{ $filter === 'all' ? 'outline:2px solid var(--accent,#FBBA2A);outline-offset:2px' : '' }}"><div class="kpi-ico">💷</div><div class="kpi-n">£{{ number_format($totals['pay'], 2) }}</div><div class="kpi-l">Total driver pay</div></a>
-        <a href="{{ route('payroll.index', ['month' => $m, 'filter' => 'paid']) }}" class="kpi ok" style="text-decoration:none;color:inherit;{{ $filter === 'paid' ? 'outline:2px solid #1f7a44;outline-offset:2px' : '' }}"><div class="kpi-ico">✅</div><div class="kpi-n">£{{ number_format($totals['paid'], 2) }}</div><div class="kpi-l">Paid out</div></a>
-        <a href="{{ route('payroll.index', ['month' => $m, 'filter' => 'owed']) }}" class="kpi warn" style="text-decoration:none;color:inherit;{{ $filter === 'owed' ? 'outline:2px solid #b8860b;outline-offset:2px' : '' }}"><div class="kpi-ico">⏳</div><div class="kpi-n">£{{ number_format($totals['remaining'], 2) }}</div><div class="kpi-l">Still owed</div></a>
-        <a href="{{ route('payroll.index', ['month' => $m, 'filter' => 'tips']) }}" class="kpi" style="text-decoration:none;color:inherit;{{ $filter === 'tips' ? 'outline:2px solid var(--accent,#FBBA2A);outline-offset:2px' : '' }}"><div class="kpi-ico">💛</div><div class="kpi-n">£{{ number_format($totals['tips'], 2) }}</div><div class="kpi-l">Tips @if($totals['card_tips_owed'] > 0)· £{{ number_format($totals['card_tips_owed'], 2) }} card owed @endif</div></a>
+        <a href="{{ route('payroll.index', $periodParam + ['filter' => 'all']) }}" class="kpi" style="text-decoration:none;color:inherit;{{ $filter === 'all' ? 'outline:2px solid var(--accent,#FBBA2A);outline-offset:2px' : '' }}"><div class="kpi-ico">💷</div><div class="kpi-n">£{{ number_format($totals['pay'], 2) }}</div><div class="kpi-l">Total driver pay</div></a>
+        <a href="{{ route('payroll.index', $periodParam + ['filter' => 'paid']) }}" class="kpi ok" style="text-decoration:none;color:inherit;{{ $filter === 'paid' ? 'outline:2px solid #1f7a44;outline-offset:2px' : '' }}"><div class="kpi-ico">✅</div><div class="kpi-n">£{{ number_format($totals['paid'], 2) }}</div><div class="kpi-l">Paid out</div></a>
+        <a href="{{ route('payroll.index', $periodParam + ['filter' => 'owed']) }}" class="kpi warn" style="text-decoration:none;color:inherit;{{ $filter === 'owed' ? 'outline:2px solid #b8860b;outline-offset:2px' : '' }}"><div class="kpi-ico">⏳</div><div class="kpi-n">£{{ number_format($totals['remaining'], 2) }}</div><div class="kpi-l">Still owed</div></a>
+        <a href="{{ route('payroll.index', $periodParam + ['filter' => 'tips']) }}" class="kpi" style="text-decoration:none;color:inherit;{{ $filter === 'tips' ? 'outline:2px solid var(--accent,#FBBA2A);outline-offset:2px' : '' }}"><div class="kpi-ico">💛</div><div class="kpi-n">£{{ number_format($totals['tips'], 2) }}</div><div class="kpi-l">Tips @if($totals['card_tips_owed'] > 0)· £{{ number_format($totals['card_tips_owed'], 2) }} card owed @endif</div></a>
     </div>
     @if($filter !== 'all')
-        <p class="hint" style="margin:-8px 0 14px">Showing <strong>{{ $filter === 'paid' ? 'drivers paid' : ($filter === 'owed' ? 'drivers still owed' : 'drivers with tips') }}</strong> · <a href="{{ route('payroll.index', ['month' => $m]) }}">show all</a></p>
+        <p class="hint" style="margin:-8px 0 14px">Showing <strong>{{ $filter === 'paid' ? 'drivers paid' : ($filter === 'owed' ? 'drivers still owed' : 'drivers with tips') }}</strong> · <a href="{{ route('payroll.index', $periodParam) }}">show all</a></p>
     @endif
 
     @if($missingPay->isNotEmpty())
@@ -45,6 +53,8 @@
                             <input type="hidden" name="action" value="set">
                             <input type="hidden" name="from" value="payroll">
                             <input type="hidden" name="month" value="{{ $m }}">
+                            <input type="hidden" name="range_from" value="{{ $periodParam['from'] ?? '' }}">
+                            <input type="hidden" name="range_to" value="{{ $periodParam['to'] ?? '' }}">
                             <span class="muted">£</span>
                             <input type="number" name="amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" required
                                    style="width:90px;padding:5px 8px" aria-label="Driver pay for {{ $b->reference }}">
@@ -75,6 +85,31 @@
             </div>
 
             @php $leadJobs = collect($d['jobs']); $carJobs = collect($d['car_jobs']); @endphp
+
+            {{-- A sendable pay statement for this driver over the chosen period. --}}
+            @php
+                $sLines = ['*Central Executive Transfers — Pay statement*', $d['name'], $rangeLabel, ''];
+                foreach ($leadJobs as $b) {
+                    $sLines[] = $b->pickup_at->format('d/m').' · '.($b->external_reference ?? $b->reference).' · £'.number_format($b->driverPay() ?? 0, 2);
+                }
+                foreach ($carJobs as $r) {
+                    $sLines[] = $r['booking']->pickup_at->format('d/m').' · Car '.$r['car'].' · £'.number_format((float) ($r['entry']['pay'] ?? 0), 2);
+                }
+                $sLines[] = '';
+                $sLines[] = 'Total pay: £'.number_format($d['pay'], 2);
+                $sLines[] = 'Already paid: £'.number_format($d['paid'], 2);
+                $sLines[] = 'To pay now: £'.number_format($d['remaining'], 2);
+                if ($d['tips'] > 0) { $sLines[] = 'Tips: £'.number_format($d['tips'], 2); }
+                $statement = implode("\n", $sLines);
+                $waPhone = \App\Support\Phone::wa($d['phone'] ?? null);
+            @endphp
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+                <button type="button" class="btn btn-light copy-statement" data-text="{{ $statement }}" style="padding:6px 12px;font-size:13px">📋 Copy statement</button>
+                @if($waPhone)
+                    <a href="https://wa.me/{{ $waPhone }}?text={{ rawurlencode($statement) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:6px 12px;font-size:13px">📲 Send to {{ \Illuminate\Support\Str::before($d['name'], ' ') }}</a>
+                @endif
+                <span class="copy-statement-done hint" style="color:#1f8b4c"></span>
+            </div>
 
             @if($leadJobs->isNotEmpty())
                 @php $journeyCounts = $leadJobs->map(fn ($b) => $b->journeyFilterTag())->filter()->countBy()->sortDesc(); @endphp
@@ -108,6 +143,8 @@
                                         <input type="hidden" name="action" value="mark_paid">
                                         <input type="hidden" name="from" value="payroll">
                                         <input type="hidden" name="month" value="{{ $month->format('Y-m') }}">
+                                        <input type="hidden" name="range_from" value="{{ $periodParam['from'] ?? '' }}">
+                                        <input type="hidden" name="range_to" value="{{ $periodParam['to'] ?? '' }}">
                                         <button type="submit" class="btn btn-primary" style="padding:5px 12px;font-size:13px">✓ Mark paid</button>
                                     </form>
                                 @endif
@@ -160,6 +197,16 @@
         .ap-chip.ap-active{background:var(--gold, #FBBA2A);color:#111;border-color:var(--gold, #FBBA2A)}
     </style>
     <script>
+        // Copy a driver's pay statement to the clipboard.
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.copy-statement');
+            if (!btn) return;
+            var done = btn.parentElement.querySelector('.copy-statement-done');
+            var finish = function () { if (done) done.textContent = '✓ Copied'; };
+            if (navigator.clipboard) { navigator.clipboard.writeText(btn.dataset.text).then(finish).catch(finish); }
+            else { finish(); }
+        });
+
         // Whole-row click opens the booking.
         document.addEventListener('click', function (e) {
             var row = e.target.closest('tr.rowlink');

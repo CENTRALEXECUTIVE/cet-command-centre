@@ -82,9 +82,30 @@ class PayrollController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $month = $request->query('month');
-        $start = ($month ? Carbon::createFromFormat('Y-m', $month, config('app.timezone')) : now())->startOfMonth();
-        $end = $start->copy()->endOfMonth();
+        // A custom date range (from+to) wins; otherwise a whole month (default).
+        $tz = config('app.timezone');
+        $from = $request->query('from');
+        $to = $request->query('to');
+        if ($from && $to) {
+            try {
+                $start = Carbon::createFromFormat('Y-m-d', $from, $tz)->startOfDay();
+                $end = Carbon::createFromFormat('Y-m-d', $to, $tz)->endOfDay();
+            } catch (\Throwable) {
+                $start = now($tz)->startOfMonth();
+                $end = $start->copy()->endOfMonth();
+            }
+            if ($end->lt($start)) {
+                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            }
+            $rangeLabel = $start->format('d M Y').' – '.$end->format('d M Y');
+            $periodParam = ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')];
+        } else {
+            $month = $request->query('month');
+            $start = ($month ? Carbon::createFromFormat('Y-m', $month, $tz) : now())->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+            $rangeLabel = $start->format('F Y');
+            $periodParam = ['month' => $start->format('Y-m')];
+        }
 
         $bookings = Booking::with(['driver', 'customer', 'airport'])
             ->whereBetween('pickup_at', [$start, $end])
@@ -102,15 +123,17 @@ class PayrollController extends Controller
         // extra-car pay is folded into their own named row, so each person shows
         // once with everything they're owed.
         $blank = fn (string $name) => [
-            'name' => $name, 'driver_id' => null,
+            'name' => $name, 'driver_id' => null, 'phone' => null,
             'jobs' => collect(), 'car_jobs' => collect(),
             'pay' => 0.0, 'paid' => 0.0, 'remaining' => 0.0, 'tips' => 0.0, 'card_tips_owed' => 0.0,
         ];
 
         $rows = [];
         foreach ($relevant->groupBy(fn (Booking $b) => $b->payrollDriverName()) as $name => $jobs) {
+            $leadDriver = $jobs->pluck('driver')->filter()->first();
             $rows[$name] = array_merge($blank($name), [
-                'driver_id' => $jobs->pluck('driver')->filter()->first()?->id,
+                'driver_id' => $leadDriver?->id,
+                'phone' => $leadDriver?->phone,
                 'jobs' => $jobs->values(),
                 'pay' => round($jobs->sum(fn (Booking $b) => $b->driverPay()), 2),
                 'paid' => round($jobs->sum(fn (Booking $b) => $b->driverPaidAmount()), 2),
@@ -140,8 +163,10 @@ class PayrollController extends Controller
                 // Best-effort link to the driver's directory when they only ran
                 // extra cars (no lead job to borrow the id from).
                 if (! $rows[$name]['driver_id']) {
-                    $rows[$name]['driver_id'] = \App\Models\User::where('role', \App\Enums\UserRole::Driver->value)
-                        ->where('name', $name)->value('id');
+                    $match = \App\Models\User::where('role', \App\Enums\UserRole::Driver->value)
+                        ->where('name', $name)->first(['id', 'phone']);
+                    $rows[$name]['driver_id'] = $match?->id;
+                    $rows[$name]['phone'] = $rows[$name]['phone'] ?: $match?->phone;
                 }
             }
         }
@@ -202,6 +227,8 @@ class PayrollController extends Controller
 
         return view('admin.payroll.index', [
             'month' => $start,
+            'rangeLabel' => $rangeLabel,
+            'periodParam' => $periodParam,
             'drivers' => $shown,
             'filter' => $filter,
             'missingPay' => $missingPay,

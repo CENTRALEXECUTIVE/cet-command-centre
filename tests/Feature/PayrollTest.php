@@ -314,9 +314,33 @@ class PayrollTest extends TestCase
 
         $this->assertSame(2, $res->viewData('completedCount')); // only the two that ran
         $this->assertSame(1, $res->viewData('paidCount'));      // one of them fully paid
-        $res->assertSee('completed this month', false)->assertSee('driver paid', false);
+        $res->assertSee('completed', false)->assertSee('driver paid', false);
 
         \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_payroll_supports_a_custom_date_range_and_a_sendable_statement(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Kash Ali', 'phone' => '07700900321']);
+
+        // In-range job (pay £95) and an out-of-range job (must be excluded).
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-08-10 09:00'])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 95, 'paid' => 0, 'history' => []]]])->save();
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-09-10 09:00'])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 200, 'paid' => 0, 'history' => []]]])->save();
+
+        $res = $this->actingAs($admin)
+            ->get(route('payroll.index', ['from' => '2026-08-01', 'to' => '2026-08-31']))
+            ->assertOk();
+
+        // The range label, only the in-range total, and a copyable/sendable statement.
+        $res->assertSee('01 Aug 2026 – 31 Aug 2026')
+            ->assertSee('Copy statement')
+            ->assertSee('Total pay: £95.00', false);
+
+        $driver = collect($res->viewData('drivers'))->firstWhere('name', 'Kash Ali');
+        $this->assertSame(95.0, $driver['pay']); // £200 Sept job excluded
     }
 
     public function test_cash_jobs_are_settled_by_the_customer_so_the_business_owes_nothing(): void
