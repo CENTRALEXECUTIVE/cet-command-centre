@@ -371,6 +371,14 @@ Route::post('car/{token}/child-seats', [\App\Http\Controllers\Driver\ExtraDriver
 Route::post('job/{token}/location', [\App\Http\Controllers\Driver\LinkController::class, 'location'])
     ->middleware('throttle:120,1')->name('driver.link.location');
 
+// ----- Public embeddable WEB BOOKING WIDGETS (iframe into the marketing site) --
+// Mirrors ETO's "Web Widgets". Served from the Command Centre; the live website
+// only embeds them by iframe, so public_html is never touched.
+Route::get('widget/quote', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'mini'])
+    ->middleware('throttle:180,1')->name('widget.mini');
+Route::post('widget/quote/price', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'price'])
+    ->middleware('throttle:60,1')->name('widget.price');
+
 // ----- Public customer TIP page (token in URL, no login) ------------------
 // The customer thanks the driver with a card tip via Square-hosted checkout.
 Route::get('tip/{token}', [\App\Http\Controllers\TipController::class, 'show'])
