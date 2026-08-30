@@ -472,7 +472,7 @@
          on completed jobs too — pay and mark-paid happen after the job runs. --}}
     @if(auth()->user()->isAdmin() && ($booking->hasExtraDrivers() || ! $booking->status->isTerminal()))
         @php $extraDrivers = $booking->extraDrivers(); @endphp
-        <details class="card"{{ count($extraDrivers) ? ' open' : '' }}>
+        <details id="extra-cars" class="card" style="scroll-margin-top:16px"{{ count($extraDrivers) ? ' open' : '' }}>
             <summary style="cursor:pointer;font-weight:700;font-size:17px">🚗 Extra cars — multi-car job <span class="muted" style="font-weight:400;font-size:13px">{{ count($extraDrivers) ? '— '.count($extraDrivers).' extra '.\Illuminate\Support\Str::plural('car', count($extraDrivers)) : '— add a car for a wedding / group job' }}</span></summary>
             <p class="hint" style="margin:12px 0 12px">For a job that needs more than one car, add each extra driver here. They get their own link and their own status buttons, so you can track each car separately. Extra drivers contact the customer via the office.</p>
 
@@ -1342,4 +1342,17 @@
     </script>
     @endverbatim
     <script src="{{ asset('js/cet-flight.js') }}"></script>
+    <script>
+        // After a payroll/extra-car action the page reloads with a #anchor; some
+        // browsers don't scroll to a fragment that came from a redirect, so land
+        // the user back on the section they were using instead of the top.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.location.hash) return;
+            var el = document.querySelector(window.location.hash);
+            if (el) {
+                if (el.tagName === 'DETAILS') { el.open = true; }
+                el.scrollIntoView({ block: 'start' });
+            }
+        });
+    </script>
 @endsection

@@ -516,7 +516,7 @@ class BookingController extends Controller
 
         $booking->addExtraDriver($data);
 
-        return back()->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
+        return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', "Added {$data['name']} as another car — copy their link below to send it.");
     }
 
     /**
@@ -536,7 +536,7 @@ class BookingController extends Controller
         if ($data['token'] === 'lead') {
             $booking->setLeadCarPassengers($n);
 
-            return back()->with('status', $n !== null
+            return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', $n !== null
                 ? "Lead car set to carry {$n} passenger(s)."
                 : 'Lead car back to the remaining passengers automatically.');
         }
@@ -546,7 +546,7 @@ class BookingController extends Controller
 
         $booking->setExtraDriverPassengers($data['token'], $n);
 
-        return back()->with('status', $n !== null
+        return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', $n !== null
             ? "Car set to carry {$n} passenger(s)."
             : 'Cleared this car’s passenger count.');
     }
@@ -568,15 +568,15 @@ class BookingController extends Controller
             : $booking->linkedBooking;
 
         if (! $target) {
-            return back()->with('status', 'Pick which booking to match the cars to.');
+            return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', 'Pick which booking to match the cars to.');
         }
         if ($target->is($booking)) {
-            return back()->with('status', "That's this same booking — pick the other leg.");
+            return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', "That's this same booking — pick the other leg.");
         }
 
         $added = $booking->copyExtraDriversTo($target);
 
-        return back()->with('status', $added > 0
+        return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', $added > 0
             ? "Matched {$added} car(s) onto {$target->reference} — each has its own link to send."
             : "{$target->reference} already has these cars.");
     }
@@ -589,7 +589,7 @@ class BookingController extends Controller
         $data = $request->validate(['token' => ['required', 'string']]);
         $booking->removeExtraDriver($data['token']);
 
-        return back()->with('status', 'Removed that car from the job.');
+        return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', 'Removed that car from the job.');
     }
 
     /** Set pay / record a payment for ONE extra car — paid separately per car. */
@@ -615,7 +615,7 @@ class BookingController extends Controller
             $status = '£'.number_format($amount, 2)." recorded as paid to {$car['name']}.";
         }
 
-        return back()->with('status', $status);
+        return redirect()->to(route("bookings.show", $booking)."#extra-cars")->with('status', $status);
     }
 
     /**
