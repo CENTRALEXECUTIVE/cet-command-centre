@@ -23,7 +23,7 @@
         <div class="bh-chips">
             @if($booking->airport)<span class="bh-chip">✈ {{ $booking->airport->code }}</span>@endif
             @if($booking->displayVehicleType())<span class="bh-chip">🚘 {{ $booking->displayVehicleType() }}</span>@endif
-            <span class="bh-chip">👤 {{ $booking->driver ? $booking->driver->nameWithNickname() : ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}</span>
+            <span class="bh-chip">👤 {{ $booking->driver ? $booking->driver->nameWithNickname() : ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}@if($booking->driverVehicleReg()) ({{ $booking->driverVehicleReg() }})@endif</span>
             <span class="bh-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
             @if($booking->displayPayment())
                 <span class="bh-chip {{ str_contains(strtolower($booking->displayPayment()), 'paid') ? 'ok' : '' }}">💳 {{ $booking->displayPayment() }}</span>
@@ -698,7 +698,7 @@
                 <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->displayCustomerName() }}</a>@else{{ $booking->displayCustomerName() }}@endif</td></tr>
                 @if($booking->displayContact())<tr><th>Contact</th><td>{{ $booking->displayContact() }}</td></tr>@endif
                 <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
-                <tr><th>Driver</th><td>{{ $booking->driver?->name ?? 'Awaiting allocation' }}</td></tr>
+                <tr><th>Driver</th><td>{{ ($booking->driver || !empty($booking->meta['driver_details']['name'])) ? $booking->driverLabel() : 'Awaiting allocation' }}</td></tr>
                 @if($booking->corporateAccount)
                     <tr><th>Account</th><td>{{ $booking->corporateAccount->name }}</td></tr>
                     @if($booking->cost_code)<tr><th>Cost code</th><td>{{ $booking->cost_code }}</td></tr>@endif
@@ -729,7 +729,7 @@
     @if(auth()->user()->isAdmin())
         @php $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining(); @endphp
         <div id="payroll" class="card" style="scroll-margin-top:16px;{{ ($left !== null && $left > 0) ? 'border-left:4px solid #FBBA2A' : '' }}">
-            <h2>Driver payroll — {{ $booking->payrollDriverName() }}</h2>
+            <h2>Driver payroll — {{ $booking->driverLabel() }}</h2>
             @if($booking->driverSettledByCustomer())
                 {{-- Cash job: the customer pays the driver directly on the day.
                      Nothing owed by the business — just confirm the amount. --}}
@@ -895,7 +895,7 @@
             {{-- Tips — the driver's gratuity, on top of job pay. --}}
             @php $tips = $booking->tipsTotal(); @endphp
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
-                <strong style="font-size:14px">💛 Tips for {{ $booking->payrollDriverName() }}</strong>
+                <strong style="font-size:14px">💛 Tips for {{ $booking->driverLabel() }}</strong>
                 @if(app(\App\Services\Payments\SquareTipService::class)->enabled())
                     <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(also added to the review message automatically)</span></div>
                 @endif

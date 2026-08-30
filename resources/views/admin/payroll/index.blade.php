@@ -47,7 +47,7 @@
                 @foreach($missingPay as $b)
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.1)">
                         <a href="{{ route('bookings.show', $b) }}#payroll" class="mono">{{ $b->external_reference ?? $b->reference }}</a>
-                        <span style="flex:1;min-width:180px">{{ $b->payrollDriverName() }} <span class="muted">· {{ $b->pickup_at->format('D d M, H:i') }} · {{ $b->displayName() }}</span></span>
+                        <span style="flex:1;min-width:180px">{{ $b->driverLabel() }} <span class="muted">· {{ $b->pickup_at->format('D d M, H:i') }} · {{ $b->displayName() }}</span></span>
                         <form method="POST" action="{{ route('bookings.payroll', $b) }}" style="display:flex;gap:6px;align-items:center;margin:0">
                             @csrf
                             <input type="hidden" name="action" value="set">
@@ -75,6 +75,7 @@
                     @else
                         {{ $d['name'] }}
                     @endif
+                    @if($d['reg'] ?? null)<span class="muted" style="font-weight:500;font-size:15px">({{ $d['reg'] }})</span>@endif
                 </h2>
                 <div style="font-size:14px">
                     £{{ number_format($d['pay'], 2) }} total
@@ -88,7 +89,7 @@
 
             {{-- A sendable pay statement for this driver over the chosen period. --}}
             @php
-                $sLines = ['*Central Executive Transfers — Pay statement*', $d['name'], $rangeLabel, ''];
+                $sLines = ['*Central Executive Transfers — Pay statement*', $d['name'].(($d['reg'] ?? null) ? ' ('.$d['reg'].')' : ''), $rangeLabel, ''];
                 foreach ($leadJobs as $b) {
                     $sLines[] = $b->pickup_at->format('d/m').' · '.$b->driverJobLabel().' · £'.number_format($b->driverPay() ?? 0, 2);
                 }
@@ -131,7 +132,7 @@
                         <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
-                            <td>{{ $b->displayName() }}@if($b->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;margin-left:4px" title="Driven by {{ $b->payrollDriverName() }}, paid to {{ $b->payTo() }}">via {{ $b->payrollDriverName() }}</span>@endif</td>
+                            <td>{{ $b->displayName() }}@if($b->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;margin-left:4px" title="Driven by {{ $b->driverLabel() }}, paid to {{ $b->payTo() }}">via {{ $b->driverLabel() }}</span>@endif</td>
                             <td>{{ $b->driverPay() === null ? '—' : '£'.number_format($b->driverPay(), 2) }}</td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted">cash</span>@else£{{ number_format($b->driverPaidAmount(), 2) }}@endif</td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted" title="Customer paid the driver directly">paid by customer</span>@elseif(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>

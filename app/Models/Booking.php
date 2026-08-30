@@ -2704,6 +2704,32 @@ class Booking extends Model
         return $this->payTo() ?? $this->payrollDriverName();
     }
 
+    /** This job's vehicle registration, from the manual details, the assigned driver, or ETO. */
+    public function driverVehicleReg(): ?string
+    {
+        foreach ([
+            $this->meta['driver_details']['reg'] ?? null,
+            $this->driver?->driverProfile?->defaultVehicle?->registration,
+            $this->meta['eto_vehicle_reg'] ?? null,
+        ] as $candidate) {
+            $reg = strtoupper(trim((string) $candidate));
+            if ($reg !== '') {
+                return $reg;
+            }
+        }
+
+        return null;
+    }
+
+    /** Driver name with their vehicle reg in brackets — "Kash (AB19 XYZ)" — for easy ID. */
+    public function driverLabel(): string
+    {
+        $name = $this->payrollDriverName();
+        $reg = $this->driverVehicleReg();
+
+        return $reg ? "{$name} ({$reg})" : $name;
+    }
+
     /**
      * A driver-friendly label for a job — the customer's FIRST name + the airport
      * code (e.g. "Kerry EMA"), so a pay statement reads naturally to the driver

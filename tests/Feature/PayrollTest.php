@@ -319,6 +319,32 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_driver_label_shows_name_with_vehicle_reg(): void
+    {
+        $driver = User::factory()->driver()->create(['name' => 'Kash Ali']);
+        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['driver_details' => ['reg' => 'ab19 xyz']])])->save();
+
+        $this->assertSame('Kash Ali (AB19 XYZ)', $booking->fresh()->driverLabel());
+    }
+
+    public function test_payroll_heading_shows_the_reg(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-08-15 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Kash Ali']);
+        $b = Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-08-10 09:00'])->fresh();
+        $b->forceFill(['meta' => array_merge($b->meta ?? [], [
+            'driver_details' => ['reg' => 'AB19XYZ'],
+            'payroll' => ['pay' => 90, 'paid' => 0, 'history' => []],
+        ])])->save();
+
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => '2026-08']))->assertOk()
+            ->assertSee('(AB19XYZ)');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_a_job_routed_to_a_payee_folds_into_their_payroll_and_hides_the_drivers_owed(): void
     {
         \Illuminate\Support\Carbon::setTestNow('2026-08-15 12:00:00');

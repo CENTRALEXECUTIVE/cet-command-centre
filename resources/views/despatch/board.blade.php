@@ -58,7 +58,7 @@
                             {{ \Illuminate\Support\Str::limit($b->displayPickupAddress(), 30) }}<br>
                             @if($b->hasViaStops())<span title="{{ implode(' · ', $b->viaStops()) }}">🔀 {{ count($b->viaStops()) }} stop{{ count($b->viaStops()) === 1 ? '' : 's' }} on the way</span><br>@endif
                             {{ $b->passengerCount() }} pax · {{ $b->luggageShort() }}<br>
-                            Driver: {{ $b->driver?->name ?? '—' }}
+                            Driver: {{ $b->driver ? $b->driverLabel() : ($b->meta['driver_details']['name'] ?? '—') }}
                             @if($b->status->isTracked() && isset($pingAges[$b->id]))
                                 <span class="ping-chip" data-ping-age="{{ $pingAges[$b->id] }}">…</span>
                             @endif

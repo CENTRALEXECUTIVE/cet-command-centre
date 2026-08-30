@@ -107,7 +107,7 @@ class PayrollController extends Controller
             $periodParam = ['month' => $start->format('Y-m')];
         }
 
-        $bookings = Booking::with(['driver', 'customer', 'airport'])
+        $bookings = Booking::with(['driver.driverProfile.defaultVehicle', 'customer', 'airport'])
             ->whereBetween('pickup_at', [$start, $end])
             ->where(fn ($q) => $q
                 ->whereNotIn('status', [BookingStatus::Cancelled->value])
@@ -123,7 +123,7 @@ class PayrollController extends Controller
         // extra-car pay is folded into their own named row, so each person shows
         // once with everything they're owed.
         $blank = fn (string $name) => [
-            'name' => $name, 'driver_id' => null, 'phone' => null,
+            'name' => $name, 'driver_id' => null, 'phone' => null, 'reg' => null,
             'jobs' => collect(), 'car_jobs' => collect(),
             'pay' => 0.0, 'paid' => 0.0, 'remaining' => 0.0, 'tips' => 0.0, 'card_tips_owed' => 0.0,
         ];
@@ -135,11 +135,15 @@ class PayrollController extends Controller
             // Link the card to a driver directory by the card NAME (the payee),
             // so a payee card points at the payee — not the sub-driver.
             $byName = \App\Models\User::where('role', \App\Enums\UserRole::Driver->value)
-                ->where('name', $name)->first(['id', 'phone']);
+                ->where('name', $name)->with('driverProfile.defaultVehicle')->first();
             $leadDriver = $byName ?: $jobs->pluck('driver')->filter()->first();
             $rows[$name] = array_merge($blank($name), [
                 'driver_id' => $leadDriver?->id,
                 'phone' => $leadDriver?->phone,
+                // The payee/driver's reg (their default vehicle), else the first job's.
+                'reg' => ($byName?->driverProfile?->defaultVehicle?->registration
+                    ? strtoupper($byName->driverProfile->defaultVehicle->registration)
+                    : $jobs->map->driverVehicleReg()->filter()->first()),
                 'jobs' => $jobs->values(),
                 'pay' => round($jobs->sum(fn (Booking $b) => $b->driverPay()), 2),
                 'paid' => round($jobs->sum(fn (Booking $b) => $b->driverPaidAmount()), 2),
@@ -170,9 +174,12 @@ class PayrollController extends Controller
                 // extra cars (no lead job to borrow the id from).
                 if (! $rows[$name]['driver_id']) {
                     $match = \App\Models\User::where('role', \App\Enums\UserRole::Driver->value)
-                        ->where('name', $name)->first(['id', 'phone']);
+                        ->where('name', $name)->with('driverProfile.defaultVehicle')->first();
                     $rows[$name]['driver_id'] = $match?->id;
                     $rows[$name]['phone'] = $rows[$name]['phone'] ?: $match?->phone;
+                    $matchReg = $match?->driverProfile?->defaultVehicle?->registration;
+                    $rows[$name]['reg'] = $rows[$name]['reg']
+                        ?: (strtoupper(trim((string) ($matchReg ?: ($d['reg'] ?? '')))) ?: null);
                 }
             }
         }

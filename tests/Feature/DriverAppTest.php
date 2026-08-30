@@ -171,6 +171,11 @@ class DriverAppTest extends TestCase
 
     public function test_via_stops_come_from_meta_stops_list_intake(): void
     {
+        // Pin the clock to mid-morning so "pickup in 1h" is unambiguously still
+        // today (a late-in-the-day wall clock would roll it into tomorrow and
+        // drop it off the 'today' filter).
+        \Illuminate\Support\Carbon::setTestNow('2026-08-17 10:00:00');
+
         // Bookings from the Outlook / ETO-email intake (and paste-a-booking) store
         // stops as a plain list in meta['stops'] — these must show too.
         $job = $this->jobFor($this->driver, [
@@ -185,6 +190,8 @@ class DriverAppTest extends TestCase
         // And it's flagged on the jobs list card.
         $this->actingAs($this->driver)->get(route('driver.jobs', ['filter' => 'today']))
             ->assertOk()->assertSee('stop en route');
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_public_tracking_page_renders_via_token(): void
