@@ -2705,6 +2705,20 @@ class Booking extends Model
     }
 
     /**
+     * A driver-friendly label for a job — the customer's FIRST name + the airport
+     * code (e.g. "Kerry EMA"), so a pay statement reads naturally to the driver
+     * instead of an opaque reference. Falls back to the reference if neither is
+     * known.
+     */
+    public function driverJobLabel(): string
+    {
+        $first = trim(\Illuminate\Support\Str::before($this->displayName() ?: ($this->customer?->name ?? ''), ' '));
+        $parts = array_filter([$first ?: null, $this->airportCode() ?: null]);
+
+        return $parts === [] ? (string) ($this->external_reference ?? $this->reference) : implode(' ', $parts);
+    }
+
+    /**
      * Map a callsign / first name / full name onto a system driver's FULL name,
      * or null when there's no single clear match (so ambiguous names aren't
      * wrongly merged). Memoised per request via the container.

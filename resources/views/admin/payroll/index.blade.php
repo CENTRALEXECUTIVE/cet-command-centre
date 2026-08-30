@@ -90,10 +90,10 @@
             @php
                 $sLines = ['*Central Executive Transfers — Pay statement*', $d['name'], $rangeLabel, ''];
                 foreach ($leadJobs as $b) {
-                    $sLines[] = $b->pickup_at->format('d/m').' · '.($b->external_reference ?? $b->reference).' · £'.number_format($b->driverPay() ?? 0, 2);
+                    $sLines[] = $b->pickup_at->format('d/m').' · '.$b->driverJobLabel().' · £'.number_format($b->driverPay() ?? 0, 2);
                 }
                 foreach ($carJobs as $r) {
-                    $sLines[] = $r['booking']->pickup_at->format('d/m').' · Car '.$r['car'].' · £'.number_format((float) ($r['entry']['pay'] ?? 0), 2);
+                    $sLines[] = $r['booking']->pickup_at->format('d/m').' · '.$r['booking']->driverJobLabel().' (Car '.$r['car'].') · £'.number_format((float) ($r['entry']['pay'] ?? 0), 2);
                 }
                 $sLines[] = '';
                 $sLines[] = 'Total pay: £'.number_format($d['pay'], 2);

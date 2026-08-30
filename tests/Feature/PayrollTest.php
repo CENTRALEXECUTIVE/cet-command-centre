@@ -350,9 +350,11 @@ class PayrollTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $driver = User::factory()->driver()->create(['name' => 'Kash Ali', 'phone' => '07700900321']);
+        $airport = \App\Models\Airport::create(['code' => 'EMA', 'name' => 'East Midlands', 'is_active' => true]);
+        $customer = \App\Models\Customer::factory()->create(['name' => 'Kerry Moseley']);
 
         // In-range job (pay £95) and an out-of-range job (must be excluded).
-        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-08-10 09:00'])
+        Booking::factory()->create(['driver_id' => $driver->id, 'customer_id' => $customer->id, 'airport_id' => $airport->id, 'pickup_at' => '2026-08-10 09:00'])
             ->forceFill(['meta' => ['payroll' => ['pay' => 95, 'paid' => 0, 'history' => []]]])->save();
         Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-09-10 09:00'])
             ->forceFill(['meta' => ['payroll' => ['pay' => 200, 'paid' => 0, 'history' => []]]])->save();
@@ -361,9 +363,11 @@ class PayrollTest extends TestCase
             ->get(route('payroll.index', ['from' => '2026-08-01', 'to' => '2026-08-31']))
             ->assertOk();
 
-        // The range label, only the in-range total, and a copyable/sendable statement.
+        // The range label, only the in-range total, and a copyable/sendable statement
+        // that uses the customer first name + airport code, NOT the reference.
         $res->assertSee('01 Aug 2026 – 31 Aug 2026')
             ->assertSee('Copy statement')
+            ->assertSee('Kerry EMA')
             ->assertSee('Total pay: £95.00', false);
 
         $driver = collect($res->viewData('drivers'))->firstWhere('name', 'Kash Ali');
