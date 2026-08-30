@@ -843,6 +843,36 @@
                 </details>
             @endif
 
+            {{-- Pay this job's fee to someone else (e.g. Kash supplied the driver).
+                 The job then folds into that payee's payroll card and total. --}}
+            <details style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"{{ $booking->payTo() ? ' open' : '' }}>
+                <summary style="cursor:pointer;font-size:13px;font-weight:600">
+                    💸 Pay this job to someone else
+                    @if($booking->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px">→ {{ $booking->payTo() }}</span>@endif
+                </summary>
+                <p class="hint" style="margin:8px 0 8px">When another driver (e.g. Kash) supplied the driver for this job, pay them instead. This job's pay moves into their payroll total; the driver who drove it won't be owed it separately.</p>
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                    @csrf
+                    <input type="hidden" name="action" value="set_payee">
+                    <div class="field" style="margin:0">
+                        <label for="payee" style="font-size:12px">Pay to</label>
+                        <input id="payee" name="payee" list="payee-drivers" value="{{ $booking->meta['pay_to'] ?? '' }}" placeholder="e.g. Kash" style="width:200px" autocomplete="off">
+                        <datalist id="payee-drivers">
+                            @foreach(($jobDrivers ?? []) as $d)<option value="{{ $d['name'] }}"></option>@endforeach
+                        </datalist>
+                    </div>
+                    <button class="btn btn-light" style="padding:8px 14px;font-size:13px">Save</button>
+                </form>
+                @if($booking->payTo())
+                    <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin-top:8px">
+                        @csrf
+                        <input type="hidden" name="action" value="set_payee">
+                        <input type="hidden" name="payee" value="">
+                        <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;color:var(--red)">Clear — pay the driver directly</button>
+                    </form>
+                @endif
+            </details>
+
             {{-- Tips — the driver's gratuity, on top of job pay. --}}
             @php $tips = $booking->tipsTotal(); @endphp
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">

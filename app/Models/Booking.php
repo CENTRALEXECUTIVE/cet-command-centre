@@ -2688,6 +2688,23 @@ class Booking extends Model
     }
 
     /**
+     * A payee this job's driver fee is paid TO instead of the driver themselves —
+     * e.g. when Kash supplies the driver and we settle with Kash. Set per job.
+     */
+    public function payTo(): ?string
+    {
+        $payee = trim((string) ($this->meta['pay_to'] ?? ''));
+
+        return $payee !== '' ? (static::resolveDriverFullName($payee) ?? $payee) : null;
+    }
+
+    /** Who this job's driver fee is settled with on payroll — the payee, else the driver. */
+    public function payrollPayeeName(): string
+    {
+        return $this->payTo() ?? $this->payrollDriverName();
+    }
+
+    /**
      * Map a callsign / first name / full name onto a system driver's FULL name,
      * or null when there's no single clear match (so ambiguous names aren't
      * wrongly merged). Memoised per request via the container.

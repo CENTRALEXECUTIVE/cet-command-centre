@@ -131,7 +131,7 @@
                         <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
-                            <td>{{ $b->displayName() }}</td>
+                            <td>{{ $b->displayName() }}@if($b->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;margin-left:4px" title="Driven by {{ $b->payrollDriverName() }}, paid to {{ $b->payTo() }}">via {{ $b->payrollDriverName() }}</span>@endif</td>
                             <td>{{ $b->driverPay() === null ? '—' : '£'.number_format($b->driverPay(), 2) }}</td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted">cash</span>@else£{{ number_format($b->driverPaidAmount(), 2) }}@endif</td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted" title="Customer paid the driver directly">paid by customer</span>@elseif(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>

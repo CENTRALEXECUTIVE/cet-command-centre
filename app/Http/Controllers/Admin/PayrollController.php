@@ -129,8 +129,14 @@ class PayrollController extends Controller
         ];
 
         $rows = [];
-        foreach ($relevant->groupBy(fn (Booking $b) => $b->payrollDriverName()) as $name => $jobs) {
-            $leadDriver = $jobs->pluck('driver')->filter()->first();
+        // Group by the PAYEE — so a job whose fee is routed to Kash lands in
+        // Kash's card, not the driver who actually drove it.
+        foreach ($relevant->groupBy(fn (Booking $b) => $b->payrollPayeeName()) as $name => $jobs) {
+            // Link the card to a driver directory by the card NAME (the payee),
+            // so a payee card points at the payee — not the sub-driver.
+            $byName = \App\Models\User::where('role', \App\Enums\UserRole::Driver->value)
+                ->where('name', $name)->first(['id', 'phone']);
+            $leadDriver = $byName ?: $jobs->pluck('driver')->filter()->first();
             $rows[$name] = array_merge($blank($name), [
                 'driver_id' => $leadDriver?->id,
                 'phone' => $leadDriver?->phone,

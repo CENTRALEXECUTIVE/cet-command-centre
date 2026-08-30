@@ -319,6 +319,33 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_a_job_routed_to_a_payee_folds_into_their_payroll_and_hides_the_drivers_owed(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-08-15 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $kash = User::factory()->driver()->create(['name' => 'Kash']);
+        $sub = User::factory()->driver()->create(['name' => 'Sub Driver']);
+
+        // Sub Driver drove it (pay £95) but Kash supplied them — pay Kash.
+        $job = Booking::factory()->create(['driver_id' => $sub->id, 'pickup_at' => '2026-08-10 09:00'])
+            ->fresh();
+        $this->actingAs($admin)->post(route('bookings.payroll', $job), ['action' => 'set', 'amount' => '95'])->assertRedirect();
+        $this->actingAs($admin)->post(route('bookings.payroll', $job), ['action' => 'set_payee', 'payee' => 'Kash'])->assertRedirect();
+
+        $this->assertSame('Kash', $job->fresh()->payTo());
+
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => '2026-08']))->assertOk();
+        $drivers = collect($res->viewData('drivers'));
+
+        // The £95 lands under Kash, and Sub Driver has no card (nothing owed to them).
+        $this->assertSame(95.0, $drivers->firstWhere('name', 'Kash')['pay']);
+        $this->assertNull($drivers->firstWhere('name', 'Sub Driver'));
+        // Kash's card shows who actually drove it.
+        $res->assertSee('via Sub Driver');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_payroll_supports_a_custom_date_range_and_a_sendable_statement(): void
     {
         $admin = User::factory()->admin()->create();

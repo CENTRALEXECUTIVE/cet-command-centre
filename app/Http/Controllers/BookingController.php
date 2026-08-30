@@ -992,14 +992,32 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash,mark_paid'],
+            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash,mark_paid,set_payee'],
             'amount' => [\Illuminate\Validation\Rule::requiredIf(
                 fn () => in_array($request->input('action'), ['set', 'record', 'tip', 'confirm_cash'], true)
             ), 'nullable', 'numeric', 'min:0', 'max:100000'],
             'method' => ['required_if:action,tip', 'in:cash,card'],
             'note' => ['nullable', 'string', 'max:200'],
+            'payee' => ['nullable', 'string', 'max:120'],
             'collected' => ['nullable', 'boolean'],
         ]);
+
+        // Route this job's driver fee to a PAYEE (e.g. Kash supplied the driver,
+        // so we settle with Kash). Blank clears it back to paying the driver.
+        if ($data['action'] === 'set_payee') {
+            $payee = trim((string) ($data['payee'] ?? ''));
+            $meta = $booking->meta ?? [];
+            if ($payee === '') {
+                unset($meta['pay_to']);
+            } else {
+                $meta['pay_to'] = $payee;
+            }
+            $booking->forceFill(['meta' => $meta])->save();
+
+            return $this->afterPayroll($request, $booking)->with('status', $payee === ''
+                ? 'Cleared — this job pays the driver directly again.'
+                : "This job's pay now goes to {$booking->payTo()}.");
+        }
 
         // One-tap "Mark paid": record whatever is still owed as handed over, so the
         // whole job is settled in a single click from the payroll list or a booking
