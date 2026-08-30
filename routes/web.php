@@ -239,6 +239,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             ->middleware('throttle:30,1')->name('alerts.ackAll');
         Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
         Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
+        // Web widgets — embed snippets for the marketing site + the auto-email switch.
+        Route::get('settings/web-widgets', [\App\Http\Controllers\Admin\WebWidgetController::class, 'index'])->name('web-widgets.index');
+        Route::put('settings/web-widgets', [\App\Http\Controllers\Admin\WebWidgetController::class, 'update'])->name('web-widgets.update');
 
         // In-app CSV imports (Google Ads report, ETO bookings export).
         Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');

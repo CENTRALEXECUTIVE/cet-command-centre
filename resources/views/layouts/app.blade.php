@@ -111,6 +111,7 @@
                     <a href="{{ route('audit.index') }}" class="{{ request()->routeIs('audit.*') ? 'active' : '' }}">ETO audit</a>
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">Users</a>
                     <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">Settings</a>
+                    <a href="{{ route('web-widgets.index') }}" class="{{ request()->routeIs('web-widgets.*') ? 'active' : '' }}">Web widgets</a>
                     @if($u->isSuperAdmin())
                         <a href="{{ route('notifications.index') }}" class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}">Notifications</a>
                     @endif

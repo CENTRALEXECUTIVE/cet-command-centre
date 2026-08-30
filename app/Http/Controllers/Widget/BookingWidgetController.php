@@ -145,6 +145,11 @@ class BookingWidgetController extends Controller
             ], fn ($v) => $v !== null && $v !== ''),
         ]);
 
+        // Confirmation email to the customer who just used our widget — strictly
+        // web-only and off by default (see CustomerBookingMailer). Never reaches
+        // ETO/existing customers.
+        app(\App\Services\Messaging\CustomerBookingMailer::class)->confirmIfWebBooking($booking);
+
         // Tell the office at once — a web request needs a human to confirm.
         $name = $customer->name;
         $when = $pickupAt->format('D d M, H:i');
