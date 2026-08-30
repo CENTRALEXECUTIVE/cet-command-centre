@@ -468,8 +468,9 @@
     @endif
 
     {{-- Additional drivers for a MULTI-CAR job (e.g. a 3-car wedding). Each gets
-         their own link and their own per-car status, tracked separately. --}}
-    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+         their own link and their own per-car status, tracked separately. Shown
+         on completed jobs too — pay and mark-paid happen after the job runs. --}}
+    @if(auth()->user()->isAdmin() && ($booking->hasExtraDrivers() || ! $booking->status->isTerminal()))
         @php $extraDrivers = $booking->extraDrivers(); @endphp
         <details class="card"{{ count($extraDrivers) ? ' open' : '' }}>
             <summary style="cursor:pointer;font-weight:700;font-size:17px">🚗 Extra cars — multi-car job <span class="muted" style="font-weight:400;font-size:13px">{{ count($extraDrivers) ? '— '.count($extraDrivers).' extra '.\Illuminate\Support\Str::plural('car', count($extraDrivers)) : '— add a car for a wedding / group job' }}</span></summary>

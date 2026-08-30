@@ -348,6 +348,24 @@ class ExtraDriverTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_extra_cars_section_stays_on_a_completed_job_for_pay_and_mark_paid(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Wedding'])->id,
+                'pickup_at' => now()->subDay(), 'status' => BookingStatus::Complete->value,
+            ]);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Kash']);
+
+        // Even though the job is completed, the office can still set pay / mark paid.
+        $this->actingAs($admin)->get(route('bookings.show', $booking->fresh()))->assertOk()
+            ->assertSee('Extra cars — multi-car job')
+            ->assertSee('Set pay')
+            ->assertSee('Passengers in this car');
+    }
+
     public function test_an_extra_car_can_be_marked_paid_from_the_payroll_page(): void
     {
         \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
