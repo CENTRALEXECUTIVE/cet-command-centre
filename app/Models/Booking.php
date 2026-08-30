@@ -1824,10 +1824,10 @@ class Booking extends Model
     }
 
     /**
-     * The note the driver must READ and confirm: the office "Notes for the driver"
-     * if set, otherwise the customer's special requests (where ETO comments /
-     * "call on arrival" style instructions land). This is what drives the notes
-     * card + read-receipt, so an imported job with comments still asks for a tap.
+     * The note the driver must READ and confirm, taken from the first source that
+     * has one: the office "Notes for the driver" field, the customer's special
+     * requests, then the CALENDAR's own "Notes" line (the source of truth). So a
+     * job synced from the calendar surfaces its note without any ETO re-import.
      */
     public function driverReadNotes(): ?string
     {
@@ -1835,8 +1835,28 @@ class Booking extends Model
             return $notes;
         }
         $special = trim((string) ($this->special_requests ?? ''));
+        if ($special !== '') {
+            return $special;
+        }
 
-        return $special !== '' ? $special : null;
+        return $this->calendarNotes();
+    }
+
+    /**
+     * The driver-relevant note from the calendar event's "Notes" line, with the
+     * "Booked by X" booker prefix stripped (the driver wants the instruction, not
+     * who placed the booking). Null when the line is only the booker or absent.
+     */
+    public function calendarNotes(): ?string
+    {
+        $raw = trim((string) $this->calendarEvent?->descriptionValue('Notes'));
+        if ($raw === '') {
+            return null;
+        }
+        // Drop a leading "Booked by X." (booker), keeping any real instruction.
+        $note = trim((string) preg_replace('/^\s*Booked by [^.]+\.\s*/i', '', $raw));
+
+        return $note !== '' ? $note : null;
     }
 
     /* ---- Driver notes read-receipt -------------------------------------------

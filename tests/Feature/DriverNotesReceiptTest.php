@@ -93,6 +93,47 @@ class DriverNotesReceiptTest extends TestCase
             ->assertSee('I’ve read these notes', false);
     }
 
+    public function test_notes_come_from_the_calendar_with_the_booker_stripped(): void
+    {
+        // No office note, no special requests — the note lives on the calendar
+        // event, prefixed with "Booked by X" which the driver shouldn't see.
+        $driver = User::factory()->driver()->create();
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create()->id,
+                'driver_id' => $driver->id, 'pickup_at' => now()->addDay(),
+                'status' => BookingStatus::Allocated->value,
+            ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Vehicle Type: Executive\n• *Notes:* Booked by Jo Bloggs. Please call the passenger on arrival",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        // The booker is stripped; only the instruction remains.
+        $this->assertSame('Please call the passenger on arrival', $booking->driverReadNotes());
+        $this->get(route('driver.link', $booking->driverLinkToken()))->assertOk()
+            ->assertSee('Please call the passenger on arrival')
+            ->assertDontSee('Booked by Jo Bloggs')
+            ->assertSee('I’ve read these notes', false);
+    }
+
+    public function test_a_calendar_note_that_is_only_the_booker_shows_nothing(): void
+    {
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create(['customer_id' => Customer::factory()->create()->id, 'pickup_at' => now()->addDay()]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Vehicle Type: Executive\n• *Notes:* Booked by Jo Bloggs.",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->assertNull($booking->fresh()->driverReadNotes());
+    }
+
     public function test_an_extra_car_confirms_notes_per_car(): void
     {
         $admin = User::factory()->admin()->create();
