@@ -319,6 +319,21 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_the_owed_amount_links_to_the_owed_jobs(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-08-15 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Owed Ollie']);
+        Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-08-10 09:00'])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
+
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => '2026-08']))->assertOk()
+            ->assertSee('owed ↓')          // the clickable owed total
+            ->assertSee('data-owed', false); // the owed job row is tagged for the jump
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_driver_label_shows_name_with_vehicle_reg(): void
     {
         $driver = User::factory()->driver()->create(['name' => 'Kash Ali']);

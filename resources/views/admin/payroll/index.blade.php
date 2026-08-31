@@ -80,7 +80,7 @@
                 <div style="font-size:14px">
                     £{{ number_format($d['pay'], 2) }} total
                     · <span style="color:#1f7a44">£{{ number_format($d['paid'], 2) }} paid</span>
-                    · @if($d['remaining'] > 0)<strong style="color:#b8860b">£{{ number_format($d['remaining'], 2) }} owed</strong>@else<span class="badge badge-complete">Settled</span>@endif
+                    · @if($d['remaining'] > 0)<button type="button" class="owed-jump" style="background:none;border:0;padding:0;font:inherit;color:#b8860b;font-weight:700;cursor:pointer;text-decoration:underline" title="Jump to the jobs still owed">£{{ number_format($d['remaining'], 2) }} owed ↓</button>@else<span class="badge badge-complete">Settled</span>@endif
                     @if($d['tips'] > 0) · <span style="color:#b8860b">💛 £{{ number_format($d['tips'], 2) }} tips @if($d['card_tips_owed'] > 0)(£{{ number_format($d['card_tips_owed'], 2) }} card owed)@endif</span>@endif
                 </div>
             </div>
@@ -129,7 +129,8 @@
                     <thead><tr><th>Job</th><th>Date</th><th>Customer</th><th>Pays</th><th>Paid</th><th>Remaining</th><th>Tips</th><th></th></tr></thead>
                     <tbody>
                     @foreach($leadJobs as $b)
-                        <tr class="rowlink" data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
+                        @php $rowOwed = ! $b->driverSettledByCustomer() && $b->driverPay() !== null && ($b->driverPayRemaining() ?? 0) > 0; @endphp
+                        <tr class="rowlink{{ $rowOwed ? ' owed-row' : '' }}" @if($rowOwed) data-owed="1" @endif data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}@if($b->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;margin-left:4px" title="Driven by {{ $b->driverLabel() }}, paid to {{ $b->payTo() }}">via {{ $b->driverLabel() }}</span>@endif</td>
@@ -166,7 +167,7 @@
                     <tbody>
                     @foreach($carJobs as $r)
                         @php $e = $r['entry']; $rem = max(0, (float)($e['pay'] ?? 0) - (float)($e['paid'] ?? 0)); @endphp
-                        <tr class="rowlink" data-href="{{ route('bookings.show', $r['booking']) }}">
+                        <tr class="rowlink{{ $rem > 0 ? ' owed-row' : '' }}" @if($rem > 0) data-owed="1" @endif data-href="{{ route('bookings.show', $r['booking']) }}">
                             <td class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</td>
                             <td>{{ $r['booking']->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $r['booking']->displayName() }}</td>
@@ -207,8 +208,23 @@
         .ap-chip{cursor:pointer;padding:4px 10px;border-radius:999px;border:1px solid rgba(128,128,128,.25);
                  background:rgba(128,128,128,.08);font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
         .ap-chip.ap-active{background:var(--gold, #FBBA2A);color:#111;border-color:var(--gold, #FBBA2A)}
+        tr.owed-flash td{animation:owedflash 1.6s ease-out}
+        @keyframes owedflash{0%,40%{background:rgba(184,134,11,.28)}100%{background:transparent}}
     </style>
     <script>
+        // "£X owed ↓" jumps to the first still-owed job in that driver's card.
+        document.addEventListener('click', function (e) {
+            var jump = e.target.closest('.owed-jump');
+            if (!jump) return;
+            var card = jump.closest('.card');
+            var row = card && card.querySelector('tr[data-owed]');
+            if (row) {
+                row.scrollIntoView({ block: 'center' });
+                row.classList.add('owed-flash');
+                setTimeout(function () { row.classList.remove('owed-flash'); }, 1600);
+            }
+        });
+
         // Copy a driver's pay statement to the clipboard.
         document.addEventListener('click', function (e) {
             var btn = e.target.closest('.copy-statement');
