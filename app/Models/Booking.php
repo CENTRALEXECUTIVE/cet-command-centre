@@ -2483,11 +2483,19 @@ class Booking extends Model
     {
         $pay = $this->driverPay() ?? 0.0;
 
+        // Extra cars on a multi-car job are paid by the business too — a 3-car
+        // wedding costs three drivers, not one. Include them so the margin isn't
+        // overstated (the fare covers the whole job, so all its driver pay counts).
+        $extras = array_sum(array_map(
+            fn ($d) => (float) ($d['pay'] ?? 0),
+            $this->extraDrivers()
+        ));
+
         if ($this->driverSettledByCustomer()) {
-            return round(($this->cashDueToDriver() ?? 0.0) + $pay, 2);
+            return round(($this->cashDueToDriver() ?? 0.0) + $pay + $extras, 2);
         }
 
-        return round($pay, 2);
+        return round($pay + $extras, 2);
     }
 
     /** @return array<int, array{amount: float, at: string, by: ?string, note: ?string}> */

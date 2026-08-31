@@ -394,6 +394,36 @@ class ExtraDriverTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_driver_cost_includes_extra_car_pay_so_margin_is_not_overstated(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Richard']);
+        // A 3-car wedding leg: fare £325, lead paid £110, two extra cars £95 each.
+        $booking = Booking::factory()
+            ->forVehicleType(VehicleType::where('slug', 'executive')->first())
+            ->create([
+                'customer_id' => Customer::factory()->create(['name' => 'Nick'])->id,
+                'driver_id' => $driver->id, 'pickup_at' => now()->subDay(),
+                'status' => BookingStatus::Complete->value, 'payment_method' => 'card',
+                'final_price' => 325,
+            ]);
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '110']);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Kash']);
+        $this->actingAs($admin)->post(route('bookings.extra-drivers.add', $booking), ['name' => 'Sam']);
+        $booking->refresh();
+        foreach ($booking->extraDrivers() as $d) {
+            $this->actingAs($admin)->post(route('bookings.extra-drivers.payroll', $booking), ['token' => $d['token'], 'action' => 'set', 'amount' => '95']);
+        }
+
+        // Cost = £110 + £95 + £95 = £300, not just the lead's £110.
+        $this->assertSame(300.0, $booking->fresh()->driverCost());
+
+        // Margin on the job is £325 − £300 = £25, not £215.
+        $reports = app(\App\Services\Reporting\ReportService::class)->profit(now()->subMonth(), now());
+        $richard = collect($reports['per_driver'])->firstWhere('name', 'Richard');
+        $this->assertSame(25.0, $richard['profit']);
+    }
+
     public function test_extra_car_endpoints_are_admin_only_for_management(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
