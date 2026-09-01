@@ -595,6 +595,74 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringContainsString('BLACK MERCEDES V CLASS', $body);
     }
 
+    /** Book a minibus so we can test the complimentary V Class upgrade line. */
+    private function makeMinibusBooking(string $slug = 'minibus-8'): Booking
+    {
+        $type = VehicleType::where('slug', $slug)->first();
+        $admin = User::factory()->admin()->create();
+
+        return app(BookingService::class)->createFromForm([
+            'customer_name' => 'Grace Miller', 'customer_phone' => '07700900555',
+            'vehicle_type_id' => $type->id, 'journey_type' => 'one_way',
+            'pickup_at' => now()->addDays(2)->setTime(15, 0)->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 6, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+    }
+
+    public function test_a_minibus_booking_with_a_v_class_driver_shows_the_complimentary_upgrade(): void
+    {
+        $booking = $this->makeMinibusBooking();
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Sam Reed', 'email' => 'sam@cet.test']);
+        $vClassType = VehicleType::where('slug', 'v-class')->first();
+        $vehicle = \App\Models\Vehicle::create([
+            'vehicle_type_id' => $vClassType->id,
+            'registration' => 'VC70 CET', 'make' => 'Mercedes', 'model' => 'V-Class', 'colour' => 'Black', 'is_active' => true,
+        ]);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'default_vehicle_id' => $vehicle->id]);
+
+        $admin = User::factory()->admin()->create();
+        app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringContainsString('Complimentary upgrade', $body);
+        $this->assertStringContainsString('Mercedes V Class', $body);
+    }
+
+    public function test_a_minibus_booking_kept_on_a_minibus_has_no_upgrade_line(): void
+    {
+        $booking = $this->makeMinibusBooking();
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Joe Blake', 'email' => 'joe@cet.test']);
+        $vehicle = \App\Models\Vehicle::create([
+            'vehicle_type_id' => $booking->vehicle_type_id, // still a minibus
+            'registration' => 'MB70 CET', 'make' => 'Mercedes', 'model' => 'Sprinter', 'colour' => 'Black', 'is_active' => true,
+        ]);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'default_vehicle_id' => $vehicle->id]);
+
+        $admin = User::factory()->admin()->create();
+        app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringNotContainsString('Complimentary upgrade', $body);
+    }
+
+    public function test_a_genuine_v_class_booking_is_not_labelled_an_upgrade(): void
+    {
+        // Booked AND provided a V Class — no upgrade happened, so no line.
+        $vClass = VehicleType::where('slug', 'v-class')->first();
+        $admin = User::factory()->admin()->create();
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Nadia Khan', 'customer_phone' => '07700900666',
+            'vehicle_type_id' => $vClass->id, 'journey_type' => 'one_way',
+            'pickup_at' => now()->addDays(2)->setTime(15, 0)->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 5, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+        $this->assertStringNotContainsString('Complimentary upgrade', $body);
+    }
+
     public function test_admin_can_send_a_custom_message(): void
     {
         $booking = $this->makeBooking();

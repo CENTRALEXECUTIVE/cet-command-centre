@@ -2712,6 +2712,53 @@ class Booking extends Model
         return $this->payTo() ?? $this->payrollDriverName();
     }
 
+    /**
+     * The actual vehicle assigned to the lead car — the job's own vehicle if
+     * set, else the assigned driver's default vehicle. Null when nothing's been
+     * assigned yet (so we never promise a vehicle we haven't allocated).
+     */
+    public function assignedVehicle(): ?Vehicle
+    {
+        return $this->vehicle ?? $this->driver?->driverProfile?->defaultVehicle;
+    }
+
+    /**
+     * True when the customer booked a standard minibus (8 Seater / 8 Seater XL)
+     * but we've actually assigned a V Class — a free upgrade we tell the customer
+     * about in the reminder. Only fires once a V Class driver/vehicle is on the
+     * job: detected from the assigned vehicle's linked type, or its make+model /
+     * the manually-entered car reading as a V Class.
+     */
+    public function isComplimentaryVClassUpgrade(): bool
+    {
+        if (! in_array($this->vehicleType?->slug, ['minibus-8', 'minibus-8-xl'], true)) {
+            return false;
+        }
+
+        return $this->assignedVehicleIsVClass();
+    }
+
+    /** Whether the vehicle actually assigned to this job reads as a Mercedes V Class. */
+    private function assignedVehicleIsVClass(): bool
+    {
+        $vehicle = $this->assignedVehicle();
+        if ($vehicle?->vehicleType?->slug === 'v-class') {
+            return true;
+        }
+
+        $text = mb_strtolower(trim(implode(' ', array_filter([
+            $this->meta['driver_details']['car'] ?? null,
+            $vehicle?->make,
+            $vehicle?->model,
+        ]))));
+
+        return $text !== '' && (
+            str_contains($text, 'v class')
+            || str_contains($text, 'v-class')
+            || str_contains($text, 'vclass')
+        );
+    }
+
     /** This job's vehicle registration, from the manual details, the assigned driver, or ETO. */
     public function driverVehicleReg(): ?string
     {

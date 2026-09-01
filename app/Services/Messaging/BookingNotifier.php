@@ -151,6 +151,13 @@ class BookingNotifier
             $lines[] = $block;
         }
 
+        // Complimentary upgrade: the customer booked a standard minibus but we've
+        // put them in a V Class — tell them it's a free upgrade.
+        if ($booking->isComplimentaryVClassUpgrade()) {
+            $lines[] = '';
+            $lines[] = '✨ *Complimentary upgrade:* we\'ve provided a Mercedes V Class for your journey at no extra charge — enjoy the ride.';
+        }
+
         $lines[] = '';
         $lines[] = self::FOOTER;
 
