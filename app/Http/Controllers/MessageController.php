@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\CustomerMessageMail;
 use App\Models\Booking;
 use App\Models\Message;
 use App\Services\Messaging\WhatsAppService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Admin-side customer comms: send a one-off message against a booking and resend
@@ -62,5 +64,55 @@ class MessageController extends Controller
         $message->forceFill(['status' => 'sent', 'sent_at' => now()])->save();
 
         return back()->with('status', 'Marked as sent.');
+    }
+
+    /**
+     * Email this message to the customer — for customers who don't use WhatsApp.
+     * Operator-triggered per message (a button tap), never automatic. Sends the
+     * same text as the WhatsApp version, with the *bold* markers stripped, then
+     * marks the message sent since it genuinely went out.
+     */
+    public function email(Request $request, Message $message): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $email = $message->booking?->customer?->email ?: $message->customer?->email;
+        if (blank($email)) {
+            return back()->withErrors(['email' => 'This customer has no email address on file.']);
+        }
+
+        try {
+            Mail::to($email)->send(new CustomerMessageMail(
+                $this->emailSubject($message),
+                $this->plainText($message->renderedBody()),
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[email] customer message send failed: '.$e->getMessage());
+
+            return back()->withErrors(['email' => 'Could not send the email — please try again.']);
+        }
+
+        $message->forceFill(['status' => 'sent', 'sent_at' => now()])->save();
+
+        return back()->with('status', 'Emailed to '.$email.'.');
+    }
+
+    /** A readable email subject for the message type. */
+    private function emailSubject(Message $message): string
+    {
+        $ref = $message->booking?->reference;
+        $suffix = $ref ? ' — '.$ref : '';
+
+        return match (true) {
+            $message->isReminder() => 'Your upcoming journey with Central Executive Transfers'.$suffix,
+            $message->isReviewRequest() => 'How was your journey with Central Executive Transfers?',
+            default => 'A message from Central Executive Transfers'.$suffix,
+        };
+    }
+
+    /** Strip WhatsApp *bold* markers so the text reads cleanly as an email. */
+    private function plainText(string $body): string
+    {
+        return preg_replace('/\*(.+?)\*/s', '$1', $body);
     }
 }

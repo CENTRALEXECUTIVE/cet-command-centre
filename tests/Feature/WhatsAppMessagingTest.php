@@ -663,6 +663,53 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('Complimentary upgrade', $body);
     }
 
+    public function test_a_reminder_can_be_emailed_to_a_customer_who_has_an_email(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $booking = $this->makeBooking();
+        $booking->customer->update(['email' => 'grace@example.com']);
+        $reminder = Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+            'to_address' => '07700900123', 'body' => '*Booking Reminder*'."\n".'Hi Grace,', 'status' => 'queued',
+            'scheduled_for' => now()->subMinute(),
+        ]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('messages.email', $reminder))->assertRedirect();
+
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\CustomerMessageMail::class, function ($mail) {
+            // *bold* markers stripped for the email.
+            return str_contains($mail->textBody, 'Booking Reminder')
+                && ! str_contains($mail->textBody, '*Booking Reminder*')
+                && $mail->hasTo('grace@example.com');
+        });
+
+        // Emailing it genuinely sends, so the message is marked sent.
+        $this->assertSame('sent', $reminder->fresh()->status);
+    }
+
+    public function test_emailing_fails_gracefully_when_the_customer_has_no_email(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $booking = $this->makeBooking(); // customer has a phone but no email
+        $reminder = Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+            'to_address' => '07700900123', 'body' => 'Reminder', 'status' => 'queued',
+            'scheduled_for' => now()->subMinute(),
+        ]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('messages.email', $reminder))
+            ->assertRedirect()->assertSessionHasErrors('email');
+
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+        $this->assertSame('queued', $reminder->fresh()->status);
+    }
+
     public function test_admin_can_send_a_custom_message(): void
     {
         $booking = $this->makeBooking();
