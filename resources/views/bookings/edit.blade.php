@@ -123,7 +123,10 @@
                     </div>
                     <div class="field">
                         <label for="passengers">Passengers <span class="req">*</span></label>
-                        <input id="passengers" type="number" name="passengers" min="1" max="60" value="{{ old('passengers', $booking->passengers) }}" required>
+                        {{-- Pre-fill with the DISPLAYED count (the calendar's real
+                             number), not the raw column — otherwise editing another
+                             field silently overwrites passengers with the import default. --}}
+                        <input id="passengers" type="number" name="passengers" min="1" max="60" value="{{ old('passengers', $booking->passengerCount() ?? $booking->passengers) }}" required>
                     </div>
                     <div class="field">
                         <label for="suitcases">Suitcases</label>

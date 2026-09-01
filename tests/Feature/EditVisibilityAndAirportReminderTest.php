@@ -69,6 +69,43 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame('Manchester Airport M90 1QX', $booking->displayPickupAddress());
     }
 
+    public function test_edit_form_prefills_passengers_from_the_calendar_not_the_default(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // Column defaulted to 1 on import, but the calendar's real count is 7.
+        $booking = $this->calendarBooking(['passengers' => 1]);
+        $this->assertSame(7, $booking->passengerCount());
+
+        // The edit form must show 7 (the displayed count), not the raw 1 — so
+        // changing another field can't silently overwrite passengers.
+        $this->actingAs($admin)->get(route('bookings.edit', $booking))->assertOk()
+            ->assertSee('name="passengers" min="1" max="60" value="7"', false);
+    }
+
+    public function test_editing_only_the_time_keeps_the_passenger_count(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $vClass = VehicleType::where('slug', 'v-class')->first();
+        $booking = $this->calendarBooking(['passengers' => 1, 'vehicle_type_id' => $vClass->id]);
+
+        // Submit what the (fixed) form would: passengers = the displayed 7, new time.
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => $booking->displayName() ?: 'Guest',
+            'customer_phone' => '07700900123',
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'pickup_at' => '2026-12-25T09:15',
+            'pickup_address' => $booking->pickup_address,
+            'destination_address' => $booking->destination_address,
+            'passengers' => 7,
+            'payment_method' => 'card',
+        ])->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertSame(7, $booking->passengerCount());       // still 7, not 1
+        $this->assertFalse($booking->fieldEdited('passengers')); // not wrongly stamped
+        $this->assertTrue($booking->fieldEdited('pickup_at'));   // the time IS edited
+    }
+
     public function test_editing_a_booking_does_not_blank_luggage_it_still_mirrors_the_calendar(): void
     {
         // A calendar-sourced booking with 0/0 stored counts (luggage never
