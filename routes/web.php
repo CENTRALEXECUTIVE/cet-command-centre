@@ -144,7 +144,6 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/fix-contact', [BookingController::class, 'fixContact'])->middleware('throttle:30,1')->name('bookings.fix-contact');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');
         Route::post('messages/{message}/sent', [\App\Http\Controllers\MessageController::class, 'markSent'])->middleware('throttle:60,1')->name('messages.sent');
-        Route::post('messages/{message}/email', [\App\Http\Controllers\MessageController::class, 'email'])->middleware('throttle:30,1')->name('messages.email');
 
         // Email enquiries inbox (Outlook → quote → draft reply).
         Route::get('enquiries', [\App\Http\Controllers\EnquiryController::class, 'index'])->name('enquiries.index');

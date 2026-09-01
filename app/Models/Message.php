@@ -130,4 +130,37 @@ class Message extends Model
 
         return 'https://wa.me/'.$phone.'?text='.rawurlencode($this->renderedBody());
     }
+
+    /**
+     * A click-to-email link (mailto:) for customers who don't use WhatsApp: opens
+     * the operator's own mail app with the customer's address, a subject and this
+     * message's text pre-filled, ready to review and send by hand — same manual,
+     * free flow as the WhatsApp link. Null when there's no email on file. The
+     * WhatsApp *bold* markers are stripped so it reads cleanly as an email.
+     */
+    public function emailLink(): ?string
+    {
+        $email = $this->booking?->customer?->email ?: $this->customer?->email;
+        if (blank($email)) {
+            return null;
+        }
+
+        $body = preg_replace('/\*(.+?)\*/s', '$1', $this->renderedBody());
+
+        return 'mailto:'.$email
+            .'?subject='.rawurlencode($this->emailSubject())
+            .'&body='.rawurlencode($body);
+    }
+
+    /** A readable email subject for this message's type. */
+    public function emailSubject(): string
+    {
+        $ref = $this->booking?->reference;
+
+        return match (true) {
+            $this->isReminder() => 'Your upcoming journey with Central Executive Transfers'.($ref ? ' — '.$ref : ''),
+            $this->isReviewRequest() => 'How was your journey with Central Executive Transfers?',
+            default => 'A message from Central Executive Transfers'.($ref ? ' — '.$ref : ''),
+        };
+    }
 }

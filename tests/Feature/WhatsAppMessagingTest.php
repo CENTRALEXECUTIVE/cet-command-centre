@@ -663,10 +663,8 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('Complimentary upgrade', $body);
     }
 
-    public function test_a_reminder_can_be_emailed_to_a_customer_who_has_an_email(): void
+    public function test_a_reminder_offers_a_mailto_link_when_the_customer_has_an_email(): void
     {
-        \Illuminate\Support\Facades\Mail::fake();
-
         $booking = $this->makeBooking();
         $booking->customer->update(['email' => 'grace@example.com']);
         $reminder = Message::create([
@@ -676,24 +674,17 @@ class WhatsAppMessagingTest extends TestCase
             'scheduled_for' => now()->subMinute(),
         ]);
 
-        $admin = User::factory()->admin()->create();
-        $this->actingAs($admin)->post(route('messages.email', $reminder))->assertRedirect();
-
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\CustomerMessageMail::class, function ($mail) {
-            // *bold* markers stripped for the email.
-            return str_contains($mail->textBody, 'Booking Reminder')
-                && ! str_contains($mail->textBody, '*Booking Reminder*')
-                && $mail->hasTo('grace@example.com');
-        });
-
-        // Emailing it genuinely sends, so the message is marked sent.
-        $this->assertSame('sent', $reminder->fresh()->status);
+        $link = $reminder->fresh()->emailLink();
+        $this->assertNotNull($link);
+        $this->assertStringStartsWith('mailto:grace@example.com?', $link);
+        // Subject and the body (with *bold* markers stripped) are pre-filled.
+        $this->assertStringContainsString('subject='.rawurlencode('Your upcoming journey with Central Executive Transfers'), $link);
+        $this->assertStringContainsString(rawurlencode('Booking Reminder'), $link);
+        $this->assertStringNotContainsString(rawurlencode('*Booking Reminder*'), $link);
     }
 
-    public function test_emailing_fails_gracefully_when_the_customer_has_no_email(): void
+    public function test_no_mailto_link_when_the_customer_has_no_email(): void
     {
-        \Illuminate\Support\Facades\Mail::fake();
-
         $booking = $this->makeBooking(); // customer has a phone but no email
         $reminder = Message::create([
             'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
@@ -702,12 +693,7 @@ class WhatsAppMessagingTest extends TestCase
             'scheduled_for' => now()->subMinute(),
         ]);
 
-        $admin = User::factory()->admin()->create();
-        $this->actingAs($admin)->post(route('messages.email', $reminder))
-            ->assertRedirect()->assertSessionHasErrors('email');
-
-        \Illuminate\Support\Facades\Mail::assertNothingSent();
-        $this->assertSame('queued', $reminder->fresh()->status);
+        $this->assertNull($reminder->fresh()->emailLink());
     }
 
     public function test_admin_can_send_a_custom_message(): void

@@ -1204,14 +1204,11 @@
                         @elseif($m->isScheduledPrompt() && ! $m->isReadyToSend())
                             <span class="muted" style="font-size:12px">🕗 Ready to send {{ $m->scheduled_for->format('D d M, H:i') }}</span>
                         @endif
-                        {{-- Email fallback for customers who don't use WhatsApp — only shown
-                             when there's an email on file, and only once the message is due. --}}
-                        @if(filled($booking->customer?->email) && $m->isReadyToSend())
-                            <form method="POST" action="{{ route('messages.email', $m) }}"
-                                  onsubmit="return confirm('Email this to {{ $booking->customer->email }}?')">
-                                @csrf
-                                <button class="btn" style="background:#1f6feb;color:#fff;padding:5px 12px;font-size:12px" title="Email to {{ $booking->customer->email }}">✉️ Email</button>
-                            </form>
+                        {{-- Email fallback for customers who don't use WhatsApp — opens the
+                             operator's own mail app with the address + text pre-filled to review
+                             and send. Only shown when there's an email on file and it's due. --}}
+                        @if($m->emailLink() && $m->isReadyToSend())
+                            <a href="{{ $m->emailLink() }}" class="btn" style="background:#1f6feb;color:#fff;padding:5px 12px;font-size:12px" title="Email to {{ $booking->customer?->email }}">✉️ Email</a>
                         @endif
                         <button type="button" class="btn btn-ghost copy-msg" style="padding:5px 12px;font-size:12px">⧉ Copy</button>
                         @if($m->status !== 'sent')
