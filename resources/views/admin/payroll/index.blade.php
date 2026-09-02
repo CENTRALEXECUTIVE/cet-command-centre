@@ -122,9 +122,10 @@
                 }
                 $sLines[] = '';
                 $sLines[] = 'Total pay: £'.number_format($d['pay'], 2);
+                if ($d['card_tips_owed'] > 0) { $sLines[] = 'Card tips: £'.number_format($d['card_tips_owed'], 2); }
                 $sLines[] = 'Already paid: £'.number_format($d['paid'], 2);
                 $sLines[] = 'To pay now: £'.number_format($d['remaining'], 2);
-                if ($d['tips'] > 0) { $sLines[] = 'Tips: £'.number_format($d['tips'], 2); }
+                if ($d['tips'] > 0) { $sLines[] = 'Tips total: £'.number_format($d['tips'], 2); }
                 $statement = implode("\n", $sLines);
                 $waPhone = \App\Support\Phone::wa($d['phone'] ?? null);
             @endphp
@@ -158,7 +159,12 @@
                             <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}@if($b->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;margin-left:4px" title="Driven by {{ $b->driverLabel() }}, paid to {{ $b->payTo() }}">via {{ $b->driverLabel() }}</span>@endif</td>
-                            <td>{{ $b->driverPay() === null ? '—' : '£'.number_format($b->driverPay(), 2) }}</td>
+                            <td>
+                                {{ $b->driverPay() === null ? '—' : '£'.number_format($b->driverPay(), 2) }}
+                                @if($b->cardTipsOwed() > 0)
+                                    <div class="muted" style="font-size:11px;color:#b8860b">+£{{ number_format($b->cardTipsOwed(), 2) }} tip · £{{ number_format(($b->driverPay() ?? 0) + $b->cardTipsOwed(), 2) }} with tip</div>
+                                @endif
+                            </td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted">cash</span>@else£{{ number_format($b->driverPaidAmount(), 2) }}@endif</td>
                             <td>@if($b->driverSettledByCustomer())<span class="muted" title="Customer paid the driver directly">paid by customer</span>@elseif(($b->driverPayRemaining() ?? 0) > 0)<strong style="color:#b8860b">£{{ number_format($b->driverPayRemaining(), 2) }}</strong>@else<span class="badge badge-complete">✓</span>@endif</td>
                             <td>@if($b->tipsTotal() > 0)💛 £{{ number_format($b->tipsTotal(), 2) }}@else<span class="muted">—</span>@endif</td>

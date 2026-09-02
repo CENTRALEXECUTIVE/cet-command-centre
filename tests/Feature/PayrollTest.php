@@ -933,6 +933,22 @@ class PayrollTest extends TestCase
         $this->assertSame(0.0, $booking->fresh()->driverJobRemaining());
     }
 
+    public function test_payroll_row_shows_the_fare_plus_tip_breakdown(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Abdirazak Hassan']);
+        $booking = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'pickup_at' => now()->startOfMonth()->addDays(2)->setTime(9, 0),
+        ]);
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '103.50'])->assertRedirect();
+        $booking->logTip(10, 'card', source: 'square');
+
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
+            ->assertOk()
+            ->assertSee('with tip'); // "+£10.00 tip · £113.50 with tip"
+    }
+
     public function test_payroll_shows_square_not_set_up_when_unconfigured(): void
     {
         // No Square keys in the test env → the indicator warns it's not set up.
