@@ -511,13 +511,11 @@ class BookingNotifier
     /** The customer-facing "leave your driver a tip" message, carrying the tip link. */
     public function tipRequestBody(Booking $booking): string
     {
-        $driver = $booking->driverPublicName();
-
         return implode("\n", [
             'Hi '.$this->firstName($booking).',',
             '',
             'Thank you for travelling with '.self::FOOTER.'!',
-            'If '.($driver ?: 'your driver').' looked after you well and you\'d like to leave a tip, you can do so securely here — 100% goes to your driver:',
+            'If you\'d like to leave a tip, you can do so securely here — 100% goes to your driver:',
             $booking->tipUrl(),
             '',
             self::FOOTER,
