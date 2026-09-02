@@ -259,7 +259,9 @@ class CalendarEventBuilder
             $add('Meet & Greet', 'Required');
         }
         $add('Pickup Location', $booking->displayPickupAddress());
-        foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
+        // All via stops, wherever they came from (booking form, intake, ETO) —
+        // not just meta['stops'] — so a form-added stop still reaches the driver.
+        foreach ($booking->viaStops() as $i => $stop) {
             $add('Stop '.($i + 1), $stop);
         }
         $add('Drop-off Location', $booking->displayDropoffAddress());

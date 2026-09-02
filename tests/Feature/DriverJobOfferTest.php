@@ -64,6 +64,23 @@ class DriverJobOfferTest extends TestCase
         $this->assertStringContainsString('💷 Fare to you: £130 Cash', $msg);
     }
 
+    public function test_the_offer_message_shows_via_stops_in_the_route(): void
+    {
+        $booking = $this->offerJob();
+        $booking->forceFill(['meta' => [
+            'stops' => ['10 Market St, Sheffield', 'The Grand Hotel, York'],
+            'payroll' => ['pay' => 130, 'paid' => 0, 'history' => []],
+        ]])->save();
+
+        $msg = $booking->fresh()->driverOfferMessage();
+
+        // Pickup → stop 1 → stop 2 → drop-off, in order.
+        $this->assertStringContainsString(
+            '📍 33 Goose Lane, Wickersley, Rotherham S66 1JN → 10 Market St, Sheffield → The Grand Hotel, York → Manchester Airport M90 1QX',
+            $msg
+        );
+    }
+
     public function test_the_fare_is_blank_until_the_driver_pay_is_set(): void
     {
         $booking = $this->offerJob();

@@ -2246,7 +2246,14 @@ class Booking extends Model
 
         $pickup = $this->displayPickupAddress() ?: $this->pickup_address;
         $dropoff = $this->displayDropoffAddress() ?: $this->destination_address;
-        $lines[] = '📍 '.trim((string) $pickup).' → '.trim((string) $dropoff);
+        // Include any via stops in order so the driver sees the true route, not a
+        // direct A→B that hides a detour.
+        $route = array_merge(
+            [trim((string) $pickup)],
+            $this->viaStops(),
+            [trim((string) $dropoff)],
+        );
+        $lines[] = '📍 '.implode(' → ', array_filter($route));
 
         if ($this->pickup_at) {
             // "08:00 am" style.
