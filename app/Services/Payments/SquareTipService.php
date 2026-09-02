@@ -31,11 +31,46 @@ class SquareTipService
      */
     private const TIP_PREFIX = 'TIP-';
 
+    /** Setting key holding the time we last received a VERIFIED Square webhook. */
+    public const LAST_WEBHOOK_SETTING = 'square_last_webhook_at';
+
     /** Live only when the token + location are configured. */
     public function enabled(): bool
     {
         return filled(config('services.square.access_token'))
             && filled(config('services.square.location_id'));
+    }
+
+    /** Is the webhook signing key set? Without it, verification fails closed. */
+    public function webhookKeySet(): bool
+    {
+        return filled(config('services.square.webhook_signature_key'));
+    }
+
+    /** Record that a verified Square webhook just arrived — powers the health indicator. */
+    public function markWebhookSeen(): void
+    {
+        \App\Models\Setting::set(self::LAST_WEBHOOK_SETTING, now()->toIso8601String(), 'string', 'square');
+    }
+
+    /**
+     * A snapshot of Square's health for the payroll indicator: whether the keys
+     * and webhook key are set, when we last heard a verified webhook, and when a
+     * card tip last landed. Everything the office needs to see tips are flowing.
+     *
+     * @return array{configured: bool, webhook_key: bool, last_webhook_at: ?\Illuminate\Support\Carbon, last_tip_at: ?\Illuminate\Support\Carbon}
+     */
+    public function status(): array
+    {
+        $lastWebhook = \App\Models\Setting::get(self::LAST_WEBHOOK_SETTING);
+        $lastTip = \App\Models\BookingTip::where('source', 'square')->latest('created_at')->value('created_at');
+
+        return [
+            'configured' => $this->enabled(),
+            'webhook_key' => $this->webhookKeySet(),
+            'last_webhook_at' => $lastWebhook ? \Illuminate\Support\Carbon::parse($lastWebhook) : null,
+            'last_tip_at' => $lastTip ? \Illuminate\Support\Carbon::parse($lastTip) : null,
+        ];
     }
 
     /** Preset tip buttons (£) shown to the customer; "Other" is always offered too. */

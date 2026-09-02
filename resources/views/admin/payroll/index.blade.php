@@ -35,6 +35,30 @@
         <a href="{{ route('payroll.index', $periodParam + ['filter' => 'owed']) }}" class="kpi warn" style="text-decoration:none;color:inherit;{{ $filter === 'owed' ? 'outline:2px solid #b8860b;outline-offset:2px' : '' }}"><div class="kpi-ico">⏳</div><div class="kpi-n">£{{ number_format($totals['remaining'], 2) }}</div><div class="kpi-l">Still owed</div></a>
         <a href="{{ route('payroll.index', $periodParam + ['filter' => 'tips']) }}" class="kpi" style="text-decoration:none;color:inherit;{{ $filter === 'tips' ? 'outline:2px solid var(--accent,#FBBA2A);outline-offset:2px' : '' }}"><div class="kpi-ico">💛</div><div class="kpi-n">£{{ number_format($totals['tips'], 2) }}</div><div class="kpi-l">Tips @if($totals['card_tips_owed'] > 0)· £{{ number_format($totals['card_tips_owed'], 2) }} card owed @endif</div></a>
     </div>
+    {{-- Square card-tip health: at a glance, are tips actually flowing in? --}}
+    @php
+        $sq = $squareStatus;
+        if (! $sq['configured']) {
+            $sqState = ['dot' => '#9aa0a6', 'label' => 'Square not set up',
+                'note' => 'Card tips won\'t record automatically until Square is configured.'];
+        } elseif (! $sq['webhook_key']) {
+            $sqState = ['dot' => '#b8860b', 'label' => 'Square keys set — webhook key missing',
+                'note' => 'Add the webhook signing key or paid tips won\'t reach the Command Centre.'];
+        } elseif ($sq['last_webhook_at']) {
+            $sqState = ['dot' => '#1f7a44', 'label' => 'Square connected',
+                'note' => 'Webhook last received '.$sq['last_webhook_at']->diffForHumans()
+                    .($sq['last_tip_at'] ? ' · last card tip '.$sq['last_tip_at']->diffForHumans() : '')];
+        } else {
+            $sqState = ['dot' => '#b8860b', 'label' => 'Square connected — no webhook received yet',
+                'note' => 'Keys are set, but no verified webhook has arrived. Send a test tip to confirm it\'s wired up.'];
+        }
+    @endphp
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-8px 0 14px;padding:8px 12px;border:1px solid var(--line,rgba(128,128,128,.2));border-radius:10px;background:rgba(128,128,128,.04)">
+        <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:{{ $sqState['dot'] }};box-shadow:0 0 0 3px {{ $sqState['dot'] }}22;flex:0 0 auto"></span>
+        <span style="font-weight:600;font-size:13px">💳 {{ $sqState['label'] }}</span>
+        <span class="muted" style="font-size:12px">{{ $sqState['note'] }}</span>
+    </div>
+
     @if($filter !== 'all')
         <p class="hint" style="margin:-8px 0 14px">Showing <strong>{{ $filter === 'paid' ? 'drivers paid' : ($filter === 'owed' ? 'drivers still owed' : 'drivers with tips') }}</strong> · <a href="{{ route('payroll.index', $periodParam) }}">show all</a></p>
     @endif

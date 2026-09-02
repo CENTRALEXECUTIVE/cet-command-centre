@@ -103,6 +103,10 @@ class WebhookController extends Controller
             return response()->json(['error' => 'bad signature'], 403);
         }
 
+        // A verified call got through — stamp it so the payroll health indicator
+        // can show the webhook is actually reaching us.
+        $square->markWebhookSeen();
+
         // One Square webhook covers both driver TIPS (TIP- orders) and booking
         // FARE payments (FARE- orders); each service ignores the other's prefix.
         $payload = $request->json()->all();

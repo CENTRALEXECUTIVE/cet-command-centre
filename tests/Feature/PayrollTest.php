@@ -870,4 +870,44 @@ class PayrollTest extends TestCase
             ->assertForbidden();
         $this->actingAs($driver)->get(route('payroll.index'))->assertForbidden();
     }
+
+    public function test_payroll_shows_square_not_set_up_when_unconfigured(): void
+    {
+        // No Square keys in the test env → the indicator warns it's not set up.
+        config(['services.square.access_token' => null, 'services.square.location_id' => null]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertOk()
+            ->assertSee('Square not set up');
+    }
+
+    public function test_payroll_shows_square_connected_once_a_webhook_has_been_seen(): void
+    {
+        config([
+            'services.square.access_token' => 'tok', 'services.square.location_id' => 'loc',
+            'services.square.webhook_signature_key' => 'key',
+        ]);
+        \App\Models\Setting::set(\App\Services\Payments\SquareTipService::LAST_WEBHOOK_SETTING, now()->toIso8601String(), 'string', 'square');
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertOk()
+            ->assertSee('Square connected')
+            ->assertSee('Webhook last received');
+    }
+
+    public function test_payroll_warns_when_square_configured_but_no_webhook_yet(): void
+    {
+        config([
+            'services.square.access_token' => 'tok', 'services.square.location_id' => 'loc',
+            'services.square.webhook_signature_key' => 'key',
+        ]);
+        // No webhook stamped yet.
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertOk()
+            ->assertSee('no webhook received yet');
+    }
 }

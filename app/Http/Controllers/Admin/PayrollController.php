@@ -248,6 +248,7 @@ class PayrollController extends Controller
             'totals' => $totals,
             'completedCount' => $completedCount,
             'paidCount' => $paidCount,
+            'squareStatus' => app(\App\Services\Payments\SquareTipService::class)->status(),
         ]);
     }
 }
