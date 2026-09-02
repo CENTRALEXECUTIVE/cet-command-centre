@@ -1023,25 +1023,43 @@ class BookingController extends Controller
         // whole job is settled in a single click from the payroll list or a booking
         // card. No-op (and never negative) when there's nothing left to pay.
         if ($data['action'] === 'mark_paid') {
-            $remaining = $booking->driverPayRemaining() ?? 0.0;
-            if ($booking->driverPay() === null) {
-                return $this->afterPayroll($request, $booking)
-                    ->with('status', 'Set this job\'s driver pay first, then mark it paid.');
+            $payRemaining = $booking->driverPayRemaining() ?? 0.0;
+            $tipRemaining = $booking->cardTipsRemaining();
+            $total = round($payRemaining + $tipRemaining, 2);
+
+            // Nothing to settle: no pay set and no card tip owed → nudge to set pay.
+            if ($total <= 0.001) {
+                return $this->afterPayroll($request, $booking)->with('status',
+                    $booking->driverPay() === null
+                        ? 'Set this job\'s driver pay first, then mark it paid.'
+                        : 'Nothing left to pay on this job.');
             }
-            if ($remaining > 0.001) {
-                $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
-                $payroll['paid'] = round(((float) ($payroll['paid'] ?? 0)) + $remaining, 2);
+
+            $payroll = $booking->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+            // Settle the job pay still owed…
+            if ($payRemaining > 0.001) {
+                $payroll['paid'] = round(((float) ($payroll['paid'] ?? 0)) + $payRemaining, 2);
                 $payroll['history'][] = [
-                    'amount' => round($remaining, 2),
+                    'amount' => round($payRemaining, 2),
                     'at' => now()->toDateTimeString(),
                     'by' => $request->user()->name,
                     'note' => 'Marked paid in full',
                 ];
-                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
             }
+            // …and the card tip owed, so it lands in the driver's earnings for the job.
+            if ($tipRemaining > 0.001) {
+                $payroll['tips_paid'] = round(((float) ($payroll['tips_paid'] ?? 0)) + $tipRemaining, 2);
+                $payroll['history'][] = [
+                    'amount' => round($tipRemaining, 2),
+                    'at' => now()->toDateTimeString(),
+                    'by' => $request->user()->name,
+                    'note' => 'Card tip paid to driver',
+                ];
+            }
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
 
-            return $this->afterPayroll($request, $booking)
-                ->with('status', $booking->payrollDriverName().' marked paid in full for this job.');
+            return $this->afterPayroll($request, $booking)->with('status',
+                $booking->payrollDriverName().' marked paid in full for this job (£'.number_format($total, 2).').');
         }
 
         // A cash job: confirm (or correct) the cash the driver collects from the

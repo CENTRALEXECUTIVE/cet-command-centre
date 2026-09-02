@@ -2549,6 +2549,30 @@ class Booking extends Model
         return $this->tipsTotalBy('card');
     }
 
+    /** Card tips already handed to the driver (paid out on top of job pay). */
+    public function cardTipsPaid(): float
+    {
+        return round((float) ($this->meta['payroll']['tips_paid'] ?? 0), 2);
+    }
+
+    /** Card tips STILL owed — total card tips the company holds, minus what's been paid out. */
+    public function cardTipsRemaining(): float
+    {
+        return round(max(0.0, $this->cardTipsOwed() - $this->cardTipsPaid()), 2);
+    }
+
+    /**
+     * The driver's TOTAL still owed for this job: job pay not yet handed over PLUS
+     * card tips not yet paid out. Cash tips are excluded — they're already in the
+     * driver's hand. This is the single figure "Mark paid in full" settles, so a
+     * card tip flows into the driver's earnings for the job rather than sitting
+     * to one side.
+     */
+    public function driverJobRemaining(): float
+    {
+        return round(($this->driverPayRemaining() ?? 0.0) + $this->cardTipsRemaining(), 2);
+    }
+
     /** Log a tip against this job (cash or card). Returns the new ledger row. */
     public function logTip(float $amount, string $method, ?string $note = null, ?string $loggedBy = null, string $source = 'manual', ?string $squarePaymentId = null): BookingTip
     {

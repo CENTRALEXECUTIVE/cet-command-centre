@@ -871,6 +871,68 @@ class PayrollTest extends TestCase
         $this->actingAs($driver)->get(route('payroll.index'))->assertForbidden();
     }
 
+    public function test_card_tip_is_part_of_what_is_owed_and_mark_paid_settles_it(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Abdirazak Hassan']);
+        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
+
+        // Job pays £100, and a £10 card tip lands (as a Square card tip would).
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '100'])->assertRedirect();
+        $booking->logTip(10, 'card', loggedBy: 'Square', source: 'square');
+        $booking = $booking->fresh();
+
+        // The tip is owed on top of the pay, so the job total owed is £110.
+        $this->assertSame(10.0, $booking->cardTipsRemaining());
+        $this->assertSame(110.0, $booking->driverJobRemaining());
+
+        // One tap settles BOTH the pay and the card tip.
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'mark_paid'])->assertRedirect();
+        $booking = $booking->fresh();
+
+        $this->assertSame(0.0, $booking->driverPayRemaining());
+        $this->assertSame(0.0, $booking->cardTipsRemaining());
+        $this->assertSame(0.0, $booking->driverJobRemaining());
+        $this->assertSame(10.0, $booking->cardTipsPaid());
+        // The tip stays visible as earnings — it's paid, not erased.
+        $this->assertSame(10.0, $booking->cardTipsOwed());
+    }
+
+    public function test_a_card_tip_arriving_after_paid_in_full_is_owed_again(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '100'])->assertRedirect();
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'mark_paid'])->assertRedirect();
+        $this->assertSame(0.0, $booking->fresh()->driverJobRemaining());
+
+        // A tip lands after settle-up → it's genuinely still owed.
+        $booking->logTip(8, 'card', source: 'square');
+        $this->assertSame(8.0, $booking->fresh()->driverJobRemaining());
+    }
+
+    public function test_mark_paid_settles_a_card_tip_even_with_no_job_pay_set(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+
+        $booking->logTip(10, 'card', source: 'square');
+        $this->assertSame(10.0, $booking->fresh()->driverJobRemaining());
+
+        $this->actingAs($admin)->post(route('bookings.payroll', $booking), ['action' => 'mark_paid'])->assertRedirect();
+        $this->assertSame(0.0, $booking->fresh()->cardTipsRemaining());
+    }
+
+    public function test_a_cash_tip_is_never_owed_since_the_driver_already_holds_it(): void
+    {
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+        $booking->logTip(15, 'cash');
+
+        $this->assertSame(0.0, $booking->fresh()->cardTipsRemaining());
+        $this->assertSame(0.0, $booking->fresh()->driverJobRemaining());
+    }
+
     public function test_payroll_shows_square_not_set_up_when_unconfigured(): void
     {
         // No Square keys in the test env → the indicator warns it's not set up.

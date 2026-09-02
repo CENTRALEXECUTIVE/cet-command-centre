@@ -735,7 +735,13 @@
     </div>
 
     @if(auth()->user()->isAdmin())
-        @php $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining(); @endphp
+        @php
+            $pay = $booking->driverPay(); $paid = $booking->driverPaidAmount(); $left = $booking->driverPayRemaining();
+            // The card tip is part of what the driver earns for this job, so it
+            // rolls into what's owed and what "Mark paid in full" settles.
+            $tipOwed = $booking->cardTipsRemaining();
+            $jobLeft = $booking->driverJobRemaining();
+        @endphp
         <div id="payroll" class="card" style="scroll-margin-top:16px;{{ ($left !== null && $left > 0) ? 'border-left:4px solid #FBBA2A' : '' }}">
             <h2>Driver payroll — {{ $booking->driverLabel() }}</h2>
             @if($booking->driverSettledByCustomer())
@@ -797,10 +803,12 @@
             @else
                 <table style="max-width:420px">
                     <tr><th>Job pays</th><td>£{{ number_format($pay, 2) }}</td></tr>
-                    <tr><th>Paid so far</th><td>£{{ number_format($paid, 2) }}</td></tr>
+                    @if($tipOwed > 0)<tr><th>Card tip</th><td>+ £{{ number_format($tipOwed, 2) }} <span class="muted">(owed to driver)</span></td></tr>@endif
+                    <tr><th>Paid so far</th><td>£{{ number_format($paid + $booking->cardTipsPaid(), 2) }}</td></tr>
                     <tr><th>Remaining</th><td>
-                        @if($left > 0)
-                            <strong style="color:#b8860b">£{{ number_format($left, 2) }} owed</strong>
+                        @if($jobLeft > 0)
+                            <strong style="color:#b8860b">£{{ number_format($jobLeft, 2) }} owed</strong>
+                            @if($tipOwed > 0 && $left > 0)<span class="muted"> · £{{ number_format($left, 2) }} pay + £{{ number_format($tipOwed, 2) }} tip</span>@elseif($tipOwed > 0)<span class="muted"> · card tip</span>@endif
                         @else
                             <span class="badge badge-complete">Paid in full</span>
                         @endif
@@ -819,14 +827,16 @@
                     <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Set pay</button>
                 </form>
 
-                @if($pay !== null && $left > 0)
-                    {{-- One tap: record the full amount you set as paid. --}}
+                @if($jobLeft > 0)
+                    {{-- One tap: settle everything owed for the job — pay AND the card tip. --}}
                     <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="align-self:end;margin:0">
                         @csrf
                         <input type="hidden" name="action" value="mark_paid">
-                        <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">✓ Mark paid in full (£{{ number_format($left, 2) }})</button>
+                        <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">✓ Mark paid in full (£{{ number_format($jobLeft, 2) }})</button>
                     </form>
+                @endif
 
+                @if($pay !== null && $left > 0)
                     <details style="align-self:end">
                         <summary class="muted" style="cursor:pointer;font-size:12px;padding:8px 0">Pay only part of it?</summary>
                         <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:6px">
@@ -919,8 +929,10 @@
                 @endif
                 @if($tips > 0)
                     <span class="muted" style="font-size:13px"> · £{{ number_format($tips, 2) }} total @if($booking->tipsTotalBy('cash') > 0 && $booking->cardTipsOwed() > 0)(£{{ number_format($booking->tipsTotalBy('cash'), 2) }} cash · £{{ number_format($booking->cardTipsOwed(), 2) }} card)@endif</span>
-                    @if($booking->cardTipsOwed() > 0)
-                        <div class="hint" style="margin:4px 0 0">£{{ number_format($booking->cardTipsOwed(), 2) }} card tip owed to the driver (collected by the company).</div>
+                    @if($booking->cardTipsRemaining() > 0)
+                        <div class="hint" style="margin:4px 0 0">£{{ number_format($booking->cardTipsRemaining(), 2) }} card tip owed to the driver — collected by the company, included in what’s owed above.</div>
+                    @elseif($booking->cardTipsOwed() > 0)
+                        <div class="hint" style="margin:4px 0 0;color:#1f7a44">✓ £{{ number_format($booking->cardTipsOwed(), 2) }} card tip paid to the driver.</div>
                     @endif
                 @endif
                 <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px">

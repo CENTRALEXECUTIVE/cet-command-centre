@@ -51,7 +51,8 @@ class PayrollController extends Controller
                 $pay = round($group->sum(fn (Booking $b) => $b->driverPay() ?? 0), 2);
                 $cash = round($group->sum(fn (Booking $b) => $b->driverSettledByCustomer() ? ($b->cashDueToDriver() ?? 0) : 0), 2);
                 $paid = round($group->sum(fn (Booking $b) => $b->driverPaidAmount()), 2);
-                $cardTips = round($group->sum(fn (Booking $b) => $b->cardTipsOwed()), 2);
+                // Only card tips NOT yet paid out are still owed in the net settle-up.
+                $cardTips = round($group->sum(fn (Booking $b) => $b->cardTipsRemaining()), 2);
 
                 return [
                     'name' => $name,
@@ -146,10 +147,12 @@ class PayrollController extends Controller
                     : $jobs->map->driverVehicleReg()->filter()->first()),
                 'jobs' => $jobs->values(),
                 'pay' => round($jobs->sum(fn (Booking $b) => $b->driverPay()), 2),
-                'paid' => round($jobs->sum(fn (Booking $b) => $b->driverPaidAmount()), 2),
-                'remaining' => round($jobs->sum(fn (Booking $b) => $b->driverPayRemaining() ?? 0), 2),
+                'paid' => round($jobs->sum(fn (Booking $b) => $b->driverPaidAmount() + $b->cardTipsPaid()), 2),
+                // Owed = job pay still due PLUS card tips not yet paid out — the tip
+                // is part of the driver's earnings for the job.
+                'remaining' => round($jobs->sum(fn (Booking $b) => ($b->driverPayRemaining() ?? 0) + $b->cardTipsRemaining()), 2),
                 'tips' => round($jobs->sum(fn (Booking $b) => $b->tipsTotal()), 2),
-                'card_tips_owed' => round($jobs->sum(fn (Booking $b) => $b->cardTipsOwed()), 2),
+                'card_tips_owed' => round($jobs->sum(fn (Booking $b) => $b->cardTipsRemaining()), 2),
             ]);
         }
 
