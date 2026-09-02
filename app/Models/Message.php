@@ -43,15 +43,21 @@ class Message extends Model
         return $this->type === 'review_request';
     }
 
+    /** Is this the post-journey "leave your driver a tip" link? */
+    public function isTipRequest(): bool
+    {
+        return $this->type === 'tip_request';
+    }
+
     /**
      * A customer message the office sends BY HAND on a schedule — a pickup
-     * reminder or a post-journey review request. These are never auto-delivered;
-     * they wait as a task until their (windowed) send time and are then sent
-     * manually from WhatsApp Business.
+     * reminder, a post-journey review request, or the post-journey tip link.
+     * These are never auto-delivered; they wait as a task until their (windowed)
+     * send time and are then sent manually from WhatsApp Business.
      */
     public function isScheduledPrompt(): bool
     {
-        return $this->isReminder() || $this->isReviewRequest();
+        return $this->isReminder() || $this->isReviewRequest() || $this->isTipRequest();
     }
 
     /**

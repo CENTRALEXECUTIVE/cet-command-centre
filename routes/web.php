@@ -412,5 +412,7 @@ Route::get('tip/{token}', [\App\Http\Controllers\TipController::class, 'show'])
     ->middleware('throttle:60,1')->name('tip.show');
 Route::post('tip/{token}', [\App\Http\Controllers\TipController::class, 'pay'])
     ->middleware('throttle:30,1')->name('tip.pay');
+Route::post('tip/{token}/cash', [\App\Http\Controllers\TipController::class, 'cash'])
+    ->middleware('throttle:30,1')->name('tip.cash');
 Route::get('tip/{token}/thanks', [\App\Http\Controllers\TipController::class, 'thanks'])
     ->middleware('throttle:60,1')->name('tip.thanks');

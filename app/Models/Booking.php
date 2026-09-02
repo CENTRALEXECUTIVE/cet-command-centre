@@ -2549,6 +2549,26 @@ class Booking extends Model
         return $this->tipsTotalBy('card');
     }
 
+    /**
+     * The customer told us (from the tip page) they've already tipped the driver
+     * in cash. We don't know the amount, so nothing is logged as a tip — this is
+     * just a flag so the office can confirm/log it with the driver if they want.
+     */
+    public function noteCustomerCashTip(): void
+    {
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], [
+            'customer_cash_tip_noted' => now()->toIso8601String(),
+        ])])->save();
+    }
+
+    /** When (if ever) the customer said they'd left a cash tip, else null. */
+    public function customerCashTipNotedAt(): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->meta['customer_cash_tip_noted'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
     /** Card tips already handed to the driver (paid out on top of job pay). */
     public function cardTipsPaid(): float
     {

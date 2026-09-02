@@ -61,10 +61,26 @@ class TipController extends Controller
         return redirect()->away($url);
     }
 
-    public function thanks(string $token): View
+    /**
+     * The customer says they already tipped in cash. We take no payment — just
+     * note it on the booking (so the office knows to confirm/log the amount with
+     * the driver) and show a friendly thank-you. No amount is recorded, because
+     * the customer isn't asked for one here.
+     */
+    public function cash(string $token): RedirectResponse
+    {
+        Booking::byTipToken($token)?->noteCustomerCashTip();
+
+        return redirect()->route('tip.thanks', ['token' => $token, 'cash' => 1]);
+    }
+
+    public function thanks(Request $request, string $token): View
     {
         $booking = Booking::byTipToken($token);
 
-        return view('tip.thanks', ['driverName' => $booking?->driverPublicName()]);
+        return view('tip.thanks', [
+            'driverName' => $booking?->driverPublicName(),
+            'cash' => $request->boolean('cash'),
+        ]);
     }
 }

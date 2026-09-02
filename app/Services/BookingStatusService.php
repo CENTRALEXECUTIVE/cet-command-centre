@@ -319,6 +319,9 @@ class BookingStatusService
         // Review request 30 minutes after completion (delivered by the scheduler).
         if ($to === BookingStatus::Complete) {
             $this->notifier->scheduleReviewRequest($booking);
+            // Tip link, created ready-to-send the moment the job completes (sent by
+            // hand from the booking page, like every other customer message).
+            $this->notifier->scheduleTipRequest($booking);
 
             if ($liveJob) {
                 $driver = $booking->driverPublicName() ?: 'The driver';
@@ -338,7 +341,7 @@ class BookingStatusService
         if (in_array($to, [BookingStatus::Cancelled, BookingStatus::NoShow], true)) {
             $booking->messages()
                 ->where('status', 'queued')
-                ->whereIn('type', ['reminder_24h', 'reminder_2h', 'review_request'])
+                ->whereIn('type', ['reminder_24h', 'reminder_2h', 'review_request', 'tip_request'])
                 ->delete();
         }
 

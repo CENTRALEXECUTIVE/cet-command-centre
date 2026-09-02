@@ -925,7 +925,10 @@
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
                 <strong style="font-size:14px">💛 Tips for {{ $booking->driverLabel() }}</strong>
                 @if(app(\App\Services\Payments\SquareTipService::class)->enabled())
-                    <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(also added to the review message automatically)</span></div>
+                    <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(auto-created ready to send when the job completes)</span></div>
+                @endif
+                @if($booking->customerCashTipNotedAt())
+                    <div class="hint" style="margin:4px 0 6px;color:#b8860b">💷 The customer said they left a cash tip ({{ $booking->customerCashTipNotedAt()->format('D d M, H:i') }}). Confirm the amount with {{ $booking->driverPublicName() ?: 'the driver' }} and log it below if you want it on payroll.</div>
                 @endif
                 @if($tips > 0)
                     <span class="muted" style="font-size:13px"> · £{{ number_format($tips, 2) }} total @if($booking->tipsTotalBy('cash') > 0 && $booking->cardTipsOwed() > 0)(£{{ number_format($booking->tipsTotalBy('cash'), 2) }} cash · £{{ number_format($booking->cardTipsOwed(), 2) }} card)@endif</span>

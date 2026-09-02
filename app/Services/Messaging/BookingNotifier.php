@@ -481,6 +481,50 @@ class BookingNotifier
     }
 
     /**
+     * Create the customer's TIP-LINK message the moment the job completes, ready
+     * for the office to send by hand (WhatsApp / email) — like a reminder, it is
+     * NEVER auto-delivered. One per booking; only when card tips are actually set
+     * up and there's a contact number. Returns null when skipped.
+     */
+    public function scheduleTipRequest(Booking $booking): ?Message
+    {
+        if (! app(\App\Services\Payments\SquareTipService::class)->enabled()) {
+            return null; // card tips aren't live — nothing to link to
+        }
+
+        $to = $booking->customerContactNumber();
+        if (blank($to)) {
+            return null;
+        }
+
+        if ($booking->messages()->where('type', 'tip_request')->exists()) {
+            return null; // already created for this booking
+        }
+
+        return $this->whatsApp->send($to, $this->tipRequestBody($booking), [
+            'type' => 'tip_request',
+            'booking' => $booking,
+            'scheduled_for' => now(), // ready to send straight away
+        ]);
+    }
+
+    /** The customer-facing "leave your driver a tip" message, carrying the tip link. */
+    public function tipRequestBody(Booking $booking): string
+    {
+        $driver = $booking->driverPublicName();
+
+        return implode("\n", [
+            'Hi '.$this->firstName($booking).',',
+            '',
+            'Thank you for travelling with '.self::FOOTER.'!',
+            'If '.($driver ?: 'your driver').' looked after you well and you\'d like to leave a tip, you can do so securely here — 100% goes to your driver:',
+            $booking->tipUrl(),
+            '',
+            self::FOOTER,
+        ]);
+    }
+
+    /**
      * True when this booking has a paired return leg that hasn't completed yet —
      * i.e. a review queued against it now is premature (the whole trip isn't
      * done). Used to prune leftover outbound-leg reviews.

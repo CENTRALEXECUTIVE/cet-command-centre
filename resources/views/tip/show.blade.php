@@ -58,12 +58,19 @@
                     <label for="custom" class="hint" style="display:block;margin-bottom:6px">Or another amount</label>
                     <div style="display:flex;gap:8px;justify-content:center;align-items:center">
                         <span style="font-size:20px;font-weight:700">£</span>
-                        <input id="custom" name="amount" type="number" step="0.50" min="1" max="500" placeholder="25" inputmode="decimal" style="width:120px;font-size:18px;text-align:center">
+                        <input id="custom" name="amount" type="number" step="0.50" min="1" max="500" placeholder="Enter amount" inputmode="decimal" style="width:150px;font-size:18px;text-align:center">
                         <button type="submit" class="btn btn-dark" style="padding:12px 18px;font-size:15px">Tip →</button>
                     </div>
                 </form>
 
                 <p class="hint" style="margin:18px 0 0;font-size:12px">Secure card payment powered by Square. Your card details are never seen or stored by us.</p>
+
+                {{-- Already tipped in cash? Give the customer a clear way out so they
+                     aren't nudged to pay again. Records nothing to Square. --}}
+                <form method="POST" action="{{ route('tip.cash', $token) }}" style="border-top:1px solid rgba(128,128,128,.15);margin-top:16px;padding-top:14px">
+                    @csrf
+                    <button type="submit" class="btn btn-ghost" style="width:100%;padding:12px 0;font-size:14px">💷 I’ve already given a cash tip</button>
+                </form>
             </div>
         @endif
 

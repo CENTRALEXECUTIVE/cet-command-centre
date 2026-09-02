@@ -250,6 +250,60 @@ class SquareTipTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_completing_a_job_creates_a_ready_to_send_tip_link_message(): void
+    {
+        $this->configureSquare();
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Majid Ali']);
+        $booking = Booking::factory()->create(['driver_id' => $driver->id]);
+
+        app(\App\Services\BookingStatusService::class)
+            ->forceTransition($booking, \App\Enums\BookingStatus::Complete, $admin, 'done');
+
+        $tip = \App\Models\Message::where('booking_id', $booking->id)->where('type', 'tip_request')->first();
+        $this->assertNotNull($tip);
+        // Carries the tip link and is ready to send by hand right away.
+        $this->assertStringContainsString($booking->fresh()->tipToken(), $tip->renderedBody());
+        $this->assertTrue($tip->isReadyToSend());
+        $this->assertNotNull($tip->whatsAppLink());
+    }
+
+    public function test_no_tip_message_is_created_when_card_tips_are_off(): void
+    {
+        // Square NOT configured.
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['driver_id' => User::factory()->driver()->create()->id]);
+
+        app(\App\Services\BookingStatusService::class)
+            ->forceTransition($booking, \App\Enums\BookingStatus::Complete, $admin, 'done');
+
+        $this->assertFalse(\App\Models\Message::where('booking_id', $booking->id)->where('type', 'tip_request')->exists());
+    }
+
+    public function test_tip_page_amount_box_is_empty_and_offers_a_cash_option(): void
+    {
+        $this->configureSquare();
+        $booking = Booking::factory()->create();
+
+        $this->get(route('tip.show', $booking->tipToken()))
+            ->assertOk()
+            ->assertDontSee('placeholder="25"', false)   // no pre-filled-looking amount
+            ->assertSee('already given a cash tip');
+    }
+
+    public function test_customer_can_flag_a_cash_tip_without_paying(): void
+    {
+        $this->configureSquare();
+        $booking = Booking::factory()->create();
+
+        $this->post(route('tip.cash', $booking->tipToken()))
+            ->assertRedirect(route('tip.thanks', ['token' => $booking->tipToken(), 'cash' => 1]));
+
+        $this->assertNotNull($booking->fresh()->customerCashTipNotedAt());
+        // No card tip was recorded — we don't know the amount.
+        $this->assertSame(0.0, $booking->fresh()->cardTipsOwed());
+    }
+
     public function test_webhook_endpoint_accepts_a_correct_signature(): void
     {
         $this->configureSquare();

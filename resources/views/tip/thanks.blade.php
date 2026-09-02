@@ -19,7 +19,11 @@
         <div class="card" style="text-align:center">
             <div style="font-size:42px">🙏</div>
             <h1 style="font-size:22px;margin:10px 0 6px">Thank you</h1>
-            <p class="hint" style="margin:0">Your tip means a great deal to {{ $driverName ?: 'your driver' }}. We look forward to driving you again soon.</p>
+            @if($cash ?? false)
+                <p class="hint" style="margin:0">Thank you for letting us know — and for looking after {{ $driverName ?: 'your driver' }} with a cash tip. It’s appreciated. We look forward to driving you again soon.</p>
+            @else
+                <p class="hint" style="margin:0">Your tip means a great deal to {{ $driverName ?: 'your driver' }}. We look forward to driving you again soon.</p>
+            @endif
         </div>
         <p style="text-align:center;margin-top:22px;font-size:13px;color:#8a8f98">
             <strong>Central Executive Transfers</strong> — “Driven by Excellence”
