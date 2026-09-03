@@ -49,6 +49,9 @@
 @if($errors->any())
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif
+@if(session('stopError'))
+    <div class="alert alert-error">📍 {{ session('stopError') }}</div>
+@endif
 
 {{-- Location permission gate. A browser only shows the "Allow location" prompt
      over HTTPS and — on iPhone especially — in response to a TAP, not on page
@@ -364,9 +367,14 @@
     <div class="da-actionbar">
     <div class="tap-actions">
         @if(! $stopArrivedAt)
-            <form method="POST" action="{{ $stopUrl }}">
+            {{-- GPS-verified: the status-form handler captures the driver's location
+                 and the server checks they're actually at this stop before recording. --}}
+            <form method="POST" action="{{ $stopUrl }}" class="status-form">
                 @csrf
                 <input type="hidden" name="event" value="arrived">
+                <input type="hidden" name="lat" class="lat-input">
+                <input type="hidden" name="lng" class="lng-input">
+                <input type="hidden" name="accuracy" class="acc-input">
                 <button type="submit" class="tap-arrive" style="width:100%">🅿️ I’ve arrived at stop {{ $stopIndex + 1 }}</button>
             </form>
         @else
@@ -426,6 +434,8 @@
             navigator.geolocation.getCurrentPosition(function (pos) {
                 form.querySelector('.lat-input').value = pos.coords.latitude;
                 form.querySelector('.lng-input').value = pos.coords.longitude;
+                var acc = form.querySelector('.acc-input');
+                if (acc) acc.value = pos.coords.accuracy || '';
                 go();
             }, go, { enableHighAccuracy: true, timeout: 4000 });
         });

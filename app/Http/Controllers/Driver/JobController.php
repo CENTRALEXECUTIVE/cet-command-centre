@@ -88,11 +88,11 @@ class JobController extends Controller
     {
         $this->authoriseOwnership($request, $booking);
 
-        return $this->handleStopEvent($booking, $request->input('event', 'picked_up'));
+        return $this->handleStopEvent($booking, $request->input('event', 'picked_up'), $request);
     }
 
     /** Shared arrive/pick-up handling for a via stop (used by the link too). */
-    public static function handleStopEvent(Booking $booking, string $event): RedirectResponse
+    public static function handleStopEvent(Booking $booking, string $event, ?Request $request = null): RedirectResponse
     {
         if ($booking->status !== BookingStatus::Collected || $booking->allViaStopsReached()) {
             return back();
@@ -104,7 +104,19 @@ class JobController extends Controller
         }
 
         if ($event === 'arrived') {
-            $booking->markStopArrived($i);
+            // GPS-verify the driver is actually AT this stop — so "arrived" can't
+            // be stamped while they're still at the pickup (or anywhere else).
+            $lat = $request?->filled('lat') ? (float) $request->input('lat') : null;
+            $lng = $request?->filled('lng') ? (float) $request->input('lng') : null;
+            $acc = $request?->filled('accuracy') ? (float) $request->input('accuracy') : null;
+            $where = $booking->checkDriverAtStop($i, $lat, $lng, $acc);
+
+            if ($where === 'far') {
+                return back()->with('stopError',
+                    'You don’t look like you’re at stop '.($i + 1).' yet — tap “I’ve arrived” once you’re there.');
+            }
+
+            $booking->markStopArrived($i, gpsVerified: $where === 'ok');
 
             return back()->with('status', 'Arrived at stop '.($i + 1).' — waiting time is now running.');
         }

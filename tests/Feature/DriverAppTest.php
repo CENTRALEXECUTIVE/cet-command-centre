@@ -209,6 +209,70 @@ class DriverAppTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_arrived_at_stop_is_blocked_when_gps_is_far_from_the_stop(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900666']);
+        $job = $this->jobFor($this->driver, [
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Collected,
+            'pickup_at' => now()->addHour(),
+            'meta' => [
+                'stops' => ['28 Batworth Drive, Sheffield S5 8XX'],
+                // Pre-seed the stop's coords so no live geocode is needed.
+                'geo' => ['stops' => [[53.4200, -1.4600]]],
+            ],
+        ]);
+
+        // Driver is still ~2km away (at the pickup) → arrival is rejected.
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job), [
+            'event' => 'arrived', 'lat' => 53.4000, 'lng' => -1.4900,
+        ])->assertRedirect()->assertSessionHas('stopError');
+
+        $this->assertNull($job->fresh()->stopArrivedAt(0));
+    }
+
+    public function test_arrived_at_stop_records_when_gps_confirms_arrival(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900777']);
+        $job = $this->jobFor($this->driver, [
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Collected,
+            'pickup_at' => now()->addHour(),
+            'meta' => [
+                'stops' => ['28 Batworth Drive, Sheffield S5 8XX'],
+                'geo' => ['stops' => [[53.4200, -1.4600]]],
+            ],
+        ]);
+
+        // Driver is right at the stop → arrival records, GPS-verified.
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job), [
+            'event' => 'arrived', 'lat' => 53.4201, 'lng' => -1.4601, 'accuracy' => 12,
+        ])->assertRedirect()->assertSessionMissing('stopError');
+
+        $job->refresh();
+        $this->assertNotNull($job->stopArrivedAt(0));
+        $this->assertTrue($job->stopArrivalGpsVerified(0));
+    }
+
+    public function test_arrived_at_stop_falls_back_to_manual_when_no_gps_is_shared(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900888']);
+        $job = $this->jobFor($this->driver, [
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Collected,
+            'pickup_at' => now()->addHour(),
+            'meta' => ['stops' => ['28 Batworth Drive, Sheffield S5 8XX'], 'geo' => ['stops' => [[53.42, -1.46]]]],
+        ]);
+
+        // No lat/lng in the request (location off) → recorded, but not GPS-verified.
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job), ['event' => 'arrived'])
+            ->assertRedirect()->assertSessionMissing('stopError');
+
+        $job->refresh();
+        $this->assertNotNull($job->stopArrivedAt(0));
+        $this->assertFalse($job->stopArrivalGpsVerified(0));
+    }
+
     public function test_a_return_leg_stop_reads_dropped_off_not_picked_up(): void
     {
         $customer = Customer::factory()->create(['phone' => '07700900555']);

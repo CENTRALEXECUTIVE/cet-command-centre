@@ -73,7 +73,7 @@ class LinkController extends Controller
     {
         $booking = $this->resolve($token);
 
-        return \App\Http\Controllers\Driver\JobController::handleStopEvent($booking, $request->input('event', 'picked_up'));
+        return \App\Http\Controllers\Driver\JobController::handleStopEvent($booking, $request->input('event', 'picked_up'), $request);
     }
 
     /** Driver OKs the "collect the cash" reminder via the shareable link. */

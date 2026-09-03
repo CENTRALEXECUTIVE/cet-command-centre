@@ -213,14 +213,65 @@ class Booking extends Model
     }
 
     /** Record the driver arriving at stop $i — starts its waiting clock. Idempotent. */
-    public function markStopArrived(int $i): void
+    public function markStopArrived(int $i, bool $gpsVerified = false): void
     {
         if ($this->stopArrivedAt($i)) {
             return;
         }
         $meta = $this->meta ?? [];
         $meta['stop_events'][$i]['arrived_at'] = now()->toIso8601String();
+        $meta['stop_events'][$i]['arrived_gps'] = $gpsVerified;
         $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Was the arrival at stop $i confirmed by GPS (vs. an unverified manual tap)? */
+    public function stopArrivalGpsVerified(int $i): bool
+    {
+        return (bool) ($this->stopEvent($i)['arrived_gps'] ?? false);
+    }
+
+    /** Geocoded coordinates [lat, lng] for via stop $i, from meta['geo']['stops'], or null. */
+    public function stopCoords(int $i): ?array
+    {
+        $geo = $this->meta['geo']['stops'][$i] ?? null;
+
+        return isset($geo[0], $geo[1]) ? [(float) $geo[0], (float) $geo[1]] : null;
+    }
+
+    /**
+     * Check a driver's GPS position against via stop $i:
+     *   'ok'      — inside the stop's geofence (safe to record arrival)
+     *   'far'     — location known but NOT at the stop (block — this is the bug we
+     *               guard against: tapping "arrived" while still at the pickup)
+     *   'unknown' — can't verify (no GPS, or the stop couldn't be geocoded) → the
+     *               caller falls back to allowing a manual tap.
+     *
+     * Geocodes the stop lazily via GeocodingService and caches it in meta['geo'].
+     */
+    public function checkDriverAtStop(int $i, ?float $lat, ?float $lng, ?float $accuracy = null): string
+    {
+        if ($lat === null || $lng === null) {
+            return 'unknown'; // GPS not shared → manual fallback
+        }
+
+        $coords = $this->stopCoords($i);
+        if ($coords === null) {
+            $point = app(\App\Services\GeocodingService::class)->coords($this->viaStops()[$i] ?? null);
+            $meta = $this->meta ?? [];
+            $meta['geo']['stops'][$i] = $point; // cache (null too, so we don't retry every tap)
+            $this->forceFill(['meta' => $meta])->save();
+            $coords = $point;
+        }
+        if ($coords === null) {
+            return 'unknown'; // couldn't geocode the stop → can't verify
+        }
+
+        $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
+        // Forgive a little GPS error, capped so a wild accuracy reading can't
+        // widen the fence to the point it's meaningless.
+        $tolerance = min((float) ($accuracy ?? 0), self::WAITING_GEOFENCE_M);
+
+        return $metres <= self::WAITING_GEOFENCE_M + $tolerance ? 'ok' : 'far';
     }
 
     /** Record the pick-up/departure at stop $i and advance to the next stop. Idempotent. */
