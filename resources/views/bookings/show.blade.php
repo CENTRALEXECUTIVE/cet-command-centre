@@ -685,7 +685,7 @@
                         @php $sArr = $booking->stopArrivedAt($i); $sPob = $booking->stopPickedUpAt($i); @endphp
                         @if($sArr)
                             <div class="hint" style="margin-top:2px">
-                                📍 Arrived {{ $sArr->format('H:i') }}@if($sPob) · 🧍 Picked up {{ $sPob->format('H:i') }} · ⏱ waited {{ $booking->stopWaitLabel($i) }}@else · ⏱ waiting {{ $booking->stopWaitLabel($i) }}…@endif
+                                📍 Arrived {{ $sArr->format('H:i') }}@if($sPob) · 🧍 {{ $booking->stopActionVerb() }} {{ $sPob->format('H:i') }} · ⏱ waited {{ $booking->stopWaitLabel($i) }}@else · ⏱ waiting {{ $booking->stopWaitLabel($i) }}…@endif
                             </div>
                         @endif
                     </td></tr>

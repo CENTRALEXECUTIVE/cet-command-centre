@@ -373,7 +373,7 @@
             <form method="POST" action="{{ $stopUrl }}">
                 @csrf
                 <input type="hidden" name="event" value="picked_up">
-                <button type="submit" class="tap-collect" style="width:100%">🧍 Picked up — leave stop {{ $stopIndex + 1 }}</button>
+                <button type="submit" class="tap-collect" style="width:100%">🧍 {{ $booking->stopActionVerb() }} — leave stop {{ $stopIndex + 1 }}</button>
             </form>
         @endif
     </div>

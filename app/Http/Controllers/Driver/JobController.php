@@ -110,10 +110,11 @@ class JobController extends Controller
         }
 
         $booking->markStopPickedUp($i);
+        $verb = $booking->stopActionVerb(); // "Picked up" (outbound) / "Dropped off" (return)
 
         return back()->with('status', $booking->allViaStopsReached()
-            ? 'Picked up — that was the last stop. Head to the drop-off.'
-            : 'Picked up at stop '.($i + 1).' — head to the next one.');
+            ? $verb.' — that was the last stop. Head to the drop-off.'
+            : $verb.' at stop '.($i + 1).' — head to the next one.');
     }
 
     /** Driver OKs the "collect the cash" reminder on a cash job. */

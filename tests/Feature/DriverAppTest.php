@@ -209,6 +209,25 @@ class DriverAppTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_a_return_leg_stop_reads_dropped_off_not_picked_up(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900555']);
+        $job = $this->jobFor($this->driver, [
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Collected,
+            'is_return_leg' => true,
+            'pickup_at' => now()->addHour(),
+            'meta' => ['stops' => ['5 Division St, Sheffield']],
+        ]);
+
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job), ['event' => 'arrived']);
+
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()
+            ->assertSee('Dropped off — leave stop 1')   // return leg → drop-off wording
+            ->assertDontSee('Picked up — leave stop 1');
+    }
+
     public function test_shareable_link_runs_the_two_step_stop_flow(): void
     {
         $customer = Customer::factory()->create(['phone' => '07700900444']);

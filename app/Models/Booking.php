@@ -164,6 +164,22 @@ class Booking extends Model
      * timestamps are kept in meta['stop_events'][index] so the office can see how
      * long each stop took. */
 
+    /**
+     * A via stop on a RETURN leg is a drop-off, not a pick-up — so the second tap
+     * (and the office record) reads "Dropped off" rather than "Picked up". The
+     * arrive → wait → leave flow and the recorded times are identical either way.
+     */
+    public function stopIsDropOff(): bool
+    {
+        return (bool) $this->is_return_leg;
+    }
+
+    /** The verb for the second stop tap / record: "Dropped off" or "Picked up". */
+    public function stopActionVerb(): string
+    {
+        return $this->stopIsDropOff() ? 'Dropped off' : 'Picked up';
+    }
+
     /** The recorded events for one via stop (arrived_at / picked_up_at). */
     public function stopEvent(int $i): array
     {
