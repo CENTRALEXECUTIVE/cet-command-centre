@@ -64,18 +64,16 @@ class LinkController extends Controller
         return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
     }
 
-    /** Multi-stop journeys via the shareable link — tap through each via stop. */
+    /**
+     * Multi-stop journeys via the shareable link — the driver taps "Arrived at
+     * stop" then "Picked up" at each via stop; we record both so the office can
+     * see how long each stop took.
+     */
     public function reachStop(Request $request, string $token): RedirectResponse
     {
         $booking = $this->resolve($token);
 
-        if ($booking->status === BookingStatus::Collected && ! $booking->allViaStopsReached()) {
-            $booking->markStopReached();
-        }
-
-        return back()->with('status', $booking->allViaStopsReached()
-            ? 'Reached the last stop — you can complete the job at drop-off.'
-            : 'Stop reached — head to the next one.');
+        return \App\Http\Controllers\Driver\JobController::handleStopEvent($booking, $request->input('event', 'picked_up'));
     }
 
     /** Driver OKs the "collect the cash" reminder via the shareable link. */

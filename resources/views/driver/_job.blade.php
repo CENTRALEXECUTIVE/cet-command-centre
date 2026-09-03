@@ -334,32 +334,48 @@
     if (! $viewerIsAdmin) {
         $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
     }
-    // The passenger is on board but there's still a via stop to reach — the job
-    // isn't finished, so guide the driver to the next stop instead of offering
+    // The passenger is on board but there's still a via stop to handle — the job
+    // isn't finished, so guide the driver through the stop instead of offering
     // Complete straight away.
-    $awaitingStop = $onBoard && $nextStop !== null;
+    $stopIndex = $onBoard ? $booking->currentStopIndex() : null;
+    $awaitingStop = $stopIndex !== null;
+    $stopArrivedAt = $awaitingStop ? $booking->stopArrivedAt($stopIndex) : null;
 @endphp
 
 @if($awaitingStop)
-    {{-- Multi-stop: the passenger is already on board (collected at pickup / on
-         the outbound), so an intermediate stop is a DROP-OFF — never a pickup.
-         Guide the driver there, then tap through it. --}}
+    {{-- Multi-stop: guide the driver to the stop, then a two-tap flow —
+         "Arrived at stop" starts a waiting clock we record, "Picked up" stops it
+         and moves on to the next stop (or the final drop-off). --}}
     <div class="card" style="border-left:4px solid #7a45e0;background:rgba(122,69,224,.08);margin-bottom:12px">
-        <div style="font-weight:800;font-size:15px">🔀 Travel to the next drop-off — {{ $stopsReached + 1 }} of {{ count($viaStops) }}</div>
+        <div style="font-weight:800;font-size:15px">🔀 Stop {{ $stopIndex + 1 }} of {{ count($viaStops) }}</div>
         <div style="margin:6px 0 10px;font-size:15px">{{ $nextStop }}</div>
         {{-- color:#000 is set inline on purpose: this anchor sits inside a .card,
              where "body.driver-app .card a" would otherwise paint it gold — gold
              text on the gold button = invisible label (only the emoji showed).
              Black is forced so the label is always readable on the gold button. --}}
         <a class="btn btn-dark" style="display:block;text-align:center;font-weight:800;color:#000"
-           href="https://waze.com/ul?q={{ urlencode($nextStop) }}&navigate=yes" target="_blank" rel="noopener">🧭 Navigate to this drop-off (Waze)</a>
+           href="https://waze.com/ul?q={{ urlencode($nextStop) }}&navigate=yes" target="_blank" rel="noopener">🧭 Navigate to this stop (Waze)</a>
+        @if($stopArrivedAt)
+            <div style="margin-top:10px;text-align:center;font-weight:700;font-size:15px">
+                ⏱ Waiting at stop · <span class="stop-wait-live" data-since="{{ $stopArrivedAt->toIso8601String() }}">0m 00s</span>
+            </div>
+        @endif
     </div>
     <div class="da-actionbar">
     <div class="tap-actions">
-        <form method="POST" action="{{ $stopUrl }}">
-            @csrf
-            <button type="submit" class="tap-collect" style="width:100%">Reached stop {{ $stopsReached + 1 }} — Dropped off</button>
-        </form>
+        @if(! $stopArrivedAt)
+            <form method="POST" action="{{ $stopUrl }}">
+                @csrf
+                <input type="hidden" name="event" value="arrived">
+                <button type="submit" class="tap-arrive" style="width:100%">🅿️ I’ve arrived at stop {{ $stopIndex + 1 }}</button>
+            </form>
+        @else
+            <form method="POST" action="{{ $stopUrl }}">
+                @csrf
+                <input type="hidden" name="event" value="picked_up">
+                <button type="submit" class="tap-collect" style="width:100%">🧍 Picked up — leave stop {{ $stopIndex + 1 }}</button>
+            </form>
+        @endif
     </div>
     </div>
 @elseif(!empty($next))
@@ -414,6 +430,28 @@
             }, go, { enableHighAccuracy: true, timeout: 4000 });
         });
     });
+
+    // Live waiting-time counter at a via stop — ticks up from the recorded
+    // "arrived at stop" time so the driver (and office) can see how long it's
+    // taking. Purely visual; the real record is the server timestamps.
+    (function () {
+        var els = document.querySelectorAll('.stop-wait-live');
+        if (!els.length) return;
+        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        var tick = function () {
+            els.forEach(function (el) {
+                var since = Date.parse(el.getAttribute('data-since'));
+                if (isNaN(since)) return;
+                var s = Math.max(0, Math.floor((Date.now() - since) / 1000));
+                var m = Math.floor(s / 60);
+                el.textContent = m < 60
+                    ? m + 'm ' + pad(s % 60) + 's'
+                    : Math.floor(m / 60) + 'h ' + pad(m % 60) + 'm';
+            });
+        };
+        tick();
+        setInterval(tick, 1000);
+    })();
 </script>
 @endverbatim
 <script src="{{ asset('js/cet-flight.js') }}"></script>

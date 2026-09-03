@@ -158,6 +158,93 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
+    /* ---- Per-stop arrive → wait → pick-up ----------------------------------
+     * For a stop that's a PICK-UP on the way, the driver taps "Arrived at stop"
+     * (starts a waiting clock) and later "Picked up" (stops it, advances). Both
+     * timestamps are kept in meta['stop_events'][index] so the office can see how
+     * long each stop took. */
+
+    /** The recorded events for one via stop (arrived_at / picked_up_at). */
+    public function stopEvent(int $i): array
+    {
+        return (array) ($this->meta['stop_events'][$i] ?? []);
+    }
+
+    public function stopArrivedAt(int $i): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->stopEvent($i)['arrived_at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    public function stopPickedUpAt(int $i): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->stopEvent($i)['picked_up_at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    /** The stop the driver is currently working — the first not-yet-picked-up stop, or null when all done. */
+    public function currentStopIndex(): ?int
+    {
+        foreach ($this->viaStops() as $i => $stop) {
+            if ($this->stopPickedUpAt($i) === null) {
+                return $i;
+            }
+        }
+
+        return null;
+    }
+
+    /** Record the driver arriving at stop $i — starts its waiting clock. Idempotent. */
+    public function markStopArrived(int $i): void
+    {
+        if ($this->stopArrivedAt($i)) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        $meta['stop_events'][$i]['arrived_at'] = now()->toIso8601String();
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Record the pick-up/departure at stop $i and advance to the next stop. Idempotent. */
+    public function markStopPickedUp(int $i): void
+    {
+        if ($this->stopPickedUpAt($i)) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        // If "Arrived" was skipped, stamp it now too so the wait reads 0, not blank.
+        $meta['stop_events'][$i]['arrived_at'] = $meta['stop_events'][$i]['arrived_at'] ?? now()->toIso8601String();
+        $meta['stop_events'][$i]['picked_up_at'] = now()->toIso8601String();
+        $meta['stops_reached'] = min(count($this->viaStops()), max($this->stopsReached(), $i + 1));
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Seconds spent at stop $i: final (arrived→picked-up) or live (arrived→now). Null if not arrived. */
+    public function stopWaitSeconds(int $i): ?int
+    {
+        $arrived = $this->stopArrivedAt($i);
+        if (! $arrived) {
+            return null;
+        }
+        $end = $this->stopPickedUpAt($i) ?? now();
+
+        return max(0, $arrived->diffInSeconds($end));
+    }
+
+    /** Human wait like "4m" / "1h 05m" for stop $i, or null if not arrived yet. */
+    public function stopWaitLabel(int $i): ?string
+    {
+        $s = $this->stopWaitSeconds($i);
+        if ($s === null) {
+            return null;
+        }
+        $m = intdiv($s, 60);
+
+        return $m < 60 ? $m.'m' : intdiv($m, 60).'h '.str_pad((string) ($m % 60), 2, '0', STR_PAD_LEFT).'m';
+    }
+
     public function statusHistory(): HasMany
     {
         return $this->hasMany(BookingStatusHistory::class);

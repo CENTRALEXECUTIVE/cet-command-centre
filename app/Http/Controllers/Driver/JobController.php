@@ -80,21 +80,40 @@ class JobController extends Controller
     }
 
     /**
-     * Multi-stop journeys: the driver taps "reached" at each via stop while the
-     * passenger is on board, so the screen guides them to the next stop before
-     * the final drop-off. Only advances while there's a stop still to reach.
+     * Multi-stop journeys: at each via stop the driver taps "Arrived at stop"
+     * (starts a waiting clock we record) and then "Picked up" (stops it and
+     * advances to the next stop). Only acts while a stop is still outstanding.
      */
     public function reachStop(Request $request, Booking $booking): RedirectResponse
     {
         $this->authoriseOwnership($request, $booking);
 
-        if ($booking->status === BookingStatus::Collected && ! $booking->allViaStopsReached()) {
-            $booking->markStopReached();
+        return $this->handleStopEvent($booking, $request->input('event', 'picked_up'));
+    }
+
+    /** Shared arrive/pick-up handling for a via stop (used by the link too). */
+    public static function handleStopEvent(Booking $booking, string $event): RedirectResponse
+    {
+        if ($booking->status !== BookingStatus::Collected || $booking->allViaStopsReached()) {
+            return back();
         }
 
+        $i = $booking->currentStopIndex();
+        if ($i === null) {
+            return back();
+        }
+
+        if ($event === 'arrived') {
+            $booking->markStopArrived($i);
+
+            return back()->with('status', 'Arrived at stop '.($i + 1).' — waiting time is now running.');
+        }
+
+        $booking->markStopPickedUp($i);
+
         return back()->with('status', $booking->allViaStopsReached()
-            ? 'Reached the last stop — you can complete the job at drop-off.'
-            : 'Stop reached — head to the next one.');
+            ? 'Picked up — that was the last stop. Head to the drop-off.'
+            : 'Picked up at stop '.($i + 1).' — head to the next one.');
     }
 
     /** Driver OKs the "collect the cash" reminder on a cash job. */

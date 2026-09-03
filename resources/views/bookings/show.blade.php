@@ -680,7 +680,15 @@
                 <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M Y, H:i') }}</td></tr>
                 <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
                 @foreach($booking->viaStops() as $i => $stop)
-                    <tr><th>Via {{ $i + 1 }}</th><td>🔀 {{ $stop }}</td></tr>
+                    <tr><th>Via {{ $i + 1 }}</th><td>
+                        🔀 {{ $stop }}
+                        @php $sArr = $booking->stopArrivedAt($i); $sPob = $booking->stopPickedUpAt($i); @endphp
+                        @if($sArr)
+                            <div class="hint" style="margin-top:2px">
+                                📍 Arrived {{ $sArr->format('H:i') }}@if($sPob) · 🧍 Picked up {{ $sPob->format('H:i') }} · ⏱ waited {{ $booking->stopWaitLabel($i) }}@else · ⏱ waiting {{ $booking->stopWaitLabel($i) }}…@endif
+                            </div>
+                        @endif
+                    </td></tr>
                 @endforeach
                 <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
                 @if($booking->airport)<tr><th>Airport</th><td>{{ $booking->airport->code }} — {{ $booking->airport->name }}</td></tr>@endif

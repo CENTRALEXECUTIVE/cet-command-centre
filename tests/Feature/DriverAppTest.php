@@ -130,26 +130,41 @@ class DriverAppTest extends TestCase
         ]);
         \App\Models\BookingStop::create(['booking_id' => $job->id, 'sequence' => 1, 'address' => '10 Ecclesall Road, Sheffield']);
 
-        // The job screen shows the stop and, since POB is done, guides to it —
+        // The job screen shows the stop and offers "I've arrived at stop 1" —
         // Complete is NOT offered yet.
         $this->actingAs($this->driver)->get(route('driver.job', $job))
             ->assertOk()
             ->assertSee('10 Ecclesall Road, Sheffield')
-            ->assertSee('Travel to the next drop-off')
-            ->assertSee('Reached stop 1 — Dropped off') // on board already → a drop-off, not a pickup
+            ->assertSee('Stop 1 of 1')
+            ->assertSee('I’ve arrived at stop 1')
             ->assertDontSee('Passenger On Board')       // never implies collecting them again
-            ->assertDontSee('Completed (final drop-off)')
-            ->assertDontSee('Waze to drop-off'); // hidden until the stop is done
+            ->assertDontSee('Completed (final drop-off)');
 
-        // Tap through the stop → counter advances, now Complete is offered.
-        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job))->assertRedirect();
-        $this->assertEquals(1, $job->fresh()->stopsReached());
+        // Tap ARRIVED → the waiting clock starts; still not reached, now offers pick-up.
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job), ['event' => 'arrived'])->assertRedirect();
+        $job->refresh();
+        $this->assertNotNull($job->stopArrivedAt(0));
+        $this->assertNull($job->stopPickedUpAt(0));
+        $this->assertEquals(0, $job->stopsReached());
+
+        $this->actingAs($this->driver)->get(route('driver.job', $job))
+            ->assertOk()
+            ->assertSee('Waiting at stop')
+            ->assertSee('Picked up — leave stop 1')
+            ->assertDontSee('Completed (final drop-off)');
+
+        // Tap PICKED UP → counter advances, waiting time is recorded, Complete offered.
+        $this->actingAs($this->driver)->post(route('driver.job.reach-stop', $job), ['event' => 'picked_up'])->assertRedirect();
+        $job->refresh();
+        $this->assertEquals(1, $job->stopsReached());
+        $this->assertNotNull($job->stopPickedUpAt(0));
+        $this->assertNotNull($job->stopWaitSeconds(0));
 
         $this->actingAs($this->driver)->get(route('driver.job', $job))
             ->assertOk()
             ->assertSee('Completed (final drop-off)')
             ->assertSee('Waze to drop-off') // now shown — heading to drop-off
-            ->assertDontSee('Travel to the next drop-off');
+            ->assertDontSee('Stop 1 of 1');
 
         // And Complete still works from there.
         $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'complete'])->assertRedirect();
@@ -192,6 +207,27 @@ class DriverAppTest extends TestCase
             ->assertOk()->assertSee('stop en route');
 
         \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_shareable_link_runs_the_two_step_stop_flow(): void
+    {
+        $customer = Customer::factory()->create(['phone' => '07700900444']);
+        $job = $this->jobFor($this->driver, [
+            'customer_id' => $customer->id,
+            'status' => BookingStatus::Collected,
+            'pickup_at' => now()->addHour(),
+            'meta' => ['stops' => ['22 Fitzwilliam St, Sheffield']],
+        ]);
+        $token = $job->driverLinkToken();
+
+        // Arrive (starts the wait), then pick up (advances) — no login needed.
+        $this->post(route('driver.link.reach-stop', $token), ['event' => 'arrived'])->assertRedirect();
+        $this->assertNotNull($job->fresh()->stopArrivedAt(0));
+        $this->assertEquals(0, $job->fresh()->stopsReached());
+
+        $this->post(route('driver.link.reach-stop', $token), ['event' => 'picked_up'])->assertRedirect();
+        $this->assertEquals(1, $job->fresh()->stopsReached());
+        $this->assertNotNull($job->fresh()->stopPickedUpAt(0));
     }
 
     public function test_public_tracking_page_renders_via_token(): void
