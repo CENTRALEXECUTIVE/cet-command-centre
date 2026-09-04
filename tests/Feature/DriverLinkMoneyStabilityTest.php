@@ -104,6 +104,27 @@ class DriverLinkMoneyStabilityTest extends TestCase
             ->assertSee('collect nothing');
     }
 
+    public function test_a_card_return_leg_says_paid_not_cash_collected_outbound(): void
+    {
+        // A CARD return leg was paid to the office, not in cash — so it must NOT
+        // say "Cash collected on the outbound leg"; it says "Paid — collect nothing".
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'payment_method' => PaymentMethod::Card->value,
+            'payment_status' => 'paid',
+            'quoted_price' => 210, 'final_price' => 210,
+            'is_return_leg' => true,
+            'journey_type' => 'return',
+        ]);
+
+        $this->assertSame('Paid — collect nothing', $booking->fresh()->driverCollectLine());
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('collect nothing')
+            ->assertDontSee('Cash collected on the outbound leg');
+    }
+
     public function test_the_outbound_leg_still_collects_the_cash(): void
     {
         // Same paired booking, the OUTBOUND leg: the driver DOES collect.

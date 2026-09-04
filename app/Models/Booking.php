@@ -2194,10 +2194,14 @@ class Booking extends Model
             return '£'.$amount.' to collect (cash)';
         }
 
-        // 1b) A return leg collects nothing on the day — the fare was taken on the
-        //     outbound leg. Say so plainly (never "Payment may be due").
+        // 1b) A return leg collects nothing on the day — the fare was handled on
+        //     the outbound leg. Word it by HOW it was paid: a cash job took the
+        //     cash outbound; a card/account job was paid to the office, so saying
+        //     "cash collected" would be wrong.
         if ($this->is_return_leg) {
-            return 'Cash collected on the outbound leg — collect nothing';
+            return $this->driverCollectsOnThisJob()
+                ? 'Cash collected on the outbound leg — collect nothing'
+                : 'Paid — collect nothing';
         }
 
         // 2) FAILSAFE: never tell a driver "collect nothing" when money might be
