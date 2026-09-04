@@ -683,6 +683,23 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString(rawurlencode('*Booking Reminder*'), $link);
     }
 
+    public function test_email_subject_uses_the_eto_reference_not_the_cet_one(): void
+    {
+        $booking = $this->makeBooking();
+        $booking->update(['external_reference' => 'C50ECF']); // the ETO ref
+        $booking->customer->update(['email' => 'david@example.com']);
+        $reminder = Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+            'to_address' => '07700900123', 'body' => 'Reminder', 'status' => 'queued',
+            'scheduled_for' => now()->subMinute(),
+        ]);
+
+        $subject = $reminder->fresh()->emailSubject();
+        $this->assertStringContainsString('C50ECF', $subject);
+        $this->assertStringNotContainsString($booking->reference, $subject);
+    }
+
     public function test_no_mailto_link_when_the_customer_has_no_email(): void
     {
         $booking = $this->makeBooking(); // customer has a phone but no email

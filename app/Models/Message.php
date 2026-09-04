@@ -161,7 +161,9 @@ class Message extends Model
     /** A readable email subject for this message's type. */
     public function emailSubject(): string
     {
-        $ref = $this->booking?->reference;
+        // Use the customer-facing ETO reference (external_reference) — the one the
+        // customer already knows from ETO — not our internal CET reference.
+        $ref = $this->booking?->external_reference ?: $this->booking?->reference;
 
         return match (true) {
             $this->isReminder() => 'Your upcoming journey with Central Executive Transfers'.($ref ? ' — '.$ref : ''),
