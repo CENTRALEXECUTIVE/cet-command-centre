@@ -57,11 +57,24 @@ class DriverJobOfferTest extends TestCase
 
         $this->assertStringContainsString('Job Available – 11/08/26', $msg);
         $this->assertStringContainsString('📍 33 Goose Lane, Wickersley, Rotherham S66 1JN → Manchester Airport M90 1QX', $msg);
-        $this->assertStringContainsString('🕒 Pickup: 08:00 am', $msg);
+        $this->assertStringContainsString('🕒 Pickup: 08:00 AM', $msg);
         $this->assertStringContainsString('👥 3 Passengers', $msg);
         $this->assertStringContainsString('🧳 2 Suitcases + Pram', $msg);
         $this->assertStringContainsString('👶 Customer has own car seat', $msg);
         $this->assertStringContainsString('💷 Fare to you: £130 Cash', $msg);
+    }
+
+    public function test_the_offer_time_is_24hr_with_am_only_before_noon(): void
+    {
+        // Morning → 24h + AM tag.
+        $am = $this->offerJob(['pickup_at' => '2026-08-11 08:05:00']);
+        $this->assertStringContainsString('🕒 Pickup: 08:05 AM', $am->driverOfferMessage());
+
+        // Afternoon → plain 24h, no AM/PM.
+        $pm = $this->offerJob(['pickup_at' => '2026-08-11 14:30:00']);
+        $msg = $pm->driverOfferMessage();
+        $this->assertStringContainsString('🕒 Pickup: 14:30', $msg);
+        $this->assertStringNotContainsString('14:30 PM', $msg);
     }
 
     public function test_the_offer_message_shows_via_stops_in_the_route(): void

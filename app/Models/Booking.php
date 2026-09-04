@@ -2414,8 +2414,10 @@ class Booking extends Model
         $lines[] = '📍 '.implode(' → ', array_filter($route));
 
         if ($this->pickup_at) {
-            // "08:00 am" style.
-            $lines[] = '🕒 Pickup: '.$this->pickup_at->format('h:i a');
+            // 24-hour, with " AM" appended before noon so an early start reads
+            // clearly (e.g. "08:00 AM", "14:30") — matches the reminder wording.
+            $time = $this->pickup_at->format('H:i');
+            $lines[] = '🕒 Pickup: '.($this->pickup_at->hour < 12 ? $time.' AM' : $time);
         }
 
         $pax = (int) $this->passengerCount();
