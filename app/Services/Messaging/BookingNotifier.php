@@ -104,6 +104,29 @@ class BookingNotifier
         $this->scheduleReviewRequest($booking);
     }
 
+    /**
+     * Pull any ALREADY-queued reminder for this booking back to the evening cutoff
+     * (default 19:00) if it's scheduled later. Reminders keep the send time stamped
+     * when they were created, so a rule change (or a reminder queued before it) is
+     * only applied by re-timing existing ones here — run every prepare pass. Only
+     * ever moves a reminder EARLIER, and only while it's still queued.
+     */
+    public function retimeQueuedRemindersToCutoff(Booking $booking): void
+    {
+        $messages = $booking->messages()
+            ->where('status', 'queued')
+            ->whereIn('type', ['reminder_24h', 'reminder_2h'])
+            ->whereNotNull('scheduled_for')
+            ->get();
+
+        foreach ($messages as $m) {
+            $capped = $this->capToReminderCutoff($m->scheduled_for->copy());
+            if ($capped->lt($m->scheduled_for)) {
+                $m->forceFill(['scheduled_for' => $capped])->save();
+            }
+        }
+    }
+
     public function ensureReminders(Booking $booking): void
     {
         if (blank($booking->customerContactNumber())

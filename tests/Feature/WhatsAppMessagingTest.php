@@ -705,6 +705,30 @@ class WhatsAppMessagingTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_prepare_reminders_retimes_an_existing_late_reminder_to_the_cutoff(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-09-05 09:00:00');
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'pickup_at' => '2026-09-06 23:00',
+        ]);
+        // A reminder queued under the old rule (late in the evening).
+        $reminder = Message::create([
+            'booking_id' => $booking->id, 'customer_id' => $booking->customer_id,
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'type' => 'reminder_24h',
+            'to_address' => $booking->customerContactNumber() ?? '07700900123',
+            'body' => 'x', 'status' => 'queued',
+            'scheduled_for' => '2026-09-05 22:00',
+        ]);
+
+        $this->artisan('cet:prepare-reminders')->assertSuccessful();
+
+        // Pulled back to the 19:00 cutoff.
+        $this->assertSame('2026-09-05 19:00', $reminder->fresh()->scheduled_for->format('Y-m-d H:i'));
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_a_daytime_pickup_reminder_keeps_its_normal_time(): void
     {
         \Illuminate\Support\Carbon::setTestNow('2026-09-05 09:00:00');
