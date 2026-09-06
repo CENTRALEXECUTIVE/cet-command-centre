@@ -1222,15 +1222,20 @@
                     </div>
                     <div class="msg-body" style="font-size:13px;color:#444;white-space:pre-line;margin-top:4px">{{ $m->renderedBody() }}</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
-                        @if($m->whatsAppLink() && $m->isReadyToSend())
+                        {{-- The office can send a message BY HAND at any time — the scheduled
+                             time is only a recommendation, never a lock. So the Send button is
+                             always available; if it's ahead of the recommended time we just note
+                             that alongside it. --}}
+                        @if($m->whatsAppLink() && $m->status !== 'sent')
                             <a href="{{ $m->whatsAppLink() }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:5px 12px;font-size:12px">📲 Send on WhatsApp</a>
-                        @elseif($m->isScheduledPrompt() && ! $m->isReadyToSend())
-                            <span class="muted" style="font-size:12px">🕗 Ready to send {{ $m->scheduled_for->format('D d M, H:i') }}</span>
+                        @endif
+                        @if($m->isScheduledPrompt() && ! $m->isReadyToSend() && $m->status !== 'sent')
+                            <span class="muted" style="font-size:12px">🕗 Suggested {{ $m->scheduled_for->format('D d M, H:i') }}</span>
                         @endif
                         {{-- Email fallback for customers who don't use WhatsApp — opens the
-                             operator's own mail app with the address + text pre-filled to review
-                             and send. Only shown when there's an email on file and it's due. --}}
-                        @if($m->emailLink() && $m->isReadyToSend())
+                             operator's own mail app with the address + text pre-filled. Always
+                             available (like the WhatsApp send) when there's an email on file. --}}
+                        @if($m->emailLink() && $m->status !== 'sent')
                             <a href="{{ $m->emailLink() }}" class="btn" style="background:#1f6feb;color:#fff;padding:5px 12px;font-size:12px" title="Email to {{ $booking->customer?->email }}">✉️ Email</a>
                         @endif
                         <button type="button" class="btn btn-ghost copy-msg" style="padding:5px 12px;font-size:12px">⧉ Copy</button>

@@ -683,6 +683,25 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString(rawurlencode('*Booking Reminder*'), $link);
     }
 
+    public function test_a_reminder_can_be_sent_before_its_suggested_time(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-09-05 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $booking = $this->makeBooking(); // reminder lands tomorrow, ahead of "now"
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertNotNull($reminder);
+        $this->assertFalse($reminder->isReadyToSend()); // still before its suggested time
+
+        // The office can still send it right now — button shown, with the
+        // suggested time noted alongside (not a lock).
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('Send on WhatsApp')
+            ->assertSee('Suggested');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_a_late_evening_pickup_is_reminded_by_7pm_not_late(): void
     {
         \Illuminate\Support\Carbon::setTestNow('2026-09-05 09:00:00');
