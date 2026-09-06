@@ -2353,12 +2353,16 @@ class Booking extends Model
     public function driverOfferFare(): string
     {
         $pay = $this->driverPay();
-        $method = $this->hasCashToCollect() ? 'Cash' : 'Bank transfer';
         if ($pay === null) {
             return '£____'; // set the driver's pay to fill this in
         }
 
-        return '£'.rtrim(rtrim(number_format($pay, 2), '0'), '.').' '.$method;
+        $amount = '£'.rtrim(rtrim(number_format($pay, 2), '0'), '.');
+
+        // A cash job still flags "Cash" (the driver collects it on the day); a
+        // bank-transfer job just shows the amount — no need to spell out "Bank
+        // transfer".
+        return $this->hasCashToCollect() ? $amount.' Cash' : $amount;
     }
 
     /** Luggage line for the offer, appending a pram/buggy etc. spotted in notes. */

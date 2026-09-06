@@ -220,13 +220,13 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
     }
 
-    public function test_late_night_reminder_is_pulled_back_to_the_ten_pm_edge(): void
+    public function test_late_night_reminder_is_pulled_back_to_the_evening_cutoff(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
         $admin = User::factory()->admin()->create();
 
-        // Pickup at 23:30 → 24h mark is 23:30 (after 22:00), so the reminder is
-        // pulled back to 22:00 the day before — never sent late at night.
+        // Pickup at 23:30 → 24h mark is 23:30, so the reminder is pulled back to
+        // the 19:00 evening cutoff the day before — never sent late at night.
         $pickup = now()->addDays(5)->setTime(23, 30);
         $booking = app(BookingService::class)->createFromForm([
             'customer_name' => 'Late Runner', 'customer_phone' => '07700900557',
@@ -238,7 +238,7 @@ class WhatsAppMessagingTest extends TestCase
 
         $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
         $this->assertNotNull($reminder);
-        $this->assertEquals('22:00', $reminder->scheduled_for->format('H:i'));
+        $this->assertEquals('19:00', $reminder->scheduled_for->format('H:i'));
         $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
     }
 
@@ -681,6 +681,49 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringContainsString('subject='.rawurlencode('Your upcoming journey with Central Executive Transfers'), $link);
         $this->assertStringContainsString(rawurlencode('Booking Reminder'), $link);
         $this->assertStringNotContainsString(rawurlencode('*Booking Reminder*'), $link);
+    }
+
+    public function test_a_late_evening_pickup_is_reminded_by_7pm_not_late(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-09-05 09:00:00');
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Night Owl', 'customer_phone' => '07700900999',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => '2026-09-06 23:00', // 11pm tomorrow
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 2, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        $this->assertNotNull($reminder);
+        // The natural 23:00 time is pulled back to the 19:00 cutoff.
+        $this->assertSame('2026-09-05 19:00', $reminder->scheduled_for->format('Y-m-d H:i'));
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_a_daytime_pickup_reminder_keeps_its_normal_time(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-09-05 09:00:00');
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Day Tripper', 'customer_phone' => '07700900112',
+            'vehicle_type_id' => $executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => '2026-09-06 16:00', // 4pm tomorrow
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 2, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $reminder = Message::where('booking_id', $booking->id)->where('type', 'reminder_24h')->first();
+        // 24h before is 16:00 the day before — inside the day, not capped.
+        $this->assertSame('2026-09-05 16:00', $reminder->scheduled_for->format('Y-m-d H:i'));
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_email_subject_uses_the_eto_reference_not_the_cet_one(): void

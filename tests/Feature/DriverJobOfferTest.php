@@ -105,7 +105,7 @@ class DriverJobOfferTest extends TestCase
         $this->assertStringContainsString('Fare to you: £145 Cash', $booking->fresh()->driverOfferMessage());
     }
 
-    public function test_a_card_job_shows_bank_transfer_not_cash(): void
+    public function test_a_card_job_shows_just_the_amount_no_payment_method(): void
     {
         $booking = $this->offerJob([
             'payment_method' => PaymentMethod::Card->value,
@@ -114,7 +114,9 @@ class DriverJobOfferTest extends TestCase
         ]);
         $booking->forceFill(['meta' => ['payment_text' => 'Paid £130 (Stripe)', 'payroll' => ['pay' => 60, 'paid' => 0, 'history' => []]]])->save();
 
-        $this->assertStringContainsString('Fare to you: £60 Bank transfer', $booking->fresh()->driverOfferMessage());
+        $msg = $booking->fresh()->driverOfferMessage();
+        $this->assertStringContainsString('Fare to you: £60', $msg);
+        $this->assertStringNotContainsString('Bank transfer', $msg); // just the amount
     }
 
     public function test_the_booking_page_shows_the_offer_card_to_admins(): void

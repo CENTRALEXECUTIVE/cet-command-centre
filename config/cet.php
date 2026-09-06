@@ -94,6 +94,12 @@ return [
         'end' => env('CET_SEND_WINDOW_END', '22:00'),
     ],
 
+    // Pickup REMINDERS are never scheduled to go out after this time — an evening
+    // or late-night pickup (e.g. an 11pm job) would otherwise be reminded at 11pm
+    // the day before, which reads as unprofessional. Any reminder whose ideal time
+    // is later than this is pulled back to it (e.g. sent by 19:00 instead).
+    'reminder_cutoff' => env('CET_REMINDER_CUTOFF', '19:00'),
+
     // Quote extras (GBP) — mirrors the ETO Item Surcharge price list, so a CET
     // quote matches what ETO would have charged. Editable via env if rates move.
     'surcharges' => [

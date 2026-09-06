@@ -72,6 +72,10 @@ class BookingNotifier
         // due now so it lands on the "to send" list immediately. That's the only
         // reminder — one clean nudge, no second 2h message.
         $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
+        // Never send a reminder late in the evening — an 11pm pickup would land its
+        // day-before reminder at 11pm, which reads as unprofessional. Pull anything
+        // past the cutoff (default 19:00) back to it.
+        $at24h = $this->capToReminderCutoff($at24h);
         $this->queueReminder($booking, 'reminder_24h', $at24h->isPast() ? now() : $at24h);
     }
 
@@ -356,6 +360,19 @@ class BookingNotifier
             $day->copy()->setTime((int) $sh, (int) $sm),
             $day->copy()->setTime((int) $eh, (int) $em),
         ];
+    }
+
+    /**
+     * Pull a reminder's send time back to the evening cutoff (default 19:00) if
+     * it's later, so a late/evening pickup isn't reminded at an antisocial hour.
+     * Only ever moves the time EARLIER — the send-window start still applies.
+     */
+    private function capToReminderCutoff(\Illuminate\Support\Carbon $when): \Illuminate\Support\Carbon
+    {
+        [$h, $m] = array_pad(explode(':', (string) config('cet.reminder_cutoff', '19:00')), 2, 0);
+        $cutoff = $when->copy()->setTime((int) $h, (int) $m);
+
+        return $when->gt($cutoff) ? $cutoff : $when;
     }
 
     private function withinSendWindow(\Illuminate\Support\Carbon $when): bool
