@@ -331,6 +331,47 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertStringNotContainsString('drop us a message', $body); // not the office on a return
     }
 
+    public function test_foreign_number_return_airport_reminder_routes_through_the_office(): void
+    {
+        // A non-UK number can't be bridged by the masked line and won't match on
+        // WhatsApp, so a return (inbound) airport job must send them to the office.
+        $booking = $this->calendarBooking(['flight_number' => 'EZY2104', 'is_return_leg' => true, 'journey_type' => 'return']);
+        $booking->customer->update(['phone' => '+33 6 12 34 56 78']); // French mobile
+        $booking = $booking->fresh();
+
+        $this->assertTrue($booking->customerHasForeignNumber());
+
+        $body = app(BookingNotifier::class)->reminderBody($booking);
+        $this->assertStringContainsString('drop us a message', $body);
+        $this->assertStringContainsString('baggage', $body);
+        $this->assertStringNotContainsString('message your driver directly', $body);
+    }
+
+    public function test_a_uk_number_return_airport_reminder_is_unchanged(): void
+    {
+        $booking = $this->calendarBooking(['flight_number' => 'EZY2104', 'is_return_leg' => true, 'journey_type' => 'return']);
+        $booking->customer->update(['phone' => '07700900123']); // UK
+        $booking = $booking->fresh();
+
+        $this->assertFalse($booking->customerHasForeignNumber());
+
+        $body = app(BookingNotifier::class)->reminderBody($booking);
+        $this->assertStringContainsString('message your driver directly', $body);
+        $this->assertStringNotContainsString('drop us a message', $body);
+    }
+
+    public function test_a_foreign_number_on_the_outbound_leg_is_not_routed_through_the_office(): void
+    {
+        // Outbound (drop-off at the airport) — not a "landed" leg, so no office note
+        // even with a foreign number.
+        $booking = $this->calendarBooking(['flight_number' => 'EZY2104', 'is_return_leg' => false]);
+        $booking->customer->update(['phone' => '+33 6 12 34 56 78']);
+        $booking = $booking->fresh();
+
+        $body = app(BookingNotifier::class)->reminderBody($booking);
+        $this->assertStringNotContainsString('drop us a message', $body);
+    }
+
     public function test_a_multi_car_reminder_lists_every_car(): void
     {
         $lead = User::factory()->driver()->create(['name' => 'Arfan Khan']);

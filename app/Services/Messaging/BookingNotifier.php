@@ -205,9 +205,15 @@ class BookingNotifier
             return null;
         }
 
-        // On every airport pickup the customer messages their DRIVER directly once
-        // they've landed (the driver's details are in the same message), rather
-        // than the office.
+        // A foreign-number customer on a return (inbound) leg can't be reached by
+        // the driver — the masked line won't bridge a non-UK number and they won't
+        // find each other on WhatsApp — so route them through the OFFICE instead.
+        if ($booking->is_return_leg && $booking->customerHasForeignNumber()) {
+            return '✈️ Please drop us a message here once you\'ve landed, and keep us updated on your baggage, so we can arrange for your driver to meet you.';
+        }
+
+        // On every other airport pickup the customer messages their DRIVER directly
+        // once they've landed (the driver's details are in the same message).
         return '✈️ Please message your driver directly once you\'ve landed so they can arrange to meet you.';
     }
 
@@ -630,9 +636,17 @@ class BookingNotifier
             return null;
         }
 
-        return 'Hi '.$this->firstName($booking).','."\n\n"
+        $body = 'Hi '.$this->firstName($booking).','."\n\n"
             .'Please find your driver\'s details below:'."\n\n"
-            .$block."\n\n".self::FOOTER;
+            .$block;
+
+        // Foreign-number customer on a return (inbound) leg: the driver can't
+        // reach them directly, so tell them to liaise with the office once landed.
+        if ($booking->is_return_leg && $booking->isAirportPickup() && $booking->customerHasForeignNumber()) {
+            $body .= "\n\n".'✈️ Please drop us a message here once you\'ve landed, and keep us updated on your baggage, so we can arrange for your driver to meet you.';
+        }
+
+        return $body."\n\n".self::FOOTER;
     }
 
     public function sendDriverDetails(Booking $booking): ?Message

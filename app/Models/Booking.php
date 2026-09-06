@@ -1791,6 +1791,16 @@ class Booking extends Model
      * pickup address mentioning an airport, or the linked airport code appearing
      * in the pickup location.
      */
+    /**
+     * The customer's number for this booking is a NON-UK number — the driver's
+     * masked line can't bridge it and they won't find each other on WhatsApp, so
+     * these customers must be coordinated through the office.
+     */
+    public function customerHasForeignNumber(): bool
+    {
+        return \App\Support\Phone::isForeign($this->customerContactNumber());
+    }
+
     public function isAirportPickup(): bool
     {
         if (str_contains(strtolower((string) ($this->meta['journey_label'] ?? '')), 'arrival')) {

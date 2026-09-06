@@ -45,4 +45,17 @@ class Phone
 
         return $d;
     }
+
+    /**
+     * A non-UK number — the driver's masked line can't bridge it and WhatsApp
+     * won't match a foreign number, so these customers must liaise through the
+     * office. True only when we have a usable number that normalises to a country
+     * code other than 44.
+     */
+    public static function isForeign(?string $number): bool
+    {
+        $wa = self::wa($number);
+
+        return $wa !== null && ! str_starts_with($wa, '44');
+    }
 }

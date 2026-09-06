@@ -756,6 +756,29 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertNull($reminder->fresh()->emailLink());
     }
 
+    public function test_driver_details_route_a_foreign_return_customer_through_the_office(): void
+    {
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Jabir Khan', 'email' => 'jabir@cet.test']);
+        $vehicle = \App\Models\Vehicle::create([
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'registration' => 'KW68 VOT', 'make' => 'Mercedes', 'model' => 'E-Class', 'colour' => 'Blue', 'is_active' => true,
+        ]);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'default_vehicle_id' => $vehicle->id]);
+
+        $customer = \App\Models\Customer::factory()->create(['phone' => '+33 6 12 34 56 78']);
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'driver_id' => $driver->id,
+            'is_return_leg' => true, 'journey_type' => 'return',
+            'pickup_address' => 'Manchester Airport (MAN)',
+            'pickup_at' => now()->addDay(),
+        ]);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->driverDetailsBody($booking->fresh());
+        $this->assertStringContainsString('Driver Name: Jabir', $body);
+        $this->assertStringContainsString('drop us a message', $body);
+        $this->assertStringContainsString('baggage', $body);
+    }
+
     public function test_admin_can_send_a_custom_message(): void
     {
         $booking = $this->makeBooking();
