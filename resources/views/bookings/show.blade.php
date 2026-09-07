@@ -33,9 +33,13 @@
                 <span class="bh-chip warn">💳 {{ ucfirst($booking->payment_status ?? 'pending') }}</span>
             @endif
             @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->displayFlightNumber() }}</span>@endif
-            @php $waited = $booking->recordedWaitingMinutes() ?? ($booking->status === \App\Enums\BookingStatus::Arrived ? $booking->waitingBillableMinutes() : null); @endphp
+            @php
+                $waited = $booking->recordedWaitingMinutes() ?? ($booking->status === \App\Enums\BookingStatus::Arrived ? $booking->waitingBillableMinutes() : null);
+                // Total time at the pickup = the free grace + any prepaid minutes + the billable overage.
+                $totalWaited = $waited === null ? null : ($booking->waitingGraceMinutes() + $booking->waitingIncludedMinutes() + $waited);
+            @endphp
             @if($waited !== null && $waited > 0)
-                <span class="bh-chip warn" title="Billable waiting time past the free {{ $booking->waitingGraceMinutes() }} min{{ $booking->recordedWaitingMinutes() === null ? ' (still waiting)' : '' }}">⏱ {{ $waited }} min waiting</span>
+                <span class="bh-chip warn" title="Driver waited about {{ $totalWaited }} min at the pickup — {{ $waited }} min past the free {{ $booking->waitingGraceMinutes() }} min{{ $booking->waitingIncludedMinutes() > 0 ? ' + '.$booking->waitingIncludedMinutes().' min paid for' : '' }}{{ $booking->recordedWaitingMinutes() === null ? ' (still waiting)' : '' }}">⏱ {{ $totalWaited }} min waited · {{ $waited }} chargeable</span>
             @endif
             @if($booking->waitingCharge() > 0)
                 @php

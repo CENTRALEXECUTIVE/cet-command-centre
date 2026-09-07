@@ -195,9 +195,10 @@ class WaitingTimeTest extends TestCase
         // At the pickup since 09:00 → 30 min − 15 grace = 15 billable, live.
         $booking = $this->arrived(Carbon::parse('2026-08-11 09:00:00'));
 
+        // 30 min at the pickup, 15 of them past the free 15-min grace.
         $this->actingAs($admin)->get(route('bookings.show', $booking))
             ->assertOk()
-            ->assertSee('15 min waiting');
+            ->assertSee('30 min waited · 15 chargeable');
 
         Carbon::setTestNow();
     }
