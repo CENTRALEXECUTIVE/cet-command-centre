@@ -181,8 +181,9 @@
                             </select>
                         </div>
                         <div class="field" style="margin:0">
-                            <label for="waiting_minutes" style="font-size:12px">Roughly how long (mins)</label>
-                            <input id="waiting_minutes" type="number" name="waiting_minutes" min="0" max="600" value="{{ old('waiting_minutes', $wt['minutes'] ?? '') }}" placeholder="e.g. 20">
+                            <label for="waiting_minutes" style="font-size:12px">Minutes included (paid for)</label>
+                            <input id="waiting_minutes" type="number" name="waiting_minutes" min="0" max="600" value="{{ old('waiting_minutes', $wt['minutes'] ?? '') }}" placeholder="e.g. 30">
+                            <p class="hint" style="margin:4px 0 0">Free {{ config('cet.waiting_grace_minutes', 15) }} min, then these paid-for minutes; waiting beyond both is charged at the vehicle's hourly rate.</p>
                         </div>
                     </div>
                 </div>

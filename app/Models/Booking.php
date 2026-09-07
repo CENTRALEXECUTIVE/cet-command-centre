@@ -432,6 +432,47 @@ class Booking extends Model
         return $v === null ? null : (int) $v;
     }
 
+    /* ---- Waiting-time CHARGE ------------------------------------------------
+     * Waiting is free for the grace period (15 min), then for any minutes the
+     * customer already paid for (the "waiting time included" tick-box). Only
+     * beyond BOTH does a charge apply, at the vehicle's hourly rate pro-rated per
+     * minute. Uses the frozen pickup waiting once recorded, else the live figure. */
+
+    /** Minutes of waiting the customer has already paid for (the tick-box). */
+    public function waitingIncludedMinutes(): int
+    {
+        $info = $this->waitingTimeInfo();
+
+        return $info !== null && isset($info['minutes']) ? max(0, (int) $info['minutes']) : 0;
+    }
+
+    /** The waiting hourly charge rate for this booking's vehicle type (GBP). */
+    public function waitingHourlyRate(): float
+    {
+        $rates = (array) config('cet.waiting_charge_per_hour', []);
+        $slug = $this->vehicleType?->slug;
+
+        return (float) ($rates[$slug] ?? $rates['default'] ?? 20);
+    }
+
+    /**
+     * Chargeable waiting minutes: the pickup waiting past the free grace (which
+     * recordedWaitingMinutes/waitingBillableMinutes already exclude), minus the
+     * minutes the customer prepaid. 0 until they're over both allowances.
+     */
+    public function waitingChargeableMinutes(): int
+    {
+        $billable = $this->recordedWaitingMinutes() ?? $this->waitingBillableMinutes();
+
+        return (int) max(0, $billable - $this->waitingIncludedMinutes());
+    }
+
+    /** The waiting charge for the customer (GBP), hourly rate pro-rated per minute. */
+    public function waitingCharge(): float
+    {
+        return round($this->waitingChargeableMinutes() * $this->waitingHourlyRate() / 60, 2);
+    }
+
     /** Freeze the waiting time onto the booking (called when the passenger boards). */
     public function recordWaitingTime(): void
     {

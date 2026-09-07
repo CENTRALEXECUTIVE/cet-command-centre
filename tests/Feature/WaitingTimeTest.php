@@ -232,6 +232,52 @@ class WaitingTimeTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_waiting_charge_applies_after_grace_and_prepaid(): void
+    {
+        $this->seed(\Database\Seeders\VehicleTypeSeeder::class);
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->create(['vehicle_type_id' => $exec->id]);
+        // 60 billable min (already past the 15 free), 30 min the customer paid for.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'waiting' => ['billable_minutes' => 60, 'grace_minutes' => 15],
+            'waiting_time' => ['where' => 'pickup', 'minutes' => 30],
+        ])])->save();
+        $b = $booking->fresh();
+
+        $this->assertSame(30, $b->waitingChargeableMinutes());   // 60 − 30 prepaid
+        $this->assertSame(20.0, $b->waitingHourlyRate());
+        $this->assertSame(10.0, $b->waitingCharge());            // 30 min × £20/hr
+    }
+
+    public function test_no_waiting_charge_within_the_prepaid_allowance(): void
+    {
+        $this->seed(\Database\Seeders\VehicleTypeSeeder::class);
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->create(['vehicle_type_id' => $exec->id]);
+        // 20 billable, 30 prepaid → nothing to charge.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'waiting' => ['billable_minutes' => 20, 'grace_minutes' => 15],
+            'waiting_time' => ['where' => 'pickup', 'minutes' => 30],
+        ])])->save();
+
+        $this->assertSame(0.0, $booking->fresh()->waitingCharge());
+    }
+
+    public function test_bigger_vehicles_charge_the_higher_waiting_rate(): void
+    {
+        $this->seed(\Database\Seeders\VehicleTypeSeeder::class);
+        $vclass = \App\Models\VehicleType::where('slug', 'v-class')->first();
+        $booking = Booking::factory()->create(['vehicle_type_id' => $vclass->id]);
+        // 60 billable, no prepaid → 60 min × £30/hr = £30.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'waiting' => ['billable_minutes' => 60, 'grace_minutes' => 15],
+        ])])->save();
+        $b = $booking->fresh();
+
+        $this->assertSame(30.0, $b->waitingHourlyRate());
+        $this->assertSame(30.0, $b->waitingCharge());
+    }
+
     public function test_without_pickup_coords_it_falls_back_to_the_arrival_tap_when_sharing(): void
     {
         Carbon::setTestNow('2026-08-11 12:00:00');

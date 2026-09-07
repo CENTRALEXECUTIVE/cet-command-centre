@@ -68,6 +68,19 @@ return [
     // billable time AFTER this grace period elapses.
     'waiting_grace_minutes' => (int) env('CET_WAITING_GRACE_MINUTES', 15),
 
+    // Waiting-time CHARGE (GBP per hour, pro-rated per minute) applied only after
+    // the free grace above AND any minutes the customer already paid for (the
+    // booking's "waiting time included" tick-box). Keyed by vehicle-type slug; any
+    // type not listed uses 'default'. £20/hr executive & estate, £30/hr for the
+    // bigger vehicles (8-seater, XL, V-Class) and the Rolls.
+    'waiting_charge_per_hour' => [
+        'default' => (float) env('CET_WAITING_CHARGE_DEFAULT', 20),
+        'minibus-8' => (float) env('CET_WAITING_CHARGE_MINIBUS', 30),
+        'minibus-8-xl' => (float) env('CET_WAITING_CHARGE_MINIBUS_XL', 30),
+        'v-class' => (float) env('CET_WAITING_CHARGE_VCLASS', 30),
+        'rolls-royce-ghost' => (float) env('CET_WAITING_CHARGE_ROLLS', 30),
+    ],
+
     // Compliance: how many days before expiry an item becomes "due soon" and a
     // WhatsApp renewal reminder is sent.
     'compliance_warn_days' => 30,
