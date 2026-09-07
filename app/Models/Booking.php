@@ -2006,6 +2006,32 @@ class Booking extends Model
         return $this->calendarNotes();
     }
 
+    /** Every note source, lower-cased and joined — for scanning (ribbon, waiting…). */
+    private function notesBlob(): string
+    {
+        return strtolower(trim(implode(' ', array_filter([
+            $this->driverReadNotes(),
+            $this->special_requests,
+            (string) ($this->meta['notes'] ?? ''),
+        ]))));
+    }
+
+    /** A wedding/prom RIBBON job — the car needs ribbons fitted. */
+    public function isRibbonJob(): bool
+    {
+        return str_contains($this->notesBlob(), 'ribbon');
+    }
+
+    /**
+     * The job carries waiting time the driver should know about — at the pickup or
+     * at a stop (e.g. "waiting at stop", "wait and return"). Detected from the
+     * notes; the detail (where/how long) is in the notes themselves.
+     */
+    public function hasWaitingTime(): bool
+    {
+        return (bool) preg_match('/\bwait/', $this->notesBlob());
+    }
+
     /**
      * The driver-relevant note from the calendar event's "Notes" line, with the
      * "Booked by X" booker prefix stripped (the driver wants the instruction, not
@@ -2448,8 +2474,22 @@ class Booking extends Model
         if ($vehicle = $this->displayVehicleType()) {
             $lines[] = '🚐 '.$vehicle;
         }
+        if ($this->isRibbonJob()) {
+            $lines[] = '🎀 Ribbon job';
+        }
+        if ($this->hasWaitingTime()) {
+            $lines[] = '⏳ Waiting time on this job — see notes';
+        }
 
         $lines[] = '💷 Fare to you: '.$this->driverOfferFare();
+
+        // Any driver notes (office notes / special requests / calendar note) —
+        // this is where waiting-time detail like "waiting at stop for Nathan" and
+        // other instructions reach the driver.
+        if ($notes = $this->driverReadNotes()) {
+            $lines[] = '';
+            $lines[] = '📝 Notes: '.$notes;
+        }
 
         return implode("\n", $lines);
     }

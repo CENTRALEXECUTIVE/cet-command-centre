@@ -266,6 +266,12 @@ class CalendarEventBuilder
         }
         $add('Drop-off Location', $booking->displayDropoffAddress());
         $add('Vehicle Type', $booking->displayVehicleType() ?: $booking->vehicleType?->name);
+        if ($booking->isRibbonJob()) {
+            $add('Ribbon', 'Required 🎀');
+        }
+        if ($booking->hasWaitingTime()) {
+            $add('Waiting time', 'Yes — see notes');
+        }
         // Paid vs cash only — no amount for the driver.
         $add('Payment', $this->driverPaymentLabel($booking));
         // Deliberately NO Booking Reference for drivers.

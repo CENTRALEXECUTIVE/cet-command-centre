@@ -98,6 +98,14 @@ class DriverBriefTest extends TestCase
         $this->assertStringContainsString('Passengers', $brief);
     }
 
+    public function test_brief_flags_ribbon_and_waiting_time(): void
+    {
+        $brief = $this->brief(['special_requests' => 'Ribbon on the car. Waiting at pickup ~20 mins.']);
+
+        $this->assertStringContainsString('Ribbon', $brief);
+        $this->assertStringContainsString('Waiting time', $brief);
+    }
+
     public function test_cash_job_shows_the_amount_to_collect(): void
     {
         // The driver needs to know how much cash to take — show it.

@@ -77,6 +77,29 @@ class DriverJobOfferTest extends TestCase
         $this->assertStringNotContainsString('14:30 PM', $msg);
     }
 
+    public function test_offer_flags_ribbon_and_waiting_time_and_shows_notes(): void
+    {
+        $booking = $this->offerJob([
+            'special_requests' => 'Ribbon on the car please. Waiting at stop for Nathan.',
+        ]);
+        $booking->forceFill(['meta' => ['payroll' => ['pay' => 130, 'paid' => 0, 'history' => []]]])->save();
+
+        $msg = $booking->fresh()->driverOfferMessage();
+        $this->assertStringContainsString('🎀 Ribbon job', $msg);
+        $this->assertStringContainsString('⏳ Waiting time on this job', $msg);
+        $this->assertStringContainsString('📝 Notes: Ribbon on the car please. Waiting at stop for Nathan.', $msg);
+    }
+
+    public function test_offer_has_no_ribbon_or_waiting_flags_by_default(): void
+    {
+        $booking = $this->offerJob(['special_requests' => null]);
+        $booking->forceFill(['meta' => ['payroll' => ['pay' => 130, 'paid' => 0, 'history' => []]]])->save();
+
+        $msg = $booking->fresh()->driverOfferMessage();
+        $this->assertStringNotContainsString('Ribbon', $msg);
+        $this->assertStringNotContainsString('Waiting time', $msg);
+    }
+
     public function test_the_offer_message_shows_via_stops_in_the_route(): void
     {
         $booking = $this->offerJob();
