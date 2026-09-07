@@ -1167,7 +1167,38 @@ class BookingController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
+        // Pressing this button is the operator's deliberate "use the calendar as
+        // the truth" override: throw away any edit made in the app so the
+        // mirrored calendar values (addresses, via stops, details) actually show
+        // instead of the edited ones. A normal Save still sticks — and the
+        // AUTOMATIC calendar refresh never clears an edit; only this button does.
+        $meta = $booking->meta ?? [];
+        $discardedEdit = ! empty($meta['edited_fields'])
+            || ! empty($meta['manually_edited_at'])
+            || $booking->stops()->exists();
+        unset($meta['edited_fields'], $meta['manually_edited_at'], $meta['stops'], $meta['stops_reached'], $meta['stop_events']);
+        $booking->forceFill(['meta' => $meta])->save();
+        $booking->stops()->delete();
+        $booking->setRelation('stops', $booking->stops()->getRelated()->newCollection());
+
         $result = $sync->scan($booking);
+
+        // With the edit flags cleared, the display now mirrors the calendar. Pin
+        // the calendar's addresses into the booking's own columns too, so code
+        // that reads the raw columns (not just the display accessors) agrees.
+        if ($result['status'] === 'ok') {
+            $booking->refresh();
+            $columns = [];
+            if (filled($pick = $booking->calendarField('Pickup Location'))) {
+                $columns['pickup_address'] = $pick;
+            }
+            if (filled($drop = $booking->calendarField('Drop-off Location'))) {
+                $columns['destination_address'] = $drop;
+            }
+            if ($columns !== []) {
+                $booking->forceFill($columns)->save();
+            }
+        }
 
         if ($result['status'] !== 'ok') {
             $ref = $booking->external_reference ?: $booking->reference;
@@ -1193,12 +1224,16 @@ class BookingController extends Controller
             return back()->with('status', '⚠ Scan couldn’t verify against the live calendar: '.$why);
         }
 
-        if ($result['changes'] === []) {
+        if ($result['changes'] === [] && ! $discardedEdit) {
             return back()->with('status', '✅ Scanned the live calendar — this booking matches it exactly. Nothing to correct.');
         }
 
+        $note = $discardedEdit
+            ? '↩️ Reverted to the calendar — your app edits were discarded and this booking now matches the calendar exactly.'
+            : '🗓 Scanned the live calendar — '.count($result['changes']).' thing(s) corrected to match it.';
+
         return back()
-            ->with('status', '🗓 Scanned the live calendar — '.count($result['changes']).' thing(s) corrected to match it.')
+            ->with('status', $note)
             ->with('scanChanges', $result['changes']);
     }
 

@@ -193,9 +193,10 @@
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         <div class="toolbar" style="margin-bottom:16px">
             @if(!empty($canScan))
-                <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}">
+                <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}"
+                      onsubmit="return confirm('Match this booking to the Google Calendar?\n\nThis discards any changes you made in the app and takes the calendar as the truth — time, addresses, via stops and details. The calendar itself is not changed.')">
                     @csrf
-                    <button class="btn btn-dark" style="padding:9px 16px">🔍 Scan calendar</button>
+                    <button class="btn btn-dark" style="padding:9px 16px">🔄 Match calendar</button>
                 </form>
             @endif
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
@@ -203,7 +204,7 @@
         </div>
         @if(!empty($canScan))
             <p class="hint" style="margin:-8px 0 16px">
-                <strong>Scan calendar</strong> finds this booking on your live Google Calendar (by its reference), then makes it match exactly — time, addresses, and the full details block. Never changes the calendar.
+                <strong>Match calendar</strong> finds this booking on your live Google Calendar (by its reference) and makes the app match it exactly — time, addresses, via stops and the full details block. Your own edits in the app always stick until you press this — pressing it discards them and takes the calendar as the truth. Never changes the calendar.
                 @if(!empty($booking->meta['calendar_scanned_at']))
                     · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
                 @endif

@@ -252,6 +252,58 @@ class CalendarScanTest extends TestCase
         $this->assertSame('16:45', $booking->pickup_at->format('H:i'));
     }
 
+    public function test_match_calendar_discards_an_app_edit_and_reverts_to_the_calendar(): void
+    {
+        // The boss's override: an edit made in the app STICKS until "Match
+        // calendar" is pressed — then the app throws the edit away and takes the
+        // calendar as the truth (addresses, via stops and all).
+        $admin = User::factory()->admin()->create();
+        $booking = $this->linkedBooking();
+
+        // Edit it in the app: new addresses + a via stop, marked per-field.
+        $booking->forceFill([
+            'pickup_address' => 'EDITED PICKUP',
+            'destination_address' => 'EDITED DROP-OFF',
+            'meta' => array_merge($booking->meta ?? [], [
+                'manually_edited_at' => now()->toIso8601String(),
+                'edited_fields' => ['pickup_address', 'destination_address'],
+            ]),
+        ])->save();
+        $booking->stops()->create(['sequence' => 1, 'address' => 'EDITED STOP']);
+        $booking = $booking->fresh();
+        $this->assertSame('EDITED PICKUP', $booking->displayPickupAddress()); // edit wins until we revert
+
+        // The live calendar carries the true journey.
+        $this->mockGoogle(readEvent: [
+            'id' => 'evt_live',
+            'start' => $booking->pickup_at->copy(),
+            'end' => $booking->pickup_at->copy()->addHour(),
+            'title' => '*Nathan Haddad LHR (V CLASS)*',
+            'location' => 'Wildes Inn, Clowne',
+            'description' => "📑 *Booking Confirmation*\n• *Booking Reference:* JXQN1Ab\n"
+                ."• *Pickup Location:* Wildes Inn, Clowne\n"
+                ."• *Via:* Hilton London Heathrow Airport, Terminal 4\n"
+                ."• *Drop-off Location:* 174 Willifield Way, London NW11 6YD",
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('bookings.scan-calendar', $booking))
+            ->assertRedirect()
+            ->assertSessionHas('status', fn ($s) => str_contains($s, 'Reverted to the calendar'));
+
+        $booking = $booking->fresh(['calendarEvent', 'stops']);
+        // Edit flags gone, so the calendar wins everywhere now.
+        $this->assertArrayNotHasKey('edited_fields', $booking->meta ?? []);
+        $this->assertArrayNotHasKey('manually_edited_at', $booking->meta ?? []);
+        $this->assertSame(0, $booking->stops()->count());
+        $this->assertSame('Wildes Inn, Clowne', $booking->displayPickupAddress());
+        $this->assertSame('174 Willifield Way, London NW11 6YD', $booking->displayDropoffAddress());
+        $this->assertSame(['Hilton London Heathrow Airport, Terminal 4'], $booking->viaStops());
+        // And the raw columns agree with the calendar too.
+        $this->assertSame('Wildes Inn, Clowne', $booking->pickup_address);
+        $this->assertSame('174 Willifield Way, London NW11 6YD', $booking->destination_address);
+    }
+
     public function test_only_admins_can_scan(): void
     {
         $driver = User::factory()->driver()->create();
