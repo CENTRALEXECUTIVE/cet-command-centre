@@ -91,6 +91,11 @@
                         <label for="pickup_at">Pickup date &amp; time <span class="req">*</span></label>
                         <input id="pickup_at" type="datetime-local" name="pickup_at" value="{{ old('pickup_at', $booking->pickup_at->format('Y-m-d\TH:i')) }}" required>
                     </div>
+                    <div class="field">
+                        <label for="external_reference">Booking reference <span class="muted">— covering / non-ETO</span></label>
+                        <input id="external_reference" name="external_reference" value="{{ old('external_reference', $booking->external_reference) }}" placeholder="e.g. Ryanhn">
+                        <p class="hint" style="margin:4px 0 0">Another firm's reference for a covering job. Shows on the calendar and to the driver in place of the CET reference.</p>
+                    </div>
                     <div class="field" style="margin-bottom:0">
                         <label for="airport_id">Airport</label>
                         <select id="airport_id" name="airport_id">

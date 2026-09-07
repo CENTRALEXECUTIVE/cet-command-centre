@@ -51,6 +51,10 @@ class UpdateBookingRequest extends FormRequest
             'special_requests' => ['nullable', 'string', 'max:1000'],
             'driver_notes' => ['nullable', 'string', 'max:2000'],
 
+            // The booking reference shown on the calendar / to the driver — for
+            // covering or non-ETO jobs the office keys off another firm's ref.
+            'external_reference' => ['nullable', 'string', 'max:60'],
+
             // Extras the driver needs flagged.
             'ribbon' => ['nullable', 'boolean'],
             'waiting' => ['nullable', 'boolean'],

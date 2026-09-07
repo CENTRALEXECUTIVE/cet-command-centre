@@ -171,6 +171,22 @@ class BookingService
                 'final_price' => $data['final_price'] ?? null,
             ])->save();
 
+            // The booking reference (covering / non-ETO jobs). Only settable here;
+            // trimmed, and cleared to null when blanked.
+            if (array_key_exists('external_reference', $data)) {
+                $ref = trim((string) ($data['external_reference'] ?? ''));
+                $refChanged = $ref !== (string) $booking->external_reference;
+                $booking->forceFill(['external_reference' => $ref ?: null])->save();
+
+                // For a job WE created (intake / web / manual) we own the calendar
+                // event, so rebuild it to show the corrected reference. A
+                // calendar- or ETO-sourced booking is left alone (that event is the
+                // operator's to manage by hand — never push an amendment to it).
+                if ($refChanged && ! in_array($booking->source_system, ['calendar', 'eto'], true)) {
+                    $this->calendar->buildFor($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));
+                }
+            }
+
             // Re-sync via stops (outbound legs only) from the submitted list.
             if (! $booking->is_return_leg) {
                 $booking->stops()->delete();

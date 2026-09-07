@@ -106,6 +106,32 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertTrue($booking->fieldEdited('pickup_at'));   // the time IS edited
     }
 
+    public function test_editing_the_booking_reference_updates_it(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // A job we created (intake) so the calendar event is ours to rebuild.
+        $booking = Booking::factory()->create([
+            'source_system' => 'intake',
+            'external_reference' => null,
+            'pickup_address' => 'Manchester Airport',
+            'destination_address' => '19 Horsewood Road S13 9WL',
+        ]);
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => $booking->displayName() ?: 'Lawrence',
+            'customer_phone' => '07868882217',
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'pickup_at' => '2026-09-23T15:05',
+            'pickup_address' => $booking->pickup_address,
+            'destination_address' => $booking->destination_address,
+            'passengers' => 2,
+            'payment_method' => 'cash',
+            'external_reference' => 'Ryanhn',
+        ])->assertRedirect();
+
+        $this->assertSame('Ryanhn', $booking->fresh()->external_reference);
+    }
+
     public function test_ribbon_and_waiting_tickboxes_save_and_flag_the_driver(): void
     {
         $admin = User::factory()->admin()->create();
