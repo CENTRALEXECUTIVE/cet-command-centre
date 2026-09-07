@@ -100,6 +100,9 @@ class BookingIntakeService
             'paid' => filter_var($in['paid'] ?? false, FILTER_VALIDATE_BOOL),
             'booked_by' => $get('booked_by'),
             'notes' => $get('notes'),
+            // A covering / non-ETO reference the operator wants on the calendar
+            // block (e.g. another firm's ref) so the synced booking carries it.
+            'reference' => $get('reference'),
             // The rotation-suggested driver tag (ABDI/MAJ/…) shown in the title,
             // so the copied calendar block already reads the right person.
             'driver_tag' => $get('driver_tag'),
@@ -118,6 +121,9 @@ class BookingIntakeService
 
         $booking = new Booking([
             'reference' => 'PREVIEW',
+            // A supplied reference (covering job / non-ETO) prints as the calendar
+            // "Booking Reference"; the sync then imports the job under it.
+            'external_reference' => ! empty($f['reference']) ? $f['reference'] : null,
             'vehicle_type_id' => $vehicleType->id,
             'journey_type' => 'one_way',
             'is_return_leg' => false,

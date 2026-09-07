@@ -58,19 +58,32 @@ class FreeIntakeParser
         };
 
         $pickup = $get('pickup location', 'pickup address', 'pickup', 'from', 'collection', 'collect from');
-        $dropoff = $get('drop-off location', 'dropoff location', 'drop off location', 'dropoff', 'drop-off', 'drop off', 'destination', 'to');
+        $dropoff = $get('drop-off location', 'dropoff location', 'drop off location', 'dropoff', 'drop-off', 'drop off', 'destination', 'destination address', 'home address', 'home', 'to');
 
         // Loose fallback: "from X to Y" on one line.
         if ((! $pickup || ! $dropoff) && preg_match('/\bfrom\s+(.{4,80}?)\s+to\s+(.{4,120}?)(?:[.\n]|$)/i', $text, $m)) {
             $pickup = $pickup ?: trim($m[1]);
             $dropoff = $dropoff ?: trim($m[2]);
         }
+        // Airport pickup written conversationally: "Landing in Manchester 15:05".
+        if (! $pickup) {
+            $pickup = $this->airportFromLanding($text);
+        }
 
         [$suitcases, $hand] = $this->luggage($get('luggage', 'bags'), $labels);
+        // Loose "2 Cases" / "3 bags" anywhere when no labelled luggage was found.
+        if ($suitcases === 0 && $hand === 0 && preg_match('/(\d+)\s*(?:cases?|suitcases?|bags?|luggage)\b/i', $text, $m)) {
+            $suitcases = (int) $m[1];
+        }
         $payment = $this->payment($get('payment', 'payments', 'payment method'), $text);
 
+        $passengers = (int) preg_replace('/\D/', '', (string) ($get('passengers', 'pax', 'number of passengers') ?? '')) ?: 0;
+        if ($passengers === 0) {
+            $passengers = $this->passengersFromText($text);
+        }
+
         return [
-            'lead_name' => $get('customer name', 'lead passenger', 'passenger name', 'lead name', 'name', 'customer') ?? '',
+            'lead_name' => $get('customer name', 'lead passenger', 'passenger name', 'lead name', 'name', 'customer') ?: $this->guessName($text),
             'contact_no' => $this->phone($get('contact no', 'contact number', 'phone number', 'contact', 'phone', 'mobile', 'tel'), $text),
             'email' => $get('email', 'e-mail') ?? $this->email($text),
             'pickup_at' => $this->dateTime($get('date & time', 'date and time', 'pickup time', 'pickup date', 'date & time of pickup', 'when', 'date'), $text),
@@ -78,15 +91,86 @@ class FreeIntakeParser
             'destination_address' => $dropoff ?? '',
             'where' => $this->where($pickup, $dropoff),
             'flight_number' => $this->flight($get('flight number', 'arrival flight number', 'departure flight number', 'flight'), $text),
-            'passengers' => (int) preg_replace('/\D/', '', (string) ($get('passengers', 'pax', 'number of passengers') ?? '')) ?: 1,
+            'passengers' => max(1, $passengers),
             'suitcases' => $suitcases,
             'hand_luggage' => $hand,
-            'vehicle' => $get('vehicle type', 'vehicle', 'car type', 'car') ?? '',
+            'vehicle' => $get('vehicle type', 'vehicle', 'car type', 'car') ?: $this->vehicleFromText($text),
             'payment' => $payment['method'],
             'paid' => $payment['paid'],
             'booked_by' => $get('booked by', 'booker') ?? '',
             'notes' => $get('notes', 'comments', 'special requests', 'meet & greet note') ?? '',
+            'reference' => $get('reference', 'ref', 'booking reference', 'reference number') ?: $this->reference($text),
         ];
+    }
+
+    /** "Landing in Manchester [15:05]" / "arriving at Heathrow" → "Manchester Airport". */
+    private function airportFromLanding(string $text): ?string
+    {
+        if (preg_match('/\b(?:landing|arriv\w*|land)\s+(?:in|at|into)\s+([A-Za-z][A-Za-z\' ]{2,30}?)(?=\s*(?:at\b|\d|,|\.|$))/i', $text, $m)) {
+            $place = trim($m[1]);
+            // Already reads like an airport? keep it; else append "Airport".
+            return preg_match('/airport/i', $place) ? Str::title($place) : Str::title($place).' Airport';
+        }
+
+        return null;
+    }
+
+    /** "2 Customers" / "3 passengers" / "4 pax" anywhere in the text. */
+    private function passengersFromText(string $text): int
+    {
+        if (preg_match('/(\d+)\s*(?:customers?|passengers?|people|adults?|pax|persons?|guests?)\b/i', $text, $m)) {
+            return max(1, (int) $m[1]);
+        }
+
+        return 1;
+    }
+
+    /** A vehicle named loosely in the text ("estate job", "V Class", "minibus"). */
+    private function vehicleFromText(string $text): string
+    {
+        $l = Str::lower($text);
+
+        return match (true) {
+            str_contains($l, 'rolls') => 'Rolls Royce Ghost',
+            str_contains($l, 'v class') || str_contains($l, 'v-class') || str_contains($l, 'vclass') => 'V Class',
+            str_contains($l, 'minibus') || str_contains($l, '8 seat') || str_contains($l, 'mini bus') => 'Minibus 8 Seater',
+            str_contains($l, 'estate') => 'Estate',
+            str_contains($l, 'executive') || str_contains($l, 'saloon') || str_contains($l, 'exec ') => 'Executive',
+            default => '',
+        };
+    }
+
+    /** The lead name from the first line — "Lawrence - 07868…" → "Lawrence". */
+    private function guessName(string $text): string
+    {
+        foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            // Name is the leading words before a dash, colon or a number.
+            if (preg_match('/^([A-Za-z][A-Za-z\'. ]{1,40}?)\s*(?:[-–—:]|\d)/', $line, $m)) {
+                $name = trim($m[1]);
+                if ($name !== '' && str_word_count($name) <= 4
+                    && ! preg_match('/\b(flight|landing|home|pickup|drop|estate|executive|minibus|reference|cases?|customers?|passengers?|contact|email|note)\b/i', $name)) {
+                    return Str::title($name);
+                }
+            }
+
+            return ''; // only the FIRST non-empty line is a candidate for the name
+        }
+
+        return '';
+    }
+
+    /** "reference is Ryanhn" / "ref: ABC123" anywhere in the text. */
+    private function reference(string $text): string
+    {
+        if (preg_match('/\bref(?:erence)?\s*(?:number)?\s*(?:is|:|=|-)?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,20})\b/i', $text, $m)) {
+            return trim($m[1]);
+        }
+
+        return '';
     }
 
     /** Did the parse find enough to be useful on its own (no AI needed)? */
@@ -157,7 +241,58 @@ class FreeIntakeParser
             }
         }
 
+        // Date and time written separately, e.g. "23rd September 2026" on one line
+        // and "Landing in Manchester 15:05" on another — combine them.
+        $date = $this->dateOnly($text);
+        $time = $this->timeOnly($text);
+        if ($date && $time) {
+            return $date.' '.$time;
+        }
+
         return '';
+    }
+
+    /** A date with no time — "23rd September 2026" or "23/09/2026" → "Y-m-d". */
+    private function dateOnly(string $text): ?string
+    {
+        if (preg_match('/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\s+(\d{4})/u', $text, $m)) {
+            try {
+                return Carbon::createFromFormat('j F Y', $m[1].' '.$m[2].' '.$m[3], config('app.timezone'))->format('Y-m-d');
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+        if (preg_match('#(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})#', $text, $m)) {
+            return sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]);
+        }
+
+        return null;
+    }
+
+    /** The first clock time in the text — "15:05" or "3pm" → "HH:MM" (24h). */
+    private function timeOnly(string $text): ?string
+    {
+        if (preg_match('/\b(\d{1,2})[:.](\d{2})\s*(am|pm)?\b/i', $text, $m)) {
+            $h = (int) $m[1];
+            if (! empty($m[3]) && strtolower($m[3]) === 'pm' && $h < 12) {
+                $h += 12;
+            }
+            if (! empty($m[3]) && strtolower($m[3]) === 'am' && $h === 12) {
+                $h = 0;
+            }
+
+            return sprintf('%02d:%02d', $h, (int) $m[2]);
+        }
+        if (preg_match('/\b(\d{1,2})\s*(am|pm)\b/i', $text, $m)) {
+            $h = (int) $m[1] % 12;
+            if (strtolower($m[2]) === 'pm') {
+                $h += 12;
+            }
+
+            return sprintf('%02d:00', $h);
+        }
+
+        return null;
     }
 
     /** "8 Suitcases + 4 Hand Luggage" → [8, 4]; separate labels also honoured. */

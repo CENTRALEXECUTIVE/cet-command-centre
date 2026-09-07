@@ -113,6 +113,32 @@ TXT;
         $response->assertSee('MAN');
     }
 
+    public function test_conversational_covering_job_is_parsed(): void
+    {
+        $f = app(FreeIntakeParser::class)->parse(<<<'TXT'
+Lawrence - 07868 882217
+2 Customers 2 Cases
+23rd September 2026
+Landing in Manchester 15:05
+Flight number: LS1754
+Home address: 19 Horsewood Road S13 9WL
+estate job
+Covering job for another driver. reference is Ryanhn
+TXT);
+
+        $this->assertSame('Lawrence', $f['lead_name']);
+        $this->assertSame('07868882217', $f['contact_no']);
+        $this->assertSame(2, $f['passengers']);
+        $this->assertSame(2, $f['suitcases']);
+        $this->assertSame('2026-09-23 15:05', $f['pickup_at']);
+        $this->assertSame('LS1754', $f['flight_number']);
+        $this->assertStringContainsString('Manchester Airport', $f['pickup_address']);
+        $this->assertStringContainsString('19 Horsewood Road', $f['destination_address']);
+        $this->assertSame('MAN', $f['where']);
+        $this->assertSame('Estate', $f['vehicle']);
+        $this->assertSame('Ryanhn', $f['reference']);
+    }
+
     public function test_loose_text_still_extracts_the_essentials(): void
     {
         $f = app(FreeIntakeParser::class)->parse(
