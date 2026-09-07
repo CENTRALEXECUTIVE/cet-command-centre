@@ -43,6 +43,11 @@ Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping()
 // reach Google and bookings stay matched to the calendar automatically.
 Schedule::command('cet:calendar-refresh')->everyFiveMinutes()->withoutOverlapping();
 
+// Allocate tagged jobs (ABDI/MAJ or any named driver in the calendar title) to
+// their driver automatically — the safety net for the import-time assignment, so
+// existing and freshly-pulled jobs are picked up without hand-allocating.
+Schedule::command('cet:auto-allocate-tagged')->everyFiveMinutes()->withoutOverlapping();
+
 // Parse Outlook booking emails into bookings, every 5 minutes.
 Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();
 
