@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\User;
 use App\Models\VehicleType;
 use App\Services\Ai\AnthropicService;
 use Illuminate\Support\Carbon;
@@ -165,6 +166,78 @@ class BookingIntakeService
     public function preview(array $f): array
     {
         return $this->calendar->preview($this->draft($f));
+    }
+
+    /**
+     * Create the booking straight in the Command Centre from the parsed fields —
+     * for covering / non-ETO jobs the operator adds by hand. Builds the CET
+     * calendar event too (so the sync keeps it in step), assigns a named driver
+     * from the title tag if there is one, and never messages the customer or forces
+     * a rotation slot (a covering job isn't ours to rotate). Idempotent on the
+     * reference so a double-tap can't create two.
+     *
+     * @param  array<string, mixed>  $fields
+     */
+    public function create(array $fields, ?User $creator = null): Booking
+    {
+        $f = $this->normalise($fields);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($f, $creator) {
+            $ref = $f['reference'] ?: null;
+            if ($ref && $existing = Booking::where('external_reference', $ref)->first()) {
+                return $existing; // already in the Command Centre — don't duplicate
+            }
+
+            $phone = $f['contact_no'] ?: null;
+            $customer = ($phone ? Customer::where('phone', $phone)->first() : null)
+                ?? Customer::create(array_filter([
+                    'name' => $f['lead_name'] ?: 'Customer',
+                    'phone' => $phone,
+                    'email' => $f['email'] ?: null,
+                ]));
+
+            $vehicleType = $this->resolveVehicleType($f['vehicle']);
+
+            $booking = Booking::create([
+                'reference' => Booking::generateReference(),
+                'external_reference' => $ref,
+                'source_system' => 'intake',
+                'source' => 'intake',
+                'customer_id' => $customer->id,
+                'vehicle_type_id' => $vehicleType->id,
+                'journey_type' => 'one_way',
+                'is_return_leg' => false,
+                'pickup_at' => $this->parseTime($f['pickup_at'] ?? '') ?? now(),
+                'pickup_address' => $f['pickup_address'] ?: 'Unknown',
+                'destination_address' => $f['destination_address'] ?: 'Unknown',
+                'flight_number' => $f['flight_number'] ?: null,
+                'passengers' => (int) ($f['passengers'] ?? 1) ?: 1,
+                'luggage' => (int) ($f['luggage'] ?? 0),
+                'special_requests' => $f['notes'] ?: null,
+                'status' => BookingStatus::Pending->value,
+                'payment_method' => $f['payment'] ?? 'card',
+                'payment_status' => ! empty($f['paid']) ? 'paid' : 'pending',
+                'created_by' => $creator?->id,
+                'meta' => array_filter([
+                    'lead_name' => $f['lead_name'] ?: null,
+                    'where' => $f['where'] ?: null,
+                    'contact_no' => $f['contact_no'] ?: null,
+                    'booked_by' => $f['booked_by'] ?: null,
+                    'suitcases' => (int) ($f['suitcases'] ?? 0),
+                    'hand_luggage' => (int) ($f['hand_luggage'] ?? 0),
+                    'driver_tag' => $f['driver_tag'] ?: null,
+                ]),
+            ]);
+
+            // A named driver in the title tag → assign them; otherwise leave it
+            // unallocated for the office to hand to whoever's covering.
+            $booking->autoAssignDriverFromCalendarTag();
+
+            // Build the CET calendar event so it also lands on Google via the sync.
+            $this->calendar->buildFor($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));
+
+            return $booking->fresh();
+        });
     }
 
     /**

@@ -265,6 +265,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
         Route::post('intake/preview', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'preview'])
             ->middleware('throttle:30,1')->name('intake.preview');
+        Route::post('intake/store', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'store'])
+            ->middleware('throttle:30,1')->name('intake.store');
 
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');

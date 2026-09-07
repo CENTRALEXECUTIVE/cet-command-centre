@@ -60,6 +60,24 @@ class BookingIntakeController extends Controller
         ]);
     }
 
+    /**
+     * Add the previewed booking straight into the Command Centre (for covering /
+     * non-ETO jobs the operator enters by hand), instead of only copying it onto
+     * the calendar. Builds the calendar event too, then opens the new booking.
+     */
+    public function store(Request $request, BookingIntakeService $intake): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $fields = $request->input('fields');
+        abort_unless(is_array($fields), 422);
+
+        $booking = $intake->create($fields, $request->user());
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('status', 'Booking added to the Command Centre.');
+    }
+
     /** @return \Illuminate\Support\Collection<int, VehicleType> */
     private function vehicleTypes()
     {

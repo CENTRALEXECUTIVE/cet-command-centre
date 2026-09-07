@@ -99,6 +99,7 @@
                     <div class="field"><label>Contact number</label><input type="tel" name="fields[contact_no]" value="{{ $fields['contact_no'] }}" placeholder="07…"></div>
                     <div class="field"><label>Email</label><input type="email" name="fields[email]" value="{{ $fields['email'] }}"></div>
                     <div class="field"><label>Booked by <span class="sub">— if not the passenger</span></label><input name="fields[booked_by]" value="{{ $fields['booked_by'] }}"></div>
+                    <div class="field"><label>Reference <span class="sub">— covering / non-ETO job</span></label><input name="fields[reference]" value="{{ $fields['reference'] ?? '' }}" placeholder="e.g. Ryanhn"></div>
                 </div>
             </div>
         </div>
@@ -154,6 +155,17 @@
         <div class="toolbar">
             <button type="submit" class="btn btn-primary">↻ Update preview</button>
             <span class="hint" style="margin-left:8px">Re-render the calendar block above after an edit.</span>
+        </div>
+
+        {{-- Add the job straight into the Command Centre (covering / non-ETO jobs
+             you enter by hand). Same fields, different action — it also builds the
+             calendar event, so nothing to paste. --}}
+        <div class="toolbar" style="margin-top:10px;border-top:1px solid var(--line);padding-top:14px">
+            <button type="submit" class="btn btn-dark" formaction="{{ route('intake.store') }}"
+                    onclick="return confirm('Add this booking straight to the Command Centre?')">
+                ➕ Add to Command Centre
+            </button>
+            <span class="hint" style="margin-left:8px">Creates the booking now and builds its calendar event — use for covering / non-ETO jobs.</span>
         </div>
     </form>
 @endsection

@@ -90,10 +90,31 @@ class BookingIntakeTest extends TestCase
         $this->assertSame(0, CalendarEvent::count());
     }
 
-    public function test_there_is_no_confirm_route(): void
+    public function test_add_to_command_centre_creates_the_booking_and_its_event(): void
     {
-        // The create path is gone: intake can only format for the calendar.
-        $this->assertFalse(\Illuminate\Support\Facades\Route::has('intake.confirm'));
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post(route('intake.store'), ['fields' => $this->fields(['reference' => 'Ryanhn'])])
+            ->assertRedirect();
+
+        $booking = Booking::where('external_reference', 'Ryanhn')->first();
+        $this->assertNotNull($booking);
+        $this->assertSame('Jo Smith', $booking->customer->name);
+        $this->assertSame(2, $booking->passengers);
+        $this->assertSame('14:30', $booking->pickup_at->format('H:i')); // UK-local, no shift
+        $this->assertSame(1, CalendarEvent::count()); // calendar event built too
+    }
+
+    public function test_add_to_command_centre_never_duplicates_the_same_reference(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $payload = ['fields' => $this->fields(['reference' => 'Ryanhn'])];
+
+        $this->actingAs($admin)->post(route('intake.store'), $payload);
+        $this->actingAs($admin)->post(route('intake.store'), $payload);
+
+        $this->assertSame(1, Booking::where('external_reference', 'Ryanhn')->count());
     }
 
     public function test_non_admin_cannot_use_intake(): void
