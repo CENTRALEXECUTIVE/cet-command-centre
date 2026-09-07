@@ -173,6 +173,28 @@ class CalendarTimeSync
             return ['status' => 'unavailable', 'changes' => [], 'diag' => $this->lastDiag];
         }
 
+        // SAFETY: only ever overwrite a booking from an event that is provably
+        // THIS booking's — either the event carries the booking's reference, or it
+        // is the booking's OWN already-linked event (same google_event_id). A
+        // fuzzy fallback match (by name, or by name-near-time) to a DIFFERENT event
+        // must NEVER rewrite the booking's time/title/details — that is exactly how
+        // two different customers' jobs got mixed together. When neither holds,
+        // leave the booking untouched and flag it for a human to check.
+        $reference = trim((string) ($booking->external_reference ?: $booking->reference));
+        $matchedByReference = $reference !== '' && str_contains(
+            mb_strtoupper(($live['description'] ?? '').' '.($live['title'] ?? '')),
+            mb_strtoupper($reference)
+        );
+        $ownEventId = $booking->calendarEvent?->google_event_id;
+        $isOwnLinkedEvent = filled($ownEventId) && ($live['id'] ?? null) === $ownEventId;
+
+        if (! $matchedByReference && ! $isOwnLinkedEvent) {
+            $this->flagUnverified($booking);
+            $this->lastDiag['matched'] = 'fuzzy — not reference-confirmed and not the booking’s own event; left untouched';
+
+            return ['status' => 'unverified_match', 'changes' => [], 'diag' => $this->lastDiag];
+        }
+
         $changes = [];
         $event = $booking->calendarEvent;
 

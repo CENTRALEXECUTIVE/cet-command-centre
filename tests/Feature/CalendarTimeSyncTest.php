@@ -91,6 +91,66 @@ class CalendarTimeSyncTest extends TestCase
         $this->assertSame('09:00', $booking->fresh()->pickup_at->format('H:i'));
     }
 
+    public function test_scan_never_rewrites_a_booking_from_a_different_customers_event(): void
+    {
+        // The reported mix: booking RYANHN (Lawrence, 23 Sep) must NOT be rewritten
+        // from a fuzzy fallback match to Penny Coates' 30 Aug event (a DIFFERENT
+        // event that doesn't carry this booking's reference).
+        $booking = Booking::factory()->create([
+            'external_reference' => 'RYANHN',
+            'pickup_at' => '2026-09-23 15:05:00',
+        ]);
+
+        $pennyEvent = [
+            'id' => 'evt_penny',
+            'start' => Carbon::parse('2026-08-30 13:45:00'),
+            'end' => Carbon::parse('2026-08-30 14:45:00'),
+            'title' => '*Penny Coates MAN (MAJ)*',
+            'location' => 'The Old Vicarage, Barlow',
+            'description' => "Booking Confirmation\nCustomer Name: Penny Coates\nBooking Reference: CET-09A10D",
+        ];
+
+        $google = \Mockery::mock(GoogleCalendarService::class);
+        $google->shouldReceive('configured')->andReturnTrue();
+        $google->shouldReceive('active')->andReturnTrue();
+        // The fuzzy fallback wrongly returns Penny's event.
+        $google->shouldReceive('findEventWithDiagnostics')->andReturn(['event' => $pennyEvent, 'diag' => []]);
+
+        $result = (new CalendarTimeSync($google))->scan($booking->fresh());
+
+        $this->assertSame('unverified_match', $result['status']);
+        // Left untouched — still Lawrence's own 23 Sep time, not Penny's 30 Aug.
+        $this->assertSame('2026-09-23 15:05', $booking->fresh()->pickup_at->format('Y-m-d H:i'));
+    }
+
+    public function test_scan_still_syncs_when_the_event_carries_the_reference(): void
+    {
+        // Control: an event that DOES carry the booking's reference syncs as normal.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'RYANHN',
+            'pickup_at' => '2026-09-23 15:05:00',
+        ]);
+
+        $ownEvent = [
+            'id' => 'evt_ryanhn',
+            'start' => Carbon::parse('2026-09-23 16:00:00'), // corrected on the calendar
+            'end' => Carbon::parse('2026-09-23 17:00:00'),
+            'title' => '*Lawrence MAN (COVER)*',
+            'location' => 'Manchester Airport',
+            'description' => "Booking Confirmation\nBooking Reference: RYANHN",
+        ];
+
+        $google = \Mockery::mock(GoogleCalendarService::class);
+        $google->shouldReceive('configured')->andReturnTrue();
+        $google->shouldReceive('active')->andReturnTrue();
+        $google->shouldReceive('findEventWithDiagnostics')->andReturn(['event' => $ownEvent, 'diag' => []]);
+
+        $result = (new CalendarTimeSync($google))->scan($booking->fresh());
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertSame('2026-09-23 16:00', $booking->fresh()->pickup_at->format('Y-m-d H:i'));
+    }
+
     public function test_pull_time_moves_the_booking_to_the_live_calendar_time(): void
     {
         $booking = $this->bookingWithEvent('2026-07-15 07:45:00'); // wrong (an hour late)
