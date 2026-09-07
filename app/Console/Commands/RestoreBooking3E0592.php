@@ -30,12 +30,14 @@ class RestoreBooking3E0592 extends Command
 
     public function handle(CalendarEventBuilder $calendar): int
     {
-        $booking = Booking::where('reference', 'CET-3E0592')->first();
+        $booking = Booking::where('reference', 'CET-3E0592')->first()
+            ?? Booking::where('reference', 'like', '%3E0592%')->first();
         if (! $booking) {
             $this->error('CET-3E0592 not found — nothing to do.');
 
             return self::SUCCESS;
         }
+        $this->line('Matched booking id '.$booking->id.' (reference '.$booking->reference.').');
 
         $estate = VehicleType::where('slug', 'estate')->first()
             ?? VehicleType::where('name', 'like', '%Estate%')->first();
@@ -74,7 +76,9 @@ class RestoreBooking3E0592 extends Command
             return self::SUCCESS;
         }
 
-        DB::transaction(function () use ($booking, $target, $calendar) {
+        // 1. The critical restore — always committed on its own, so a later
+        //    calendar-rebuild hiccup can never roll it back.
+        DB::transaction(function () use ($booking, $target) {
             // A Lawrence customer — reuse one already on his number, else create a
             // fresh record. NEVER rename an existing (possibly Penny's) record.
             $lawrence = Customer::where('phone', '07868882217')->where('name', 'like', '%Lawrence%')->first()
@@ -98,12 +102,19 @@ class RestoreBooking3E0592 extends Command
                 'meta' => $meta,
             ]))->save();
 
-            // Drop the poisoned calendar link (it points at Penny's Google event),
-            // then rebuild a fresh event carrying the Ryanhn reference + Lawrence's
-            // details. The next push creates a new Google event; Penny's is untouched.
+            // Drop the poisoned calendar link (it points at Penny's Google event).
             $booking->calendarEvents()->delete();
-            $calendar->buildFor($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));
         });
+
+        // 2. Rebuild a fresh calendar event carrying the Ryanhn reference +
+        //    Lawrence's details — best-effort, OUTSIDE the transaction so a rebuild
+        //    problem never undoes the restore above.
+        try {
+            $calendar->buildFor($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));
+        } catch (\Throwable $e) {
+            $this->warn('Restored the booking, but rebuilding its calendar event failed: '.$e->getMessage());
+            $this->warn('Run cet:sync-calendar (or open + save the booking) to rebuild it.');
+        }
 
         $fresh = $booking->fresh(['customer', 'calendarEvent']);
         $this->info('Restored. CET-3E0592 is now: '.$fresh->displayName()
