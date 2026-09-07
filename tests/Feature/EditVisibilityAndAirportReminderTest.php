@@ -132,6 +132,38 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame('Ryanhn', $booking->fresh()->external_reference);
     }
 
+    public function test_edited_addresses_and_a_new_stop_show_on_the_booking_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->calendarBooking(['passengers' => 2]); // calendar: Manchester Airport → Broad Elms
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => $booking->displayName() ?: 'Guest',
+            'customer_phone' => '07700900123',
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'pickup_at' => '2026-12-25T09:15',
+            'pickup_address' => 'Unit A, Brook Park East, Meadow Lane, Shirebrook',
+            'destination_address' => 'Hilton London Heathrow Airport, Terminal 4',
+            'via_stops' => ['Shirebrook, Mansfield'],
+            'passengers' => 2,
+            'payment_method' => 'card',
+        ])->assertRedirect();
+
+        $booking = $booking->fresh();
+        // The booking's own display reflects the edit.
+        $this->assertStringContainsString('Meadow Lane', $booking->displayPickupAddress());
+        $this->assertStringContainsString('Hilton London Heathrow', $booking->displayDropoffAddress());
+        $this->assertContains('Shirebrook, Mansfield', $booking->viaStops());
+
+        // And the booking page shows the edited journey + the "edited" banner.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Edited in the Command Centre')
+            ->assertSee('Meadow Lane')
+            ->assertSee('Hilton London Heathrow')
+            ->assertSee('Shirebrook, Mansfield');
+    }
+
     public function test_ribbon_and_waiting_tickboxes_save_and_flag_the_driver(): void
     {
         $admin = User::factory()->admin()->create();

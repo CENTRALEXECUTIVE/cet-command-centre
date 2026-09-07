@@ -202,11 +202,14 @@ class CalendarEventBuilder
         if (! empty($meta['meet_and_greet'])) {
             $add('Meet & Greet', 'Required');
         }
-        $add('Pickup Location', $booking->pickup_address);
-        foreach (array_values($meta['stops'] ?? []) as $i => $stop) {
+        // Use the authoritative (display) values and the full stop list so an
+        // edit made in the Command Centre — new addresses, an added stop — is
+        // reflected here, not just the raw import columns.
+        $add('Pickup Location', $booking->displayPickupAddress() ?: $booking->pickup_address);
+        foreach ($booking->viaStops() as $i => $stop) {
             $add('Stop '.($i + 1), $stop);
         }
-        $add('Drop-off Location', $booking->destination_address);
+        $add('Drop-off Location', $booking->displayDropoffAddress() ?: $booking->destination_address);
         $add('Vehicle Type', $booking->vehicleType?->name);
         $add('Payment', $meta['payment_text'] ?? $this->paymentLabel($booking));
         $add('Booking Reference', $booking->external_reference ?? $booking->reference);

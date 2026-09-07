@@ -197,7 +197,9 @@ class BookingService
 
             // Deliberately DO NOT touch the calendar on an edit. New bookings are
             // auto-added, but edits are the operator's to make on the calendar by
-            // hand — the system never pushes an amendment to Google.
+            // hand — the system never pushes an amendment to Google. The booking's
+            // own display accessors (displayPickupAddress, viaStops, …) already show
+            // the edit everywhere in the app and to drivers.
 
             return $booking->refresh();
         });
