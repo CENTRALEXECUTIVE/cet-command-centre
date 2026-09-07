@@ -38,7 +38,13 @@
                 <span class="bh-chip warn" title="Billable waiting time past the free {{ $booking->waitingGraceMinutes() }} min{{ $booking->recordedWaitingMinutes() === null ? ' (still waiting)' : '' }}">⏱ {{ $waited }} min waiting</span>
             @endif
             @if($booking->waitingCharge() > 0)
-                <span class="bh-chip warn" title="Waiting charge: {{ $booking->waitingChargeableMinutes() }} chargeable min at £{{ number_format($booking->waitingHourlyRate(), 0) }}/hr, after the free {{ $booking->waitingGraceMinutes() }} min@if($booking->waitingIncludedMinutes() > 0) + {{ $booking->waitingIncludedMinutes() }} min paid for@endif">💷 Waiting charge £{{ number_format($booking->waitingCharge(), 2) }}</span>
+                @php
+                    $wcTitle = $booking->waitingChargeableMinutes().' chargeable min at £'
+                        .number_format($booking->waitingHourlyRate(), 0).'/hr, after the free '
+                        .$booking->waitingGraceMinutes().' min'
+                        .($booking->waitingIncludedMinutes() > 0 ? ' + '.$booking->waitingIncludedMinutes().' min paid for' : '');
+                @endphp
+                <span class="bh-chip warn" title="{{ $wcTitle }}">💷 Waiting charge £{{ number_format($booking->waitingCharge(), 2) }}</span>
             @endif
             @if($booking->hasCashToCollect())
                 @if($booking->cashCollectAcknowledged())

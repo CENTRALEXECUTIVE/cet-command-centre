@@ -202,6 +202,33 @@ class WaitingTimeTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_booking_page_hides_the_waiting_charge_when_there_is_none(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(); // no waiting recorded → £0 charge
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertDontSee('Waiting charge')
+            ->assertDontSee('@endif'); // guard against the nested-directive render bug
+    }
+
+    public function test_booking_page_shows_the_waiting_charge_when_there_is_one(): void
+    {
+        $this->seed(\Database\Seeders\VehicleTypeSeeder::class);
+        $admin = User::factory()->admin()->create();
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->create(['vehicle_type_id' => $exec->id]);
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'waiting' => ['billable_minutes' => 45, 'grace_minutes' => 15],
+        ])])->save();
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Waiting charge £15.00') // 45 min × £20/hr
+            ->assertDontSee('@endif');
+    }
+
     public function test_waiting_time_is_frozen_when_the_passenger_boards(): void
     {
         Carbon::setTestNow('2026-08-11 10:00:00');
