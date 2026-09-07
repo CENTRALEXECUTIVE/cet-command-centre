@@ -67,6 +67,32 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         );
     }
 
+    public function test_calendar_via_beats_a_stale_eto_free_text_via(): void
+    {
+        // A calendar booking whose old ETO import text disagrees with the live
+        // calendar: the calendar (what the operator maintains) must win.
+        $booking = Booking::factory()->create([
+            'meta' => ['eto_via' => 'Shirebrook, Mansfield'],
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Via: Hilton London Heathrow Airport, Terminal 4",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->assertSame(
+            ['Hilton London Heathrow Airport, Terminal 4'],
+            $booking->fresh()->viaStops(),
+        );
+    }
+
+    public function test_eto_via_is_still_used_when_there_is_no_calendar(): void
+    {
+        $booking = Booking::factory()->create(['meta' => ['eto_via' => 'Meadowhall; Ecclesfield']]);
+
+        $this->assertSame(['Meadowhall', 'Ecclesfield'], $booking->fresh()->viaStops());
+    }
+
     public function test_without_an_edit_the_calendar_value_is_shown(): void
     {
         $booking = $this->calendarBooking();
