@@ -653,30 +653,10 @@
 
     {{-- The calendar's own words, front and centre — exactly what's on the
          event, like a screenshot of its description. --}}
-    {{-- When the office has edited this booking in the Command Centre, the app
-         and drivers use the EDITED details (shown in Journey above). The calendar
-         panel below is the Google copy, which we never overwrite — so it can look
-         out of date. Make that explicit and show the current edited journey so the
-         office isn't left thinking the edit didn't save. --}}
-    @if($booking->manuallyEdited())
-        <div class="card" style="border-left:4px solid var(--gold,#FBBA2A);background:rgba(251,186,42,.07)">
-            <strong>✏️ Edited in the Command Centre</strong>
-            <p class="hint" style="margin:6px 0 8px">The app and your drivers use these edited details. Your Google Calendar still shows its own copy (below) — update the calendar event too if you want them to match.</p>
-            <table style="max-width:520px">
-                <tr><th>Pickup</th><td>{{ $booking->pickup_at?->format('D d M Y, H:i') }}</td></tr>
-                <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
-                @foreach($booking->viaStops() as $i => $stop)
-                    <tr><th>Via {{ $i + 1 }}</th><td>🔀 {{ $stop }}</td></tr>
-                @endforeach
-                <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
-            </table>
-        </div>
-    @endif
-
     @if($booking->calendarEvent && filled($booking->calendarEvent->description))
         <div class="card cal-panel">
             <div class="cal-panel-head">
-                <span>📅 {{ $booking->manuallyEdited() ? 'Google Calendar copy (may be out of date)' : 'Full details (from the calendar)' }}</span>
+                <span>📅 Full details (from the calendar)</span>
                 <span class="muted" style="font-size:12px">{{ $booking->calendarEvent->start_at->format('D d M') }} · {{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</span>
             </div>
             <div class="cal-panel-title mono">{{ $booking->calendarEvent->title }}</div>

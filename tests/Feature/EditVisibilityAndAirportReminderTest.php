@@ -44,6 +44,29 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         return $booking->fresh();
     }
 
+    public function test_via_stop_is_read_from_the_calendar_when_not_edited(): void
+    {
+        // A calendar/ETO booking never touched in the app: the via stop lives
+        // ONLY on the calendar description ("• Via: …") — the driver must still
+        // see it without it being duplicated into a stops row or column.
+        $booking = Booking::factory()->create([
+            'pickup_address' => 'Wildes Inn, Clowne',
+            'destination_address' => '174 Willifield Way, London NW11 6YD',
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Pickup Location: Wildes Inn, Clowne\n"
+                ."• Via: Hilton London Heathrow Airport, Terminal 4\n"
+                ."• Drop-off Location: 174 Willifield Way, London NW11 6YD",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->assertSame(
+            ['Hilton London Heathrow Airport, Terminal 4'],
+            $booking->fresh()->viaStops(),
+        );
+    }
+
     public function test_without_an_edit_the_calendar_value_is_shown(): void
     {
         $booking = $this->calendarBooking();
@@ -155,10 +178,9 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertStringContainsString('Hilton London Heathrow', $booking->displayDropoffAddress());
         $this->assertContains('Shirebrook, Mansfield', $booking->viaStops());
 
-        // And the booking page shows the edited journey + the "edited" banner.
+        // And the booking page shows the edited journey.
         $this->actingAs($admin)->get(route('bookings.show', $booking))
             ->assertOk()
-            ->assertSee('Edited in the Command Centre')
             ->assertSee('Meadow Lane')
             ->assertSee('Hilton London Heathrow')
             ->assertSee('Shirebrook, Mansfield');

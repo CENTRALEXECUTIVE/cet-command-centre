@@ -120,11 +120,55 @@ class Booking extends Model
 
         // 3) The ETO CSV import's free-text "Via" field (one or more, joined).
         $via = trim((string) ($this->meta['eto_via'] ?? ''));
-        if ($via === '') {
+        if ($via !== '') {
+            return array_values(array_filter(array_map('trim', preg_split('/\s*[;\n]\s*/', $via))));
+        }
+
+        // 4) The calendar event's own words — the operator's source of truth for a
+        //    calendar/ETO booking that was never edited in the app. A via stop
+        //    lives ONLY on the calendar ("• *Via:* …" or "• *Stop 1:* …" lines);
+        //    read it straight from the description so the driver sees it without
+        //    it having to be duplicated into a column first.
+        return $this->calendarViaStops();
+    }
+
+    /**
+     * Via stops parsed out of the linked calendar event's description — the
+     * "Via" line (one or more places, ; or newline separated) and any numbered
+     * "Stop N" lines, in order. Empty when there's no event or no such lines.
+     *
+     * @return array<int, string>
+     */
+    private function calendarViaStops(): array
+    {
+        $desc = (string) ($this->calendarEvent?->description ?? '');
+        if ($desc === '') {
             return [];
         }
 
-        return array_values(array_filter(array_map('trim', preg_split('/\s*[;\n]\s*/', $via))));
+        $stops = [];
+
+        // "• *Via:* A; B" — one line, possibly several places.
+        if (preg_match('/Via\s*:\*?\s*([^\n]+)/i', $desc, $m)) {
+            foreach (preg_split('/\s*;\s*/', trim(rtrim(trim($m[1]), '*'))) as $place) {
+                $place = trim($place);
+                if ($place !== '') {
+                    $stops[] = $place;
+                }
+            }
+        }
+
+        // "• *Stop 1:* …" — numbered lines, kept in order.
+        if (preg_match_all('/Stop\s*\d+\s*:\*?\s*([^\n]+)/i', $desc, $mm)) {
+            foreach ($mm[1] as $place) {
+                $place = trim(rtrim(trim($place), '*'));
+                if ($place !== '') {
+                    $stops[] = $place;
+                }
+            }
+        }
+
+        return $stops;
     }
 
     public function hasViaStops(): bool
