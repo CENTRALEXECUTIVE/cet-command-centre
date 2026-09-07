@@ -460,17 +460,38 @@ class Booking extends Model
     }
 
     /**
-     * Billable waiting minutes so far (whole minutes past the grace period),
-     * measured from the confirmed-at-pickup start to $at (default now). 0 while
-     * inside the grace period, before arrival, or before GPS confirms presence.
+     * When billable waiting actually starts counting from: the SCHEDULED pickup
+     * time — never the driver's arrival. Drivers are expected to arrive early, and
+     * that early time is theirs to give, not the customer's to pay for. So the
+     * clock is anchored at the pickup time; only if the driver arrives AFTER the
+     * pickup time does their (later) arrival become the anchor, since they weren't
+     * there to be kept waiting before that. Null until GPS confirms them present.
      */
-    public function waitingBillableMinutes(?\Illuminate\Support\Carbon $at = null): int
+    public function waitingChargeAnchor(): ?\Illuminate\Support\Carbon
     {
         $start = $this->waitingStartedAt();
         if (! $start) {
+            return null;
+        }
+
+        // Later of {scheduled pickup, confirmed arrival}. Early arrival → pickup
+        // time wins; late arrival → arrival wins.
+        return ($this->pickup_at && $this->pickup_at->gt($start)) ? $this->pickup_at : $start;
+    }
+
+    /**
+     * Billable waiting minutes so far (whole minutes past the grace period),
+     * measured from the pickup-time anchor (see waitingChargeAnchor) to $at
+     * (default now). 0 while inside the grace period, before the pickup time,
+     * before arrival, or before GPS confirms presence.
+     */
+    public function waitingBillableMinutes(?\Illuminate\Support\Carbon $at = null): int
+    {
+        $anchor = $this->waitingChargeAnchor();
+        if (! $anchor) {
             return 0;
         }
-        $elapsed = $start->diffInMinutes($at ?? now());
+        $elapsed = $anchor->diffInMinutes($at ?? now());
 
         return (int) max(0, $elapsed - $this->waitingGraceMinutes());
     }

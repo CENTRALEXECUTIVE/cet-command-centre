@@ -36,6 +36,9 @@ class WaitingTimeTest extends TestCase
         $booking = Booking::factory()->create([
             'driver_id' => $driver->id,
             'status' => BookingStatus::Arrived,
+            // Driver arrives exactly at the scheduled pickup time unless a test
+            // overrides it — so the waiting anchor is the arrival time here.
+            'pickup_at' => $arrivedAt,
         ]);
         if ($pickup) {
             $booking->forceFill(['meta' => ['geo' => ['pickup' => $pickup]]])->save();
@@ -78,6 +81,40 @@ class WaitingTimeTest extends TestCase
         $booking = $this->arrived(Carbon::parse('2026-08-11 08:05:00'));
 
         $this->assertSame(10, $booking->waitingBillableMinutes());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_early_arrival_does_not_start_the_clock_before_the_pickup_time(): void
+    {
+        // Driver arrives 20 min EARLY (as they should) and is there 35 min in
+        // total. Waiting must count from the PICKUP TIME, not the early arrival:
+        // from pickup, 15 min in → 0 billable; the early time is never charged.
+        Carbon::setTestNow('2026-08-11 09:15:00');
+        $booking = $this->arrived(Carbon::parse('2026-08-11 08:40:00')); // arrived 08:40
+        $booking->forceFill(['pickup_at' => Carbon::parse('2026-08-11 09:00:00')])->save(); // pickup 09:00
+        $booking = $booking->fresh();
+
+        // 09:15 now − 09:00 pickup = 15 min = exactly the free grace → nothing billable.
+        $this->assertSame(0, $booking->waitingBillableMinutes());
+
+        // 20 more minutes on: 09:35 − 09:00 = 35 − 15 grace = 20 billable.
+        $this->assertSame(20, $booking->waitingBillableMinutes(Carbon::parse('2026-08-11 09:35:00')));
+
+        Carbon::setTestNow();
+    }
+
+    public function test_a_late_arrival_anchors_on_arrival_not_the_pickup_time(): void
+    {
+        // Driver arrives 10 min LATE — they weren't there to be kept waiting
+        // before that, so the clock anchors on arrival, not the pickup time.
+        Carbon::setTestNow('2026-08-11 09:40:00');
+        $booking = $this->arrived(Carbon::parse('2026-08-11 09:10:00')); // arrived 09:10
+        $booking->forceFill(['pickup_at' => Carbon::parse('2026-08-11 09:00:00')])->save(); // pickup 09:00
+        $booking = $booking->fresh();
+
+        // From arrival 09:10: 30 min elapsed − 15 grace = 15 billable.
+        $this->assertSame(15, $booking->waitingBillableMinutes());
 
         Carbon::setTestNow();
     }
