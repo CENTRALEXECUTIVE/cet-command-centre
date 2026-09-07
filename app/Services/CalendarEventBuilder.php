@@ -270,7 +270,7 @@ class CalendarEventBuilder
             $add('Ribbon', 'Required 🎀');
         }
         if ($booking->hasWaitingTime()) {
-            $add('Waiting time', 'Yes — see notes');
+            $add('Waiting time', $booking->waitingTimeLabel() ?: 'Yes — see notes');
         }
         // Paid vs cash only — no amount for the driver.
         $add('Payment', $this->driverPaymentLabel($booking));

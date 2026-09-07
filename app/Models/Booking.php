@@ -2016,20 +2016,54 @@ class Booking extends Model
         ]))));
     }
 
-    /** A wedding/prom RIBBON job — the car needs ribbons fitted. */
+    /**
+     * A wedding/prom RIBBON job — the car needs ribbons fitted. Set explicitly by
+     * the office tick-box (meta['ribbon']); falls back to the word "ribbon" in the
+     * notes so older/imported jobs still flag.
+     */
     public function isRibbonJob(): bool
     {
-        return str_contains($this->notesBlob(), 'ribbon');
+        return ! empty($this->meta['ribbon']) || str_contains($this->notesBlob(), 'ribbon');
     }
 
     /**
-     * The job carries waiting time the driver should know about — at the pickup or
-     * at a stop (e.g. "waiting at stop", "wait and return"). Detected from the
-     * notes; the detail (where/how long) is in the notes themselves.
+     * The job carries waiting time the driver should know about — set by the
+     * office tick-box (meta['waiting_time']); falls back to the word "wait" in the
+     * notes so jobs where it's only written in the notes still flag.
      */
     public function hasWaitingTime(): bool
     {
-        return (bool) preg_match('/\bwait/', $this->notesBlob());
+        return $this->waitingTimeInfo() !== null || (bool) preg_match('/\bwait/', $this->notesBlob());
+    }
+
+    /** The structured waiting-time detail from the tick-box: ['where'=>, 'minutes'=>], or null. */
+    public function waitingTimeInfo(): ?array
+    {
+        $info = $this->meta['waiting_time'] ?? null;
+
+        return is_array($info) && $info !== [] ? $info : null;
+    }
+
+    /**
+     * A short human label for the waiting time — "20 min at pickup", "at a stop",
+     * "20 min" — from the structured tick-box detail, or null when only the notes
+     * mention it (the detail then lives in the notes themselves).
+     */
+    public function waitingTimeLabel(): ?string
+    {
+        $info = $this->waitingTimeInfo();
+        if ($info === null) {
+            return null;
+        }
+        $mins = isset($info['minutes']) ? (int) $info['minutes'] : 0;
+        $where = match ($info['where'] ?? null) {
+            'pickup' => 'at pickup',
+            'stop' => 'at a stop',
+            default => '',
+        };
+        $parts = array_filter([$mins > 0 ? $mins.' min' : null, $where]);
+
+        return $parts === [] ? 'Yes' : implode(' ', $parts);
     }
 
     /**
@@ -2478,7 +2512,7 @@ class Booking extends Model
             $lines[] = '🎀 Ribbon job';
         }
         if ($this->hasWaitingTime()) {
-            $lines[] = '⏳ Waiting time on this job — see notes';
+            $lines[] = '⏳ Waiting time'.($this->waitingTimeLabel() ? ': '.$this->waitingTimeLabel() : ' on this job — see notes');
         }
 
         $lines[] = '💷 Fare to you: '.$this->driverOfferFare();

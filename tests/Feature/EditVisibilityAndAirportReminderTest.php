@@ -106,6 +106,61 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertTrue($booking->fieldEdited('pickup_at'));   // the time IS edited
     }
 
+    public function test_ribbon_and_waiting_tickboxes_save_and_flag_the_driver(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->calendarBooking(['passengers' => 2]);
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => $booking->displayName() ?: 'Guest',
+            'customer_phone' => '07700900123',
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'pickup_at' => '2026-12-25T09:15',
+            'pickup_address' => $booking->pickup_address,
+            'destination_address' => $booking->destination_address,
+            'passengers' => 2,
+            'payment_method' => 'card',
+            'ribbon' => '1',
+            'waiting' => '1', 'waiting_where' => 'pickup', 'waiting_minutes' => '20',
+        ])->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertTrue($booking->isRibbonJob());
+        $this->assertTrue($booking->hasWaitingTime());
+        $this->assertSame('20 min at pickup', $booking->waitingTimeLabel());
+
+        // Both flags reach the driver's job offer.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => ['pay' => 90]])])->save();
+        $offer = $booking->fresh()->driverOfferMessage();
+        $this->assertStringContainsString('🎀 Ribbon job', $offer);
+        $this->assertStringContainsString('⏳ Waiting time: 20 min at pickup', $offer);
+    }
+
+    public function test_unticking_the_tickboxes_clears_them(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->calendarBooking(['passengers' => 2]);
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'ribbon' => true, 'waiting_time' => ['where' => 'stop', 'minutes' => 10],
+        ])])->save();
+        $this->assertTrue($booking->fresh()->isRibbonJob());
+
+        // Submit with the boxes off (hidden 0 inputs carry through).
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => 'Guest', 'customer_phone' => '07700900123',
+            'vehicle_type_id' => $booking->vehicle_type_id,
+            'pickup_at' => '2026-12-25T09:15',
+            'pickup_address' => $booking->pickup_address,
+            'destination_address' => $booking->destination_address,
+            'passengers' => 2, 'payment_method' => 'card',
+            'ribbon' => '0', 'waiting' => '0',
+        ])->assertRedirect();
+
+        $booking = $booking->fresh();
+        $this->assertFalse($booking->isRibbonJob());
+        $this->assertNull($booking->waitingTimeInfo());
+    }
+
     public function test_editing_a_booking_does_not_blank_luggage_it_still_mirrors_the_calendar(): void
     {
         // A calendar-sourced booking with 0/0 stored counts (luggage never

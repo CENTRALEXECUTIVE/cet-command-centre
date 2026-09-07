@@ -101,6 +101,16 @@ class BookingService
             $driverNotes = trim((string) ($data['driver_notes'] ?? '')) ?: null;
             $vehicleName = optional(VehicleType::find($data['vehicle_type_id'] ?? null))->name;
 
+            // Extras the driver needs flagged (structured, from the tick-boxes).
+            $ribbon = (bool) ($data['ribbon'] ?? false);
+            $waitingTime = ! empty($data['waiting'])
+                ? array_filter([
+                    'where' => $data['waiting_where'] ?? null,
+                    'minutes' => isset($data['waiting_minutes']) && $data['waiting_minutes'] !== null
+                        ? (int) $data['waiting_minutes'] : null,
+                ], fn ($v) => $v !== null && $v !== '')
+                : null;
+
             // Work out WHICH fields the office actually changed, by comparing each
             // submitted value against what the booking currently DISPLAYS (the
             // calendar, where it's the source). Only these fields override the
@@ -145,6 +155,9 @@ class BookingService
                     'infant_seats' => $infantCap,
                     'child_seat' => ($childCap + $boosterCap + $infantCap) > 0,
                     'driver_notes' => $driverNotes,
+                    'ribbon' => $ribbon,
+                    'waiting_time' => $waitingTime, // null when unticked
+                    'wait_and_return' => $waitingTime !== null, // legacy/convenience flag
                     // Mark the booking edited, and record exactly which fields the
                     // office changed. Untouched fields keep mirroring the calendar
                     // (the source of truth); only edited fields win over it.

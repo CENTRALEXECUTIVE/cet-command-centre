@@ -151,6 +151,41 @@
                         <input id="infant_seats" type="number" name="infant_seats" min="0" max="8" value="{{ old('infant_seats', $booking->meta['infant_seats'] ?? 0) }}">
                     </div>
                 </div>
+                {{-- Extras flagged to the driver on their offer + job screen. --}}
+                @php
+                    $wt = $booking->waitingTimeInfo() ?? [];
+                    // Tick-boxes reflect the EXPLICIT setting (not the notes keyword),
+                    // so saving never turns a stray "wait"/"ribbon" word into structured data.
+                    $ribbonOn = old('ribbon', ! empty($booking->meta['ribbon']));
+                    $waitingOn = old('waiting', $booking->waitingTimeInfo() !== null);
+                @endphp
+                <div class="field">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer">
+                        <input type="hidden" name="ribbon" value="0">
+                        <input type="checkbox" name="ribbon" value="1" style="width:auto" @checked($ribbonOn)>
+                        🎀 Ribbon job <span class="muted" style="font-weight:400">(ribbons fitted to the car)</span>
+                    </label>
+                </div>
+                <div class="field">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer">
+                        <input type="hidden" name="waiting" value="0">
+                        <input type="checkbox" id="waiting" name="waiting" value="1" style="width:auto" @checked($waitingOn)>
+                        ⏳ Waiting time on this job
+                    </label>
+                    <div id="waiting-detail" class="grid grid-2" style="margin-top:8px" @unless($waitingOn) hidden @endunless>
+                        <div class="field" style="margin:0">
+                            <label for="waiting_where" style="font-size:12px">Where</label>
+                            <select id="waiting_where" name="waiting_where" style="width:auto">
+                                <option value="pickup" @selected(old('waiting_where', $wt['where'] ?? '')==='pickup')>At pickup</option>
+                                <option value="stop" @selected(old('waiting_where', $wt['where'] ?? '')==='stop')>At a stop</option>
+                            </select>
+                        </div>
+                        <div class="field" style="margin:0">
+                            <label for="waiting_minutes" style="font-size:12px">Roughly how long (mins)</label>
+                            <input id="waiting_minutes" type="number" name="waiting_minutes" min="0" max="600" value="{{ old('waiting_minutes', $wt['minutes'] ?? '') }}" placeholder="e.g. 20">
+                        </div>
+                    </div>
+                </div>
                 <div class="field">
                     <label for="special_requests">Special requests</label>
                     <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests', $booking->special_requests) }}</textarea>
@@ -225,6 +260,13 @@
                     grow.appendChild(input); row.appendChild(pin); row.appendChild(grow); wrap.appendChild(row);
                     if (window.CETattachPlaces) window.CETattachPlaces(input);
                 });
+            }
+
+            // Show the "where / how long" fields only when Waiting time is ticked.
+            var wait = document.getElementById('waiting');
+            var detail = document.getElementById('waiting-detail');
+            if (wait && detail) {
+                wait.addEventListener('change', function () { detail.hidden = !wait.checked; });
             }
         })();
     </script>

@@ -51,6 +51,12 @@ class UpdateBookingRequest extends FormRequest
             'special_requests' => ['nullable', 'string', 'max:1000'],
             'driver_notes' => ['nullable', 'string', 'max:2000'],
 
+            // Extras the driver needs flagged.
+            'ribbon' => ['nullable', 'boolean'],
+            'waiting' => ['nullable', 'boolean'],
+            'waiting_where' => ['nullable', Rule::in(['pickup', 'stop'])],
+            'waiting_minutes' => ['nullable', 'integer', 'min:0', 'max:600'],
+
             // Commercials
             'payment_method' => ['required', Rule::in(PaymentMethod::values())],
             'payment_status' => ['nullable', Rule::in(['pending', 'paid', 'refunded'])],
