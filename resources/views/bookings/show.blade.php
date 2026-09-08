@@ -1279,6 +1279,27 @@
                 </div>
             @endif
 
+            {{-- Review link — one-tap send of the Google review request. Always
+                 available so the office can send it whenever (usually after the
+                 job). Manual via WhatsApp, per the no-auto-send rule. --}}
+            @php
+                $reviewMsg = app(\App\Services\Messaging\BookingNotifier::class)->reviewBody($booking);
+                $reviewWa = \App\Support\Phone::wa($booking->customerContactNumber() ?? $booking->customer?->phone);
+            @endphp
+            @if(filled(config('cet.review_url')))
+                <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+                    <strong style="font-size:14px">⭐ Review link</strong>
+                    <div class="hint" style="margin:4px 0 8px">Ask the customer for a Google review — <a href="{{ config('cet.review_url') }}" target="_blank" rel="noopener">{{ config('cet.review_url') }}</a></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        @if(filled($reviewWa))
+                            <a href="https://wa.me/{{ $reviewWa }}?text={{ rawurlencode($reviewMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:8px 16px;font-size:14px">📲 Send review link</a>
+                        @endif
+                        <button type="button" class="btn btn-ghost" style="padding:8px 16px;font-size:14px" onclick="navigator.clipboard.writeText(@js($reviewMsg));this.textContent='✓ Copied'">Copy message</button>
+                    </div>
+                    @if(blank($reviewWa))<p class="hint" style="margin:6px 0 0">No customer mobile on file — copy the message and send it your usual way.</p>@endif
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">
                 @csrf
                 <label for="body" style="font-weight:600">Send a message to {{ $booking->customer?->name ?? 'the customer' }}</label>
