@@ -48,18 +48,19 @@ class InvoiceService
         }
 
         return DB::transaction(function () use ($account, $bookings, $start, $end) {
-            $vatRate = (float) config('cet.vat_rate', 0.20);
+            // Corporate fares are stored NET; VAT is added on top (VatService is
+            // the single place VAT is worked out, shared with public receipts).
             $subtotal = (float) $bookings->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0));
-            $vat = round($subtotal * $vatRate, 2);
+            $totals = app(\App\Services\Payments\VatService::class)->fromNet($subtotal);
 
             $invoice = Invoice::create([
                 'invoice_number' => $this->nextNumber(),
                 'corporate_account_id' => $account->id,
                 'period_start' => $start->toDateString(),
                 'period_end' => $end->toDateString(),
-                'subtotal' => $subtotal,
-                'vat_amount' => $vat,
-                'total' => round($subtotal + $vat, 2),
+                'subtotal' => $totals['net'],
+                'vat_amount' => $totals['vat'],
+                'total' => $totals['gross'],
                 'status' => 'issued',
                 'issued_at' => now()->toDateString(),
                 'due_at' => now()->addDays($account->payment_terms_days ?? 30)->toDateString(),

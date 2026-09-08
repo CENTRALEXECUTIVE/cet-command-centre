@@ -562,6 +562,35 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
+    /** The fare charged (final if set, else the quote), or null when there's none. */
+    public function fareGross(): ?float
+    {
+        $gross = $this->final_price ?? $this->quoted_price;
+
+        return $gross === null ? null : (float) $gross;
+    }
+
+    /**
+     * The VAT breakdown of this booking's fare, for a receipt or the booking page.
+     * Private customers' fares are VAT-INCLUSIVE (the price already contains VAT);
+     * corporate account fares are NET with VAT added on top. Null when there's no
+     * price yet.
+     *
+     * @return array{net: float, vat: float, gross: float, rate: float}|null
+     */
+    public function fareVatBreakdown(): ?array
+    {
+        $fare = $this->fareGross();
+        if ($fare === null) {
+            return null;
+        }
+        $vat = app(\App\Services\Payments\VatService::class);
+
+        return ($this->payment_method?->value ?? null) === \App\Enums\PaymentMethod::Account->value
+            ? $vat->fromNet($fare)
+            : $vat->fromGross($fare);
+    }
+
     /**
      * The booking's calendar event. There is no unique constraint on
      * calendar_events.booking_id and several code paths can create a row, so a

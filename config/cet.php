@@ -13,7 +13,15 @@ return [
         'operator_licence' => 'OP037',
         'licensing_authority' => 'Sheffield City Council',
         'website' => 'centralexecutivetransfers.co.uk',
+        // VAT registration number — set CET_VAT_NUMBER in .env once you have it
+        // (e.g. "GB123456789"). Shown on customer receipts and VAT invoices.
+        'vat_number' => env('CET_VAT_NUMBER', ''),
     ],
+
+    // VAT switched ON the day the company registered. When true, fares are treated
+    // as VAT-inclusive for the public (the price the customer sees already
+    // contains VAT) and net + VAT is shown separately on corporate invoices.
+    'vat_registered' => (bool) env('CET_VAT_REGISTERED', true),
 
     // Displayed on all customer-facing pages (GDPR requirement).
     'ico_registration_number' => env('CET_ICO_NUMBER', ''),
@@ -53,8 +61,9 @@ return [
         'revenue' => 14000,
     ],
 
-    // UK VAT rate applied to corporate account invoices.
-    'vat_rate' => 0.20,
+    // UK standard VAT rate (20%). Applied system-wide once vat_registered is on:
+    // broken out of VAT-inclusive public fares, and added to net corporate invoices.
+    'vat_rate' => (float) env('CET_VAT_RATE', 0.20),
 
     // GPS ping cadence while a driver is on an active job.
     'gps_ping_seconds' => 300, // every 5 minutes (fallback/other uses)
