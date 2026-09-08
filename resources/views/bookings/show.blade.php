@@ -947,7 +947,17 @@
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
                 <strong style="font-size:14px">💛 Tips for {{ $booking->driverLabel() }}</strong>
                 @if(app(\App\Services\Payments\SquareTipService::class)->enabled())
-                    <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(auto-created ready to send when the job completes)</span></div>
+                    @php
+                        $tipMsg = app(\App\Services\Messaging\BookingNotifier::class)->tipRequestBody($booking);
+                        $tipWa = \App\Support\Phone::wa($booking->customerContactNumber() ?? $booking->customer?->phone);
+                    @endphp
+                    <div class="hint" style="margin:4px 0 6px">Customer card-tip link: <a href="{{ $booking->tipUrl() }}" target="_blank" rel="noopener">{{ $booking->tipUrl() }}</a> <span class="muted">(100% goes to the driver)</span></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">
+                        @if(filled($tipWa))
+                            <a href="https://wa.me/{{ $tipWa }}?text={{ rawurlencode($tipMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:7px 14px;font-size:13px">📲 Send tip link</a>
+                        @endif
+                        <button type="button" class="btn btn-ghost" style="padding:7px 14px;font-size:13px" onclick="navigator.clipboard.writeText(@js($tipMsg));this.textContent='✓ Copied'">Copy message</button>
+                    </div>
                 @endif
                 @if($booking->customerCashTipNotedAt())
                     <div class="hint" style="margin:4px 0 6px;color:#b8860b">💷 The customer said they left a cash tip ({{ $booking->customerCashTipNotedAt()->format('D d M, H:i') }}). Confirm the amount with {{ $booking->driverPublicName() ?: 'the driver' }} and log it below if you want it on payroll.</div>
