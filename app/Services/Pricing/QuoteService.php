@@ -53,25 +53,31 @@ class QuoteService
      * zones it applies to, and the price per vehicle slug (Estate/Executive/
      * 8-Seater/8-Seater-XL/V-Class). Rolls Royce omitted = on request.
      *
+     * These are the NEW rates after VAT registration: every fixed fare was raised
+     * by £10 to cover the VAT the company now hands over (private customers pay
+     * this VAT-inclusive price; a business that needs a VAT invoice has 20% added
+     * on top). The Estate figures are Executive + £10 (also derived at runtime in
+     * fixedPrice(), so the two can never drift). Free-roam fares were NOT raised.
+     *
      * @var list<array{dests: list<string>, zones: list<string>, prices: array<string, float>}>
      */
     private const RULES = [
-        ['dests' => ['liverpool'], 'zones' => ['s20'], 'prices' => ['estate' => 160, 'executive' => 155, 'minibus-8' => 195, 'minibus-8-xl' => 210, 'v-class' => 220]],
-        ['dests' => ['liverpool', 'birmingham'], 'zones' => ['sheffield', 'rotherham'], 'prices' => ['estate' => 155, 'executive' => 150, 'minibus-8' => 190, 'minibus-8-xl' => 205, 'v-class' => 215]],
-        ['dests' => ['birmingham'], 'zones' => ['s20', 'chesterfield'], 'prices' => ['estate' => 145, 'executive' => 140, 'minibus-8' => 180, 'minibus-8-xl' => 195, 'v-class' => 205]],
-        // East Midlands from S20/Chesterfield is its own (cheaper £90) row.
-        ['dests' => ['east-midlands'], 'zones' => ['s20', 'chesterfield'], 'prices' => ['estate' => 95, 'executive' => 90, 'minibus-8' => 130, 'minibus-8-xl' => 145, 'v-class' => 155]],
-        ['dests' => ['humberside'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 115, 'executive' => 110, 'minibus-8' => 150, 'minibus-8-xl' => 165, 'v-class' => 175]],
-        ['dests' => ['south-ports'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 405, 'executive' => 400, 'minibus-8' => 500, 'minibus-8-xl' => 515, 'v-class' => 525]],
-        ['dests' => ['exeter'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 435, 'executive' => 430, 'minibus-8' => 510, 'minibus-8-xl' => 525, 'v-class' => 535]],
-        ['dests' => ['bristol'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 335, 'executive' => 330, 'minibus-8' => 430, 'minibus-8-xl' => 445, 'v-class' => 455]],
-        ['dests' => ['glasgow'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 455, 'executive' => 450, 'minibus-8' => 530, 'minibus-8-xl' => 545, 'v-class' => 555]],
-        ['dests' => ['central-london'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 305, 'executive' => 300, 'minibus-8' => 350, 'minibus-8-xl' => 365, 'v-class' => 450]],
-        ['dests' => ['gatwick', 'southend'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 355, 'executive' => 350, 'minibus-8' => 420, 'minibus-8-xl' => 435, 'v-class' => 550]],
-        ['dests' => ['stansted'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 285, 'executive' => 280, 'minibus-8' => 330, 'minibus-8-xl' => 345, 'v-class' => 450]],
-        ['dests' => ['newcastle', 'luton'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 255, 'executive' => 250, 'minibus-8' => 290, 'minibus-8-xl' => 310, 'v-class' => 400]],
-        ['dests' => ['heathrow'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 295, 'executive' => 290, 'minibus-8' => 340, 'minibus-8-xl' => 360, 'v-class' => 450]],
-        ['dests' => ['leeds-bradford', 'east-midlands', 'manchester'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 105, 'executive' => 100, 'minibus-8' => 140, 'minibus-8-xl' => 155, 'v-class' => 165]],
+        ['dests' => ['liverpool'], 'zones' => ['s20'], 'prices' => ['estate' => 175, 'executive' => 165, 'minibus-8' => 205, 'minibus-8-xl' => 220, 'v-class' => 230]],
+        ['dests' => ['liverpool', 'birmingham'], 'zones' => ['sheffield', 'rotherham'], 'prices' => ['estate' => 170, 'executive' => 160, 'minibus-8' => 200, 'minibus-8-xl' => 215, 'v-class' => 225]],
+        ['dests' => ['birmingham'], 'zones' => ['s20', 'chesterfield'], 'prices' => ['estate' => 160, 'executive' => 150, 'minibus-8' => 190, 'minibus-8-xl' => 205, 'v-class' => 215]],
+        // East Midlands from S20/Chesterfield is its own (cheaper) row.
+        ['dests' => ['east-midlands'], 'zones' => ['s20', 'chesterfield'], 'prices' => ['estate' => 110, 'executive' => 100, 'minibus-8' => 140, 'minibus-8-xl' => 155, 'v-class' => 165]],
+        ['dests' => ['humberside'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 130, 'executive' => 120, 'minibus-8' => 160, 'minibus-8-xl' => 175, 'v-class' => 185]],
+        ['dests' => ['south-ports'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 420, 'executive' => 410, 'minibus-8' => 510, 'minibus-8-xl' => 525, 'v-class' => 535]],
+        ['dests' => ['exeter'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 450, 'executive' => 440, 'minibus-8' => 520, 'minibus-8-xl' => 535, 'v-class' => 545]],
+        ['dests' => ['bristol'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 350, 'executive' => 340, 'minibus-8' => 440, 'minibus-8-xl' => 455, 'v-class' => 465]],
+        ['dests' => ['glasgow'], 'zones' => ['chesterfield', 'sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 470, 'executive' => 460, 'minibus-8' => 540, 'minibus-8-xl' => 555, 'v-class' => 565]],
+        ['dests' => ['central-london'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 320, 'executive' => 310, 'minibus-8' => 360, 'minibus-8-xl' => 375, 'v-class' => 460]],
+        ['dests' => ['gatwick', 'southend'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 370, 'executive' => 360, 'minibus-8' => 430, 'minibus-8-xl' => 445, 'v-class' => 560]],
+        ['dests' => ['stansted'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 300, 'executive' => 290, 'minibus-8' => 340, 'minibus-8-xl' => 355, 'v-class' => 460]],
+        ['dests' => ['newcastle', 'luton'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 270, 'executive' => 260, 'minibus-8' => 300, 'minibus-8-xl' => 320, 'v-class' => 410]],
+        ['dests' => ['heathrow'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 310, 'executive' => 300, 'minibus-8' => 350, 'minibus-8-xl' => 370, 'v-class' => 460]],
+        ['dests' => ['leeds-bradford', 'east-midlands', 'manchester'], 'zones' => ['sheffield', 'rotherham', 'barnsley'], 'prices' => ['estate' => 120, 'executive' => 110, 'minibus-8' => 150, 'minibus-8-xl' => 165, 'v-class' => 175]],
     ];
 
     /**

@@ -45,8 +45,8 @@ class BookingWidgetTest extends TestCase
             'vehicle_type_id' => $executive->id,
         ])->assertOk()
             ->assertJson(['fixed' => true, 'vehicle' => $executive->name])
-            ->assertJsonPath('price', 100)
-            ->assertJsonPath('formatted', '£100');
+            ->assertJsonPath('price', 110)
+            ->assertJsonPath('formatted', '£110');
     }
 
     public function test_it_validates_the_inputs(): void

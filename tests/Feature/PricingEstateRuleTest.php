@@ -46,10 +46,10 @@ class PricingEstateRuleTest extends TestCase
     {
         $estate = VehicleType::where('slug', 'estate')->first();
 
-        // Sheffield → Manchester Airport is a fixed £100 for Executive in the
-        // built-in matrix, so Estate must quote £110.
+        // Sheffield → Manchester Airport is a fixed £110 for Executive in the
+        // built-in matrix, so Estate must quote £120.
         $result = app(QuoteService::class)->quote('Sheffield S1 2HH', 'Manchester Airport', $estate);
-        $this->assertSame(110.0, (float) $result['price']);
+        $this->assertSame(120.0, (float) $result['price']);
         $this->assertTrue($result['fixed']);
     }
 
