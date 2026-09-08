@@ -1176,7 +1176,7 @@ class BookingController extends Controller
         $discardedEdit = ! empty($meta['edited_fields'])
             || ! empty($meta['manually_edited_at'])
             || $booking->stops()->exists();
-        unset($meta['edited_fields'], $meta['manually_edited_at'], $meta['stops'], $meta['stops_reached'], $meta['stop_events'], $meta['eto_via']);
+        unset($meta['edited_fields'], $meta['manually_edited_at'], $meta['stops'], $meta['stops_reached'], $meta['stop_events'], $meta['eto_via'], $meta['driver_locked']);
         $booking->forceFill(['meta' => $meta])->save();
         $booking->stops()->delete();
         $booking->setRelation('stops', $booking->stops()->getRelated()->newCollection());

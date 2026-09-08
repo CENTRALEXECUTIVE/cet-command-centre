@@ -85,6 +85,9 @@ class DespatchController extends Controller
         }
 
         $this->status->allocateDriver($booking, $driver, $request->user());
+        // A human picked this driver — lock it so the calendar-tag auto-reconcile
+        // never moves it back.
+        $booking->fresh()->lockDriverChoice();
 
         return back()->with('status', "{$booking->reference} allocated to {$driver->name}.");
     }
@@ -169,6 +172,8 @@ class DespatchController extends Controller
                 'created_at' => now(),
             ]);
             $booking->forceFill(['driver_id' => null, 'status' => BookingStatus::Pending->value])->save();
+            // A human deliberately unassigned it — don't let auto-reconcile refill it.
+            $booking->lockDriverChoice();
 
             // Untied → the removed driver loses the masked line immediately.
             app(\App\Services\Telephony\TwilioProxyService::class)->closeSession($booking, 'driver removed');
@@ -202,6 +207,9 @@ class DespatchController extends Controller
             // Fresh masked session for the new driver; the old one dies now.
             app(\App\Services\Telephony\TwilioProxyService::class)->reassignDriver($booking->fresh(['customer']), $driver);
         }
+
+        // A human chose this driver — lock it against the calendar-tag reconcile.
+        $booking->fresh()->lockDriverChoice();
 
         return back()->with('status', "{$booking->reference} reassigned to {$driver->name}.");
     }

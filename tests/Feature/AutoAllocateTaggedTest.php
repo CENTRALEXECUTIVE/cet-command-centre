@@ -93,6 +93,39 @@ class AutoAllocateTaggedTest extends TestCase
         $this->assertSame($maj->id, $booking->fresh()->driver_id);
     }
 
+    public function test_a_driver_i_chose_by_hand_is_never_reverted_by_the_tag(): void
+    {
+        // Job tagged ABDI, but the boss deliberately reassigned it to Maj in the
+        // app. That choice is locked — the calendar tag must NOT move it back.
+        $maj = User::where('email', 'maj@centralexecutivetransfers.co.uk')->first();
+        $booking = $this->tagged('ABDI');
+        $booking->forceFill(['driver_id' => $maj->id, 'status' => BookingStatus::Allocated->value])->save();
+        $booking->lockDriverChoice();
+
+        $this->artisan('cet:auto-allocate-tagged')->assertSuccessful();
+
+        $this->assertSame($maj->id, $booking->fresh()->driver_id);
+    }
+
+    public function test_reassigning_in_the_app_locks_the_driver_against_the_tag(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $maj = User::where('email', 'maj@centralexecutivetransfers.co.uk')->first();
+        $booking = $this->tagged('ABDI');
+
+        // The boss reassigns to Maj through the dispatch board.
+        $this->actingAs($admin)
+            ->post(route('despatch.reassign', $booking), ['driver_id' => $maj->id])
+            ->assertRedirect();
+
+        $this->assertSame($maj->id, $booking->fresh()->driver_id);
+        $this->assertNotEmpty($booking->fresh()->meta['driver_locked'] ?? null);
+
+        // The tag reconcile now leaves it alone.
+        $this->artisan('cet:auto-allocate-tagged')->assertSuccessful();
+        $this->assertSame($maj->id, $booking->fresh()->driver_id);
+    }
+
     public function test_the_tag_is_read_from_the_calendar_title_when_not_stored(): void
     {
         // An ETO-CSV booking never had meta['driver_tag'] written, but its linked

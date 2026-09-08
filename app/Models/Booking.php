@@ -3296,6 +3296,13 @@ class Booking extends Model
      */
     public function reconcileDriverWithCalendarTag(): bool
     {
+        // The boss's word wins: once a human has chosen the driver in the app
+        // (allocate / reassign / un-tie), that choice is locked and the calendar
+        // tag never moves it. Only auto/rotation allocations are reconciled.
+        if (! empty($this->meta['driver_locked'])) {
+            return false;
+        }
+
         $tag = $this->calendarDriverTag();
         if ($tag === null) {
             return false;
@@ -3319,6 +3326,18 @@ class Booking extends Model
         ])->save();
 
         return true;
+    }
+
+    /**
+     * Record that a human deliberately set (or cleared) this booking's driver in
+     * the app — so the calendar-tag auto-reconcile leaves it alone from now on.
+     * The boss's choice wins. "Match calendar" clears this lock to force a revert.
+     */
+    public function lockDriverChoice(): void
+    {
+        $this->forceFill([
+            'meta' => array_merge($this->meta ?? [], ['driver_locked' => true]),
+        ])->save();
     }
 
     /** The {alias → full name} lookup, memoised per request. */
