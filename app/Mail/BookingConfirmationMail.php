@@ -39,6 +39,8 @@ class BookingConfirmationMail extends Mailable
 
     public function content(): Content
     {
+        $tipsLive = app(\App\Services\Payments\SquareTipService::class)->enabled();
+
         return new Content(view: 'emails.booking-confirmation', with: [
             'booking' => $this->booking,
             'paid' => $this->paid,
@@ -46,6 +48,7 @@ class BookingConfirmationMail extends Mailable
             'vat' => $this->booking->fareVatBreakdown(),
             'vatNumber' => app(VatService::class)->number(),
             'company' => (array) config('cet.company'),
+            'tipUrl' => $tipsLive ? $this->booking->tipUrl() : null,
         ]);
     }
 

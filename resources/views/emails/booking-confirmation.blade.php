@@ -81,6 +81,19 @@
         </ul>
     </td></tr>
 
+    {{-- Tip the driver --}}
+    @if(!empty($tipUrl))
+    <tr><td style="padding:6px 26px 4px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fffdf5;border:1px solid #FBBA2A;border-radius:10px">
+            <tr><td style="padding:16px 18px;text-align:center">
+                <div style="font-size:15px;font-weight:700;margin-bottom:4px">Look after your driver 🌟</div>
+                <div style="font-size:13.5px;color:#555;margin-bottom:12px">Happy with your journey? You can leave a tip securely any time — <strong>100% goes to your driver</strong>.</div>
+                <a href="{{ $tipUrl }}" style="display:inline-block;background:#0b0b0b;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:800;font-size:14px">Add a tip</a>
+            </td></tr>
+        </table>
+    </td></tr>
+    @endif
+
     {{-- Footer --}}
     <tr><td style="padding:18px 26px 26px;background:#f6f5f2;color:#555;font-size:12.5px;text-align:center">
         <strong style="color:#111">Central Executive Transfers</strong> &nbsp;|&nbsp; Tel: +447405172435<br>

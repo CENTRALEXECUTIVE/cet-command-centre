@@ -94,6 +94,27 @@ class WebBookingEmailTest extends TestCase
         Mail::assertSent(\App\Mail\OfficeBookingMail::class, fn ($m) => $m->hasTo(config('cet.ops_email')));
     }
 
+    public function test_the_confirmation_shows_a_tip_link_when_card_tips_are_live(): void
+    {
+        config(['services.square.access_token' => 'tok', 'services.square.location_id' => 'loc']);
+        $booking = $this->paidWebBooking();
+
+        $html = (new BookingConfirmationMail($booking, paid: true))->render();
+
+        $this->assertStringContainsString('Add a tip', $html);
+        $this->assertStringContainsString($booking->fresh()->tipUrl(), $html);
+    }
+
+    public function test_no_tip_link_when_card_tips_are_off(): void
+    {
+        config(['services.square.access_token' => null, 'services.square.location_id' => null]);
+        $booking = $this->paidWebBooking();
+
+        $html = (new BookingConfirmationMail($booking, paid: true))->render();
+
+        $this->assertStringNotContainsString('Add a tip', $html);
+    }
+
     public function test_the_invoice_pdf_renders_with_vat(): void
     {
         $booking = $this->paidWebBooking();
