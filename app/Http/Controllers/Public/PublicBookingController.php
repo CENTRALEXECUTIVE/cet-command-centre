@@ -209,11 +209,35 @@ class PublicBookingController extends Controller
                 .($charge !== null ? '. £'.number_format($charge, 2).' to pay.' : '. Price on request.'),
             'info', $booking);
 
-        // Firm price + Square live → straight to pay. Otherwise it's an enquiry.
+        // Email the office too (mirrors ETO's "New booking" notification).
+        if ($ops = config('cet.ops_email')) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail($booking->fresh()));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[web] office booking email failed: '.$e->getMessage());
+            }
+        }
+
+        // Firm price + Square live → straight to pay (the paid receipt email is
+        // sent by the webhook once payment succeeds).
         if ($charge !== null && $charge > 0 && $this->payments->enabled()) {
             $url = $this->payments->createCheckoutUrl($booking, $charge, route('public.book.thanks'));
             if ($url) {
                 return redirect()->away($url);
+            }
+        }
+
+        // Enquiry (price on request, or online payment unavailable): email the
+        // customer their request confirmation now.
+        if ($customer->email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($customer->email)
+                    ->send(new \App\Mail\BookingConfirmationMail($booking->fresh(), paid: false));
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                    'customer_email_sent' => now()->toIso8601String(),
+                ])])->save();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[web] enquiry email failed: '.$e->getMessage());
             }
         }
 

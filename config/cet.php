@@ -26,6 +26,9 @@ return [
     // Displayed on all customer-facing pages (GDPR requirement).
     'ico_registration_number' => env('CET_ICO_NUMBER', ''),
 
+    // Where "new web booking" office emails go.
+    'ops_email' => env('CET_OPS_EMAIL', 'admin@centralexecutivetransfers.co.uk'),
+
     'brand' => [
         'gold' => '#FBBA2A',
         'black' => '#0b0b0b',

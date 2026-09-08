@@ -133,6 +133,21 @@ class BookingStatusService
             }
 
             $fresh = $booking->fresh();
+
+            // Email the customer their confirmation + VAT invoice/receipt (once).
+            if ($fresh->customer?->email && empty($fresh->meta['customer_email_sent'])) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($fresh->customer->email)
+                        ->send(new \App\Mail\BookingConfirmationMail($fresh, paid: true));
+                    $fresh->forceFill(['meta' => array_merge($fresh->meta ?? [], [
+                        'customer_email_sent' => now()->toIso8601String(),
+                    ])])->save();
+                    $fresh = $fresh->fresh();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[web] paid confirmation email failed: '.$e->getMessage());
+                }
+            }
+
             $name = $fresh->customer?->name ?? 'Web customer';
             \App\Models\WatchdogEvent::log('web_booking_paid', 'Web booking PAID — '.$name, 'info', $fresh);
             $this->adminAlerts->notify('web_booking',
