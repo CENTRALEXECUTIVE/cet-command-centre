@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\VehicleType;
+use App\Models\Voucher;
 use App\Services\Payments\SquareBookingPaymentService;
 use App\Services\Payments\VatService;
+use App\Services\Pricing\FareCalculator;
 use App\Services\Pricing\QuoteService;
 use App\Services\Watchdog\AdminAlerts;
 use Illuminate\Http\JsonResponse;
@@ -35,6 +37,7 @@ class PublicBookingController extends Controller
 {
     public function __construct(
         private readonly QuoteService $quotes,
+        private readonly FareCalculator $fares,
         private readonly SquareBookingPaymentService $payments,
         private readonly VatService $vat,
         private readonly AdminAlerts $adminAlerts,
@@ -47,6 +50,7 @@ class PublicBookingController extends Controller
             'vehicleTypes' => $this->activeVehicleTypes(),
             'payEnabled' => $this->payments->enabled(),
             'vatPercent' => $this->vat->ratePercent(),
+            'surcharges' => (array) config('cet.surcharges', []),
         ]);
     }
 
@@ -59,11 +63,14 @@ class PublicBookingController extends Controller
         $data = $request->validate([
             'pickup' => ['required', 'string', 'max:500'],
             'destination' => ['required', 'string', 'max:500'],
+            'pickup_at' => ['nullable', 'date'],
         ]);
 
-        $options = $this->activeVehicleTypes()->map(function (VehicleType $type) use ($data) {
-            $q = $this->quotes->quote($data['pickup'], $data['destination'], $type);
-            $price = $q['price'];
+        $pickupAt = $this->parsePickup($data['pickup_at'] ?? null) ?? now();
+
+        $options = $this->activeVehicleTypes()->map(function (VehicleType $type) use ($data, $pickupAt) {
+            $fare = $this->fares->calculate($data['pickup'], $data['destination'], $type, $pickupAt);
+            $price = $fare['subtotal']; // base + any holiday/rush surcharge (no extras yet)
 
             return [
                 'id' => $type->id,
@@ -72,12 +79,16 @@ class PublicBookingController extends Controller
                 'luggage' => $type->luggage_capacity,
                 'price' => $price,
                 'formatted' => $price !== null ? '£'.number_format($price, 0) : 'Price on request',
-                'poa' => $price === null,
-                'fixed' => $q['fixed'],
+                'poa' => $fare['poa'],
+                'fixed' => $fare['fixed'],
+                'surcharge' => $fare['surcharge'],
             ];
         })->values();
 
-        return response()->json(['options' => $options]);
+        // Surcharge note is the same for all vehicles (date-driven).
+        $surcharge = $this->fares->holidayFactor($pickupAt);
+
+        return response()->json(['options' => $options, 'surcharge' => $surcharge]);
     }
 
     /**
@@ -107,21 +118,43 @@ class PublicBookingController extends Controller
             'customer_phone' => ['required', 'string', 'max:32'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'vat_invoice' => ['nullable', 'boolean'],
+            'voucher' => ['nullable', 'string', 'max:40'],
+            // Extras (mirrors ETO Item Surcharge).
+            'meet_greet' => ['nullable', 'boolean'],
+            'wheelchair' => ['nullable', 'boolean'],
+            'ribbons' => ['nullable', 'boolean'],
+            'child_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'stopovers' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'hire_hours' => ['nullable', 'integer', 'min:0', 'max:20'],
         ], [], ['customer_phone' => 'phone', 'customer_email' => 'email']);
 
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
-        $pickupAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['pickup_at'], config('app.timezone'))
-            ?: Carbon::parse($data['pickup_at']);
-
-        $quote = $this->quotes->quote($data['pickup_address'], $data['destination_address'], $vehicleType);
-        $base = $quote['price'];
+        $pickupAt = $this->parsePickup($data['pickup_at']);
         $needsInvoice = (bool) ($data['vat_invoice'] ?? false);
 
-        // A business that needs a VAT invoice has 20% added on top of the listed
-        // price; a private customer pays the listed (VAT-inclusive) price.
-        $charge = $base === null
+        // Base + holiday surcharge + extras, all VAT-inclusive.
+        $fare = $this->fares->calculate(
+            $data['pickup_address'], $data['destination_address'], $vehicleType, $pickupAt,
+            $this->extraOptions($data),
+        );
+        $base = $fare['base'];
+        $subtotal = $fare['subtotal'];
+
+        // Voucher (validated here; only consumed once payment succeeds).
+        $voucher = Voucher::findByCode($data['voucher'] ?? null);
+        if (($data['voucher'] ?? '') !== '' && (! $voucher || ! $voucher->isRedeemable())) {
+            return back()->withInput()->withErrors(['voucher' => 'That voucher code isn’t valid or has expired.']);
+        }
+        $discount = ($voucher && $subtotal !== null) ? $voucher->discountOn($subtotal) : 0.0;
+        $afterDiscount = $subtotal === null ? null : round($subtotal - $discount, 2);
+
+        // A business that needs a VAT invoice has 20% added on top; a private
+        // customer pays the VAT-inclusive total.
+        $charge = $afterDiscount === null
             ? null
-            : ($needsInvoice ? round($base * (1 + $this->vat->rate()), 2) : $base);
+            : ($needsInvoice ? round($afterDiscount * (1 + $this->vat->rate()), 2) : $afterDiscount);
 
         $customer = $this->resolveCustomer($data);
 
@@ -145,10 +178,14 @@ class PublicBookingController extends Controller
                 'lead_name' => $data['customer_name'],
                 'suitcases' => (int) ($data['suitcases'] ?? 0),
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
-                'web_quote_basis' => $quote['basis'],
+                'web_quote_basis' => $this->quotes->quote($data['pickup_address'], $data['destination_address'], $vehicleType)['basis'],
                 'vat_invoice_requested' => $needsInvoice,
                 'list_price' => $base,
-            ], fn ($v) => $v !== null && $v !== '' && $v !== false),
+                'fare_surcharge' => $fare['surcharge'],
+                'fare_extras' => $fare['extras'],
+                'fare_extras_total' => $fare['extras_total'],
+                'voucher' => $voucher ? ['id' => $voucher->id, 'code' => $voucher->code, 'discount' => $discount, 'label' => $voucher->label()] : null,
+            ], fn ($v) => $v !== null && $v !== '' && $v !== false && $v !== []),
         ]);
 
         // Alert the office (a paid one will alert again on payment).
@@ -175,6 +212,36 @@ class PublicBookingController extends Controller
     public function thanks(Request $request): \Illuminate\View\View
     {
         return view('public.thanks', ['enquiry' => (bool) $request->session()->get('enquiry', false)]);
+    }
+
+    /** Parse the datetime-local pickup value in the app timezone. */
+    private function parsePickup(?string $value): ?Carbon
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d\TH:i', $value, config('app.timezone'))
+                ?: Carbon::parse($value, config('app.timezone'));
+        } catch (\Throwable) {
+            return Carbon::parse($value, config('app.timezone'));
+        }
+    }
+
+    /** The extras selections from the validated form, for FareCalculator. */
+    private function extraOptions(array $data): array
+    {
+        return [
+            'meet_greet' => (bool) ($data['meet_greet'] ?? false),
+            'wheelchair' => (bool) ($data['wheelchair'] ?? false),
+            'ribbons' => (bool) ($data['ribbons'] ?? false),
+            'child_seats' => (int) ($data['child_seats'] ?? 0),
+            'booster_seats' => (int) ($data['booster_seats'] ?? 0),
+            'infant_seats' => (int) ($data['infant_seats'] ?? 0),
+            'stopovers' => (int) ($data['stopovers'] ?? 0),
+            'hire_hours' => (int) ($data['hire_hours'] ?? 0),
+        ];
     }
 
     /** @return \Illuminate\Support\Collection<int, VehicleType> */

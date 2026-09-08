@@ -97,6 +97,18 @@ class BookingStatusService
                 ])])->save();
             }
 
+            // Consume a voucher only now the booking is actually paid (so an
+            // abandoned checkout never burns a one-use code). Idempotent.
+            $voucherMeta = $booking->meta['voucher'] ?? null;
+            if (is_array($voucherMeta) && ! empty($voucherMeta['id']) && empty($voucherMeta['redeemed'])) {
+                if ($voucher = \App\Models\Voucher::find($voucherMeta['id'])) {
+                    $voucher->redeem();
+                }
+                $meta = $booking->meta ?? [];
+                $meta['voucher']['redeemed'] = now()->toIso8601String();
+                $booking->forceFill(['meta' => $meta])->save();
+            }
+
             // Rotation for executive-saloon-style jobs; null for others (left for
             // the office to allocate by hand).
             $driver = $this->rotation->allocate($booking);

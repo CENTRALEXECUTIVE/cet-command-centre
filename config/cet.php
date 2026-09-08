@@ -65,11 +65,9 @@ return [
     // broken out of VAT-inclusive public fares, and added to net corporate invoices.
     'vat_rate' => (float) env('CET_VAT_RATE', 0.20),
 
-    // Estate is always Executive + this much (fixed matrix and free-roam alike).
-    'estate_over_executive' => (float) env('CET_ESTATE_UPLIFT', 10),
-
     // Flat uplift added to every free-roam (distance) fare to cover VAT — the
     // Price Guide rates are VAT-exclusive; fixed routes were raised in the matrix.
+    // (estate_over_executive lives further down with the other pricing rules.)
     'freeroam_vat_uplift' => (float) env('CET_FREEROAM_VAT_UPLIFT', 10),
 
     // GPS ping cadence while a driver is on an active job.
@@ -139,6 +137,20 @@ return [
         'wheelchair' => (float) env('CET_SURCHARGE_WHEELCHAIR', 0),
         'waiting_after_landing' => (float) env('CET_SURCHARGE_WAITING', 0),
         'stopover' => (float) env('CET_SURCHARGE_STOPOVER', 10),
+        'ribbons_car' => (float) env('CET_SURCHARGE_RIBBONS_CAR', 30),
+        'ribbons_minibus' => (float) env('CET_SURCHARGE_RIBBONS_MINIBUS', 50),
+        'hire_hour' => (float) env('CET_SURCHARGE_HIRE_HOUR', 80),
+    ],
+
+    // Holiday / rush-hour surcharge — mirrors ETO's date-range factor multipliers.
+    // Each: label, factor (>1 raises, <1 lowers), and an inclusive date window.
+    // The FIRST window that contains the pickup time applies to the base fare.
+    'holiday_surcharges' => [
+        ['label' => 'Christmas Eve',  'factor' => 1.3, 'from' => '2026-12-24 00:00', 'to' => '2026-12-24 23:59'],
+        ['label' => 'Christmas Day',  'factor' => 1.3, 'from' => '2026-12-25 00:00', 'to' => '2026-12-25 23:59'],
+        ['label' => 'Boxing Day',     'factor' => 1.3, 'from' => '2026-12-26 00:00', 'to' => '2026-12-26 23:59'],
+        ['label' => "New Year's Eve", 'factor' => 1.5, 'from' => '2026-12-31 00:00', 'to' => '2026-12-31 23:59'],
+        ['label' => "New Year's Day", 'factor' => 1.5, 'from' => '2027-01-01 00:00', 'to' => '2027-01-01 23:59'],
     ],
 
     // Estate is always priced at the Executive fare PLUS this uplift (default

@@ -64,6 +64,10 @@
         .car .pr small{font-size:12.5px;font-weight:600;color:var(--muted)}
         .car.poa .pr{font-size:16px;color:var(--muted)}
 
+        .extras{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+        .xcheck{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;padding:11px 13px;cursor:pointer;background:#fff;font-size:14px}
+        .xcheck input{width:17px;height:17px;flex:none}
+        .xcheck b{font-weight:800}
         .vatrow{display:flex;gap:11px;align-items:flex-start;margin-top:2px;padding:13px 14px;border:1px dashed var(--line);border-radius:12px;background:#fbfaf7}
         .vatrow input{width:18px;height:18px;margin-top:2px;flex:none}
         .vatrow .t{font-size:13.5px;color:var(--muted)}.vatrow .t b{color:var(--ink)}
@@ -166,7 +170,43 @@
             <div style="margin-top:14px"><label class="f">Email <span class="req">*</span></label>
                 <input type="email" name="customer_email" value="{{ old('customer_email') }}" placeholder="For your confirmation &amp; receipt" required></div>
             <div style="margin-top:14px"><label class="f">Notes for your driver <small style="color:var(--muted)">(optional)</small></label>
-                <textarea name="notes" placeholder="Child seat, extra stop, anything we should know">{{ old('notes') }}</textarea></div>
+                <textarea name="notes" placeholder="Anything we should know">{{ old('notes') }}</textarea></div>
+
+            {{-- Extras (mirrors ETO Item Surcharge) --}}
+            <div class="step-label" style="margin-top:22px"><span class="n">+</span> Extras <small style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--muted)">(optional)</small></div>
+            <div class="extras">
+                @php $sc = $surcharges; @endphp
+                <label class="xcheck">
+                    <input type="checkbox" name="meet_greet" value="1" data-extra="{{ $sc['meet_greet'] ?? 0 }}" {{ old('meet_greet') ? 'checked' : '' }}>
+                    <span>Meet &amp; greet <b>£{{ number_format($sc['meet_greet'] ?? 0, 0) }}</b></span>
+                </label>
+                <label class="xcheck">
+                    <input type="checkbox" name="ribbons" value="1" data-extra="{{ $sc['ribbons_car'] ?? 0 }}" data-extra-minibus="{{ $sc['ribbons_minibus'] ?? 0 }}" {{ old('ribbons') ? 'checked' : '' }}>
+                    <span>Wedding ribbons <b>from £{{ number_format($sc['ribbons_car'] ?? 0, 0) }}</b></span>
+                </label>
+                @if(($sc['wheelchair'] ?? 0) >= 0)
+                <label class="xcheck">
+                    <input type="checkbox" name="wheelchair" value="1" data-extra="{{ $sc['wheelchair'] ?? 0 }}" {{ old('wheelchair') ? 'checked' : '' }}>
+                    <span>Wheelchair accessible {!! ($sc['wheelchair'] ?? 0) > 0 ? '<b>£'.number_format($sc['wheelchair'],0).'</b>' : '<b>free</b>' !!}</span>
+                </label>
+                @endif
+            </div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:12px">
+                @foreach ([
+                    'child_seats' => ['Child seats', $sc['child_seat'] ?? 0],
+                    'booster_seats' => ['Booster seats', $sc['booster_seat'] ?? 0],
+                    'infant_seats' => ['Infant seats', $sc['infant_seat'] ?? 0],
+                    'stopovers' => ['Extra stops', $sc['stopover'] ?? 0],
+                    'hire_hours' => ['Hours of hire', $sc['hire_hour'] ?? 0],
+                ] as $field => [$label, $unit])
+                    <div><label class="f">{{ $label }} <small style="color:var(--muted)">£{{ number_format($unit, 0) }} ea</small></label>
+                        <input type="number" name="{{ $field }}" min="0" max="20" value="{{ old($field, 0) }}" data-extra="{{ $unit }}"></div>
+                @endforeach
+            </div>
+
+            <div style="margin-top:16px"><label class="f">Voucher code <small style="color:var(--muted)">(optional)</small></label>
+                <input name="voucher" value="{{ old('voucher') }}" placeholder="e.g. RACHEL20" style="text-transform:uppercase;max-width:240px">
+                <div class="note" style="margin-top:6px">Any discount is applied when you pay.</div></div>
 
             <label class="vatrow" style="margin-top:14px">
                 <input type="checkbox" name="vat_invoice" value="1" id="vatInvoice" {{ old('vat_invoice') ? 'checked' : '' }}>
@@ -227,7 +267,7 @@
         fetch('{{ route('public.book.quotes') }}', {
             method:'POST',
             headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token,'Accept':'application/json'},
-            body: JSON.stringify({pickup:pickup, destination:dest})
+            body: JSON.stringify({pickup:pickup, destination:dest, pickup_at:pt.value})
         }).then(function(r){return r.json();}).then(function(data){
             (data.options||[]).forEach(function(o){
                 prices[o.id]=o.price;
@@ -239,7 +279,10 @@
                     : money(o.price)+' <small>'+(o.fixed?'fixed':'inc. everything')+'</small>';
             });
             step2.classList.remove('hidden'); step3.classList.remove('hidden');
-            note.textContent = 'Prices include VAT. Choose a vehicle to continue.';
+            note.textContent = data.surcharge
+                ? (data.surcharge.label+' rate applies to this date. Prices include VAT — choose a vehicle.')
+                : 'Prices include VAT. Choose a vehicle to continue.';
+            refreshTotal();
         }).catch(function(){ note.textContent='Sorry, we couldn’t price that just now. Please try again.'; })
           .finally((function(b){return function(){b.disabled=false;};})(this));
     });
@@ -251,6 +294,25 @@
         refreshTotal();
     });
     vatBox.addEventListener('change', refreshTotal);
+    // Any extra (checkbox or quantity) changes the running total.
+    document.getElementById('bookForm').addEventListener('input', function(e){
+        if(e.target.hasAttribute && e.target.hasAttribute('data-extra')) refreshTotal();
+    });
+
+    function extrasTotal(){
+        var sel = cars.querySelector('input[name=vehicle_type_id]:checked');
+        var isMinibus = false;
+        if(sel){ var nm=(sel.closest('.car').querySelector('.nm').textContent||'').toLowerCase();
+            isMinibus = nm.indexOf('seater')>-1 || nm.indexOf('v class')>-1 || nm.indexOf('minibus')>-1; }
+        var sum=0;
+        document.querySelectorAll('[data-extra]').forEach(function(el){
+            var unit=parseFloat(el.getAttribute('data-extra'))||0;
+            if(el.type==='checkbox'){
+                if(el.checked){ if(el.name==='ribbons' && isMinibus){ unit=parseFloat(el.getAttribute('data-extra-minibus'))||unit; } sum+=unit; }
+            } else { sum += (parseInt(el.value,10)||0)*unit; }
+        });
+        return sum;
+    }
 
     function refreshTotal(){
         var sel = cars.querySelector('input[name=vehicle_type_id]:checked');
@@ -261,7 +323,8 @@
             payBtn.disabled=false; payBtn.textContent = payEnabled ? 'Send enquiry' : 'Send booking request';
             return;
         }
-        var total = vatBox.checked ? Math.round(base*(1+vatPercent/100)*100)/100 : base;
+        var total = base + extrasTotal();
+        if(vatBox.checked) total = Math.round(total*(1+vatPercent/100)*100)/100;
         sumLab.textContent = payEnabled ? 'Total to pay today' : 'Estimated total';
         sumAmt.textContent = money(total) + (vatBox.checked ? ' inc. VAT' : '');
         payBtn.disabled=false;

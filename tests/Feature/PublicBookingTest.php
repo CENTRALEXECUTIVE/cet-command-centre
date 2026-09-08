@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\VehicleType;
+use App\Models\Voucher;
+use App\Services\BookingStatusService;
 use Database\Seeders\VehicleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -68,6 +70,53 @@ class PublicBookingTest extends TestCase
         $booking = Booking::latest('id')->first();
         $this->assertSame(132.0, (float) $booking->quoted_price); // 110 + 20%
         $this->assertTrue((bool) $booking->meta['vat_invoice_requested']);
+    }
+
+    public function test_extras_and_a_voucher_are_applied_to_the_charge(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        Voucher::create([
+            'code' => 'RACHEL20', 'type' => 'percent', 'value' => 20,
+            'max_uses' => 1, 'valid_from' => now()->subDay(), 'valid_to' => now()->addYear(),
+        ]);
+
+        // Base 110 + meet&greet 10 + 1 child seat 10 = 130; 20% off = 104.
+        $this->post(route('public.book.store'), $this->payload($exec->id, [
+            'meet_greet' => 1, 'child_seats' => 1, 'voucher' => 'rachel20',
+        ]))->assertRedirect(route('public.book.thanks'));
+
+        $booking = Booking::latest('id')->first();
+        $this->assertSame(104.0, (float) $booking->quoted_price);
+        $this->assertSame(26.0, (float) $booking->meta['voucher']['discount']); // 20% of 130
+        $this->assertSame(0, Voucher::first()->used_count); // not consumed until paid
+    }
+
+    public function test_an_invalid_voucher_is_rejected(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        $this->post(route('public.book.store'), $this->payload($exec->id, ['voucher' => 'NOPE']))
+            ->assertSessionHasErrors('voucher');
+        $this->assertSame(0, Booking::count());
+    }
+
+    public function test_a_voucher_is_consumed_only_when_the_booking_is_paid(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $voucher = Voucher::create([
+            'code' => 'RACHEL20', 'type' => 'percent', 'value' => 20, 'max_uses' => 1,
+            'valid_from' => now()->subDay(), 'valid_to' => now()->addYear(),
+        ]);
+
+        $this->post(route('public.book.store'), $this->payload($exec->id, ['voucher' => 'RACHEL20']))
+            ->assertRedirect();
+        $booking = Booking::latest('id')->first();
+
+        // Simulate payment success → confirm.
+        $booking->markFarePaid('sq_test_1', (float) $booking->quoted_price);
+        app(BookingStatusService::class)->confirmPaidWebBooking($booking->fresh());
+
+        $this->assertSame(1, $voucher->fresh()->used_count);
     }
 
     public function test_the_honeypot_silently_drops_bots(): void
