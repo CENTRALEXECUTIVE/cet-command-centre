@@ -381,6 +381,18 @@ Route::post('car/{token}/notes-ack', [\App\Http\Controllers\Driver\ExtraDriverCo
 Route::post('job/{token}/location', [\App\Http\Controllers\Driver\LinkController::class, 'location'])
     ->middleware('throttle:120,1')->name('driver.link.location');
 
+// ----- Public FULL-PAGE booking funnel (our own booking system) ---------------
+// Instant prices for every vehicle → details → pay in full via Square. Payment
+// confirms the booking automatically (Square webhook → confirmPaidWebBooking).
+Route::get('book', [\App\Http\Controllers\Public\PublicBookingController::class, 'index'])
+    ->middleware('throttle:180,1')->name('public.book');
+Route::post('book/quotes', [\App\Http\Controllers\Public\PublicBookingController::class, 'quotes'])
+    ->middleware('throttle:60,1')->name('public.book.quotes');
+Route::post('book', [\App\Http\Controllers\Public\PublicBookingController::class, 'store'])
+    ->middleware('throttle:20,1')->name('public.book.store');
+Route::get('book/thanks', [\App\Http\Controllers\Public\PublicBookingController::class, 'thanks'])
+    ->middleware('throttle:60,1')->name('public.book.thanks');
+
 // ----- Public embeddable WEB BOOKING WIDGETS (iframe into the marketing site) --
 // Mirrors ETO's "Web Widgets". Served from the Command Centre; the live website
 // only embeds them by iframe, so public_html is never touched.
