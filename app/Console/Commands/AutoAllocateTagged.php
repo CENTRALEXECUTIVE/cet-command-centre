@@ -22,20 +22,28 @@ class AutoAllocateTagged extends Command
 
     public function handle(): int
     {
-        $bookings = Booking::whereNull('driver_id')
-            ->where('status', BookingStatus::Pending->value)
+        // Upcoming jobs that are still Pending or Allocated (not yet accepted or
+        // underway) and either carry a stored driver tag OR are linked to a
+        // calendar event we can read the "(ABDI)"/"(MAJ)" tag off. Reconcile each
+        // to the calendar tag — assigning a blank one, or CORRECTING one that's on
+        // the wrong driver.
+        $bookings = Booking::whereIn('status', [BookingStatus::Pending->value, BookingStatus::Allocated->value])
             ->where('pickup_at', '>=', now()->subHours(12))
-            ->whereNotNull('meta->driver_tag')
+            ->where(function ($q) {
+                $q->whereNotNull('meta->driver_tag')
+                    ->orWhereHas('calendarEvent');
+            })
+            ->with('calendarEvent')
             ->get();
 
-        $allocated = 0;
+        $changed = 0;
         foreach ($bookings as $booking) {
-            if ($booking->autoAssignDriverFromCalendarTag()) {
-                $allocated++;
+            if ($booking->reconcileDriverWithCalendarTag()) {
+                $changed++;
             }
         }
 
-        $this->info("Auto-allocated {$allocated} of {$bookings->count()} tagged booking(s).");
+        $this->info("Reconciled {$changed} of {$bookings->count()} tagged booking(s) to the calendar.");
 
         return self::SUCCESS;
     }

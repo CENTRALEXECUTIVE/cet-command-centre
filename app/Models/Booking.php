@@ -3243,31 +3243,80 @@ class Booking extends Model
     }
 
     /**
-     * If the calendar named a driver (the title tag, stored in meta['driver_tag'])
-     * and this booking has no driver yet, assign that driver here — matching the
-     * calendar WITHOUT touching it. Returns true if a driver was assigned. Does
-     * NOT open masking or push (those are for the manual allocate flow) — it just
-     * mirrors who the calendar already shows.
+     * The driver tag the calendar shows for this booking: the stored
+     * meta['driver_tag'] if we captured one, else parsed straight from the linked
+     * calendar event's title — the trailing "(TAG)", e.g. "…MAN Return (ABDI)".
+     * A vehicle-type word in that position (V CLASS, EXECUTIVE, …) is not a driver
+     * and returns null. This makes the tag work even for ETO-CSV bookings that
+     * never had meta['driver_tag'] written at import.
+     */
+    public function calendarDriverTag(): ?string
+    {
+        $tag = trim((string) ($this->meta['driver_tag'] ?? ''));
+        if ($tag !== '') {
+            return $tag;
+        }
+
+        $title = (string) ($this->calendarEvent?->title ?? '');
+        if ($title === '' || ! preg_match('/\(([^)]+)\)\*?\s*$/', $title, $m)) {
+            return null;
+        }
+        $parsed = strtoupper(trim($m[1]));
+        if ($parsed === '' || preg_match('/CLASS|MINIBUS|EXECUTIVE|ESTATE|ROLLS|SEATER|SALOON|MPV|COVER|V14/', $parsed)) {
+            return null;
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * If the calendar named a driver (see calendarDriverTag) and this booking has
+     * no driver yet, assign that driver here — matching the calendar WITHOUT
+     * touching it. Returns true if a driver was assigned. Does NOT open masking or
+     * push (those are for the manual allocate flow) — it just mirrors who the
+     * calendar already shows.
      */
     public function autoAssignDriverFromCalendarTag(): bool
     {
         if (filled($this->driver_id)) {
             return false; // never override an existing assignment
         }
-        $tag = trim((string) ($this->meta['driver_tag'] ?? ''));
-        if ($tag === '') {
+
+        return $this->reconcileDriverWithCalendarTag();
+    }
+
+    /**
+     * Make this booking's driver match the calendar's title tag — the calendar
+     * (ABDI/MAJ/a named driver) is the source of truth for who drives. Assigns the
+     * tagged driver when none is set, AND corrects it when a DIFFERENT driver is
+     * set while the job hasn't started. Only ever touches a Pending or Allocated
+     * job — never one a driver has already accepted or begun, and never a tag that
+     * doesn't clearly name a system driver (e.g. COVER). Mirrors the calendar;
+     * never changes it. Returns true if the driver changed.
+     */
+    public function reconcileDriverWithCalendarTag(): bool
+    {
+        $tag = $this->calendarDriverTag();
+        if ($tag === null) {
             return false;
         }
         $driver = static::resolveDriverUser($tag);
         if (! $driver) {
+            return false; // e.g. COVER, or a name we can't map to a system driver
+        }
+        if ((int) $this->driver_id === (int) $driver->id) {
+            return false; // already the right driver
+        }
+        // Only assign or correct while the job is still Pending or Allocated —
+        // never yank one a driver has accepted or is already on.
+        if (! in_array($this->status->value, [BookingStatus::Pending->value, BookingStatus::Allocated->value], true)) {
             return false;
         }
 
-        $attrs = ['driver_id' => $driver->id];
-        if ($this->status === BookingStatus::Pending) {
-            $attrs['status'] = BookingStatus::Allocated->value;
-        }
-        $this->forceFill($attrs)->save();
+        $this->forceFill([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::Allocated->value,
+        ])->save();
 
         return true;
     }
