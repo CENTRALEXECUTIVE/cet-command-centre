@@ -139,7 +139,6 @@ return [
         'stopover' => (float) env('CET_SURCHARGE_STOPOVER', 10),
         'ribbons_car' => (float) env('CET_SURCHARGE_RIBBONS_CAR', 30),
         'ribbons_minibus' => (float) env('CET_SURCHARGE_RIBBONS_MINIBUS', 50),
-        'hire_hour' => (float) env('CET_SURCHARGE_HIRE_HOUR', 80),
     ],
 
     // Holiday / rush-hour surcharge — mirrors ETO's date-range factor multipliers.

@@ -119,6 +119,20 @@ class PublicBookingTest extends TestCase
         $this->assertSame(1, $voucher->fresh()->used_count);
     }
 
+    public function test_the_pickup_postcode_is_required_and_stored(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $payload = $this->payload($exec->id);
+        unset($payload['pickup_postcode']);
+
+        $this->post(route('public.book.store'), $payload)->assertSessionHasErrors('pickup_postcode');
+        $this->assertSame(0, Booking::count());
+
+        // With it, the postcode is folded into the stored pick-up address.
+        $this->post(route('public.book.store'), $this->payload($exec->id))->assertRedirect();
+        $this->assertStringContainsString('S1 2HH', Booking::latest('id')->first()->pickup_address);
+    }
+
     public function test_the_honeypot_silently_drops_bots(): void
     {
         $exec = VehicleType::where('slug', 'executive')->firstOrFail();
@@ -132,7 +146,8 @@ class PublicBookingTest extends TestCase
     private function payload(int $vehicleTypeId, array $extra = []): array
     {
         return array_merge([
-            'pickup_address' => 'Sheffield S1 2HH',
+            'pickup_address' => '10 Division Street, Sheffield',
+            'pickup_postcode' => 'S1 2HH',
             'destination_address' => 'Manchester Airport (MAN)',
             'pickup_at' => Carbon::now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $vehicleTypeId,

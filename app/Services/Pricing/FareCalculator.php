@@ -105,7 +105,6 @@ class FareCalculator
             'booster_seats' => ['Booster seat', 'booster_seat'],
             'infant_seats' => ['Infant seat', 'infant_seat'],
             'stopovers' => ['Extra stop (via)', 'stopover'],
-            'hire_hours' => ['Hourly hire', 'hire_hour'],
         ] as $field => [$label, $rateKey]) {
             if (($n = $qty($field)) > 0 && ($rates[$rateKey] ?? 0) > 0) {
                 $items[] = $this->line($label, $n, (float) $rates[$rateKey]);

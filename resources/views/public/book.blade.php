@@ -38,6 +38,8 @@
             background:var(--ink);color:#fff;font-size:12px}
         .grid{display:grid;gap:14px}
         @media(min-width:640px){.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:2fr 1fr 1fr}}
+        .addr-row{display:grid;gap:14px}
+        @media(min-width:640px){.addr-row{grid-template-columns:2.4fr 1fr}}
         label.f{display:block;font-size:13px;font-weight:700;margin:0 0 6px}
         .req{color:var(--gold)}
         input,select,textarea{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:11px;
@@ -118,12 +120,19 @@
 
         {{-- Step 1 — journey --}}
         <div class="step-label"><span class="n">1</span> Your journey</div>
-        <div class="grid two">
+        <div class="addr-row">
             <div><label class="f">Pick-up address <span class="req">*</span></label>
-                <input name="pickup_address" id="pickup" value="{{ old('pickup_address') }}" placeholder="Postcode or address, e.g. S10 4BL" required></div>
+                <input name="pickup_address" id="pickup" value="{{ old('pickup_address') }}" placeholder="House / building and street" required></div>
+            <div><label class="f">Pick-up postcode <span class="req">*</span></label>
+                <input name="pickup_postcode" id="pickup_postcode" value="{{ old('pickup_postcode') }}" placeholder="e.g. S10 4BL" style="text-transform:uppercase" autocomplete="postal-code" required></div>
+        </div>
+        <div class="addr-row" style="margin-top:14px">
             <div><label class="f">Drop-off address <span class="req">*</span></label>
                 <input name="destination_address" id="destination" value="{{ old('destination_address') }}" placeholder="e.g. Manchester Airport (MAN)" required></div>
+            <div><label class="f">Drop-off postcode</label>
+                <input name="destination_postcode" id="destination_postcode" value="{{ old('destination_postcode') }}" placeholder="If known" style="text-transform:uppercase" autocomplete="postal-code"></div>
         </div>
+        <div class="note" style="margin-top:8px">Please double-check the pick-up postcode is correct — it sets your exact price and helps your driver find you.</div>
         <div class="grid three" style="margin-top:14px">
             <div><label class="f">Date &amp; time <span class="req">*</span></label>
                 <input type="datetime-local" name="pickup_at" id="pickup_at" value="{{ old('pickup_at') }}" required></div>
@@ -197,7 +206,6 @@
                     'booster_seats' => ['Booster seats', $sc['booster_seat'] ?? 0],
                     'infant_seats' => ['Infant seats', $sc['infant_seat'] ?? 0],
                     'stopovers' => ['Extra stops', $sc['stopover'] ?? 0],
-                    'hire_hours' => ['Hours of hire', $sc['hire_hour'] ?? 0],
                 ] as $field => [$label, $unit])
                     <div><label class="f">{{ $label }} <small style="color:var(--muted)">£{{ number_format($unit, 0) }} ea</small></label>
                         <input type="number" name="{{ $field }}" min="0" max="20" value="{{ old($field, 0) }}" data-extra="{{ $unit }}"></div>
@@ -262,12 +270,15 @@
     document.getElementById('getPrices').addEventListener('click', function(){
         var pickup = document.getElementById('pickup').value.trim();
         var dest = document.getElementById('destination').value.trim();
+        var pcode = document.getElementById('pickup_postcode').value.trim();
+        var dcode = document.getElementById('destination_postcode').value.trim();
         if(!pickup || !dest){ note.textContent = 'Enter a pick-up and drop-off first.'; return; }
+        if(!pcode){ note.textContent = 'Please add your pick-up postcode for an accurate price.'; document.getElementById('pickup_postcode').focus(); return; }
         this.disabled = true; note.textContent = 'Getting your prices…';
         fetch('{{ route('public.book.quotes') }}', {
             method:'POST',
             headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token,'Accept':'application/json'},
-            body: JSON.stringify({pickup:pickup, destination:dest, pickup_at:pt.value})
+            body: JSON.stringify({pickup:pickup, destination:dest, pickup_postcode:pcode, destination_postcode:dcode, pickup_at:pt.value})
         }).then(function(r){return r.json();}).then(function(data){
             (data.options||[]).forEach(function(o){
                 prices[o.id]=o.price;

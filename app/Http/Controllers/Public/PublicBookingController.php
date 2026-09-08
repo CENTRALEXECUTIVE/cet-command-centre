@@ -63,13 +63,17 @@ class PublicBookingController extends Controller
         $data = $request->validate([
             'pickup' => ['required', 'string', 'max:500'],
             'destination' => ['required', 'string', 'max:500'],
+            'pickup_postcode' => ['nullable', 'string', 'max:12'],
+            'destination_postcode' => ['nullable', 'string', 'max:12'],
             'pickup_at' => ['nullable', 'date'],
         ]);
 
         $pickupAt = $this->parsePickup($data['pickup_at'] ?? null) ?? now();
+        $pickup = $this->withPostcode($data['pickup'], $data['pickup_postcode'] ?? null);
+        $destination = $this->withPostcode($data['destination'], $data['destination_postcode'] ?? null);
 
-        $options = $this->activeVehicleTypes()->map(function (VehicleType $type) use ($data, $pickupAt) {
-            $fare = $this->fares->calculate($data['pickup'], $data['destination'], $type, $pickupAt);
+        $options = $this->activeVehicleTypes()->map(function (VehicleType $type) use ($pickup, $destination, $pickupAt) {
+            $fare = $this->fares->calculate($pickup, $destination, $type, $pickupAt);
             $price = $fare['subtotal']; // base + any holiday/rush surcharge (no extras yet)
 
             return [
@@ -107,6 +111,8 @@ class PublicBookingController extends Controller
         $data = $request->validate([
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required', 'string', 'max:500'],
+            'pickup_postcode' => ['required', 'string', 'max:12'],
+            'destination_postcode' => ['nullable', 'string', 'max:12'],
             'pickup_at' => ['required', 'date', 'after:now'],
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],
             'passengers' => ['required', 'integer', 'min:1', 'max:60'],
@@ -127,16 +133,20 @@ class PublicBookingController extends Controller
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:20'],
-            'hire_hours' => ['nullable', 'integer', 'min:0', 'max:20'],
-        ], [], ['customer_phone' => 'phone', 'customer_email' => 'email']);
+        ], [], ['customer_phone' => 'phone', 'customer_email' => 'email', 'pickup_postcode' => 'pick-up postcode']);
 
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
         $pickupAt = $this->parsePickup($data['pickup_at']);
         $needsInvoice = (bool) ($data['vat_invoice'] ?? false);
 
+        // Full addresses always carry the postcode (used for zone-accurate pricing
+        // and given to the driver). The pick-up postcode is mandatory.
+        $pickupFull = $this->withPostcode($data['pickup_address'], $data['pickup_postcode']);
+        $destinationFull = $this->withPostcode($data['destination_address'], $data['destination_postcode'] ?? null);
+
         // Base + holiday surcharge + extras, all VAT-inclusive.
         $fare = $this->fares->calculate(
-            $data['pickup_address'], $data['destination_address'], $vehicleType, $pickupAt,
+            $pickupFull, $destinationFull, $vehicleType, $pickupAt,
             $this->extraOptions($data),
         );
         $base = $fare['base'];
@@ -163,8 +173,8 @@ class PublicBookingController extends Controller
             'customer_id' => $customer->id,
             'vehicle_type_id' => $vehicleType->id,
             'pickup_at' => $pickupAt,
-            'pickup_address' => $data['pickup_address'],
-            'destination_address' => $data['destination_address'],
+            'pickup_address' => $pickupFull,
+            'destination_address' => $destinationFull,
             'passengers' => $data['passengers'],
             'flight_number' => $data['flight_number'] ?? null,
             'special_requests' => $data['notes'] ?? null,
@@ -176,9 +186,11 @@ class PublicBookingController extends Controller
             'meta' => array_filter([
                 'web_booking' => true,
                 'lead_name' => $data['customer_name'],
+                'pickup_postcode' => strtoupper(trim($data['pickup_postcode'])),
+                'destination_postcode' => strtoupper(trim((string) ($data['destination_postcode'] ?? ''))),
                 'suitcases' => (int) ($data['suitcases'] ?? 0),
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
-                'web_quote_basis' => $this->quotes->quote($data['pickup_address'], $data['destination_address'], $vehicleType)['basis'],
+                'web_quote_basis' => $fare['fixed'] ? 'Fixed price' : ($fare['base'] === null ? 'Price on request' : 'Distance'),
                 'vat_invoice_requested' => $needsInvoice,
                 'list_price' => $base,
                 'fare_surcharge' => $fare['surcharge'],
@@ -240,8 +252,22 @@ class PublicBookingController extends Controller
             'booster_seats' => (int) ($data['booster_seats'] ?? 0),
             'infant_seats' => (int) ($data['infant_seats'] ?? 0),
             'stopovers' => (int) ($data['stopovers'] ?? 0),
-            'hire_hours' => (int) ($data['hire_hours'] ?? 0),
         ];
+    }
+
+    /**
+     * Combine an address with its postcode for pricing and the driver, without
+     * doubling up if the address already ends in that postcode.
+     */
+    private function withPostcode(string $address, ?string $postcode): string
+    {
+        $address = trim($address);
+        $postcode = strtoupper(trim((string) $postcode));
+        if ($postcode === '' || stripos($address, $postcode) !== false) {
+            return $address;
+        }
+
+        return $address.', '.$postcode;
     }
 
     /** @return \Illuminate\Support\Collection<int, VehicleType> */
