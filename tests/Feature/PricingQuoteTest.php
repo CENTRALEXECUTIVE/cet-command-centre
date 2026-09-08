@@ -24,14 +24,15 @@ class PricingQuoteTest extends TestCase
     {
         $p = app(FreeRoamPricer::class);
 
-        // Straight from the CET Price Guide "Journey Price Examples":
-        $this->assertEquals(50.00, $p->price('executive', 3));    // under 10mi = minimum
-        $this->assertEquals(54.00, $p->price('executive', 12));   // 50 + 2×2.00
-        $this->assertEquals(102.00, $p->price('executive', 36));  // 50 + 26×2.00
-        $this->assertEquals(264.60, $p->price('executive', 120)); // 50 + 180 + 20×1.73
-        $this->assertEquals(437.60, $p->price('executive', 220)); // 50 + 180 + 120×1.73
-        $this->assertEquals(127.98, $p->price('minibus-8', 36));  // 70 + 26×2.23
-        $this->assertEquals(170.98, $p->price('v-class', 36));    // 100 + 26×2.73
+        // Price Guide rates + £10 VAT uplift, rounded to the nearest £5:
+        $this->assertEquals(60.00, $p->price('executive', 3));    // 50 min +10 = 60
+        $this->assertEquals(65.00, $p->price('executive', 12));   // 54 +10 = 64 → 65
+        $this->assertEquals(110.00, $p->price('executive', 36));  // 102 +10 = 112 → 110
+        $this->assertEquals(275.00, $p->price('executive', 120)); // 264.60 +10 = 274.60 → 275
+        $this->assertEquals(450.00, $p->price('executive', 220)); // 437.60 +10 = 447.60 → 450
+        $this->assertEquals(140.00, $p->price('minibus-8', 36));  // 127.98 +10 = 137.98 → 140
+        $this->assertEquals(180.00, $p->price('v-class', 36));    // 170.98 +10 = 180.98 → 180
+        $this->assertEquals(120.00, $p->price('estate', 36));     // executive 110 + £10
 
         // Rolls Royce has no automatic rate.
         $this->assertNull($p->price('rolls-royce-ghost', 40));
@@ -85,7 +86,7 @@ class PricingQuoteTest extends TestCase
 
         $q = $quotes->quote('Sheffield S1', 'Rotherham S60', $exec);
         $this->assertFalse($q['fixed']);
-        $this->assertEquals(50.0, $q['price']); // 10mi estimate = minimum fare
+        $this->assertEquals(60.0, $q['price']); // 10mi estimate = min fare £50 + £10
     }
 
     public function test_estimate_endpoint_returns_a_price(): void

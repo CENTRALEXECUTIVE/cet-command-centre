@@ -65,6 +65,13 @@ return [
     // broken out of VAT-inclusive public fares, and added to net corporate invoices.
     'vat_rate' => (float) env('CET_VAT_RATE', 0.20),
 
+    // Estate is always Executive + this much (fixed matrix and free-roam alike).
+    'estate_over_executive' => (float) env('CET_ESTATE_UPLIFT', 10),
+
+    // Flat uplift added to every free-roam (distance) fare to cover VAT — the
+    // Price Guide rates are VAT-exclusive; fixed routes were raised in the matrix.
+    'freeroam_vat_uplift' => (float) env('CET_FREEROAM_VAT_UPLIFT', 10),
+
     // GPS ping cadence while a driver is on an active job.
     'gps_ping_seconds' => 300, // every 5 minutes (fallback/other uses)
     // Live tracking on the job screen streams continuously (watchPosition) but
