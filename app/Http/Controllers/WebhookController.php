@@ -110,10 +110,17 @@ class WebhookController extends Controller
         // One Square webhook covers both driver TIPS (TIP- orders) and booking
         // FARE payments (FARE- orders); each service ignores the other's prefix.
         $payload = $request->json()->all();
-        $booking = $square->recordTipFromWebhook($payload)
-            ?? app(\App\Services\Payments\SquareBookingPaymentService::class)->recordFareFromWebhook($payload);
+        $tipBooking = $square->recordTipFromWebhook($payload);
+        $fareBooking = $tipBooking
+            ? null
+            : app(\App\Services\Payments\SquareBookingPaymentService::class)->recordFareFromWebhook($payload);
 
-        return response()->json(['recorded' => (bool) $booking]);
+        // A fare paid online confirms the web booking: allocate + calendar + alert.
+        if ($fareBooking) {
+            app(\App\Services\BookingStatusService::class)->confirmPaidWebBooking($fareBooking->fresh());
+        }
+
+        return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking)]);
     }
 
     private function authoriseWebhook(Request $request): void

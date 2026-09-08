@@ -73,6 +73,68 @@ class BookingStatusService
     }
 
     /**
+     * A public web booking has just been PAID in full (Square webhook). Promote it
+     * from a pending request to a confirmed job: stamp the VAT breakdown for the
+     * receipt, allocate a rotation driver where the vehicle type uses rotation,
+     * build the calendar event (the sync job pushes it to Google when live), and
+     * tell the office. Idempotent — safe to call again on a repeated webhook, and
+     * a no-op for anything that isn't a still-pending paid web booking.
+     */
+    public function confirmPaidWebBooking(Booking $booking, ?User $actor = null): Booking
+    {
+        if ($booking->source !== 'web'
+            || ($booking->payment_status ?? null) !== 'paid'
+            || $booking->status !== BookingStatus::Pending) {
+            return $booking;
+        }
+
+        return DB::transaction(function () use ($booking, $actor) {
+            // Freeze the VAT split at the moment of payment for the receipt.
+            if ($vat = $booking->fareVatBreakdown()) {
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                    'vat' => $vat,
+                    'confirmed_paid_at' => now()->toIso8601String(),
+                ])])->save();
+            }
+
+            // Rotation for executive-saloon-style jobs; null for others (left for
+            // the office to allocate by hand).
+            $driver = $this->rotation->allocate($booking);
+            if ($driver) {
+                $booking->forceFill(['driver_id' => $driver->id])->save();
+                $booking->statusHistory()->create([
+                    'from_status' => BookingStatus::Pending->value,
+                    'to_status' => BookingStatus::Allocated->value,
+                    'changed_by' => $actor?->id,
+                    'note' => "Auto-allocated to {$driver->name} (rotation) — web booking paid",
+                    'created_at' => now(),
+                ]);
+                $booking->forceFill(['status' => BookingStatus::Allocated->value])->save();
+            }
+
+            // Build our calendar event; pushed to Google by cet:sync-calendar when
+            // the integration is live. Never fatal to the confirmation.
+            try {
+                app(\App\Services\CalendarEventBuilder::class)
+                    ->buildFor($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));
+            } catch (\Throwable) {
+            }
+
+            $fresh = $booking->fresh();
+            $name = $fresh->customer?->name ?? 'Web customer';
+            \App\Models\WatchdogEvent::log('web_booking_paid', 'Web booking PAID — '.$name, 'info', $fresh);
+            $this->adminAlerts->notify('web_booking',
+                '💳 Web booking PAID — '.$name,
+                $name.' paid £'.number_format((float) ($fresh->fareGross() ?? 0), 2).' online for '
+                    .$fresh->pickup_at?->format('D d M, H:i').'.'
+                    .($fresh->driver ? ' Auto-allocated to '.$fresh->driver->name.'.' : ' Needs a driver.'),
+                'info', $fresh);
+
+            return $fresh;
+        });
+    }
+
+    /**
      * Driver declines an offered (allocated) job: it returns to the pending pool
      * and the driver is cleared so the office (or rotation) can re-offer it.
      */
