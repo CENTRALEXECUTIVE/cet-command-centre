@@ -69,23 +69,34 @@
     <div class="alert alert-error">📍 {{ session('stopError') }}</div>
 @endif
 
-{{-- "I'm on it" checkpoint — ~30 min before pickup the driver confirms the job
-     is covered so the office knows it won't be missed. There is deliberately NO
-     "can't make it" button: this is a confirmation, not a decline. Setting off
-     (On My Way) confirms it automatically, so it disappears once they're moving. --}}
+{{-- "Getting ready" checkpoint — at the job's LEAD TIME (the driver's alarm
+     time) the assigned driver confirms they're on it. There is deliberately NO
+     "can't make it" button: this is a confirmation, not a decline, and this
+     driver stays the driver. Setting off (On My Way) confirms it automatically. --}}
+@php
+    $readyGrace = (int) config('cet.getting_ready.escalate_grace_minutes', 5);
+    $isReadyStatus = in_array($booking->status, [\App\Enums\BookingStatus::Allocated, \App\Enums\BookingStatus::Accepted], true);
+@endphp
 @if($showGetReady)
     <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.16);margin-bottom:16px">
         <div style="font-weight:800;font-size:17px">⏰ {{ $booking->pickup_at->format('H:i') }} pickup — are you on it?</div>
-        <p style="margin:6px 0 12px;font-size:15px">Tap to let the office know you’re getting ready for this job. If you don’t confirm and haven’t set off soon, the office will be alerted so a driver can be arranged.</p>
+        <p style="margin:6px 0 12px;font-size:15px">Tap to let the office know you’re getting ready for this job. Please confirm within <strong>{{ $readyGrace }} minutes</strong> — if you don’t (and haven’t set off), the office is alerted.</p>
         <form method="POST" action="{{ $onItUrl }}">
             @csrf
             <button type="submit" class="btn btn-primary" style="width:100%;padding:13px;font-size:17px;font-weight:800">🟢 Getting ready</button>
         </form>
     </div>
-@elseif($isAssignedDriver && $readyConfirmedAt && in_array($booking->status, [\App\Enums\BookingStatus::Allocated, \App\Enums\BookingStatus::Accepted], true))
+@elseif($isAssignedDriver && $readyConfirmedAt && $isReadyStatus)
     <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">
         <div style="font-weight:700;font-size:14px">🟢 You’re on it — confirmed {{ $readyConfirmedAt->format('H:i') }}</div>
-        <div class="muted" style="font-size:13px;margin-top:2px">The office knows this {{ $booking->pickup_at->format('H:i') }} job is covered. Tap <strong>On My Way</strong> when you set off.</div>
+        <div class="muted" style="font-size:13px;margin-top:2px">The office knows this {{ $booking->pickup_at->format('H:i') }} job is yours. Tap <strong>On My Way</strong> when you set off.</div>
+    </div>
+@elseif($isAssignedDriver && $isReadyStatus && ! $booking->gettingReadyConfirmed() && $readyPromptAt && now()->lt($readyPromptAt))
+    {{-- Before the lead time — tell the driver when the check-in will open, so
+         they're not wondering where the button is. Nothing needed before then. --}}
+    <div class="card" style="border-left:4px solid rgba(251,186,42,.5);background:rgba(251,186,42,.06);margin-bottom:16px">
+        <div style="font-weight:700;font-size:14px">🟢 Getting-ready check-in opens at {{ now()->isSameDay($readyPromptAt) ? $readyPromptAt->format('H:i') : $readyPromptAt->format('D H:i') }}</div>
+        <div class="muted" style="font-size:13px;margin-top:2px">You’ll be asked to confirm you’re on this {{ $booking->pickup_at->format('H:i') }} job then — nothing needed before that.</div>
     </div>
 @endif
 

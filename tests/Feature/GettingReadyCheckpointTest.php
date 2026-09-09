@@ -240,6 +240,29 @@ class GettingReadyCheckpointTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_driver_screen_tells_them_when_the_check_in_opens(): void
+    {
+        $driver = $this->driver();
+        // Lead time 45 min away → before the check-in; show the "opens at" hint,
+        // not the button.
+        $b = $this->job(BookingStatus::Accepted, now()->addHours(2), $driver, leadTime: now()->addMinutes(45));
+
+        $this->actingAs($driver)->get(route('driver.job', $b))
+            ->assertOk()
+            ->assertSee('check-in opens at')
+            ->assertDontSee('🟢 Getting ready');
+    }
+
+    public function test_the_driver_screen_shows_the_button_at_lead_time(): void
+    {
+        $driver = $this->driver();
+        $b = $this->job(BookingStatus::Accepted, now()->addHours(2), $driver, leadTime: now());
+
+        $this->actingAs($driver)->get(route('driver.job', $b))
+            ->assertOk()
+            ->assertSee('🟢 Getting ready');
+    }
+
     public function test_the_bookings_list_shows_the_lead_time_for_admins(): void
     {
         $admin = User::factory()->admin()->create();
