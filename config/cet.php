@@ -114,7 +114,7 @@ return [
     'alerts_hold_minutes' => (int) env('CET_ALERTS_HOLD_MINUTES', 180),
 
     // Driver "getting ready" checkpoint. Roughly PROMPT minutes before pickup the
-    // driver is prompted (button on the job screen + a push) to tap "I'm on it".
+    // driver is prompted (button on the job screen + a push) to tap "Getting ready".
     // If they haven't confirmed AND haven't set off by ESCALATE minutes before
     // pickup, the emergency escalation goes live (loud office alert + routed
     // auto-call), so a forgotten job is caught early enough to arrange cover.

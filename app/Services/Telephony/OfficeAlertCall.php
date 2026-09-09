@@ -28,10 +28,22 @@ class OfficeAlertCall
     }
 
     /**
-     * Ring about a job at risk, ROUTED to whoever's free: a director who isn't the
-     * job's own (forgetful) driver and isn't busy/carrying a passenger gets their
-     * own mobile rung; if nobody's free we fall back to the business line (which
-     * forwards on no-answer). So the call never blares next to a passenger.
+     * Ring the assigned DRIVER first — they're the one who forgot, and their own
+     * phone (with Emergency Bypass) is the fastest way to wake them. Returns false
+     * when the driver has no number saved, so the caller drops straight to the
+     * backup tier.
+     */
+    public function ringDriver(Booking $booking, string $message): bool
+    {
+        return $this->place($booking->driver?->phone, $booking, $message);
+    }
+
+    /**
+     * BACKUP tier — used once the driver's own phone hasn't got them moving.
+     * Routed to whoever's free: a director who isn't the job's own (forgetful)
+     * driver and isn't busy/carrying a passenger gets their own mobile rung; if
+     * nobody's free we fall back to the business line (which forwards on
+     * no-answer). So the backup call never blares next to a passenger.
      */
     public function ringForJob(Booking $booking, string $message): bool
     {

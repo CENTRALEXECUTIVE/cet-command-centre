@@ -343,18 +343,36 @@ class StatusWatchdog
                 $driver.' '.$longReason.' for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
                 severity: 'critical', maxSends: null, repeatMinutes: self::AT_RISK_REPEAT_MINUTES);
 
-            // EMERGENCY AUTO-CALL — ring the office line and keep re-dialling
-            // every couple of minutes until someone answers and presses a key
-            // (which sets at_risk_ack via the webhook). A push can be missed; a
-            // ringing phone can't. No-op until Twilio + the numbers are set.
+            // EMERGENCY AUTO-CALL — ring and keep re-dialling every couple of
+            // minutes until someone answers and presses a key (which sets
+            // at_risk_ack via the webhook). A push can be missed; a ringing phone
+            // can't. No-op until Twilio + the numbers are set.
+            //
+            // DRIVER FIRST, THEN BACKUP: the very first call rings the assigned
+            // driver's own phone — they forgot, so wake them. If that hasn't got
+            // them moving, every later call routes to the BACKUP (the other free
+            // director, else the business line). A driver with no saved number
+            // falls straight through to the backup on the first call too.
             if (empty($booking->meta['at_risk_ack'])) {
                 $call = app(\App\Services\Telephony\OfficeAlertCall::class);
                 if ($call->configured()) {
-                    $lastCall = JobNudge::where('booking_id', $booking->id)
+                    $priorCalls = JobNudge::where('booking_id', $booking->id)
                         ->where('nudge_type', 'office_call_at_risk')->where('recipient_type', 'office')
-                        ->orderByDesc('sent_at')->first();
+                        ->orderByDesc('sent_at')->get();
+                    $lastCall = $priorCalls->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
-                        if ($call->ringForJob($booking, $driver.' '.$callReason.' for the '.$time.' pickup at '.$where.'.')) {
+                        $placed = false;
+                        if ($priorCalls->isEmpty()) {
+                            // First attempt → the driver themselves.
+                            $placed = $call->ringDriver($booking,
+                                'Your '.$time.' pickup at '.$where.' — you have '.$callReason.'. Set off now.');
+                        }
+                        if (! $placed) {
+                            // Backup tier (no driver number, or a later attempt).
+                            $placed = $call->ringForJob($booking,
+                                $driver.' '.$callReason.' for the '.$time.' pickup at '.$where.'.');
+                        }
+                        if ($placed) {
                             JobNudge::create([
                                 'booking_id' => $booking->id, 'nudge_type' => 'office_call_at_risk',
                                 'recipient_type' => 'office', 'sent_at' => now(), 'channel' => 'call', 'created_at' => now(),
