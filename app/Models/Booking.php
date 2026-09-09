@@ -3315,20 +3315,28 @@ class Booking extends Model
     }
 
     /**
-     * Make this booking's driver match the calendar's title tag — the calendar
-     * (ABDI/MAJ/a named driver) is the source of truth for who drives. Assigns the
-     * tagged driver when none is set, AND corrects it when a DIFFERENT driver is
-     * set while the job hasn't started. Only ever touches a Pending or Allocated
-     * job — never one a driver has already accepted or begun, and never a tag that
-     * doesn't clearly name a system driver (e.g. COVER). Mirrors the calendar;
-     * never changes it. Returns true if the driver changed.
+     * Assign the driver the calendar names (ABDI/MAJ/a named driver) to a booking
+     * that has NO driver yet — the calendar is the source of truth ONLY for
+     * filling a blank. It NEVER changes a booking that already has a driver: once
+     * anyone is on a job — assigned by the office, a last-minute cover swap, or
+     * rotation — that stands, and the tag must not pull it back. (An earlier
+     * version "corrected" an already-allocated job to the tag, which wrongly
+     * reverted deliberate cover reassignments — that behaviour is gone.)
+     * Returns true only when it filled an empty slot.
      */
     public function reconcileDriverWithCalendarTag(): bool
     {
-        // The boss's word wins: once a human has chosen the driver in the app
-        // (allocate / reassign / un-tie), that choice is locked and the calendar
-        // tag never moves it. Only auto/rotation allocations are reconciled.
+        // Never touch a job that already has a driver — the human's decision (or
+        // an existing allocation) always stands.
+        if (filled($this->driver_id)) {
+            return false;
+        }
+        // A deliberately-unassigned job stays unassigned (un-tie sets this lock).
         if (! empty($this->meta['driver_locked'])) {
+            return false;
+        }
+        // Only an upcoming, still-pending job.
+        if ($this->status !== BookingStatus::Pending) {
             return false;
         }
 
@@ -3339,14 +3347,6 @@ class Booking extends Model
         $driver = static::resolveDriverUser($tag);
         if (! $driver) {
             return false; // e.g. COVER, or a name we can't map to a system driver
-        }
-        if ((int) $this->driver_id === (int) $driver->id) {
-            return false; // already the right driver
-        }
-        // Only assign or correct while the job is still Pending or Allocated —
-        // never yank one a driver has accepted or is already on.
-        if (! in_array($this->status->value, [BookingStatus::Pending->value, BookingStatus::Allocated->value], true)) {
-            return false;
         }
 
         $this->forceFill([

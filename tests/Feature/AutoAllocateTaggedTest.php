@@ -66,24 +66,22 @@ class AutoAllocateTaggedTest extends TestCase
         $this->assertNull($booking->fresh()->driver_id);
     }
 
-    public function test_a_wrong_allocation_is_corrected_to_the_calendar_tag(): void
+    public function test_an_existing_driver_is_never_overridden_by_the_tag(): void
     {
-        // The calendar tags this ABDI but it's sitting on Maj — the calendar is
-        // the source of truth, so it's corrected to Abdi.
+        // The calendar tags this ABDI, but the office put it on Maj (e.g. a
+        // last-minute cover). The tag must NEVER pull it back — an existing driver
+        // always stands, whether or not a lock flag was ever set.
         $maj = User::where('email', 'maj@centralexecutivetransfers.co.uk')->first();
-        $abdi = User::where('email', 'abdi@centralexecutivetransfers.co.uk')->first();
         $booking = $this->tagged('ABDI');
         $booking->forceFill(['driver_id' => $maj->id, 'status' => BookingStatus::Allocated->value])->save();
 
         $this->artisan('cet:auto-allocate-tagged')->assertSuccessful();
 
-        $this->assertSame($abdi->id, $booking->fresh()->driver_id);
+        $this->assertSame($maj->id, $booking->fresh()->driver_id);
     }
 
-    public function test_it_does_not_yank_a_job_a_driver_has_already_accepted(): void
+    public function test_it_does_not_touch_a_job_a_driver_has_already_accepted(): void
     {
-        // Once a driver has accepted (or started) a job, the tag no longer moves
-        // it — that's a live commitment, changed by hand if at all.
         $maj = User::where('email', 'maj@centralexecutivetransfers.co.uk')->first();
         $booking = $this->tagged('ABDI');
         $booking->forceFill(['driver_id' => $maj->id, 'status' => BookingStatus::Accepted->value])->save();
