@@ -50,21 +50,25 @@
         </script>
     @endif
 
+    @php $me = auth()->id(); @endphp
     <div class="card">
         <div class="table-scroll">
-            <table class="table-modern">
+            <table class="table-modern table-cards">
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @foreach($users as $u)
-                        <tr style="{{ $u->is_active ? '' : 'opacity:.5' }}">
-                            <td>{{ $u->name }}@if($u->nickname())<span class="muted" style="font-size:12px"> · {{ $u->nickname() }}</span>@endif</td>
-                            <td class="muted" style="font-size:13px">{{ $u->email }}</td>
-                            <td>
+                        <tr class="{{ $u->id === $me ? 'is-you' : '' }}" style="{{ $u->is_active ? '' : 'opacity:.5' }}">
+                            <td data-label="Name">
+                                {{ $u->name }}@if($u->nickname())<span class="muted" style="font-size:12px"> · {{ $u->nickname() }}</span>@endif
+                                @if($u->id === $me)<span class="badge" style="background:var(--gold);color:#111;font-size:11px;margin-left:6px">You</span>@endif
+                            </td>
+                            <td data-label="Email" class="muted" style="font-size:13px">{{ $u->email }}</td>
+                            <td data-label="Role">
                                 @if($u->is_super_admin)<span class="badge" style="background:#0b0b0b;color:#FBBA2A">Super admin</span>
                                 @else<span class="badge">{{ $u->role->label() }}</span>@endif
                             </td>
-                            <td>{{ $u->is_active ? 'Active' : 'Inactive' }}</td>
-                            <td class="right">
+                            <td data-label="Status">{{ $u->is_active ? 'Active' : 'Inactive' }}</td>
+                            <td data-label="" class="right">
                                 @if(! (($u->isAdmin() || $u->is_super_admin) && ! $isSuper))
                                     <a href="{{ route('users.edit', $u) }}" style="font-size:13px">Edit</a>
                                 @else

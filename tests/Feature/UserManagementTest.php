@@ -15,6 +15,19 @@ class UserManagementTest extends TestCase
         return User::factory()->admin()->create(['is_super_admin' => true]);
     }
 
+    public function test_the_index_shows_your_own_row_marked_as_you(): void
+    {
+        $me = $this->superAdmin();
+        User::factory()->admin()->create(['name' => 'Majid Ali']);
+
+        $res = $this->actingAs($me)->get(route('users.index'))->assertOk();
+
+        // Your own account is listed and clearly tagged "You" so it's findable.
+        $res->assertSee($me->name);
+        $res->assertSee('>You<', false);
+        $res->assertSee('is-you', false);
+    }
+
     public function test_super_admin_can_create_an_admin(): void
     {
         $this->actingAs($this->superAdmin())->post(route('users.store'), [

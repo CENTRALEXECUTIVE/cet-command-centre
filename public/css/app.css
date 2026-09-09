@@ -406,7 +406,43 @@ html[data-theme="dark"] .date-today { background: var(--gold); color: #111; bord
 .table-modern thead th { position: sticky; top: 60px; background: #fafafa; z-index: 1; padding: 11px 14px; border-bottom: 1px solid var(--line); }
 /* On mobile the top bar wraps to two lines (taller than 60px), so a sticky
    header pins too high and covers the first row. Keep it in normal flow there. */
+/* On mobile a sticky header pins under the (taller, wrapped) top bar and can
+   hide the first row; and inside an overflow-x scroll container the 60px offset
+   pushes the header down over row 1. Drop sticky on narrow screens. */
 @media (max-width: 720px) { .table-modern thead th { position: static; top: auto; } }
+
+/* Mobile: render a .table-cards table as one labelled card per row, so EVERY
+   field (name, email, role, status, actions) is visible without sideways
+   scrolling — no more hunting off-screen for your own row. */
+@media (max-width: 720px) {
+    .table-modern.table-cards,
+    .table-modern.table-cards tbody { display: block; width: 100%; }
+    .table-modern.table-cards thead { display: none; }
+    .table-modern.table-cards tbody tr {
+        display: block; background: var(--white);
+        border: 1px solid var(--line); border-radius: 12px;
+        padding: 4px 14px; margin-bottom: 12px;
+    }
+    .table-modern.table-cards tbody tr:last-child td { border-bottom: none; }
+    .table-modern.table-cards tbody td {
+        display: flex; justify-content: space-between; align-items: center; gap: 14px;
+        padding: 10px 0; border-bottom: 1px solid #f0f0ef; text-align: right;
+    }
+    .table-modern.table-cards tbody td:last-child { border-bottom: none; }
+    .table-modern.table-cards tbody td::before {
+        content: attr(data-label); flex: 0 0 auto; text-align: left;
+        font-size: 11px; font-weight: 700; letter-spacing: .05em;
+        text-transform: uppercase; color: var(--muted);
+    }
+    .table-modern.table-cards tbody td[data-label=""]::before { content: none; }
+    .table-modern.table-cards .is-you {
+        border-color: var(--gold); box-shadow: 0 0 0 2px rgba(251,186,42,.28);
+    }
+}
+html[data-theme="dark"] .table-modern.table-cards tbody tr {
+    background: #151b2c; border-color: rgba(255,255,255,.10);
+}
+html[data-theme="dark"] .table-modern.table-cards tbody td { border-bottom-color: rgba(255,255,255,.06); }
 .table-modern tbody td { padding: 12px 14px; border-bottom: 1px solid #f0f0ef; vertical-align: middle; }
 .table-modern tbody tr { transition: background .1s; }
 .table-modern tbody tr:hover { background: rgba(251,186,42,.07); }
