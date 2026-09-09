@@ -79,7 +79,7 @@
         <p style="margin:6px 0 12px;font-size:15px">Tap to let the office know you’re getting ready for this job. If you don’t confirm and haven’t set off soon, the office will be alerted so a driver can be arranged.</p>
         <form method="POST" action="{{ $onItUrl }}">
             @csrf
-            <button type="submit" class="btn btn-primary" style="width:100%;padding:13px;font-size:17px;font-weight:800">🟢 I’m on it</button>
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:13px;font-size:17px;font-weight:800">🟢 Getting ready</button>
         </form>
     </div>
 @elseif($isAssignedDriver && $readyConfirmedAt && in_array($booking->status, [\App\Enums\BookingStatus::Allocated, \App\Enums\BookingStatus::Accepted], true))

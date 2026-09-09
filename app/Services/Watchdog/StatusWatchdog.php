@@ -169,8 +169,8 @@ class StatusWatchdog
                 && now()->gte($promptAt)
                 && now()->lt($booking->pickup_at->copy()->subMinutes(10))) {
                 $sent += $this->nudge($booking, 'get_ready',
-                    '🟢 '.$booking->pickup_at->format('H:i').' pickup — tap “I’m on it”',
-                    'Getting ready for the '.$booking->pickup_at->format('H:i').' pickup at '.$this->shortAddress($booking->pickup_address).'? Open the job and tap “I’m on it”.',
+                    '🟢 '.$booking->pickup_at->format('H:i').' pickup — tap “Getting ready”',
+                    'Getting ready for the '.$booking->pickup_at->format('H:i').' pickup at '.$this->shortAddress($booking->pickup_address).'? Open the job and tap “Getting ready”.',
                     severity: 'info');
             }
 
