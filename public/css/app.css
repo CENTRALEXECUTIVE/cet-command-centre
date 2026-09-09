@@ -404,6 +404,9 @@ html[data-theme="dark"] .date-today { background: var(--gold); color: #111; bord
 /* Modern data table — hover rows, gentle zebra, tidy header */
 .table-modern { font-size: 13.5px; }
 .table-modern thead th { position: sticky; top: 60px; background: #fafafa; z-index: 1; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+/* On mobile the top bar wraps to two lines (taller than 60px), so a sticky
+   header pins too high and covers the first row. Keep it in normal flow there. */
+@media (max-width: 720px) { .table-modern thead th { position: static; top: auto; } }
 .table-modern tbody td { padding: 12px 14px; border-bottom: 1px solid #f0f0ef; vertical-align: middle; }
 .table-modern tbody tr { transition: background .1s; }
 .table-modern tbody tr:hover { background: rgba(251,186,42,.07); }
