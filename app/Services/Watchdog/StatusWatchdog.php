@@ -62,6 +62,17 @@ class StatusWatchdog
     /** A driver nudge is "unacted" this long after its second send. */
     public const UNACTED_AFTER_MINUTES = 5;
 
+    /**
+     * Contingency: once the safe set-off time has passed by this many minutes and
+     * the assigned driver STILL hasn't set off, escalate to the office as "at
+     * risk" — early enough (roughly a drive-time before pickup) to arrange cover.
+     * This is the safety net for the biggest miss mode: the assigned driver
+     * (sometimes a director) simply forgetting. Repeats until set off or covered.
+     */
+    public const AT_RISK_AFTER_DEADLINE_MINUTES = 5;
+
+    public const AT_RISK_REPEAT_MINUTES = 10;
+
     /** Driver-nudge types → the statuses they nag about + the action wording. */
     private const UNACTED_MAP = [
         'set_off' => [[BookingStatus::Allocated, BookingStatus::Accepted], 'set off'],
@@ -283,6 +294,24 @@ class StatusWatchdog
 
         if (! $booking->driver_id) {
             return $sent;
+        }
+
+        // CONTINGENCY — a driver is assigned but hasn't SET OFF and the safe
+        // set-off time has now passed. This is the biggest way a job gets missed:
+        // the assigned driver (often a director covering their own job) forgets,
+        // and their own phone is the only one being nudged. Escalate EARLY and
+        // loudly to the WHOLE office — a drive-time before pickup — and keep
+        // repeating until someone sets off or a cover is arranged. Reaches the
+        // OTHER director even when the assigned driver isn't looking at their phone.
+        if (in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)
+            && now()->gte($this->setOffDeadline($booking)->copy()->addMinutes(self::AT_RISK_AFTER_DEADLINE_MINUTES))) {
+            $driver = $booking->driver?->name ?? 'The driver';
+            $mins = (int) round(now()->diffInMinutes($booking->pickup_at, false));
+            $when = $mins > 1 ? 'pickup in '.$mins.' min' : ($mins >= 0 ? 'pickup now' : 'pickup '.abs($mins).' min ago');
+            $sent += (int) $this->admins->send($booking, 'admin_at_risk', 'at_risk',
+                '⚠️ AT RISK — '.$driver.' not set off · '.$time.' '.$where,
+                $driver.' still hasn’t set off for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
+                severity: 'critical', maxSends: null, repeatMinutes: self::AT_RISK_REPEAT_MINUTES);
         }
 
         // Driver nudge sent twice and still no reaction 5 min later.

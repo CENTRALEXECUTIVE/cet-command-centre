@@ -242,6 +242,43 @@ class StatusWatchdogTest extends TestCase
         ]);
     }
 
+    public function test_at_risk_escalates_to_the_office_when_the_driver_has_not_set_off(): void
+    {
+        // Pickup in 20 min, no GPS → flat 30-min set-off lead, so the safe set-off
+        // time (pickup − 30 = 10 min ago) has passed. The office must be warned.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+
+        $this->tick();
+
+        $this->assertSame(1, JobNudge::where('booking_id', $b->id)
+            ->where('nudge_type', 'admin_at_risk')->where('recipient_type', 'admin')->count());
+        $this->assertDatabaseHas('watchdog_events', [
+            'booking_id' => $b->id, 'event_type' => 'admin_at_risk', 'severity' => 'critical',
+        ]);
+    }
+
+    public function test_at_risk_does_not_fire_once_the_driver_has_set_off(): void
+    {
+        // Same timing but the driver has SET OFF (En Route) — no risk, no alert.
+        $b = $this->job(BookingStatus::EnRoute, now()->addMinutes(20));
+
+        $this->tick();
+
+        $this->assertSame(0, JobNudge::where('booking_id', $b->id)
+            ->where('nudge_type', 'admin_at_risk')->count());
+    }
+
+    public function test_at_risk_repeats_until_covered(): void
+    {
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+        $this->tick();
+        Carbon::setTestNow(now()->addMinutes(StatusWatchdog::AT_RISK_REPEAT_MINUTES + 1));
+        $this->tick();
+
+        $this->assertSame(2, JobNudge::where('booking_id', $b->id)
+            ->where('nudge_type', 'admin_at_risk')->count());
+    }
+
     public function test_midnight_boundary_job_is_not_missed(): void
     {
         // 23:55 — tomorrow's 00:05 pickup is 10 minutes out. The date has

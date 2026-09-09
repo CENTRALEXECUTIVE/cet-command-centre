@@ -53,6 +53,7 @@ class User extends Authenticatable
 
     /** The admin-alert event types a preference toggle exists for. */
     public const ALERT_TYPES = [
+        'at_risk' => 'Driver not set off — job at risk',
         'unacted' => 'Driver ignoring nudges',
         'unallocated' => 'Job unallocated near pickup',
         'driver_set_off' => 'Driver has set off',
