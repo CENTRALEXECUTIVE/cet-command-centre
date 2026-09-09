@@ -161,6 +161,9 @@
                                     <span>·</span><span>{{ $b->passengerCount() }} pax</span>
                                     <span>·</span><span>{{ $b->driver?->name ?? 'Unassigned' }}</span>
                                     @if($b->payment_method)<span>·</span><span>{{ $b->payment_method->emoji() ?: $b->payment_method->label() }}</span>@endif
+                                    @if(auth()->user()->isAdmin() && ! $b->status->isTerminal() && $b->leadTimeAt())
+                                        <span>·</span><span title="Lead time — driver's alarm / alert time for this job{{ $b->leadTimeIsAuto() ? ' (auto estimate — tap to set the real alarm)' : ' (set by you)' }}">⏰ {{ $b->leadTimeAt()->format('H:i') }}@if($b->leadTimeIsAuto())<span class="muted">~</span>@endif</span>
+                                    @endif
                                 </div>
                             </div>
 

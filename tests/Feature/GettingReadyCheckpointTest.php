@@ -239,4 +239,15 @@ class GettingReadyCheckpointTest extends TestCase
             ->post(route('bookings.lead-time', $b), ['lead_time' => '2026-07-15T05:30'])
             ->assertForbidden();
     }
+
+    public function test_the_bookings_list_shows_the_lead_time_for_admins(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // A live upcoming job with the alarm set to 12:30.
+        $this->job(BookingStatus::Allocated, now()->addHours(2), leadTime: now()->addMinutes(30));
+
+        $this->actingAs($admin)->get(route('bookings.index'))
+            ->assertOk()
+            ->assertSee('⏰ 12:30');
+    }
 }
