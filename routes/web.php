@@ -204,6 +204,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('jobs/{booking}/ack-cash', [JobController::class, 'acknowledgeCash'])->middleware('throttle:60,1')->name('job.ack-cash');
         Route::post('jobs/{booking}/child-seats', [JobController::class, 'confirmChildSeats'])->middleware('throttle:60,1')->name('job.child-seats');
         Route::post('jobs/{booking}/notes-ack', [JobController::class, 'confirmNotes'])->middleware('throttle:60,1')->name('job.notes-ack');
+        Route::post('jobs/{booking}/on-it', [JobController::class, 'confirmGettingReady'])->middleware('throttle:60,1')->name('job.on-it');
         Route::post('jobs/{booking}/decline', [JobController::class, 'decline'])->name('job.decline');
         // Answer an office location request with a one-off ping.
         Route::post('jobs/{booking}/location', [JobController::class, 'shareLocation'])->middleware('throttle:60,1')->name('job.location');
@@ -376,6 +377,8 @@ Route::post('job/{token}/child-seats', [\App\Http\Controllers\Driver\LinkControl
     ->middleware('throttle:60,1')->name('driver.link.child-seats');
 Route::post('job/{token}/notes-ack', [\App\Http\Controllers\Driver\LinkController::class, 'confirmNotes'])
     ->middleware('throttle:60,1')->name('driver.link.notes-ack');
+Route::post('job/{token}/on-it', [\App\Http\Controllers\Driver\LinkController::class, 'confirmGettingReady'])
+    ->middleware('throttle:60,1')->name('driver.link.on-it');
 
 // Additional-car links on a multi-car job (each extra driver, tracked per car).
 Route::get('car/{token}', [\App\Http\Controllers\Driver\ExtraDriverController::class, 'show'])

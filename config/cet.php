@@ -113,6 +113,18 @@ return [
     // How long a director's "hold my alerts" toggle lasts before auto-expiring.
     'alerts_hold_minutes' => (int) env('CET_ALERTS_HOLD_MINUTES', 180),
 
+    // Driver "getting ready" checkpoint. Roughly PROMPT minutes before pickup the
+    // driver is prompted (button on the job screen + a push) to tap "I'm on it".
+    // If they haven't confirmed AND haven't set off by ESCALATE minutes before
+    // pickup, the emergency escalation goes live (loud office alert + routed
+    // auto-call), so a forgotten job is caught early enough to arrange cover.
+    // There is deliberately no "can't make it" option — it's a confirmation, not
+    // a decline. Setting off (En Route) auto-confirms it.
+    'getting_ready' => [
+        'prompt_minutes' => (int) env('CET_GET_READY_PROMPT', 30),
+        'escalate_minutes' => (int) env('CET_GET_READY_ESCALATE', 20),
+    ],
+
     // Who to ring — the business line (forwards to the other director on no-answer).
     'office_call_number' => env('CET_OFFICE_CALL_NUMBER', '+447405172435'),
     // Caller ID / "from" — a voice-capable Twilio number. Left blank, it uses the

@@ -87,11 +87,12 @@ class AdminAlertsTest extends TestCase
         $admin = $this->admin();
         $b = $this->driverJob(BookingStatus::Allocated, now()->addMinutes(28));
 
-        // Both driver sends happen, 6 minutes apart.
+        // Both driver set-off sends happen, 6 minutes apart. (A separate
+        // "get ready" nudge also fires in this window — count set_off only.)
         $this->tick();
         Carbon::setTestNow(now()->addMinutes(6));
         $this->tick();
-        $this->assertSame(2, JobNudge::where('booking_id', $b->id)->where('recipient_type', 'driver')->count());
+        $this->assertSame(2, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'set_off')->count());
 
         // 4 minutes after the 2nd send — not yet.
         Carbon::setTestNow(now()->addMinutes(4));

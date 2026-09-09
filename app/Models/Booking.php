@@ -2255,6 +2255,58 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
+    /* ---- "Getting ready / I'm on it" checkpoint ----------------------------
+     * A lightweight confirmation the assigned driver taps roughly 30 min before
+     * pickup so the office knows the job is covered. It is NOT a decline — there
+     * is no "can't make it". Setting off (En Route or beyond) counts as
+     * confirmed on its own. If neither happens by the escalate window the
+     * watchdog fires the emergency escalation. */
+
+    /** True once the driver has confirmed they're on it — or has already set off. */
+    public function gettingReadyConfirmed(): bool
+    {
+        // Already on the way (or further) is the strongest possible confirmation.
+        if (in_array($this->status, [
+            BookingStatus::EnRoute, BookingStatus::Arrived,
+            BookingStatus::Collected, BookingStatus::Complete,
+        ], true)) {
+            return true;
+        }
+
+        return isset($this->meta['getting_ready']['at']);
+    }
+
+    /** When the driver tapped "I'm on it", or null. */
+    public function gettingReadyConfirmedAt(): ?\Illuminate\Support\Carbon
+    {
+        $at = $this->meta['getting_ready']['at'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
+    }
+
+    /** Record the driver confirming they're on it. Idempotent. */
+    public function confirmGettingReady(?User $by = null): void
+    {
+        if (isset($this->meta['getting_ready']['at'])) {
+            return;
+        }
+        $meta = $this->meta ?? [];
+        $meta['getting_ready'] = ['at' => now()->toIso8601String(), 'by' => $by?->id];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Time from which the "I'm on it" prompt/button becomes live (pickup − prompt window). */
+    public function gettingReadyPromptAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->pickup_at?->copy()->subMinutes((int) config('cet.getting_ready.prompt_minutes', 30));
+    }
+
+    /** Time by which a non-confirmed job escalates to the office (pickup − escalate window). */
+    public function gettingReadyEscalateAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->pickup_at?->copy()->subMinutes((int) config('cet.getting_ready.escalate_minutes', 20));
+    }
+
     /** Whether an extra car's driver has confirmed reading the office notes. */
     public function extraDriverNotesAcknowledged(string $token): bool
     {

@@ -157,6 +157,18 @@ class JobController extends Controller
     }
 
     /**
+     * Driver taps "I'm on it" at the ~30-min checkpoint — tells the office the
+     * job's covered so the emergency escalation doesn't fire. No decline option.
+     */
+    public function confirmGettingReady(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+        $booking->confirmGettingReady($request->user());
+
+        return back()->with('status', 'Thanks — you’re marked as on it. Drive safe.');
+    }
+
+    /**
      * Answer an office "request location": record a one-off position for this
      * job (works even before Set off) so the office can see where the driver is.
      */

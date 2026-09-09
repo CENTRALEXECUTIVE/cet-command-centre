@@ -160,6 +160,20 @@ class StatusWatchdog
         if (in_array($status, [BookingStatus::Allocated, BookingStatus::Accepted], true)) {
             $airportLanding = $this->isAirportPickup($booking) ? $this->flightLandingAt($booking) : null;
 
+            // ── 0: "I'm on it" checkpoint — a gentle nudge from the prompt window
+            //    (≈30 min before pickup) asking the driver to confirm they're on
+            //    it, so a forgotten job surfaces before it's time to set off. Stops
+            //    in the last 10 min, where the URGENT set-off nudge takes over.
+            if (! $booking->gettingReadyConfirmed()
+                && ($promptAt = $booking->gettingReadyPromptAt())
+                && now()->gte($promptAt)
+                && now()->lt($booking->pickup_at->copy()->subMinutes(10))) {
+                $sent += $this->nudge($booking, 'get_ready',
+                    '🟢 '.$booking->pickup_at->format('H:i').' pickup — tap “I’m on it”',
+                    'Getting ready for the '.$booking->pickup_at->format('H:i').' pickup at '.$this->shortAddress($booking->pickup_address).'? Open the job and tap “I’m on it”.',
+                    severity: 'info');
+            }
+
             if (now()->gte($booking->pickup_at->copy()->subMinutes(10))) {
                 $sent += $this->nudge($booking, 'set_off_urgent',
                     'URGENT: '.$booking->pickup_at->format('H:i').' pickup — set off now',
@@ -306,14 +320,27 @@ class StatusWatchdog
         // loudly to the WHOLE office — a drive-time before pickup — and keep
         // repeating until someone sets off or a cover is arranged. Reaches the
         // OTHER director even when the assigned driver isn't looking at their phone.
+        // Two ways in: the safe SET-OFF time has passed (they should be driving),
+        // OR the "I'm on it" checkpoint went unconfirmed past the escalate window
+        // (≈20 min before pickup) — whichever comes first. The confirmation gate
+        // catches a forgotten local job earlier than set-off time alone would.
+        $setOffOverdue = now()->gte($this->setOffDeadline($booking)->copy()->addMinutes(self::AT_RISK_AFTER_DEADLINE_MINUTES));
+        $notReadyOverdue = ! $booking->gettingReadyConfirmed()
+            && ($escalateAt = $booking->gettingReadyEscalateAt()) && now()->gte($escalateAt);
+
         if (in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)
-            && now()->gte($this->setOffDeadline($booking)->copy()->addMinutes(self::AT_RISK_AFTER_DEADLINE_MINUTES))) {
+            && ($setOffOverdue || $notReadyOverdue)) {
             $driver = $booking->driver?->name ?? 'The driver';
             $mins = (int) round(now()->diffInMinutes($booking->pickup_at, false));
             $when = $mins > 1 ? 'pickup in '.$mins.' min' : ($mins >= 0 ? 'pickup now' : 'pickup '.abs($mins).' min ago');
+            // Word it for the trigger that actually fired: not set off (safe time
+            // passed) vs not confirmed they're on it (checkpoint missed).
+            [$shortReason, $longReason, $callReason] = $setOffOverdue
+                ? ['not set off', 'still hasn’t set off', 'has not set off']
+                : ['not confirmed', 'hasn’t confirmed they’re on it', 'has not confirmed they are on the way'];
             $sent += (int) $this->admins->send($booking, 'admin_at_risk', 'at_risk',
-                '⚠️ AT RISK — '.$driver.' not set off · '.$time.' '.$where,
-                $driver.' still hasn’t set off for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
+                '⚠️ AT RISK — '.$driver.' '.$shortReason.' · '.$time.' '.$where,
+                $driver.' '.$longReason.' for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
                 severity: 'critical', maxSends: null, repeatMinutes: self::AT_RISK_REPEAT_MINUTES);
 
             // EMERGENCY AUTO-CALL — ring the office line and keep re-dialling
@@ -327,7 +354,7 @@ class StatusWatchdog
                         ->where('nudge_type', 'office_call_at_risk')->where('recipient_type', 'office')
                         ->orderByDesc('sent_at')->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
-                        if ($call->ringForJob($booking, $driver.' has not set off for the '.$time.' pickup at '.$where.'.')) {
+                        if ($call->ringForJob($booking, $driver.' '.$callReason.' for the '.$time.' pickup at '.$where.'.')) {
                             JobNudge::create([
                                 'booking_id' => $booking->id, 'nudge_type' => 'office_call_at_risk',
                                 'recipient_type' => 'office', 'sent_at' => now(), 'channel' => 'call', 'created_at' => now(),

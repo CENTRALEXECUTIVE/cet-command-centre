@@ -10,6 +10,22 @@
     $ackCashUrl = $ackCashUrl ?? route('driver.job.ack-cash', $booking);
     $ackChildSeatsUrl = $ackChildSeatsUrl ?? route('driver.job.child-seats', $booking);
     $ackNotesUrl = $ackNotesUrl ?? route('driver.job.notes-ack', $booking);
+    $onItUrl = $onItUrl ?? route('driver.job.on-it', $booking);
+
+    // The person viewing IS the assigned driver: always true on the shareable
+    // link (the token is theirs); on the logged-in page it's the driver whose id
+    // matches — so a director looking at their OWN job sees the driver actions,
+    // while the office viewing someone else's job does not.
+    $isAssignedDriver = $linkMode ? true : (auth()->id() === $booking->driver_id);
+
+    // "I'm on it" checkpoint: live from ~30 min before pickup until the driver
+    // confirms or sets off. No decline option — it's a confirmation only.
+    $readyPromptAt = $booking->gettingReadyPromptAt();
+    $showGetReady = $isAssignedDriver
+        && in_array($booking->status, [\App\Enums\BookingStatus::Allocated, \App\Enums\BookingStatus::Accepted], true)
+        && ! $booking->gettingReadyConfirmed()
+        && $readyPromptAt && now()->gte($readyPromptAt);
+    $readyConfirmedAt = $booking->gettingReadyConfirmedAt();
 
     // Multi-stop journeys (a "via" between pickup and drop-off).
     $viaStops = $booking->viaStops();
@@ -51,6 +67,26 @@
 @endif
 @if(session('stopError'))
     <div class="alert alert-error">📍 {{ session('stopError') }}</div>
+@endif
+
+{{-- "I'm on it" checkpoint — ~30 min before pickup the driver confirms the job
+     is covered so the office knows it won't be missed. There is deliberately NO
+     "can't make it" button: this is a confirmation, not a decline. Setting off
+     (On My Way) confirms it automatically, so it disappears once they're moving. --}}
+@if($showGetReady)
+    <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.16);margin-bottom:16px">
+        <div style="font-weight:800;font-size:17px">⏰ {{ $booking->pickup_at->format('H:i') }} pickup — are you on it?</div>
+        <p style="margin:6px 0 12px;font-size:15px">Tap to let the office know you’re getting ready for this job. If you don’t confirm and haven’t set off soon, the office will be alerted so a driver can be arranged.</p>
+        <form method="POST" action="{{ $onItUrl }}">
+            @csrf
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:13px;font-size:17px;font-weight:800">🟢 I’m on it</button>
+        </form>
+    </div>
+@elseif($isAssignedDriver && $readyConfirmedAt && in_array($booking->status, [\App\Enums\BookingStatus::Allocated, \App\Enums\BookingStatus::Accepted], true))
+    <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">
+        <div style="font-weight:700;font-size:14px">🟢 You’re on it — confirmed {{ $readyConfirmedAt->format('H:i') }}</div>
+        <div class="muted" style="font-size:13px;margin-top:2px">The office knows this {{ $booking->pickup_at->format('H:i') }} job is covered. Tap <strong>On My Way</strong> when you set off.</div>
+    </div>
 @endif
 
 {{-- Location permission gate. A browser only shows the "Allow location" prompt

@@ -75,6 +75,7 @@
                 'ackCashUrl' => route('driver.link.ack-cash', $token),
                 'ackChildSeatsUrl' => route('driver.link.child-seats', $token),
                 'ackNotesUrl' => route('driver.link.notes-ack', $token),
+                'onItUrl' => route('driver.link.on-it', $token),
             ])
 
             <p class="hint" style="text-align:center;margin-top:20px">Private link for this job · Central Executive Transfers</p>

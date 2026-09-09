@@ -103,6 +103,15 @@ class LinkController extends Controller
         return back()->with('status', 'Thanks — noted you’ve read the job notes.');
     }
 
+    /** Cover driver taps "I'm on it" at the ~30-min checkpoint via the shareable link. */
+    public function confirmGettingReady(string $token): RedirectResponse
+    {
+        $booking = $this->resolve($token);
+        $booking->confirmGettingReady($booking->driver);
+
+        return back()->with('status', 'Thanks — you’re marked as on it. Drive safe.');
+    }
+
     public function location(Request $request, string $token, DriverLocationService $locations): JsonResponse
     {
         $booking = $this->resolve($token);
