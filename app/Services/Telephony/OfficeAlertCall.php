@@ -112,9 +112,11 @@ class OfficeAlertCall
 
     private function from(): ?string
     {
+        // Explicit override first, else the DRIVER switchboard line (kept internal,
+        // so the customer-facing line stays customer-only), then other fallbacks.
         return config('cet.alert_call_from')
-            ?: config('services.twilio_masking.customer_line')
             ?: config('services.twilio_masking.driver_line')
+            ?: config('services.twilio_masking.customer_line')
             ?: config('services.twilio_masking.proxy_number');
     }
 

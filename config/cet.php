@@ -110,8 +110,11 @@ return [
     // driver still hasn't set off past the safe time, the watchdog rings this
     // number (repeating until someone answers and presses a key). Silent no-op
     // until a voice-capable Twilio "from" number and a "to" number are set.
-    'office_call_number' => env('CET_OFFICE_CALL_NUMBER', ''),   // who to ring (office/director mobile)
-    'alert_call_from' => env('CET_ALERT_CALL_FROM', ''),         // a voice-capable Twilio number to call from
+    // Who to ring — the business line (forwards to the other director on no-answer).
+    'office_call_number' => env('CET_OFFICE_CALL_NUMBER', '+447405172435'),
+    // Caller ID / "from" — a voice-capable Twilio number. Left blank, it uses the
+    // driver switchboard line (see OfficeAlertCall::from()), so no env is needed.
+    'alert_call_from' => env('CET_ALERT_CALL_FROM', ''),
 
     // Minutes after a job is marked complete before the review request is sent.
     'review_delay_minutes' => 30,
