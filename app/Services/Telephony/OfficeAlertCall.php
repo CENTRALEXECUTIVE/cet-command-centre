@@ -119,6 +119,36 @@ class OfficeAlertCall
         return $this->to();
     }
 
+    /**
+     * Non-secret status of the emergency-call setup, for the diagnostics command
+     * (`cet:alert-call-status`). Never returns credentials — only whether they're
+     * present, the from/to numbers, and where the "from" resolved from.
+     *
+     * @return array{twilio_credentials: bool, from: ?string, from_source: ?string, to: ?string, configured: bool}
+     */
+    public function diagnostics(): array
+    {
+        return [
+            'twilio_credentials' => filled(config('services.twilio.sid')) && filled(config('services.twilio.token')),
+            'from' => $this->from(),
+            'from_source' => $this->fromSource(),
+            'to' => $this->to(),
+            'configured' => $this->configured(),
+        ];
+    }
+
+    /** Which env/config the "from" number came from (label only, no value). */
+    private function fromSource(): ?string
+    {
+        return match (true) {
+            filled(config('cet.alert_call_from')) => 'CET_ALERT_CALL_FROM',
+            filled(config('services.twilio_masking.driver_line')) => 'driver line (TWILIO_DRIVER_LINE)',
+            filled(config('services.twilio_masking.customer_line')) => 'customer line (TWILIO_CUSTOMER_LINE)',
+            filled(config('services.twilio_masking.proxy_number')) => 'legacy proxy number (TWILIO_PROXY_NUMBER)',
+            default => null,
+        };
+    }
+
     /** The spoken script + a keypress gather that acknowledges (stops the calls). */
     private function twiml(Booking $booking, string $message): string
     {
