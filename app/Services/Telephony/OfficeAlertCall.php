@@ -28,20 +28,46 @@ class OfficeAlertCall
     }
 
     /**
-     * Ring the office about a job at risk. Returns true when a call was placed.
-     * The call plays $message twice, then gathers a keypress that hits the
-     * acknowledge webhook (which stops further calls for this booking).
+     * Ring about a job at risk, ROUTED to whoever's free: a director who isn't the
+     * job's own (forgetful) driver and isn't busy/carrying a passenger gets their
+     * own mobile rung; if nobody's free we fall back to the business line (which
+     * forwards on no-answer). So the call never blares next to a passenger.
      */
+    public function ringForJob(Booking $booking, string $message): bool
+    {
+        return $this->place($this->targetFor($booking), $booking, $message);
+    }
+
+    /** Ring the plain business line (used by the manual test). */
     public function ring(Booking $booking, string $message): bool
     {
-        if (! $this->configured()) {
+        return $this->place($this->to(), $booking, $message);
+    }
+
+    /** Choose the number to ring for this at-risk job. */
+    private function targetFor(Booking $booking): ?string
+    {
+        $free = \App\Models\User::where('role', \App\Enums\UserRole::Admin->value)
+            ->where('is_active', true)
+            ->whereNotNull('phone')
+            ->where('id', '!=', $booking->driver_id) // reach the OTHER person, not the one who forgot
+            ->get()
+            ->first(fn (\App\Models\User $u) => ! $u->busyForAlerts());
+
+        return $free?->phone ?: $this->to(); // fall back to the business line
+    }
+
+    /** Place one call to $to with the acknowledge-gather TwiML. */
+    private function place(?string $to, Booking $booking, string $message): bool
+    {
+        if (! $this->configured() || blank($to)) {
             return false;
         }
 
         try {
             $res = $this->twilio()->post($this->callsUrl(), [
                 'From' => $this->from(),
-                'To' => $this->to(),
+                'To' => $to,
                 'Twiml' => $this->twiml($booking, $message),
             ]);
 

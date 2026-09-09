@@ -92,6 +92,14 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <h2 style="margin:0">🛰 Live alerts</h2>
             <div style="display:flex;align-items:center;gap:10px">
+                @php $held = auth()->user()->alertsHeld(); @endphp
+                <form method="POST" action="{{ route('alerts.hold') }}" style="display:inline">
+                    @csrf
+                    <button type="submit" class="btn {{ $held ? 'btn-primary' : 'btn-light' }}" style="padding:6px 14px;font-size:13px;font-weight:700"
+                        title="{{ $held ? 'Alerts are going to the other director until '.auth()->user()->alerts_busy_until->format('H:i') : 'Hold your emergency alerts while you\'re out on a job' }}">
+                        {{ $held ? '🔔 On a job — resume my alerts ('.auth()->user()->alerts_busy_until->format('H:i').')' : '🚗 I\'m on a job — hold my alerts' }}
+                    </button>
+                </form>
                 <button type="button" id="alerts-silence" class="btn btn-light" style="display:none;padding:6px 14px;font-size:13px;font-weight:700">🔕 Silence alarm</button>
                 <button type="button" id="alerts-clear" class="btn btn-ghost" data-clear="{{ route('alerts.ackAll') }}" style="display:none;padding:6px 14px;font-size:13px">Clear all</button>
                 <span class="muted" style="font-size:12px" id="alerts-stamp">Control-tower log — updates every 30s</span>

@@ -110,6 +110,9 @@ return [
     // driver still hasn't set off past the safe time, the watchdog rings this
     // number (repeating until someone answers and presses a key). Silent no-op
     // until a voice-capable Twilio "from" number and a "to" number are set.
+    // How long a director's "hold my alerts" toggle lasts before auto-expiring.
+    'alerts_hold_minutes' => (int) env('CET_ALERTS_HOLD_MINUTES', 180),
+
     // Who to ring — the business line (forwards to the other director on no-answer).
     'office_call_number' => env('CET_OFFICE_CALL_NUMBER', '+447405172435'),
     // Caller ID / "from" — a voice-capable Twilio number. Left blank, it uses the

@@ -238,6 +238,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             ->middleware('throttle:60,1')->name('alerts.ack');
         Route::post('alerts/ack-all', [\App\Http\Controllers\AlertsController::class, 'acknowledgeAll'])
             ->middleware('throttle:30,1')->name('alerts.ackAll');
+        // "I'm on a job — hold my emergency alerts" toggle (routes them to the other director).
+        Route::post('alerts/hold', [\App\Http\Controllers\AlertsController::class, 'toggleHold'])
+            ->middleware('throttle:30,1')->name('alerts.hold');
         Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
         Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
         Route::post('settings/notifications/test', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'test'])->middleware('throttle:6,1')->name('notifications.test');

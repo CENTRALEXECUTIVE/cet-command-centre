@@ -73,4 +73,27 @@ class AlertsController extends Controller
 
         return response()->json(['ok' => true, 'critical' => 0]);
     }
+
+    /**
+     * Toggle "I'm on a job — hold my emergency alerts". While held, the at-risk
+     * auto-call routes to the OTHER director instead of ringing this one next to a
+     * passenger. Auto-expires so it can never be left on for ever.
+     */
+    public function toggleHold(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user->isAdmin(), 403);
+
+        if ($user->alertsHeld()) {
+            $user->releaseAlerts();
+
+            return back()->with('status', 'You’re back on alerts — emergencies will reach you again.');
+        }
+
+        $minutes = (int) config('cet.alerts_hold_minutes', 180);
+        $user->holdAlertsFor($minutes);
+
+        return back()->with('status', 'Alerts held for '.round($minutes / 60, 1).'h — emergencies go to the other director until '
+            .$user->fresh()->alerts_busy_until->format('H:i').'.');
+    }
 }

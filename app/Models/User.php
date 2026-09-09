@@ -28,6 +28,7 @@ class User extends Authenticatable
         'last_login_at',
         'notification_preferences',
         'must_change_password',
+        'alerts_busy_until',
     ];
 
     protected $hidden = [
@@ -46,7 +47,51 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'role' => UserRole::class,
             'notification_preferences' => 'array',
+            'alerts_busy_until' => 'datetime',
         ];
+    }
+
+    // ----- Availability for emergency alert routing -----------------------
+
+    /** On an active CET job right now (en route / at pickup / passenger on board). */
+    public function onActiveJob(): bool
+    {
+        return \App\Models\Booking::where('driver_id', $this->id)
+            ->whereIn('status', [
+                \App\Enums\BookingStatus::EnRoute->value,
+                \App\Enums\BookingStatus::Arrived->value,
+                \App\Enums\BookingStatus::Collected->value,
+            ])->exists();
+    }
+
+    /**
+     * Should emergency alerts (the loud call) SKIP this director? True when they've
+     * flagged themselves busy (still in date) or are on an active CET job — so the
+     * call routes to whoever's free and never blares next to a passenger.
+     */
+    public function busyForAlerts(): bool
+    {
+        if ($this->alerts_busy_until && $this->alerts_busy_until->isFuture()) {
+            return true;
+        }
+
+        return $this->onActiveJob();
+    }
+
+    /** Manually held their alerts (the toggle), still in date. */
+    public function alertsHeld(): bool
+    {
+        return $this->alerts_busy_until && $this->alerts_busy_until->isFuture();
+    }
+
+    public function holdAlertsFor(int $minutes): void
+    {
+        $this->forceFill(['alerts_busy_until' => now()->addMinutes(max(1, $minutes))])->save();
+    }
+
+    public function releaseAlerts(): void
+    {
+        $this->forceFill(['alerts_busy_until' => null])->save();
     }
 
     // ----- Admin alert preferences ----------------------------------------

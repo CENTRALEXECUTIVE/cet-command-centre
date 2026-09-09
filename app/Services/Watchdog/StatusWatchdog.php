@@ -327,7 +327,7 @@ class StatusWatchdog
                         ->where('nudge_type', 'office_call_at_risk')->where('recipient_type', 'office')
                         ->orderByDesc('sent_at')->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
-                        if ($call->ring($booking, $driver.' has not set off for the '.$time.' pickup at '.$where.'.')) {
+                        if ($call->ringForJob($booking, $driver.' has not set off for the '.$time.' pickup at '.$where.'.')) {
                             JobNudge::create([
                                 'booking_id' => $booking->id, 'nudge_type' => 'office_call_at_risk',
                                 'recipient_type' => 'office', 'sent_at' => now(), 'channel' => 'call', 'created_at' => now(),
