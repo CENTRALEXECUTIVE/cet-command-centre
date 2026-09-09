@@ -343,6 +343,10 @@ Route::post('webhooks/voice', [WebhookController::class, 'voice'])
 Route::post('webhooks/square', [WebhookController::class, 'square'])
     ->middleware('throttle:120,1')
     ->name('webhooks.square');
+// Twilio "at risk" auto-call — a keypress here acknowledges and stops the calls.
+Route::match(['get', 'post'], 'webhooks/alert-ack/{booking}', [WebhookController::class, 'alertAck'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.alert-ack');
 
 // ----- Public live tracking (token in URL, no login) ---------------------
 Route::get('track/{token}', [TrackingController::class, 'show'])

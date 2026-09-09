@@ -12,6 +12,8 @@ use App\Services\DriverLocationService;
 use App\Services\Watchdog\StatusWatchdog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -277,6 +279,46 @@ class StatusWatchdogTest extends TestCase
 
         $this->assertSame(2, JobNudge::where('booking_id', $b->id)
             ->where('nudge_type', 'admin_at_risk')->count());
+    }
+
+    public function test_at_risk_auto_calls_the_office_and_stops_once_acknowledged(): void
+    {
+        config([
+            'services.twilio.sid' => 'AC123', 'services.twilio.token' => 'tok',
+            'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+447405172435',
+        ]);
+        Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
+
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+        $this->tick();
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json'));
+        $this->assertSame(1, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'office_call_at_risk')->count());
+
+        // Acknowledged → the calls stop even though the job is still at risk.
+        $b->forceFill(['meta' => array_merge($b->meta ?? [], ['at_risk_ack' => now()->toIso8601String()])])->save();
+        Carbon::setTestNow(now()->addMinutes(StatusWatchdog::AT_RISK_CALL_EVERY_MINUTES + 1));
+        $this->tick();
+        $this->assertSame(1, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'office_call_at_risk')->count());
+    }
+
+    public function test_no_auto_call_when_twilio_is_not_configured(): void
+    {
+        Http::fake();
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+        $this->tick();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'office_call_at_risk')->count());
+    }
+
+    public function test_a_keypress_on_the_call_acknowledges_the_job(): void
+    {
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+        $url = URL::signedRoute('webhooks.alert-ack', ['booking' => $b->id]);
+
+        $this->post($url)->assertOk()->assertSee('Acknowledged', false);
+        $this->assertNotEmpty($b->fresh()->meta['at_risk_ack']);
     }
 
     public function test_midnight_boundary_job_is_not_missed(): void

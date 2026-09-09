@@ -64,27 +64,30 @@
         document.removeEventListener('click', armAudio);
     }, { once: true });
 
+    // A LOUD, wailing emergency siren: a sawtooth sweeping 700↔1300 Hz at near-
+    // full volume, repeated back-to-back so it's continuous, plus a hard vibration
+    // pattern. Meant to be impossible to sleep through — it runs until the critical
+    // alert is acknowledged or Silence is pressed.
     function beep() {
         var ctx = audioCtx();
         if (!ctx) return;
-        [880, 660].forEach(function (freq, i) {
-            var o = ctx.createOscillator(), g = ctx.createGain();
-            var t = ctx.currentTime + i * 0.35;
-            o.type = 'square'; o.frequency.value = freq;
-            g.gain.setValueAtTime(0.0001, t);
-            g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-            o.connect(g); g.connect(ctx.destination);
-            o.start(t); o.stop(t + 0.32);
-        });
-        if (navigator.vibrate) navigator.vibrate([300, 120, 300]);
+        var t = ctx.currentTime, dur = 0.75;
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(700, t);
+        o.frequency.linearRampToValueAtTime(1300, t + dur / 2);
+        o.frequency.linearRampToValueAtTime(700, t + dur);
+        g.gain.setValueAtTime(0.9, t);            // as loud as the browser allows
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + dur);
+        if (navigator.vibrate) navigator.vibrate([600, 100, 600, 100, 600]);
     }
 
     function startAlarm() {
         if (alarmTimer || silenced) return;
         if (silenceBtn) silenceBtn.style.display = '';
         beep();
-        alarmTimer = setInterval(beep, 1600);
+        alarmTimer = setInterval(beep, 760); // back-to-back = continuous wail
     }
     function stopAlarm(hideBtn) {
         if (alarmTimer) { clearInterval(alarmTimer); alarmTimer = null; }

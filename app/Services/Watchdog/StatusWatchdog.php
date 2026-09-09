@@ -73,6 +73,9 @@ class StatusWatchdog
 
     public const AT_RISK_REPEAT_MINUTES = 10;
 
+    /** The emergency office auto-call re-dials this often until acknowledged. */
+    public const AT_RISK_CALL_EVERY_MINUTES = 2;
+
     /** Driver-nudge types → the statuses they nag about + the action wording. */
     private const UNACTED_MAP = [
         'set_off' => [[BookingStatus::Allocated, BookingStatus::Accepted], 'set off'],
@@ -312,6 +315,28 @@ class StatusWatchdog
                 '⚠️ AT RISK — '.$driver.' not set off · '.$time.' '.$where,
                 $driver.' still hasn’t set off for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
                 severity: 'critical', maxSends: null, repeatMinutes: self::AT_RISK_REPEAT_MINUTES);
+
+            // EMERGENCY AUTO-CALL — ring the office line and keep re-dialling
+            // every couple of minutes until someone answers and presses a key
+            // (which sets at_risk_ack via the webhook). A push can be missed; a
+            // ringing phone can't. No-op until Twilio + the numbers are set.
+            if (empty($booking->meta['at_risk_ack'])) {
+                $call = app(\App\Services\Telephony\OfficeAlertCall::class);
+                if ($call->configured()) {
+                    $lastCall = JobNudge::where('booking_id', $booking->id)
+                        ->where('nudge_type', 'office_call_at_risk')->where('recipient_type', 'office')
+                        ->orderByDesc('sent_at')->first();
+                    if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
+                        if ($call->ring($booking, $driver.' has not set off for the '.$time.' pickup at '.$where.'.')) {
+                            JobNudge::create([
+                                'booking_id' => $booking->id, 'nudge_type' => 'office_call_at_risk',
+                                'recipient_type' => 'office', 'sent_at' => now(), 'channel' => 'call', 'created_at' => now(),
+                            ]);
+                            $sent++;
+                        }
+                    }
+                }
+            }
         }
 
         // Driver nudge sent twice and still no reaction 5 min later.

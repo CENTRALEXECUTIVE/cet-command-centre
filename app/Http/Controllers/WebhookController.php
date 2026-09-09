@@ -123,6 +123,28 @@ class WebhookController extends Controller
         return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking)]);
     }
 
+    /**
+     * A keypress on the emergency "job at risk" auto-call. Acknowledges the job so
+     * the watchdog stops ringing the office. Signed URL (the call TwiML carried
+     * the signature); returns TwiML so Twilio speaks the confirmation.
+     */
+    public function alertAck(Request $request, \App\Models\Booking $booking): Response
+    {
+        abort_unless($request->hasValidSignature(), 403);
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'at_risk_ack' => now()->toIso8601String(),
+        ])])->save();
+
+        \App\Models\WatchdogEvent::log('at_risk_ack', 'At-risk job acknowledged by phone', 'info', $booking);
+
+        return response(
+            '<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice" language="en-GB">'
+            .'Acknowledged. Thank you.</Say><Hangup/></Response>',
+            200, ['Content-Type' => 'text/xml']
+        );
+    }
+
     private function authoriseWebhook(Request $request): void
     {
         $secret = config('cet.webhook_secret');
