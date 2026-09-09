@@ -77,7 +77,7 @@
         o.frequency.setValueAtTime(700, t);
         o.frequency.linearRampToValueAtTime(1300, t + dur / 2);
         o.frequency.linearRampToValueAtTime(700, t + dur);
-        g.gain.setValueAtTime(0.9, t);            // as loud as the browser allows
+        g.gain.setValueAtTime(1.0, t);            // absolute max the browser allows (rides the media volume)
         o.connect(g); g.connect(ctx.destination);
         o.start(t); o.stop(t + dur);
         if (navigator.vibrate) navigator.vibrate([600, 100, 600, 100, 600]);
