@@ -48,6 +48,34 @@ class NotificationPreferencesController extends Controller
         return back()->with('status', 'Notification preferences saved.');
     }
 
+    /**
+     * Fire a TEST at-risk alert so the office can confirm the safety net works:
+     * a critical alert (dashboard siren + phone push to every admin) and a test
+     * call to the office line.
+     */
+    public function test(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isSuperAdmin(), 403);
+
+        // Critical event → open dashboards blare the siren + admins get a push.
+        app(\App\Services\Watchdog\AdminAlerts::class)->notify(
+            'at_risk',
+            '🔔 TEST alert — this is only a test',
+            'If you can see/hear this, critical alerts are reaching you. No action needed.',
+            'critical',
+        );
+        \App\Models\WatchdogEvent::log('test_alert', '🔔 TEST alert — critical alerts are working', 'critical');
+
+        $call = app(\App\Services\Telephony\OfficeAlertCall::class);
+        $callMsg = $call->configured()
+            ? ($call->ringTest()
+                ? 'Test call placed to '.$call->target().' — it should ring now.'
+                : 'Test call FAILED — check the Twilio credentials.')
+            : 'Auto-call not set up yet (add Twilio + CET_ALERT_CALL_FROM + CET_OFFICE_CALL_NUMBER).';
+
+        return back()->with('status', 'Test alert fired — the dashboard siren should sound and a push has been sent. '.$callMsg);
+    }
+
     private function admins()
     {
         return User::where('role', UserRole::Admin->value)

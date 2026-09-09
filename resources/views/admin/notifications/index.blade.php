@@ -28,6 +28,47 @@
         <script src="{{ asset('js/cet-pushsetup.js') }}?v=3" defer></script>
     </div>
 
+    {{-- Test the emergency "job at risk" safety net --}}
+    <div class="form-card" style="margin-bottom:18px;border-left:4px solid #b32020">
+        <h2 style="margin:0 0 4px">🚨 Test the emergency alert</h2>
+        <p class="hint" style="margin:0 0 12px">The safety net for a job about to be missed: a blaring siren on any open dashboard, a push to every director's phone, and an automatic call to the office line that repeats until answered. Test each part here.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button type="button" id="test-siren" class="btn btn-dark" style="padding:9px 16px;font-size:14px">🔊 Test the siren (this device)</button>
+            <form method="POST" action="{{ route('notifications.test') }}" style="display:inline">
+                @csrf
+                <button type="submit" class="btn btn-primary" style="padding:9px 16px;font-size:14px;background:#b32020;border-color:#b32020">🔔 Fire a full test (siren + push + call)</button>
+            </form>
+        </div>
+        <p class="hint" style="margin:10px 0 0">The full test rings the office line only when Twilio and the alert numbers are set up. The siren button plays the sound right here so you can check it’s loud enough.</p>
+    </div>
+
+    <script>
+    (function () {
+        // Instant in-browser siren test — the same wailing sweep the dashboard uses.
+        var btn = document.getElementById('test-siren'); if (!btn) return;
+        var ctx = null, timer = null;
+        function wail() {
+            if (!ctx) { var C = window.AudioContext || window.webkitAudioContext; if (C) ctx = new C(); }
+            if (!ctx) return;
+            if (ctx.state === 'suspended') ctx.resume();
+            var t = ctx.currentTime, dur = 0.75, o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(700, t);
+            o.frequency.linearRampToValueAtTime(1300, t + dur / 2);
+            o.frequency.linearRampToValueAtTime(700, t + dur);
+            g.gain.setValueAtTime(0.9, t);
+            o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + dur);
+            if (navigator.vibrate) navigator.vibrate([600, 100, 600]);
+        }
+        btn.addEventListener('click', function () {
+            if (timer) { clearInterval(timer); timer = null; btn.textContent = '🔊 Test the siren (this device)'; return; }
+            wail(); timer = setInterval(wail, 760);
+            btn.textContent = '⏹ Stop siren';
+            setTimeout(function () { if (timer) { clearInterval(timer); timer = null; btn.textContent = '🔊 Test the siren (this device)'; } }, 8000);
+        });
+    })();
+    </script>
+
     <form method="POST" action="{{ route('notifications.update') }}">
         @csrf
         @method('PUT')

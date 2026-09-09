@@ -59,6 +59,40 @@ class OfficeAlertCall
         }
     }
 
+    /**
+     * Place a one-off TEST call so the office can confirm the emergency line
+     * actually rings. No acknowledge loop — it just speaks a test message and
+     * hangs up. Returns true when the call was placed.
+     */
+    public function ringTest(): bool
+    {
+        if (! $this->configured()) {
+            return false;
+        }
+
+        $twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice" language="en-GB">'
+            .'This is a test of the Central Executive Transfers emergency alert. '
+            .'If you can hear this, your at-risk job alert calls are working.</Say></Response>';
+
+        try {
+            $res = $this->twilio()->post($this->callsUrl(), [
+                'From' => $this->from(), 'To' => $this->to(), 'Twiml' => $twiml,
+            ]);
+
+            return $res->successful();
+        } catch (\Throwable $e) {
+            Log::warning('[alert-call] test error: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    /** The office number the alert would ring, for showing in the UI. */
+    public function target(): ?string
+    {
+        return $this->to();
+    }
+
     /** The spoken script + a keypress gather that acknowledges (stops the calls). */
     private function twiml(Booking $booking, string $message): string
     {
