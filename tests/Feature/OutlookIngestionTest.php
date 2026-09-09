@@ -490,25 +490,31 @@ class OutlookIngestionTest extends TestCase
         $this->seed(\Database\Seeders\RotationSeeder::class);
         $svc = app(OutlookBookingService::class);
 
+        // Distinct customers per booking (distinct phone — the service keys
+        // customers by phone) so per-airport rotation is tested on its own;
+        // same-customer continuity is covered in RotationEngineTest.
         // MAN → ABDI; tag is the callsign (ABDI), not the full first name.
         $man = $svc->upsertFromParsed($this->parsed([
             'reference' => 'MAN001', 'pickup_address' => 'Manchester Airport (MAN)',
+            'customer_name' => 'Cust A', 'customer_email' => 'custa@example.com', 'customer_phone' => '07700900001',
         ]))['booking'];
         $this->assertEquals('Abdirazak Hassan', $man->driver->name);
         $this->assertStringContainsString('(ABDI)', $man->calendarEvent->title);
 
-        // EMA → MAJ.
-        $ema = $svc->upsertFromParsed($this->parsed([
-            'reference' => 'EMA001', 'pickup_address' => 'East Midlands Airport (EMA)',
+        // LBA → MAJ (current rotation state).
+        $lba = $svc->upsertFromParsed($this->parsed([
+            'reference' => 'LBA001', 'pickup_address' => 'Leeds Bradford Airport (LBA)',
+            'customer_name' => 'Cust B', 'customer_email' => 'custb@example.com', 'customer_phone' => '07700900002',
         ]))['booking'];
-        $this->assertEquals('Majid Ali', $ema->driver->name);
-        $this->assertStringContainsString('(MAJ)', $ema->calendarEvent->title);
+        $this->assertEquals('Majid Ali', $lba->driver->name);
+        $this->assertStringContainsString('(MAJ)', $lba->calendarEvent->title);
 
         // Non-rotation vehicle (Executive 8 Seater → V Class) keeps no driver.
         // The title bracket is a PERSON, never the vehicle (rule 1): with no
         // driver assigned it shows COVER. Vehicle goes on the Vehicle Type line.
         $vclass = $svc->upsertFromParsed($this->parsed([
             'reference' => 'VC001', 'vehicle_type' => 'Executive 8 Seater',
+            'customer_name' => 'Cust C', 'customer_email' => 'custc@example.com', 'customer_phone' => '07700900003',
         ]))['booking'];
         $this->assertNull($vclass->driver);
         $this->assertStringContainsString('(COVER)', $vclass->calendarEvent->title);
@@ -609,24 +615,27 @@ class OutlookIngestionTest extends TestCase
         $this->seed(\Database\Seeders\RotationSeeder::class);
         $svc = app(OutlookBookingService::class);
 
-        // Outbound 'a' from EMA (MAJ is next there).
+        // Outbound 'a' from EMA (ABDI is next there in the current state). The
+        // pair share ONE customer so the service links them as a round trip.
         $a = $svc->upsertFromParsed($this->parsed([
             'reference' => 'PAIR01a', 'pickup_address' => 'East Midlands Airport (EMA)',
         ]))['booking'];
-        // Return 'b' back to EMA.
+        // Return 'b' back to EMA (same customer → linked return leg).
         $b = $svc->upsertFromParsed($this->parsed([
             'reference' => 'PAIR01b', 'pickup_address' => 'Sheffield', 'destination_address' => 'East Midlands Airport (EMA)',
         ]))['booking'];
 
-        $this->assertEquals('Majid Ali', $a->driver->name);
+        $this->assertEquals('Abdirazak Hassan', $a->driver->name);
         $this->assertEquals($a->driver_id, $b->fresh()->driver_id, 'return leg shares the outbound driver');
         $this->assertTrue($b->fresh()->is_return_leg);
 
-        // Only ONE advance: the next standalone EMA job goes to ABDI.
+        // Only ONE advance for the pair: the next standalone EMA job (a DIFFERENT
+        // customer, so no continuity) goes to MAJ.
         $c = $svc->upsertFromParsed($this->parsed([
             'reference' => 'SOLO99', 'pickup_address' => 'East Midlands Airport (EMA)',
+            'customer_name' => 'Solo Person', 'customer_email' => 'solo@example.com', 'customer_phone' => '07700900009',
         ]))['booking'];
-        $this->assertEquals('Abdirazak Hassan', $c->driver->name);
+        $this->assertEquals('Majid Ali', $c->driver->name);
     }
 
     public function test_quote_requests_are_never_imported(): void

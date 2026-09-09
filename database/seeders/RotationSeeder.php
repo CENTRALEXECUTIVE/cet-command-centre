@@ -12,8 +12,8 @@ use Illuminate\Database\Seeder;
  * Seeds the live rotation pointer EXACTLY as it stands today, for the Executive
  * saloon (the only rotation-affecting vehicle type):
  *
- *   ABDI next: MAN, LHR, HUY, BHX, STN, LGW, LPL, LTN, LBA
- *   MAJ  next: EMA, Free Roam
+ *   ABDI next: LHR, MAN, EMA, LTN, HUY, LPL, Free Roam
+ *   MAJ  next: LBA, BHX, LGW, STN
  *
  * Any airport not present here ("all other unbooked airports") defaults to
  * ABDI via the rotation engine.
@@ -31,17 +31,17 @@ class RotationSeeder extends Seeder
         }
 
         $nextDriverByAirport = [
-            'MAN' => $abdi,
             'LHR' => $abdi,
-            'HUY' => $abdi,
-            'BHX' => $abdi,
-            'STN' => $abdi,
-            'LGW' => $abdi,
-            'LPL' => $abdi,
+            'MAN' => $abdi,
+            'EMA' => $abdi,
             'LTN' => $abdi,
-            'LBA' => $abdi,
-            'EMA' => $maj,
-            'FREE_ROAM' => $maj,
+            'HUY' => $abdi,
+            'LPL' => $abdi,
+            'FREE_ROAM' => $abdi,
+            'LBA' => $maj,
+            'BHX' => $maj,
+            'LGW' => $maj,
+            'STN' => $maj,
         ];
 
         foreach ($nextDriverByAirport as $code => $driver) {

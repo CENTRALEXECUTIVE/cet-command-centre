@@ -79,24 +79,32 @@ class RotationEngineTest extends TestCase
         $this->assertEquals($this->maj->id, $state->next_driver_id);
     }
 
-    public function test_ema_is_next_for_maj(): void
+    public function test_ema_is_next_for_abdi(): void
     {
-        // Seeded: EMA next = MAJ.
+        // Current state: EMA next = ABDI.
         $booking = $this->makeBooking($this->executive, 'EMA');
+
+        $driver = $this->rotation->allocate($booking);
+
+        $this->assertTrue($driver->is($this->abdi));
+    }
+
+    public function test_lba_is_next_for_maj(): void
+    {
+        // Current state: LBA next = MAJ.
+        $booking = $this->makeBooking($this->executive, 'LBA');
 
         $driver = $this->rotation->allocate($booking);
 
         $this->assertTrue($driver->is($this->maj));
     }
 
-    public function test_lba_is_now_next_for_abdi(): void
+    public function test_bhx_lgw_stn_are_next_for_maj(): void
     {
-        // LBA moved to ABDI in the current rotation state.
-        $booking = $this->makeBooking($this->executive, 'LBA');
-
-        $driver = $this->rotation->allocate($booking);
-
-        $this->assertTrue($driver->is($this->abdi));
+        foreach (['BHX', 'LGW', 'STN'] as $code) {
+            $driver = $this->rotation->allocate($this->makeBooking($this->executive, $code));
+            $this->assertTrue($driver->is($this->maj), "$code should be MAJ next");
+        }
     }
 
     public function test_man_is_now_next_for_abdi(): void
@@ -160,6 +168,60 @@ class RotationEngineTest extends TestCase
 
         // Return leg did not itself advance the pointer.
         $this->assertFalse($return->fresh()->affected_rotation);
+    }
+
+    public function test_same_customer_return_booked_separately_keeps_the_same_driver(): void
+    {
+        // Outbound at LHR (ABDI, pointer → MAJ), then the SAME customer's return
+        // booked as its own booking a day later — NOT a formally linked leg.
+        $customer = Customer::create(['name' => 'Repeat Passenger']);
+        $airport = Airport::where('code', 'LHR')->first();
+
+        $outbound = $this->makeBooking($this->executive, 'LHR', [
+            'customer_id' => $customer->id, 'pickup_at' => now()->addDay(),
+        ]);
+        $outDriver = $this->rotation->allocate($outbound);
+        $this->assertTrue($outDriver->is($this->abdi));
+
+        $return = $this->makeBooking($this->executive, 'LHR', [
+            'customer_id' => $customer->id, 'pickup_at' => now()->addDays(2),
+        ]);
+        $returnDriver = $this->rotation->allocate($return);
+
+        // Same driver as the outbound…
+        $this->assertTrue($returnDriver->is($this->abdi));
+        $this->assertFalse($return->fresh()->affected_rotation);
+
+        // …and the pointer only moved once (still MAJ), not back to ABDI.
+        $state = RotationState::where('airport_id', $airport->id)
+            ->where('vehicle_type_id', $this->executive->id)->first();
+        $this->assertEquals($this->maj->id, $state->next_driver_id);
+    }
+
+    public function test_independent_one_way_jobs_for_different_customers_rotate_normally(): void
+    {
+        // Two different customers, same airport → normal alternation (not continuity).
+        $first = $this->rotation->allocate($this->makeBooking($this->executive, 'LHR'));
+        $second = $this->rotation->allocate($this->makeBooking($this->executive, 'LHR'));
+
+        $this->assertTrue($first->is($this->abdi));
+        $this->assertTrue($second->is($this->maj));
+    }
+
+    public function test_same_customer_beyond_the_window_rotates_normally(): void
+    {
+        // Same customer but the second trip is well outside the continuity window
+        // → treated as independent, normal rotation applies.
+        $customer = Customer::create(['name' => 'Occasional Passenger']);
+        $first = $this->rotation->allocate($this->makeBooking($this->executive, 'LHR', [
+            'customer_id' => $customer->id, 'pickup_at' => now()->addDay(),
+        ]));
+        $second = $this->rotation->allocate($this->makeBooking($this->executive, 'LHR', [
+            'customer_id' => $customer->id, 'pickup_at' => now()->addDays(30),
+        ]));
+
+        $this->assertTrue($first->is($this->abdi));
+        $this->assertTrue($second->is($this->maj)); // rotated, not kept
     }
 
     public function test_substitution_keeps_original_rotation_position(): void

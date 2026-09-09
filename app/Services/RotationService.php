@@ -128,6 +128,17 @@ class RotationService
                 return $driver;
             }
 
+            // Same-customer continuity: the customer already has a rotation driver
+            // on another leg of this trip (e.g. the return booked separately, not
+            // formally linked). Keep that driver and DON'T advance — a customer's
+            // paired legs ride with one driver, the pointer moved once already.
+            if ($continuity = $this->sameCustomerDriver($booking)) {
+                $this->assignDriver($booking, $continuity, advancedRotation: false);
+                $this->log($booking, null, $continuity, 'same_customer_continuity');
+
+                return $continuity;
+            }
+
             $airport = $booking->airport ?? $this->generalPool();
             $driver = $this->nextDriverFor($airport, $vehicleType);
 
@@ -140,6 +151,47 @@ class RotationService
 
             return $driver;
         });
+    }
+
+    /**
+     * The rotation driver a job should inherit for same-customer continuity: the
+     * customer's OTHER non-cancelled rotation booking, assigned to a rotation
+     * driver, whose pickup falls within the continuity window of this one (their
+     * paired legs of the same trip). Null when there's no such companion — so a
+     * genuinely independent one-way job just follows normal rotation.
+     */
+    protected function sameCustomerDriver(Booking $booking): ?User
+    {
+        if (! $booking->customer_id || ! $booking->pickup_at) {
+            return null;
+        }
+
+        $rotationDriverIds = $this->rotationDrivers()->pluck('id');
+        if ($rotationDriverIds->isEmpty()) {
+            return null;
+        }
+
+        $window = (int) config('cet.rotation.continuity_days', 3);
+
+        $companion = Booking::query()
+            ->where('customer_id', $booking->customer_id)
+            ->where('id', '!=', $booking->id)
+            ->whereNotNull('driver_id')
+            ->whereIn('driver_id', $rotationDriverIds)
+            ->whereNotIn('status', [
+                \App\Enums\BookingStatus::Cancelled->value,
+                \App\Enums\BookingStatus::NoShow->value,
+            ])
+            ->whereHas('vehicleType', fn ($q) => $q->where('affects_rotation', true))
+            ->whereBetween('pickup_at', [
+                $booking->pickup_at->copy()->subDays($window),
+                $booking->pickup_at->copy()->addDays($window),
+            ])
+            ->with('driver')
+            ->orderBy('pickup_at')
+            ->first();
+
+        return $companion?->driver;
     }
 
     /**

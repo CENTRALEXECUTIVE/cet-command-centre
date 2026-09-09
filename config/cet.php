@@ -174,6 +174,17 @@ return [
         'ribbons_minibus' => (float) env('CET_SURCHARGE_RIBBONS_MINIBUS', 50),
     ],
 
+    // Driver rotation — same-customer continuity. If a customer already has a
+    // rotation job with one of the two directors within this many days of the new
+    // job's pickup (their outbound/return of the same trip, even when booked as a
+    // separate booking rather than a formally linked leg), the SAME driver takes
+    // it and the pointer does NOT advance again. Keeps a customer's paired legs
+    // with one driver while leaving genuinely independent one-way trips to normal
+    // rotation.
+    'rotation' => [
+        'continuity_days' => (int) env('CET_ROTATION_CONTINUITY_DAYS', 3),
+    ],
+
     // Holiday / rush-hour surcharge — mirrors ETO's date-range factor multipliers.
     // Each: label, factor (>1 raises, <1 lowers), and an inclusive date window.
     // The FIRST window that contains the pickup time applies to the base fare.
