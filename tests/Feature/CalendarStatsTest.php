@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
+use App\Models\DriverProfile;
+use App\Models\User;
 use App\Services\Calendar\CalendarStats;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -86,6 +89,35 @@ class CalendarStatsTest extends TestCase
         $this->assertSame('—', $upcoming[0]['driver']); // MINIBUS is a vehicle, not a driver
         $this->assertSame('D4', $upcoming[1]['ref']);
         $this->assertSame('MAJ', $upcoming[1]['driver']); // person tag
+    }
+
+    public function test_upcoming_driver_reflects_the_real_allocation_not_the_calendar_tag(): void
+    {
+        // The calendar event still tags the OLD driver (ABDI), but the job was
+        // re-allocated in the app to Maj — the dashboard must show the REAL
+        // allocation (his callsign), not the stale tag.
+        $maj = User::factory()->admin()->create(['name' => 'Majid Ali']);
+        DriverProfile::create(['user_id' => $maj->id, 'callsign' => 'MAJ', 'is_third_party' => false]);
+        Booking::factory()->create([
+            'reference' => 'RE1', 'driver_id' => $maj->id, 'pickup_at' => '2026-07-20 09:00:00',
+        ]);
+
+        $events = [
+            ['start' => ['dateTime' => '2026-07-20T09:00:00+01:00'], 'summary' => '*Al MAN (ABDI)*',
+                'description' => "• *Customer Name:* Al\n• *Booking Reference:* RE1"],
+        ];
+
+        Http::fake(function ($request) use ($events) {
+            if (str_contains($request->url(), 'oauth2.googleapis.com/token')) {
+                return Http::response(['access_token' => 'tok', 'expires_in' => 3600], 200);
+            }
+
+            return Http::response(['items' => $events], 200);
+        });
+
+        $upcoming = app(CalendarStats::class)->upcoming(10);
+
+        $this->assertSame('MAJ', $upcoming[0]['driver'], 'shows the real allocation, not the ABDI calendar tag');
     }
 
     public function test_returns_null_when_calendar_not_configured(): void

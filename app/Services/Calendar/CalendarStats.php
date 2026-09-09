@@ -147,7 +147,8 @@ class CalendarStats
         // Match the calendar event to its booking by either the external (ETO)
         // reference or our own reference, so more day-view jobs are openable.
         $booking = $ref
-            ? Booking::where('external_reference', $ref)->orWhere('reference', $ref)->first()
+            ? Booking::with('driver.driverProfile')
+                ->where('external_reference', $ref)->orWhere('reference', $ref)->first()
             : null;
 
         return [
@@ -155,7 +156,12 @@ class CalendarStats
             'pickup' => $start,
             'customer' => $this->field($description, 'Customer Name') ?? $this->nameFromTitle($summary),
             'vehicle' => $this->field($description, 'Vehicle Type') ?? '—',
-            'driver' => $this->allocatedTag($summary) ?? '—',
+            // The ACTUAL allocation from the system is the source of truth for who's
+            // driving — a re-allocation in the app never rewrites the calendar tag,
+            // so reading the tag would show a stale name. Prefer the booking's real
+            // driver (callsign, else name); fall back to the calendar tag only when
+            // the job isn't in the system or has no driver assigned yet.
+            'driver' => $this->allocatedDriverName($booking) ?? $this->allocatedTag($summary) ?? '—',
             'status' => $booking?->status?->label() ?? 'Scheduled',
             'url' => $booking ? route('bookings.show', $booking) : null,
             'event_id' => $event['id'] ?? null,
@@ -263,6 +269,24 @@ class CalendarStats
     private function isAllocated(string $summary): bool
     {
         return $this->allocatedTag($summary) !== null;
+    }
+
+    /**
+     * The actually-allocated driver for a matched booking — their callsign
+     * (uppercased, to match the ABDI/MAJ style) if they have one, else their
+     * name. Null when the job isn't in the system or has no driver yet, so the
+     * caller can fall back to the calendar tag.
+     */
+    private function allocatedDriverName(?Booking $booking): ?string
+    {
+        $driver = $booking?->driver;
+        if (! $driver) {
+            return null;
+        }
+
+        $callsign = trim((string) $driver->driverProfile?->callsign);
+
+        return $callsign !== '' ? strtoupper($callsign) : $driver->name;
     }
 
     /** Value of a "• *Label:* value" line from the description (plain text). */
