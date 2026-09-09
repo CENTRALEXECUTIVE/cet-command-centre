@@ -136,6 +136,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/toggle-masking', [BookingController::class, 'toggleMasking'])->middleware('throttle:20,1')->name('bookings.toggle-masking');
         // Per-booking masking timing: when the line goes live + when it closes.
         Route::post('bookings/{booking}/masking-timing', [BookingController::class, 'maskingTiming'])->middleware('throttle:30,1')->name('bookings.masking-timing');
+        Route::post('bookings/{booking}/lead-time', [BookingController::class, 'leadTime'])->middleware('throttle:30,1')->name('bookings.lead-time');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::get('cash-summary', [\App\Http\Controllers\Admin\PayrollController::class, 'daily'])->name('payroll.daily');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');

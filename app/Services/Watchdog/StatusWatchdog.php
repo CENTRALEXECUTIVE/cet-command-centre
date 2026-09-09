@@ -160,10 +160,16 @@ class StatusWatchdog
         if (in_array($status, [BookingStatus::Allocated, BookingStatus::Accepted], true)) {
             $airportLanding = $this->isAirportPickup($booking) ? $this->flightLandingAt($booking) : null;
 
-            // ── 0: "I'm on it" checkpoint — a gentle nudge from the prompt window
-            //    (≈30 min before pickup) asking the driver to confirm they're on
-            //    it, so a forgotten job surfaces before it's time to set off. Stops
-            //    in the last 10 min, where the URGENT set-off nudge takes over.
+            // Keep the SMART lead-time estimate fresh for jobs where the operator
+            // hasn't set an explicit one, so the driver view, the booking page and
+            // the checkpoint all read the same "alarm time" (meta) cheaply.
+            $this->refreshLeadTimeEstimate($booking);
+
+            // ── 0: "Getting ready" checkpoint — a gentle nudge from the LEAD TIME
+            //    (the driver's alarm time for this job) asking them to confirm
+            //    they're on it, so a forgotten job surfaces without alerting before
+            //    their alarm. Stops in the last 10 min, where the URGENT set-off
+            //    nudge takes over.
             if (! $booking->gettingReadyConfirmed()
                 && ($promptAt = $booking->gettingReadyPromptAt())
                 && now()->gte($promptAt)
@@ -510,6 +516,29 @@ class StatusWatchdog
         }
 
         return $booking->pickup_at->copy()->subMinutes($this->setOffLeadMinutes($booking));
+    }
+
+    /**
+     * Persist the SMART lead-time estimate onto a job that has no explicit
+     * operator lead time, so the driver view and the booking page read a
+     * concrete "alarm time" from meta without recomputing it per request. The
+     * estimate is the safe set-off time (drive-time-based); stored only when it
+     * has actually moved, to avoid needless writes.
+     */
+    private function refreshLeadTimeEstimate(Booking $booking): void
+    {
+        if ($booking->explicitLeadTimeAt() !== null) {
+            return; // operator set it — never overwrite
+        }
+
+        $estimate = $this->setOffDeadline($booking)->toIso8601String();
+        if (($booking->meta['lead_time_effective'] ?? null) === $estimate) {
+            return;
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'lead_time_effective' => $estimate,
+        ])])->save();
     }
 
     /** Estimated driving minutes from the driver's last position to the pickup, or null. */

@@ -1201,6 +1201,31 @@
                 </div>
             </details>
 
+            {{-- Lead time — the clock time the driver would set their alarm for this
+                 job. The "Getting ready" prompt + emergency escalation start from
+                 here, so we never alert before their alarm. Always populated: the
+                 operator's time, else the smart drive-time estimate. --}}
+            @unless($booking->status->isTerminal())
+                <form method="POST" action="{{ route('bookings.lead-time', $booking) }}"
+                      style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+                    @csrf
+                    <div class="field" style="margin:0">
+                        <label for="lead-time" style="font-size:12px">⏰ Lead time — driver's alarm for this job</label>
+                        <input id="lead-time" name="lead_time" type="datetime-local"
+                               value="{{ $booking->leadTimeAt()?->format('Y-m-d\TH:i') }}" style="width:220px">
+                    </div>
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Save lead time</button>
+                    <span class="hint">
+                        Alerts start at this time.
+                        @if($booking->leadTimeIsAuto())
+                            <span class="muted">Auto-estimated from the drive — set the driver's real alarm time.</span>
+                        @else
+                            <span style="color:#1f7a44">Set by you.</span>
+                        @endif
+                    </span>
+                </form>
+            @endunless
+
             @php
                 $md = $booking->meta['driver_details'] ?? null;
                 $hasDriver = (is_array($md) && !empty($md['name'])) || $booking->driver;

@@ -71,7 +71,8 @@ class DemoGettingReady extends Command
             'luggage' => 2,
             'payment_method' => PaymentMethod::Card->value,
             'source' => 'demo',
-            'meta' => ['demo' => true],
+            // Lead time = now, so the "Getting ready" button shows the instant you open it.
+            'meta' => ['demo' => true, 'lead_time' => now()->toIso8601String()],
         ]);
 
         $this->newLine();

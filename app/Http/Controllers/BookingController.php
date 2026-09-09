@@ -758,6 +758,32 @@ class BookingController extends Controller
     }
 
     /**
+     * Per-booking LEAD TIME — the clock time the driver would set their alarm for
+     * this job. The "Getting ready" prompt and the emergency escalation key off
+     * it, so we never alert before their alarm. Parsed in the app timezone (UK
+     * local). Blank clears it, falling back to the smart drive-time estimate.
+     */
+    public function leadTime(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'lead_time' => ['nullable', 'date'],
+        ]);
+
+        if (empty($data['lead_time'])) {
+            $booking->setLeadTime(null);
+
+            return back()->with('status', 'Lead time cleared — back to the smart estimate.');
+        }
+
+        $at = \Illuminate\Support\Carbon::parse($data['lead_time'], config('app.timezone'));
+        $booking->setLeadTime($at);
+
+        return back()->with('status', 'Lead time saved — the driver is alerted from '.$at->format('D d M, H:i').'.');
+    }
+
+    /**
      * Ask the assigned driver to share their location now: flag the request on
      * the booking and push their phone. Their job screen answers with a one-off
      * ping (works at any live stage, even before Set off).

@@ -43,12 +43,13 @@ class GettingReadyCheckpointTest extends TestCase
         return $driver;
     }
 
-    private function job(BookingStatus $status, Carbon $pickup, ?User $driver = null): Booking
+    private function job(BookingStatus $status, Carbon $pickup, ?User $driver = null, ?Carbon $leadTime = null): Booking
     {
         return Booking::factory()->create([
             'driver_id' => ($driver ?? $this->driver())->id,
             'status' => $status,
             'pickup_at' => $pickup,
+            'meta' => $leadTime ? ['lead_time' => $leadTime->toIso8601String()] : null,
         ]);
     }
 
@@ -79,23 +80,55 @@ class GettingReadyCheckpointTest extends TestCase
         $this->assertTrue($b->gettingReadyConfirmed());
     }
 
+    /* ── Lead time ───────────────────────────────────────────────────────── */
+
+    public function test_lead_time_prefers_the_operator_value_over_the_estimate(): void
+    {
+        $alarm = now()->addMinutes(50);
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(2), leadTime: $alarm);
+
+        $this->assertFalse($b->leadTimeIsAuto());
+        $this->assertSame($alarm->toIso8601String(), $b->leadTimeAt()->toIso8601String());
+    }
+
+    public function test_lead_time_falls_back_to_the_smart_estimate_when_unset(): void
+    {
+        // No operator lead time → the watchdog stores the smart set-off estimate,
+        // and the job reports it's auto (not operator-set).
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40));
+        $this->assertTrue($b->leadTimeIsAuto());
+
+        $this->tick();
+
+        $this->assertNotNull($b->fresh()->meta['lead_time_effective'] ?? null);
+        $this->assertTrue($b->fresh()->leadTimeIsAuto());
+    }
+
     /* ── Driver nudge ────────────────────────────────────────────────────── */
 
-    public function test_it_nudges_the_driver_to_confirm_in_the_prompt_window(): void
+    public function test_it_nudges_the_driver_from_the_lead_time(): void
     {
-        config(['cet.getting_ready.prompt_minutes' => 30]);
-        // Pickup 25 min out → inside the 30-min prompt window, still >10 min away.
-        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(25));
+        // Alarm time is now, pickup comfortably ahead → prompt the driver now.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), leadTime: now());
 
         $this->tick();
 
         $this->assertSame(1, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'get_ready')->count());
     }
 
+    public function test_it_does_not_nudge_before_the_lead_time(): void
+    {
+        // Alarm time is 20 min away → don't alert before their alarm.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(60), leadTime: now()->addMinutes(20));
+
+        $this->tick();
+
+        $this->assertSame(0, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'get_ready')->count());
+    }
+
     public function test_it_does_not_nudge_once_the_driver_has_confirmed(): void
     {
-        config(['cet.getting_ready.prompt_minutes' => 30]);
-        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(25));
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), leadTime: now());
         $b->confirmGettingReady($b->driver);
 
         $this->tick();
@@ -105,20 +138,19 @@ class GettingReadyCheckpointTest extends TestCase
 
     /* ── Escalation ──────────────────────────────────────────────────────── */
 
-    public function test_unconfirmed_past_the_escalate_window_alerts_the_office_and_calls(): void
+    public function test_unconfirmed_past_the_lead_time_grace_alerts_the_office_and_calls(): void
     {
-        // Escalate 45 min out, so at pickup+40-away the "not confirmed" gate has
-        // passed while the set-off deadline (flat-30 lead → pickup−25) has NOT —
-        // isolating the checkpoint as the sole trigger.
         config([
-            'cet.getting_ready.prompt_minutes' => 60,
-            'cet.getting_ready.escalate_minutes' => 45,
+            'cet.getting_ready.escalate_grace_minutes' => 5,
             'services.twilio.sid' => 'AC', 'services.twilio.token' => 'tok',
             'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+449999999999',
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 
-        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40));
+        // Alarm was 10 min ago (grace 5 → escalate 5 min ago), but pickup is 40 min
+        // out so the set-off deadline (flat-30 lead) has NOT passed — isolating the
+        // missed checkpoint as the sole trigger.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), leadTime: now()->subMinutes(10));
 
         $this->tick();
 
@@ -136,14 +168,13 @@ class GettingReadyCheckpointTest extends TestCase
     public function test_confirming_holds_off_the_checkpoint_escalation(): void
     {
         config([
-            'cet.getting_ready.prompt_minutes' => 60,
-            'cet.getting_ready.escalate_minutes' => 45,
+            'cet.getting_ready.escalate_grace_minutes' => 5,
             'services.twilio.sid' => 'AC', 'services.twilio.token' => 'tok',
             'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+449999999999',
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 
-        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40));
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), leadTime: now()->subMinutes(10));
         $b->confirmGettingReady($b->driver);
 
         $this->tick();
@@ -179,5 +210,33 @@ class GettingReadyCheckpointTest extends TestCase
             ->assertForbidden();
 
         $this->assertFalse($b->fresh()->gettingReadyConfirmed());
+    }
+
+    public function test_an_admin_can_set_and_clear_the_lead_time(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(3));
+
+        // Set it (UK-local clock time on the pickup day).
+        $this->actingAs($admin)
+            ->post(route('bookings.lead-time', $b), ['lead_time' => '2026-07-15T05:30'])
+            ->assertRedirect();
+        $this->assertFalse($b->fresh()->leadTimeIsAuto());
+        $this->assertSame('05:30', $b->fresh()->leadTimeAt()->format('H:i'));
+
+        // Clear it → back to the smart estimate.
+        $this->actingAs($admin)
+            ->post(route('bookings.lead-time', $b), ['lead_time' => ''])
+            ->assertRedirect();
+        $this->assertTrue($b->fresh()->leadTimeIsAuto());
+    }
+
+    public function test_a_driver_cannot_set_the_lead_time(): void
+    {
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(3));
+
+        $this->actingAs($this->driver())
+            ->post(route('bookings.lead-time', $b), ['lead_time' => '2026-07-15T05:30'])
+            ->assertForbidden();
     }
 }

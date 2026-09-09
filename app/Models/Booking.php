@@ -2295,16 +2295,65 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
-    /** Time from which the "I'm on it" prompt/button becomes live (pickup − prompt window). */
-    public function gettingReadyPromptAt(): ?\Illuminate\Support\Carbon
+    /* ---- Lead time (the driver's alarm time for this job) -------------------
+     * The clock time the "Getting ready" prompt + escalation key off. It's the
+     * operator's explicit value when set, else the watchdog's smart drive-time
+     * estimate (stored in meta['lead_time_effective']), else a last-resort
+     * placeholder — so a booking ALWAYS has a lead time. Stored as ISO in the
+     * app timezone. */
+
+    /** The operator's explicitly-set lead time, or null (using the estimate). */
+    public function explicitLeadTimeAt(): ?\Illuminate\Support\Carbon
     {
-        return $this->pickup_at?->copy()->subMinutes((int) config('cet.getting_ready.prompt_minutes', 30));
+        $at = $this->meta['lead_time'] ?? null;
+
+        return $at ? \Illuminate\Support\Carbon::parse($at) : null;
     }
 
-    /** Time by which a non-confirmed job escalates to the office (pickup − escalate window). */
+    /** True when no operator lead time is set — the smart estimate is in use. */
+    public function leadTimeIsAuto(): bool
+    {
+        return $this->explicitLeadTimeAt() === null;
+    }
+
+    /**
+     * The effective lead time (alarm time) for this job — never null for a job
+     * with a pickup. Explicit → watchdog smart estimate → pickup − default.
+     */
+    public function leadTimeAt(): ?\Illuminate\Support\Carbon
+    {
+        if ($explicit = $this->explicitLeadTimeAt()) {
+            return $explicit;
+        }
+        if (! empty($this->meta['lead_time_effective'])) {
+            return \Illuminate\Support\Carbon::parse($this->meta['lead_time_effective']);
+        }
+
+        return $this->pickup_at?->copy()->subMinutes((int) config('cet.getting_ready.default_lead_minutes', 90));
+    }
+
+    /** Store (or clear, with null) the operator's explicit lead time. */
+    public function setLeadTime(?\Illuminate\Support\Carbon $at): void
+    {
+        $meta = $this->meta ?? [];
+        if ($at) {
+            $meta['lead_time'] = $at->toIso8601String();
+        } else {
+            unset($meta['lead_time']);
+        }
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** When the "Getting ready" prompt/button becomes live — the lead time. */
+    public function gettingReadyPromptAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->leadTimeAt();
+    }
+
+    /** When a still-unconfirmed job escalates — the lead time plus a short grace. */
     public function gettingReadyEscalateAt(): ?\Illuminate\Support\Carbon
     {
-        return $this->pickup_at?->copy()->subMinutes((int) config('cet.getting_ready.escalate_minutes', 20));
+        return $this->leadTimeAt()?->copy()->addMinutes((int) config('cet.getting_ready.escalate_grace_minutes', 5));
     }
 
     /** Whether an extra car's driver has confirmed reading the office notes. */

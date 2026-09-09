@@ -113,16 +113,21 @@ return [
     // How long a director's "hold my alerts" toggle lasts before auto-expiring.
     'alerts_hold_minutes' => (int) env('CET_ALERTS_HOLD_MINUTES', 180),
 
-    // Driver "getting ready" checkpoint. Roughly PROMPT minutes before pickup the
-    // driver is prompted (button on the job screen + a push) to tap "Getting ready".
-    // If they haven't confirmed AND haven't set off by ESCALATE minutes before
-    // pickup, the emergency escalation goes live (loud office alert + routed
-    // auto-call), so a forgotten job is caught early enough to arrange cover.
-    // There is deliberately no "can't make it" option — it's a confirmation, not
-    // a decline. Setting off (En Route) auto-confirms it.
+    // Driver "getting ready" checkpoint, driven by each booking's LEAD TIME —
+    // the clock time the driver would set their alarm for this job (set on the
+    // booking page). At the lead time the driver is prompted (button on the job
+    // screen + a push) to tap "Getting ready", so we never alert BEFORE their
+    // alarm. If they haven't confirmed AND haven't set off by ESCALATE_GRACE
+    // minutes after the lead time, the emergency escalation goes live (loud
+    // office alert + the driver-first auto-call). No "can't make it" option —
+    // it's a confirmation, not a decline; setting off auto-confirms it.
+    //
+    // Every booking always has a lead time: the operator's explicit one, else
+    // the watchdog's smart drive-time estimate, else pickup − DEFAULT_LEAD as a
+    // last-resort placeholder.
     'getting_ready' => [
-        'prompt_minutes' => (int) env('CET_GET_READY_PROMPT', 30),
-        'escalate_minutes' => (int) env('CET_GET_READY_ESCALATE', 20),
+        'default_lead_minutes' => (int) env('CET_GET_READY_DEFAULT_LEAD', 90),
+        'escalate_grace_minutes' => (int) env('CET_GET_READY_ESCALATE_GRACE', 5),
     ],
 
     // Who to ring — the business line (forwards to the other director on no-answer).
