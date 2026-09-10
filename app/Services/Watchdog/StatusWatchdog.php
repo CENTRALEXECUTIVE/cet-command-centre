@@ -170,7 +170,8 @@ class StatusWatchdog
             //    they're on it, so a forgotten job surfaces without alerting before
             //    their alarm. Stops in the last 10 min, where the URGENT set-off
             //    nudge takes over.
-            if (! $booking->gettingReadyConfirmed()
+            if ($booking->checkpointActive()
+                && ! $booking->gettingReadyConfirmed()
                 && ($promptAt = $booking->gettingReadyPromptAt())
                 && now()->gte($promptAt)
                 && now()->lt($booking->pickup_at->copy()->subMinutes(10))) {
@@ -334,7 +335,8 @@ class StatusWatchdog
         $notReadyOverdue = ! $booking->gettingReadyConfirmed()
             && ($escalateAt = $booking->gettingReadyEscalateAt()) && now()->gte($escalateAt);
 
-        if (in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)
+        if ($booking->checkpointActive()
+            && in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)
             && ($setOffOverdue || $notReadyOverdue)) {
             $driver = $booking->driver?->name ?? 'The driver';
             $mins = (int) round(now()->diffInMinutes($booking->pickup_at, false));
@@ -368,13 +370,18 @@ class StatusWatchdog
                     $lastCall = $priorCalls->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
                         $placed = false;
-                        if ($priorCalls->isEmpty()) {
-                            // First attempt → the driver themselves.
+                        $backupOn = (bool) config('cet.checkpoint.route_to_backup', false);
+
+                        // Always try the assigned driver first — they forgot, wake
+                        // them. In pilot mode (backup off) EVERY re-dial stays on the
+                        // driver; it never hands off to the other director.
+                        if ($priorCalls->isEmpty() || ! $backupOn) {
                             $placed = $call->ringDriver($booking,
                                 'Your '.$time.' pickup at '.$where.' — you have '.$callReason.'. Set off now.');
                         }
-                        if (! $placed) {
-                            // Backup tier (no driver number, or a later attempt).
+                        // Backup tier — only when it's turned on (rollout): a later
+                        // re-dial, or the driver has no dialable number.
+                        if (! $placed && $backupOn) {
                             $placed = $call->ringForJob($booking,
                                 $driver.' '.$callReason.' for the '.$time.' pickup at '.$where.'.');
                         }

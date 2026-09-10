@@ -2262,6 +2262,23 @@ class Booking extends Model
      * confirmed on its own. If neither happens by the escalate window the
      * watchdog fires the emergency escalation. */
 
+    /**
+     * Whether the getting-ready checkpoint + emergency escalation apply to this
+     * job — i.e. its assigned driver is in the pilot scope (cet.checkpoint
+     * .only_emails). Empty list means it applies to every driver.
+     */
+    public function checkpointActive(): bool
+    {
+        $only = array_filter(array_map('strtolower', (array) config('cet.checkpoint.only_emails', [])));
+        if (empty($only)) {
+            return true;
+        }
+
+        $email = strtolower((string) $this->driver?->email);
+
+        return $email !== '' && in_array($email, $only, true);
+    }
+
     /** True once the driver has confirmed they're on it — or has already set off. */
     public function gettingReadyConfirmed(): bool
     {

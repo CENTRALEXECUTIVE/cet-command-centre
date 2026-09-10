@@ -35,6 +35,9 @@ class StatusWatchdogTest extends TestCase
         parent::setUp();
         // A stable daytime clock — every test controls time explicitly.
         Carbon::setTestNow('2026-07-15 12:00:00');
+        // These exercise the escalation mechanics on any driver → full-rollout mode
+        // (the Abdi-only pilot scope is covered in AlertRoutingTest).
+        config(['cet.checkpoint.only_emails' => [], 'cet.checkpoint.route_to_backup' => true]);
     }
 
     protected function tearDown(): void

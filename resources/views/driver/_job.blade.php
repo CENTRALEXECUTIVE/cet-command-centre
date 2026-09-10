@@ -21,7 +21,9 @@
     // "I'm on it" checkpoint: live from ~30 min before pickup until the driver
     // confirms or sets off. No decline option — it's a confirmation only.
     $readyPromptAt = $booking->gettingReadyPromptAt();
-    $showGetReady = $isAssignedDriver
+    $checkpointOn = $booking->checkpointActive(); // pilot scope — Abdi only for now
+    $showGetReady = $checkpointOn
+        && $isAssignedDriver
         && in_array($booking->status, [\App\Enums\BookingStatus::Allocated, \App\Enums\BookingStatus::Accepted], true)
         && ! $booking->gettingReadyConfirmed()
         && $readyPromptAt && now()->gte($readyPromptAt);
@@ -86,12 +88,12 @@
             <button type="submit" class="btn btn-primary" style="width:100%;padding:13px;font-size:17px;font-weight:800">🟢 Getting ready</button>
         </form>
     </div>
-@elseif($isAssignedDriver && $readyConfirmedAt && $isReadyStatus)
+@elseif($checkpointOn && $isAssignedDriver && $readyConfirmedAt && $isReadyStatus)
     <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);margin-bottom:16px">
         <div style="font-weight:700;font-size:14px">🟢 You’re on it — confirmed {{ $readyConfirmedAt->format('H:i') }}</div>
         <div class="muted" style="font-size:13px;margin-top:2px">The office knows this {{ $booking->pickup_at->format('H:i') }} job is yours. Tap <strong>On My Way</strong> when you set off.</div>
     </div>
-@elseif($isAssignedDriver && $isReadyStatus && ! $booking->gettingReadyConfirmed() && $readyPromptAt && now()->lt($readyPromptAt))
+@elseif($checkpointOn && $isAssignedDriver && $isReadyStatus && ! $booking->gettingReadyConfirmed() && $readyPromptAt && now()->lt($readyPromptAt))
     {{-- Before the lead time — tell the driver when the check-in will open, so
          they're not wondering where the button is. Nothing needed before then. --}}
     <div class="card" style="border-left:4px solid rgba(251,186,42,.5);background:rgba(251,186,42,.06);margin-bottom:16px">

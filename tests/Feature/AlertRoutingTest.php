@@ -30,6 +30,8 @@ class AlertRoutingTest extends TestCase
         config([
             'services.twilio.sid' => 'AC', 'services.twilio.token' => 'tok',
             'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+449999999999',
+            // Backup-routing tests need the full rollout (everyone, backup on).
+            'cet.checkpoint.only_emails' => [], 'cet.checkpoint.route_to_backup' => true,
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 
@@ -127,6 +129,34 @@ class AlertRoutingTest extends TestCase
         // No driver number to ring → the very first call routes to a free director.
         Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json')
             && in_array($r->data()['To'] ?? '', [$this->abdi->phone, $this->maj->phone], true));
+    }
+
+    /* ── Pilot scope: Abdi-only, never hands off to the other director ─────── */
+
+    public function test_pilot_mode_only_rings_the_scoped_driver_never_the_backup(): void
+    {
+        config(['cet.checkpoint.only_emails' => [$this->abdi->email], 'cet.checkpoint.route_to_backup' => false]);
+        $this->atRiskJobFor($this->abdi);
+
+        $this->artisan('cet:status-watchdog')->assertSuccessful(); // call 1 → Abdi
+        $this->redial();                                            // call 2 → STILL Abdi
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === $this->abdi->phone);
+        // Never rings Maj (the other director) while piloting.
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === $this->maj->phone);
+    }
+
+    public function test_pilot_mode_ignores_a_job_for_a_driver_out_of_scope(): void
+    {
+        config(['cet.checkpoint.only_emails' => [$this->abdi->email], 'cet.checkpoint.route_to_backup' => false]);
+        // Maj's own job is out of scope → no escalation, no call at all.
+        $this->atRiskJobFor($this->maj);
+
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'office_call_at_risk')->count());
+        $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'admin_at_risk')->count());
     }
 
     public function test_the_hold_toggle_sets_and_clears(): void
