@@ -159,6 +159,36 @@ class AlertRoutingTest extends TestCase
         $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'admin_at_risk')->count());
     }
 
+    /* ── Never alert a driver who's on a job ──────────────────────────────── */
+
+    public function test_a_driver_on_a_job_is_never_alerted_in_pilot_mode(): void
+    {
+        config(['cet.checkpoint.only_emails' => [$this->abdi->email], 'cet.checkpoint.route_to_backup' => false]);
+        // Abdi is mid-job (passenger in the car); a second job of his goes at-risk.
+        Booking::factory()->create(['driver_id' => $this->abdi->id, 'status' => BookingStatus::EnRoute->value, 'pickup_at' => now()->subMinutes(5)]);
+        $this->atRiskJobFor($this->abdi);
+
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+
+        // Silence — no blaring call and no critical alert while he's driving.
+        Http::assertNothingSent();
+        $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'office_call_at_risk')->count());
+        $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'admin_at_risk')->count());
+    }
+
+    public function test_a_busy_driver_is_skipped_but_the_backup_is_still_alerted_on_rollout(): void
+    {
+        // Rollout mode (setUp: everyone, backup on). Abdi is mid-job; his other job
+        // goes at-risk → the FREE director (Maj) is rung, never the busy Abdi.
+        Booking::factory()->create(['driver_id' => $this->abdi->id, 'status' => BookingStatus::EnRoute->value, 'pickup_at' => now()->subMinutes(5)]);
+        $this->atRiskJobFor($this->abdi);
+
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === $this->maj->phone);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === $this->abdi->phone);
+    }
+
     public function test_the_hold_toggle_sets_and_clears(): void
     {
         $this->actingAs($this->abdi)->post(route('alerts.hold'))->assertRedirect();

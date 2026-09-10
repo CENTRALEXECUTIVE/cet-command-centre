@@ -171,6 +171,7 @@ class StatusWatchdog
             //    their alarm. Stops in the last 10 min, where the URGENT set-off
             //    nudge takes over.
             if ($booking->checkpointActive()
+                && ! ($booking->driver?->busyForAlerts()) // not while they're on another job
                 && ! $booking->gettingReadyConfirmed()
                 && ($promptAt = $booking->gettingReadyPromptAt())
                 && now()->gte($promptAt)
@@ -334,10 +335,18 @@ class StatusWatchdog
         $setOffOverdue = now()->gte($this->setOffDeadline($booking)->copy()->addMinutes(self::AT_RISK_AFTER_DEADLINE_MINUTES));
         $notReadyOverdue = ! $booking->gettingReadyConfirmed()
             && ($escalateAt = $booking->gettingReadyEscalateAt()) && now()->gte($escalateAt);
+        // Never alert a driver who is CURRENTLY ON A JOB (en route / at pickup /
+        // passenger on board) or who's flagged "hold my alerts" — a blaring phone
+        // next to a passenger is unacceptable. In pilot mode (no backup) the whole
+        // escalation simply waits until they're free; with a backup enabled it
+        // still escalates, just to whoever's free instead of the busy driver.
+        $driverBusy = (bool) $booking->driver?->busyForAlerts();
+        $backupOn = (bool) config('cet.checkpoint.route_to_backup', false);
 
         if ($booking->checkpointActive()
             && in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)
-            && ($setOffOverdue || $notReadyOverdue)) {
+            && ($setOffOverdue || $notReadyOverdue)
+            && ! ($driverBusy && ! $backupOn)) {
             $driver = $booking->driver?->name ?? 'The driver';
             $mins = (int) round(now()->diffInMinutes($booking->pickup_at, false));
             $when = $mins > 1 ? 'pickup in '.$mins.' min' : ($mins >= 0 ? 'pickup now' : 'pickup '.abs($mins).' min ago');
@@ -370,12 +379,12 @@ class StatusWatchdog
                     $lastCall = $priorCalls->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
                         $placed = false;
-                        $backupOn = (bool) config('cet.checkpoint.route_to_backup', false);
 
-                        // Always try the assigned driver first — they forgot, wake
-                        // them. In pilot mode (backup off) EVERY re-dial stays on the
-                        // driver; it never hands off to the other director.
-                        if ($priorCalls->isEmpty() || ! $backupOn) {
+                        // Ring the assigned driver first — UNLESS they're mid-job,
+                        // in which case never ring them (passenger in the car); the
+                        // backup tier below takes it when one is enabled. In pilot
+                        // mode (backup off) every re-dial otherwise stays on them.
+                        if (! $driverBusy && ($priorCalls->isEmpty() || ! $backupOn)) {
                             $placed = $call->ringDriver($booking,
                                 'Your '.$time.' pickup at '.$where.' — you have '.$callReason.'. Set off now.');
                         }
