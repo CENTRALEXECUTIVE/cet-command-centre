@@ -35,8 +35,10 @@ class VehicleType extends Model
     {
         foreach (['webp', 'png', 'jpg', 'jpeg'] as $ext) {
             $rel = 'images/fleet/'.$this->slug.'.'.$ext;
-            if (is_file(public_path($rel))) {
-                return asset($rel);
+            $path = public_path($rel);
+            if (is_file($path)) {
+                // Cache-bust on the file's mtime so a replaced photo shows at once.
+                return asset($rel).'?v='.@filemtime($path);
             }
         }
 

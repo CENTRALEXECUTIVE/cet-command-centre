@@ -266,6 +266,11 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('rotation', [\App\Http\Controllers\Admin\RotationController::class, 'index'])->name('rotation.index');
         Route::post('rotation/next', [\App\Http\Controllers\Admin\RotationController::class, 'setNext'])->middleware('throttle:30,1')->name('rotation.set-next');
 
+        // Vehicle photos for the public booking page (upload/replace/remove).
+        Route::get('fleet-photos', [\App\Http\Controllers\Admin\VehiclePhotoController::class, 'index'])->name('fleet-photos.index');
+        Route::post('fleet-photos/{vehicleType}', [\App\Http\Controllers\Admin\VehiclePhotoController::class, 'store'])->middleware('throttle:20,1')->name('fleet-photos.store');
+        Route::delete('fleet-photos/{vehicleType}', [\App\Http\Controllers\Admin\VehiclePhotoController::class, 'destroy'])->name('fleet-photos.destroy');
+
         // Paste a message → formats it into the exact CET calendar block to copy
         // onto Google Calendar. Never creates a booking (calendar is the origin).
         Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
