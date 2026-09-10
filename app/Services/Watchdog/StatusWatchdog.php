@@ -340,7 +340,7 @@ class StatusWatchdog
         // next to a passenger is unacceptable. In pilot mode (no backup) the whole
         // escalation simply waits until they're free; with a backup enabled it
         // still escalates, just to whoever's free instead of the busy driver.
-        $driverBusy = (bool) $booking->driver?->busyForAlerts();
+        $driverBusy = (bool) $booking->driver?->busyForAlerts() || $this->pilotHeld();
         $backupOn = (bool) config('cet.checkpoint.route_to_backup', false);
 
         if ($booking->checkpointActive()
@@ -680,12 +680,62 @@ class StatusWatchdog
         ) ?? 0.0;
     }
 
+    /**
+     * True when the driver has asked not to be alerted for THIS job — they've
+     * manually held their alerts, or they're on a DIFFERENT active job right now.
+     * (Their current job's own nudges are excluded so in-job prompts still work.)
+     */
+    private function driverBusyElsewhere(Booking $booking): bool
+    {
+        $driver = $booking->driver;
+        if (! $driver) {
+            return false;
+        }
+        // Held their own alerts, or a pilot account held theirs (Abdi may tap the
+        // toggle on a different login than the one his jobs are allocated to).
+        if ($driver->alertsHeld() || $this->pilotHeld()) {
+            return true;
+        }
+
+        return Booking::where('driver_id', $driver->id)
+            ->where('id', '!=', $booking->id)
+            ->whereIn('status', [
+                BookingStatus::EnRoute->value,
+                BookingStatus::Arrived->value,
+                BookingStatus::Collected->value,
+            ])->exists();
+    }
+
+    /**
+     * True when ANY pilot-scoped account (cet.checkpoint.only_emails) has held
+     * their alerts. During the Abdi-only pilot his driver record and his login
+     * can be different accounts, so a hold on either must silence the pilot.
+     * Off during full rollout (empty scope) — there, per-driver holds apply.
+     */
+    private function pilotHeld(): bool
+    {
+        $only = array_values(array_filter(array_map('strtolower', (array) config('cet.checkpoint.only_emails', []))));
+        if (empty($only)) {
+            return false;
+        }
+
+        return \App\Models\User::whereIn('email', $only)->get()
+            ->contains(fn (\App\Models\User $u) => $u->alertsHeld());
+    }
+
     /* ── Sending & idempotency ────────────────────────────────────────────── */
 
     /** Send a driver nudge if this type still has sends left. Returns 1 if sent. */
     private function nudge(Booking $booking, string $type, string $title, string $body, string $severity = 'info'): int
     {
         if (! $booking->driver || ! $this->shouldSend($booking, $type)) {
+            return 0;
+        }
+
+        // NEVER buzz a driver who's told us to leave them alone: they've tapped
+        // "hold my alerts", or they're already out on ANOTHER job (passenger in
+        // the car). Nudges for the job they're CURRENTLY on still go through.
+        if ($this->driverBusyElsewhere($booking)) {
             return 0;
         }
 

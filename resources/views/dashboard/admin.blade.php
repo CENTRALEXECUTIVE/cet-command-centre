@@ -88,7 +88,7 @@
     <div class="card alerts-panel" id="alerts-panel"
          data-feed="{{ route('alerts.feed') }}"
          data-chime="{{ auth()->user()->alertPreferences()['chime'] ? '1' : '0' }}"
-         data-alarm="{{ auth()->user()->alertPreferences()['alarm'] ? '1' : '0' }}">
+         data-alarm="{{ (auth()->user()->alertPreferences()['alarm'] && ! auth()->user()->alertsHeld()) ? '1' : '0' }}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <h2 style="margin:0">🛰 Live alerts</h2>
             <div style="display:flex;align-items:center;gap:10px">

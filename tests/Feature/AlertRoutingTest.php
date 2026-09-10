@@ -189,6 +189,30 @@ class AlertRoutingTest extends TestCase
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === $this->abdi->phone);
     }
 
+    public function test_a_hold_on_any_pilot_account_silences_the_pilot(): void
+    {
+        // Abdi's DRIVER record and his LOGIN can be different accounts (both in
+        // scope). Holding alerts on the login must still silence a job assigned to
+        // the driver account.
+        $driverAcct = User::factory()->admin()->create(['email' => 'abdi@centralexecutivetransfers.co.uk', 'phone' => '+447000000001']);
+        $loginAcct = User::factory()->admin()->create(['email' => 'admin@centralexecutivetransfers.co.uk']);
+        config([
+            'cet.checkpoint.only_emails' => ['abdi@centralexecutivetransfers.co.uk', 'admin@centralexecutivetransfers.co.uk'],
+            'cet.checkpoint.route_to_backup' => false,
+        ]);
+        $loginAcct->holdAlertsFor(120); // held on the login, not the driver record
+
+        Booking::factory()->create([
+            'driver_id' => $driverAcct->id, 'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addMinutes(20),
+        ]);
+
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'office_call_at_risk')->count());
+        $this->assertSame(0, \App\Models\JobNudge::where('nudge_type', 'admin_at_risk')->count());
+    }
+
     public function test_the_hold_toggle_sets_and_clears(): void
     {
         $this->actingAs($this->abdi)->post(route('alerts.hold'))->assertRedirect();

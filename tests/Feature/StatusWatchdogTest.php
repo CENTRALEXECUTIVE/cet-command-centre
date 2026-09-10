@@ -101,6 +101,31 @@ class StatusWatchdogTest extends TestCase
         $this->assertDatabaseHas('watchdog_events', ['booking_id' => $due->id, 'event_type' => 'nudge_set_off']);
     }
 
+    public function test_a_driver_who_held_their_alerts_gets_no_nudges(): void
+    {
+        // Pickup in 28 → would normally nudge; but the driver tapped "hold my
+        // alerts", so nothing buzzes them.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(28));
+        $b->driver->holdAlertsFor(120);
+
+        $this->tick();
+
+        $this->assertNudged($b, 'set_off', 0);
+    }
+
+    public function test_a_driver_on_another_active_job_gets_no_set_off_nudge(): void
+    {
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(28));
+        // The SAME driver is already out on another job right now.
+        Booking::factory()->create([
+            'driver_id' => $b->driver_id, 'status' => BookingStatus::EnRoute->value, 'pickup_at' => now()->subMinutes(5),
+        ]);
+
+        $this->tick();
+
+        $this->assertNudged($b, 'set_off', 0);
+    }
+
     public function test_past_allocated_jobs_are_left_alone(): void
     {
         // A job whose pickup was hours ago and never got moving — still Allocated
