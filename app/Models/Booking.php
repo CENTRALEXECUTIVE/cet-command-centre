@@ -2264,19 +2264,32 @@ class Booking extends Model
 
     /**
      * Whether the getting-ready checkpoint + emergency escalation apply to this
-     * job — i.e. its assigned driver is in the pilot scope (cet.checkpoint
-     * .only_emails). Empty list means it applies to every driver.
+     * job, per the pilot scope (cet.checkpoint.scope):
+     *   'super_admins' → only jobs whose driver is a super admin (Abdi, on his
+     *                    one combined account) — the default pilot,
+     *   'all'          → every driver (full rollout),
+     *   or a comma-list of driver login emails.
      */
     public function checkpointActive(): bool
     {
-        $only = array_filter(array_map('strtolower', (array) config('cet.checkpoint.only_emails', [])));
-        if (empty($only)) {
+        $scope = strtolower(trim((string) config('cet.checkpoint.scope', 'super_admins')));
+        if ($scope === 'all' || $scope === '') {
             return true;
         }
 
-        $email = strtolower((string) $this->driver?->email);
+        $driver = $this->driver;
+        if (! $driver) {
+            return false;
+        }
 
-        return $email !== '' && in_array($email, $only, true);
+        if ($scope === 'super_admins') {
+            return (bool) $driver->is_super_admin;
+        }
+
+        // Otherwise treat the scope as a comma-list of specific login emails.
+        $only = array_filter(array_map('trim', explode(',', $scope)));
+
+        return in_array(strtolower((string) $driver->email), array_map('strtolower', $only), true);
     }
 
     /** True once the driver has confirmed they're on it — or has already set off. */

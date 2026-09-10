@@ -31,12 +31,14 @@ class AlertRoutingTest extends TestCase
             'services.twilio.sid' => 'AC', 'services.twilio.token' => 'tok',
             'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+449999999999',
             // Backup-routing tests need the full rollout (everyone, backup on).
-            'cet.checkpoint.only_emails' => [], 'cet.checkpoint.route_to_backup' => true,
+            'cet.checkpoint.scope' => 'all', 'cet.checkpoint.route_to_backup' => true,
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 
-        $this->abdi = User::factory()->admin()->create(['phone' => '+447000000001']);
-        $this->maj = User::factory()->admin()->create(['phone' => '+447000000002']);
+        // Abdi is the SUPER ADMIN (the pilot targets super admins); Maj is a
+        // regular admin, so scope 'super_admins' = Abdi only.
+        $this->abdi = User::factory()->admin()->create(['phone' => '+447000000001', 'is_super_admin' => true]);
+        $this->maj = User::factory()->admin()->create(['phone' => '+447000000002', 'is_super_admin' => false]);
     }
 
     protected function tearDown(): void
@@ -135,7 +137,7 @@ class AlertRoutingTest extends TestCase
 
     public function test_pilot_mode_only_rings_the_scoped_driver_never_the_backup(): void
     {
-        config(['cet.checkpoint.only_emails' => [$this->abdi->email], 'cet.checkpoint.route_to_backup' => false]);
+        config(['cet.checkpoint.scope' => 'super_admins', 'cet.checkpoint.route_to_backup' => false]);
         $this->atRiskJobFor($this->abdi);
 
         $this->artisan('cet:status-watchdog')->assertSuccessful(); // call 1 → Abdi
@@ -148,7 +150,7 @@ class AlertRoutingTest extends TestCase
 
     public function test_pilot_mode_ignores_a_job_for_a_driver_out_of_scope(): void
     {
-        config(['cet.checkpoint.only_emails' => [$this->abdi->email], 'cet.checkpoint.route_to_backup' => false]);
+        config(['cet.checkpoint.scope' => 'super_admins', 'cet.checkpoint.route_to_backup' => false]);
         // Maj's own job is out of scope → no escalation, no call at all.
         $this->atRiskJobFor($this->maj);
 
@@ -163,7 +165,7 @@ class AlertRoutingTest extends TestCase
 
     public function test_a_driver_on_a_job_is_never_alerted_in_pilot_mode(): void
     {
-        config(['cet.checkpoint.only_emails' => [$this->abdi->email], 'cet.checkpoint.route_to_backup' => false]);
+        config(['cet.checkpoint.scope' => 'super_admins', 'cet.checkpoint.route_to_backup' => false]);
         // Abdi is mid-job (passenger in the car); a second job of his goes at-risk.
         Booking::factory()->create(['driver_id' => $this->abdi->id, 'status' => BookingStatus::EnRoute->value, 'pickup_at' => now()->subMinutes(5)]);
         $this->atRiskJobFor($this->abdi);
@@ -189,22 +191,13 @@ class AlertRoutingTest extends TestCase
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === $this->abdi->phone);
     }
 
-    public function test_a_hold_on_any_pilot_account_silences_the_pilot(): void
+    public function test_holding_alerts_silences_the_pilot(): void
     {
-        // Abdi's DRIVER record and his LOGIN can be different accounts (both in
-        // scope). Holding alerts on the login must still silence a job assigned to
-        // the driver account.
-        $driverAcct = User::factory()->admin()->create(['email' => 'abdi@centralexecutivetransfers.co.uk', 'phone' => '+447000000001']);
-        $loginAcct = User::factory()->admin()->create(['email' => 'admin@centralexecutivetransfers.co.uk']);
-        config([
-            'cet.checkpoint.only_emails' => ['abdi@centralexecutivetransfers.co.uk', 'admin@centralexecutivetransfers.co.uk'],
-            'cet.checkpoint.route_to_backup' => false,
-        ]);
-        $loginAcct->holdAlertsFor(120); // held on the login, not the driver record
-
-        Booking::factory()->create([
-            'driver_id' => $driverAcct->id, 'status' => BookingStatus::Allocated->value, 'pickup_at' => now()->addMinutes(20),
-        ]);
+        // Abdi (super admin, one combined account) taps "hold my alerts" — his
+        // at-risk job then makes no sound at all.
+        config(['cet.checkpoint.scope' => 'super_admins', 'cet.checkpoint.route_to_backup' => false]);
+        $this->abdi->holdAlertsFor(120);
+        $this->atRiskJobFor($this->abdi);
 
         $this->artisan('cet:status-watchdog')->assertSuccessful();
 

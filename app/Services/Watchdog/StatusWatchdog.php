@@ -340,7 +340,7 @@ class StatusWatchdog
         // next to a passenger is unacceptable. In pilot mode (no backup) the whole
         // escalation simply waits until they're free; with a backup enabled it
         // still escalates, just to whoever's free instead of the busy driver.
-        $driverBusy = (bool) $booking->driver?->busyForAlerts() || $this->pilotHeld();
+        $driverBusy = (bool) $booking->driver?->busyForAlerts();
         $backupOn = (bool) config('cet.checkpoint.route_to_backup', false);
 
         if ($booking->checkpointActive()
@@ -691,9 +691,9 @@ class StatusWatchdog
         if (! $driver) {
             return false;
         }
-        // Held their own alerts, or a pilot account held theirs (Abdi may tap the
-        // toggle on a different login than the one his jobs are allocated to).
-        if ($driver->alertsHeld() || $this->pilotHeld()) {
+        // Held their own alerts (one combined account, so the hold is on the same
+        // record the job is allocated to).
+        if ($driver->alertsHeld()) {
             return true;
         }
 
@@ -704,23 +704,6 @@ class StatusWatchdog
                 BookingStatus::Arrived->value,
                 BookingStatus::Collected->value,
             ])->exists();
-    }
-
-    /**
-     * True when ANY pilot-scoped account (cet.checkpoint.only_emails) has held
-     * their alerts. During the Abdi-only pilot his driver record and his login
-     * can be different accounts, so a hold on either must silence the pilot.
-     * Off during full rollout (empty scope) — there, per-driver holds apply.
-     */
-    private function pilotHeld(): bool
-    {
-        $only = array_values(array_filter(array_map('strtolower', (array) config('cet.checkpoint.only_emails', []))));
-        if (empty($only)) {
-            return false;
-        }
-
-        return \App\Models\User::whereIn('email', $only)->get()
-            ->contains(fn (\App\Models\User $u) => $u->alertsHeld());
     }
 
     /* ── Sending & idempotency ────────────────────────────────────────────── */

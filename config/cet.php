@@ -113,19 +113,17 @@ return [
     // How long a director's "hold my alerts" toggle lasts before auto-expiring.
     'alerts_hold_minutes' => (int) env('CET_ALERTS_HOLD_MINUTES', 180),
 
-    // PILOT SCOPE for the getting-ready checkpoint + emergency escalation. While
-    // only Abdi is using it, the checkpoint, the at-risk office alert and the
-    // auto-call ONLY apply to jobs whose assigned driver's login email is in this
-    // list — nobody else's jobs trigger it. Empty = every driver (full rollout).
-    // And with route_to_backup off, the emergency call only ever rings the
-    // assigned driver (Abdi) — it never hands off to the other director. Widen the
-    // list (or turn the backup on) when you're ready to roll it out to Maj/drivers.
+    // PILOT SCOPE for the getting-ready checkpoint + emergency escalation. Abdi
+    // runs on ONE combined super-admin account (his driver + admin side together),
+    // so the pilot targets the SUPER ADMIN — the checkpoint, at-risk office alert
+    // and auto-call only apply to jobs whose assigned driver is a super admin.
+    //   scope: 'super_admins' (default — Abdi), 'all' (full rollout, every driver),
+    //          or a comma-list of specific login emails.
+    // With route_to_backup off, the emergency call only ever rings the assigned
+    // driver — it never hands off to the other director. Flip these when rolling
+    // out to Maj/drivers.
     'checkpoint' => [
-        // Both of Abdi's possible accounts (his director login and the shared
-        // admin@ the company runs from) — so the pilot fires for Abdi's jobs
-        // however they're allocated, and excludes only Maj (maj@…).
-        'only_emails' => array_values(array_filter(array_map('trim', explode(',',
-            (string) env('CET_CHECKPOINT_ONLY_EMAILS', 'abdi@centralexecutivetransfers.co.uk,admin@centralexecutivetransfers.co.uk'))))),
+        'scope' => (string) env('CET_CHECKPOINT_SCOPE', 'super_admins'),
         'route_to_backup' => (bool) env('CET_CHECKPOINT_ROUTE_TO_BACKUP', false),
     ],
 
