@@ -93,6 +93,24 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertSame(['Meadowhall', 'Ecclesfield'], $booking->fresh()->viaStops());
     }
 
+    public function test_edit_form_prefills_a_via_stop_that_only_lives_on_the_calendar(): void
+    {
+        // The via is on the calendar but not in the booking's own stops table —
+        // the edit form must still show it in the via_stops box so it can be edited.
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create();
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "• Via: Botanical Gardens, Clarkehouse Road, Broomhall, Sheffield",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $this->assertCount(0, $booking->stops); // nothing in the stops table
+
+        $this->actingAs($admin)->get(route('bookings.edit', $booking))
+            ->assertOk()
+            ->assertSee('name="via_stops[]" value="Botanical Gardens, Clarkehouse Road, Broomhall, Sheffield"', false);
+    }
+
     public function test_without_an_edit_the_calendar_value_is_shown(): void
     {
         $booking = $this->calendarBooking();

@@ -66,7 +66,11 @@
                 <div class="field">
                     <label>Via stops <span class="muted">(optional)</span></label>
                     <div id="via-stops">
-                        @php $oldStops = old('via_stops', $booking->stops->pluck('address')->all() ?: ['']); @endphp
+                        {{-- Default to the EFFECTIVE via stops, not just the stops table:
+                             a via that lives only on the calendar (or an ETO import) must
+                             show here so it can be seen and edited, not vanish. Saving
+                             materialises it into the booking's own stops. --}}
+                        @php $oldStops = old('via_stops', $booking->viaStops() ?: ['']); @endphp
                         @foreach($oldStops as $stop)
                             <div class="loc-row" style="margin-bottom:8px">
                                 <span class="pin via">•</span>
