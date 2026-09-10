@@ -72,13 +72,19 @@ class OfficeAlertCall
     /** Place one call to $to with the acknowledge-gather TwiML. */
     private function place(?string $to, Booking $booking, string $message): bool
     {
+        // Dial in proper international format. A director's mobile saved as
+        // "07534…" (or "+44 (0)7534…") would be rejected by Twilio and the call
+        // would silently fall through to the backup — so normalise it to E.164
+        // first, so ringing the DRIVER first actually works whatever the format.
+        $to = $this->dial($to);
+
         if (! $this->configured() || blank($to)) {
             return false;
         }
 
         try {
             $res = $this->twilio()->post($this->callsUrl(), [
-                'From' => $this->from(),
+                'From' => $this->dial($this->from()) ?? $this->from(),
                 'To' => $to,
                 'Twiml' => $this->twiml($booking, $message),
             ]);
@@ -114,7 +120,9 @@ class OfficeAlertCall
 
         try {
             $res = $this->twilio()->post($this->callsUrl(), [
-                'From' => $this->from(), 'To' => $this->to(), 'Twiml' => $twiml,
+                'From' => $this->dial($this->from()) ?? $this->from(),
+                'To' => $this->dial($this->to()) ?? $this->to(),
+                'Twiml' => $twiml,
             ]);
 
             return $res->successful();
@@ -191,6 +199,14 @@ class OfficeAlertCall
     private function to(): ?string
     {
         return config('cet.office_call_number') ?: null;
+    }
+
+    /** Normalise any UK/stored number to E.164 (+44…) so Twilio will dial it. */
+    private function dial(?string $number): ?string
+    {
+        $digits = \App\Support\Phone::wa($number); // international digits, no +
+
+        return $digits ? '+'.$digits : null;
     }
 
     private function callsUrl(): string

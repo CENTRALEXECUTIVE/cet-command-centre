@@ -105,6 +105,18 @@ class AlertRoutingTest extends TestCase
         Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === '+449999999999');
     }
 
+    public function test_a_uk_local_driver_number_is_normalised_and_rung_first(): void
+    {
+        // Saved as a UK "07…" number — must still be dialled (E.164) as the FIRST
+        // call, not silently fall through to the backup.
+        $local = User::factory()->driver()->create(['phone' => '07534283126']);
+        $this->atRiskJobFor($local);
+
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === '+447534283126');
+    }
+
     public function test_a_driver_with_no_number_falls_straight_to_backup(): void
     {
         $noPhone = User::factory()->driver()->create(['phone' => null]);
