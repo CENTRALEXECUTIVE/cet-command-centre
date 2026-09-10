@@ -1,0 +1,120 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\BookingStatus;
+use App\Models\Booking;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * "Arrived" can only be marked at the pickup (within ~1 mile), but a driver who
+ * is genuinely there is NEVER blocked: a far GPS fix is rejected, while no fix /
+ * location off is allowed through.
+ */
+class ArrivalGeofenceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /** Sheffield-ish pickup. */
+    private const PICKUP = [53.4000, -1.5000];
+
+    private function driver(): User
+    {
+        return User::factory()->driver()->create();
+    }
+
+    private function job(User $driver): Booking
+    {
+        return Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::EnRoute->value,
+            'pickup_at' => now()->addMinutes(5),
+            // Pre-set the geocoded pickup so the check doesn't hit the network.
+            'meta' => ['geo' => ['pickup' => self::PICKUP]],
+        ]);
+    }
+
+    /* ── Model ───────────────────────────────────────────────────────────── */
+
+    public function test_check_is_ok_when_within_the_radius(): void
+    {
+        $b = $this->job($this->driver());
+        // ~450 m north of the pickup → well within a mile.
+        $this->assertSame('ok', $b->checkDriverAtPickup(53.4040, -1.5000, 20));
+    }
+
+    public function test_check_is_far_when_miles_away(): void
+    {
+        $b = $this->job($this->driver());
+        // London → hundreds of km away.
+        $this->assertSame('far', $b->checkDriverAtPickup(51.5074, -0.1278, 20));
+    }
+
+    public function test_check_is_unknown_without_a_fix(): void
+    {
+        $b = $this->job($this->driver());
+        $this->assertSame('unknown', $b->checkDriverAtPickup(null, null, null));
+    }
+
+    /* ── Endpoint ────────────────────────────────────────────────────────── */
+
+    public function test_arrived_is_blocked_when_gps_is_far(): void
+    {
+        $driver = $this->driver();
+        $b = $this->job($driver);
+
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), [
+                'status' => 'arrived', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('arriveError');
+
+        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status); // not marked arrived
+    }
+
+    public function test_arrived_goes_through_when_close(): void
+    {
+        $driver = $this->driver();
+        $b = $this->job($driver);
+
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), [
+                'status' => 'arrived', 'lat' => 53.4040, 'lng' => -1.5000, 'accuracy' => 20,
+            ])->assertRedirect();
+
+        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+    }
+
+    public function test_arrived_is_allowed_when_location_is_off(): void
+    {
+        // No fix at all (location off / iPhone can't read it) → never blocked.
+        $driver = $this->driver();
+        $b = $this->job($driver);
+
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), ['status' => 'arrived'])
+            ->assertRedirect();
+
+        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+    }
+
+    public function test_a_far_fix_does_not_block_other_statuses(): void
+    {
+        // Only Arrived is geofenced — setting off far away is fine.
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Accepted->value,
+            'pickup_at' => now()->addMinutes(5), 'meta' => ['geo' => ['pickup' => self::PICKUP]],
+        ]);
+
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), [
+                'status' => 'en_route', 'lat' => 51.5074, 'lng' => -0.1278,
+            ])->assertRedirect();
+
+        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
+    }
+}

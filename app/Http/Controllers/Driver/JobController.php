@@ -62,7 +62,17 @@ class JobController extends Controller
             'status' => ['required', Rule::in(BookingStatus::values())],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric'],
         ]);
+
+        // "Arrived" can only be marked at the pickup: block a tap that GPS shows is
+        // clearly miles away. Location off / unreadable → allowed (never block a
+        // driver who's actually there).
+        if (BookingStatus::from($data['status']) === BookingStatus::Arrived
+            && $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null) === 'far') {
+            return back()->with('arriveError',
+                'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again. (Make sure your location is turned on.)');
+        }
 
         try {
             $this->status->transition(

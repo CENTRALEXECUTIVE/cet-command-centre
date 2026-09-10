@@ -281,6 +281,40 @@ class Booking extends Model
         return (bool) ($this->stopEvent($i)['arrived_gps'] ?? false);
     }
 
+    /**
+     * Check a driver's GPS against the PICKUP for marking "Arrived":
+     *   'ok'      — within the (generous, 1-mile) arrival radius → allow,
+     *   'far'     — location known and clearly miles away → block the tap,
+     *   'unknown' — no GPS or the pickup couldn't be geocoded → allow (never block
+     *               a driver we can't locate; they might be right there).
+     *
+     * Geocodes the pickup lazily and caches it in meta['geo']['pickup']. The
+     * phone's own accuracy is added to the radius so a poor fix can't false-block.
+     */
+    public function checkDriverAtPickup(?float $lat, ?float $lng, ?float $accuracy = null): string
+    {
+        if ($lat === null || $lng === null) {
+            return 'unknown'; // location off / not shared → allow (don't block)
+        }
+
+        $coords = $this->pickupCoords();
+        if ($coords === null) {
+            $point = app(\App\Services\GeocodingService::class)->coords($this->pickup_address);
+            $meta = $this->meta ?? [];
+            $meta['geo']['pickup'] = $point; // cache (null too, so we don't retry every tap)
+            $this->forceFill(['meta' => $meta])->save();
+            $coords = $point;
+        }
+        if ($coords === null) {
+            return 'unknown'; // couldn't geocode the pickup → can't verify → allow
+        }
+
+        $radius = (float) config('cet.arrival_radius_metres', 1609);
+        $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
+
+        return $metres <= $radius + (float) ($accuracy ?? 0) ? 'ok' : 'far';
+    }
+
     /** Geocoded coordinates [lat, lng] for via stop $i, from meta['geo']['stops'], or null. */
     public function stopCoords(int $i): ?array
     {

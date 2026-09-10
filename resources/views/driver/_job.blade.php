@@ -70,6 +70,9 @@
 @if(session('stopError'))
     <div class="alert alert-error">📍 {{ session('stopError') }}</div>
 @endif
+@if(session('arriveError'))
+    <div class="alert alert-error">📍 {{ session('arriveError') }}</div>
+@endif
 
 {{-- "Getting ready" checkpoint — at the job's LEAD TIME (the driver's alarm
      time) the assigned driver confirms they're on it. There is deliberately NO
@@ -107,7 +110,10 @@
      load. So we ask explicitly: this shows until permission is granted and the
      button triggers the native prompt on tap. Location is required for tracking,
      navigation and waiting time. Hidden for admins (they aren't the driver). --}}
-@unless($viewerIsAdmin)
+{{-- Show the location prompt to whoever is DRIVING this job — including a
+     director on their own job (they're an admin, but still the driver). Only the
+     office viewing someone else's job is spared it. --}}
+@if($isAssignedDriver)
     <div id="loc-gate" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.12)">
         <div style="font-weight:800;font-size:15px">📍 Turn on location for this job</div>
         <p class="hint" id="loc-gate-msg" style="margin:6px 0 10px">Central Executive needs your location for tracking, navigation and your waiting time. Tap below and choose <strong>Allow</strong>.</p>
@@ -166,7 +172,7 @@
         }
     })();
     </script>
-@endunless
+@endif
 
 {{-- Waiting time is tracked SILENTLY in the background for the office only
      (see Booking::waitingBillableMinutes / recordWaitingTime, anchored to the
@@ -457,6 +463,7 @@
                 <input type="hidden" name="status" value="{{ $status->value }}">
                 <input type="hidden" name="lat" class="lat-input">
                 <input type="hidden" name="lng" class="lng-input">
+                <input type="hidden" name="accuracy" class="acc-input">
                 <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
             </form>
         @endforeach
@@ -469,8 +476,10 @@
 @verbatim
 <script>
     // Capture GPS at the moment of a one-tap status change so the audit trail
-    // records where the driver was. The status change (Arrived, etc.) ALWAYS
-    // goes through — GPS is best-effort only and never blocks or holds it up.
+    // records where the driver was — and so the server can check "Arrived" is at
+    // the pickup. The tap is never HELD UP by GPS (4s hard fallback); if no fix
+    // comes the server can't see a location and lets it through. A fix that's
+    // clearly miles away is the only thing that blocks Arrived.
     document.querySelectorAll('.status-form').forEach(function (form) {
         form.addEventListener('submit', function (e) {
             if (form.dataset.located || !navigator.geolocation) return;

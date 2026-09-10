@@ -48,7 +48,16 @@ class LinkController extends Controller
             'status' => ['required', Rule::in(BookingStatus::values())],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric'],
         ]);
+
+        // "Arrived" only at the pickup — block a clearly-far tap; allow when
+        // location can't be read (never block a driver who's genuinely there).
+        if (BookingStatus::from($data['status']) === BookingStatus::Arrived
+            && $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null) === 'far') {
+            return back()->with('arriveError',
+                'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again. (Make sure your location is turned on.)');
+        }
 
         try {
             $this->status->linkTransition(

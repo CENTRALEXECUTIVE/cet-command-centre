@@ -80,6 +80,13 @@ return [
     // hammering the database.
     'gps_live_seconds' => (int) env('CET_GPS_LIVE_SECONDS', 20),
 
+    // How close (metres) a driver must be to the pickup before "Arrived" is
+    // accepted. Deliberately GENEROUS — 1 mile — plus the phone's own GPS accuracy
+    // is added on top, so a driver who's genuinely there is NEVER blocked; only a
+    // clearly-far tap (miles away) is rejected. If location is off/unavailable we
+    // can't verify, so we allow it rather than risk blocking a present driver.
+    'arrival_radius_metres' => (int) env('CET_ARRIVAL_RADIUS_M', 1609),
+
     // Free waiting time the customer gets once the driver has arrived at the
     // pickup. The waiting timer on the driver's job screen only starts counting
     // billable time AFTER this grace period elapses.
