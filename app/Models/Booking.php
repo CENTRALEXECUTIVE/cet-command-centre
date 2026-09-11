@@ -353,6 +353,34 @@ class Booking extends Model
         return isset($geo[0], $geo[1]) ? [(float) $geo[0], (float) $geo[1]] : null;
     }
 
+    /* ---- Turn-by-turn nav links (Waze / Google Maps) -----------------------
+     * Prefer the EXACT geocoded coordinates so the driver is taken to the right
+     * spot — a plain address search can match a same-named place miles away (a
+     * different "Whitby's Fish & Chips" branch, say). Fall back to the address
+     * text only when we have no coordinates. Uses the DISPLAY address so an
+     * edited pickup/drop-off is honoured. */
+
+    public function wazeUrl(string $which = 'pickup'): string
+    {
+        $coords = $which === 'dropoff' ? $this->dropoffCoords() : $this->pickupCoords();
+        if ($coords) {
+            return 'https://waze.com/ul?ll='.$coords[0].','.$coords[1].'&navigate=yes';
+        }
+        $addr = $which === 'dropoff' ? $this->displayDropoffAddress() : $this->displayPickupAddress();
+
+        return 'https://waze.com/ul?q='.rawurlencode((string) $addr).'&navigate=yes';
+    }
+
+    public function mapsUrl(string $which = 'pickup'): string
+    {
+        $coords = $which === 'dropoff' ? $this->dropoffCoords() : $this->pickupCoords();
+        $dest = $coords
+            ? $coords[0].','.$coords[1]
+            : (string) ($which === 'dropoff' ? $this->displayDropoffAddress() : $this->displayPickupAddress());
+
+        return 'https://www.google.com/maps/dir/?api=1&destination='.rawurlencode($dest);
+    }
+
     /* ---- Timeline audit: how far each stamp was, and the set-off ETA -------- */
 
     /**

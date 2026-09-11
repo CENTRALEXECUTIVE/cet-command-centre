@@ -238,12 +238,22 @@ class CalendarTimeSync
         }
 
         // 2. Our stored copy of the event — title, location, slot, description.
+        //
+        // EDITS STICK: once the office has manually edited this booking in the app,
+        // the AUTOMATIC refresh must NOT pull the calendar's location/details back
+        // in — otherwise the edited pickup/drop-off/details silently revert to the
+        // calendar original (the display accessors read this stored copy). So for a
+        // manually-edited booking we leave location + description frozen at what the
+        // office last saw; the time is already protected per-field above, and the
+        // manual "Match calendar" button (which clears the edit flags first) is the
+        // ONLY thing that refreshes these. Non-edited bookings mirror as before.
+        $frozen = $booking->manuallyEdited();
         $mirror = [];
         if (filled($live['title'] ?? null) && $live['title'] !== $event->title) {
             $changes['Title'] = ['from' => $event->title, 'to' => $live['title']];
             $mirror['title'] = $live['title'];
         }
-        if (filled($live['location'] ?? null) && $live['location'] !== $event->location) {
+        if (! $frozen && filled($live['location'] ?? null) && $live['location'] !== $event->location) {
             $changes['Pickup location'] = ['from' => $event->location, 'to' => $live['location']];
             $mirror['location'] = $live['location'];
         }
@@ -251,7 +261,7 @@ class CalendarTimeSync
             $mirror['start_at'] = $liveStart;
             $mirror['end_at'] = ($live['end'] ?? null) ?: $liveStart->copy()->addHour();
         }
-        if (filled($live['description'] ?? null) && trim((string) $live['description']) !== trim((string) $event->description)) {
+        if (! $frozen && filled($live['description'] ?? null) && trim((string) $live['description']) !== trim((string) $event->description)) {
             $changes['Details block'] = ['from' => 'out of date', 'to' => 'refreshed from the calendar'];
             $mirror['description'] = $live['description'];
         }

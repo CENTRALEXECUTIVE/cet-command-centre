@@ -171,6 +171,23 @@ class BookingService
                 'final_price' => $data['final_price'] ?? null,
             ])->save();
 
+            // Keep the geocoded coordinates in step with an edited address, so the
+            // driver's Waze / Google Maps links (which navigate to the exact point)
+            // don't send them to a same-named place miles away — e.g. a different
+            // "Whitby's Fish & Chips" branch. Re-geocode the changed end(s); a null
+            // result just falls back to an address search, never a stale pin.
+            if (array_intersect(['pickup_address', 'destination_address'], $editedFields)) {
+                $geocoder = app(\App\Services\GeocodingService::class);
+                $geo = $booking->meta['geo'] ?? [];
+                if (in_array('pickup_address', $editedFields, true)) {
+                    $geo['pickup'] = $geocoder->coords($booking->pickup_address);
+                }
+                if (in_array('destination_address', $editedFields, true)) {
+                    $geo['dropoff'] = $geocoder->coords($booking->destination_address);
+                }
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['geo' => $geo])])->save();
+            }
+
             // The booking reference (covering / non-ETO jobs). Only settable here;
             // trimmed, and cleared to null when blanked.
             if (array_key_exists('external_reference', $data)) {

@@ -257,9 +257,9 @@
 <div style="margin-bottom:16px">
     <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
         <a class="btn btn-dark" style="flex:1;text-align:center"
-           href="https://waze.com/ul?q={{ urlencode($booking->pickup_address) }}&navigate=yes"
+           href="{{ $booking->wazeUrl('pickup') }}"
            target="_blank" rel="noopener">🧭 Waze to pickup</a>
-        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->pickup_address }}"
+        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->displayPickupAddress() }}"
                 style="white-space:nowrap">📋 Copy</button>
     </div>
     @foreach($viaStops as $i => $stop)
@@ -274,16 +274,16 @@
     @if($showDropoff)
         <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:6px">
             <a class="btn btn-ghost" style="flex:1;text-align:center"
-               href="https://waze.com/ul?q={{ urlencode($booking->destination_address) }}&navigate=yes"
+               href="{{ $booking->wazeUrl('dropoff') }}"
                target="_blank" rel="noopener">🏁 Waze to drop-off</a>
-            <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->destination_address }}"
+            <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->displayDropoffAddress() }}"
                     style="white-space:nowrap">📋 Copy</button>
         </div>
     @endif
     <div class="hint" style="font-size:12px">
         Prefer another app?
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->pickup_address) }}" target="_blank" rel="noopener">Google Maps · pickup</a>@if($showDropoff) ·
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($booking->destination_address) }}" target="_blank" rel="noopener">drop-off</a>@endif
+        <a href="{{ $booking->mapsUrl('pickup') }}" target="_blank" rel="noopener">Google Maps · pickup</a>@if($showDropoff) ·
+        <a href="{{ $booking->mapsUrl('dropoff') }}" target="_blank" rel="noopener">drop-off</a>@endif
     </div>
 </div>
 
