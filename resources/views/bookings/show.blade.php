@@ -840,6 +840,38 @@
                     <button class="btn btn-primary" style="padding:6px 14px;font-size:13px">Mark paid</button>
                 </form>
             @endif
+
+            @if(auth()->user()->isAdmin())
+                {{-- Quick price fix — set the job's final price without opening the
+                     full edit form (e.g. a job that cost more in cover than we
+                     charged). This is what fareAmount() uses. --}}
+                <form method="POST" action="{{ route('bookings.price', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                    @csrf
+                    <div class="field" style="margin:0">
+                        <label for="final_price" style="font-size:12px">Job price (£)</label>
+                        <input id="final_price" name="final_price" type="number" step="0.01" min="0" inputmode="decimal"
+                               value="{{ $booking->fareAmount() !== null ? number_format($booking->fareAmount(), 2, '.', '') : '' }}" style="width:130px">
+                    </div>
+                    <button class="btn btn-light" style="padding:8px 14px;font-size:13px">Set price</button>
+                    <span class="hint" style="flex-basis:100%;margin:2px 0 0">What the customer is charged. Blank clears it back to the quote.</span>
+                </form>
+
+                {{-- Waiting time override — editable any time, even after completion.
+                     Fixes a runaway charge when a driver forgot to progress the job. --}}
+                @php $wMin = $booking->waitingChargeableMinutes(); @endphp
+                <form method="POST" action="{{ route('bookings.waiting', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                    @csrf
+                    <div class="field" style="margin:0">
+                        <label for="waiting_minutes" style="font-size:12px">Billable waiting (min)</label>
+                        <input id="waiting_minutes" name="waiting_minutes" type="number" step="1" min="0" inputmode="numeric"
+                               value="{{ $booking->recordedWaitingMinutes() ?? $wMin }}" style="width:130px">
+                    </div>
+                    <button class="btn btn-light" style="padding:8px 14px;font-size:13px">Set waiting</button>
+                    <button type="submit" name="clear" value="1" class="btn btn-ghost" style="padding:8px 14px;font-size:13px"
+                            onclick="return confirm('Remove the waiting charge for this job?')">No waiting charge</button>
+                    <span class="hint" style="flex-basis:100%;margin:2px 0 0">Currently {{ $wMin }} chargeable min = <strong>£{{ number_format($booking->waitingCharge(), 2) }}</strong>. Use <strong>No waiting charge</strong> if the driver forgot to update the job.</span>
+                </form>
+            @endif
         </div>
     </div>
 
@@ -1362,26 +1394,9 @@
                 </div>
             @endif
 
-            {{-- Review link — one-tap send of the Google review request. Always
-                 available so the office can send it whenever (usually after the
-                 job). Manual via WhatsApp, per the no-auto-send rule. --}}
-            @php
-                $reviewMsg = app(\App\Services\Messaging\BookingNotifier::class)->reviewBody($booking);
-                $reviewWa = \App\Support\Phone::wa($booking->customerContactNumber() ?? $booking->customer?->phone);
-            @endphp
-            @if(filled(config('cet.review_url')))
-                <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
-                    <strong style="font-size:14px">⭐ Review link</strong>
-                    <div class="hint" style="margin:4px 0 8px">Ask the customer for a Google review — <a href="{{ config('cet.review_url') }}" target="_blank" rel="noopener">{{ config('cet.review_url') }}</a></div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap">
-                        @if(filled($reviewWa))
-                            <a href="https://wa.me/{{ $reviewWa }}?text={{ rawurlencode($reviewMsg) }}" target="_blank" rel="noopener" class="btn" style="background:#25D366;color:#fff;padding:8px 16px;font-size:14px">📲 Send review link</a>
-                        @endif
-                        <button type="button" class="btn btn-ghost" style="padding:8px 16px;font-size:14px" onclick="navigator.clipboard.writeText(@js($reviewMsg));this.textContent='✓ Copied'">Copy message</button>
-                    </div>
-                    @if(blank($reviewWa))<p class="hint" style="margin:6px 0 0">No customer mobile on file — copy the message and send it your usual way.</p>@endif
-                </div>
-            @endif
+            {{-- (The standalone "Review link" block was removed — the queued Review
+                 request message above already has its own Send / Copy buttons, so
+                 this duplicated it.) --}}
 
             <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">
                 @csrf

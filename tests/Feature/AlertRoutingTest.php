@@ -30,8 +30,9 @@ class AlertRoutingTest extends TestCase
         config([
             'services.twilio.sid' => 'AC', 'services.twilio.token' => 'tok',
             'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+449999999999',
-            // Backup-routing tests need the full rollout (everyone, backup on).
+            // Backup-routing tests need the full rollout (everyone, backup + call on).
             'cet.checkpoint.scope' => 'all', 'cet.checkpoint.route_to_backup' => true,
+            'cet.checkpoint.emergency_call' => true,
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 

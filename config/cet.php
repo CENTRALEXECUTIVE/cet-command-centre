@@ -92,6 +92,12 @@ return [
     // billable time AFTER this grace period elapses.
     'waiting_grace_minutes' => (int) env('CET_WAITING_GRACE_MINUTES', 15),
 
+    // Safety cap on AUTO-computed billable waiting minutes. If a driver forgets to
+    // tap POB / Complete, the clock would otherwise run for hours/days and invent
+    // an absurd charge. The automatic figure is capped here (default 3h); the
+    // office can still set a longer wait by hand on the booking page. 0 = no cap.
+    'waiting_max_auto_minutes' => (int) env('CET_WAITING_MAX_AUTO_MINUTES', 180),
+
     // Waiting-time CHARGE (GBP per hour, pro-rated per minute) applied only after
     // the free grace above AND any minutes the customer already paid for (the
     // booking's "waiting time included" tick-box). Keyed by vehicle-type slug; any
@@ -120,18 +126,20 @@ return [
     // How long a director's "hold my alerts" toggle lasts before auto-expiring.
     'alerts_hold_minutes' => (int) env('CET_ALERTS_HOLD_MINUTES', 180),
 
-    // PILOT SCOPE for the getting-ready checkpoint + emergency escalation. Abdi
-    // runs on ONE combined super-admin account (his driver + admin side together),
-    // so the pilot targets the SUPER ADMIN — the checkpoint, at-risk office alert
-    // and auto-call only apply to jobs whose assigned driver is a super admin.
-    //   scope: 'super_admins' (default — Abdi), 'all' (full rollout, every driver),
+    // SCOPE for the getting-ready checkpoint + at-risk escalation.
+    //   scope: 'all' (default — every driver), 'super_admins' (just Abdi),
     //          or a comma-list of specific login emails.
-    // With route_to_backup off, the emergency call only ever rings the assigned
-    // driver — it never hands off to the other director. Flip these when rolling
-    // out to Maj/drivers.
+    // The getting-ready prompt + push now goes to EVERY driver. If a driver
+    // hasn't set off in decent time, the office gets a CRITICAL alert.
+    //
+    // Calling is OFF by default: emergency_call=false means no automated phone
+    // calls — the escalation is push + the critical live alert only. Turn it on
+    // (and route_to_backup, to hand off to the other director) only if you want
+    // the phone-call layer back.
     'checkpoint' => [
-        'scope' => (string) env('CET_CHECKPOINT_SCOPE', 'super_admins'),
+        'scope' => (string) env('CET_CHECKPOINT_SCOPE', 'all'),
         'route_to_backup' => (bool) env('CET_CHECKPOINT_ROUTE_TO_BACKUP', false),
+        'emergency_call' => (bool) env('CET_CHECKPOINT_EMERGENCY_CALL', false),
     ],
 
     // Driver "getting ready" checkpoint, driven by each booking's LEAD TIME —

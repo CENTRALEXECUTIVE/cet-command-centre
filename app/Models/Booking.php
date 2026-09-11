@@ -704,8 +704,39 @@ class Booking extends Model
             return 0;
         }
         $elapsed = $anchor->diffInMinutes($at ?? now());
+        $billable = (int) max(0, $elapsed - $this->waitingGraceMinutes());
 
-        return (int) max(0, $elapsed - $this->waitingGraceMinutes());
+        // Safety cap: if a driver FORGETS to progress the job (never taps POB /
+        // Complete), the clock would otherwise run for hours/days and invent an
+        // absurd charge (e.g. £4,800). Cap the AUTO figure at a sane maximum; a
+        // genuinely longer wait can be set by hand (setWaitingMinutes), which is
+        // read straight from meta and isn't capped here.
+        $cap = (int) config('cet.waiting_max_auto_minutes', 180);
+
+        return $cap > 0 ? min($billable, $cap) : $billable;
+    }
+
+    /**
+     * Manually set (or clear) the billable waiting minutes for this job — the
+     * office override, usable at any time, including after the job is completed.
+     * Pass null to remove the override and fall back to the automatic figure.
+     * Stored in meta['waiting']['billable_minutes'] so recordedWaitingMinutes()
+     * (and therefore the charge) uses it verbatim, uncapped.
+     */
+    public function setWaitingMinutes(?int $minutes): void
+    {
+        $meta = $this->meta ?? [];
+        if ($minutes === null) {
+            unset($meta['waiting']);
+        } else {
+            $meta['waiting'] = array_merge($meta['waiting'] ?? [], [
+                'billable_minutes' => max(0, $minutes),
+                'grace_minutes' => $this->waitingGraceMinutes(),
+                'manual' => true,
+                'recorded_at' => now()->toIso8601String(),
+            ]);
+        }
+        $this->forceFill(['meta' => $meta])->save();
     }
 
     /** The billable waiting minutes recorded when the passenger boarded, if any. */

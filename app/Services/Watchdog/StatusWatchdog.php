@@ -368,17 +368,18 @@ class StatusWatchdog
                 $driver.' '.$longReason.' for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
                 severity: 'critical', maxSends: null, repeatMinutes: self::AT_RISK_REPEAT_MINUTES);
 
-            // EMERGENCY AUTO-CALL — ring and keep re-dialling every couple of
-            // minutes until someone answers and presses a key (which sets
-            // at_risk_ack via the webhook). A push can be missed; a ringing phone
-            // can't. No-op until Twilio + the numbers are set.
+            // EMERGENCY AUTO-CALL — OFF by default (checkpoint.emergency_call). The
+            // escalation is push + the critical live alert; calling is only added
+            // back if the office turns it on. When on: ring and keep re-dialling
+            // every couple of minutes until someone answers and presses a key
+            // (which sets at_risk_ack via the webhook).
             //
             // DRIVER FIRST, THEN BACKUP: the very first call rings the assigned
             // driver's own phone — they forgot, so wake them. If that hasn't got
             // them moving, every later call routes to the BACKUP (the other free
             // director, else the business line). A driver with no saved number
             // falls straight through to the backup on the first call too.
-            if (empty($booking->meta['at_risk_ack'])) {
+            if (config('cet.checkpoint.emergency_call', false) && empty($booking->meta['at_risk_ack'])) {
                 $call = app(\App\Services\Telephony\OfficeAlertCall::class);
                 if ($call->configured()) {
                     $priorCalls = JobNudge::where('booking_id', $booking->id)

@@ -813,6 +813,55 @@ class BookingController extends Controller
     }
 
     /**
+     * Set the job's price (the final fare) straight from the booking page, so a
+     * job that was mispriced — e.g. cover cost us more than we charged — can be
+     * corrected without opening the full edit form. Writes final_price (the figure
+     * fareAmount() uses); blank clears it back to the quote.
+     */
+    public function setPrice(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'final_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+        ]);
+
+        $booking->forceFill(['final_price' => $data['final_price'] === '' ? null : $data['final_price']])->save();
+
+        return back()->with('status', $data['final_price'] === null || $data['final_price'] === ''
+            ? 'Price cleared — back to the quoted figure.'
+            : 'Job price set to £'.number_format((float) $data['final_price'], 2).'.');
+    }
+
+    /**
+     * Set or clear the billable waiting minutes by hand — the office override,
+     * usable even after the job is completed (e.g. a driver forgot to tap POB and
+     * the auto figure is wrong). Blank / "clear" removes the override so it falls
+     * back to the automatic (capped) figure.
+     */
+    public function setWaiting(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'waiting_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            'clear' => ['nullable', 'boolean'],
+        ]);
+
+        if (! empty($data['clear']) || ($data['waiting_minutes'] ?? null) === null) {
+            $booking->setWaitingMinutes(! empty($data['clear']) ? 0 : null);
+
+            return back()->with('status', ! empty($data['clear'])
+                ? 'Waiting charge removed — set to no billable waiting.'
+                : 'Waiting override cleared — back to the automatic figure.');
+        }
+
+        $booking->setWaitingMinutes((int) $data['waiting_minutes']);
+
+        return back()->with('status', 'Waiting time set to '.(int) $data['waiting_minutes'].' billable min.');
+    }
+
+    /**
      * Ring the assigned driver's phone NOW with a spoken nudge asking them to open
      * the app and update their status. This is the operator's manual version of the
      * watchdog's at-risk call — one call, placed on demand (e.g. the driver's gone

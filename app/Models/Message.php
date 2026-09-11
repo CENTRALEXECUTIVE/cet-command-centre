@@ -81,13 +81,20 @@ class Message extends Model
      */
     public function renderedBody(): string
     {
-        // Driver-details messages are re-rendered live from the current driver /
-        // vehicle (and current wording) so the booking page and any re-send always
-        // reflect what's actually on the job now — not the text frozen when the
-        // driver was first allocated. Falls back to the stored body if we can't.
-        if ($this->type === 'driver_details' && $this->booking) {
-            $live = app(\App\Services\Messaging\BookingNotifier::class)->driverDetailsBody($this->booking);
-            $body = $live ?: (string) $this->body;
+        // These messages are re-rendered LIVE from the current booking + wording so
+        // the booking page and any re-send always reflect the right template — not
+        // text frozen (or mis-saved) when the message was first queued. This is what
+        // keeps a tip request showing the TIP message (with the tip link) rather
+        // than an old review body. Falls back to the stored body if we can't.
+        if ($this->booking && in_array($this->type, ['driver_details', 'tip_request'], true)) {
+            $notifier = app(\App\Services\Messaging\BookingNotifier::class);
+            $body = match ($this->type) {
+                'driver_details' => $notifier->driverDetailsBody($this->booking) ?: (string) $this->body,
+                // Tip requests always show the TIP message (with the tip link) —
+                // this repairs any that were saved with the wrong (review) body.
+                'tip_request' => $notifier->tipRequestBody($this->booking),
+                default => (string) $this->body,
+            };
         } else {
             $body = (string) $this->body;
         }
