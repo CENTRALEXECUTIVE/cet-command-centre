@@ -103,9 +103,9 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
     }
 
-    public function test_a_far_fix_does_not_block_other_statuses(): void
+    public function test_set_off_is_allowed_from_anywhere_with_location_on(): void
     {
-        // Only Arrived is geofenced — setting off far away is fine.
+        // Set off isn't distance-checked — just needs location ON (any fix).
         $driver = $this->driver();
         $b = Booking::factory()->create([
             'driver_id' => $driver->id, 'status' => BookingStatus::Accepted->value,
@@ -114,9 +114,39 @@ class ArrivalGeofenceTest extends TestCase
 
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), [
-                'status' => 'en_route', 'lat' => 51.5074, 'lng' => -0.1278,
+                'status' => 'en_route', 'lat' => 51.5074, 'lng' => -0.1278, // far is fine for set off
             ])->assertRedirect();
 
         $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
+    }
+
+    public function test_set_off_is_blocked_without_location(): void
+    {
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Accepted->value,
+            'pickup_at' => now()->addMinutes(5),
+        ]);
+
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), ['status' => 'en_route'])
+            ->assertRedirect()
+            ->assertSessionHas('arriveError');
+
+        $this->assertSame(BookingStatus::Accepted, $b->fresh()->status);
+    }
+
+    public function test_a_blocked_tap_flags_the_office(): void
+    {
+        $driver = $this->driver();
+        $b = $this->job($driver); // EnRoute, pickup geo set
+
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'arrived', 'lat' => 51.5074, 'lng' => -0.1278, // far
+        ]);
+
+        $this->assertDatabaseHas('watchdog_events', [
+            'booking_id' => $b->id, 'event_type' => 'location_blocked',
+        ]);
     }
 }

@@ -321,7 +321,7 @@ class DriverAppTest extends TestCase
             'status' => BookingStatus::Accepted,
             'pickup_at' => now()->addHours(2),
         ]);
-        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'en_route']);
+        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'en_route', 'lat' => 53.3811, 'lng' => -1.4701]);
 
         $token = $job->fresh()->trackingLink->token;
 

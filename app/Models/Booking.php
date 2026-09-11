@@ -317,6 +317,34 @@ class Booking extends Model
         return $metres <= $radius + (float) ($accuracy ?? 0) ? 'ok' : 'far';
     }
 
+    /**
+     * Tell the office (via the alerts feed) that a driver was blocked from a
+     * location-gated tap — so you can see who's trying to mark a job without
+     * being there / without location on. Deduped so a mashed button can't spam.
+     */
+    public function flagLocationBlocked(string $action, string $reason): void
+    {
+        $recent = \App\Models\WatchdogEvent::where('booking_id', $this->id)
+            ->where('event_type', 'location_blocked')
+            ->where('occurred_at', '>=', now()->subMinutes(5))
+            ->exists();
+        if ($recent) {
+            return;
+        }
+
+        $driver = $this->driver?->name ?? 'The driver';
+        $why = $reason === 'no_location' ? 'no location turned on' : 'not at the pickup';
+        \App\Models\WatchdogEvent::log(
+            'location_blocked',
+            '🚫 '.$driver.' — couldn’t mark '.$action.' ('.$why.')',
+            'warning',
+            $this,
+            body: $reason === 'no_location'
+                ? 'Their location was off, so '.$action.' was blocked. Ask them to turn it on.'
+                : 'GPS put them away from '.\Illuminate\Support\Str::limit((string) $this->pickup_address, 60, '').', so '.$action.' was blocked.',
+        );
+    }
+
     /** Geocoded coordinates [lat, lng] for via stop $i, from meta['geo']['stops'], or null. */
     public function stopCoords(int $i): ?array
     {

@@ -490,32 +490,36 @@
 
     document.querySelectorAll('.status-form').forEach(function (form) {
         var statusInput = form.querySelector('input[name="status"]');
-        var isArrived = statusInput && statusInput.value === 'arrived';
+        var statusVal = statusInput ? statusInput.value : '';
+        // Set off AND Arrived require live location — set off so the office can
+        // track from the start, Arrived to prove they're actually there.
+        var needsLocation = statusVal === 'arrived' || statusVal === 'en_route';
+        var actionWord = statusVal === 'arrived' ? 'Arrived' : 'On My Way';
 
         form.addEventListener('submit', function (e) {
             if (form.dataset.located) return;
 
-            // ARRIVED is proof-of-presence: ALWAYS require a fresh live fix and
-            // BLOCK the tap if we can't get one — no more marking Arrived from
-            // miles away. maximumAge:0 forces a new reading every time.
-            if (isArrived) {
+            // Location-required taps: ALWAYS get a FRESH live fix and BLOCK if we
+            // can't — no more marking these without location on. maximumAge:0
+            // forces a brand-new reading every time.
+            if (needsLocation) {
                 e.preventDefault();
                 if (!navigator.geolocation) {
-                    cetShowLocBlock('This phone can’t share location. Open the job in Safari or Chrome and allow location, then tap Arrived.');
+                    cetShowLocBlock('This phone can’t share location. Open the job in Safari or Chrome and allow location, then tap ' + actionWord + '.');
                     return;
                 }
-                var arrivedSent = false;
-                var submitArrived = function () { if (!arrivedSent) { arrivedSent = true; form.dataset.located = '1'; form.submit(); } };
+                var locSent = false;
+                var submitWithLoc = function () { if (!locSent) { locSent = true; form.dataset.located = '1'; form.submit(); } };
                 navigator.geolocation.getCurrentPosition(function (pos) {
                     form.querySelector('.lat-input').value = pos.coords.latitude;
                     form.querySelector('.lng-input').value = pos.coords.longitude;
                     var acc = form.querySelector('.acc-input');
                     if (acc) { acc.value = pos.coords.accuracy || ''; }
-                    submitArrived();
+                    submitWithLoc();
                 }, function (err) {
                     cetShowLocBlock((err && err.code === 1)
-                        ? 'Location is turned off for this page. On iPhone: Settings → your browser (Safari/Chrome) → Location → While Using, then reload and tap Arrived.'
-                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then tap Arrived again.');
+                        ? 'Location is turned off for this page. On iPhone: Settings → your browser (Safari/Chrome) → Location → While Using, then reload and tap ' + actionWord + '.'
+                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then tap ' + actionWord + ' again.');
                 }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
                 return;
             }
