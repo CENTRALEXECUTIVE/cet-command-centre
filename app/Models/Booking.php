@@ -2074,6 +2074,17 @@ class Booking extends Model
     }
 
     /**
+     * Has a PERSON set this booking's status in the app (office or driver)? Set by
+     * BookingStatusService on every in-app transition. When true, the automated
+     * ETO email ingestion must not silently override the status — the office's
+     * decision (e.g. un-cancelling a job) wins and sticks.
+     */
+    public function statusManuallyLocked(): bool
+    {
+        return ! empty($this->meta['status_locked_at']);
+    }
+
+    /**
      * Did the office actually change THIS field when it edited the booking?
      *
      * The calendar is the source of truth, so a field only stops mirroring the

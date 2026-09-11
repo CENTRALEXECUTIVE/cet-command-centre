@@ -265,7 +265,18 @@ class BookingStatusService
         ?string $note,
     ): Booking {
         return DB::transaction(function () use ($booking, $from, $to, $actor, $lat, $lng, $note) {
-            $booking->forceFill(['status' => $to->value])->save();
+            // Stamp that a PERSON set this status in the app. This is the office's
+            // (or driver's) decision and it must STICK — the ETO email ingestion
+            // won't silently revert it (e.g. re-cancel a booking the office put
+            // back to allocated). Only in-app changes come through here; the email
+            // importer writes status directly and never sets this lock.
+            $booking->forceFill([
+                'status' => $to->value,
+                'meta' => array_merge($booking->meta ?? [], [
+                    'status_locked_at' => now()->toIso8601String(),
+                    'status_locked_to' => $to->value,
+                ]),
+            ])->save();
 
             $booking->statusHistory()->create([
                 'from_status' => $from->value,

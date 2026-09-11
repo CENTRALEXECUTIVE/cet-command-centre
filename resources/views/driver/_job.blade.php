@@ -142,7 +142,7 @@
         function blocked() {
             show();
             msg.innerHTML = isIOS
-                ? 'Location is off for Safari. On your iPhone: open <strong>Settings → Safari → Location → Allow</strong> (make sure <strong>Location Services</strong> is on too), then come back and reload.'
+                ? 'Location is off for Safari. On your iPhone: open <strong>Settings</strong>, search <strong>Location</strong> and tap <strong>Location Services</strong>. Scroll down to <strong>Safari Websites</strong> and set it to <strong>While Using the App</strong>. Then come back and reload.'
                 : 'Location looks blocked for this site. Open your browser’s settings for this page, set <strong>Location</strong> to <strong>Allow</strong>, then reload.';
             if (btn) { btn.textContent = 'Try again'; }
         }
@@ -498,7 +498,7 @@
     var CET_IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent || '')
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var CET_LOC_DENIED_HINT = CET_IS_IOS
-        ? 'Location is off for Safari. On your iPhone: open Settings → Safari → Location → Allow (make sure Location Services is on too), then come back, reload the page and try again.'
+        ? 'Location is off for Safari. On your iPhone: open Settings, search Location and tap Location Services. Scroll down to Safari Websites and set it to “While Using the App”. Then come back, reload the page and try again.'
         : 'Location is turned off for this page. Open your browser’s settings for this page, set Location to Allow, then reload and try again.';
 
     document.querySelectorAll('.status-form').forEach(function (form) {

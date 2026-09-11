@@ -181,6 +181,15 @@ class OutlookBookingService
             if (! $existing) {
                 return null; // nothing to cancel
             }
+            // The office is the boss: if a person has set this booking's status in
+            // the app and it is NOT cancelled (e.g. they cancelled then put it back
+            // to allocated), a re-read ETO cancellation email must NOT revert it.
+            // Flag it for the office to decide instead of silently over-riding.
+            if ($existing->statusManuallyLocked() && $existing->status !== BookingStatus::Cancelled) {
+                $this->flagIgnoredCancellation($existing);
+
+                return null;
+            }
             $existing->forceFill(['status' => BookingStatus::Cancelled->value])->save();
             $this->pushCalendar($existing);
 
@@ -331,6 +340,31 @@ class OutlookBookingService
             'booker_name' => $parsed['booker_name'] ?? null,
             'contact_no' => $parsed['customer_phone'] ?? null,
         ], fn ($v) => $v !== null && $v !== []);
+    }
+
+    /**
+     * ETO says this booking is cancelled, but the office has manually set it to a
+     * non-cancelled status in the app. We DON'T revert their decision — instead we
+     * tell them once, so they can decide which is right. Deduped so a re-read email
+     * every few minutes doesn't spam the alert.
+     */
+    private function flagIgnoredCancellation(Booking $booking): void
+    {
+        if (! empty($booking->meta['eto_cancel_ignored_at'])) {
+            return; // already flagged once
+        }
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'eto_cancel_ignored_at' => now()->toIso8601String(),
+        ])])->save();
+
+        $ref = $booking->external_reference ?: $booking->reference;
+        \App\Models\WatchdogEvent::log('eto_cancel_ignored',
+            'ETO cancelled '.$ref.' but you set it to '.$booking->status->label().' — check which is right',
+            'warning', $booking);
+        app(\App\Services\Watchdog\AdminAlerts::class)->notify('eto_cancel_ignored',
+            '⚠️ ETO cancelled a job you changed',
+            $ref.' — ETO says cancelled, but you set it to '.$booking->status->label().'. It was left as you set it; cancel it here if ETO is right.',
+            'warning', $booking);
     }
 
     /**
