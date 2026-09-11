@@ -63,12 +63,16 @@ class LinkController extends Controller
                 return back()->with('arriveError',
                     'Turn your location on to update this job — CET needs to see you from the moment you start. Allow location, then tap again.');
             }
-            if ($target === BookingStatus::Arrived
+            // Arrived AND Passenger-on-board both happen at the pickup → both must
+            // be within ~1 mile of it (stops rattling through statuses at the drop-off).
+            if (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
                 && $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null) === 'far') {
-                $booking->flagLocationBlocked('Arrived', 'far');
+                $label = $target === BookingStatus::Arrived ? 'Arrived' : 'Passenger on board';
+                $booking->flagLocationBlocked($label, 'far');
 
-                return back()->with('arriveError',
-                    'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.');
+                return back()->with('arriveError', $target === BookingStatus::Arrived
+                    ? 'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.'
+                    : 'Mark “Passenger on board” at the pickup — you look too far from it. Tap it when the passenger actually gets in.');
             }
         }
 

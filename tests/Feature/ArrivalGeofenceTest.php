@@ -153,6 +153,38 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
     }
 
+    public function test_pob_is_blocked_far_from_the_pickup(): void
+    {
+        // Passenger-on-board happens at the pickup — a driver rattling through the
+        // statuses near the DROP-OFF can't mark it from miles away.
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Arrived->value,
+            'pickup_at' => now()->subMinutes(2), 'meta' => ['geo' => ['pickup' => self::PICKUP]],
+        ]);
+
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'collected', 'lat' => 51.5074, 'lng' => -0.1278, // London — far
+        ])->assertRedirect()->assertSessionHas('arriveError');
+
+        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+    }
+
+    public function test_pob_goes_through_at_the_pickup(): void
+    {
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Arrived->value,
+            'pickup_at' => now()->subMinutes(2), 'meta' => ['geo' => ['pickup' => self::PICKUP]],
+        ]);
+
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'collected', 'lat' => 53.4040, 'lng' => -1.5000,
+        ])->assertRedirect();
+
+        $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
+    }
+
     public function test_a_blocked_tap_flags_the_office(): void
     {
         $driver = $this->driver();
