@@ -83,6 +83,28 @@
          data-unsub-url="{{ route('driver.push.unsubscribe') }}" hidden></div>
     <script src="{{ asset('js/cet-push.js') }}" defer></script>
 
+    {{-- Big top-right notification popups for anything live that needs dealing
+         with NOW. Fixed to the corner so it's seen without scrolling to the log
+         below; each pops until you tap Done (which also silences the siren).
+         Critical toasts pulse. Populated by cet-alerts.js off the same feed. --}}
+    <style>
+        #alerts-toasts{position:fixed;top:74px;right:16px;width:380px;max-width:calc(100vw - 32px);z-index:1200;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+        .alert-toast{pointer-events:auto;display:flex;gap:12px;align-items:flex-start;background:var(--panel,#141a2e);color:#f4f6fb;border:1px solid rgba(255,255,255,.10);border-left:6px solid #8a93a6;border-radius:14px;padding:14px 16px;box-shadow:0 16px 44px rgba(0,0,0,.48)}
+        .alert-toast .at-ico{font-size:22px;line-height:1.1}
+        .alert-toast .at-body{flex:1;min-width:0}
+        .alert-toast .at-title{font-weight:800;font-size:15px;line-height:1.3;word-break:break-word}
+        .alert-toast .at-title a{color:inherit;text-decoration:none}
+        .alert-toast .at-time{font-size:12px;opacity:.7;margin-top:3px;letter-spacing:.02em}
+        .alert-toast .at-done{flex:none;background:#fff;color:#111;border:0;border-radius:10px;padding:10px 18px;font-weight:800;font-size:13px;cursor:pointer}
+        .alert-toast .at-done:hover{background:#f0f0f0}
+        .alert-toast.sev-warning{border-left-color:#e0a400}
+        .alert-toast.sev-critical{border-left-color:#e5484d;animation:toastPulse 1.15s ease-in-out infinite}
+        @keyframes toastPulse{0%,100%{box-shadow:0 0 0 2px rgba(229,72,77,.32),0 16px 44px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 9px rgba(229,72,77,.07),0 16px 44px rgba(0,0,0,.5)}}
+        @media (prefers-reduced-motion: reduce){.alert-toast.sev-critical{animation:none;box-shadow:0 0 0 2px rgba(229,72,77,.32),0 16px 44px rgba(0,0,0,.5)}}
+        @media (max-width:600px){#alerts-toasts{top:64px;left:12px;right:12px;width:auto}}
+    </style>
+    <div id="alerts-toasts" aria-live="assertive" aria-label="Live alerts"></div>
+
     {{-- Control-tower log: live watchdog events, critical rows glow until
          acknowledged. Polls every 30s; chime per-admin preference. --}}
     <div class="card alerts-panel" id="alerts-panel"
@@ -107,7 +129,7 @@
         </div>
         <div id="alerts-list" style="margin-top:10px"><p class="muted mb-0" style="font-size:13px">Loading…</p></div>
     </div>
-    <script src="{{ asset('js/cet-alerts.js') }}?v=6" defer></script>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=7" defer></script>
 
     @if(!empty($reviewReminder))
         <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">

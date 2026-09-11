@@ -10,7 +10,7 @@
  *
  * Bump CACHE_VERSION whenever a precached asset changes so clients refresh.
  */
-const CACHE_VERSION = 'cet-static-v25';
+const CACHE_VERSION = 'cet-static-v26';
 
 const PRECACHE = [
     '/offline.html',

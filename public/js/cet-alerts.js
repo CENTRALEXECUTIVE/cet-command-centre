@@ -11,6 +11,7 @@
     if (!panel) return;
 
     var list = document.getElementById('alerts-list');
+    var toasts = document.getElementById('alerts-toasts'); // big top-right popups (optional)
     var stamp = document.getElementById('alerts-stamp');
     var tokenEl = document.querySelector('meta[name="csrf-token"]');
     var token = tokenEl ? tokenEl.content : '';
@@ -29,6 +30,7 @@
             }).then(function (r) { return r.json(); }).then(function (d) {
                 seen = {};
                 list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
+                if (toasts) toasts.innerHTML = '';
                 clearBtn.style.display = 'none';
                 badge(d.critical);
                 stopAlarm(true);
@@ -107,7 +109,12 @@
         });
     }
 
-    function ack(id, row) {
+    // Drop an alert everywhere it shows — the log row AND its top-right popup.
+    function removeAlert(id) {
+        document.querySelectorAll('[data-alert-id="' + id + '"]').forEach(function (el) { el.remove(); });
+    }
+
+    function ack(id) {
         fetch(panel.dataset.feed.replace(/\/feed$/, '/' + id + '/ack'), {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
@@ -116,7 +123,7 @@
             // operator has ACTED, so silence the siren straight away (like the
             // Silence button); a genuinely NEW critical later re-arms it.
             if (seen) delete seen[id];
-            row.remove();
+            removeAlert(id);
             silenced = true;
             stopAlarm(true);
             badge(d.critical);
@@ -124,6 +131,30 @@
                 list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
             }
         }).catch(function () {});
+    }
+
+    // The big top-right popups: only what needs dealing with NOW — unacknowledged
+    // critical + warning events. Info pings (set off, arrived…) stay in the log.
+    function renderToasts(data) {
+        if (!toasts) return;
+        toasts.innerHTML = '';
+        data.events.forEach(function (e) {
+            if (e.acknowledged) return;
+            if (e.severity !== 'critical' && e.severity !== 'warning') return;
+            var t = document.createElement('div');
+            t.className = 'alert-toast sev-' + e.severity;
+            t.dataset.alertId = e.id;
+            t.innerHTML =
+                '<span class="at-ico">' + (ICONS[e.severity] || '·') + '</span>'
+                + '<div class="at-body">'
+                + '<div class="at-title">' + (e.url ? '<a href="' + e.url + '">' + esc(e.title) + '</a>' : esc(e.title)) + '</div>'
+                + '<div class="at-time mono">' + esc(e.time) + '</div>'
+                + '</div>'
+                + '<button type="button" class="at-done">Done</button>';
+            var b = t.querySelector('.at-done');
+            if (b) b.addEventListener('click', function () { ack(e.id); });
+            toasts.appendChild(t);
+        });
     }
 
     function render(data) {
@@ -136,6 +167,7 @@
 
         if (!data.events.length) {
             list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
+            if (toasts) toasts.innerHTML = '';
             badge(data.critical);
             stopAlarm(true);
             return;
@@ -153,16 +185,18 @@
             row.className = 'alert-row sev-' + e.severity
                 + (e.severity === 'critical' && !e.acknowledged ? ' critical-live' : '')
                 + (isNew && !reduced ? ' slide-in' : '');
+            row.dataset.alertId = e.id;
             row.innerHTML =
                 '<span class="a-time mono">' + esc(e.time) + '</span>'
                 + '<span class="a-ico">' + (ICONS[e.severity] || '·') + '</span>'
                 + '<span class="a-title">' + (e.url ? '<a href="' + e.url + '">' + esc(e.title) + '</a>' : esc(e.title)) + '</span>'
                 + '<button type="button" class="ack-btn" title="Dismiss — mark dealt with">Done</button>';
             var btn = row.querySelector('.ack-btn');
-            if (btn) btn.addEventListener('click', function () { ack(e.id, row); });
+            if (btn) btn.addEventListener('click', function () { ack(e.id); });
             list.appendChild(row);
         });
 
+        renderToasts(data);
         badge(data.critical);
         if (hadNewCritical) { silenced = false; }        // a new critical re-arms the alarm
         if (hadNewCritical && chimeOn) chime();

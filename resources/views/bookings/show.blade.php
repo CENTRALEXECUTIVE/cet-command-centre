@@ -84,6 +84,39 @@
         <div class="alert alert-error">{{ session('error') }}</div>
     @endif
 
+    @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
+        {{-- Live driver location — kept right at the top, under the customer, so the
+             office can see where the driver is (and ring/chase them) the instant the
+             job opens, without scrolling. "Request location" pushes the driver's
+             phone to share where they are right now (works even before Set off);
+             once they've set off the pinger keeps this fresh on its own. Polls the
+             latest ping so the card updates without a page reload. --}}
+        <div class="card" id="live-loc" style="margin-bottom:16px"
+             data-poll="{{ route('bookings.location', $booking) }}"
+             data-request="{{ route('bookings.request-location', $booking) }}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                <h2 style="margin:0">📍 Driver location</h2>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    {{-- Phone the driver right now with a spoken "update your status"
+                         nudge — for when a WhatsApp isn't cutting through. --}}
+                    <form method="POST" action="{{ route('bookings.ring-driver', $booking) }}" style="margin:0"
+                          onsubmit="return confirm('Ring {{ addslashes($booking->driver->name ?? 'the driver') }} now? They\'ll hear a message asking them to update their status.');">
+                        @csrf
+                        <button type="submit" class="btn btn-ghost" style="padding:8px 14px;font-size:13px">📞 Ring driver to update</button>
+                    </form>
+                    <button type="button" id="loc-req-btn" class="btn btn-primary" style="padding:8px 14px;font-size:13px">Request location</button>
+                </div>
+            </div>
+            <div id="loc-status" class="hint" style="margin-top:8px">Checking…</div>
+            <div id="loc-detail" style="margin-top:8px;display:none">
+                <a id="loc-map" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">🗺 Open in Google Maps</a>
+                <a href="{{ route('fleet.map') }}" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">Live fleet map</a>
+            </div>
+            <p class="hint" style="margin:10px 0 0"><strong>Request location</strong> buzzes the driver to share where they are right now — even before they've set off. Needs push notifications switched on (VAPID keys); if they're off, the driver can still tap Share on their open job screen.</p>
+        </div>
+        <script src="{{ asset('js/cet-liveloc.js') }}" defer></script>
+    @endif
+
     {{-- Cancellation charge — for a cancelled/no-show job that's still charged
          (e.g. 50%). Records the fee kept + the driver's share, so it counts on
          payroll and in revenue instead of vanishing like a free cancellation. --}}
@@ -629,37 +662,6 @@
                 </div>
             @endif
         </details>
-    @endif
-
-    @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
-        {{-- Live driver location. "Request location" pushes the driver's phone to
-             share where they are right now (works even before Set off); once
-             they've set off the pinger keeps this fresh on its own. Polls the
-             latest ping so the card updates without a page reload. --}}
-        <div class="card" id="live-loc" style="margin-bottom:16px"
-             data-poll="{{ route('bookings.location', $booking) }}"
-             data-request="{{ route('bookings.request-location', $booking) }}">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-                <h2 style="margin:0">📍 Driver location</h2>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    {{-- Phone the driver right now with a spoken "update your status"
-                         nudge — for when a WhatsApp isn't cutting through. --}}
-                    <form method="POST" action="{{ route('bookings.ring-driver', $booking) }}" style="margin:0"
-                          onsubmit="return confirm('Ring {{ addslashes($booking->driver->name ?? 'the driver') }} now? They\'ll hear a message asking them to update their status.');">
-                        @csrf
-                        <button type="submit" class="btn btn-ghost" style="padding:8px 14px;font-size:13px">📞 Ring driver to update</button>
-                    </form>
-                    <button type="button" id="loc-req-btn" class="btn btn-primary" style="padding:8px 14px;font-size:13px">Request location</button>
-                </div>
-            </div>
-            <div id="loc-status" class="hint" style="margin-top:8px">Checking…</div>
-            <div id="loc-detail" style="margin-top:8px;display:none">
-                <a id="loc-map" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">🗺 Open in Google Maps</a>
-                <a href="{{ route('fleet.map') }}" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">Live fleet map</a>
-            </div>
-            <p class="hint" style="margin:10px 0 0"><strong>Request location</strong> buzzes the driver to share where they are right now — even before they've set off. Needs push notifications switched on (VAPID keys); if they're off, the driver can still tap Share on their open job screen.</p>
-        </div>
-        <script src="{{ asset('js/cet-liveloc.js') }}" defer></script>
     @endif
 
     @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
