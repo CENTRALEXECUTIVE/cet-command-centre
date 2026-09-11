@@ -185,6 +185,55 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
     }
 
+    public function test_pin_distance_flags_far_stamps_only_where_presence_is_expected(): void
+    {
+        $b = $this->job($this->driver());
+
+        // At the pickup for arrived → within radius, not far.
+        $near = $b->pinDistanceMiles(53.4040, -1.5000, 'arrived');
+        $this->assertFalse($near['far']);
+        $this->assertTrue($near['expects']);
+
+        // Arrived logged from London → far.
+        $far = $b->pinDistanceMiles(51.5074, -0.1278, 'arrived');
+        $this->assertTrue($far['far']);
+
+        // "On the way" is informational only — never a far/near verdict.
+        $enroute = $b->pinDistanceMiles(51.5074, -0.1278, 'en_route');
+        $this->assertFalse($enroute['expects']);
+        $this->assertFalse($enroute['far']);
+    }
+
+    public function test_set_off_records_an_eta_to_the_pickup(): void
+    {
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Accepted->value,
+            'pickup_at' => now()->addMinutes(30), 'meta' => ['geo' => ['pickup' => self::PICKUP]],
+        ]);
+
+        // Set off ~30 km away → an ETA some minutes out is stored.
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'en_route', 'lat' => 53.6500, 'lng' => -1.5000,
+        ])->assertRedirect();
+
+        $b->refresh();
+        $this->assertNotNull($b->enRouteEta());
+        $this->assertGreaterThan(0, $b->enRouteDriveMinutes());
+    }
+
+    public function test_batch_updated_statuses_are_flagged(): void
+    {
+        $b = $this->job($this->driver()); // EnRoute
+        $now = now();
+        // Set off, arrived and POB all within a minute — physically impossible.
+        foreach (['en_route', 'arrived', 'collected'] as $i => $s) {
+            $b->statusHistory()->create(['to_status' => $s, 'created_at' => $now->copy()->addSeconds($i * 20)]);
+        }
+
+        $this->assertNotNull($b->fresh()->batchUpdateFlag());
+    }
+
     public function test_a_blocked_tap_flags_the_office(): void
     {
         $driver = $this->driver();

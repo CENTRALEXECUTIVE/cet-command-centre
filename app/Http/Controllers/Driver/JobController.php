@@ -107,7 +107,15 @@ class JobController extends Controller
             throw ValidationException::withMessages(['status' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
+        // On set off, work out the ETA to the pickup from where they are now; on
+        // complete, flag the office if the whole timeline looks batch-updated.
+        if ($target === BookingStatus::EnRoute) {
+            $booking->recordEnRouteEta($data['lat'] ?? null, $data['lng'] ?? null);
+        } elseif ($target === BookingStatus::Complete) {
+            $booking->flagBatchUpdate();
+        }
+
+        return back()->with('status', 'Status updated to '.$target->label().'.');
     }
 
     /**

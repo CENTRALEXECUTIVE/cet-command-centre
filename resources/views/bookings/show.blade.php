@@ -1044,16 +1044,45 @@
         @if(!empty($firstOf))
             <div class="card">
                 <h2>Job timeline</h2>
+
+                @php $batchFlag = $booking->batchUpdateFlag(); @endphp
+                @if($batchFlag)
+                    <div class="alert" style="background:rgba(179,32,32,.08);border:1px solid rgba(179,32,32,.35);color:#8a1c1c;margin:0 0 10px">
+                        ⚠️ <strong>Looks batch-updated.</strong> {{ $batchFlag }}
+                    </div>
+                @endif
+                @php $eta = $booking->enRouteEta(); @endphp
+
                 @foreach($milestones as $key => [$icon, $label])
-                    @php $h = $firstOf[$key] ?? null; @endphp
-                    <div style="display:flex;gap:12px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.1);{{ $h ? '' : 'opacity:.4' }}">
+                    @php
+                        $h = $firstOf[$key] ?? null;
+                        $pin = ($h && $h->gps_latitude)
+                            ? $booking->pinDistanceMiles((float) $h->gps_latitude, (float) $h->gps_longitude, $key)
+                            : null;
+                    @endphp
+                    <div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.1);flex-wrap:wrap;{{ $h ? '' : 'opacity:.4' }}">
                         <span style="width:26px;flex:none;text-align:center">{{ $icon }}</span>
-                        <span style="flex:1;font-weight:600">{{ $label }}</span>
+                        <span style="flex:1;min-width:120px;font-weight:600">{{ $label }}</span>
                         @if($h)
                             <span style="font-variant-numeric:tabular-nums">{{ $h->created_at?->format('H:i') }}</span>
                             <span class="muted" style="font-size:12px">{{ $h->created_at?->format('d M') }}</span>
                             @if($h->gps_latitude)
                                 <a href="https://www.google.com/maps?q={{ $h->gps_latitude }},{{ $h->gps_longitude }}" target="_blank" rel="noopener" title="Where the driver was" style="font-size:13px">📍 map</a>
+                            @endif
+                            {{-- How far the pin was from where the step should happen. --}}
+                            @if($pin)
+                                <span style="font-size:12px;{{ $pin['far'] ? 'color:#b32020;font-weight:700' : ($pin['expects'] ? 'color:#1f7a44' : 'color:#888') }}">
+                                    {{ number_format($pin['miles'], 1) }} mi from {{ $pin['ref'] }}@if($pin['expects']){{ $pin['far'] ? ' ⚠' : ' ✓' }}@endif
+                                </span>
+                            @endif
+                            {{-- Set-off ETA on the "on the way" row; ETA vs actual on "arrived". --}}
+                            @if($key === 'en_route' && $eta)
+                                <span class="muted" style="font-size:12px">· ETA {{ $eta->format('H:i') }}@if($booking->enRouteDriveMinutes() !== null) ({{ $booking->enRouteDriveMinutes() }} min){{ '' }}@endif</span>
+                            @elseif($key === 'arrived' && $eta && $h->created_at)
+                                @php $lateMin = (int) round($eta->diffInMinutes($h->created_at, false)); @endphp
+                                <span style="font-size:12px;{{ $lateMin > 10 ? 'color:#b32020;font-weight:700' : 'color:#1f7a44' }}">
+                                    · {{ $lateMin <= 0 ? 'on/ahead of ETA' : $lateMin.' min after ETA' }}
+                                </span>
                             @endif
                         @else
                             <span class="muted" style="font-size:13px">—</span>

@@ -345,6 +345,154 @@ class Booking extends Model
         );
     }
 
+    /** Geocoded drop-off coordinates [lat, lng] from meta['geo']['dropoff'], or null. */
+    public function dropoffCoords(): ?array
+    {
+        $geo = $this->meta['geo']['dropoff'] ?? null;
+
+        return isset($geo[0], $geo[1]) ? [(float) $geo[0], (float) $geo[1]] : null;
+    }
+
+    /* ---- Timeline audit: how far each stamp was, and the set-off ETA -------- */
+
+    /**
+     * For a status-history GPS point, how far it was from where that step SHOULD
+     * happen (pickup for on-the-way/arrived/POB, drop-off for complete), with a
+     * pass/fail for the steps that must be AT the reference point. Null when we
+     * have no GPS or no coordinates to compare against.
+     *
+     * @return array{miles: float, ref: string, expects: bool, far: bool}|null
+     */
+    public function pinDistanceMiles(?float $lat, ?float $lng, string $toStatus): ?array
+    {
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+        $atDropoff = $toStatus === 'complete';
+        $coords = $atDropoff ? $this->dropoffCoords() : $this->pickupCoords();
+        if ($coords === null) {
+            return null;
+        }
+
+        $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
+        // Steps that must physically be AT the reference point.
+        $expects = in_array($toStatus, ['arrived', 'collected', 'complete'], true);
+        $radius = (float) config('cet.arrival_radius_metres', 1609);
+
+        return [
+            'miles' => $metres / 1609.344,
+            'ref' => $atDropoff ? 'drop-off' : 'pickup',
+            'expects' => $expects,
+            'far' => $expects && $metres > $radius,
+        ];
+    }
+
+    /**
+     * Work out the driver's ETA to the pickup at the moment they set off, from
+     * their live position, and store it. Uses the free straight-line drive
+     * estimate; geocodes the pickup once if needed.
+     */
+    public function recordEnRouteEta(?float $lat, ?float $lng): void
+    {
+        if ($lat === null || $lng === null) {
+            return;
+        }
+        $coords = $this->pickupCoords();
+        if ($coords === null) {
+            $point = app(\App\Services\GeocodingService::class)->coords($this->pickup_address);
+            if ($point) {
+                $meta = $this->meta ?? [];
+                $meta['geo']['pickup'] = $point;
+                $this->forceFill(['meta' => $meta])->save();
+            }
+            $coords = $point;
+        }
+        if ($coords === null) {
+            return;
+        }
+
+        $mins = \App\Support\Geo::estimateDriveMinutes($lat, $lng, $coords[0], $coords[1]);
+        $meta = $this->meta ?? [];
+        $meta['enroute'] = [
+            'at' => now()->toIso8601String(),
+            'drive_min' => $mins,
+            'eta' => now()->addMinutes($mins)->toIso8601String(),
+        ];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** The ETA to the pickup computed when the driver set off, or null. */
+    public function enRouteEta(): ?\Illuminate\Support\Carbon
+    {
+        $eta = $this->meta['enroute']['eta'] ?? null;
+
+        return $eta ? \Illuminate\Support\Carbon::parse($eta) : null;
+    }
+
+    /** Estimated drive minutes to the pickup at set-off, or null. */
+    public function enRouteDriveMinutes(): ?int
+    {
+        $m = $this->meta['enroute']['drive_min'] ?? null;
+
+        return $m === null ? null : (int) $m;
+    }
+
+    /**
+     * First time each milestone happened, keyed by status → Carbon.
+     *
+     * @return array<string, \Illuminate\Support\Carbon>
+     */
+    public function milestoneTimes(): array
+    {
+        $out = [];
+        foreach ($this->statusHistory->sortBy('created_at') as $h) {
+            if (! isset($out[$h->to_status]) && $h->created_at) {
+                $out[$h->to_status] = $h->created_at;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * A warning when the live statuses look BATCHED (all clicked at the end)
+     * rather than updated live — set off, arrived and POB landing within a couple
+     * of minutes is physically impossible for a real journey. Null when it looks
+     * genuine. This is the catch-all for short local jobs the geofence can't judge.
+     */
+    public function batchUpdateFlag(): ?string
+    {
+        $t = $this->milestoneTimes();
+        if (! isset($t['en_route'], $t['arrived'], $t['collected'])) {
+            return null;
+        }
+        $span = $t['en_route']->diffInSeconds($t['collected'], true);
+        if ($span <= 120) {
+            return 'Set off, arrived and passenger-on-board were all logged within 2 minutes — the statuses were likely updated in one go at the end, not live.';
+        }
+
+        return null;
+    }
+
+    /** Flag a batched-status job to the office feed, once. */
+    public function flagBatchUpdate(): void
+    {
+        $reason = $this->batchUpdateFlag();
+        if (! $reason) {
+            return;
+        }
+        if (\App\Models\WatchdogEvent::where('booking_id', $this->id)->where('event_type', 'batch_updates')->exists()) {
+            return;
+        }
+        \App\Models\WatchdogEvent::log(
+            'batch_updates',
+            '⚠️ '.($this->driver?->name ?? 'The driver').' — statuses look batch-updated, not live',
+            'warning',
+            $this,
+            body: $reason,
+        );
+    }
+
     /** Geocoded coordinates [lat, lng] for via stop $i, from meta['geo']['stops'], or null. */
     public function stopCoords(int $i): ?array
     {

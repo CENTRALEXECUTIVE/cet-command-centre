@@ -87,7 +87,13 @@ class LinkController extends Controller
             throw ValidationException::withMessages(['status' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Status updated to '.BookingStatus::from($data['status'])->label().'.');
+        if ($target === BookingStatus::EnRoute) {
+            $booking->recordEnRouteEta($data['lat'] ?? null, $data['lng'] ?? null);
+        } elseif ($target === BookingStatus::Complete) {
+            $booking->flagBatchUpdate();
+        }
+
+        return back()->with('status', 'Status updated to '.$target->label().'.');
     }
 
     /**
