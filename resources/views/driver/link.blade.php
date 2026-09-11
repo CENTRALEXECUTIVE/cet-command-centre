@@ -59,12 +59,21 @@
                 <h2 style="margin:10px 0 4px">This link isn’t active</h2>
                 <p class="hint" style="margin:0">It may have expired or the job is no longer live. Contact Central Executive Transfers on WhatsApp for a fresh link.</p>
             </div>
+        @elseif(in_array($booking->status, [\App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow], true))
+            {{-- Cancelled / no-show → the link closes with a clear "cancelled" note
+                 so the driver isn't left wondering. No job details. --}}
+            <div class="card" style="text-align:center;padding:36px 20px">
+                <div style="font-size:40px">🚫</div>
+                <h2 style="margin:10px 0 4px">This booking has been cancelled</h2>
+                <p class="hint" style="margin:0">This link is now closed. Central Executive Transfers will send a fresh link for your next job.</p>
+            </div>
         @elseif($booking->status->isTerminal())
             {{-- Job done → the link closes. Kept tidy (no details), not a raw 404. --}}
             <div class="card" style="text-align:center;padding:36px 20px">
                 <div style="font-size:40px">✅</div>
                 <h2 style="margin:10px 0 4px">This job is {{ $booking->status->label() }}</h2>
                 <p class="hint" style="margin:0">Thanks — this link is now closed. Central Executive Transfers will send a fresh link for your next job.</p>
+                <p class="hint" style="margin:12px 0 0"><strong>Payment will be sent on Sundays.</strong></p>
             </div>
         @else
             @include('driver._job', [

@@ -7,16 +7,23 @@
  *    default off. Respects prefers-reduced-motion for the animations.
  */
 (function () {
+    // The full control-tower log lives on the dashboard (#alerts-panel); the big
+    // top-right popups (#alerts-toasts) are global — on every admin page via the
+    // layout. Run if EITHER is present. Config (feed URL, chime, alarm) is read
+    // from the panel on the dashboard, else from the toast container.
     var panel = document.getElementById('alerts-panel');
-    if (!panel) return;
+    var toasts = document.getElementById('alerts-toasts'); // big top-right popups
+    if (!panel && !toasts) return;
+    var cfg = panel || toasts;
 
-    var list = document.getElementById('alerts-list');
-    var toasts = document.getElementById('alerts-toasts'); // big top-right popups (optional)
-    var stamp = document.getElementById('alerts-stamp');
+    var list = document.getElementById('alerts-list');   // dashboard-only
+    var stamp = document.getElementById('alerts-stamp'); // dashboard-only
     var tokenEl = document.querySelector('meta[name="csrf-token"]');
     var token = tokenEl ? tokenEl.content : '';
-    var chimeOn = panel.dataset.chime === '1';
-    var alarmOn = panel.dataset.alarm === '1';
+    var chimeOn = cfg.dataset.chime === '1';
+    // The siren only sounds where the Silence control is — the dashboard panel.
+    // Other pages get the visual popups (+ badge) but no wailing you can't stop.
+    var alarmOn = !!panel && panel.dataset.alarm === '1';
     var silenceBtn = document.getElementById('alerts-silence');
     var clearBtn = document.getElementById('alerts-clear');
     var seen = null; // ids seen last poll (null until first render)
@@ -115,7 +122,7 @@
     }
 
     function ack(id) {
-        fetch(panel.dataset.feed.replace(/\/feed$/, '/' + id + '/ack'), {
+        fetch(cfg.dataset.feed.replace(/\/feed$/, '/' + id + '/ack'), {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
         }).then(function (r) { return r.json(); }).then(function (d) {
@@ -127,7 +134,7 @@
             silenced = true;
             stopAlarm(true);
             badge(d.critical);
-            if (!list.querySelector('.alert-row')) {
+            if (list && !list.querySelector('.alert-row')) {
                 list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
             }
         }).catch(function () {});
@@ -166,14 +173,14 @@
         if (clearBtn) clearBtn.style.display = data.events.length ? '' : 'none';
 
         if (!data.events.length) {
-            list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
+            if (list) list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
             if (toasts) toasts.innerHTML = '';
             badge(data.critical);
             stopAlarm(true);
             return;
         }
 
-        list.innerHTML = '';
+        if (list) list.innerHTML = '';
         var hasLiveCritical = false;
         data.events.forEach(function (e) {
             seen[e.id] = true;
@@ -181,6 +188,7 @@
             if (e.severity === 'critical' && !e.acknowledged) hasLiveCritical = true;
             if (isNew && e.severity === 'critical' && !e.acknowledged) hadNewCritical = true;
 
+            if (!list) return; // toasts-only page — no scrolling log to build
             var row = document.createElement('div');
             row.className = 'alert-row sev-' + e.severity
                 + (e.severity === 'critical' && !e.acknowledged ? ' critical-live' : '')
@@ -209,12 +217,12 @@
 
     function poll() {
         if (document.hidden) return;
-        fetch(panel.dataset.feed, { headers: { 'Accept': 'application/json' } })
+        fetch(cfg.dataset.feed, { headers: { 'Accept': 'application/json' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(render)
             .catch(function () {
                 // Never sit on "Loading…" forever — say what's happening.
-                if (seen === null) {
+                if (list && seen === null) {
                     list.innerHTML = '<p class="muted mb-0" style="font-size:13px">Can\'t reach the alerts feed right now — retrying every 30s.</p>';
                 }
             });

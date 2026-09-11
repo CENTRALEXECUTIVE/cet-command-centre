@@ -76,14 +76,22 @@ class StatusWatchdog
     /** The emergency office auto-call re-dials this often until acknowledged. */
     public const AT_RISK_CALL_EVERY_MINUTES = 2;
 
-    /** Driver-nudge types → the statuses they nag about + the action wording. */
+    /**
+     * Driver-nudge types that ESCALATE to a critical office alarm if the driver
+     * ignores them → the statuses they nag about + the action wording.
+     *
+     * ONLY the pre-pickup miss modes are here: not set off, and not tapped Arrived
+     * while en route. These are the ways a customer is left waiting / a job is
+     * missed, so the office must know. Once the passenger is ON BOARD (POB /
+     * Collected) — and even while boarding at Arrived — the driver is on scene with
+     * the customer; a blaring "hasn't tapped POB/Complete" office alarm is never
+     * warranted. Those states keep only the gentle driver nudge (info/warning),
+     * NOT an office escalation, so we don't disturb a job that's already going fine.
+     */
     private const UNACTED_MAP = [
         'set_off' => [[BookingStatus::Allocated, BookingStatus::Accepted], 'set off'],
         'set_off_urgent' => [[BookingStatus::Allocated, BookingStatus::Accepted], 'set off'],
         'arrived_detect' => [[BookingStatus::EnRoute], 'tapped Arrived'],
-        'pob_detect' => [[BookingStatus::Arrived], 'tapped POB'],
-        'complete_detect' => [[BookingStatus::Collected], 'completed'],
-        'complete_fallback' => [[BookingStatus::Collected], 'completed'],
     ];
 
     public function __construct(

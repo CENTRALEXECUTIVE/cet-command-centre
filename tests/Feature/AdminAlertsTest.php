@@ -128,6 +128,31 @@ class AdminAlertsTest extends TestCase
         $this->assertDatabaseMissing('job_nudges', ['booking_id' => $b->id, 'nudge_type' => 'admin_unacted_set_off']);
     }
 
+    public function test_no_office_alarm_once_the_passenger_is_on_board(): void
+    {
+        // Once POB (Collected), the driver is with the customer — an ignored
+        // "complete?" nudge must NEVER escalate into a critical office alarm.
+        $admin = $this->admin();
+        $b = $this->driverJob(BookingStatus::Collected, now()->subMinutes(30));
+
+        // Two complete nudges already went to the driver, well past the 5-min
+        // unacted window — the old behaviour would have escalated to the office.
+        foreach ([20, 14] as $agoMin) {
+            JobNudge::create([
+                'booking_id' => $b->id, 'nudge_type' => 'complete_fallback',
+                'recipient_type' => 'driver', 'sent_at' => now()->subMinutes($agoMin),
+                'channel' => 'push', 'created_at' => now()->subMinutes($agoMin),
+            ]);
+        }
+
+        $this->tick();
+
+        // No office escalation of any kind for the on-board job.
+        $this->assertDatabaseMissing('job_nudges', ['booking_id' => $b->id, 'recipient_type' => 'office']);
+        $this->assertDatabaseMissing('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'admin_unacted_complete_fallback']);
+        $this->assertEmpty($this->push->to($admin));
+    }
+
     /* ── Escalation: unallocated near pickup ─────────────────────────────── */
 
     public function test_unallocated_job_alerts_every_thirty_minutes_until_allocated(): void
