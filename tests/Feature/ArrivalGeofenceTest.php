@@ -52,10 +52,10 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame('far', $b->checkDriverAtPickup(51.5074, -0.1278, 20));
     }
 
-    public function test_check_is_unknown_without_a_fix(): void
+    public function test_check_is_no_location_without_a_fix(): void
     {
         $b = $this->job($this->driver());
-        $this->assertSame('unknown', $b->checkDriverAtPickup(null, null, null));
+        $this->assertSame('no_location', $b->checkDriverAtPickup(null, null, null));
     }
 
     /* ── Endpoint ────────────────────────────────────────────────────────── */
@@ -88,17 +88,19 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
     }
 
-    public function test_arrived_is_allowed_when_location_is_off(): void
+    public function test_arrived_is_blocked_when_location_is_off(): void
     {
-        // No fix at all (location off / iPhone can't read it) → never blocked.
+        // No fix at all (location off) → a driver cannot mark Arrived. They must
+        // turn location on; this is what stops a fake "arrived" from miles away.
         $driver = $this->driver();
         $b = $this->job($driver);
 
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), ['status' => 'arrived'])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('arriveError');
 
-        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
     }
 
     public function test_a_far_fix_does_not_block_other_statuses(): void

@@ -475,25 +475,63 @@
 
 @verbatim
 <script>
-    // Capture GPS at the moment of a one-tap status change so the audit trail
-    // records where the driver was — and so the server can check "Arrived" is at
-    // the pickup. The tap is never HELD UP by GPS (4s hard fallback); if no fix
-    // comes the server can't see a location and lets it through. A fix that's
-    // clearly miles away is the only thing that blocks Arrived.
+    // Reveal the "turn on location" card with a message and make sure the driver
+    // notices (alert), used when Arrived can't get a fix.
+    function cetShowLocBlock(message) {
+        var gate = document.getElementById('loc-gate');
+        var msg = document.getElementById('loc-gate-msg');
+        if (gate) {
+            if (msg && message) { msg.innerHTML = message; }
+            gate.style.display = 'block';
+            try { gate.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        }
+        alert(message);
+    }
+
     document.querySelectorAll('.status-form').forEach(function (form) {
+        var statusInput = form.querySelector('input[name="status"]');
+        var isArrived = statusInput && statusInput.value === 'arrived';
+
         form.addEventListener('submit', function (e) {
-            if (form.dataset.located || !navigator.geolocation) return;
+            if (form.dataset.located) return;
+
+            // ARRIVED is proof-of-presence: ALWAYS require a fresh live fix and
+            // BLOCK the tap if we can't get one — no more marking Arrived from
+            // miles away. maximumAge:0 forces a new reading every time.
+            if (isArrived) {
+                e.preventDefault();
+                if (!navigator.geolocation) {
+                    cetShowLocBlock('This phone can’t share location. Open the job in Safari or Chrome and allow location, then tap Arrived.');
+                    return;
+                }
+                var arrivedSent = false;
+                var submitArrived = function () { if (!arrivedSent) { arrivedSent = true; form.dataset.located = '1'; form.submit(); } };
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    form.querySelector('.lat-input').value = pos.coords.latitude;
+                    form.querySelector('.lng-input').value = pos.coords.longitude;
+                    var acc = form.querySelector('.acc-input');
+                    if (acc) { acc.value = pos.coords.accuracy || ''; }
+                    submitArrived();
+                }, function (err) {
+                    cetShowLocBlock((err && err.code === 1)
+                        ? 'Location is turned off for this page. On iPhone: Settings → your browser (Safari/Chrome) → Location → While Using, then reload and tap Arrived.'
+                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then tap Arrived again.');
+                }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+                return;
+            }
+
+            // Every other status (set off, POB, complete): best-effort GPS for the
+            // audit trail, never held up — a 4s fallback always lets the tap through.
+            if (!navigator.geolocation) { return; }
             e.preventDefault();
             var sent = false;
             var go = function () { if (!sent) { sent = true; form.dataset.located = '1'; form.submit(); } };
-            // Hard fallback: submit no matter what after 4s, so a slow or stuck
-            // GPS can never leave the driver unable to tap Arrived.
             setTimeout(go, 4000);
             navigator.geolocation.getCurrentPosition(function (pos) {
                 form.querySelector('.lat-input').value = pos.coords.latitude;
                 form.querySelector('.lng-input').value = pos.coords.longitude;
                 var acc = form.querySelector('.acc-input');
-                if (acc) acc.value = pos.coords.accuracy || '';
+                if (acc) { acc.value = pos.coords.accuracy || ''; }
                 go();
             }, go, { enableHighAccuracy: true, timeout: 4000 });
         });

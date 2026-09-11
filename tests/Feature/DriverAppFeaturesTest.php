@@ -34,6 +34,8 @@ class DriverAppFeaturesTest extends TestCase
         return Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create(array_merge([
             'customer_id' => $customer->id, 'driver_id' => $this->driver->id,
             'status' => $status->value, 'pickup_at' => now()->addHour(),
+            // Known pickup coords so "Arrived" (now geofenced) can be verified.
+            'meta' => ['geo' => ['pickup' => [53.4000, -1.5000]]],
         ], $extra));
     }
 
@@ -41,7 +43,7 @@ class DriverAppFeaturesTest extends TestCase
     {
         $job = $this->job(BookingStatus::EnRoute);
 
-        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'arrived'])->assertRedirect();
+        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'arrived', 'lat' => 53.4000, 'lng' => -1.5000])->assertRedirect();
 
         $this->assertEquals(BookingStatus::Arrived, $job->fresh()->status);
         $this->assertDatabaseHas('messages', ['booking_id' => $job->id, 'to_address' => '07700900700']);
@@ -51,7 +53,8 @@ class DriverAppFeaturesTest extends TestCase
     public function test_full_icabbi_flow_arrived_pob_completed(): void
     {
         $job = $this->job(BookingStatus::Accepted);
-        $post = fn ($s) => $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => $s]);
+        // Coords at the pickup so the geofenced "Arrived" step is accepted.
+        $post = fn ($s) => $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => $s, 'lat' => 53.4000, 'lng' => -1.5000]);
 
         $post('en_route')->assertRedirect();
         $post('arrived')->assertRedirect();

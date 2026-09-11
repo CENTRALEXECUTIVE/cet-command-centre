@@ -65,13 +65,22 @@ class JobController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // "Arrived" can only be marked at the pickup: block a tap that GPS shows is
-        // clearly miles away. Location off / unreadable → allowed (never block a
-        // driver who's actually there).
-        if (BookingStatus::from($data['status']) === BookingStatus::Arrived
-            && $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null) === 'far') {
-            return back()->with('arriveError',
-                'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again. (Make sure your location is turned on.)');
+        // "Arrived" must be proven at the pickup. A DRIVER marking their own
+        // arrival needs a live GPS fix within ~1 mile: no location, or clearly
+        // miles away, is blocked (a driver once marked Arrived nowhere near the
+        // airport and the customer cancelled). The office (an admin acting on
+        // someone else's job) can still override by hand.
+        $actorIsDriver = $request->user()->id === $booking->driver_id;
+        if (BookingStatus::from($data['status']) === BookingStatus::Arrived && $actorIsDriver) {
+            $where = $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null);
+            if ($where === 'no_location') {
+                return back()->with('arriveError',
+                    'Turn your location on to mark Arrived — the office has to see you’re actually at the pickup. Allow location, then tap Arrived again.');
+            }
+            if ($where === 'far') {
+                return back()->with('arriveError',
+                    'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.');
+            }
         }
 
         try {

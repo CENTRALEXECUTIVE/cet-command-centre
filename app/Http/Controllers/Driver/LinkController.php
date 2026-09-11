@@ -51,12 +51,18 @@ class LinkController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // "Arrived" only at the pickup — block a clearly-far tap; allow when
-        // location can't be read (never block a driver who's genuinely there).
-        if (BookingStatus::from($data['status']) === BookingStatus::Arrived
-            && $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null) === 'far') {
-            return back()->with('arriveError',
-                'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again. (Make sure your location is turned on.)');
+        // "Arrived" must be proven at the pickup for a cover driver too: needs a
+        // live GPS fix within ~1 mile — no location or clearly far is blocked.
+        if (BookingStatus::from($data['status']) === BookingStatus::Arrived) {
+            $where = $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null);
+            if ($where === 'no_location') {
+                return back()->with('arriveError',
+                    'Turn your location on to mark Arrived — the office has to see you’re actually at the pickup. Allow location, then tap Arrived again.');
+            }
+            if ($where === 'far') {
+                return back()->with('arriveError',
+                    'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.');
+            }
         }
 
         try {

@@ -283,10 +283,12 @@ class Booking extends Model
 
     /**
      * Check a driver's GPS against the PICKUP for marking "Arrived":
-     *   'ok'      — within the (generous, 1-mile) arrival radius → allow,
-     *   'far'     — location known and clearly miles away → block the tap,
-     *   'unknown' — no GPS or the pickup couldn't be geocoded → allow (never block
-     *               a driver we can't locate; they might be right there).
+     *   'ok'          — within the (generous, 1-mile) arrival radius → allow,
+     *   'far'         — location known and clearly miles away → BLOCK,
+     *   'no_location' — the driver shared no GPS fix (location off/denied) → BLOCK
+     *                   for a driver (they must turn location on to prove it),
+     *   'unknown'     — OUR side couldn't geocode the pickup → allow (not the
+     *                   driver's fault; don't punish them for our failure).
      *
      * Geocodes the pickup lazily and caches it in meta['geo']['pickup']. The
      * phone's own accuracy is added to the radius so a poor fix can't false-block.
@@ -294,7 +296,7 @@ class Booking extends Model
     public function checkDriverAtPickup(?float $lat, ?float $lng, ?float $accuracy = null): string
     {
         if ($lat === null || $lng === null) {
-            return 'unknown'; // location off / not shared → allow (don't block)
+            return 'no_location'; // no fix → a driver can't prove they're here
         }
 
         $coords = $this->pickupCoords();
