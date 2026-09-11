@@ -112,9 +112,13 @@
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
         }).then(function (r) { return r.json(); }).then(function (d) {
-            // Dealt with → drop it off the feed entirely.
+            // Dealt with → drop it off the feed entirely. Pressing Done means the
+            // operator has ACTED, so silence the siren straight away (like the
+            // Silence button); a genuinely NEW critical later re-arms it.
             if (seen) delete seen[id];
             row.remove();
+            silenced = true;
+            stopAlarm(true);
             badge(d.critical);
             if (!list.querySelector('.alert-row')) {
                 list.innerHTML = '<p class="muted mb-0" style="font-size:13px">All clear — nothing needs attention.</p>';
