@@ -65,37 +65,26 @@ class JobController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // Location-gated taps by the DRIVER (the office, on someone else's job,
-        // can still override by hand):
-        //  · Set off  — location must be ON so the office can track from the start.
-        //  · Arrived  — a live fix within ~1 mile, to prove they're really there
-        //               (a driver once marked Arrived nowhere near the airport and
-        //               the customer cancelled). Every block is flagged to the office.
+        // "Arrived" is STRICT (proof-of-presence): a DRIVER marking their own
+        // arrival needs a live fix within ~1 mile — no location or clearly far is
+        // blocked and flagged to the office (a driver once marked Arrived nowhere
+        // near the airport and the customer cancelled). Set off is deliberately
+        // best-effort so a signal blackspot can't stop a job starting. The office
+        // (an admin on someone else's job) can still override Arrived by hand.
         $actorIsDriver = $request->user()->id === $booking->driver_id;
-        $target = BookingStatus::from($data['status']);
-        if ($actorIsDriver && in_array($target, [BookingStatus::EnRoute, BookingStatus::Arrived], true)) {
-            $lat = $data['lat'] ?? null;
-            $lng = $data['lng'] ?? null;
-            if ($target === BookingStatus::EnRoute && ($lat === null || $lng === null)) {
-                $booking->flagLocationBlocked('Set off', 'no_location');
+        if ($actorIsDriver && BookingStatus::from($data['status']) === BookingStatus::Arrived) {
+            $where = $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null);
+            if ($where === 'no_location') {
+                $booking->flagLocationBlocked('Arrived', 'no_location');
 
                 return back()->with('arriveError',
-                    'Turn your location on before you set off — the office needs to see you the whole job. Allow location, then tap On My Way again.');
+                    'Turn your location on to mark Arrived — the office has to see you’re actually at the pickup. Allow location, then tap Arrived again.');
             }
-            if ($target === BookingStatus::Arrived) {
-                $where = $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null);
-                if ($where === 'no_location') {
-                    $booking->flagLocationBlocked('Arrived', 'no_location');
+            if ($where === 'far') {
+                $booking->flagLocationBlocked('Arrived', 'far');
 
-                    return back()->with('arriveError',
-                        'Turn your location on to mark Arrived — the office has to see you’re actually at the pickup. Allow location, then tap Arrived again.');
-                }
-                if ($where === 'far') {
-                    $booking->flagLocationBlocked('Arrived', 'far');
-
-                    return back()->with('arriveError',
-                        'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.');
-                }
+                return back()->with('arriveError',
+                    'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.');
             }
         }
 

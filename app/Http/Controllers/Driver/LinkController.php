@@ -51,19 +51,10 @@ class LinkController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // Location gate for a cover driver too: set off needs location ON, Arrived
-        // needs a live fix within ~1 mile. Every block is flagged to the office.
-        $target = BookingStatus::from($data['status']);
-        $lat = $data['lat'] ?? null;
-        $lng = $data['lng'] ?? null;
-        if ($target === BookingStatus::EnRoute && ($lat === null || $lng === null)) {
-            $booking->flagLocationBlocked('Set off', 'no_location');
-
-            return back()->with('arriveError',
-                'Turn your location on before you set off — the office needs to see you the whole job. Allow location, then tap On My Way again.');
-        }
-        if ($target === BookingStatus::Arrived) {
-            $where = $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null);
+        // "Arrived" is STRICT for a cover driver too — a live fix within ~1 mile,
+        // else blocked and flagged to the office. Set off stays best-effort.
+        if (BookingStatus::from($data['status']) === BookingStatus::Arrived) {
+            $where = $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null);
             if ($where === 'no_location') {
                 $booking->flagLocationBlocked('Arrived', 'no_location');
 

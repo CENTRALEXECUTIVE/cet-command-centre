@@ -137,9 +137,13 @@
             // If live tracking is active on this page, make sure it's running.
             if (window.CETstart) { window.CETstart(); }
         }
+        var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent || '')
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         function blocked() {
             show();
-            msg.innerHTML = 'Location looks blocked for this site. Open your browser’s settings for this page, set <strong>Location</strong> to <strong>Allow</strong>, then reload.';
+            msg.innerHTML = isIOS
+                ? 'Location is off for Safari. On your iPhone: open <strong>Settings → Safari → Location → Allow</strong> (make sure <strong>Location Services</strong> is on too), then come back and reload.'
+                : 'Location looks blocked for this site. Open your browser’s settings for this page, set <strong>Location</strong> to <strong>Allow</strong>, then reload.';
             if (btn) { btn.textContent = 'Try again'; }
         }
         function ask() {
@@ -488,24 +492,30 @@
         alert(message);
     }
 
+    // iPhone/iPad? (incl. iPadOS reporting as Mac). Used to give the exact Safari
+    // location path, since Apple hides re-prompting behind Settings.
+    var CET_IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent || '')
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var CET_LOC_DENIED_HINT = CET_IS_IOS
+        ? 'Location is off for Safari. On your iPhone: open Settings → Safari → Location → Allow (make sure Location Services is on too), then come back, reload the page and tap Arrived.'
+        : 'Location is turned off for this page. Open your browser’s settings for this page, set Location to Allow, then reload and tap Arrived.';
+
     document.querySelectorAll('.status-form').forEach(function (form) {
         var statusInput = form.querySelector('input[name="status"]');
         var statusVal = statusInput ? statusInput.value : '';
-        // Set off AND Arrived require live location — set off so the office can
-        // track from the start, Arrived to prove they're actually there.
-        var needsLocation = statusVal === 'arrived' || statusVal === 'en_route';
-        var actionWord = statusVal === 'arrived' ? 'Arrived' : 'On My Way';
+        // ONLY "Arrived" strictly requires live location (proof of presence). Set
+        // off and the rest are best-effort so a signal blackspot can't stop a job.
+        var needsLocation = statusVal === 'arrived';
 
         form.addEventListener('submit', function (e) {
             if (form.dataset.located) return;
 
-            // Location-required taps: ALWAYS get a FRESH live fix and BLOCK if we
-            // can't — no more marking these without location on. maximumAge:0
-            // forces a brand-new reading every time.
+            // Arrived: ALWAYS get a FRESH live fix and BLOCK if we can't — no more
+            // marking Arrived without location. maximumAge:0 forces a new reading.
             if (needsLocation) {
                 e.preventDefault();
                 if (!navigator.geolocation) {
-                    cetShowLocBlock('This phone can’t share location. Open the job in Safari or Chrome and allow location, then tap ' + actionWord + '.');
+                    cetShowLocBlock('This phone can’t share location. ' + CET_LOC_DENIED_HINT);
                     return;
                 }
                 var locSent = false;
@@ -518,8 +528,8 @@
                     submitWithLoc();
                 }, function (err) {
                     cetShowLocBlock((err && err.code === 1)
-                        ? 'Location is turned off for this page. On iPhone: Settings → your browser (Safari/Chrome) → Location → While Using, then reload and tap ' + actionWord + '.'
-                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then tap ' + actionWord + ' again.');
+                        ? CET_LOC_DENIED_HINT
+                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then tap Arrived again.');
                 }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
                 return;
             }
