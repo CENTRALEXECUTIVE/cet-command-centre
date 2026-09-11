@@ -212,18 +212,22 @@
            the BOTTOM (above the tab bar), so it's always visible when scrolled
            and never sits on top of the page header. */
         #alerts-toasts{position:fixed;top:74px;right:16px;width:360px;max-width:calc(100vw - 32px);z-index:1200;display:flex;flex-direction:column;gap:10px;pointer-events:none}
-        .alert-toast{pointer-events:auto;display:flex;gap:11px;align-items:center;background:var(--panel,#161c2e);color:#f4f6fb;border:1px solid rgba(255,255,255,.10);border-left:5px solid #8a93a6;border-radius:13px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.42)}
+        /* Follows the app theme: light card by default, dark card under data-theme="dark". */
+        .alert-toast{pointer-events:auto;display:flex;gap:11px;align-items:center;background:#ffffff;color:#1a1d24;border:1px solid rgba(0,0,0,.08);border-left:5px solid #8a93a6;border-radius:13px;padding:12px 14px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
         .alert-toast .at-ico{font-size:19px;line-height:1;flex:none}
         .alert-toast .at-body{flex:1;min-width:0}
         .alert-toast .at-title{font-weight:700;font-size:14px;line-height:1.3;word-break:break-word}
         .alert-toast .at-title a{color:inherit;text-decoration:none}
-        .alert-toast .at-time{font-size:11.5px;opacity:.65;margin-top:2px;letter-spacing:.02em}
-        .alert-toast .at-done{flex:none;background:#fff;color:#111;border:0;border-radius:9px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer}
-        .alert-toast .at-done:hover{background:#eee}
+        .alert-toast .at-time{font-size:11.5px;opacity:.6;margin-top:2px;letter-spacing:.02em}
+        .alert-toast .at-done{flex:none;background:#111;color:#fff;border:0;border-radius:9px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer}
+        .alert-toast .at-done:hover{background:#000}
         .alert-toast.sev-warning{border-left-color:#e0a400}
         .alert-toast.sev-critical{border-left-color:#e5484d;animation:toastPulse 1.3s ease-in-out infinite}
-        @keyframes toastPulse{0%,100%{box-shadow:0 0 0 2px rgba(229,72,77,.30),0 12px 34px rgba(0,0,0,.42)}50%{box-shadow:0 0 0 7px rgba(229,72,77,.06),0 12px 34px rgba(0,0,0,.42)}}
-        @media (prefers-reduced-motion: reduce){.alert-toast.sev-critical{animation:none;box-shadow:0 0 0 2px rgba(229,72,77,.30),0 12px 34px rgba(0,0,0,.42)}}
+        html[data-theme="dark"] .alert-toast{background:#161c2e;color:#f4f6fb;border-color:rgba(255,255,255,.10);box-shadow:0 12px 34px rgba(0,0,0,.42)}
+        html[data-theme="dark"] .alert-toast .at-done{background:#fff;color:#111}
+        html[data-theme="dark"] .alert-toast .at-done:hover{background:#eee}
+        @keyframes toastPulse{0%,100%{box-shadow:0 0 0 2px rgba(229,72,77,.30),0 12px 30px rgba(0,0,0,.20)}50%{box-shadow:0 0 0 7px rgba(229,72,77,.06),0 12px 30px rgba(0,0,0,.20)}}
+        @media (prefers-reduced-motion: reduce){.alert-toast.sev-critical{animation:none;box-shadow:0 0 0 2px rgba(229,72,77,.30),0 12px 30px rgba(0,0,0,.20)}}
         @media (max-width:640px){
             /* Snackbar at the bottom, clear of the phone tab bar + home indicator. */
             #alerts-toasts{top:auto;bottom:calc(68px + env(safe-area-inset-bottom, 0px));left:10px;right:10px;width:auto;flex-direction:column-reverse}
