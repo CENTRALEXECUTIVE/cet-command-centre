@@ -68,8 +68,9 @@ class DriverAppFeaturesTest extends TestCase
     {
         $job = $this->job(BookingStatus::EnRoute);
 
-        // En Route → On Board (collected) directly is no longer allowed.
-        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'collected'])
+        // En Route → On Board (collected) directly is no longer allowed. (Location
+        // provided so it reaches the transition check, not the location gate.)
+        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'collected', 'lat' => 53.4000, 'lng' => -1.5000])
             ->assertSessionHasErrors('status');
         $this->assertEquals(BookingStatus::EnRoute, $job->fresh()->status);
     }

@@ -65,22 +65,24 @@ class JobController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // "Arrived" is STRICT (proof-of-presence): a DRIVER marking their own
-        // arrival needs a live fix within ~1 mile — no location or clearly far is
-        // blocked and flagged to the office (a driver once marked Arrived nowhere
-        // near the airport and the customer cancelled). Set off is deliberately
-        // best-effort so a signal blackspot can't stop a job starting. The office
-        // (an admin on someone else's job) can still override Arrived by hand.
+        // Location required from the GET-GO: a DRIVER can't move a job through ANY
+        // stage (accept → set off → arrived → POB → complete) without location on,
+        // so the office can see them for the whole trip. Arrived additionally must
+        // be within ~1 mile of the pickup. Every block is flagged to the office.
+        // (An admin acting on someone else's job — the office — can still override.)
         $actorIsDriver = $request->user()->id === $booking->driver_id;
-        if ($actorIsDriver && BookingStatus::from($data['status']) === BookingStatus::Arrived) {
-            $where = $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null);
-            if ($where === 'no_location') {
-                $booking->flagLocationBlocked('Arrived', 'no_location');
+        $target = BookingStatus::from($data['status']);
+        if ($actorIsDriver && self::locationRequired($target)) {
+            $lat = $data['lat'] ?? null;
+            $lng = $data['lng'] ?? null;
+            if ($lat === null || $lng === null) {
+                $booking->flagLocationBlocked($target->label(), 'no_location');
 
                 return back()->with('arriveError',
-                    'Turn your location on to mark Arrived — the office has to see you’re actually at the pickup. Allow location, then tap Arrived again.');
+                    'Turn your location on to update this job — CET needs to see you from the moment you start. Allow location, then tap again.');
             }
-            if ($where === 'far') {
+            if ($target === BookingStatus::Arrived
+                && $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null) === 'far') {
                 $booking->flagLocationBlocked('Arrived', 'far');
 
                 return back()->with('arriveError',
@@ -258,5 +260,20 @@ class JobController extends Controller
     private function authoriseOwnership(Request $request, Booking $booking): void
     {
         abort_unless($booking->driver_id === $request->user()->id, 403);
+    }
+
+    /**
+     * Status changes a DRIVER may only make with location on — the whole job from
+     * SET OFF through completion. Accept is excluded (a driver may accept a job
+     * days ahead, when location is irrelevant); cancel/no-show are office-only.
+     */
+    public static function locationRequired(BookingStatus $status): bool
+    {
+        return in_array($status, [
+            BookingStatus::EnRoute,
+            BookingStatus::Arrived,
+            BookingStatus::Collected,
+            BookingStatus::Complete,
+        ], true);
     }
 }

@@ -166,8 +166,8 @@ class DriverAppTest extends TestCase
             ->assertSee('Waze to drop-off') // now shown — heading to drop-off
             ->assertDontSee('Stop 1 of 1');
 
-        // And Complete still works from there.
-        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'complete'])->assertRedirect();
+        // And Complete still works from there (location required for every step).
+        $this->actingAs($this->driver)->post(route('driver.job.status', $job), ['status' => 'complete', 'lat' => 53.3811, 'lng' => -1.4701])->assertRedirect();
         $this->assertEquals(BookingStatus::Complete, $job->fresh()->status);
     }
 

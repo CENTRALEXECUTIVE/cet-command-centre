@@ -51,17 +51,20 @@ class LinkController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // "Arrived" is STRICT for a cover driver too — a live fix within ~1 mile,
-        // else blocked and flagged to the office. Set off stays best-effort.
-        if (BookingStatus::from($data['status']) === BookingStatus::Arrived) {
-            $where = $booking->checkDriverAtPickup($data['lat'] ?? null, $data['lng'] ?? null, $data['accuracy'] ?? null);
-            if ($where === 'no_location') {
-                $booking->flagLocationBlocked('Arrived', 'no_location');
+        // Location required from the get-go for a cover driver too — every forward
+        // stage needs location on; Arrived also within ~1 mile. Blocks are flagged.
+        $target = BookingStatus::from($data['status']);
+        if (JobController::locationRequired($target)) {
+            $lat = $data['lat'] ?? null;
+            $lng = $data['lng'] ?? null;
+            if ($lat === null || $lng === null) {
+                $booking->flagLocationBlocked($target->label(), 'no_location');
 
                 return back()->with('arriveError',
-                    'Turn your location on to mark Arrived — the office has to see you’re actually at the pickup. Allow location, then tap Arrived again.');
+                    'Turn your location on to update this job — CET needs to see you from the moment you start. Allow location, then tap again.');
             }
-            if ($where === 'far') {
+            if ($target === BookingStatus::Arrived
+                && $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null) === 'far') {
                 $booking->flagLocationBlocked('Arrived', 'far');
 
                 return back()->with('arriveError',

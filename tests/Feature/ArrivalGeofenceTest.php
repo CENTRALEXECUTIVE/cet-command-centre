@@ -120,10 +120,9 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
     }
 
-    public function test_set_off_is_best_effort_and_not_blocked_without_location(): void
+    public function test_set_off_requires_location_too(): void
     {
-        // Set off must never be blocked by a signal blackspot — it goes through
-        // even with no GPS (only Arrived is strict).
+        // Location is required from the get-go: set off with no fix is blocked.
         $driver = $this->driver();
         $b = Booking::factory()->create([
             'driver_id' => $driver->id, 'status' => BookingStatus::Accepted->value,
@@ -132,9 +131,26 @@ class ArrivalGeofenceTest extends TestCase
 
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), ['status' => 'en_route'])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('arriveError');
 
-        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
+        $this->assertSame(BookingStatus::Accepted, $b->fresh()->status);
+    }
+
+    public function test_complete_requires_location_too(): void
+    {
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
+            'pickup_at' => now()->subMinutes(30),
+        ]);
+
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), ['status' => 'complete'])
+            ->assertRedirect()
+            ->assertSessionHas('arriveError');
+
+        $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
     }
 
     public function test_a_blocked_tap_flags_the_office(): void

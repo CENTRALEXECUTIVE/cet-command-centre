@@ -477,6 +477,7 @@
     <div class="card"><p class="muted mb-0">This job is {{ $booking->status->label() }} — no further action.</p></div>
 @endif
 
+<script>window.CET_IS_DRIVER = @json($isAssignedDriver);</script>
 @verbatim
 <script>
     // Reveal the "turn on location" card with a message and make sure the driver
@@ -497,15 +498,18 @@
     var CET_IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent || '')
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var CET_LOC_DENIED_HINT = CET_IS_IOS
-        ? 'Location is off for Safari. On your iPhone: open Settings → Safari → Location → Allow (make sure Location Services is on too), then come back, reload the page and tap Arrived.'
-        : 'Location is turned off for this page. Open your browser’s settings for this page, set Location to Allow, then reload and tap Arrived.';
+        ? 'Location is off for Safari. On your iPhone: open Settings → Safari → Location → Allow (make sure Location Services is on too), then come back, reload the page and try again.'
+        : 'Location is turned off for this page. Open your browser’s settings for this page, set Location to Allow, then reload and try again.';
 
     document.querySelectorAll('.status-form').forEach(function (form) {
         var statusInput = form.querySelector('input[name="status"]');
         var statusVal = statusInput ? statusInput.value : '';
-        // ONLY "Arrived" strictly requires live location (proof of presence). Set
-        // off and the rest are best-effort so a signal blackspot can't stop a job.
-        var needsLocation = statusVal === 'arrived';
+        // Location required from the get-go: EVERY forward step a driver takes
+        // (accept → set off → arrived → POB → complete) needs a live fix. Only the
+        // office (viewing someone else's job) is exempt. Cancel/no-show aren't here.
+        var isDriver = window.CET_IS_DRIVER !== false;
+        var needsLocation = isDriver
+            && ['accepted', 'en_route', 'arrived', 'collected', 'complete'].indexOf(statusVal) !== -1;
 
         form.addEventListener('submit', function (e) {
             if (form.dataset.located) return;
@@ -529,7 +533,7 @@
                 }, function (err) {
                     cetShowLocBlock((err && err.code === 1)
                         ? CET_LOC_DENIED_HINT
-                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then tap Arrived again.');
+                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then try again.');
                 }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
                 return;
             }
