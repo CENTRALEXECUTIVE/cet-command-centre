@@ -132,6 +132,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Ask the driver to share their location now + poll their latest ping.
         Route::post('bookings/{booking}/request-location', [BookingController::class, 'requestLocation'])->middleware('throttle:20,1')->name('bookings.request-location');
         Route::get('bookings/{booking}/location', [BookingController::class, 'locationData'])->name('bookings.location');
+        // Ring the driver's phone now with a spoken "please update your status" nudge.
+        Route::post('bookings/{booking}/ring-driver', [BookingController::class, 'ringDriver'])->middleware('throttle:10,1')->name('bookings.ring-driver');
         // Turn number masking off / on for a single job (e.g. a return leg).
         Route::post('bookings/{booking}/toggle-masking', [BookingController::class, 'toggleMasking'])->middleware('throttle:20,1')->name('bookings.toggle-masking');
         // Per-booking masking timing: when the line goes live + when it closes.

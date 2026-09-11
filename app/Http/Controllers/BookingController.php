@@ -813,6 +813,38 @@ class BookingController extends Controller
     }
 
     /**
+     * Ring the assigned driver's phone NOW with a spoken nudge asking them to open
+     * the app and update their status. This is the operator's manual version of the
+     * watchdog's at-risk call — one call, placed on demand (e.g. the driver's gone
+     * quiet and you want them prompted without typing a WhatsApp). Rings the DRIVER
+     * only, never the customer.
+     */
+    public function ringDriver(Request $request, Booking $booking, \App\Services\Telephony\OfficeAlertCall $call): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (! $booking->driver_id || $booking->status->isTerminal()) {
+            return back()->with('error', 'No live driver on this job to ring.');
+        }
+        if (blank($booking->driver?->phone)) {
+            return back()->with('error', 'That driver has no phone number saved — add one on their user account first.');
+        }
+        if (! $call->configured()) {
+            return back()->with('error', 'Automated calls aren’t set up yet (Twilio numbers missing). Tap the driver’s number to call them yourself.');
+        }
+
+        $where = $booking->pickup_address ? \Illuminate\Support\Str::of($booking->pickup_address)->limit(60) : 'your next job';
+        $placed = $call->ringDriver(
+            $booking,
+            'Please open your driver app and update the status for '.$where.' now.',
+        );
+
+        return $placed
+            ? back()->with('status', 'Calling '.($booking->driver->name ?? 'the driver').' now — they’ll be asked to update their status.')
+            : back()->with('error', 'Couldn’t place the call just now. Try again, or call the driver directly.');
+    }
+
+    /**
      * JSON snapshot of the driver's latest position for this job + the pending
      * request state — polled by the booking page to update the live card.
      */

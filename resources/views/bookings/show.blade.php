@@ -80,6 +80,9 @@
     @if(session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
+    @if(session('error'))
+        <div class="alert alert-error">{{ session('error') }}</div>
+    @endif
 
     {{-- Cancellation charge — for a cancelled/no-show job that's still charged
          (e.g. 50%). Records the fee kept + the driver's share, so it counts on
@@ -638,7 +641,16 @@
              data-request="{{ route('bookings.request-location', $booking) }}">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                 <h2 style="margin:0">📍 Driver location</h2>
-                <button type="button" id="loc-req-btn" class="btn btn-primary" style="padding:8px 14px;font-size:13px">Request location</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    {{-- Phone the driver right now with a spoken "update your status"
+                         nudge — for when a WhatsApp isn't cutting through. --}}
+                    <form method="POST" action="{{ route('bookings.ring-driver', $booking) }}" style="margin:0"
+                          onsubmit="return confirm('Ring {{ addslashes($booking->driver->name ?? 'the driver') }} now? They\'ll hear a message asking them to update their status.');">
+                        @csrf
+                        <button type="submit" class="btn btn-ghost" style="padding:8px 14px;font-size:13px">📞 Ring driver to update</button>
+                    </form>
+                    <button type="button" id="loc-req-btn" class="btn btn-primary" style="padding:8px 14px;font-size:13px">Request location</button>
+                </div>
             </div>
             <div id="loc-status" class="hint" style="margin-top:8px">Checking…</div>
             <div id="loc-detail" style="margin-top:8px;display:none">
