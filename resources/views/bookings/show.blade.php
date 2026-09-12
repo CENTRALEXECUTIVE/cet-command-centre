@@ -117,6 +117,18 @@
         <script src="{{ asset('js/cet-liveloc.js') }}" defer></script>
     @endif
 
+    {{-- Driver confirmed they're on it (tapped "Getting ready"), so the office
+         knows the job is handled without chasing. Shown until the job is done. --}}
+    @if(auth()->user()->isAdmin() && $booking->gettingReadyConfirmedAt() && ! $booking->status->isTerminal())
+        <div class="card" style="margin-bottom:16px;border-left:4px solid #1f7a44;background:rgba(31,122,68,.08);display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px;line-height:1">🟢</span>
+            <div>
+                <strong style="font-size:15px">Driver has confirmed they’re on it</strong>
+                <div class="muted" style="font-size:13px">{{ $booking->driverLabel() }} tapped “Getting ready” at {{ $booking->gettingReadyConfirmedAt()->format('D d M, H:i') }}.</div>
+            </div>
+        </div>
+    @endif
+
     {{-- Job timeline — the milestones with times, pin distances, ETA and a
          batch-update flag. Kept right under the driver location so the office
          sees how the job actually ran before the controls below. --}}

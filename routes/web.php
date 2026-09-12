@@ -251,6 +251,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
         Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
         Route::post('settings/notifications/test', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'test'])->middleware('throttle:6,1')->name('notifications.test');
+        // Call-only test: ring the business line to confirm the emergency line works.
+        Route::post('settings/notifications/test-call', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'testCall'])->middleware('throttle:6,1')->name('notifications.test-call');
         // Web widgets — embed snippets for the marketing site + the auto-email switch.
         Route::get('settings/web-widgets', [\App\Http\Controllers\Admin\WebWidgetController::class, 'index'])->name('web-widgets.index');
         Route::put('settings/web-widgets', [\App\Http\Controllers\Admin\WebWidgetController::class, 'update'])->name('web-widgets.update');

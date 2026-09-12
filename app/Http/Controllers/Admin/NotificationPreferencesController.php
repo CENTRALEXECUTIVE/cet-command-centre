@@ -76,6 +76,27 @@ class NotificationPreferencesController extends Controller
         return back()->with('status', 'Test alert fired — the dashboard siren should sound and a push has been sent. '.$callMsg);
     }
 
+    /**
+     * Place ONLY a test phone call to the business line (no siren, no push) so the
+     * operator can confirm the emergency line actually rings.
+     */
+    public function testCall(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isSuperAdmin(), 403);
+
+        $call = app(\App\Services\Telephony\OfficeAlertCall::class);
+        if (! $call->configured()) {
+            return back()->with('error', 'Auto-call isn’t set up yet — add the Twilio account (SID + token), a voice “from” number, and the office line. Run cet:alert-call-status to see what’s missing.');
+        }
+
+        $placed = $call->ringTest();
+
+        return back()->with($placed ? 'status' : 'error',
+            $placed
+                ? 'Calling '.$call->target().' now — it should ring in a few seconds.'
+                : 'Couldn’t place the call — check the Twilio credentials and the “from” number.');
+    }
+
     private function admins()
     {
         return User::where('role', UserRole::Admin->value)

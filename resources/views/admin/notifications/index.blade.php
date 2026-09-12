@@ -38,6 +38,10 @@
                 @csrf
                 <button type="submit" class="btn btn-primary" style="padding:9px 16px;font-size:14px;background:#b32020;border-color:#b32020">🔔 Fire a full test (siren + push + call)</button>
             </form>
+            <form method="POST" action="{{ route('notifications.test-call') }}" style="display:inline">
+                @csrf
+                <button type="submit" class="btn btn-dark" style="padding:9px 16px;font-size:14px">📞 Test the emergency call only</button>
+            </form>
         </div>
         <p class="hint" style="margin:10px 0 0">The full test rings the office line only when Twilio and the alert numbers are set up. The siren button plays the sound right here so you can check it’s loud enough.</p>
     </div>
