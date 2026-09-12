@@ -329,18 +329,20 @@ class StatusWatchdog
             return $sent;
         }
 
-        // CONTINGENCY — a driver is assigned but hasn't SET OFF and the safe
-        // set-off time has now passed. This is the biggest way a job gets missed:
-        // the assigned driver (often a director covering their own job) forgets,
-        // and their own phone is the only one being nudged. Escalate EARLY and
-        // loudly to the WHOLE office — a drive-time before pickup — and keep
-        // repeating until someone sets off or a cover is arranged. Reaches the
-        // OTHER director even when the assigned driver isn't looking at their phone.
-        // Two ways in: the safe SET-OFF time has passed (they should be driving),
-        // OR the "I'm on it" checkpoint went unconfirmed past the escalate window
-        // (≈20 min before pickup) — whichever comes first. The confirmation gate
-        // catches a forgotten local job earlier than set-off time alone would.
-        $setOffOverdue = now()->gte($this->setOffDeadline($booking)->copy()->addMinutes(self::AT_RISK_AFTER_DEADLINE_MINUTES));
+        // CONTINGENCY — the office safety net for a job about to be missed.
+        //
+        // ORDER MATTERS: the GREEN "Getting ready" check-in ALWAYS comes first. It
+        // opens at the lead time (the driver's alarm), and the driver has a short
+        // grace to tap "Getting ready" = "I'm on it". We escalate to the office
+        // ONLY if that grace passes and they STILL haven't confirmed. So an AT RISK
+        // can never fire before the check-in has even opened (the old "safe set-off
+        // time passed" trigger fired too early — before the driver was ever asked).
+        //
+        // A CONFIRMED driver is trusted: no blaring office alert. This is exactly
+        // the airport case — the driver knows it takes ~30 min after landing for the
+        // customer to come out, so they deliberately leave later; once they've
+        // tapped "Getting ready" the office is not alerted. They still get the
+        // urgent set-off push near pickup, and the geofence/progress pings continue.
         $notReadyOverdue = ! $booking->gettingReadyConfirmed()
             && ($escalateAt = $booking->gettingReadyEscalateAt()) && now()->gte($escalateAt);
         // Never alert a driver who is CURRENTLY ON A JOB (en route / at pickup /
@@ -353,16 +355,13 @@ class StatusWatchdog
 
         if ($booking->checkpointActive()
             && in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)
-            && ($setOffOverdue || $notReadyOverdue)
+            && $notReadyOverdue
             && ! ($driverBusy && ! $backupOn)) {
             $driver = $booking->driver?->name ?? 'The driver';
             $mins = (int) round(now()->diffInMinutes($booking->pickup_at, false));
             $when = $mins > 1 ? 'pickup in '.$mins.' min' : ($mins >= 0 ? 'pickup now' : 'pickup '.abs($mins).' min ago');
-            // Word it for the trigger that actually fired: not set off (safe time
-            // passed) vs not confirmed they're on it (checkpoint missed).
-            [$shortReason, $longReason, $callReason] = $setOffOverdue
-                ? ['not set off', 'still hasn’t set off', 'has not set off']
-                : ['not confirmed', 'hasn’t confirmed they’re on it', 'has not confirmed they are on the way'];
+            // They were asked to confirm they're on it and haven't.
+            [$shortReason, $longReason, $callReason] = ['not confirmed', 'hasn’t confirmed they’re on it', 'has not confirmed they are on the way'];
             $sent += (int) $this->admins->send($booking, 'admin_at_risk', 'at_risk',
                 '⚠️ AT RISK — '.$driver.' '.$shortReason.' · '.$time.' '.$where,
                 $driver.' '.$longReason.' for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',

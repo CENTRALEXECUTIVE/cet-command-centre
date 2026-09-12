@@ -189,6 +189,23 @@ class GettingReadyCheckpointTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_no_at_risk_before_the_getting_ready_checkin_opens(): void
+    {
+        config(['cet.getting_ready.escalate_grace_minutes' => 5]);
+
+        // The green check-in opens at the lead time — here 5 min from NOW (future).
+        // Even though a raw set-off deadline (flat-30 lead: pickup − 30 = 10 min ago)
+        // has passed, the office must NOT be alerted before the driver has even been
+        // asked to confirm. (This is the exact bug: AT RISK fired 06:45 while the
+        // check-in didn't open until 07:00.)
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20), leadTime: now()->addMinutes(5));
+
+        $this->tick();
+
+        $this->assertSame(0, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'admin_at_risk')->count());
+        $this->assertSame(0, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'office_call_at_risk')->count());
+    }
+
     /* ── HTTP endpoints ──────────────────────────────────────────────────── */
 
     public function test_the_driver_can_confirm_from_the_job_screen(): void
