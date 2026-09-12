@@ -29,7 +29,7 @@ class GettingReadyCheckpointTest extends TestCase
         Carbon::setTestNow('2026-07-15 12:00:00');
         // Mechanics tests run in full-rollout mode; the Abdi-only pilot scope is
         // covered explicitly in AlertRoutingTest.
-        config(['cet.checkpoint.scope' => 'all', 'cet.checkpoint.route_to_backup' => true, 'cet.checkpoint.emergency_call' => true]);
+        config(['cet.checkpoint.scope' => 'all', 'cet.checkpoint.route_to_backup' => true, 'cet.checkpoint.emergency_call' => true, 'cet.checkpoint.call_scope' => 'all']);
     }
 
     protected function tearDown(): void

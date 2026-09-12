@@ -132,14 +132,18 @@ return [
     // The getting-ready prompt + push now goes to EVERY driver. If a driver
     // hasn't set off in decent time, the office gets a CRITICAL alert.
     //
-    // Calling is OFF by default: emergency_call=false means no automated phone
-    // calls — the escalation is push + the critical live alert only. Turn it on
-    // (and route_to_backup, to hand off to the other director) only if you want
-    // the phone-call layer back.
+    // The getting-ready checkpoint + AT RISK push/alert apply to every driver
+    // (scope 'all'). The emergency PHONE CALL is separate and narrower — it only
+    // rings for jobs whose assigned driver is in `call_scope`. Default: Abdi's own
+    // account, so the automated call only ever rings HIM for HIS jobs (not other
+    // drivers). Widen with 'super_admins' (both directors), 'all', or a comma-list
+    // of login emails. route_to_backup off = the call only ever rings the assigned
+    // driver, never hands off to the other director.
     'checkpoint' => [
         'scope' => (string) env('CET_CHECKPOINT_SCOPE', 'all'),
         'route_to_backup' => (bool) env('CET_CHECKPOINT_ROUTE_TO_BACKUP', false),
-        'emergency_call' => (bool) env('CET_CHECKPOINT_EMERGENCY_CALL', false),
+        'emergency_call' => (bool) env('CET_CHECKPOINT_EMERGENCY_CALL', true),
+        'call_scope' => (string) env('CET_CHECKPOINT_CALL_SCOPE', 'admin@centralexecutivetransfers.co.uk'),
     ],
 
     // Driver "getting ready" checkpoint, driven by each booking's LEAD TIME —

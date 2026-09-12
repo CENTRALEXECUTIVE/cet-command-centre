@@ -32,7 +32,7 @@ class AlertRoutingTest extends TestCase
             'cet.alert_call_from' => '+441111111111', 'cet.office_call_number' => '+449999999999',
             // Backup-routing tests need the full rollout (everyone, backup + call on).
             'cet.checkpoint.scope' => 'all', 'cet.checkpoint.route_to_backup' => true,
-            'cet.checkpoint.emergency_call' => true,
+            'cet.checkpoint.emergency_call' => true, 'cet.checkpoint.call_scope' => 'all',
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 
@@ -132,6 +132,26 @@ class AlertRoutingTest extends TestCase
         // No driver number to ring → the very first call routes to a free director.
         Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json')
             && in_array($r->data()['To'] ?? '', [$this->abdi->phone, $this->maj->phone], true));
+    }
+
+    public function test_the_emergency_call_only_rings_for_a_driver_in_the_call_scope(): void
+    {
+        // The phone call is scoped to Abdi's own login. His job rings; another
+        // driver's job still raises the office AT RISK alert but places NO call.
+        config(['cet.checkpoint.call_scope' => $this->abdi->email]);
+
+        $this->atRiskJobFor($this->abdi);
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json'));
+        $this->assertSame(1, \App\Models\JobNudge::where('nudge_type', 'office_call_at_risk')->count());
+
+        // A different driver's at-risk job → office alerted, but no call placed.
+        $other = User::factory()->driver()->create(['phone' => '+447000000009']);
+        $this->atRiskJobFor($other);
+        $this->artisan('cet:status-watchdog')->assertSuccessful();
+
+        $this->assertSame(1, \App\Models\JobNudge::where('nudge_type', 'office_call_at_risk')->count()); // still just Abdi's
+        $this->assertTrue(\App\Models\JobNudge::where('nudge_type', 'admin_at_risk')->exists());          // office WAS alerted
     }
 
     /* ── Pilot scope: Abdi-only, never hands off to the other director ─────── */

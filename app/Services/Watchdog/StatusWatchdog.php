@@ -378,7 +378,7 @@ class StatusWatchdog
             // them moving, every later call routes to the BACKUP (the other free
             // director, else the business line). A driver with no saved number
             // falls straight through to the backup on the first call too.
-            if (config('cet.checkpoint.emergency_call', false) && empty($booking->meta['at_risk_ack'])) {
+            if (config('cet.checkpoint.emergency_call', false) && $booking->emergencyCallActive() && empty($booking->meta['at_risk_ack'])) {
                 $call = app(\App\Services\Telephony\OfficeAlertCall::class);
                 if ($call->configured()) {
                     $priorCalls = JobNudge::where('booking_id', $booking->id)

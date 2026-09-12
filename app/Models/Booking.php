@@ -2554,7 +2554,26 @@ class Booking extends Model
      */
     public function checkpointActive(): bool
     {
-        $scope = strtolower(trim((string) config('cet.checkpoint.scope', 'super_admins')));
+        return $this->driverInScope((string) config('cet.checkpoint.scope', 'super_admins'));
+    }
+
+    /**
+     * Should the automated emergency PHONE CALL ring for this job? Narrower than
+     * the checkpoint: it only rings for a driver in `call_scope` (default: Abdi's
+     * own account, so the call only ever reaches him for his own jobs).
+     */
+    public function emergencyCallActive(): bool
+    {
+        return $this->driverInScope((string) config('cet.checkpoint.call_scope', 'super_admins'));
+    }
+
+    /**
+     * Is the assigned driver within a scope string? 'all' (everyone), '' (everyone),
+     * 'super_admins' (any super admin), or a comma-list of login emails.
+     */
+    private function driverInScope(string $scope): bool
+    {
+        $scope = strtolower(trim($scope));
         if ($scope === 'all' || $scope === '') {
             return true;
         }
