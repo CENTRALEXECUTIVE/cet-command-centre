@@ -33,6 +33,8 @@ class AlertRoutingTest extends TestCase
             // Backup-routing tests need the full rollout (everyone, backup + call on).
             'cet.checkpoint.scope' => 'all', 'cet.checkpoint.route_to_backup' => true,
             'cet.checkpoint.emergency_call' => true, 'cet.checkpoint.call_scope' => 'all',
+            // These tests validate the driver-first-then-backup routing specifically.
+            'cet.checkpoint.call_target' => 'driver',
         ]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'CA1'], 201)]);
 

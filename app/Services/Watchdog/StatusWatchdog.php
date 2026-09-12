@@ -367,17 +367,15 @@ class StatusWatchdog
                 $driver.' '.$longReason.' for the '.$time.' pickup at '.$where.' ('.$when.'). Chase them or arrange cover NOW.',
                 severity: 'critical', maxSends: null, repeatMinutes: self::AT_RISK_REPEAT_MINUTES);
 
-            // EMERGENCY AUTO-CALL — OFF by default (checkpoint.emergency_call). The
-            // escalation is push + the critical live alert; calling is only added
-            // back if the office turns it on. When on: ring and keep re-dialling
-            // every couple of minutes until someone answers and presses a key
-            // (which sets at_risk_ack via the webhook).
+            // EMERGENCY AUTO-CALL — controlled by checkpoint.emergency_call. When on
+            // it rings and keeps re-dialling every couple of minutes until someone
+            // answers and presses a key (which sets at_risk_ack via the webhook).
             //
-            // DRIVER FIRST, THEN BACKUP: the very first call rings the assigned
-            // driver's own phone — they forgot, so wake them. If that hasn't got
-            // them moving, every later call routes to the BACKUP (the other free
-            // director, else the business line). A driver with no saved number
-            // falls straight through to the backup on the first call too.
+            // WHO IT RINGS (checkpoint.call_target):
+            //   'office'  (default) — ring the BUSINESS LINE (it forwards to the
+            //             on-call director on no-answer). Simple and predictable.
+            //   'driver'  — ring the assigned driver's own phone first (unless they're
+            //             mid-job), then the backup director when route_to_backup is on.
             if (config('cet.checkpoint.emergency_call', false) && $booking->emergencyCallActive() && empty($booking->meta['at_risk_ack'])) {
                 $call = app(\App\Services\Telephony\OfficeAlertCall::class);
                 if ($call->configured()) {
@@ -387,20 +385,27 @@ class StatusWatchdog
                     $lastCall = $priorCalls->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
                         $placed = false;
+                        $target = strtolower((string) config('cet.checkpoint.call_target', 'office'));
 
-                        // Ring the assigned driver first — UNLESS they're mid-job,
-                        // in which case never ring them (passenger in the car); the
-                        // backup tier below takes it when one is enabled. In pilot
-                        // mode (backup off) every re-dial otherwise stays on them.
-                        if (! $driverBusy && ($priorCalls->isEmpty() || ! $backupOn)) {
-                            $placed = $call->ringDriver($booking,
-                                'Your '.$time.' pickup at '.$where.' — you have '.$callReason.'. Set off now.');
-                        }
-                        // Backup tier — only when it's turned on (rollout): a later
-                        // re-dial, or the driver has no dialable number.
-                        if (! $placed && $backupOn) {
-                            $placed = $call->ringForJob($booking,
-                                $driver.' '.$callReason.' for the '.$time.' pickup at '.$where.'.');
+                        if ($target === 'office') {
+                            // Ring the business line directly — the number the office set up.
+                            $placed = $call->ring($booking,
+                                'The '.$time.' pickup at '.$where.' is at risk — the driver '.$callReason.'. Check on it now.');
+                        } else {
+                            // Ring the assigned driver first — UNLESS they're mid-job,
+                            // in which case never ring them (passenger in the car); the
+                            // backup tier below takes it when one is enabled. In pilot
+                            // mode (backup off) every re-dial otherwise stays on them.
+                            if (! $driverBusy && ($priorCalls->isEmpty() || ! $backupOn)) {
+                                $placed = $call->ringDriver($booking,
+                                    'Your '.$time.' pickup at '.$where.' — you have '.$callReason.'. Set off now.');
+                            }
+                            // Backup tier — only when it's turned on (rollout): a later
+                            // re-dial, or the driver has no dialable number.
+                            if (! $placed && $backupOn) {
+                                $placed = $call->ringForJob($booking,
+                                    $driver.' '.$callReason.' for the '.$time.' pickup at '.$where.'.');
+                            }
                         }
                         if ($placed) {
                             JobNudge::create([

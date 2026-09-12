@@ -163,9 +163,9 @@ class GettingReadyCheckpointTest extends TestCase
         $this->assertTrue(
             \App\Models\WatchdogEvent::where('booking_id', $b->id)->where('title', 'like', '%not confirmed%')->exists()
         );
-        // And the emergency auto-call went out.
+        // And the emergency auto-call went out — to the BUSINESS LINE (default target).
         $this->assertSame(1, JobNudge::where('booking_id', $b->id)->where('nudge_type', 'office_call_at_risk')->count());
-        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json'));
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/Calls.json') && ($r->data()['To'] ?? '') === '+449999999999');
     }
 
     public function test_confirming_holds_off_the_checkpoint_escalation(): void

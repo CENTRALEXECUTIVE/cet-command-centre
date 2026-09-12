@@ -144,6 +144,10 @@ return [
         'route_to_backup' => (bool) env('CET_CHECKPOINT_ROUTE_TO_BACKUP', false),
         'emergency_call' => (bool) env('CET_CHECKPOINT_EMERGENCY_CALL', true),
         'call_scope' => (string) env('CET_CHECKPOINT_CALL_SCOPE', 'admin@centralexecutivetransfers.co.uk'),
+        // Who the emergency call rings: 'office' (the business line, office_call_number
+        // — it forwards to the on-call director) or 'driver' (the assigned driver's
+        // own phone first, then the backup director when route_to_backup is on).
+        'call_target' => (string) env('CET_CHECKPOINT_CALL_TARGET', 'office'),
     ],
 
     // Driver "getting ready" checkpoint, driven by each booking's LEAD TIME —
