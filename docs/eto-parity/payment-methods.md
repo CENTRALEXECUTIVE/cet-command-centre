@@ -25,7 +25,7 @@ Each method in ETO has: logo image, name, description, gateway, **payment charge
 | Active on/off per method | 🟡 | Nice | CET gates by whether the gateway is configured; a simple on/off admin is nice-to-have. |
 | Default method | 🟡 | Nice | CET defaults sensibly per job; explicit "default" is minor. |
 | Ordering | ❌ | Skip | Only 3 methods — ordering barely matters. |
-| **Payment charge (surcharge %)** | ❌ | **Ask** | Do we ever add a card-processing surcharge? (Surcharging consumer cards is restricted in the UK — likely Skip.) |
+| **Payment charge (surcharge %)** | ❌ | **Skip** | **DECIDED: no card surcharge — do not add it.** |
 | Restrict by service / vehicle type | ❌ | Nice | e.g. cash only on certain jobs. |
 | Display: Frontend / Backend | 🟡 | Nice | Some methods office-only (Account, Cash) vs shown to web customers (Card). |
 | **Disable cash for airport / seaport pickups** (from the widget screen) | ❌ | Nice | Payment-rule per pickup type — belongs with this. |
