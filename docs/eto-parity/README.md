@@ -13,6 +13,13 @@ different) · ❌ missing.
 
 Go-live target for the booking side: **30 September 2026.**
 
+**Plan (agreed with Abdi):** catalogue every ETO settings screen first, then build
+the whole **Need** list in one coherent pass — don't build screen-by-screen.
+
+**Confirmed decisions:**
+- Ferry / seaport jobs: **YES** — CET does them, so ferry fields + seaport
+  detection are in scope (a Need, not clutter).
+
 ## Screens catalogued
 - [Web Booking Widget](web-booking-widget.md) — the customer-facing online booking form.
 
@@ -26,3 +33,5 @@ Go-live target for the booking side: **30 September 2026.**
 4. **Flight time + "waiting time after landing"** capture on airport bookings —
    feeds the set-off/lead-time logic. CET captures flight number only.
 5. **Account payment method** for company-account customers on the form.
+6. **Ferry / seaport capture** — ferry name / time / terminal on pickup + dropoff,
+   plus seaport detection (mirrors the airport handling).

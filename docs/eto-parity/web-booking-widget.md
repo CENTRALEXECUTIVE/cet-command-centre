@@ -61,7 +61,7 @@ embeddable `/widget/book` (`BookingWidgetController`), configured on the admin
 | **Waiting time after landing** | ❌ | **Need** | The ~30-min "customer comes out" buffer Abdi wants. |
 | Flight dropoff: number / time / to (city) | 🟡 | Nice | |
 | Adjust pickup time for airport drop-offs to X min before departure | ❌ | Nice | Auto-set kerb time from flight departure. |
-| Ferry details (name / time / terminal) pickup + dropoff | ❌ | **Ask** | Do we do ferry/seaport jobs? If not → Skip. |
+| Ferry details (name / time / terminal) pickup + dropoff | ❌ | **Need** | CET does seaport/ferry jobs — build ferry name/time/terminal capture (+ seaport detection) like ETO. |
 | Require contact mobile | ✅ | — | |
 | Allow "book for someone else" | ✅ | — | Booker vs lead passenger already modelled. |
 | Allow comments (customer requirements) | ✅ | — | `special_requests`. |
