@@ -22,6 +22,9 @@ the whole **Need** list in one coherent pass — don't build screen-by-screen.
 
 ## Screens catalogued
 - [Web Booking Widget](web-booking-widget.md) — the customer-facing online booking form.
+- [Operating Areas](operating-areas.md) — **PARKED, to discuss** (radius / out-of-area pricing).
+- [Payment Methods](payment-methods.md) — CET uses Account, Cash, Card (Square); 15 other gateways skipped.
+- [Styles](styles.md) — **Skip** (CET booking pages already brand-styled in code).
 
 ## The big gaps so far (the "Need" list)
 1. **Minimum booking notice** on the public form — reject/flag web bookings inside
