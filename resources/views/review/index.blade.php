@@ -192,8 +192,19 @@
                 <div class="l">Repeat {{ \Illuminate\Support\Str::plural('customer', $repeatCount) }} (2+ bookings this period) · {{ $repeatBookings }} {{ \Illuminate\Support\Str::plural('booking', $repeatBookings) }} between them</div>
             </div>
 
+            @php
+                $cSort = $custSort ?? 'revenue';
+                $cDir = $custDir ?? 'desc';
+                $sortLink = fn ($col) => request()->fullUrlWithQuery(['sort' => $col, 'dir' => ($cSort === $col && $cDir === 'desc') ? 'asc' : 'desc']);
+                $sortArrow = fn ($col) => $cSort === $col ? ($cDir === 'desc' ? ' ▼' : ' ▲') : ' ↕';
+                $thLink = 'text-decoration:none;color:inherit;white-space:nowrap';
+            @endphp
             <table class="table">
-                <thead><tr><th>Customer / business</th><th>Jobs</th><th>Revenue</th></tr></thead>
+                <thead><tr>
+                    <th>Customer / business</th>
+                    <th><a href="{{ $sortLink('jobs') }}" style="{{ $thLink }}">Jobs<span style="opacity:.6">{{ $sortArrow('jobs') }}</span></a></th>
+                    <th><a href="{{ $sortLink('revenue') }}" style="{{ $thLink }}">Revenue<span style="opacity:.6">{{ $sortArrow('revenue') }}</span></a></th>
+                </tr></thead>
                 <tbody>
                 @forelse($topCustomers as $x)
                     @php

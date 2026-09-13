@@ -24,7 +24,10 @@ class ReviewController extends Controller
     {
         [$start, $end, $preset] = $this->resolvePeriod($request);
 
-        return view('review.index', $this->review->build($start, $end) + ['activePreset' => $preset]);
+        $sort = (string) $request->query('sort', 'revenue');
+        $dir = (string) $request->query('dir', 'desc');
+
+        return view('review.index', $this->review->build($start, $end, $sort, $dir) + ['activePreset' => $preset]);
     }
 
     /**

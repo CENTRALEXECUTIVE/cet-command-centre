@@ -126,6 +126,20 @@ class ReportService
     public function corporateNameMap(): array
     {
         return \Illuminate\Support\Facades\Cache::remember('corporate_name_map', 300, function () {
+            // Free web-mail domains never identify a business — a contact on gmail
+            // must not roll every gmail traveller into that account.
+            $freeMail = ['gmailcom', 'googlemailcom', 'hotmailcom', 'hotmailcouk', 'outlookcom', 'yahoocom', 'yahoocouk', 'icloudcom', 'livecom', 'livecouk', 'aolcom', 'msncom', 'mecom', 'btinternetcom', 'skycom', 'protonmailcom'];
+            $domainKey = function (?string $email) use ($freeMail) {
+                $email = strtolower(trim((string) $email));
+                $at = strrpos($email, '@');
+                if ($at === false) {
+                    return null;
+                }
+                $domain = $this->normaliseName(substr($email, $at + 1));
+
+                return ($domain !== '' && strlen($domain) >= 4 && ! in_array($domain, $freeMail, true)) ? $domain : null;
+            };
+
             $map = [];
             foreach (\App\Models\CorporateAccount::with('contacts')->get() as $account) {
                 foreach ([$account->name, $account->slug, $account->account_code] as $identifier) {
@@ -134,10 +148,19 @@ class ReportService
                         $map[$key] = $account->id;
                     }
                 }
+                // The business email DOMAIN rolls in everyone who books off it —
+                // so once JELD-WEN has one @jeld-wen contact, all their people match.
+                if ($d = $domainKey($account->billing_email)) {
+                    $map[$d] = $account->id;
+                }
                 foreach ($account->contacts as $contact) {
-                    $key = $this->normaliseName($contact->name);
-                    if ($key !== '') {
-                        $map[$key] = $account->id;
+                    foreach ([$this->normaliseName($contact->name), $this->normaliseName($contact->email)] as $key) {
+                        if ($key !== '') {
+                            $map[$key] = $account->id;
+                        }
+                    }
+                    if ($d = $domainKey($contact->email)) {
+                        $map[$d] = $account->id;
                     }
                 }
             }
@@ -342,33 +365,164 @@ class ReportService
         $accounts = \App\Models\CorporateAccount::get(['id', 'name'])->keyBy('id');
 
         $jobs = $this->completed($start, $end)
-            ->with(['customer:id,name,email,corporate_account_id'])
+            ->with(['customer:id,name,email,phone,corporate_account_id'])
             ->get(['id', 'customer_id', 'corporate_account_id', 'final_price', 'quoted_price', 'meta']);
 
-        return $jobs
-            ->groupBy(function (Booking $b) use ($map) {
-                $acct = $this->accountIdForBooking($b, $map);
+        $rev = fn (Collection $g) => round($g->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2);
 
-                return $acct ? 'a'.$acct : 'c'.$b->customer_id;
-            })
-            ->map(function (Collection $group) use ($map, $accounts) {
-                $first = $group->first();
-                $accountId = $this->accountIdForBooking($first, $map);
-                $account = $accountId ? $accounts->get($accountId) : null;
-                $revenue = round($group->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0)), 2);
+        // Split corporate bookings (rolled under their business) from private ones.
+        $corporate = [];
+        $individual = collect();
+        foreach ($jobs as $b) {
+            $acct = $this->accountIdForBooking($b, $map);
+            if ($acct) {
+                ($corporate[$acct] ??= collect())->push($b);
+            } else {
+                $individual->push($b);
+            }
+        }
 
-                return [
-                    'type' => $account ? 'business' : 'customer',
-                    'id' => $account?->id ?? $first->customer_id,
-                    'name' => $account?->name ?? ($first->customer?->name ?? 'Unknown'),
-                    'jobs' => $group->count(),
-                    'revenue' => $revenue,
-                    'customers' => $account ? $group->pluck('customer_id')->filter()->unique()->count() : 1,
-                    'repeat' => $group->count() >= 2,
-                ];
-            })
-            ->sortByDesc('revenue')
-            ->values();
+        $entities = collect();
+
+        foreach ($corporate as $accountId => $group) {
+            $entities->push([
+                'type' => 'business',
+                'id' => $accountId,
+                'name' => $accounts->get($accountId)?->name ?? 'Business',
+                'jobs' => $group->count(),
+                'revenue' => $rev($group),
+                'customers' => $group->pluck('customer_id')->filter()->unique()->count(),
+                'repeat' => $group->count() >= 2,
+            ]);
+        }
+
+        // Merge the SAME private person booked under name variants or separate
+        // records (matched by shared email, phone, or title-stripped name).
+        foreach ($this->mergeSamePerson($individual) as $person) {
+            $entities->push([
+                'type' => 'customer',
+                'id' => $person['id'],
+                'name' => $person['name'],
+                'jobs' => $person['jobs']->count(),
+                'revenue' => $rev($person['jobs']),
+                'customers' => 1,
+                'merged' => $person['records'], // >1 when duplicate records were joined
+                'repeat' => $person['jobs']->count() >= 2,
+            ]);
+        }
+
+        return $entities->sortByDesc('revenue')->values();
+    }
+
+    /**
+     * Group individual bookings so the SAME person counts once, even when they were
+     * booked under name variants or separate customer records — e.g. "Karl Walton"
+     * and "Dr Karl Walton", or "Richard" and "Richard Mauer" sharing a phone/email.
+     * Union-find over three signals: normalised email, phone (international digits),
+     * and title-stripped name. Bookings with no customer stay separate.
+     *
+     * @return array<int, array{id:int, name:string, records:int, jobs:Collection}>
+     */
+    private function mergeSamePerson(Collection $jobs): array
+    {
+        // One signal set per customer record.
+        $sig = [];
+        foreach ($jobs as $b) {
+            $cid = (int) ($b->customer_id ?? 0);
+            if ($cid === 0 || isset($sig[$cid])) {
+                continue;
+            }
+            $c = $b->customer;
+            $sig[$cid] = [
+                'email' => $this->normaliseEmail($c?->email),
+                'phone' => (string) \App\Support\Phone::wa($c?->phone),
+                'name' => $this->normalisePersonName($c?->name),
+                'display' => trim((string) ($c?->name)) ?: 'Unknown',
+            ];
+        }
+
+        // Union-find: any shared signal joins two records into one person.
+        $parent = [];
+        foreach (array_keys($sig) as $cid) {
+            $parent[$cid] = $cid;
+        }
+        $find = function ($x) use (&$parent, &$find) {
+            while ($parent[$x] !== $x) {
+                $parent[$x] = $parent[$parent[$x]];
+                $x = $parent[$x];
+            }
+
+            return $x;
+        };
+        $seen = ['email' => [], 'phone' => [], 'name' => []];
+        foreach ($sig as $cid => $s) {
+            foreach (['email', 'phone', 'name'] as $k) {
+                $v = $s[$k];
+                if ($v === '') {
+                    continue;
+                }
+                if (isset($seen[$k][$v])) {
+                    $parent[$find($cid)] = $find($seen[$k][$v]);
+                } else {
+                    $seen[$k][$v] = $cid;
+                }
+            }
+        }
+
+        // Bucket customer records by their merged root.
+        $roots = [];
+        foreach (array_keys($sig) as $cid) {
+            $roots[$find($cid)][] = $cid;
+        }
+
+        $out = [];
+        foreach ($roots as $cids) {
+            $groupJobs = $jobs->filter(fn (Booking $b) => in_array((int) ($b->customer_id ?? -1), $cids, true))->values();
+            $out[] = [
+                'id' => $cids[0],
+                'name' => $this->bestDisplayName(array_map(fn ($cid) => $sig[$cid]['display'], $cids)),
+                'records' => count($cids),
+                'jobs' => $groupJobs,
+            ];
+        }
+
+        // Bookings with no linked customer stand alone — never merged blindly.
+        foreach ($jobs->filter(fn (Booking $b) => (int) ($b->customer_id ?? 0) === 0) as $b) {
+            $out[] = ['id' => 0, 'name' => $b->customer?->name ?? 'Unknown', 'records' => 1, 'jobs' => collect([$b])];
+        }
+
+        return $out;
+    }
+
+    /** Lower-case, validated email (blank when not a real email). */
+    private function normaliseEmail(?string $email): string
+    {
+        $email = strtolower(trim((string) $email));
+
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
+    }
+
+    /** Title-stripped, alphanumeric name key (so "Dr Karl Walton" == "Karl Walton"). */
+    private function normalisePersonName(?string $name): string
+    {
+        $n = strtolower(trim((string) $name));
+        $n = (string) preg_replace('/^(dr|mr|mrs|ms|miss|prof|professor|sir|dame|lord|lady|rev|mx)\.?\s+/', '', $n);
+
+        return (string) preg_replace('/[^a-z0-9]+/', '', $n);
+    }
+
+    /** Pick the clearest display name from a merged person's records. */
+    private function bestDisplayName(array $names): string
+    {
+        $names = array_values(array_filter(array_map('trim', $names)));
+        if ($names === []) {
+            return 'Unknown';
+        }
+        $counts = array_count_values($names);
+        usort($names, fn ($a, $b) => [$counts[$b], strlen($b)] <=> [$counts[$a], strlen($a)]);
+
+        // Drop a leading title for the label (keep the fuller name otherwise).
+        return trim((string) preg_replace('/^(Dr|Mr|Mrs|Ms|Miss|Prof|Professor|Sir|Dame|Lord|Lady|Rev|Mx)\.?\s+/i', '', $names[0]));
     }
 
     /** Top routes by volume (pickup → destination). */

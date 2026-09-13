@@ -25,13 +25,17 @@ class ReviewService
     /**
      * @return array<string, mixed>
      */
-    public function build(CarbonInterface $start, CarbonInterface $end): array
+    public function build(CarbonInterface $start, CarbonInterface $end, string $sort = 'revenue', string $dir = 'desc'): array
     {
         $comparison = $this->reports->comparison($start, $end);
         $byVehicle = $this->reports->byVehicleType($start, $end);
         // Corporate customers rolled up under their business (JELD-WEN, LB Foster…).
         // The full list feeds both the leaderboard and the repeat-customer count.
+        // Ordered by the column the operator tapped (jobs / revenue, high↔low).
+        $sort = in_array($sort, ['jobs', 'revenue'], true) ? $sort : 'revenue';
+        $dir = $dir === 'asc' ? 'asc' : 'desc';
         $entities = $this->reports->entities($start, $end);
+        $entities = ($dir === 'asc' ? $entities->sortBy($sort) : $entities->sortByDesc($sort))->values();
         $topCustomers = $entities->take(12);
         $repeatCustomers = $entities->where('repeat', true)->values();
         $topRoutes = $this->reports->topRoutes($start, $end, 5);
@@ -72,6 +76,8 @@ class ReviewService
             'reserved' => $reserved,
             'created' => $created,
             'adsAnalysis' => $adsAnalysis,
+            'custSort' => $sort,
+            'custDir' => $dir,
         ];
 
         $data['insights'] = $this->insights($data);
