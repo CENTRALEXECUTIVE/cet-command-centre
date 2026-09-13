@@ -165,6 +165,16 @@ class ReportService
                 }
             }
 
+            // Learn each account's domain from the customers ALREADY tagged to it —
+            // so once one @jeld-wen person is on the account, every other @jeld-wen
+            // traveller rolls in automatically, no manual domain entry needed.
+            foreach (\App\Models\Customer::whereNotNull('corporate_account_id')
+                ->whereNotNull('email')->get(['corporate_account_id', 'email']) as $c) {
+                if ($d = $domainKey($c->email)) {
+                    $map[$d] = (int) $c->corporate_account_id;
+                }
+            }
+
             return $map;
         });
     }

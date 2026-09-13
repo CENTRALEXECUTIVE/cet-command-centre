@@ -91,6 +91,26 @@ class EntityMergeTest extends TestCase
         $this->assertNull($rows->firstWhere('name', 'Iria Lago'));
     }
 
+    public function test_domain_is_learned_from_a_customer_already_tagged_to_the_account(): void
+    {
+        // Account has NO billing email and NO contacts — but one customer tagged to
+        // it uses the company email, so its domain is learned and rolls in the rest.
+        $jw = CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jw', 'account_code' => 'JW', 'is_active' => true]);
+        $tagged = Customer::factory()->create(['name' => 'TJ Curran', 'email' => 'tj@jeld-wen.com', 'corporate_account_id' => $jw->id]);
+        $this->ranJob($tagged->id, 100);
+        Cache::forget('corporate_name_map');
+
+        // A different, untagged @jeld-wen traveller.
+        $untagged = Customer::factory()->create(['name' => 'Lucy Weaver', 'email' => 'lucy.weaver@jeld-wen.com']);
+        $this->ranJob($untagged->id, 220);
+
+        $rows = $this->entities();
+        $business = $rows->firstWhere('name', 'JELD-WEN');
+        $this->assertNotNull($business);
+        $this->assertSame(2, $business['jobs']);          // both rolled in
+        $this->assertNull($rows->firstWhere('name', 'Lucy Weaver'));
+    }
+
     public function test_the_leaderboard_can_be_ordered_by_jobs(): void
     {
         // Big revenue, few jobs vs small revenue, many jobs.
