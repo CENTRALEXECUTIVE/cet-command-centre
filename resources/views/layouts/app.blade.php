@@ -258,6 +258,29 @@
         });
         paint();
     })();
+
+    // Keep your place on the page across a form save (Mark paid, set price/waiting,
+    // a sort arrow, etc.). Without this, every POST-then-redirect and every filter
+    // link reloads at the very top, which is maddening mid-task. We stash the scroll
+    // position per page as you leave and restore it when the same page comes back.
+    (function () {
+        var key = 'cet-scroll:' + location.pathname;
+        try {
+            if (!location.hash) {
+                var y = sessionStorage.getItem(key);
+                if (y !== null) {
+                    var n = parseInt(y, 10) || 0;
+                    // After layout settles, jump back to where you were.
+                    requestAnimationFrame(function () { window.scrollTo(0, n); });
+                    setTimeout(function () { window.scrollTo(0, n); }, 60);
+                }
+            }
+            sessionStorage.removeItem(key);
+        } catch (e) {}
+        window.addEventListener('pagehide', function () {
+            try { sessionStorage.setItem(key, String(window.scrollY || window.pageYOffset || 0)); } catch (e) {}
+        });
+    })();
 </script>
 </body>
 </html>
