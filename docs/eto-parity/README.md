@@ -28,6 +28,10 @@ the whole **Need** list in one coherent pass — don't build screen-by-screen.
 - [Email](email.md) — works via `.env`/SMTP; confirm deliverability (SPF/DKIM/DMARC).
 - [Notifications](notifications.md) — CET model (WhatsApp manual + email for web + driver push + panel); **SMS skipped (cost)**. Decision: opt-in auto customer emails?
 - [Locations](locations.md) — import airports + cruise ports; postcode zones on hold for Pricing.
+- [Google](google.md) — routing/geocoding mostly covered; force address selection + UK/IE restrict; Ads conversion events Nice.
+- [Invoices](invoices.md) — per-booking invoices exist; **periodic/consolidated account invoicing is the gap.**
+- [Localization](localization.md) — **nothing to build** (CET already UK/London/miles); 12-language switcher skipped.
+- [Migration](migration.md) — cutover plan from the ETO Customers/Locations exports (customer CSV is PII, not stored).
 
 ## The big gaps so far (the "Need" list)
 1. **Minimum booking notice** on the public form — reject/flag web bookings inside
@@ -43,6 +47,11 @@ the whole **Need** list in one coherent pass — don't build screen-by-screen.
    plus seaport detection (mirrors the airport handling).
 7. **Seed the location library** — import ETO's airports + cruise ports (CSV in
    `data/`); airports enrich detection, cruise ports enable ferry/seaport jobs.
+8. **Corporate account billing** — deferred "on account" bookings + a **monthly
+   consolidated invoice per account** (JELD-WEN, LB Foster…), with the client's
+   company + VAT number on it. (CET has per-booking invoices only.)
+9. **Customer CSV importer + corporate-account seeder** (with email domains) for
+   cutover — see [migration.md](migration.md).
 
 ## Decisions still open
 - **Notifications model** — keep CET's manual-WhatsApp + web-email model, or add
@@ -57,3 +66,4 @@ the whole **Need** list in one coherent pass — don't build screen-by-screen.
 - 15 unused ETO payment gateways: **skip.**
 - Styles admin: **skip** (brand is in code).
 - SMS notifications: **skip** (paid; WhatsApp covers it).
+- Multi-language switcher: **skip** (CET is UK English only).
