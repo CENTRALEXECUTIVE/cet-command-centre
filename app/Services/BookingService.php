@@ -325,9 +325,15 @@ class BookingService
     {
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
 
+        $isHourly = ($data['journey_type'] ?? 'one_way') === 'hourly';
+        $hourlyHours = $isHourly ? (int) ($data['hours'] ?? 0) : null;
+
         $pickupAt = $isReturn ? $data['return_pickup_at'] : $data['pickup_at'];
         $pickupAddress = $isReturn ? $data['destination_address'] : $data['pickup_address'];
-        $destinationAddress = $isReturn ? $data['pickup_address'] : $data['destination_address'];
+        // Hourly hire has no fixed destination — the car is "as directed".
+        $destinationAddress = $isHourly
+            ? 'As directed (hourly hire)'
+            : ($isReturn ? $data['pickup_address'] : $data['destination_address']);
 
         [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
@@ -353,6 +359,7 @@ class BookingService
                 'suitcases' => $suitcases,
                 'hand_luggage' => $handLuggage,
                 'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
+                'hourly_hours' => $hourlyHours,
             ]),
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,

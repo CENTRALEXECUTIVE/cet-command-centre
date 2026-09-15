@@ -153,7 +153,13 @@ class CustomerSummaryService
         } else {
             $lines[] = 'Pickup: '.($b->displayPickupAddress() ?: '—');
         }
-        $lines[] = ($customerFacing ? 'Drop-off: ' : 'Drop-off: ').($b->displayDropoffAddress() ?: '—');
+
+        // Hourly hire has no fixed drop-off — show the hours instead.
+        if ($hire = $b->hourlyHireLabel()) {
+            $lines[] = 'Hourly hire: '.$hire;
+        } else {
+            $lines[] = 'Drop-off: '.($b->displayDropoffAddress() ?: '—');
+        }
 
         $pax = $b->passengerCount();
         $vehicle = $b->displayVehicleType();

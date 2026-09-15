@@ -37,12 +37,15 @@ class StoreBookingRequest extends FormRequest
             'airport_id' => ['nullable', Rule::exists('airports', 'id')],
 
             // Journey
-            'journey_type' => ['required', Rule::in(['one_way', 'return'])],
+            'journey_type' => ['required', Rule::in(['one_way', 'return', 'hourly'])],
             'pickup_at' => ['required', 'date', 'after:now'],
             'pickup_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['nullable', 'string', 'max:16'],
-            'destination_address' => ['required', 'string', 'max:500'],
+            // Destination isn't needed for hourly hire ("as directed").
+            'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
             'destination_postcode' => ['nullable', 'string', 'max:16'],
+            // Hourly hire: how many hours the car + driver are booked for.
+            'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'via_stops' => ['nullable', 'array', 'max:10'],
             'via_stops.*' => ['nullable', 'string', 'max:500'],
             'flight_number' => ['nullable', 'string', 'max:32'],
@@ -77,6 +80,8 @@ class StoreBookingRequest extends FormRequest
             'pickup_at.after' => 'The pickup time must be in the future.',
             'return_pickup_at.after' => 'The return pickup must be after the outbound pickup.',
             'customer_phone.required_without' => 'Provide a phone number or an email address for the customer.',
+            'hours.required_if' => 'Enter how many hours the hourly hire is for.',
+            'destination_address.required_unless' => 'A destination is required (or choose hourly hire for an "as directed" job).',
         ];
     }
 

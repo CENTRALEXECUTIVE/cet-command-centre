@@ -60,7 +60,19 @@
                     <select id="journey_type" name="journey_type" required>
                         <option value="one_way" @selected(old('journey_type','one_way')==='one_way')>One way</option>
                         <option value="return" @selected(old('journey_type')==='return')>Return</option>
+                        <option value="hourly" @selected(old('journey_type')==='hourly')>Hourly hire (as directed)</option>
                     </select>
+                </div>
+
+                <div class="field" id="hours_field" style="display:none">
+                    <label for="hours">Hours booked <span class="req">*</span></label>
+                    <div class="stepper" data-stepper style="max-width:200px">
+                        <button type="button" data-dec>−</button>
+                        <input id="hours" type="number" name="hours" min="1" max="24" step="1" value="{{ old('hours', 3) }}" style="text-align:center">
+                        <button type="button" data-inc>+</button>
+                    </div>
+                    <p class="muted" style="font-size:12px;margin:6px 0 0">Car and driver booked by the hour — no fixed destination. Set the price below.</p>
+                    @error('hours') <div class="error">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="field">
@@ -307,11 +319,26 @@
                     if (window.CETattachPlaces) window.CETattachPlaces(input);
                 });
             }
-            // Show the return field only for return journeys.
+            // Show the return field for returns, the hours field for hourly hire,
+            // and drop the "destination required" rule when it's an as-directed job.
             var journey = document.getElementById('journey_type');
             var returnField = document.getElementById('return_field');
-            function toggleReturn() { returnField.style.display = journey.value === 'return' ? '' : 'none'; }
-            if (journey) { journey.addEventListener('change', toggleReturn); toggleReturn(); }
+            var hoursField = document.getElementById('hours_field');
+            var destField = document.getElementById('destination_address');
+            var destLabel = destField ? destField.closest('.field').querySelector('label') : null;
+            var destLabelHtml = destLabel ? destLabel.innerHTML : '';
+            function toggleJourney() {
+                var isReturn = journey.value === 'return';
+                var isHourly = journey.value === 'hourly';
+                if (returnField) returnField.style.display = isReturn ? '' : 'none';
+                if (hoursField) hoursField.style.display = isHourly ? '' : 'none';
+                if (destField) {
+                    destField.required = !isHourly;
+                    destField.placeholder = isHourly ? 'As directed — leave blank for hourly hire' : 'Start typing an address…';
+                    if (destLabel) destLabel.innerHTML = isHourly ? 'Destination address <span class="muted">(optional — as directed)</span>' : destLabelHtml;
+                }
+            }
+            if (journey) { journey.addEventListener('change', toggleJourney); toggleJourney(); }
 
             // Number steppers.
             document.querySelectorAll('[data-stepper]').forEach(function (s) {

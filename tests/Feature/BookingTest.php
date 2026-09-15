@@ -638,4 +638,50 @@ class BookingTest extends TestCase
             ->assertSee('Via 1')
             ->assertSee('Meadowhall Shopping Centre, Sheffield');
     }
+
+    public function test_admin_can_create_an_hourly_hire_booking(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'hourly',
+            'hours' => 4,
+            'destination_address' => null, // as directed
+        ]))->assertRedirect();
+
+        $booking = Booking::first();
+        $this->assertNotNull($booking);
+        $this->assertTrue($booking->isHourlyHire());
+        $this->assertSame(4, $booking->hourlyHours());
+        $this->assertSame('hourly', $booking->journey_type);
+        $this->assertSame('As directed (hourly hire)', $booking->destination_address);
+
+        // Shows on the booking page.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Hourly hire — 4 hours (as directed)');
+    }
+
+    public function test_hourly_hire_requires_hours(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->from(route('bookings.create'))
+            ->post(route('bookings.store'), $this->validPayload([
+                'journey_type' => 'hourly',
+                'hours' => null,
+                'destination_address' => null,
+            ]))->assertSessionHasErrors('hours');
+    }
+
+    public function test_a_normal_journey_still_requires_a_destination(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->from(route('bookings.create'))
+            ->post(route('bookings.store'), $this->validPayload([
+                'journey_type' => 'one_way',
+                'destination_address' => null,
+            ]))->assertSessionHasErrors('destination_address');
+    }
 }

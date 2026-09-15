@@ -2318,6 +2318,31 @@ class Booking extends Model
         return null;
     }
 
+    /** Number of hours booked for an hourly-hire job, or null when it isn't one. */
+    public function hourlyHours(): ?int
+    {
+        $h = $this->meta['hourly_hours'] ?? null;
+
+        return $h !== null && (int) $h > 0 ? (int) $h : null;
+    }
+
+    /** True when this is an hourly-hire ("as directed") booking. */
+    public function isHourlyHire(): bool
+    {
+        return $this->journey_type === 'hourly' || $this->hourlyHours() !== null;
+    }
+
+    /** A short label for an hourly hire — "4 hours (as directed)" — or null. */
+    public function hourlyHireLabel(): ?string
+    {
+        if (! $this->isHourlyHire()) {
+            return null;
+        }
+        $h = $this->hourlyHours();
+
+        return ($h !== null ? $h.' '.str('hour')->plural($h) : 'Hourly hire').' (as directed)';
+    }
+
     /** True when this is a free-roam (non-fixed, hourly/roaming) job, not a transfer. */
     public function isFreeRoam(): bool
     {
