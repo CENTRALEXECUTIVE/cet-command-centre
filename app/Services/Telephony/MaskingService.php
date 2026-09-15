@@ -107,9 +107,11 @@ class MaskingService
 
         foreach ($bookings as $booking) {
             $customer = $this->normalise($booking->customer?->phone);
-            // The driver's number comes from an assigned system driver, else the
-            // manually-entered driver details — so masking works either way.
-            $driver = $this->normalise($booking->driver?->phone ?: ($booking->meta['driver_details']['phone'] ?? null));
+            // The driver's number: an allocated login driver's OWN number is the
+            // source of truth (never the manual driver_details, which could be a
+            // different person with the same first name); a job with no login
+            // driver uses the manually-entered details.
+            $driver = $this->normalise($booking->driverRealPhone());
 
             $isCustomer = $customer && $customer === $from && $driver;
             $isDriver = $driver && $driver === $from && $customer;

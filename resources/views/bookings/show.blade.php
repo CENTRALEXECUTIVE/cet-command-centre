@@ -483,7 +483,8 @@
     @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
         @php
             $driverLink = $booking->driverLinkUrl();
-            $linkPhone = \App\Support\Phone::wa($booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null));
+            $linkPhone = \App\Support\Phone::wa($booking->driverRealPhone());
+            $linkRecipient = $booking->driverContactLabel();
             $linkMsg = $booking->driverLinkMessage();
         @endphp
         <div class="card">
@@ -511,6 +512,13 @@
                 @endif
                 <span class="copy-link-done hint" style="color:#1f8b4c"></span>
             </div>
+            {{-- Show EXACTLY who the link will reach, so two same-named drivers
+                 (e.g. two "Haseeb"s) can never be confused. --}}
+            @if($linkPhone)
+                <p class="hint" style="margin:8px 0 0">📲 Sends to <strong>{{ $linkRecipient ?? 'the driver' }}</strong> · {{ '+'.$linkPhone }}</p>
+            @elseif($booking->driver_id)
+                <div class="alert alert-error" style="margin:8px 0 0">⚠ <strong>{{ $booking->driver->name }}</strong> has no phone number saved — add one on their <a href="{{ route('users.edit', $booking->driver) }}">driver account</a> before sending. (We won’t guess a number.)</div>
+            @endif
             <p class="hint" style="margin:10px 0 0">Anyone with this link can work the job — treat it like a key. It stops working once the job is completed or cancelled.</p>
         </div>
         <script>
@@ -1194,7 +1202,7 @@
                 $switchboardOn = $switchboard->configured();
                 $maskedForCustomer = $realNumbers ? null : $switchboard->customerLine(); // customer rings this → reaches the driver
                 $maskedForDriver = $realNumbers ? null : $switchboard->driverLine();      // driver rings this → reaches the customer
-                $driverRealPhone = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
+                $driverRealPhone = $booking->driverRealPhone();
             @endphp
 
             {{-- Numbers & masking collapsed by default to keep the page clean —
@@ -1423,7 +1431,7 @@
     @if(auth()->user()->isAdmin())
         @php
             $driverBrief = app(\App\Services\CalendarEventBuilder::class)->driverBrief($booking);
-            $driverRealForWa = $booking->driver?->phone ?? ($booking->meta['driver_details']['phone'] ?? null);
+            $driverRealForWa = $booking->driverRealPhone();
             $briefWa = \App\Support\Phone::wa($driverRealForWa);
         @endphp
         <div class="card">

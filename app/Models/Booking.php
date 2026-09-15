@@ -1676,9 +1676,39 @@ class Booking extends Model
      */
     public function driverWhatsAppLink(): ?string
     {
-        $wa = \App\Support\Phone::wa($this->driver?->phone ?? ($this->meta['driver_details']['phone'] ?? null));
+        $wa = \App\Support\Phone::wa($this->driverRealPhone());
 
         return $wa ? 'https://wa.me/'.$wa : null;
+    }
+
+    /**
+     * The driver's REAL phone number for office contact (driver link, brief,
+     * WhatsApp). SAFETY: an allocated login driver is the single source of truth —
+     * use THEIR own saved number only, NEVER the manually-typed driver_details
+     * (that can be a different person, e.g. a second driver with the same first
+     * name). Only a job with no allocated login driver uses the manual cover
+     * details. Returns null (not a wrong number) when the allocated driver has no
+     * phone saved — the caller must warn, not guess.
+     */
+    public function driverRealPhone(): ?string
+    {
+        if ($this->driver_id) {
+            return filled($this->driver?->phone) ? $this->driver->phone : null;
+        }
+
+        return $this->meta['driver_details']['phone'] ?? null;
+    }
+
+    /** Who a driver message will actually reach — "Name (REG)" — for confirmation. */
+    public function driverContactLabel(): ?string
+    {
+        if ($this->driver_id) {
+            $reg = $this->driverVehicleReg();
+
+            return trim(($this->driver?->name ?? 'Driver').($reg ? ' ('.$reg.')' : ''));
+        }
+
+        return $this->meta['driver_details']['name'] ?? null;
     }
 
     /**
