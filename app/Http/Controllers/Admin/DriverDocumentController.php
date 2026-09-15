@@ -24,14 +24,40 @@ class DriverDocumentController extends Controller
 
     public function index(): View
     {
-        $drivers = User::query()
+        // Everyone in the Drivers directory (the up-to-date roster), resolved to
+        // their login account for document tracking — so the docs page and the
+        // directory show the same drivers, with the directory's current reg.
+        $directory = \App\Models\CoverDriver::where('is_active', true)
+            ->with(['user.driverProfile.defaultVehicle', 'user.driverDocuments'])
+            ->orderBy('name')
+            ->get();
+
+        $rows = $directory->map(fn (\App\Models\CoverDriver $c) => [
+            'name' => $c->name ?: ($c->user?->name ?? 'Driver'),
+            'reg' => $c->vehicle_reg ?: $c->user?->driverProfile?->defaultVehicle?->registration,
+            'user' => $c->user,
+            'summary' => $c->user ? $this->documents->summaryFor($c->user) : null,
+            'directory' => true,
+        ]);
+
+        // PLUS any login drivers with a profile who aren't in the directory (e.g.
+        // the directors who also drive), so nobody is missed.
+        $linkedIds = $directory->pluck('user_id')->filter()->all();
+        $extra = User::query()
             ->whereHas('driverProfile')
+            ->whereNotIn('id', $linkedIds)
             ->with('driverProfile.defaultVehicle', 'driverDocuments')
             ->orderBy('name')
             ->get()
-            ->map(fn (User $d) => ['driver' => $d, 'summary' => $this->documents->summaryFor($d)]);
+            ->map(fn (User $d) => [
+                'name' => $d->name,
+                'reg' => $d->driverProfile?->defaultVehicle?->registration,
+                'user' => $d,
+                'summary' => $this->documents->summaryFor($d),
+                'directory' => false,
+            ]);
 
-        return view('admin.documents.index', ['drivers' => $drivers]);
+        return view('admin.documents.index', ['rows' => $rows->concat($extra)->values()]);
     }
 
     public function show(User $user): View

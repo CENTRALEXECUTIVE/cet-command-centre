@@ -18,6 +18,21 @@ class DriverDocumentsTest extends TestCase
         return User::factory()->create(['role' => 'driver']);
     }
 
+    public function test_admin_docs_page_lists_the_drivers_directory(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // A directory driver linked to a login account, with the current reg.
+        $linked = User::factory()->create(['role' => 'driver', 'name' => 'Haseeb']);
+        \App\Models\DriverProfile::create(['user_id' => $linked->id, 'is_third_party' => true]);
+        \App\Models\CoverDriver::create(['user_id' => $linked->id, 'name' => 'Haseeb', 'vehicle_reg' => 'KR21UJB', 'is_active' => true]);
+
+        $this->actingAs($admin)->get(route('driver-documents.index'))
+            ->assertOk()
+            ->assertSee('Haseeb')
+            ->assertSee('KR21UJB'); // reg comes from the directory
+    }
+
     public function test_documents_page_shows_a_card_for_every_required_type(): void
     {
         $driver = $this->driver();

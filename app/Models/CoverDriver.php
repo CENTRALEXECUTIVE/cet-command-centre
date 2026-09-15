@@ -12,4 +12,10 @@ class CoverDriver extends Model
     {
         return ['is_active' => 'boolean'];
     }
+
+    /** The login account this directory entry is attached to (if any). */
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

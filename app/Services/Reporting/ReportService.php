@@ -126,16 +126,24 @@ class ReportService
     public function corporateNameMap(): array
     {
         return \Illuminate\Support\Facades\Cache::remember('corporate_name_map', 300, function () {
-            // Free web-mail domains never identify a business — a contact on gmail
-            // must not roll every gmail traveller into that account.
-            $freeMail = ['gmailcom', 'googlemailcom', 'hotmailcom', 'hotmailcouk', 'outlookcom', 'yahoocom', 'yahoocouk', 'icloudcom', 'livecom', 'livecouk', 'aolcom', 'msncom', 'mecom', 'btinternetcom', 'skycom', 'protonmailcom'];
+            // Domains that never identify a real business — free web-mail, plus
+            // example/reserved/test domains (which would otherwise let a generic
+            // contact address sweep unrelated people into an account).
+            $freeMail = ['gmailcom', 'googlemailcom', 'hotmailcom', 'hotmailcouk', 'outlookcom', 'yahoocom', 'yahoocouk', 'icloudcom', 'livecom', 'livecouk', 'aolcom', 'msncom', 'mecom', 'btinternetcom', 'skycom', 'protonmailcom', 'examplecom', 'examplenet', 'exampleorg', 'emailcom'];
             $domainKey = function (?string $email) use ($freeMail) {
                 $email = strtolower(trim((string) $email));
                 $at = strrpos($email, '@');
                 if ($at === false) {
                     return null;
                 }
-                $domain = $this->normaliseName(substr($email, $at + 1));
+                $raw = substr($email, $at + 1);
+                // Reserved / non-routable TLDs are never a real company domain.
+                foreach (['.test', '.local', '.invalid', '.localhost', '.example'] as $tld) {
+                    if (str_ends_with($raw, $tld)) {
+                        return null;
+                    }
+                }
+                $domain = $this->normaliseName($raw);
 
                 return ($domain !== '' && strlen($domain) >= 4 && ! in_array($domain, $freeMail, true)) ? $domain : null;
             };
