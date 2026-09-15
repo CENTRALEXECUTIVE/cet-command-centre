@@ -23,6 +23,44 @@
         </div>
     </div>
 
+    {{-- Confirm this customer's jobs: copy-ready summary + confirmation email --}}
+    <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <h2 style="margin:0">Confirm bookings</h2>
+            <span class="muted" style="font-size:13px">
+                @if($confirmCount)
+                    {{ $confirmCount }} {{ \Illuminate\Support\Str::plural('job', $confirmCount) }} — upcoming first
+                @else
+                    No upcoming jobs
+                @endif
+            </span>
+        </div>
+        <p class="page-sub" style="margin-top:4px">A copy-ready summary of {{ $customer->name }}'s jobs, plus a confirmation email to check the details are right. Nothing is sent — you copy it and send it yourself.</p>
+
+        <div class="grid grid-2" style="gap:16px">
+            <div>
+                <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Job summary (for you)</label>
+                <textarea id="cet-summary" readonly rows="10" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre">{{ $jobSummary }}</textarea>
+                <button type="button" class="btn btn-dark" style="margin-top:8px;padding:8px 16px" data-copy="#cet-summary">Copy summary</button>
+            </div>
+            <div>
+                <label style="font-weight:600;font-size:13px;display:block;margin-bottom:6px">Confirmation email (for {{ $customer->name }})</label>
+                <input id="cet-email-subject" readonly value="{{ $emailSubject }}" style="width:100%;font-size:13px;margin-bottom:6px">
+                <textarea id="cet-email-body" readonly rows="9" style="width:100%;font-size:13px;line-height:1.5;white-space:pre-wrap">{{ $emailBody }}</textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    <button type="button" class="btn btn-dark" style="padding:8px 16px" data-copy="#cet-email-body">Copy email</button>
+                    <a class="btn btn-primary" style="padding:8px 16px"
+                       href="mailto:{{ $customer->email }}?subject={{ rawurlencode($emailSubject) }}&body={{ rawurlencode($emailBody) }}">
+                        Open in email app
+                    </a>
+                </div>
+                @unless($customer->email)
+                    <p class="muted" style="font-size:12px;margin-top:6px">No email on file — add one above to use "Open in email app".</p>
+                @endunless
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-2">
         {{-- Details / edit --}}
         <div class="card">
@@ -122,6 +160,27 @@
     <script>
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
+
+        // Copy-to-clipboard for the summary / confirmation email.
+        document.querySelectorAll('[data-copy]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var el = document.querySelector(btn.getAttribute('data-copy'));
+                if (!el) return;
+                var text = el.value;
+                var done = function () {
+                    var label = btn.textContent;
+                    btn.textContent = 'Copied ✓';
+                    setTimeout(function () { btn.textContent = label; }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(done, function () {
+                        el.select(); document.execCommand('copy'); done();
+                    });
+                } else {
+                    el.select(); document.execCommand('copy'); done();
+                }
+            });
+        });
     </script>
     <script src="{{ asset('js/cet-forms.js') }}?v=4"></script>
 @endsection

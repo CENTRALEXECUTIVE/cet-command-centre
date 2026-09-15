@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
 use App\Models\Customer;
+use App\Services\CustomerSummaryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,7 @@ class CustomerController extends Controller
         return view('customers.index', ['customers' => $customers, 'term' => $term]);
     }
 
-    public function show(Customer $customer): View
+    public function show(Customer $customer, CustomerSummaryService $summaries): View
     {
         $customer->load(['addresses', 'preferredVehicleType', 'corporateAccount']);
 
@@ -52,11 +53,18 @@ class CustomerController extends Controller
             ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
             ->sum(DB::raw(self::REVENUE));
 
+        // Copy-ready summary + confirmation email for this customer's jobs.
+        $toConfirm = $summaries->bookingsToConfirm($customer);
+
         return view('customers.show', [
             'customer' => $customer,
             'bookings' => $bookings,
             'lifetimeValue' => $lifetimeValue,
             'tripCount' => $bookings->count(),
+            'confirmCount' => $toConfirm->count(),
+            'jobSummary' => $summaries->summary($customer, $toConfirm),
+            'emailSubject' => $summaries->emailSubject($customer, $toConfirm),
+            'emailBody' => $summaries->emailBody($customer, $toConfirm),
         ]);
     }
 
