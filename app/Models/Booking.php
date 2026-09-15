@@ -1693,7 +1693,12 @@ class Booking extends Model
     public function driverRealPhone(): ?string
     {
         if ($this->driver_id) {
-            return filled($this->driver?->phone) ? $this->driver->phone : null;
+            // Drivers directory (up-to-date, office-maintained) first, then the
+            // account's own field. Both are keyed to THIS driver by id, so there's
+            // no wrong-person risk. Never the manual driver_details for a login
+            // driver. Null (not a guess) when neither has a number.
+            return $this->driver?->coverDriver?->phone
+                ?: (filled($this->driver?->phone) ? $this->driver->phone : null);
         }
 
         return $this->meta['driver_details']['phone'] ?? null;
@@ -3665,8 +3670,13 @@ class Booking extends Model
     /** This job's vehicle registration, from the manual details, the assigned driver, or ETO. */
     public function driverVehicleReg(): ?string
     {
+        // A per-job reg override (the driver's in a different car today) wins, then
+        // the driver's own record — the Drivers directory (up to date) then their
+        // vehicle profile — then the ETO reg. (Reg is display-only, so unlike the
+        // contact NUMBER it's safe to honour a typed-in override.)
         foreach ([
             $this->meta['driver_details']['reg'] ?? null,
+            $this->driver?->coverDriver?->vehicle_reg,
             $this->driver?->driverProfile?->defaultVehicle?->registration,
             $this->meta['eto_vehicle_reg'] ?? null,
         ] as $candidate) {

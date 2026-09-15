@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\CoverDriver;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -42,6 +43,25 @@ class DriverContactResolutionTest extends TestCase
 
         $this->assertNull($b->driverRealPhone());
         $this->assertNull($b->driverWhatsAppLink());
+    }
+
+    public function test_it_prefers_the_drivers_directory_number_and_reg(): void
+    {
+        // The account is stale (blank phone); the Drivers directory has the current
+        // number + reg. The directory (keyed to this driver by id) is used.
+        $driver = User::factory()->driver()->create(['name' => 'Haseeb', 'phone' => null]);
+        CoverDriver::create([
+            'user_id' => $driver->id, 'name' => 'Haseeb', 'phone' => '+447850216337',
+            'vehicle_reg' => 'KR21UJB', 'is_active' => true,
+        ]);
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'meta' => ['driver_details' => ['name' => 'Other Haseeb', 'phone' => '+447700900222']],
+        ]);
+
+        $this->assertSame('+447850216337', $b->driverRealPhone());
+        $this->assertSame('KR21UJB', $b->driverVehicleReg()); // from the directory
+        $this->assertStringNotContainsString('447700900222', (string) $b->driverWhatsAppLink());
     }
 
     public function test_a_job_with_no_login_driver_uses_the_manual_details(): void

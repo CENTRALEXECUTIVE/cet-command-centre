@@ -147,6 +147,17 @@ class User extends Authenticatable
     }
 
     /**
+     * This driver's entry in the Drivers directory (`cover_drivers`), linked by
+     * user_id — the office's up-to-date record of their phone + vehicle reg. It's
+     * the source of truth for contacting them, so a stale account field can't send
+     * a job to the wrong person.
+     */
+    public function coverDriver(): HasOne
+    {
+        return $this->hasOne(CoverDriver::class);
+    }
+
+    /**
      * The driver's "known as" nickname — how the OFFICE refers to them (e.g.
      * "Hamza E Class"), or null. NEVER used in customer-facing messages.
      */
