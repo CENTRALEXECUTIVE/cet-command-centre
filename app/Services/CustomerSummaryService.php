@@ -173,6 +173,10 @@ class CustomerSummaryService
             $lines[] = 'Flight: '.$flight.($mg ? ' · Meet & Greet: '.$mg : '');
         }
 
+        if ($waiting = $b->waitingTimeLabel()) {
+            $lines[] = ($customerFacing ? 'Waiting time: ' : 'Waiting: ').$waiting;
+        }
+
         if ($seats = $b->displayChildSeats()) {
             $lines[] = 'Child seats: '.$seats;
         }

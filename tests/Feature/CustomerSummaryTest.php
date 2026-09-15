@@ -70,6 +70,7 @@ class CustomerSummaryTest extends TestCase
             'pickup_at' => now()->addDays(3)->setTime(13, 0), 'pickup_address' => 'Christ Church Fulwood',
             'destination_address' => 'Botanical Gardens', 'passengers' => 6, 'status' => 'allocated',
             'payment_method' => 'card', 'quoted_price' => 90,
+            'meta' => ['waiting_time' => ['minutes' => 20, 'where' => 'stop']],
         ]);
 
         $service = app(CustomerSummaryService::class);
@@ -80,6 +81,7 @@ class CustomerSummaryTest extends TestCase
         $this->assertStringContainsString('Hi James,', $body);
         $this->assertStringContainsString('confirm', strtolower($body));
         $this->assertStringContainsString('Botanical Gardens', $body);
+        $this->assertStringContainsString('Waiting time: 20 min at a stop', $body);
         // Office-only fields never leak into the customer email.
         $this->assertStringNotContainsString('UAPZOX', $body); // not a booking here
         $this->assertStringContainsString('Central Executive Transfers', $body);
