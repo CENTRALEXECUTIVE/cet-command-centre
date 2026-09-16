@@ -7,6 +7,13 @@
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
+    <div class="card" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <strong style="margin-right:4px">See them live:</strong>
+        <a href="{{ $urls['book'] }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 16px">🌐 Open booking page ↗</a>
+        <a href="{{ $urls['mini'] }}" target="_blank" rel="noopener" class="btn btn-dark" style="padding:8px 16px">💷 Open price checker ↗</a>
+        <a href="{{ $urls['account'] }}" target="_blank" rel="noopener" class="btn btn-dark" style="padding:8px 16px">👤 Open customer account ↗</a>
+    </div>
+
     @php
         $snippet = function (string $url, string $id, int $height) {
             return '<iframe src="'.$url.'" id="'.$id.'" width="100%" height="'.$height.'" frameborder="0"'."\n"
