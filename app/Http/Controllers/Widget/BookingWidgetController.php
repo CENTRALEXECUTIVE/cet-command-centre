@@ -75,6 +75,10 @@ class BookingWidgetController extends Controller
     public function book(): \Illuminate\Http\Response
     {
         $vehicleTypes = VehicleType::where('is_active', true)
+            // Minibus XL isn't offered directly — a standard Minibus booking is
+            // auto-upgraded to it on the office side when the party/luggage is
+            // too big (see autoUpgradeMinibus in store()).
+            ->where('slug', '!=', 'minibus-8-xl')
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug', 'passenger_capacity', 'luggage_capacity']);
 
@@ -113,6 +117,13 @@ class BookingWidgetController extends Controller
         ], [], ['customer_phone' => 'phone', 'customer_email' => 'email']);
 
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
+        // A big party or lots of luggage on a standard Minibus is bumped up to
+        // the Minibus XL automatically — the customer only ever picks "Minibus".
+        $vehicleType = $this->autoUpgradeMinibus(
+            $vehicleType,
+            (int) $data['passengers'],
+            (int) ($data['suitcases'] ?? 0) + (int) ($data['hand_luggage'] ?? 0),
+        );
         $pickupAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['pickup_at'], config('app.timezone'))
             ?: Carbon::parse($data['pickup_at']);
 
@@ -222,5 +233,23 @@ class BookingWidgetController extends Controller
             'phone' => $phone ?: null,
             'email' => $email ?: null,
         ]);
+    }
+
+    /**
+     * Customers only ever see (and pick) the standard "Minibus 8 Seater". When
+     * the party or the luggage is too big for it, silently upgrade the booking to
+     * the Minibus XL so the right vehicle is allocated — otherwise it stays a
+     * standard Minibus. No effect on any other vehicle class.
+     */
+    private function autoUpgradeMinibus(VehicleType $type, int $passengers, int $luggage): VehicleType
+    {
+        if ($type->slug !== 'minibus-8') {
+            return $type;
+        }
+        if ($passengers <= $type->passenger_capacity && $luggage <= $type->luggage_capacity) {
+            return $type;
+        }
+
+        return VehicleType::where('slug', 'minibus-8-xl')->where('is_active', true)->first() ?? $type;
     }
 }

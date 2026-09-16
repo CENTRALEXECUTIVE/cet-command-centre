@@ -145,4 +145,61 @@ class BookingWidgetTest extends TestCase
 
         $this->assertSame(0, \App\Models\Booking::count());
     }
+
+    public function test_minibus_xl_is_hidden_from_the_booking_page(): void
+    {
+        $this->get(route('widget.book'))->assertOk()
+            ->assertSee('Minibus 8 Seater')
+            ->assertDontSee('Minibus 8 XL');
+    }
+
+    public function test_a_large_minibus_party_is_auto_upgraded_to_xl(): void
+    {
+        $minibus = VehicleType::where('slug', 'minibus-8')->first();
+
+        // 8 passengers is beyond the standard Minibus (7) — upgrade to XL.
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $minibus->id, 'passengers' => 8,
+            'suitcases' => 0, 'hand_luggage' => 0,
+            'customer_name' => 'Big Group', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('minibus-8-xl', $booking->vehicleType->slug);
+    }
+
+    public function test_a_heavy_luggage_minibus_is_auto_upgraded_to_xl(): void
+    {
+        $minibus = VehicleType::where('slug', 'minibus-8')->first();
+
+        // Within passenger limit but too many bags for the standard Minibus (5).
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $minibus->id, 'passengers' => 4,
+            'suitcases' => 5, 'hand_luggage' => 3,
+            'customer_name' => 'Lots of Bags', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('minibus-8-xl', $booking->vehicleType->slug);
+    }
+
+    public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
+    {
+        $minibus = VehicleType::where('slug', 'minibus-8')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $minibus->id, 'passengers' => 6,
+            'suitcases' => 2, 'hand_luggage' => 2,
+            'customer_name' => 'Normal Group', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('minibus-8', $booking->vehicleType->slug);
+    }
 }
