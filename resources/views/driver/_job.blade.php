@@ -61,6 +61,7 @@
         <span class="da-chip">👤 {{ $jobPax }} {{ \Illuminate\Support\Str::plural('passenger', (int) $jobPax) }}@if($booking->hasExtraDrivers())<span style="opacity:.7"> in your car</span>@endif</span>
         <span class="da-chip">🧳 {{ $booking->luggageBreakdown() }}</span>
         @if($booking->displayChildSeats())<span class="da-chip">🚼 {{ $booking->displayChildSeats() }}</span>@endif
+        @if($booking->waitingTimeLabel())<span class="da-chip" style="background:rgba(251,186,42,.22);font-weight:700">⏳ Wait {{ $booking->waitingTimeLabel() }}</span>@endif
     </div>
 </div>
 

@@ -33,6 +33,7 @@
                 <span class="bh-chip warn">💳 {{ ucfirst($booking->payment_status ?? 'pending') }}</span>
             @endif
             @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->displayFlightNumber() }}</span>@endif
+            @if($booking->waitingTimeLabel())<span class="bh-chip" title="Waiting time booked on this job — the driver waits and it's paid for">⏳ Waiting {{ $booking->waitingTimeLabel() }}</span>@endif
             @php
                 $waited = $booking->recordedWaitingMinutes() ?? ($booking->status === \App\Enums\BookingStatus::Arrived ? $booking->waitingBillableMinutes() : null);
                 // Total time at the pickup = the free grace + any prepaid minutes + the billable overage.
