@@ -338,6 +338,26 @@ class BookingTest extends TestCase
         $this->assertNull($return->quoted_price);
     }
 
+    public function test_a_cash_return_leg_offer_does_not_tell_the_driver_to_collect_cash(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'return',
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'payment_method' => 'cash',
+            'quoted_price' => 250,
+        ]));
+
+        $return = Booking::where('is_return_leg', true)->first();
+        // Give the return-leg driver a pay figure so the offer fare renders.
+        $return->forceFill(['meta' => array_merge($return->meta ?? [], ['payroll' => ['pay' => 125]])])->save();
+
+        $fare = $return->fresh()->driverOfferFare();
+        $this->assertStringNotContainsString('Cash', $fare);
+        $this->assertStringContainsString('settled on the outbound', $fare);
+    }
+
     public function test_booking_requires_privacy_consent(): void
     {
         $admin = User::factory()->admin()->create();

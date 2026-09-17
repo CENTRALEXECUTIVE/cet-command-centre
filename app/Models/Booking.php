@@ -3066,7 +3066,18 @@ class Booking extends Model
         // A cash job still flags "Cash" (the driver collects it on the day); a
         // bank-transfer job just shows the amount — no need to spell out "Bank
         // transfer".
-        return $this->hasCashToCollect() ? $amount.' Cash' : $amount;
+        if ($this->hasCashToCollect()) {
+            return $amount.' Cash';
+        }
+
+        // A RETURN leg collects nothing on the day — the fare was taken once, on
+        // the outbound leg — so the driver must NOT be told "Cash". Spell it out so
+        // there's no ambiguity when the same figure was a cash job outbound.
+        if ($this->is_return_leg) {
+            return $amount.' (return leg — fare settled on the outbound)';
+        }
+
+        return $amount;
     }
 
     /** Luggage line for the offer, appending a pram/buggy etc. spotted in notes. */
