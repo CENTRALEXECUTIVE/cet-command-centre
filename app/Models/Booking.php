@@ -2915,6 +2915,12 @@ class Booking extends Model
             // Clean amount: "£130" not "£130.00", but keep pennies when present.
             $amount = rtrim(rtrim(number_format($cash, 2), '0'), '.');
 
+            // On the outbound leg of a cash return, the driver collects the WHOLE
+            // return fare here — spell it out so nothing is left for the arrival.
+            if ($this->isOutboundOfCashReturn()) {
+                return '£'.$amount.' to collect (cash) — the FULL return fare, collect it all now';
+            }
+
             return '£'.$amount.' to collect (cash)';
         }
 
@@ -3275,6 +3281,19 @@ class Booking extends Model
         return $this->isAirportPickup()
             && ($this->payment_method?->value ?? null) === 'cash'
             && ($this->meta['payroll']['cash_collected'] ?? null) === null;
+    }
+
+    /**
+     * The OUTBOUND leg of a cash RETURN trip — the driver collects the WHOLE
+     * round-trip fare here (the return/arrival leg is then prepaid). The outbound
+     * leg carries the journey total (the return leg's price is null), so the cash
+     * figure is already the full amount; this just lets us say so.
+     */
+    public function isOutboundOfCashReturn(): bool
+    {
+        return $this->journey_type === 'return'
+            && ! $this->is_return_leg
+            && ($this->payment_method?->value ?? null) === 'cash';
     }
 
     public function cashDueToDriver(): ?float

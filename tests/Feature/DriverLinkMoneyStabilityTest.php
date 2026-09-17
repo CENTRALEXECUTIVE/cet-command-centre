@@ -144,7 +144,9 @@ class DriverLinkMoneyStabilityTest extends TestCase
 
         $this->assertSame(210.0, $booking->cashDueToDriver());
         $this->assertTrue($booking->hasCashToCollect());
-        $this->assertSame('£210 to collect (cash)', $booking->driverCollectLine());
+        // Outbound of a cash return: collects the whole fare, spelled out.
+        $this->assertStringContainsString('£210 to collect (cash)', $booking->driverCollectLine());
+        $this->assertStringContainsString('FULL return fare', $booking->driverCollectLine());
     }
 
     public function test_office_can_still_override_cash_on_a_return_leg(): void

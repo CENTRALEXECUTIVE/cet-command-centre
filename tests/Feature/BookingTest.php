@@ -361,6 +361,31 @@ class BookingTest extends TestCase
         $this->assertFalse($return->fresh()->hasCashToCollect());
     }
 
+    public function test_a_cash_airport_return_collects_the_full_fare_on_the_outbound(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Sheffield → Manchester Airport (outbound) + the return home, cash £290.
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'return',
+            'destination_address' => 'Manchester Airport (MAN)',
+            'return_pickup_at' => now()->addDays(5)->format('Y-m-d\TH:i'),
+            'payment_method' => 'cash',
+            'quoted_price' => 290,
+        ]));
+
+        $outbound = Booking::where('is_return_leg', false)->first();
+        $return = Booking::where('is_return_leg', true)->first();
+
+        // Outbound (airport departure): driver collects the WHOLE return fare.
+        $this->assertStringContainsString('£290 to collect (cash)', $outbound->driverCollectLine());
+        $this->assertStringContainsString('FULL return fare', $outbound->driverCollectLine());
+
+        // Return (airport pickup): already paid on the outbound — collect nothing.
+        $this->assertFalse($return->hasCashToCollect());
+        $this->assertStringContainsString('collect nothing', $return->driverCollectLine());
+    }
+
     public function test_a_cash_airport_pickup_is_prepaid_and_collects_nothing(): void
     {
         // Manchester Airport → home, cash: arrivals are paid up front.
