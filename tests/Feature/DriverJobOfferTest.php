@@ -61,7 +61,9 @@ class DriverJobOfferTest extends TestCase
         $this->assertStringContainsString('👥 3 Passengers', $msg);
         $this->assertStringContainsString('🧳 2 Suitcases + Pram', $msg);
         $this->assertStringContainsString('👶 Customer has own car seat', $msg);
-        $this->assertStringContainsString('💷 Fare to you: £130 Cash', $msg);
+        // The offer shows the driver's PAY only — collection is a separate concern.
+        $this->assertStringContainsString('💷 Fare to you: £130', $msg);
+        $this->assertStringNotContainsString('£130 Cash', $msg);
     }
 
     public function test_the_offer_time_is_24hr_with_am_only_before_noon(): void
@@ -125,7 +127,7 @@ class DriverJobOfferTest extends TestCase
 
         // Setting the driver's pay fills it in — the two always match.
         $booking->forceFill(['meta' => ['payroll' => ['pay' => 145, 'paid' => 0, 'history' => []]]])->save();
-        $this->assertStringContainsString('Fare to you: £145 Cash', $booking->fresh()->driverOfferMessage());
+        $this->assertStringContainsString('Fare to you: £145', $booking->fresh()->driverOfferMessage());
     }
 
     public function test_a_card_job_shows_just_the_amount_no_payment_method(): void
@@ -152,7 +154,7 @@ class DriverJobOfferTest extends TestCase
             ->assertOk()
             ->assertSee('Offer this job to a driver')
             ->assertSee('Job Available')
-            ->assertSee('Fare to you: £130 Cash');
+            ->assertSee('Fare to you: £130');
     }
 
     public function test_the_offer_card_prompts_to_set_the_fare_when_unset(): void
@@ -227,6 +229,6 @@ class DriverJobOfferTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(130.0, $booking->fresh()->driverPay());
-        $this->assertStringContainsString('Fare to you: £130 Cash', $booking->fresh()->driverOfferMessage());
+        $this->assertStringContainsString('Fare to you: £130', $booking->fresh()->driverOfferMessage());
     }
 }

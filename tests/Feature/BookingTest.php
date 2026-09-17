@@ -353,12 +353,12 @@ class BookingTest extends TestCase
         ]));
 
         $return = Booking::where('is_return_leg', true)->first();
-        // Give the return-leg driver a pay figure so the offer fare renders.
         $return->forceFill(['meta' => array_merge($return->meta ?? [], ['payroll' => ['pay' => 125]])])->save();
 
-        $fare = $return->fresh()->driverOfferFare();
-        $this->assertStringNotContainsString('Cash', $fare);
-        $this->assertStringContainsString('settled on the outbound', $fare);
+        // The offer shows the driver's PAY only — never "Cash".
+        $this->assertSame('£125', $return->fresh()->driverOfferFare());
+        // A return leg collects nothing on the day.
+        $this->assertFalse($return->fresh()->hasCashToCollect());
     }
 
     public function test_a_cash_airport_pickup_is_prepaid_and_collects_nothing(): void
@@ -374,8 +374,8 @@ class BookingTest extends TestCase
         $this->assertTrue($booking->isPrepaidAirportPickup());
         $this->assertFalse($booking->hasCashToCollect());
         $this->assertFalse($booking->paymentNeedsChecking());
-        $this->assertStringContainsString('already paid', $booking->driverOfferFare());
-        $this->assertStringNotContainsString('Cash', $booking->driverOfferFare());
+        // Offer shows the pay only; the "already paid" wording lives on the collect line.
+        $this->assertSame('£125', $booking->driverOfferFare());
         $this->assertSame('Airport pickup — already paid, collect nothing', $booking->driverCollectLine());
     }
 
@@ -391,32 +391,9 @@ class BookingTest extends TestCase
 
         $this->assertFalse($booking->isPrepaidAirportPickup());
         $this->assertTrue($booking->hasCashToCollect());
-        $this->assertStringContainsString('Cash', $booking->driverOfferFare());
-    }
-
-    public function test_admin_can_flag_a_fare_as_settled_so_the_driver_collects_nothing(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $booking = Booking::factory()->create([
-            'payment_method' => 'cash', 'quoted_price' => 125,
-            'meta' => ['payroll' => ['pay' => 125]],
-        ]);
-
-        // Before: a cash job tells the driver to collect cash.
-        $this->assertStringContainsString('Cash', $booking->driverOfferFare());
-
-        $this->actingAs($admin)->post(route('bookings.settled', $booking), ['settled' => '1'])
-            ->assertRedirect();
-
-        $booking->refresh();
-        $this->assertTrue($booking->fareSettledElsewhere());
-        $this->assertFalse($booking->hasCashToCollect());
-        $this->assertStringContainsString('collect nothing', $booking->driverOfferFare());
-        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
-
-        // Untick → back to normal.
-        $this->actingAs($admin)->post(route('bookings.settled', $booking), ['settled' => '0'])->assertRedirect();
-        $this->assertFalse($booking->fresh()->fareSettledElsewhere());
+        // Offer still shows just the pay; the collect line tells the driver to collect.
+        $this->assertSame('£125', $booking->driverOfferFare());
+        $this->assertStringContainsString('to collect', $booking->driverCollectLine());
     }
 
     public function test_booking_requires_privacy_consent(): void

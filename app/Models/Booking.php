@@ -3073,7 +3073,12 @@ class Booking extends Model
      * the pay isn't set yet the amount is left blank on purpose.
      */
 
-    /** The "Fare to you" line value, e.g. "£130 Cash", or a blank placeholder. */
+    /**
+     * The "Fare to you" line value — simply the driver's pay for the job, e.g.
+     * "£130", or a blank placeholder until it's set. This is what the driver
+     * earns; whether they collect cash on the day is a SEPARATE concern shown on
+     * the driver link's collect line, so it's deliberately kept out of the offer.
+     */
     public function driverOfferFare(): string
     {
         $pay = $this->driverPay();
@@ -3081,34 +3086,7 @@ class Booking extends Model
             return '£____'; // set the driver's pay to fill this in
         }
 
-        $amount = '£'.rtrim(rtrim(number_format($pay, 2), '0'), '.');
-
-        // A cash job still flags "Cash" (the driver collects it on the day); a
-        // bank-transfer job just shows the amount — no need to spell out "Bank
-        // transfer".
-        if ($this->hasCashToCollect()) {
-            return $amount.' Cash';
-        }
-
-        // Manually flagged as settled elsewhere (e.g. cash taken on a separately
-        // booked outbound) — tell the driver they collect nothing.
-        if ($this->fareSettledElsewhere()) {
-            return $amount.' (already settled — collect nothing)';
-        }
-
-        // A cash airport pickup is prepaid — arrivals are paid up front.
-        if ($this->isPrepaidAirportPickup()) {
-            return $amount.' (airport pickup — already paid, collect nothing)';
-        }
-
-        // A RETURN leg collects nothing on the day — the fare was taken once, on
-        // the outbound leg — so the driver must NOT be told "Cash". Spell it out so
-        // there's no ambiguity when the same figure was a cash job outbound.
-        if ($this->is_return_leg) {
-            return $amount.' (return leg — fare settled on the outbound)';
-        }
-
-        return $amount;
+        return '£'.rtrim(rtrim(number_format($pay, 2), '0'), '.');
     }
 
     /** Luggage line for the offer, appending a pram/buggy etc. spotted in notes. */
