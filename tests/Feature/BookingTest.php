@@ -446,6 +446,30 @@ class BookingTest extends TestCase
         $this->assertStringContainsString('collected on the outbound', $return->fresh()->driverCollectLine());
     }
 
+    public function test_a_card_outbound_of_a_return_pair_is_not_treated_as_cash(): void
+    {
+        // Regression: pairing must never turn a CARD job into a cash job — the
+        // business still owes the driver and it must not read as "settled".
+        $outbound = Booking::factory()->create([
+            'external_reference' => 'CARD01A', 'payment_method' => 'card',
+            'pickup_address' => '31 Overend Way, Sheffield', 'destination_address' => 'Manchester Airport (MAN)',
+            'quoted_price' => 125, 'final_price' => 125,
+            'meta' => ['payroll' => ['pay' => 60]],
+        ]);
+        Booking::factory()->create([
+            'external_reference' => 'CARD01B', 'payment_method' => 'card',
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => '31 Overend Way, Sheffield',
+            'quoted_price' => 135, 'final_price' => 135,
+            'meta' => ['payroll' => ['pay' => 60]],
+        ]);
+
+        $outbound = $outbound->fresh();
+        $this->assertNull($outbound->cashDueToDriver());       // no cash to collect
+        $this->assertFalse($outbound->driverSettledByCustomer()); // business still owes
+        $this->assertSame(60.0, $outbound->driverPayRemaining()); // owes the driver £60
+        $this->assertFalse($outbound->driverFullyPaid());
+    }
+
     public function test_a_one_way_eto_reference_does_not_pair(): void
     {
         // A standalone one-way ETO ref (no A/B sibling) must not pair.

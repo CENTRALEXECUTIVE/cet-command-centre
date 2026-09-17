@@ -3465,9 +3465,16 @@ class Booking extends Model
         }
 
         $own = $this->ownCashDueToDriver();
-        $paired = $this->pairedReturnFare();
-        if ($paired > 0) {
-            return round(($own ?? 0) + $paired, 2);
+
+        // Combine the paired return's fare ONLY when THIS leg genuinely collects
+        // cash. A CARD/account job collects nothing (own === null) — pairing must
+        // never turn it into a cash job, or the business would wrongly look
+        // "settled" and stop owing the driver.
+        if ($own !== null && $own > 0.001) {
+            $paired = $this->pairedReturnFare();
+            if ($paired > 0) {
+                return round($own + $paired, 2);
+            }
         }
 
         return $own;
