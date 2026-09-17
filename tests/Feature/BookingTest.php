@@ -386,6 +386,41 @@ class BookingTest extends TestCase
         $this->assertStringContainsString('collect nothing', $return->driverCollectLine());
     }
 
+    public function test_two_separate_cash_airport_legs_collect_the_full_amount_on_the_outbound(): void
+    {
+        // Booked as TWO separate one-way jobs for the same customer.
+        $customer = \App\Models\Customer::create(['name' => 'George Bemba', 'phone' => '07700900321']);
+
+        $outbound = Booking::factory()->create([
+            'customer_id' => $customer->id,
+            'pickup_at' => now()->addDays(3)->setTime(3, 30),
+            'pickup_address' => '31 Overend Way, Sheffield S14 1JF',
+            'destination_address' => 'Manchester Airport (MAN)',
+            'payment_method' => 'cash', 'quoted_price' => 125, 'final_price' => 125,
+            'meta' => ['payroll' => ['pay' => 60]],
+        ]);
+        Booking::factory()->create([
+            'customer_id' => $customer->id,
+            'pickup_at' => now()->addDays(7)->setTime(11, 50),
+            'pickup_address' => 'Manchester Airport (MAN)',
+            'destination_address' => '31 Overend Way, Sheffield S14 1JF',
+            'payment_method' => 'cash', 'quoted_price' => 135, 'final_price' => 135,
+            'meta' => ['payroll' => ['pay' => 60]],
+        ]);
+
+        $return = Booking::where('pickup_address', 'Manchester Airport (MAN)')->first();
+
+        // Outbound driver collects the WHOLE round trip: £125 + £135 = £260.
+        $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
+        $line = $outbound->fresh()->driverCollectLine();
+        $this->assertStringContainsString('£260 to collect', $line);
+        $this->assertStringContainsString('outbound £125 + return £135', $line);
+
+        // The airport arrival is prepaid — collect nothing.
+        $this->assertFalse($return->hasCashToCollect());
+        $this->assertStringContainsString('collect nothing', $return->driverCollectLine());
+    }
+
     public function test_a_cash_airport_pickup_is_prepaid_and_collects_nothing(): void
     {
         // Manchester Airport → home, cash: arrivals are paid up front.

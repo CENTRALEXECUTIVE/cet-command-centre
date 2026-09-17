@@ -17,6 +17,11 @@ class Booking extends Model
 {
     use HasFactory, LogsActivity, SoftDeletes;
 
+    /** Per-instance memo for the paired airport-return lookup (see pairedAirportReturn). */
+    private bool $pairedReturnLoaded = false;
+
+    private ?self $pairedReturnCache = null;
+
     protected $fillable = [
         'reference', 'customer_id', 'corporate_account_id', 'cost_code', 'corporate_reference',
         'vehicle_type_id', 'airport_id', 'journey_type', 'is_return_leg', 'linked_booking_id',
@@ -2912,11 +2917,17 @@ class Booking extends Model
         // 1) A definite cash amount → show it.
         $cash = $this->cashDueToDriver();
         if ($cash !== null && $cash > 0.001) {
-            // Clean amount: "£130" not "£130.00", but keep pennies when present.
-            $amount = rtrim(rtrim(number_format($cash, 2), '0'), '.');
+            $fmt = fn (float $n) => rtrim(rtrim(number_format($n, 2), '0'), '.');
+            $amount = $fmt($cash);
 
-            // On the outbound leg of a cash return, the driver collects the WHOLE
-            // return fare here — spell it out so nothing is left for the arrival.
+            // Separately-booked return paired in: show the breakdown so the driver
+            // knows the total is the outbound + the return, collected all at once.
+            if (($ret = $this->pairedReturnFare()) > 0) {
+                $own = $fmt((float) ($this->ownCashDueToDriver() ?? 0));
+                return '£'.$amount.' to collect (cash) — outbound £'.$own.' + return £'.$fmt($ret).', collect it all now';
+            }
+
+            // A single-booking cash return (outbound leg carries the total).
             if ($this->isOutboundOfCashReturn()) {
                 return '£'.$amount.' to collect (cash) — the FULL return fare, collect it all now';
             }
@@ -3296,7 +3307,75 @@ class Booking extends Model
             && ($this->payment_method?->value ?? null) === 'cash';
     }
 
+    /**
+     * When THIS is a cash airport DEPARTURE (drop-off), the matching cash airport
+     * RETURN (arrival) for the same customer — booked as a separate one-way job.
+     * Airport arrivals are prepaid, so the driver collects the return's fare on
+     * the OUTBOUND leg too. Matched conservatively (same customer, same airport,
+     * cash, an arrival, within a 30-day window) and only when there's exactly ONE
+     * candidate — never guess a combined figure. Null otherwise. Memoised.
+     */
+    public function pairedAirportReturn(): ?self
+    {
+        if ($this->pairedReturnLoaded) {
+            return $this->pairedReturnCache;
+        }
+        $this->pairedReturnLoaded = true;
+
+        $match = null;
+        $code = $this->airportCode();
+        if ($code
+            && ! $this->isAirportPickup()                                   // this is a departure
+            && ($this->payment_method?->value ?? null) === 'cash'
+            && $this->customer_id
+            && $this->pickup_at) {
+            $candidates = static::query()
+                ->where('id', '!=', $this->id)
+                ->where('customer_id', $this->customer_id)
+                ->where('payment_method', 'cash')
+                ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                ->whereBetween('pickup_at', [$this->pickup_at->copy()->subDay(), $this->pickup_at->copy()->addDays(30)])
+                ->get()
+                ->filter(fn (self $b) => $b->isAirportPickup()
+                    && $b->airportCode() === $code
+                    && (float) ($b->final_price ?? $b->quoted_price ?? 0) > 0);
+
+            $match = $candidates->count() === 1 ? $candidates->first() : null;
+        }
+
+        return $this->pairedReturnCache = $match;
+    }
+
+    /** The paired return's own fare, or 0 when there's no single clear match. */
+    public function pairedReturnFare(): float
+    {
+        $paired = $this->pairedAirportReturn();
+
+        return $paired ? (float) ($paired->final_price ?? $paired->quoted_price ?? 0) : 0.0;
+    }
+
+    /**
+     * The cash the driver collects from the customer. On the outbound of a cash
+     * airport return (arrivals are prepaid) this is the WHOLE round trip — this
+     * leg's own fare PLUS the matching return's fare.
+     */
     public function cashDueToDriver(): ?float
+    {
+        $own = $this->ownCashDueToDriver();
+        $paired = $this->pairedReturnFare();
+        if ($paired > 0) {
+            return round(($own ?? 0) + $paired, 2);
+        }
+
+        return $own;
+    }
+
+    /**
+     * The cash the driver collects on THIS booking's own fare (before pairing).
+     * The public cashDueToDriver() adds the matching airport return's fare on the
+     * outbound, so the driver collects the whole round trip in one go.
+     */
+    private function ownCashDueToDriver(): ?float
     {
         // Manually flagged as settled elsewhere → the driver collects nothing.
         if ($this->fareSettledElsewhere()) {
