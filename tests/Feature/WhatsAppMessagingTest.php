@@ -663,6 +663,38 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('Complimentary upgrade', $body);
     }
 
+    public function test_an_executive_booking_given_a_v_class_shows_the_complimentary_upgrade(): void
+    {
+        // Any class that ISN'T a V Class, when we provide one, is a free upgrade.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $admin = User::factory()->admin()->create();
+        $booking = app(BookingService::class)->createFromForm([
+            'customer_name' => 'Maria Lopez', 'customer_phone' => '07700900777',
+            'vehicle_type_id' => $exec->id, 'journey_type' => 'one_way',
+            'pickup_at' => now()->addDays(2)->setTime(15, 0)->format('Y-m-d H:i'),
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Manchester Airport',
+            'passengers' => 3, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ], $admin);
+
+        $driver = User::factory()->create(['role' => 'driver', 'name' => 'Kash', 'email' => 'kash@cet.test']);
+        $vClassType = VehicleType::where('slug', 'v-class')->first();
+        $vehicle = \App\Models\Vehicle::create([
+            'vehicle_type_id' => $vClassType->id,
+            'registration' => 'J31 XEC', 'make' => 'Mercedes', 'model' => 'V-Class', 'colour' => 'Black', 'is_active' => true,
+        ]);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'default_vehicle_id' => $vehicle->id]);
+        app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
+
+        $fresh = $booking->fresh();
+        $reminder = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($fresh);
+        $this->assertStringContainsString('Complimentary upgrade', $reminder);
+        $this->assertStringContainsString('Mercedes V Class', $reminder);
+
+        // The driver-details message carries the upgrade line too.
+        $details = app(\App\Services\Messaging\BookingNotifier::class)->driverDetailsBody($fresh);
+        $this->assertStringContainsString('Complimentary upgrade', $details);
+    }
+
     public function test_a_reminder_offers_a_mailto_link_when_the_customer_has_an_email(): void
     {
         $booking = $this->makeBooking();

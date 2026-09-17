@@ -3656,15 +3656,17 @@ class Booking extends Model
     }
 
     /**
-     * True when the customer booked a standard minibus (8 Seater / 8 Seater XL)
-     * but we've actually assigned a V Class — a free upgrade we tell the customer
-     * about in the reminder. Only fires once a V Class driver/vehicle is on the
-     * job: detected from the assigned vehicle's linked type, or its make+model /
-     * the manually-entered car reading as a V Class.
+     * True when the customer booked ANY class OTHER than a V Class but we've
+     * actually assigned one — a free upgrade we tell the customer about in the
+     * reminder (executive, estate, minibus… anything that wasn't a V Class
+     * booking). Only fires once a V Class driver/vehicle is on the job: detected
+     * from the assigned vehicle's linked type, or its make+model / the manually-
+     * entered car reading as a V Class.
      */
     public function isComplimentaryVClassUpgrade(): bool
     {
-        if (! in_array($this->vehicleType?->slug, ['minibus-8', 'minibus-8-xl'], true)) {
+        // If they actually booked a V Class, it isn't an upgrade.
+        if ($this->vehicleType?->slug === 'v-class') {
             return false;
         }
 

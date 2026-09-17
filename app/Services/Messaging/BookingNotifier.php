@@ -178,8 +178,8 @@ class BookingNotifier
             $lines[] = $block;
         }
 
-        // Complimentary upgrade: the customer booked a standard minibus but we've
-        // put them in a V Class — tell them it's a free upgrade.
+        // Complimentary upgrade: the customer booked a class other than a V Class
+        // but we've put them in one — tell them it's a free upgrade.
         if ($booking->isComplimentaryVClassUpgrade()) {
             $lines[] = '';
             $lines[] = '✨ *Complimentary upgrade:* we\'ve provided a Mercedes V Class for your journey at no extra charge — enjoy the ride.';
@@ -662,6 +662,11 @@ class BookingNotifier
         $body = 'Hi '.$this->firstName($booking).','."\n\n"
             .'Please find your driver\'s details below:'."\n\n"
             .$block;
+
+        // Free upgrade: booked a class other than a V Class but we've provided one.
+        if ($booking->isComplimentaryVClassUpgrade()) {
+            $body .= "\n\n".'✨ *Complimentary upgrade:* we\'ve provided a Mercedes V Class for your journey at no extra charge — enjoy the ride.';
+        }
 
         // Foreign-number customer on a return (inbound) leg: the driver can't
         // reach them directly, so tell them to liaise with the office once landed.
