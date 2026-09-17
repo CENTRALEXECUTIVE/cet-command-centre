@@ -2821,6 +2821,11 @@ class Booking extends Model
      */
     public function paymentNeedsChecking(): bool
     {
+        // Flagged as settled elsewhere → nothing to collect, nothing to check.
+        if ($this->fareSettledElsewhere()) {
+            return false;
+        }
+
         // A return leg collects nothing on the day — the fare was taken on the
         // outbound leg — so there is never anything uncertain to "check" here,
         // even when its calendar Payment line carries outstanding-balance wording
@@ -2889,6 +2894,11 @@ class Booking extends Model
      */
     public function driverCollectLine(): ?string
     {
+        // 0) Office flagged the fare as settled elsewhere → collect nothing.
+        if ($this->fareSettledElsewhere()) {
+            return 'Paid — collect nothing';
+        }
+
         // 1) A definite cash amount → show it.
         $cash = $this->cashDueToDriver();
         if ($cash !== null && $cash > 0.001) {
@@ -3070,6 +3080,12 @@ class Booking extends Model
             return $amount.' Cash';
         }
 
+        // Manually flagged as settled elsewhere (e.g. cash taken on a separately
+        // booked outbound) — tell the driver they collect nothing.
+        if ($this->fareSettledElsewhere()) {
+            return $amount.' (already settled — collect nothing)';
+        }
+
         // A RETURN leg collects nothing on the day — the fare was taken once, on
         // the outbound leg — so the driver must NOT be told "Cash". Spell it out so
         // there's no ambiguity when the same figure was a cash job outbound.
@@ -3245,8 +3261,23 @@ class Booking extends Model
      * source wins; the largest is taken) — so opening the link twice can never
      * flip between "Paid" and a cash amount, and it never under-collects.
      */
+    /**
+     * The office has marked this job's fare as already settled elsewhere (e.g.
+     * the cash was taken on the outbound of a separately-booked return, or paid
+     * up front) — so the driver collects nothing, whatever the payment lines say.
+     */
+    public function fareSettledElsewhere(): bool
+    {
+        return (bool) ($this->meta['fare_settled'] ?? false);
+    }
+
     public function cashDueToDriver(): ?float
     {
+        // Manually flagged as settled elsewhere → the driver collects nothing.
+        if ($this->fareSettledElsewhere()) {
+            return null;
+        }
+
         // An office-confirmed/corrected amount always wins over everything else.
         // (This is how a genuinely fully-prepaid cash job is set to £0, and the
         // only way to put a cash figure on a return leg.)

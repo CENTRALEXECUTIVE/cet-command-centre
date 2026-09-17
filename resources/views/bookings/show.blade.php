@@ -453,6 +453,16 @@
                 </div>
             @endif
 
+            <form method="POST" action="{{ route('bookings.settled', $booking) }}" style="margin:0 0 10px">
+                @csrf
+                <input type="hidden" name="settled" value="{{ $booking->fareSettledElsewhere() ? '0' : '1' }}">
+                <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer">
+                    <input type="checkbox" onchange="this.form.submit()" {{ $booking->fareSettledElsewhere() ? 'checked' : '' }} style="width:18px;height:18px;margin-top:1px">
+                    <span><strong>Fare already settled — driver collects nothing.</strong>
+                    <span class="hint">Tick for a return where the cash was taken on the outbound, or a job paid up front. The offer, driver link and reminders will all say “collect nothing”.</span></span>
+                </label>
+            </form>
+
             <textarea id="offer-msg" readonly rows="10" onclick="this.select()" style="width:100%;font-family:inherit;font-size:14px;line-height:1.5;white-space:pre-wrap">{{ $offerMsg }}</textarea>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
                 <button type="button" class="btn btn-primary" id="offer-copy" style="padding:9px 16px;font-size:14px">⧉ Copy message</button>

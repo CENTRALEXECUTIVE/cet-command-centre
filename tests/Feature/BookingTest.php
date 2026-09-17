@@ -358,6 +358,31 @@ class BookingTest extends TestCase
         $this->assertStringContainsString('settled on the outbound', $fare);
     }
 
+    public function test_admin_can_flag_a_fare_as_settled_so_the_driver_collects_nothing(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'payment_method' => 'cash', 'quoted_price' => 125,
+            'meta' => ['payroll' => ['pay' => 125]],
+        ]);
+
+        // Before: a cash job tells the driver to collect cash.
+        $this->assertStringContainsString('Cash', $booking->driverOfferFare());
+
+        $this->actingAs($admin)->post(route('bookings.settled', $booking), ['settled' => '1'])
+            ->assertRedirect();
+
+        $booking->refresh();
+        $this->assertTrue($booking->fareSettledElsewhere());
+        $this->assertFalse($booking->hasCashToCollect());
+        $this->assertStringContainsString('collect nothing', $booking->driverOfferFare());
+        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
+
+        // Untick → back to normal.
+        $this->actingAs($admin)->post(route('bookings.settled', $booking), ['settled' => '0'])->assertRedirect();
+        $this->assertFalse($booking->fresh()->fareSettledElsewhere());
+    }
+
     public function test_booking_requires_privacy_consent(): void
     {
         $admin = User::factory()->admin()->create();

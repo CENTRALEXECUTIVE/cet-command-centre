@@ -862,6 +862,26 @@ class BookingController extends Controller
     }
 
     /**
+     * Mark this job's fare as already settled elsewhere (or unmark it) — e.g. the
+     * cash was taken on a separately-booked outbound, or it was paid up front. When
+     * set, the driver is told to collect nothing on the offer, the driver link and
+     * the reminders, whatever the payment lines say.
+     */
+    public function setSettled(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $settled = $request->boolean('settled');
+        $booking->forceFill([
+            'meta' => array_merge($booking->meta ?? [], ['fare_settled' => $settled]),
+        ])->save();
+
+        return back()->with('status', $settled
+            ? 'Marked as already settled — the driver will be told to collect nothing.'
+            : 'Settled flag removed — payment is worked out from the booking again.');
+    }
+
+    /**
      * Ring the assigned driver's phone NOW with a spoken nudge asking them to open
      * the app and update their status. This is the operator's manual version of the
      * watchdog's at-risk call — one call, placed on demand (e.g. the driver's gone
