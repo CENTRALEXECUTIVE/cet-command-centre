@@ -2826,6 +2826,11 @@ class Booking extends Model
             return false;
         }
 
+        // A cash airport pickup is prepaid → nothing to collect or check.
+        if ($this->isPrepaidAirportPickup()) {
+            return false;
+        }
+
         // A return leg collects nothing on the day — the fare was taken on the
         // outbound leg — so there is never anything uncertain to "check" here,
         // even when its calendar Payment line carries outstanding-balance wording
@@ -2897,6 +2902,11 @@ class Booking extends Model
         // 0) Office flagged the fare as settled elsewhere → collect nothing.
         if ($this->fareSettledElsewhere()) {
             return 'Paid — collect nothing';
+        }
+
+        // 0b) A cash airport pickup is prepaid (arrivals are paid up front).
+        if ($this->isPrepaidAirportPickup()) {
+            return 'Airport pickup — already paid, collect nothing';
         }
 
         // 1) A definite cash amount → show it.
@@ -3086,6 +3096,11 @@ class Booking extends Model
             return $amount.' (already settled — collect nothing)';
         }
 
+        // A cash airport pickup is prepaid — arrivals are paid up front.
+        if ($this->isPrepaidAirportPickup()) {
+            return $amount.' (airport pickup — already paid, collect nothing)';
+        }
+
         // A RETURN leg collects nothing on the day — the fare was taken once, on
         // the outbound leg — so the driver must NOT be told "Cash". Spell it out so
         // there's no ambiguity when the same figure was a cash job outbound.
@@ -3271,6 +3286,19 @@ class Booking extends Model
         return (bool) ($this->meta['fare_settled'] ?? false);
     }
 
+    /**
+     * An airport PICK-UP (arrival) on a cash job is paid UP FRONT — arrivals are
+     * always prepaid, never collected in the car — so the driver collects nothing.
+     * An office cash override (meta.payroll.cash_collected) can still force a
+     * figure if a specific job really is collect-on-arrival.
+     */
+    public function isPrepaidAirportPickup(): bool
+    {
+        return $this->isAirportPickup()
+            && ($this->payment_method?->value ?? null) === 'cash'
+            && ($this->meta['payroll']['cash_collected'] ?? null) === null;
+    }
+
     public function cashDueToDriver(): ?float
     {
         // Manually flagged as settled elsewhere → the driver collects nothing.
@@ -3284,6 +3312,11 @@ class Booking extends Model
         $override = $this->meta['payroll']['cash_collected'] ?? null;
         if ($override !== null) {
             return (float) $override;
+        }
+
+        // A cash airport pickup is prepaid — nothing to collect on the day.
+        if ($this->isPrepaidAirportPickup()) {
+            return null;
         }
 
         // A RETURN leg never collects cash: the whole fare is taken once, on the

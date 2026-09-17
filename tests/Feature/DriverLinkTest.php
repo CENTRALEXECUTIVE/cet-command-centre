@@ -22,7 +22,9 @@ class DriverLinkTest extends TestCase
     {
         $booking = Booking::factory()->create([
             'status' => BookingStatus::Accepted,
-            'pickup_address' => 'Manchester Airport (MAN), Terminal 1',
+            // A non-airport pickup: a cash airport ARRIVAL is prepaid (see its own
+            // test), so use a normal run to exercise the cash-to-collect path.
+            'pickup_address' => '12 Fargate, Sheffield',
             'destination_address' => '5 Moorbridge Crescent, Barnsley',
             'payment_method' => PaymentMethod::Cash->value,
             'payment_status' => 'pending',
@@ -33,7 +35,7 @@ class DriverLinkTest extends TestCase
 
         $this->get(route('driver.link', $token))
             ->assertOk()
-            ->assertSee('Manchester Airport (MAN), Terminal 1')
+            ->assertSee('12 Fargate, Sheffield')
             ->assertSee('5 Moorbridge Crescent, Barnsley')
             ->assertSee('£120')                   // cash to collect
             ->assertSee('to collect')

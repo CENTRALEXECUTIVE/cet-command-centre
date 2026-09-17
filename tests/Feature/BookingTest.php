@@ -342,8 +342,11 @@ class BookingTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
+        // A non-airport route so this exercises the return-leg rule specifically
+        // (an airport pickup has its own prepaid rule).
         $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
             'journey_type' => 'return',
+            'destination_address' => 'The Grand Hotel, York',
             'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
             'payment_method' => 'cash',
             'quoted_price' => 250,
@@ -356,6 +359,39 @@ class BookingTest extends TestCase
         $fare = $return->fresh()->driverOfferFare();
         $this->assertStringNotContainsString('Cash', $fare);
         $this->assertStringContainsString('settled on the outbound', $fare);
+    }
+
+    public function test_a_cash_airport_pickup_is_prepaid_and_collects_nothing(): void
+    {
+        // Manchester Airport → home, cash: arrivals are paid up front.
+        $booking = Booking::factory()->create([
+            'pickup_address' => 'Manchester Airport (MAN), Manchester, UK',
+            'destination_address' => '31 Overend Way, Sheffield S14 1JF',
+            'payment_method' => 'cash', 'quoted_price' => 125,
+            'meta' => ['payroll' => ['pay' => 125]],
+        ]);
+
+        $this->assertTrue($booking->isPrepaidAirportPickup());
+        $this->assertFalse($booking->hasCashToCollect());
+        $this->assertFalse($booking->paymentNeedsChecking());
+        $this->assertStringContainsString('already paid', $booking->driverOfferFare());
+        $this->assertStringNotContainsString('Cash', $booking->driverOfferFare());
+        $this->assertSame('Airport pickup — already paid, collect nothing', $booking->driverCollectLine());
+    }
+
+    public function test_a_cash_airport_dropoff_still_collects_cash(): void
+    {
+        // Home → Manchester Airport (a departure) is NOT prepaid — driver collects.
+        $booking = Booking::factory()->create([
+            'pickup_address' => '31 Overend Way, Sheffield S14 1JF',
+            'destination_address' => 'Manchester Airport (MAN), Manchester, UK',
+            'payment_method' => 'cash', 'quoted_price' => 125,
+            'meta' => ['payroll' => ['pay' => 125]],
+        ]);
+
+        $this->assertFalse($booking->isPrepaidAirportPickup());
+        $this->assertTrue($booking->hasCashToCollect());
+        $this->assertStringContainsString('Cash', $booking->driverOfferFare());
     }
 
     public function test_admin_can_flag_a_fare_as_settled_so_the_driver_collects_nothing(): void
