@@ -421,6 +421,44 @@ class BookingTest extends TestCase
         $this->assertStringContainsString('collect nothing', $return->driverCollectLine());
     }
 
+    public function test_eto_ab_references_pair_the_outbound_and_return(): void
+    {
+        // ETO return pair: same reference, last letter A (outbound) / B (return).
+        $outbound = Booking::factory()->create([
+            'external_reference' => 'TJG2SDA', 'payment_method' => 'cash',
+            'pickup_address' => '31 Overend Way, Sheffield', 'destination_address' => 'Manchester Airport (MAN)',
+            'quoted_price' => 125, 'final_price' => 125,
+        ]);
+        $return = Booking::factory()->create([
+            'external_reference' => 'TJG2SDB', 'payment_method' => 'cash',
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => '31 Overend Way, Sheffield',
+            'quoted_price' => 135, 'final_price' => 135,
+        ]);
+
+        // Outbound (A) collects the whole trip.
+        $this->assertTrue($outbound->isEtoReturnOutbound());
+        $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
+        $this->assertStringContainsString('outbound £125 + return £135', $outbound->fresh()->driverCollectLine());
+
+        // Return (B) collects nothing.
+        $this->assertTrue($return->isEtoReturnLeg());
+        $this->assertFalse($return->fresh()->hasCashToCollect());
+        $this->assertStringContainsString('collected on the outbound', $return->fresh()->driverCollectLine());
+    }
+
+    public function test_a_one_way_eto_reference_does_not_pair(): void
+    {
+        // A standalone one-way ETO ref (no A/B sibling) must not pair.
+        $booking = Booking::factory()->create([
+            'external_reference' => 'UAPZOX', 'payment_method' => 'cash',
+            'pickup_address' => '12 Fargate, Sheffield', 'destination_address' => 'Leeds',
+            'quoted_price' => 90, 'final_price' => 90,
+        ]);
+
+        $this->assertNull($booking->etoReturnLeg());
+        $this->assertSame(90.0, $booking->cashDueToDriver());
+    }
+
     public function test_cash_airport_legs_pair_by_phone_across_separate_customer_records(): void
     {
         // Two one-way jobs booked separately can land on DIFFERENT customer

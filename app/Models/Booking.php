@@ -22,6 +22,11 @@ class Booking extends Model
 
     private ?self $pairedReturnCache = null;
 
+    /** Per-instance memo for the ETO A/B return sibling (see etoSibling). */
+    private bool $etoSiblingLoaded = false;
+
+    private ?self $etoSiblingCache = null;
+
     protected $fillable = [
         'reference', 'customer_id', 'corporate_account_id', 'cost_code', 'corporate_reference',
         'vehicle_type_id', 'airport_id', 'journey_type', 'is_return_leg', 'linked_booking_id',
@@ -2909,7 +2914,12 @@ class Booking extends Model
             return 'Paid — collect nothing';
         }
 
-        // 0b) A cash airport pickup is prepaid (arrivals are paid up front).
+        // 0b) The return (…B) leg of an ETO return — collected on the outbound.
+        if ($this->isEtoReturnLeg()) {
+            return 'Return leg — collected on the outbound, collect nothing';
+        }
+
+        // 0c) A cash airport pickup is prepaid (arrivals are paid up front).
         if ($this->isPrepaidAirportPickup()) {
             return 'Airport pickup — already paid, collect nothing';
         }
@@ -3308,6 +3318,61 @@ class Booking extends Model
     }
 
     /**
+     * ETO return pairs share the SAME reference except the last letter: "A" is the
+     * outbound, "B" is the return (e.g. TJG2SDA ↔ TJG2SDB). Returns 'A' or 'B'
+     * when this booking's ETO reference (external_reference) follows that
+     * convention AND its sibling actually exists — otherwise null.
+     */
+    public function etoReturnLeg(): ?string
+    {
+        return $this->etoSibling() ? strtoupper(substr((string) $this->external_reference, -1)) : null;
+    }
+
+    /** True when this is the OUTBOUND (…A) leg of an ETO return pair. */
+    public function isEtoReturnOutbound(): bool
+    {
+        return $this->etoReturnLeg() === 'A';
+    }
+
+    /** True when this is the RETURN (…B) leg of an ETO return pair. */
+    public function isEtoReturnLeg(): bool
+    {
+        return $this->etoReturnLeg() === 'B';
+    }
+
+    /**
+     * The other leg of an ETO return pair — the booking whose ETO reference is
+     * identical except the final A/B letter. Null when this reference doesn't end
+     * in A/B or the sibling doesn't exist. Memoised.
+     */
+    public function etoSibling(): ?self
+    {
+        if ($this->etoSiblingLoaded) {
+            return $this->etoSiblingCache;
+        }
+        $this->etoSiblingLoaded = true;
+
+        $match = null;
+        $ref = trim((string) $this->external_reference);
+        $last = strtoupper(substr($ref, -1));
+        if (strlen($ref) >= 2 && in_array($last, ['A', 'B'], true)) {
+            $base = substr($ref, 0, -1);
+            $sibling = $base.($last === 'A' ? 'B' : 'A');
+            $match = static::query()
+                ->where('id', '!=', $this->id)
+                ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                ->where(function ($q) use ($sibling) {
+                    $q->where('external_reference', $sibling)
+                        ->orWhere('external_reference', strtolower($sibling))
+                        ->orWhere('external_reference', strtoupper($sibling));
+                })
+                ->first();
+        }
+
+        return $this->etoSiblingCache = $match;
+    }
+
+    /**
      * When THIS is a cash airport DEPARTURE (drop-off), the matching cash airport
      * RETURN (arrival) for the same customer — booked as a separate one-way job.
      * Airport arrivals are prepaid, so the driver collects the return's fare on
@@ -3353,21 +3418,42 @@ class Booking extends Model
         return $this->pairedReturnCache = $match;
     }
 
-    /** The paired return's own fare, or 0 when there's no single clear match. */
+    /**
+     * The return booking whose fare is collected on THIS (outbound) leg: the ETO
+     * A/B sibling first (an exact link), else the cash airport-return heuristic
+     * for separately-booked one-ways with no ETO reference.
+     */
+    public function pairedReturnForCollection(): ?self
+    {
+        if ($this->isEtoReturnOutbound()) {
+            return $this->etoSibling();
+        }
+        // Only heuristic-pair when this booking isn't itself an ETO return leg.
+        return $this->etoReturnLeg() === null ? $this->pairedAirportReturn() : null;
+    }
+
+    /** The paired return's own fare, or 0 when there's no clear match. */
     public function pairedReturnFare(): float
     {
-        $paired = $this->pairedAirportReturn();
+        $paired = $this->pairedReturnForCollection();
 
         return $paired ? (float) ($paired->final_price ?? $paired->quoted_price ?? 0) : 0.0;
     }
 
     /**
-     * The cash the driver collects from the customer. On the outbound of a cash
-     * airport return (arrivals are prepaid) this is the WHOLE round trip — this
-     * leg's own fare PLUS the matching return's fare.
+     * The cash the driver collects from the customer. On the OUTBOUND of a cash
+     * return this is the WHOLE round trip — this leg's own fare PLUS the matching
+     * return's fare. The RETURN (…B) leg collects nothing (taken on the outbound).
      */
     public function cashDueToDriver(): ?float
     {
+        // The return (…B) leg of an ETO return collects nothing on the day — the
+        // whole fare is taken on the outbound. Only an office override can put cash
+        // back on it.
+        if ($this->isEtoReturnLeg() && ($this->meta['payroll']['cash_collected'] ?? null) === null) {
+            return null;
+        }
+
         $own = $this->ownCashDueToDriver();
         $paired = $this->pairedReturnFare();
         if ($paired > 0) {
