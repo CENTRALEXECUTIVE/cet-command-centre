@@ -168,6 +168,24 @@ class BookingTest extends TestCase
         $this->assertTrue($b->driverFullyPaid());
     }
 
+    public function test_the_list_labels_a_cash_job_as_settled_not_owed(): void
+    {
+        // A cash job the driver keeps must read "settled with driver", never
+        // "owed · tap to pay" — so the office never pays a cash job twice.
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create();
+        $cash = Booking::factory()->create([
+            'external_reference' => 'CASHSET1', 'driver_id' => $driver->id, 'pickup_at' => now()->addDay(),
+            'payment_method' => \App\Enums\PaymentMethod::Cash->value,
+        ]);
+        $cash->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 0, 'history' => []]]])->save();
+
+        $this->actingAs($admin)->get(route('bookings.index', ['filter' => 'upcoming']))
+            ->assertOk()
+            ->assertSee('Cash — settled with driver')
+            ->assertDontSee('£90 owed');
+    }
+
     public function test_bookings_can_be_filtered_by_driver_including_callsign_jobs(): void
     {
         $admin = User::factory()->admin()->create();

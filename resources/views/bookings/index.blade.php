@@ -169,8 +169,10 @@
 
                             <div class="bk-side">
                                 <span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span>
-                                @if($b->driverFullyPaid())
-                                    <span class="badge" style="background:#1f7a44;color:#fff" title="Driver paid for this job">💷 Driver paid</span>
+                                @if($b->driverSettledByCustomer() && $b->driverPay() !== null)
+                                    <span class="badge" style="background:#1f7a44;color:#fff" title="Cash job — the driver collected the cash from the customer, so the business owes nothing. Nothing to pay.">💷 Cash — settled with driver</span>
+                                @elseif($b->driverFullyPaid())
+                                    <span class="badge" style="background:#1f7a44;color:#fff" title="Card/account job — the business has paid the driver in full">💷 Driver paid</span>
                                 @elseif(($b->driverPayRemaining() ?? 0) > 0)
                                     @if(auth()->user()->isAdmin())
                                         <span class="badge" style="background:#8a5a00;color:#fff;cursor:pointer" title="Tap to mark this job paid to the driver"
