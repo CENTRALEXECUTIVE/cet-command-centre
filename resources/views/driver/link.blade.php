@@ -1,19 +1,24 @@
+@php $unbranded = $booking?->driverLinkUnbranded() ?? false; @endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Your job · Central Executive Transfers</title>
+    <title>{{ $unbranded ? 'Your job' : 'Your job · Central Executive Transfers' }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('cet.asset_version') }}">
-    @include('partials.pwa')
+    @unless($unbranded)@include('partials.pwa')@endunless
 </head>
 <body class="driver-app">
     <div class="link-topbar">
-        <span class="brand"><span class="dot"></span> CENTRAL <span class="gold">EXECUTIVE</span></span>
-        <span class="link-tag">Driver job</span>
+        @if($unbranded)
+            <span class="brand"><span class="dot"></span> Driver job</span>
+        @else
+            <span class="brand"><span class="dot"></span> CENTRAL <span class="gold">EXECUTIVE</span></span>
+            <span class="link-tag">Driver job</span>
+        @endif
     </div>
 
     <main class="container" style="max-width:640px;padding:18px 16px 48px">
@@ -65,14 +70,14 @@
             <div class="card" style="text-align:center;padding:36px 20px">
                 <div style="font-size:40px">🚫</div>
                 <h2 style="margin:10px 0 4px">This booking has been cancelled</h2>
-                <p class="hint" style="margin:0">This link is now closed. Central Executive Transfers will send a fresh link for your next job.</p>
+                <p class="hint" style="margin:0">This link is now closed.{{ $unbranded ? '' : ' Central Executive Transfers will send a fresh link for your next job.' }}</p>
             </div>
         @elseif($booking->status->isTerminal())
             {{-- Job done → the link closes. Kept tidy (no details), not a raw 404. --}}
             <div class="card" style="text-align:center;padding:36px 20px">
                 <div style="font-size:40px">✅</div>
                 <h2 style="margin:10px 0 4px">This job is {{ $booking->status->label() }}</h2>
-                <p class="hint" style="margin:0">Thanks — this link is now closed. Central Executive Transfers will send a fresh link for your next job.</p>
+                <p class="hint" style="margin:0">Thanks — this link is now closed.{{ $unbranded ? '' : ' Central Executive Transfers will send a fresh link for your next job.' }}</p>
                 <p class="hint" style="margin:12px 0 0"><strong>Payment will be sent on Sundays.</strong></p>
             </div>
         @else
@@ -85,9 +90,10 @@
                 'ackChildSeatsUrl' => route('driver.link.child-seats', $token),
                 'ackNotesUrl' => route('driver.link.notes-ack', $token),
                 'onItUrl' => route('driver.link.on-it', $token),
+                'unbranded' => $unbranded,
             ])
 
-            <p class="hint" style="text-align:center;margin-top:20px">Private link for this job · Central Executive Transfers</p>
+            <p class="hint" style="text-align:center;margin-top:20px">{{ $unbranded ? 'Private link for this job' : 'Private link for this job · Central Executive Transfers' }}</p>
         @endif
     </main>
 </body>

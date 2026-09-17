@@ -861,6 +861,23 @@ class BookingController extends Controller
         return back()->with('status', 'Waiting time set to '.(int) $data['waiting_minutes'].' billable min.');
     }
 
+    /**
+     * Toggle whether this booking's shareable driver link is UNBRANDED — for jobs
+     * given to outsourced/third-party drivers who shouldn't see the CET branding.
+     */
+    public function setDriverLinkBranding(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $unbranded = $request->boolean('unbranded');
+        $booking->forceFill([
+            'meta' => array_merge($booking->meta ?? [], ['driver_link_unbranded' => $unbranded]),
+        ])->save();
+
+        return back()->with('status', $unbranded
+            ? 'Driver link is now unbranded — safe to send to an outsourced driver.'
+            : 'Driver link branding restored.');
+    }
 
     /**
      * Ring the assigned driver's phone NOW with a spoken nudge asking them to open

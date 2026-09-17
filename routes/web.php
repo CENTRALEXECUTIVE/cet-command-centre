@@ -142,6 +142,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Quick edits from the booking page: the job price, and the waiting minutes.
         Route::post('bookings/{booking}/price', [BookingController::class, 'setPrice'])->middleware('throttle:30,1')->name('bookings.price');
         Route::post('bookings/{booking}/waiting', [BookingController::class, 'setWaiting'])->middleware('throttle:30,1')->name('bookings.waiting');
+        Route::post('bookings/{booking}/driver-link-branding', [BookingController::class, 'setDriverLinkBranding'])->middleware('throttle:30,1')->name('bookings.driver-link-branding');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
         Route::get('cash-summary', [\App\Http\Controllers\Admin\PayrollController::class, 'daily'])->name('payroll.daily');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');

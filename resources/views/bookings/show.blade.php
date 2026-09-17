@@ -521,6 +521,17 @@
                 <div class="alert alert-error" style="margin:8px 0 0">⚠ <strong>{{ $booking->driver->name }}</strong> has no phone number saved — add one on their <a href="{{ route('users.edit', $booking->driver) }}">driver account</a> before sending. (We won’t guess a number.)</div>
             @endif
             <p class="hint" style="margin:10px 0 0">Anyone with this link can work the job — treat it like a key. It stops working once the job is completed or cancelled.</p>
+
+            {{-- White-label toggle: send an UNBRANDED link to an outsourced driver. --}}
+            <form method="POST" action="{{ route('bookings.driver-link-branding', $booking) }}" style="margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line)">
+                @csrf
+                <input type="hidden" name="unbranded" value="{{ $booking->driverLinkUnbranded() ? '0' : '1' }}">
+                <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer">
+                    <input type="checkbox" onchange="this.form.submit()" {{ $booking->driverLinkUnbranded() ? 'checked' : '' }} style="width:18px;height:18px;margin-top:1px">
+                    <span><strong>Unbranded link (for outsourced drivers)</strong>
+                    <span class="hint">Hides all Central Executive Transfers branding on the driver's page — for drivers that aren't ours.</span></span>
+                </label>
+            </form>
         </div>
         <script>
             (function () {

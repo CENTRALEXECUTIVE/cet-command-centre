@@ -42,6 +42,46 @@ class DriverLinkTest extends TestCase
             ->assertSee('On My Way');             // a working status button
     }
 
+    public function test_an_unbranded_link_hides_all_cet_branding(): void
+    {
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'pickup_address' => '12 Fargate, Sheffield',
+            'destination_address' => 'Leeds City Centre',
+            'meta' => ['driver_link_unbranded' => true],
+        ]);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('Driver job')
+            ->assertSee('12 Fargate, Sheffield')     // job details still work
+            ->assertDontSee('Central Executive')
+            ->assertDontSee('CENTRAL');
+    }
+
+    public function test_a_normal_link_keeps_cet_branding(): void
+    {
+        $booking = Booking::factory()->create(['status' => BookingStatus::Accepted]);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('CENTRAL');
+    }
+
+    public function test_admin_can_toggle_an_unbranded_driver_link(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create();
+
+        $this->actingAs($admin)->post(route('bookings.driver-link-branding', $booking), ['unbranded' => '1'])
+            ->assertRedirect();
+        $this->assertTrue($booking->fresh()->driverLinkUnbranded());
+
+        $this->actingAs($admin)->post(route('bookings.driver-link-branding', $booking), ['unbranded' => '0'])
+            ->assertRedirect();
+        $this->assertFalse($booking->fresh()->driverLinkUnbranded());
+    }
+
     public function test_the_link_shows_the_allow_location_gate(): void
     {
         // The link must be able to prompt for location — a tap-driven gate that

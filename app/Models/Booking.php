@@ -3292,6 +3292,16 @@ class Booking extends Model
     }
 
     /**
+     * The shareable driver link hides ALL Central Executive Transfers branding —
+     * for jobs handed to outsourced/third-party drivers who shouldn't see who the
+     * work is for. The job details, navigation and status buttons still work.
+     */
+    public function driverLinkUnbranded(): bool
+    {
+        return (bool) ($this->meta['driver_link_unbranded'] ?? false);
+    }
+
+    /**
      * An airport PICK-UP (arrival) on a cash job is paid UP FRONT — arrivals are
      * always prepaid, never collected in the car — so the driver collects nothing.
      * An office cash override (meta.payroll.cash_collected) can still force a

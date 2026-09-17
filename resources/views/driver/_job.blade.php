@@ -3,6 +3,7 @@
      Route targets and the admin flag are passed in so both contexts work. --}}
 @php
     $linkMode = $linkMode ?? false;
+    $unbranded = $unbranded ?? false; // hide CET branding for outsourced drivers
     $viewerIsAdmin = $linkMode ? false : (auth()->user()?->isAdmin() ?? false);
     $statusUrl = $statusUrl ?? route('driver.job.status', $booking);
     $locationStoreUrl = $locationStoreUrl ?? route('driver.locations.store');
@@ -117,7 +118,7 @@
 @if($isAssignedDriver)
     <div id="loc-gate" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.12)">
         <div style="font-weight:800;font-size:15px">📍 Turn on location for this job</div>
-        <p class="hint" id="loc-gate-msg" style="margin:6px 0 10px">Central Executive needs your location for tracking, navigation and your waiting time. Tap below and choose <strong>Allow</strong>.</p>
+        <p class="hint" id="loc-gate-msg" style="margin:6px 0 10px">{{ $unbranded ? 'We need' : 'Central Executive needs' }} your location for tracking, navigation and your waiting time. Tap below and choose <strong>Allow</strong>.</p>
         <button type="button" id="loc-gate-btn" class="btn btn-primary" style="padding:9px 18px;font-size:15px">Allow location</button>
     </div>
     <script>
