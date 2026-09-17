@@ -421,6 +421,32 @@ class BookingTest extends TestCase
         $this->assertStringContainsString('collect nothing', $return->driverCollectLine());
     }
 
+    public function test_cash_airport_legs_pair_by_phone_across_separate_customer_records(): void
+    {
+        // Two one-way jobs booked separately can land on DIFFERENT customer
+        // records with the SAME phone — pairing must still find the return.
+        $c1 = \App\Models\Customer::create(['name' => 'George Bemba', 'phone' => '07576574083']);
+        $c2 = \App\Models\Customer::create(['name' => 'George Bemba', 'phone' => '07576574083']);
+
+        $outbound = Booking::factory()->create([
+            'customer_id' => $c1->id, 'payment_method' => 'cash',
+            'pickup_at' => now()->addDays(3)->setTime(3, 30),
+            'pickup_address' => '31 Overend Way, Sheffield S14 1JF',
+            'destination_address' => 'Manchester Airport (MAN), Manchester, UK',
+            'quoted_price' => 125, 'final_price' => 125,
+        ]);
+        Booking::factory()->create([
+            'customer_id' => $c2->id, 'payment_method' => 'cash',
+            'pickup_at' => now()->addDays(7)->setTime(11, 50),
+            'pickup_address' => 'Manchester Airport (MAN), Manchester, UK',
+            'destination_address' => '31 Overend Way, Sheffield S14 1JF',
+            'quoted_price' => 135, 'final_price' => 135,
+        ]);
+
+        $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
+        $this->assertStringContainsString('outbound £125 + return £135', $outbound->fresh()->driverCollectLine());
+    }
+
     public function test_a_cash_airport_pickup_is_prepaid_and_collects_nothing(): void
     {
         // Manchester Airport → home, cash: arrivals are paid up front.

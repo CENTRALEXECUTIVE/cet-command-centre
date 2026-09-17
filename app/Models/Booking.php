@@ -3290,7 +3290,7 @@ class Booking extends Model
     public function isPrepaidAirportPickup(): bool
     {
         return $this->isAirportPickup()
-            && ($this->payment_method?->value ?? null) === 'cash'
+            && $this->driverCollectsOnThisJob() // cash job (by method OR payment text)
             && ($this->meta['payroll']['cash_collected'] ?? null) === null;
     }
 
@@ -3324,20 +3324,27 @@ class Booking extends Model
 
         $match = null;
         $code = $this->airportCode();
+        // Last 9 digits of the contact number — matches across 0.../+44... formats.
+        $tail = substr(preg_replace('/\D/', '', (string) $this->customerContactNumber()), -9);
         if ($code
-            && ! $this->isAirportPickup()                                   // this is a departure
-            && ($this->payment_method?->value ?? null) === 'cash'
-            && $this->customer_id
-            && $this->pickup_at) {
+            && ! $this->isAirportPickup()          // this is an airport DEPARTURE
+            && $this->driverCollectsOnThisJob()    // a cash job (by method OR text)
+            && $this->pickup_at
+            && ($this->customer_id || $tail !== '')) {
             $candidates = static::query()
                 ->where('id', '!=', $this->id)
-                ->where('customer_id', $this->customer_id)
-                ->where('payment_method', 'cash')
                 ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                 ->whereBetween('pickup_at', [$this->pickup_at->copy()->subDay(), $this->pickup_at->copy()->addDays(30)])
+                ->where(function ($q) use ($tail) {
+                    $q->where('customer_id', $this->customer_id);
+                    if ($tail !== '') {
+                        $q->orWhereHas('customer', fn ($c) => $c->where('phone', 'like', '%'.$tail));
+                    }
+                })
                 ->get()
                 ->filter(fn (self $b) => $b->isAirportPickup()
                     && $b->airportCode() === $code
+                    && $b->driverCollectsOnThisJob()
                     && (float) ($b->final_price ?? $b->quoted_price ?? 0) > 0);
 
             $match = $candidates->count() === 1 ? $candidates->first() : null;
