@@ -51,12 +51,16 @@ class MaskingService
 
     public function customerLine(): ?string
     {
-        return config('services.twilio_masking.customer_line');
+        // An in-app Setting (Settings page) wins, so the number can be changed
+        // without touching .env; falls back to the env/config value.
+        return \App\Models\Setting::get('twilio_customer_line')
+            ?: config('services.twilio_masking.customer_line');
     }
 
     public function driverLine(): ?string
     {
-        return config('services.twilio_masking.driver_line');
+        return \App\Models\Setting::get('twilio_driver_line')
+            ?: config('services.twilio_masking.driver_line');
     }
 
     /**

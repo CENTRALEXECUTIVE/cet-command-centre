@@ -16,8 +16,16 @@ class SettingsController extends Controller
 {
     public function index(): View
     {
+        $secret = (string) config('cet.webhook_secret');
+        $base = rtrim((string) config('app.url'), '/');
+        $suffix = $secret !== '' ? '?secret='.$secret : '?secret=YOUR_CET_WEBHOOK_SECRET';
+
         return view('admin.settings.index', [
             'mapsKey' => Setting::get('google_maps_key'),
+            'customerLine' => Setting::get('twilio_customer_line') ?: config('services.twilio_masking.customer_line'),
+            'driverLine' => Setting::get('twilio_driver_line') ?: config('services.twilio_masking.driver_line'),
+            'smsWebhook' => $base.'/webhooks/sms'.$suffix,
+            'voiceWebhook' => $base.'/webhooks/voice'.$suffix,
         ]);
     }
 
@@ -25,9 +33,13 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'google_maps_key' => ['nullable', 'string', 'max:120'],
+            'twilio_customer_line' => ['nullable', 'string', 'max:32'],
+            'twilio_driver_line' => ['nullable', 'string', 'max:32'],
         ]);
 
-        Setting::set('google_maps_key', trim((string) $data['google_maps_key']), 'string', 'integrations');
+        Setting::set('google_maps_key', trim((string) ($data['google_maps_key'] ?? '')), 'string', 'integrations');
+        Setting::set('twilio_customer_line', trim((string) ($data['twilio_customer_line'] ?? '')), 'string', 'telephony');
+        Setting::set('twilio_driver_line', trim((string) ($data['twilio_driver_line'] ?? '')), 'string', 'telephony');
 
         return back()->with('status', 'Settings saved.');
     }

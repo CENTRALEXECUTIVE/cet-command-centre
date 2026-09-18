@@ -26,6 +26,31 @@
             <button type="button" id="test-places" class="btn btn-light" style="padding:7px 14px">Test address search</button>
             <span id="test-result" class="muted" style="font-size:13px;margin-left:8px"></span>
         </div>
+
+        <div class="card">
+            <h2>📞 Phone lines (number masking)</h2>
+            <p class="muted" style="margin-top:0">Your two permanent Twilio numbers. The <strong>customer line</strong> is the masked number customers ring/text to reach the driver; the <strong>driver line</strong> is on the driver's job screen to reach the customer. Change a number here — no server access needed.</p>
+            <div class="grid grid-2">
+                <label>Customer line
+                    <input type="text" name="twilio_customer_line" value="{{ $customerLine }}" placeholder="+447…" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Driver line
+                    <input type="text" name="twilio_driver_line" value="{{ $driverLine }}" placeholder="+447…" autocomplete="off" spellcheck="false">
+                </label>
+            </div>
+            <p class="muted" style="font-size:12px;margin:6px 0 0">Enter in full international format, e.g. <strong>+447575583899</strong>. Leave blank to fall back to the server's configured number.</p>
+
+            <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+                <p class="muted" style="margin:0 0 6px;font-weight:600">Paste these into each Twilio number (HTTP POST):</p>
+                <label style="font-size:12px">Messaging webhook URL
+                    <input type="text" value="{{ $smsWebhook }}" readonly onclick="this.select()" style="font-family:ui-monospace,monospace;font-size:12px">
+                </label>
+                <label style="font-size:12px">Voice webhook URL
+                    <input type="text" value="{{ $voiceWebhook }}" readonly onclick="this.select()" style="font-family:ui-monospace,monospace;font-size:12px">
+                </label>
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-primary">Save</button>
     </form>
 
