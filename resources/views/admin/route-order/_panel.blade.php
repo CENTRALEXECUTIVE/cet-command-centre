@@ -47,7 +47,20 @@
                     <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a>
                         <div class="muted" style="font-size:12px">{{ \Illuminate\Support\Str::limit($b->displayName(), 18) }}</div></td>
                     <td class="muted" style="font-size:13px">{{ $b->vehicleType?->name ?: $b->displayVehicleType() }}</td>
-                    <td><strong>{{ $b->assignedDriverLabel() }}</strong></td>
+                    <td>
+                        <strong>{{ $b->assignedDriverLabel() }}</strong>
+                        @if(($drivers ?? collect())->isNotEmpty() && ! $b->status->isTerminal())
+                            <form method="POST" action="{{ route('despatch.reassign', $b) }}" style="margin:2px 0 0">
+                                @csrf
+                                <select name="driver_id" onchange="this.form.submit()" style="font-size:12px;max-width:150px;padding:3px 6px">
+                                    <option value="" disabled selected>Change…</option>
+                                    @foreach($drivers as $d)
+                                        <option value="{{ $d->id }}" @selected($b->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        @endif
+                    </td>
                     <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
                 </tr>
             @endforeach

@@ -103,5 +103,6 @@
         'vehicleTabs' => $orderVehicleTabs,
         'selectedVehicle' => $orderSelectedVehicle,
         'rows' => $orderRows,
+        'drivers' => $orderDrivers,
     ])
 @endsection

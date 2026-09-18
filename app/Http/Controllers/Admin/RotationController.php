@@ -39,6 +39,7 @@ class RotationController extends Controller
             'orderVehicleTabs' => $order['vehicleTabs'],
             'orderSelectedVehicle' => $order['selectedVehicle'],
             'orderRows' => $order['rows'],
+            'orderDrivers' => $order['drivers'],
         ]));
     }
 

@@ -2409,7 +2409,15 @@ class Booking extends Model
      *
      * @return \Illuminate\Support\Collection<int, self>
      */
-    public function routeSequence(int $before = 6, int $after = 3, bool $rotationOnly = false): \Illuminate\Support\Collection
+    /**
+     * Recent jobs on the same route/airport, ordered by when they CAME THROUGH
+     * (created/allocated) — newest first — each with the driver the rotation gave
+     * it. This booking is included in the list (mark it by id in the view).
+     * rotationOnly keeps just the rotation class (executive).
+     *
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public function routeSequence(int $limit = 12, bool $rotationOnly = false): \Illuminate\Support\Collection
     {
         $code = $this->airportCode();
         $q = $this->sameRouteQuery();
@@ -2417,20 +2425,14 @@ class Booking extends Model
             return collect();
         }
 
-        // rotationOnly keeps just the rotation vehicle class (executive), since the
-        // Abdi↔Maj order only applies there.
         $keep = fn (self $b) => $b->airportCode() === $code
             && (! $rotationOnly || (bool) $b->vehicleType?->affects_rotation);
 
-        $prev = (clone $q)->where('pickup_at', '<', $this->pickup_at)
-            ->orderByDesc('pickup_at')->with(['driver', 'vehicleType'])->limit($before * 3 + 6)->get()
-            ->filter($keep)->take($before)->reverse();
+        $others = (clone $q)
+            ->orderByDesc('created_at')->with(['driver', 'vehicleType'])->limit($limit * 3 + 10)->get()
+            ->filter($keep)->take($limit);
 
-        $next = (clone $q)->where('pickup_at', '>', $this->pickup_at)
-            ->orderBy('pickup_at')->with(['driver', 'vehicleType'])->limit($after * 3 + 6)->get()
-            ->filter($keep)->take($after);
-
-        return $prev->push($this)->concat($next)->values();
+        return $others->push($this)->unique('id')->sortByDesc('created_at')->values();
     }
 
     /** True when this is a free-roam (non-fixed, hourly/roaming) job, not a transfer. */

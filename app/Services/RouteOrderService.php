@@ -79,6 +79,10 @@ class RouteOrderService
             ? $routeRows
             : $routeRows->filter(fn (Booking $b) => $vehName($b) === $selectedVehicle)->values();
 
+        // Login drivers that can be reassigned inline from the list.
+        $drivers = \App\Models\User::where('is_active', true)->whereHas('driverProfile')
+            ->with('driverProfile')->orderBy('name')->get();
+
         return [
             'scope' => $scope,
             'tabs' => $tabs,
@@ -86,6 +90,7 @@ class RouteOrderService
             'vehicleTabs' => $vehicleTabs,
             'selectedVehicle' => $selectedVehicle,
             'rows' => $rows,
+            'drivers' => $drivers,
         ];
     }
 }

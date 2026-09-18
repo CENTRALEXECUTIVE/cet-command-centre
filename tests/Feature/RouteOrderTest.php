@@ -114,6 +114,22 @@ class RouteOrderTest extends TestCase
         $res->assertDontSee('FREE_ROAM');
     }
 
+    public function test_route_order_offers_an_inline_change_driver_control(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Rota Ray']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id]);
+        Booking::factory()->create([
+            'pickup_at' => now()->addDay(), 'created_at' => now(),
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]);
+
+        $this->actingAs($admin)->get(route('route-order.index', ['route' => 'MAN']))
+            ->assertOk()
+            ->assertSee('Change…')                              // the inline picker
+            ->assertSee('despatch/'.Booking::first()->id.'/reassign', false); // posts to reassign
+    }
+
     public function test_route_order_is_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
