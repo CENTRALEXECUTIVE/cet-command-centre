@@ -66,15 +66,6 @@
     </div>
 </div>
 
-{{-- Order check: the previous job on this route and who had it, so the driver
-     can confirm the run is going in the right order. Hidden on unbranded links
-     (we don't reveal our rotation to outsourced drivers). --}}
-@php $prevRoute = $unbranded ? null : $booking->previousRouteJob(); @endphp
-@if($prevRoute)
-    <div class="card" style="margin-bottom:12px;border-left:4px solid rgba(251,186,42,.6);background:rgba(251,186,42,.08)">
-        <div style="font-size:13px">🔢 <strong>Order check</strong> — the previous {{ $booking->airportCode() }} job was <strong>{{ $prevRoute->assignedDriverLabel() }}</strong> · {{ $prevRoute->pickup_at?->format('D d M, H:i') }}.</div>
-    </div>
-@endif
 
 @if($errors->any())
     <div class="alert alert-error">{{ $errors->first() }}</div>
@@ -226,8 +217,14 @@
 @endif
 
 {{-- Notes from the office for the driver — extra info the customer gave.
-     Prominent so it isn't missed. --}}
-@if($booking->driverReadNotes())
+     Prominent so it isn't missed. If the note contains a phone number it's HIDDEN
+     (it would defeat number masking) — the office is flagged to handle it. --}}
+@if($booking->driverReadNotes() && $booking->notesContainNumber())
+    <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
+        <div style="font-weight:800;font-size:15px">📝 Note held by the office</div>
+        <p style="margin:6px 0 0;font-size:14px">There's a note for this job that the office is handling — please reach the customer on the number shown above, or via the office.</p>
+    </div>
+@elseif($booking->driverReadNotes())
     <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
         <div style="font-weight:800;font-size:15px">📝 Notes</div>
         <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{{ $booking->driverReadNotes() }}</p>
@@ -361,7 +358,7 @@
             <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
         @endif
         @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
-        @if($booking->driverNotes())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
+        @if($booking->driverNotes() && ! $booking->notesContainNumber())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
     </table>
 </div>
 

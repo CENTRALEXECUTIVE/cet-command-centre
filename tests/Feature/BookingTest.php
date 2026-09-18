@@ -559,6 +559,33 @@ class BookingTest extends TestCase
         $this->assertStringContainsString('outbound £125 + return £135', $outbound->fresh()->driverCollectLine());
     }
 
+    public function test_notes_with_a_number_are_flagged_and_the_contact_can_be_set(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'meta' => ['driver_notes' => 'Passenger is Alexandra, ring her on 07911 123456'],
+        ]);
+
+        $this->assertTrue($booking->notesContainNumber());
+
+        // The booking page warns the office and offers to set the contact.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('hidden from the driver')
+            ->assertSee('07911 123456');
+
+        // Setting it overrides the contact for this booking + names the passenger.
+        $this->actingAs($admin)->post(route('bookings.set-contact', $booking), [
+            'contact_number' => '07911 123456',
+            'lead_name' => 'Alexandra Goodman (booked by John)',
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame('07911 123456', $booking->displayContact());
+        $this->assertSame('07911 123456', $booking->customerContactNumber());
+        $this->assertSame('Alexandra Goodman (booked by John)', $booking->displayName());
+    }
+
     public function test_a_cash_airport_pickup_is_prepaid_and_collects_nothing(): void
     {
         // Manchester Airport → home, cash: arrivals are paid up front.

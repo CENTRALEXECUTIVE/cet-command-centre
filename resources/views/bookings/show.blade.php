@@ -85,6 +85,32 @@
         <div class="alert alert-error">{{ session('error') }}</div>
     @endif
 
+    {{-- Notes contain a phone number → hidden from the driver (masking safety).
+         Inform the office and let them set it as the contact number + a name. --}}
+    @if(auth()->user()->isAdmin() && $booking->notesContainNumber())
+        <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.12);margin-bottom:16px">
+            <strong>⚠ A phone number is in the notes — hidden from the driver</strong>
+            <p class="hint" style="margin:6px 0 10px">To protect number masking, the driver can't see the note. Set the right contact number below (and a name so it's easy to spot — we often only have a first name). It'll be used for masking, driver details and reminders on this booking.</p>
+            <form method="POST" action="{{ route('bookings.set-contact', $booking) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                @csrf
+                <div class="field" style="margin:0">
+                    <label style="font-size:12px">Contact number</label>
+                    <select name="contact_number" style="min-width:170px">
+                        @foreach($booking->notePhoneNumbers() as $num)
+                            <option value="{{ $num }}">{{ $num }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field" style="margin:0">
+                    <label style="font-size:12px">Name (optional)</label>
+                    <input name="lead_name" value="{{ $booking->displayName() }}" placeholder="e.g. Alexandra Goodman (booked by John)" style="min-width:220px">
+                </div>
+                <button class="btn btn-primary" style="padding:8px 14px">Use this number</button>
+            </form>
+            <p class="hint" style="margin:8px 0 0">Current contact: <strong>{{ $booking->displayContact() ?: '—' }}</strong></p>
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin() && $booking->driver_id && ! $booking->status->isTerminal())
         {{-- Live driver location — kept right at the top, under the customer, so the
              office can see where the driver is (and ring/chase them) the instant the

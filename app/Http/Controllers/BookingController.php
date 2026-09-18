@@ -880,6 +880,32 @@ class BookingController extends Controller
     }
 
     /**
+     * Set this booking's contact number (and optionally the lead name) — e.g. when
+     * a real number was found in the notes and the driver-visible note was hidden.
+     * Stored as a per-booking override so masking, driver-details and reminders all
+     * use it, without touching the shared customer record.
+     */
+    public function setContact(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'contact_number' => ['required', 'string', 'max:32'],
+            'lead_name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $meta = $booking->meta ?? [];
+        $meta['contact_override'] = trim($data['contact_number']);
+        if (filled($data['lead_name'] ?? null)) {
+            $meta['lead_name'] = trim($data['lead_name']);
+        }
+        $booking->forceFill(['meta' => $meta])->save();
+
+        return back()->with('status', 'Contact number updated for this booking'
+            .(filled($data['lead_name'] ?? null) ? ' and the name set.' : '.'));
+    }
+
+    /**
      * Ring the assigned driver's phone NOW with a spoken nudge asking them to open
      * the app and update their status. This is the operator's manual version of the
      * watchdog's at-risk call — one call, placed on demand (e.g. the driver's gone

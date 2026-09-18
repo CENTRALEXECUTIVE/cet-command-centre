@@ -59,9 +59,10 @@ class DriverLinkTest extends TestCase
             ->assertDontSee('CENTRAL');
     }
 
-    public function test_the_driver_link_shows_the_route_order_check(): void
+    public function test_the_driver_link_does_not_show_the_route_order_check(): void
     {
-        $this->seed(\Database\Seeders\AirportSeeder::class); // so MAN is a known airport
+        // Route/rotation order is office-only — the driver must NOT see it.
+        $this->seed(\Database\Seeders\AirportSeeder::class);
         $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
         Booking::factory()->create([
             'driver_id' => $abdi->id, 'pickup_at' => now()->addDay()->setTime(8, 0),
@@ -72,14 +73,28 @@ class DriverLinkTest extends TestCase
             'pickup_address' => 'Leeds', 'destination_address' => 'Manchester Airport (MAN)',
         ]);
 
-        // Branded link shows the order check with who had the previous MAN job.
-        $this->get(route('driver.link', $job->driverLinkToken()))
-            ->assertOk()->assertSee('Order check')->assertSee('Abdi');
-
-        // Unbranded link hides it (don't reveal the rotation to outsourced drivers).
-        $job->forceFill(['meta' => array_merge($job->meta ?? [], ['driver_link_unbranded' => true])])->save();
         $this->get(route('driver.link', $job->driverLinkToken()))
             ->assertOk()->assertDontSee('Order check');
+    }
+
+    public function test_the_driver_link_hides_notes_that_contain_a_phone_number(): void
+    {
+        $withNumber = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'meta' => ['driver_notes' => 'Call the passenger on 07911 123456 when outside'],
+        ]);
+        $this->get(route('driver.link', $withNumber->driverLinkToken()))
+            ->assertOk()
+            ->assertSee('Note held by the office')
+            ->assertDontSee('07911 123456');
+
+        // A clean note still shows to the driver.
+        $clean = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'meta' => ['driver_notes' => 'Meet at the side entrance'],
+        ]);
+        $this->get(route('driver.link', $clean->driverLinkToken()))
+            ->assertOk()->assertSee('Meet at the side entrance');
     }
 
     public function test_unbranded_link_uses_a_neutral_domain_and_drops_the_company_name(): void

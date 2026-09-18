@@ -2212,7 +2212,10 @@ class Booking extends Model
     /** Contact number — the calendar's "Contact No" wins, else the customer's. */
     public function displayContact(): ?string
     {
-        return $this->calendarField('Contact No') ?: $this->customer?->phone;
+        // A per-booking office override wins (e.g. set from a number found in the
+        // notes) — then the calendar's Contact No, then the customer record.
+        return ($this->meta['contact_override'] ?? null)
+            ?: ($this->calendarField('Contact No') ?: $this->customer?->phone);
     }
 
     /**
@@ -2589,6 +2592,34 @@ class Booking extends Model
         }
 
         return $this->calendarNotes();
+    }
+
+    /**
+     * Phone numbers found in the driver-visible notes. A note that carries a real
+     * number would defeat masking (the driver would see the customer's number), so
+     * we detect them: any run of 10+ digits (spaces/dashes allowed) or a +44…
+     * number. Returns the matched strings, trimmed.
+     *
+     * @return list<string>
+     */
+    public function notePhoneNumbers(): array
+    {
+        $text = (string) $this->driverReadNotes();
+        if ($text === '') {
+            return [];
+        }
+
+        preg_match_all('/(?:\+?44|0)\s?(?:\d[\s-]?){9,10}\d/', $text, $m);
+        $found = array_map('trim', $m[0] ?? []);
+
+        // Keep only matches with at least 10 digits (drop short false positives).
+        return array_values(array_filter($found, fn ($s) => strlen(preg_replace('/\D/', '', $s)) >= 10));
+    }
+
+    /** True when the driver-visible notes contain a phone number (masking risk). */
+    public function notesContainNumber(): bool
+    {
+        return $this->notePhoneNumbers() !== [];
     }
 
     /** Every note source, lower-cased and joined — for scanning (ribbon, waiting…). */
@@ -3291,10 +3322,13 @@ class Booking extends Model
 
         // Any driver notes (office notes / special requests / calendar note) —
         // this is where waiting-time detail like "waiting at stop for Nathan" and
-        // other instructions reach the driver.
+        // other instructions reach the driver. A note containing a phone number is
+        // withheld (it would defeat masking) — the office handles it.
         if ($notes = $this->driverReadNotes()) {
             $lines[] = '';
-            $lines[] = '📝 Notes: '.$notes;
+            $lines[] = $this->notesContainNumber()
+                ? '📝 Notes: (a note is on file — check with the office)'
+                : '📝 Notes: '.$notes;
         }
 
         return implode("\n", $lines);
