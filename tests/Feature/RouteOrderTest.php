@@ -92,6 +92,25 @@ class RouteOrderTest extends TestCase
             ->assertDontSee('Cover Carl');
     }
 
+    public function test_a_free_roam_airport_code_folds_into_the_free_roam_tag(): void
+    {
+        // The seeder includes a "FREE_ROAM" airport record. It must NOT appear as
+        // a separate empty airport tab — it folds into the real Free Roam tag.
+        $this->assertNotNull(\App\Models\Airport::where('code', 'FREE_ROAM')->first());
+        $admin = User::factory()->admin()->create();
+        $cust = \App\Models\Customer::create(['name' => 'Roamer One', 'phone' => '07700900441']);
+        Booking::factory()->create([
+            'customer_id' => $cust->id, 'pickup_at' => now()->addDay(),
+            'pickup_address' => 'Sheffield', 'destination_address' => 'Peak District',
+            'meta' => ['journey_label' => 'Free Roam'],
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('route-order.index', ['route' => 'Free Roam']))->assertOk();
+        $res->assertSee('Roamer One');
+        // No separate FREE_ROAM airport tab.
+        $res->assertDontSee('FREE_ROAM');
+    }
+
     public function test_route_order_is_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

@@ -33,9 +33,17 @@ class RouteOrderService
         };
 
         $bookings = $query->orderBy('pickup_at')->limit(2000)->get();
-        $byTag = $bookings->groupBy(fn (Booking $b) => $b->journeyFilterTag() ?? 'Other');
 
-        $order = Airport::where('is_active', true)->orderBy('code')->pluck('code')->all();
+        // Some data carries a "FREE_ROAM" airport code — fold it into the real
+        // "Free Roam" tag (from isFreeRoam) so there's ONE free-roam bucket.
+        $isFreeRoamTag = fn (?string $t) => $t !== null
+            && strtoupper(preg_replace('/[^a-z0-9]/i', '', $t)) === 'FREEROAM';
+        $normalise = fn (?string $t) => $t === null ? 'Other' : ($isFreeRoamTag($t) ? 'Free Roam' : $t);
+
+        $byTag = $bookings->groupBy(fn (Booking $b) => $normalise($b->journeyFilterTag()));
+
+        $order = Airport::where('is_active', true)->orderBy('code')->pluck('code')
+            ->reject($isFreeRoamTag)->values()->all();
         $order[] = 'Free Roam';
         foreach ($byTag->keys() as $tag) {
             if (! in_array($tag, $order, true)) {
