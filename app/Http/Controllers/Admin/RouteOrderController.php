@@ -22,6 +22,7 @@ class RouteOrderController extends Controller
         return view('admin.route-order.index', $service->build(
             $request->query('route'),
             $request->query('scope'),
+            $request->query('vehicle'),
         ));
     }
 }

@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\User;
+use App\Models\VehicleType;
 use Database\Seeders\AirportSeeder;
+use Database\Seeders\VehicleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,7 +18,7 @@ class RouteOrderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(AirportSeeder::class);
+        $this->seed([AirportSeeder::class, VehicleTypeSeeder::class]);
     }
 
     public function test_route_order_lists_a_routes_bookings_in_order_with_drivers(): void
@@ -63,6 +65,31 @@ class RouteOrderTest extends TestCase
             ->assertSee('Route order')
             ->assertSee('Abdi')
             ->assertSee('Maj');
+    }
+
+    public function test_route_order_can_filter_to_executive_only(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
+        $cover = User::factory()->driver()->create(['name' => 'Cover Carl']);
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $minibus = VehicleType::where('slug', 'minibus-8')->first();
+
+        // An executive MAN job (rotates Abdi/Maj) and a minibus MAN job (cover).
+        Booking::factory()->create([
+            'driver_id' => $abdi->id, 'vehicle_type_id' => $exec->id, 'pickup_at' => now()->addDay()->setTime(9, 0),
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]);
+        Booking::factory()->create([
+            'driver_id' => $cover->id, 'vehicle_type_id' => $minibus->id, 'pickup_at' => now()->addDay()->setTime(10, 0),
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Leeds',
+        ]);
+
+        // Executive filter shows Abdi's exec job, not the minibus cover driver.
+        $this->actingAs($admin)->get(route('route-order.index', ['route' => 'MAN', 'vehicle' => 'Executive']))
+            ->assertOk()
+            ->assertSee('Abdi')
+            ->assertDontSee('Cover Carl');
     }
 
     public function test_route_order_is_admin_only(): void

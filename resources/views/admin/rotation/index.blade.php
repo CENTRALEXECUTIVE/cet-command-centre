@@ -100,6 +100,8 @@
         'scope' => $orderScope,
         'tabs' => $orderTabs,
         'selected' => $orderSelected,
+        'vehicleTabs' => $orderVehicleTabs,
+        'selectedVehicle' => $orderSelectedVehicle,
         'rows' => $orderRows,
     ])
 @endsection

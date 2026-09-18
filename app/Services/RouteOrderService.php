@@ -15,9 +15,9 @@ use Illuminate\Support\Collection;
 class RouteOrderService
 {
     /**
-     * @return array{scope:string, tabs:Collection, selected:?string, rows:Collection}
+     * @return array{scope:string, tabs:Collection, selected:?string, vehicleTabs:Collection, selectedVehicle:string, rows:Collection}
      */
-    public function build(?string $route, ?string $scope): array
+    public function build(?string $route, ?string $scope, ?string $vehicle = null): array
     {
         $scope = in_array($scope, ['today', 'past', 'all'], true) ? $scope : 'upcoming';
 
@@ -51,11 +51,31 @@ class RouteOrderService
             $route = $tabs->firstWhere('count', '>', 0)['tag'] ?? ($tabs->first()['tag'] ?? null);
         }
 
+        $routeRows = $byTag->get($route, collect())->sortBy('pickup_at')->values();
+
+        // Vehicle-type filter: the Abdi↔Maj rotation only applies to executive
+        // jobs, so let the office narrow to a vehicle class. Tabs from the classes
+        // present on this route (+ "All"), each with a count.
+        $vehName = fn (Booking $b) => $b->vehicleType?->name ?: ($b->displayVehicleType() ?: 'Other');
+        $byVehicle = $routeRows->groupBy($vehName);
+        $vehicleTabs = collect([['tag' => 'All', 'count' => $routeRows->count()]])
+            ->concat($byVehicle->keys()->sort()->map(fn ($name) => [
+                'tag' => $name,
+                'count' => $byVehicle->get($name)->count(),
+            ]))->values();
+
+        $selectedVehicle = $vehicle && $vehicleTabs->contains('tag', $vehicle) ? $vehicle : 'All';
+        $rows = $selectedVehicle === 'All'
+            ? $routeRows
+            : $routeRows->filter(fn (Booking $b) => $vehName($b) === $selectedVehicle)->values();
+
         return [
             'scope' => $scope,
             'tabs' => $tabs,
             'selected' => $route,
-            'rows' => $byTag->get($route, collect())->sortBy('pickup_at')->values(),
+            'vehicleTabs' => $vehicleTabs,
+            'selectedVehicle' => $selectedVehicle,
+            'rows' => $rows,
         ];
     }
 }

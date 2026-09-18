@@ -26,7 +26,7 @@ class RotationController extends Controller
             ->latest()->limit(40)->get();
 
         // Route order (bookings per route with driver order) shown on this page too.
-        $order = $routeOrder->build($request->query('route'), $request->query('scope'));
+        $order = $routeOrder->build($request->query('route'), $request->query('scope'), $request->query('vehicle'));
 
         return view('admin.rotation.index', array_merge([
             'drivers' => $overview['drivers'],
@@ -36,6 +36,8 @@ class RotationController extends Controller
             'orderScope' => $order['scope'],
             'orderTabs' => $order['tabs'],
             'orderSelected' => $order['selected'],
+            'orderVehicleTabs' => $order['vehicleTabs'],
+            'orderSelectedVehicle' => $order['selectedVehicle'],
             'orderRows' => $order['rows'],
         ]));
     }
