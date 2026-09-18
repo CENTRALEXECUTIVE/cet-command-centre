@@ -26,6 +26,7 @@ class SettingsController extends Controller
             'driverLine' => Setting::get('twilio_driver_line') ?: config('services.twilio_masking.driver_line'),
             'prevLine' => Setting::get('twilio_customer_line_prev'),
             'prevNames' => Setting::get('twilio_customer_line_prev_names'),
+            'unbrandedLinkBase' => Setting::get('unbranded_link_base'),
             'smsWebhook' => $base.'/webhooks/sms'.$suffix,
             'voiceWebhook' => $base.'/webhooks/voice'.$suffix,
         ]);
@@ -37,11 +38,13 @@ class SettingsController extends Controller
             'google_maps_key' => ['nullable', 'string', 'max:120'],
             'twilio_customer_line' => ['nullable', 'string', 'max:32'],
             'twilio_driver_line' => ['nullable', 'string', 'max:32'],
+            'unbranded_link_base' => ['nullable', 'url', 'max:120'],
         ]);
 
         Setting::set('google_maps_key', trim((string) ($data['google_maps_key'] ?? '')), 'string', 'integrations');
         Setting::set('twilio_customer_line', trim((string) ($data['twilio_customer_line'] ?? '')), 'string', 'telephony');
         Setting::set('twilio_driver_line', trim((string) ($data['twilio_driver_line'] ?? '')), 'string', 'telephony');
+        Setting::set('unbranded_link_base', trim((string) ($data['unbranded_link_base'] ?? '')), 'string', 'integrations');
 
         return back()->with('status', 'Settings saved.');
     }

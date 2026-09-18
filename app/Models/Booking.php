@@ -956,6 +956,13 @@ class Booking extends Model
     /** The full shareable driver-link URL. */
     public function driverLinkUrl(): string
     {
+        // Outsourced (unbranded) links can be served on a NEUTRAL domain (set in
+        // Settings) so the company name isn't in the URL — needs that domain
+        // pointed at this app. Branded links use the normal address.
+        if ($this->driverLinkUnbranded() && filled($base = \App\Models\Setting::get('unbranded_link_base'))) {
+            return rtrim($base, '/').route('driver.link', $this->driverLinkToken(), absolute: false);
+        }
+
         return route('driver.link', $this->driverLinkToken());
     }
 
@@ -967,7 +974,9 @@ class Booking extends Model
      */
     public function driverLinkMessage(): string
     {
-        $lines = ['Central Executive Transfers', ''];
+        // Unbranded links (outsourced drivers) drop the company name from the
+        // message too — just the job facts and the link.
+        $lines = $this->driverLinkUnbranded() ? ['New job', ''] : ['Central Executive Transfers', ''];
 
         $name = $this->meta['lead_name'] ?? $this->displayCustomerName();
         if (filled($name)) {

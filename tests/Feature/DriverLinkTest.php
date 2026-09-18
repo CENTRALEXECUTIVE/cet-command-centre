@@ -82,6 +82,24 @@ class DriverLinkTest extends TestCase
             ->assertOk()->assertDontSee('Order check');
     }
 
+    public function test_unbranded_link_uses_a_neutral_domain_and_drops_the_company_name(): void
+    {
+        \App\Models\Setting::set('unbranded_link_base', 'https://jobs.example.co.uk', 'string', 'integrations');
+
+        $unbranded = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'meta' => ['driver_link_unbranded' => true],
+        ]);
+        // URL on the neutral domain; message has no company name.
+        $this->assertStringStartsWith('https://jobs.example.co.uk/job/', $unbranded->driverLinkUrl());
+        $this->assertStringNotContainsString('Central Executive', $unbranded->driverLinkMessage());
+
+        // A branded booking is unchanged.
+        $branded = Booking::factory()->create(['status' => BookingStatus::Accepted]);
+        $this->assertStringNotContainsString('jobs.example.co.uk', $branded->driverLinkUrl());
+        $this->assertStringContainsString('Central Executive', $branded->driverLinkMessage());
+    }
+
     public function test_a_normal_link_keeps_cet_branding(): void
     {
         $booking = Booking::factory()->create(['status' => BookingStatus::Accepted]);

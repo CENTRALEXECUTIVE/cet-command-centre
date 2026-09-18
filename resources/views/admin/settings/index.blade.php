@@ -68,6 +68,19 @@
             </div>
         </div>
 
+        <div class="card">
+            <h2>🕵️ Outsourced driver link domain</h2>
+            <p class="muted" style="margin-top:0">The <strong>unbranded</strong> driver links (for drivers that aren't ours) normally use this app's address, which shows the company name. Point a <strong>neutral domain</strong> at this app and paste it here — unbranded links will use it instead, so outsourced drivers never see the company name in the URL. Branded links are unchanged.</p>
+            <label>Neutral link address
+                <input type="url" name="unbranded_link_base" value="{{ $unbrandedLinkBase }}" placeholder="https://jobs.example.co.uk" autocomplete="off" spellcheck="false">
+            </label>
+            @if($unbrandedLinkBase)
+                <p class="muted" style="font-size:12px;margin:6px 0 0;color:#1f7a44">✓ Unbranded links use <strong>{{ $unbrandedLinkBase }}</strong>. (That domain must be pointed at this app to open.)</p>
+            @else
+                <p class="muted" style="font-size:12px;margin:6px 0 0">Not set — unbranded links use the normal address for now.</p>
+            @endif
+        </div>
+
         <button type="submit" class="btn btn-primary">Save</button>
     </form>
 
