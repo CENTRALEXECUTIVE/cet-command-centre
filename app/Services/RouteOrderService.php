@@ -59,7 +59,8 @@ class RouteOrderService
             $route = $tabs->firstWhere('count', '>', 0)['tag'] ?? ($tabs->first()['tag'] ?? null);
         }
 
-        $routeRows = $byTag->get($route, collect())->sortBy('pickup_at')->values();
+        // Most recent first.
+        $routeRows = $byTag->get($route, collect())->sortByDesc('pickup_at')->values();
 
         // Vehicle-type filter: the Abdi↔Maj rotation only applies to executive
         // jobs, so let the office narrow to a vehicle class. Tabs from the classes

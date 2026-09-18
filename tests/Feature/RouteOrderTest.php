@@ -49,10 +49,10 @@ class RouteOrderTest extends TestCase
         $res->assertSee('Route order');
         $res->assertSee('Abdi');
         $res->assertSee('Maj');
-        // Earliest (Abdi 09:00) appears before the later one (Maj 14:00).
+        // Most recent first: the later job (Maj 14:00) appears before Abdi (09:00).
         $this->assertLessThan(
-            strpos($res->getContent(), 'Maj'),
             strpos($res->getContent(), 'Abdi'),
+            strpos($res->getContent(), 'Maj'),
         );
 
         // Free Roam tab is offered and lists the roam job.
