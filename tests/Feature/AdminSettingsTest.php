@@ -56,6 +56,16 @@ class AdminSettingsTest extends TestCase
             ->assertSee('https://staging.centralexecutivetransfers.co.uk/webhooks/voice?secret=sek');
     }
 
+    public function test_settings_page_shows_active_indicator_for_a_set_line(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('twilio_customer_line', '+447575583899', 'string', 'telephony');
+
+        $this->actingAs($admin)->get(route('settings.index'))
+            ->assertOk()
+            ->assertSee('✓ Active · +447575583899');
+    }
+
     public function test_non_admin_cannot_access_settings(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

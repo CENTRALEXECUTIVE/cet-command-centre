@@ -33,9 +33,19 @@
             <div class="grid grid-2">
                 <label>Customer line
                     <input type="text" name="twilio_customer_line" value="{{ $customerLine }}" placeholder="+447…" autocomplete="off" spellcheck="false">
+                    @if($customerLine)
+                        <span style="font-size:12px;color:#1f7a44;font-weight:600">✓ Active · {{ $customerLine }}</span>
+                    @else
+                        <span style="font-size:12px;color:#b32020;font-weight:600">✗ Not set — masking off for customers</span>
+                    @endif
                 </label>
                 <label>Driver line
                     <input type="text" name="twilio_driver_line" value="{{ $driverLine }}" placeholder="+447…" autocomplete="off" spellcheck="false">
+                    @if($driverLine)
+                        <span style="font-size:12px;color:#1f7a44;font-weight:600">✓ Active · {{ $driverLine }}</span>
+                    @else
+                        <span style="font-size:12px;color:#b32020;font-weight:600">✗ Not set</span>
+                    @endif
                 </label>
             </div>
             <p class="muted" style="font-size:12px;margin:6px 0 0">Enter in full international format, e.g. <strong>+447575583899</strong>. Leave blank to fall back to the server's configured number.</p>
