@@ -494,12 +494,14 @@ class BookingTest extends TestCase
         $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
         $maj = User::factory()->driver()->create(['name' => 'Maj']);
 
+        // Executive jobs — the route-order card only shows on the rotation class.
+        $exec = VehicleType::where('slug', 'executive')->first()->id;
         $earlier = Booking::factory()->create([
-            'driver_id' => $abdi->id, 'pickup_at' => now()->addDays(1)->setTime(8, 0),
+            'driver_id' => $abdi->id, 'vehicle_type_id' => $exec, 'pickup_at' => now()->addDays(1)->setTime(8, 0),
             'pickup_address' => 'Manchester Airport (MAN), Manchester', 'destination_address' => 'Sheffield',
         ]);
         $this_job = Booking::factory()->create([
-            'driver_id' => $maj->id, 'pickup_at' => now()->addDays(1)->setTime(11, 0),
+            'driver_id' => $maj->id, 'vehicle_type_id' => $exec, 'pickup_at' => now()->addDays(1)->setTime(11, 0),
             'pickup_address' => 'Leeds', 'destination_address' => 'Manchester Airport (MAN), Manchester',
         ]);
 

@@ -2408,7 +2408,7 @@ class Booking extends Model
      *
      * @return \Illuminate\Support\Collection<int, self>
      */
-    public function routeSequence(int $before = 6, int $after = 3): \Illuminate\Support\Collection
+    public function routeSequence(int $before = 6, int $after = 3, bool $rotationOnly = false): \Illuminate\Support\Collection
     {
         $code = $this->airportCode();
         $q = $this->sameRouteQuery();
@@ -2416,13 +2416,18 @@ class Booking extends Model
             return collect();
         }
 
+        // rotationOnly keeps just the rotation vehicle class (executive), since the
+        // Abdi↔Maj order only applies there.
+        $keep = fn (self $b) => $b->airportCode() === $code
+            && (! $rotationOnly || (bool) $b->vehicleType?->affects_rotation);
+
         $prev = (clone $q)->where('pickup_at', '<', $this->pickup_at)
-            ->orderByDesc('pickup_at')->with('driver')->limit($before * 2 + 4)->get()
-            ->filter(fn (self $b) => $b->airportCode() === $code)->take($before)->reverse();
+            ->orderByDesc('pickup_at')->with(['driver', 'vehicleType'])->limit($before * 3 + 6)->get()
+            ->filter($keep)->take($before)->reverse();
 
         $next = (clone $q)->where('pickup_at', '>', $this->pickup_at)
-            ->orderBy('pickup_at')->with('driver')->limit($after * 2 + 4)->get()
-            ->filter(fn (self $b) => $b->airportCode() === $code)->take($after);
+            ->orderBy('pickup_at')->with(['driver', 'vehicleType'])->limit($after * 3 + 6)->get()
+            ->filter($keep)->take($after);
 
         return $prev->push($this)->concat($next)->values();
     }

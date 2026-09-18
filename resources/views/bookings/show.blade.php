@@ -841,31 +841,6 @@
             </table>
         </div>
 
-        @php $routeSeq = auth()->user()->isAdmin() ? $booking->routeSequence() : collect(); @endphp
-        @if($routeSeq->count() > 1)
-            <div class="card">
-                <h2 style="margin:0 0 2px">🔢 Route order — {{ $booking->airportCode() }}</h2>
-                <p class="hint" style="margin:0 0 10px">Recent {{ $booking->airportCode() }} jobs in order, and who each was assigned to — check this one is going to the right driver in turn.</p>
-                <table>
-                    <thead><tr><th>When</th><th>Job</th><th>Driver</th></tr></thead>
-                    <tbody>
-                    @foreach($routeSeq as $r)
-                        @php $isThis = $r->id === $booking->id; @endphp
-                        <tr @if($isThis) style="background:rgba(251,186,42,.14);font-weight:700" @endif>
-                            <td style="white-space:nowrap">{{ $r->pickup_at?->format('D d M, H:i') }}</td>
-                            <td style="font-size:13px">
-                                @if($isThis)<span title="This booking">➡ </span>@endif
-                                @if($r->id === $booking->id){{ $r->reference }}@else<a href="{{ route('bookings.show', $r) }}" class="mono">{{ $r->reference }}</a>@endif
-                                <span class="muted">· {{ \Illuminate\Support\Str::limit($r->displayName(), 16) }}</span>
-                            </td>
-                            <td>{{ $r->assignedDriverLabel() }}</td>
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-
         <div class="card">
             <h2>Service &amp; Payment</h2>
             <table>
@@ -1582,6 +1557,38 @@
         });
     </script>
     @endverbatim
+
+    {{-- Route order (executive rotation only) — collapsed, at the very bottom so
+         it stays out of the way. Only shown on executive jobs, where the Abdi↔Maj
+         rotation applies. --}}
+    @if(auth()->user()->isAdmin() && $booking->vehicleType?->affects_rotation)
+        @php $routeSeq = $booking->routeSequence(6, 3, rotationOnly: true); @endphp
+        @if($routeSeq->count() > 1)
+            <details style="margin-top:8px">
+                <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Route order — {{ $booking->airportCode() }} (executive)</summary>
+                <div class="card" style="margin-top:8px">
+                    <p class="hint" style="margin:0 0 10px">Executive {{ $booking->airportCode() }} jobs in order, and who each was assigned to — check this one is going to the right driver in turn.</p>
+                    <table>
+                        <thead><tr><th>When</th><th>Job</th><th>Driver</th></tr></thead>
+                        <tbody>
+                        @foreach($routeSeq as $r)
+                            @php $isThis = $r->id === $booking->id; @endphp
+                            <tr @if($isThis) style="background:rgba(251,186,42,.14);font-weight:700" @endif>
+                                <td style="white-space:nowrap">{{ $r->pickup_at?->format('D d M, H:i') }}</td>
+                                <td style="font-size:13px">
+                                    @if($isThis)➡ {{ $r->reference }}@else<a href="{{ route('bookings.show', $r) }}" class="mono">{{ $r->reference }}</a>@endif
+                                    <span class="muted">· {{ \Illuminate\Support\Str::limit($r->displayName(), 16) }}</span>
+                                </td>
+                                <td>{{ $r->assignedDriverLabel() }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        @endif
+    @endif
+
     <script src="{{ asset('js/cet-flight.js') }}"></script>
     <script>
         // After a payroll/extra-car action the page reloads with a #anchor; some
