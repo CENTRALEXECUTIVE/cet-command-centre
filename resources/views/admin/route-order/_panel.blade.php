@@ -35,18 +35,19 @@
     @if($rows->isEmpty())
         <p class="muted mb-0">No bookings on this route in this period.</p>
     @else
+        <p class="hint" style="margin:-4px 0 10px">Newest first — the order jobs came through, and the driver the rotation gave each.</p>
         <table>
-            <thead><tr><th>#</th><th>When</th><th>Ref</th><th>Route</th><th>Vehicle</th><th>Driver</th><th>Status</th></tr></thead>
+            <thead><tr><th>#</th><th>Came in</th><th>Pickup</th><th>Ref</th><th>Vehicle</th><th>Driver</th><th>Status</th></tr></thead>
             <tbody>
             @foreach($rows as $i => $b)
                 <tr>
                     <td class="muted">{{ $i + 1 }}</td>
-                    <td style="white-space:nowrap">{{ $b->pickup_at?->format('D d M, H:i') }}</td>
+                    <td style="white-space:nowrap;font-size:13px">{{ $b->created_at?->format('D d M, H:i') }}</td>
+                    <td style="white-space:nowrap;font-size:13px">{{ $b->pickup_at?->format('D d M, H:i') }}</td>
                     <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a>
-                        <div class="muted" style="font-size:12px">{{ \Illuminate\Support\Str::limit($b->displayName(), 20) }}</div></td>
-                    <td style="font-size:13px">{{ \Illuminate\Support\Str::limit($b->displayPickupAddress(), 16) }} → {{ \Illuminate\Support\Str::limit($b->displayDropoffAddress(), 16) }}</td>
+                        <div class="muted" style="font-size:12px">{{ \Illuminate\Support\Str::limit($b->displayName(), 18) }}</div></td>
                     <td class="muted" style="font-size:13px">{{ $b->vehicleType?->name ?: $b->displayVehicleType() }}</td>
-                    <td>{{ $b->assignedDriverLabel() }}</td>
+                    <td><strong>{{ $b->assignedDriverLabel() }}</strong></td>
                     <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
                 </tr>
             @endforeach

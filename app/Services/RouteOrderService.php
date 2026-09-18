@@ -59,8 +59,9 @@ class RouteOrderService
             $route = $tabs->firstWhere('count', '>', 0)['tag'] ?? ($tabs->first()['tag'] ?? null);
         }
 
-        // Most recent first.
-        $routeRows = $byTag->get($route, collect())->sortByDesc('pickup_at')->values();
+        // Ordered by when the job CAME THROUGH (was booked/allocated) — most
+        // recent first — so the driver column reads as the rotation order given.
+        $routeRows = $byTag->get($route, collect())->sortByDesc('created_at')->values();
 
         // Vehicle-type filter: the Abdi↔Maj rotation only applies to executive
         // jobs, so let the office narrow to a vehicle class. Tabs from the classes

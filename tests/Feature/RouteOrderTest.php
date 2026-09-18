@@ -27,14 +27,17 @@ class RouteOrderTest extends TestCase
         $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
         $maj = User::factory()->driver()->create(['name' => 'Maj']);
 
-        // Two MAN jobs (out of order on create) + a Free Roam job.
-        Booking::factory()->create([
-            'driver_id' => $maj->id, 'pickup_at' => now()->addDay()->setTime(14, 0),
-            'pickup_address' => 'Sheffield', 'destination_address' => 'Manchester Airport (MAN)',
-        ]);
+        // Two MAN jobs + a Free Roam job. Maj's job came through LATER, so it
+        // should appear first (newest "came in" at the top).
         Booking::factory()->create([
             'driver_id' => $abdi->id, 'pickup_at' => now()->addDay()->setTime(9, 0),
+            'created_at' => now()->subMinutes(20),
             'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]);
+        Booking::factory()->create([
+            'driver_id' => $maj->id, 'pickup_at' => now()->addDay()->setTime(14, 0),
+            'created_at' => now()->subMinutes(5),
+            'pickup_address' => 'Sheffield', 'destination_address' => 'Manchester Airport (MAN)',
         ]);
         $roamCustomer = \App\Models\Customer::create(['name' => 'Peaky Roamer', 'phone' => '07700900431']);
         Booking::factory()->create([
@@ -49,7 +52,7 @@ class RouteOrderTest extends TestCase
         $res->assertSee('Route order');
         $res->assertSee('Abdi');
         $res->assertSee('Maj');
-        // Most recent first: the later job (Maj 14:00) appears before Abdi (09:00).
+        // Newest "came in" first: Maj (came through 5 min ago) before Abdi (20 min ago).
         $this->assertLessThan(
             strpos($res->getContent(), 'Abdi'),
             strpos($res->getContent(), 'Maj'),
