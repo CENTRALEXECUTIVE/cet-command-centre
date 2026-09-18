@@ -88,6 +88,16 @@ class DriverLinkTest extends TestCase
             ->assertDontSee('07911 123456')
             ->assertDontSee('Note held by the office');
 
+        // Numbers in SPECIAL REQUESTS are hidden too.
+        $special = Booking::factory()->create([
+            'status' => BookingStatus::Accepted,
+            'special_requests' => 'Contact Amy (07785967988) or Sophie (07949950273) if there is a problem.',
+        ]);
+        $this->get(route('driver.link', $special->driverLinkToken()))
+            ->assertOk()
+            ->assertDontSee('07785967988')
+            ->assertDontSee('07949950273');
+
         // A clean note still shows to the driver.
         $clean = Booking::factory()->create([
             'status' => BookingStatus::Accepted,

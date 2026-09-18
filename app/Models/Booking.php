@@ -2604,7 +2604,13 @@ class Booking extends Model
      */
     public function notePhoneNumbers(): array
     {
-        $text = (string) $this->driverReadNotes();
+        // Scan EVERY driver-visible note source, not just the first one — a number
+        // in special requests must be caught even when driver_notes is clean.
+        $text = trim(implode("\n", array_filter([
+            $this->driverNotes(),
+            (string) ($this->special_requests ?? ''),
+            $this->calendarNotes(),
+        ])));
         if ($text === '') {
             return [];
         }

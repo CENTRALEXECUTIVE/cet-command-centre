@@ -352,7 +352,7 @@
         @else
             <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
         @endif
-        @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
+        @if($booking->special_requests && ! $booking->notesContainNumber())<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
         @if($booking->driverNotes() && ! $booking->notesContainNumber())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
     </table>
 </div>
