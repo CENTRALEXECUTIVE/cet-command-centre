@@ -217,14 +217,9 @@
 @endif
 
 {{-- Notes from the office for the driver — extra info the customer gave.
-     Prominent so it isn't missed. If the note contains a phone number it's HIDDEN
-     (it would defeat number masking) — the office is flagged to handle it. --}}
-@if($booking->driverReadNotes() && $booking->notesContainNumber())
-    <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
-        <div style="font-weight:800;font-size:15px">📝 Note held by the office</div>
-        <p style="margin:6px 0 0;font-size:14px">There's a note for this job that the office is handling — please reach the customer on the number shown above, or via the office.</p>
-    </div>
-@elseif($booking->driverReadNotes())
+     Prominent so it isn't missed. A note containing a phone number is hidden
+     entirely (it would defeat number masking) — the office handles it. --}}
+@if($booking->driverReadNotes() && ! $booking->notesContainNumber())
     <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
         <div style="font-weight:800;font-size:15px">📝 Notes</div>
         <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{{ $booking->driverReadNotes() }}</p>

@@ -85,8 +85,8 @@ class DriverLinkTest extends TestCase
         ]);
         $this->get(route('driver.link', $withNumber->driverLinkToken()))
             ->assertOk()
-            ->assertSee('Note held by the office')
-            ->assertDontSee('07911 123456');
+            ->assertDontSee('07911 123456')
+            ->assertDontSee('Note held by the office');
 
         // A clean note still shows to the driver.
         $clean = Booking::factory()->create([
