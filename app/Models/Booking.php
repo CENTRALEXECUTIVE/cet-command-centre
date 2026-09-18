@@ -2353,6 +2353,80 @@ class Booking extends Model
         return ($h !== null ? $h.' '.str('hour')->plural($h) : 'Hourly hire').' (as directed)';
     }
 
+    /**
+     * Base query for OTHER jobs on the same route/airport as this one — used to
+     * show the rotation order (which job came before, and who it was assigned to).
+     * Matches the linked airport OR the "(CODE)" in either address, so calendar/
+     * pasted jobs that never set airport_id are still caught.
+     */
+    private function sameRouteQuery(): ?\Illuminate\Database\Eloquent\Builder
+    {
+        $code = $this->airportCode();
+        if (! $code || ! $this->pickup_at) {
+            return null;
+        }
+
+        return static::query()
+            ->where('id', '!=', $this->id)
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->where(function ($w) use ($code) {
+                $w->where('pickup_address', 'like', '%('.$code.')%')
+                    ->orWhere('destination_address', 'like', '%('.$code.')%');
+                if ($this->airport_id) {
+                    $w->orWhere('airport_id', $this->airport_id);
+                }
+            });
+    }
+
+    /** A short display name for whoever this job is assigned to, or "Unassigned". */
+    public function assignedDriverLabel(): string
+    {
+        return $this->driver?->nameWithNickname()
+            ?? ($this->meta['driver_details']['name'] ?? null)
+            ?? 'Unassigned';
+    }
+
+    /** The immediately previous job on the same route/airport, or null. */
+    public function previousRouteJob(): ?self
+    {
+        $code = $this->airportCode();
+        $q = $this->sameRouteQuery();
+        if (! $q) {
+            return null;
+        }
+
+        return $q->where('pickup_at', '<', $this->pickup_at)
+            ->orderByDesc('pickup_at')->with('driver')->limit(12)->get()
+            ->first(fn (self $b) => $b->airportCode() === $code);
+    }
+
+    /**
+     * The rotation sequence around this job on the same route/airport: a few jobs
+     * before, this one, and a couple after — chronological — each with the driver
+     * it was assigned to, so the office (and driver) can confirm the order. This
+     * booking is included in the list (mark it by id in the view).
+     *
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public function routeSequence(int $before = 6, int $after = 3): \Illuminate\Support\Collection
+    {
+        $code = $this->airportCode();
+        $q = $this->sameRouteQuery();
+        if (! $q) {
+            return collect();
+        }
+
+        $prev = (clone $q)->where('pickup_at', '<', $this->pickup_at)
+            ->orderByDesc('pickup_at')->with('driver')->limit($before * 2 + 4)->get()
+            ->filter(fn (self $b) => $b->airportCode() === $code)->take($before)->reverse();
+
+        $next = (clone $q)->where('pickup_at', '>', $this->pickup_at)
+            ->orderBy('pickup_at')->with('driver')->limit($after * 2 + 4)->get()
+            ->filter(fn (self $b) => $b->airportCode() === $code)->take($after);
+
+        return $prev->push($this)->concat($next)->values();
+    }
+
     /** True when this is a free-roam (non-fixed, hourly/roaming) job, not a transfer. */
     public function isFreeRoam(): bool
     {

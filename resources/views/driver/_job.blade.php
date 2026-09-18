@@ -66,6 +66,16 @@
     </div>
 </div>
 
+{{-- Order check: the previous job on this route and who had it, so the driver
+     can confirm the run is going in the right order. Hidden on unbranded links
+     (we don't reveal our rotation to outsourced drivers). --}}
+@php $prevRoute = $unbranded ? null : $booking->previousRouteJob(); @endphp
+@if($prevRoute)
+    <div class="card" style="margin-bottom:12px;border-left:4px solid rgba(251,186,42,.6);background:rgba(251,186,42,.08)">
+        <div style="font-size:13px">🔢 <strong>Order check</strong> — the previous {{ $booking->airportCode() }} job was <strong>{{ $prevRoute->assignedDriverLabel() }}</strong> · {{ $prevRoute->pickup_at?->format('D d M, H:i') }}.</div>
+    </div>
+@endif
+
 @if($errors->any())
     <div class="alert alert-error">{{ $errors->first() }}</div>
 @endif

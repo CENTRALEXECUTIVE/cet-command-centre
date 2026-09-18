@@ -488,6 +488,36 @@ class BookingTest extends TestCase
         $this->assertFalse($outbound->driverFullyPaid());
     }
 
+    public function test_route_order_shows_previous_jobs_and_their_drivers(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
+        $maj = User::factory()->driver()->create(['name' => 'Maj']);
+
+        $earlier = Booking::factory()->create([
+            'driver_id' => $abdi->id, 'pickup_at' => now()->addDays(1)->setTime(8, 0),
+            'pickup_address' => 'Manchester Airport (MAN), Manchester', 'destination_address' => 'Sheffield',
+        ]);
+        $this_job = Booking::factory()->create([
+            'driver_id' => $maj->id, 'pickup_at' => now()->addDays(1)->setTime(11, 0),
+            'pickup_address' => 'Leeds', 'destination_address' => 'Manchester Airport (MAN), Manchester',
+        ]);
+
+        // The model sees the earlier MAN job as the previous one, assigned to Abdi.
+        $prev = $this_job->previousRouteJob();
+        $this->assertNotNull($prev);
+        $this->assertSame($earlier->id, $prev->id);
+        $this->assertSame('Abdi', $prev->assignedDriverLabel());
+        $this->assertGreaterThan(1, $this_job->routeSequence()->count());
+
+        // The booking page shows the route-order card with both drivers.
+        $this->actingAs($admin)->get(route('bookings.show', $this_job))
+            ->assertOk()
+            ->assertSee('Route order — MAN')
+            ->assertSee('Abdi')
+            ->assertSee('Maj');
+    }
+
     public function test_a_one_way_eto_reference_does_not_pair(): void
     {
         // A standalone one-way ETO ref (no A/B sibling) must not pair.

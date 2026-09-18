@@ -59,6 +59,29 @@ class DriverLinkTest extends TestCase
             ->assertDontSee('CENTRAL');
     }
 
+    public function test_the_driver_link_shows_the_route_order_check(): void
+    {
+        $this->seed(\Database\Seeders\AirportSeeder::class); // so MAN is a known airport
+        $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
+        Booking::factory()->create([
+            'driver_id' => $abdi->id, 'pickup_at' => now()->addDay()->setTime(8, 0),
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]);
+        $job = Booking::factory()->create([
+            'status' => BookingStatus::Accepted, 'pickup_at' => now()->addDay()->setTime(11, 0),
+            'pickup_address' => 'Leeds', 'destination_address' => 'Manchester Airport (MAN)',
+        ]);
+
+        // Branded link shows the order check with who had the previous MAN job.
+        $this->get(route('driver.link', $job->driverLinkToken()))
+            ->assertOk()->assertSee('Order check')->assertSee('Abdi');
+
+        // Unbranded link hides it (don't reveal the rotation to outsourced drivers).
+        $job->forceFill(['meta' => array_merge($job->meta ?? [], ['driver_link_unbranded' => true])])->save();
+        $this->get(route('driver.link', $job->driverLinkToken()))
+            ->assertOk()->assertDontSee('Order check');
+    }
+
     public function test_a_normal_link_keeps_cet_branding(): void
     {
         $booking = Booking::factory()->create(['status' => BookingStatus::Accepted]);
