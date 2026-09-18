@@ -50,10 +50,10 @@
             </div>
             <p class="muted" style="font-size:12px;margin:6px 0 0">Enter in full international format, e.g. <strong>+447575583899</strong>. Leave blank to fall back to the server's configured number.</p>
 
-            @if($prevLine && $cutover)
+            @if($prevLine && $prevNames)
                 <div class="card" style="margin-top:12px;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10)">
                     <strong>🔄 Number changeover active</strong>
-                    <p class="hint" style="margin:6px 0 0">Jobs up to &amp; including <strong>{{ \Illuminate\Support\Carbon::parse($cutover)->format('D d M Y') }}</strong> use the old number <strong>{{ $prevLine }}</strong> (their customers already have it). Jobs after that use <strong>{{ $customerLine }}</strong>. Keep the old number live in Twilio until those jobs have run, then release it — this note clears itself once the date passes.</p>
+                    <p class="hint" style="margin:6px 0 0">Only these customers keep the old number <strong>{{ $prevLine }}</strong> (they already have it): <strong>{{ $prevNames }}</strong>. Everyone else uses <strong>{{ $customerLine }}</strong>. Keep the old number live in Twilio until their jobs have run, then clear this list and release it.</p>
                 </div>
             @endif
 

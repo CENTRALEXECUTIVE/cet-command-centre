@@ -45,26 +45,26 @@ class AdminSettingsTest extends TestCase
         $this->assertEquals('+447700111222', app(MaskingService::class)->driverLine());
     }
 
-    public function test_number_changeover_keeps_old_number_for_pre_cutover_jobs(): void
+    public function test_number_changeover_keeps_old_number_only_for_named_customers(): void
     {
         config(['services.twilio_masking.customer_line' => '+447575583899']);
         Setting::set('twilio_customer_line', '+447575583899', 'string', 'telephony');
         Setting::set('twilio_customer_line_prev', '+447700159929', 'string', 'telephony');
-        Setting::set('twilio_customer_line_cutover', '2026-09-19', 'string', 'telephony');
+        Setting::set('twilio_customer_line_prev_names', 'Nigel Corfield, Clare Bell, James McDermott', 'string', 'telephony');
 
         $mask = app(MaskingService::class);
 
-        $preCutover = Booking::factory()->create(['pickup_at' => '2026-09-19 09:00:00']);
-        $postCutover = Booking::factory()->create(['pickup_at' => '2026-09-25 09:00:00']);
+        $named = Booking::factory()->create(['customer_id' => \App\Models\Customer::create(['name' => 'James McDermott', 'phone' => '07700900901'])->id]);
+        $other = Booking::factory()->create(['customer_id' => \App\Models\Customer::create(['name' => 'Sarah Other', 'phone' => '07700900902'])->id]);
 
-        // On/before the cutover → old number; after → new; no booking → current.
-        $this->assertSame('+447700159929', $mask->customerLine($preCutover));
-        $this->assertSame('+447575583899', $mask->customerLine($postCutover));
+        // Named customer → old number; anyone else → new; no booking → current.
+        $this->assertSame('+447700159929', $mask->customerLine($named));
+        $this->assertSame('+447575583899', $mask->customerLine($other));
         $this->assertSame('+447575583899', $mask->customerLine());
 
-        // And the customer-facing masked number on the booking follows suit.
-        $this->assertSame('+447700159929', $preCutover->customerMaskedNumber());
-        $this->assertSame('+447575583899', $postCutover->customerMaskedNumber());
+        // The customer-facing masked number on the booking follows suit.
+        $this->assertSame('+447700159929', $named->customerMaskedNumber());
+        $this->assertSame('+447575583899', $other->customerMaskedNumber());
     }
 
     public function test_settings_page_shows_the_twilio_webhook_urls(): void

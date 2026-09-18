@@ -56,15 +56,20 @@ class MaskingService
         $current = \App\Models\Setting::get('twilio_customer_line')
             ?: config('services.twilio_masking.customer_line');
 
-        // Number CHANGEOVER: jobs on/before the cutover date keep the PREVIOUS
-        // number (their customers already have it in the driver-details message);
-        // jobs after the cutover use the new/current number. Inert once the cutover
-        // date is in the past.
+        // Number CHANGEOVER: only the NAMED customers keep the PREVIOUS number
+        // (their driver-details message already went out with it). Everyone else
+        // uses the new/current number. Clear the names setting once done.
         $prev = \App\Models\Setting::get('twilio_customer_line_prev');
-        $cutover = \App\Models\Setting::get('twilio_customer_line_cutover');
-        if ($booking && filled($prev) && filled($cutover) && $booking->pickup_at
-            && $booking->pickup_at->lte(\Illuminate\Support\Carbon::parse($cutover)->endOfDay())) {
-            return $prev;
+        $names = \App\Models\Setting::get('twilio_customer_line_prev_names');
+        if ($booking && filled($prev) && filled($names)) {
+            $who = strtolower(trim((string) ($booking->displayName() ?: $booking->customer?->name ?: '')));
+            if ($who !== '') {
+                foreach (array_filter(array_map('trim', explode(',', strtolower($names)))) as $name) {
+                    if ($name !== '' && str_contains($who, $name)) {
+                        return $prev;
+                    }
+                }
+            }
         }
 
         return $current;

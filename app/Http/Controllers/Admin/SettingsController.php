@@ -25,7 +25,7 @@ class SettingsController extends Controller
             'customerLine' => Setting::get('twilio_customer_line') ?: config('services.twilio_masking.customer_line'),
             'driverLine' => Setting::get('twilio_driver_line') ?: config('services.twilio_masking.driver_line'),
             'prevLine' => Setting::get('twilio_customer_line_prev'),
-            'cutover' => Setting::get('twilio_customer_line_cutover'),
+            'prevNames' => Setting::get('twilio_customer_line_prev_names'),
             'smsWebhook' => $base.'/webhooks/sms'.$suffix,
             'voiceWebhook' => $base.'/webhooks/voice'.$suffix,
         ]);
