@@ -207,6 +207,13 @@
                     {{-- STEP 1 — Journey --}}
                     <div class="cet-step" data-step="1">
                         <div class="cet-step-title">📍 Where and when?</div>
+                        <div class="cet-field"><label for="b-journey">Journey type</label>
+                            <select id="b-journey" name="journey_type">
+                                <option value="one_way">One way</option>
+                                <option value="return">Return</option>
+                                <option value="hourly">Hourly hire (as directed)</option>
+                            </select>
+                        </div>
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                             <span class="pin">🟡</span>
                             <input id="b-pickup" name="pickup_address" required placeholder="e.g. Sheffield S1 2HH"></div>
@@ -218,6 +225,15 @@
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
                             <div class="cet-field"><label for="b-pax">Passengers</label>
                                 <input id="b-pax" name="passengers" type="number" min="1" max="60" value="1" required></div>
+                        </div>
+                        <div class="cet-field" id="b-return-field" style="display:none">
+                            <label for="b-return">Return date &amp; time</label>
+                            <input id="b-return" name="return_pickup_at" type="datetime-local">
+                        </div>
+                        <div class="cet-field" id="b-hours-field" style="display:none">
+                            <label for="b-hours">Hours booked</label>
+                            <input id="b-hours" name="hours" type="number" min="1" max="24" value="3">
+                            <span class="opt" style="font-size:12px">Car &amp; driver by the hour — no fixed destination. We'll confirm the price.</span>
                         </div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-suit">Suitcases</label>
@@ -334,18 +350,36 @@
 
             function nonEmpty(el) { return el && String(el.value || '').trim() !== ''; }
 
+            // Journey type toggles: return date, hours, and whether drop-off is needed.
+            var journeyEl = document.getElementById('b-journey');
+            var returnField = document.getElementById('b-return-field');
+            var hoursField = document.getElementById('b-hours-field');
+            var dropWrap = document.getElementById('b-dropoff') ? document.getElementById('b-dropoff').closest('.cet-field') : null;
+            function toggleJourney() {
+                var v = journeyEl ? journeyEl.value : 'one_way';
+                if (returnField) returnField.style.display = v === 'return' ? '' : 'none';
+                if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
+                if (dropWrap) dropWrap.style.display = v === 'hourly' ? 'none' : '';
+            }
+            if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); toggleJourney(); }
+
             function validateStep(n) {
                 showErr(n, '');
                 if (n === 1) {
+                    var jt = journeyEl ? journeyEl.value : 'one_way';
                     var ok = true, first = null;
-                    [['b-pickup','pickup'],['b-dropoff','drop-off'],['b-when','date & time']].forEach(function (p) {
+                    var required = [['b-pickup','pickup'],['b-when','date & time']];
+                    if (jt !== 'hourly') required.push(['b-dropoff','drop-off']);
+                    if (jt === 'return') required.push(['b-return','return date & time']);
+                    if (jt === 'hourly') required.push(['b-hours','hours']);
+                    required.forEach(function (p) {
                         var el = document.getElementById(p[0]);
                         var bad = !nonEmpty(el);
                         if (el) el.closest('.cet-field').classList.toggle('bad', bad);
                         if (bad && !first) first = el;
                         if (bad) ok = false;
                     });
-                    if (!ok) { showErr(1, 'Please add your pickup, drop-off and travel time.'); if (first) first.focus(); }
+                    if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
                     return ok;
                 }
                 if (n === 3) {

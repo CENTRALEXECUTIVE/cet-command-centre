@@ -146,6 +146,48 @@ class BookingWidgetTest extends TestCase
         $this->assertSame(0, \App\Models\Booking::count());
     }
 
+    public function test_a_web_return_booking_creates_two_linked_legs(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'journey_type' => 'return',
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'Return Rita', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $out = \App\Models\Booking::where('is_return_leg', false)->where('source', 'web')->first();
+        $ret = \App\Models\Booking::where('is_return_leg', true)->first();
+        $this->assertNotNull($ret);
+        $this->assertSame($ret->id, $out->linked_booking_id);
+        $this->assertSame($out->id, $ret->linked_booking_id);
+        // Return leg reverses the route; fare stays on the outbound only.
+        $this->assertSame('Manchester Airport', $ret->pickup_address);
+        $this->assertSame('Sheffield S1 2HH', $ret->destination_address);
+        $this->assertNull($ret->quoted_price);
+    }
+
+    public function test_a_web_hourly_hire_booking_is_as_directed(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'journey_type' => 'hourly', 'hours' => 4,
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => null,
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'Hourly Hugh', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertTrue($booking->isHourlyHire());
+        $this->assertSame(4, $booking->hourlyHours());
+        $this->assertSame('As directed (hourly hire)', $booking->destination_address);
+    }
+
     public function test_minibus_xl_is_hidden_from_the_booking_page(): void
     {
         $this->get(route('widget.book'))->assertOk()
