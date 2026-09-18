@@ -16,7 +16,7 @@ use Illuminate\View\View;
  */
 class RotationController extends Controller
 {
-    public function index(Request $request, RotationService $rotation): View
+    public function index(Request $request, RotationService $rotation, \App\Services\RouteOrderService $routeOrder): View
     {
         abort_unless($request->user()->isAdmin(), 403);
 
@@ -25,11 +25,19 @@ class RotationController extends Controller
         $log = RotationLog::with(['fromDriver', 'toDriver', 'airport', 'vehicleType', 'booking'])
             ->latest()->limit(40)->get();
 
-        return view('admin.rotation.index', [
+        // Route order (bookings per route with driver order) shown on this page too.
+        $order = $routeOrder->build($request->query('route'), $request->query('scope'));
+
+        return view('admin.rotation.index', array_merge([
             'drivers' => $overview['drivers'],
             'rows' => $overview['rows'],
             'log' => $log,
-        ]);
+        ], [
+            'orderScope' => $order['scope'],
+            'orderTabs' => $order['tabs'],
+            'orderSelected' => $order['selected'],
+            'orderRows' => $order['rows'],
+        ]));
     }
 
     /**

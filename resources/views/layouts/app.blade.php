@@ -101,8 +101,7 @@
                     <a href="{{ route('compliance.index') }}" class="{{ request()->routeIs('compliance.*') ? 'active' : '' }}">Compliance</a>
                     <a href="{{ route('driver-documents.index') }}" class="{{ request()->routeIs('driver-documents.*') ? 'active' : '' }}">Driver documents</a>
                     <a href="{{ route('cover-drivers.index') }}" class="{{ request()->routeIs('cover-drivers.*') ? 'active' : '' }}">Drivers directory</a>
-                    <a href="{{ route('rotation.index') }}" class="{{ request()->routeIs('rotation.*') ? 'active' : '' }}">Driver rotation</a>
-                    <a href="{{ route('route-order.index') }}" class="{{ request()->routeIs('route-order.*') ? 'active' : '' }}">Route order</a>
+                    <a href="{{ route('rotation.index') }}" class="{{ request()->routeIs('rotation.*', 'route-order.*') ? 'active' : '' }}">Driver rotation</a>
                     <a href="{{ route('fleet-photos.index') }}" class="{{ request()->routeIs('fleet-photos.*') ? 'active' : '' }}">Vehicle photos</a>
                     <a href="{{ route('driver.documents') }}" class="{{ request()->routeIs('driver.documents*') ? 'active' : '' }}">My documents</a>
                 </details>

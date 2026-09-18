@@ -92,4 +92,14 @@
             </div>
         @endif
     </div>
+
+    <h2 class="page-title" style="font-size:20px;margin-top:24px">🔢 Route order</h2>
+    <p class="page-sub">Each route's bookings in time order, with the driver assigned — check jobs are going out in the right order.</p>
+    @include('admin.route-order._panel', [
+        'panelRoute' => 'rotation.index',
+        'scope' => $orderScope,
+        'tabs' => $orderTabs,
+        'selected' => $orderSelected,
+        'rows' => $orderRows,
+    ])
 @endsection

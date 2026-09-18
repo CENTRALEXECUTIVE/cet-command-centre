@@ -56,6 +56,13 @@ class RouteOrderTest extends TestCase
         // Free Roam tab is offered and lists the roam job.
         $this->actingAs($admin)->get(route('route-order.index', ['route' => 'Free Roam']))
             ->assertOk()->assertSee('Peaky Roamer');
+
+        // The same route order is embedded on the Driver rotation page.
+        $this->actingAs($admin)->get(route('rotation.index', ['route' => 'MAN']))
+            ->assertOk()
+            ->assertSee('Route order')
+            ->assertSee('Abdi')
+            ->assertSee('Maj');
     }
 
     public function test_route_order_is_admin_only(): void
