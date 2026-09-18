@@ -272,6 +272,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
 
         // Driver rotation — read-only order + next-driver pointer + history.
         Route::get('rotation', [\App\Http\Controllers\Admin\RotationController::class, 'index'])->name('rotation.index');
+        Route::get('route-order', [\App\Http\Controllers\Admin\RouteOrderController::class, 'index'])->name('route-order.index');
         Route::post('rotation/next', [\App\Http\Controllers\Admin\RotationController::class, 'setNext'])->middleware('throttle:30,1')->name('rotation.set-next');
 
         // Vehicle photos for the public booking page (upload/replace/remove).
