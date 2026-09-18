@@ -24,6 +24,8 @@ class SettingsController extends Controller
             'mapsKey' => Setting::get('google_maps_key'),
             'customerLine' => Setting::get('twilio_customer_line') ?: config('services.twilio_masking.customer_line'),
             'driverLine' => Setting::get('twilio_driver_line') ?: config('services.twilio_masking.driver_line'),
+            'prevLine' => Setting::get('twilio_customer_line_prev'),
+            'cutover' => Setting::get('twilio_customer_line_cutover'),
             'smsWebhook' => $base.'/webhooks/sms'.$suffix,
             'voiceWebhook' => $base.'/webhooks/voice'.$suffix,
         ]);

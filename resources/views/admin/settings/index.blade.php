@@ -50,6 +50,13 @@
             </div>
             <p class="muted" style="font-size:12px;margin:6px 0 0">Enter in full international format, e.g. <strong>+447575583899</strong>. Leave blank to fall back to the server's configured number.</p>
 
+            @if($prevLine && $cutover)
+                <div class="card" style="margin-top:12px;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10)">
+                    <strong>🔄 Number changeover active</strong>
+                    <p class="hint" style="margin:6px 0 0">Jobs up to &amp; including <strong>{{ \Illuminate\Support\Carbon::parse($cutover)->format('D d M Y') }}</strong> use the old number <strong>{{ $prevLine }}</strong> (their customers already have it). Jobs after that use <strong>{{ $customerLine }}</strong>. Keep the old number live in Twilio until those jobs have run, then release it — this note clears itself once the date passes.</p>
+                </div>
+            @endif
+
             <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
                 <p class="muted" style="margin:0 0 6px;font-weight:600">Paste these into each Twilio number (HTTP POST):</p>
                 <label style="font-size:12px">Messaging webhook URL

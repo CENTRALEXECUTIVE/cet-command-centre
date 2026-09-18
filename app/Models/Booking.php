@@ -1509,9 +1509,10 @@ class Booking extends Model
             return null;
         }
 
-        // Switchboard: the customer rings the permanent CET customer line to
-        // reach whoever's driving this job (same number every time).
-        if (filled($line = config('services.twilio_masking.customer_line'))) {
+        // Switchboard: the customer rings the CET customer line to reach whoever's
+        // driving this job. Resolved via MaskingService so the in-app Setting and
+        // any number-changeover cutover (old number for pre-cutover jobs) apply.
+        if (filled($line = app(\App\Services\Telephony\MaskingService::class)->customerLine($this))) {
             return $line;
         }
 
