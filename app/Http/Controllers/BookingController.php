@@ -901,8 +901,17 @@ class BookingController extends Controller
         }
         $booking->forceFill(['meta' => $meta])->save();
 
-        return back()->with('status', 'Contact number updated for this booking'
-            .(filled($data['lead_name'] ?? null) ? ' and the name set.' : '.'));
+        // Activate this number for masking straight away. The switchboard bridge
+        // already reads the contact live on every call; a Twilio Proxy session,
+        // though, is tied to a number at open time, so reopen it on the new one.
+        try {
+            app(\App\Services\Telephony\TwilioProxyService::class)->refreshCustomerContact($booking->fresh());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[masking] refresh after contact change failed: '.$e->getMessage());
+        }
+
+        return back()->with('status', 'Contact number updated — masking now connects this number ('
+            .$meta['contact_override'].')'.(filled($data['lead_name'] ?? null) ? ' and the name is set.' : '.'));
     }
 
     /**

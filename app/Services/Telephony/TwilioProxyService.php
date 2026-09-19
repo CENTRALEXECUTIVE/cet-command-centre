@@ -168,6 +168,28 @@ class TwilioProxyService
         return $this->openSession($booking, $newDriver);
     }
 
+    /**
+     * The customer contact number changed (e.g. the office set it to the caller
+     * named in the notes). Reopen any LIVE masked session so the new number
+     * becomes the masked party — the old session was tied to the old number.
+     * No-op when Proxy isn't configured, there's no open session, or no live
+     * login driver (a manual/switchboard job needs nothing — its bridge reads
+     * the contact live on every call).
+     */
+    public function refreshCustomerContact(Booking $booking): void
+    {
+        if (! $this->configured()) {
+            return;
+        }
+        $open = $booking->proxySessions()->open()->latest('opened_at')->first();
+        $driver = $booking->driver;
+        if (! $open || ! $driver) {
+            return;
+        }
+        $this->closeSession($booking, 'contact number changed');
+        $this->openSession($booking->fresh(), $driver);
+    }
+
     /** Safety net: close every session past its closes_at. Returns count. */
     public function closeExpired(): int
     {
