@@ -305,24 +305,29 @@ class GoogleCalendarService
     {
         $items = [];
         $pageToken = null;
-        do {
-            $resp = Http::withToken($token)->get($base, array_filter([
-                'q' => $query,
-                'singleEvents' => 'true',
-                'showDeleted' => 'false',
-                'timeMin' => $timeMin->format(\DateTimeInterface::RFC3339),
-                'timeMax' => $timeMax->format(\DateTimeInterface::RFC3339),
-                'maxResults' => 250,
-                'pageToken' => $pageToken,
-            ]));
-            if (! $resp->successful()) {
-                break;
-            }
-            foreach ($resp->json('items', []) as $item) {
-                $items[] = $item;
-            }
-            $pageToken = $resp->json('nextPageToken');
-        } while ($pageToken);
+        try {
+            do {
+                $resp = Http::withToken($token)->timeout(10)->get($base, array_filter([
+                    'q' => $query,
+                    'singleEvents' => 'true',
+                    'showDeleted' => 'false',
+                    'timeMin' => $timeMin->format(\DateTimeInterface::RFC3339),
+                    'timeMax' => $timeMax->format(\DateTimeInterface::RFC3339),
+                    'maxResults' => 250,
+                    'pageToken' => $pageToken,
+                ]));
+                if (! $resp->successful()) {
+                    break;
+                }
+                foreach ($resp->json('items', []) as $item) {
+                    $items[] = $item;
+                }
+                $pageToken = $resp->json('nextPageToken');
+            } while ($pageToken);
+        } catch (\Throwable $e) {
+            // Network blip must never take a page down — best-effort search.
+            \Illuminate\Support\Facades\Log::warning('[google-calendar] searchEvents failed: '.$e->getMessage());
+        }
 
         return $items;
     }
@@ -450,23 +455,29 @@ class GoogleCalendarService
         $base = 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($calendarId).'/events';
         $events = [];
         $pageToken = null;
-        do {
-            $resp = Http::withToken($token)->get($base, array_filter([
-                'timeMin' => $from->format(\DateTimeInterface::RFC3339),
-                'timeMax' => $to->format(\DateTimeInterface::RFC3339),
-                'singleEvents' => 'true',
-                'orderBy' => 'startTime',
-                'maxResults' => 2500,
-                'pageToken' => $pageToken,
-            ]));
-            if (! $resp->successful()) {
-                break;
-            }
-            foreach ($resp->json('items', []) as $item) {
-                $events[] = $item;
-            }
-            $pageToken = $resp->json('nextPageToken');
-        } while ($pageToken);
+        try {
+            do {
+                $resp = Http::withToken($token)->timeout(10)->get($base, array_filter([
+                    'timeMin' => $from->format(\DateTimeInterface::RFC3339),
+                    'timeMax' => $to->format(\DateTimeInterface::RFC3339),
+                    'singleEvents' => 'true',
+                    'orderBy' => 'startTime',
+                    'maxResults' => 2500,
+                    'pageToken' => $pageToken,
+                ]));
+                if (! $resp->successful()) {
+                    break;
+                }
+                foreach ($resp->json('items', []) as $item) {
+                    $events[] = $item;
+                }
+                $pageToken = $resp->json('nextPageToken');
+            } while ($pageToken);
+        } catch (\Throwable $e) {
+            // A network blip (DNS, timeout, TLS) must never take a page down — the
+            // calendar mirror is best-effort. Log and fall back to what we have.
+            \Illuminate\Support\Facades\Log::warning('[google-calendar] eventsBetween failed: '.$e->getMessage());
+        }
 
         return $events;
     }
