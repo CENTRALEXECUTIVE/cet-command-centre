@@ -128,15 +128,28 @@ class MaskingService
         $outOfWindow = null;
 
         foreach ($bookings as $booking) {
-            $customer = $this->normalise($booking->customer?->phone);
+            // The number the office actually hands to this customer — the office
+            // contact OVERRIDE wins (e.g. the caller named in the notes, "Amy"),
+            // then the calendar contact, then the linked record. This is what the
+            // driver's line DIALS to reach the customer. Matching only
+            // customer->phone here meant an office-set contact number couldn't be
+            // recognised, so that person couldn't ring the driver at all.
+            $customerDial = $this->normalise($booking->customerContactNumber());
+            // Accept ANY legitimate customer number as "the customer" so both the
+            // office-set contact and the original record still connect.
+            $customerNumbers = array_values(array_filter(array_unique([
+                $this->normalise($booking->displayContact()),
+                $this->normalise($booking->calendarField('Contact No')),
+                $this->normalise($booking->customer?->phone),
+            ])));
             // The driver's number: an allocated login driver's OWN number is the
             // source of truth (never the manual driver_details, which could be a
             // different person with the same first name); a job with no login
             // driver uses the manually-entered details.
             $driver = $this->normalise($booking->driverRealPhone());
 
-            $isCustomer = $customer && $customer === $from && $driver;
-            $isDriver = $driver && $driver === $from && $customer;
+            $isCustomer = $customerDial && $driver && in_array($from, $customerNumbers, true);
+            $isDriver = $driver && $driver === $from && $customerDial;
             if (! $isCustomer && ! $isDriver) {
                 continue; // caller isn't a party on this job
             }
@@ -162,7 +175,7 @@ class MaskingService
                 return ['dial' => $driver, 'caller_id' => $this->driverLine(), 'to' => 'driver', 'booking' => $booking];
             }
 
-            return ['dial' => $customer, 'caller_id' => $this->customerLine(), 'to' => 'customer', 'booking' => $booking];
+            return ['dial' => $customerDial, 'caller_id' => $this->customerLine(), 'to' => 'customer', 'booking' => $booking];
         }
 
         if ($outOfWindow) {

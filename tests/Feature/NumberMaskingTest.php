@@ -78,6 +78,35 @@ class NumberMaskingTest extends TestCase
         $this->assertSame('+447700900111', $service->resolve('07395565934')['dial']);
     }
 
+    public function test_an_office_set_contact_number_can_ring_the_driver(): void
+    {
+        // The office set this booking's contact to the caller named in the notes
+        // ("Amy"), who is NOT on the customer record. She must be able to reach the
+        // driver, and the driver must reach HER — the switchboard has to use the
+        // office contact, not the stale record number. (Regression: Amy couldn't
+        // ring the driver because masking matched only customer->phone.)
+        $customer = Customer::factory()->create(['phone' => '07700900111']);
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+
+        $booking = Booking::factory()->forVehicleType(VehicleType::where('slug', 'executive')->first())->create([
+            'customer_id' => $customer->id,
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::EnRoute->value,
+            'pickup_at' => now()->addHour(),
+            'meta' => ['contact_override' => '07999888777'], // Amy, from the notes
+        ]);
+
+        $service = app(MaskingService::class);
+
+        // Amy (the office-set contact) → the driver.
+        $this->assertSame('+447700900222', $service->resolve('07999888777')['dial']);
+        // The driver → Amy (the office contact, NOT the stale record number).
+        $this->assertSame('+447999888777', $service->resolve('07700900222')['dial']);
+        // The original record number still connects too (belt and braces).
+        $this->assertSame('+447700900222', $service->resolve('07700900111')['dial']);
+    }
+
     public function test_number_formats_still_match_and_dial(): void
     {
         // Real imported/typed data comes in many shapes. All of these must

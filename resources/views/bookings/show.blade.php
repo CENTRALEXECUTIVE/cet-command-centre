@@ -1256,7 +1256,10 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                 <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
                     <div class="muted" style="font-size:12px">📞 Customer</div>
-                    <div style="font-weight:700;font-size:15px" class="mono">{{ $booking->customer?->phone ?? '—' }}</div>
+                    <div style="font-weight:700;font-size:15px" class="mono">{{ $booking->customerContactNumber() ?? '—' }}</div>
+                    @if($booking->customerContactNumber() && $booking->customer?->phone && \App\Support\Phone::wa($booking->customerContactNumber()) !== \App\Support\Phone::wa($booking->customer?->phone))
+                        <div class="muted" style="font-size:11px;margin-top:2px">office-set contact · this is the number the switchboard connects</div>
+                    @endif
                 </div>
                 <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
                     <div class="muted" style="font-size:12px">🚗 Driver</div>

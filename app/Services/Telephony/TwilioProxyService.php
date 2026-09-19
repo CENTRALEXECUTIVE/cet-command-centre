@@ -58,7 +58,10 @@ class TwilioProxyService
             return null;
         }
 
-        $customerPhone = $booking->customer?->phone;
+        // The EFFECTIVE customer contact — the office override (e.g. the caller
+        // named in the notes) wins over the linked record, so the masked session
+        // is opened for the person who will actually call, not a stale number.
+        $customerPhone = $booking->customerContactNumber();
         if (! $this->configured() || blank($customerPhone) || blank($driver->phone)) {
             return null;
         }
