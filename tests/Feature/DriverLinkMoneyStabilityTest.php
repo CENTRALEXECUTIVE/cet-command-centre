@@ -94,13 +94,17 @@ class DriverLinkMoneyStabilityTest extends TestCase
         $this->assertNull($booking->cashDueToDriver());
         $this->assertFalse($booking->hasCashToCollect());
         $this->assertFalse($booking->paymentNeedsChecking());
-        $this->assertSame('Cash collected on the outbound leg — collect nothing', $booking->driverCollectLine());
+        // DRIVER just sees "Paid" — never the office-only "collected on the outbound".
+        $this->assertSame('Paid — collect nothing', $booking->driverCollectLine());
+        // ADMIN, however, knows it was a cash job settled on the outbound.
+        $this->assertTrue($booking->returnLegCollectedOnOutbound());
 
         $this->get(route('driver.link', $booking->driverLinkToken()))
             ->assertOk()
             ->assertDontSee('Payment may be due')
             ->assertDontSee('Check the payment')
             ->assertDontSee('Collect the cash')
+            ->assertDontSee('collected on the outbound')
             ->assertSee('collect nothing');
     }
 

@@ -3042,17 +3042,9 @@ class Booking extends Model
             return 'Paid — collect nothing';
         }
 
-        // 0b) The return (…B) leg of an ETO return — collected on the outbound.
-        if ($this->isEtoReturnLeg()) {
-            return 'Return leg — collected on the outbound, collect nothing';
-        }
-
-        // 0c) A cash airport pickup is prepaid (arrivals are paid up front).
-        if ($this->isPrepaidAirportPickup()) {
-            return 'Airport pickup — already paid, collect nothing';
-        }
-
-        // 1) A definite cash amount → show it.
+        // 1) A definite cash amount (an office override, or the outbound of a cash
+        //    return carrying BOTH legs) → show it. Checked first so a real amount
+        //    always wins over the "return leg"/"airport prepaid" wordings below.
         $cash = $this->cashDueToDriver();
         if ($cash !== null && $cash > 0.001) {
             $fmt = fn (float $n) => rtrim(rtrim(number_format($n, 2), '0'), '.');
@@ -3073,14 +3065,20 @@ class Booking extends Model
             return '£'.$amount.' to collect (cash)';
         }
 
-        // 1b) A return leg collects nothing on the day — the fare was handled on
-        //     the outbound leg. Word it by HOW it was paid: a cash job took the
-        //     cash outbound; a card/account job was paid to the office, so saying
-        //     "cash collected" would be wrong.
-        if ($this->is_return_leg) {
-            return $this->driverCollectsOnThisJob()
-                ? 'Cash collected on the outbound leg — collect nothing'
-                : 'Paid — collect nothing';
+        // 1b) A RETURN leg with nothing due → the DRIVER just sees "Paid — collect
+        //     nothing", whether it was cash (taken on the outbound) or card (paid to
+        //     the office), and even when it's an airport arrival. The "collected on
+        //     the outbound" detail is OFFICE-ONLY (returnLegCollectedOnOutbound()) —
+        //     telling a card-job driver "cash collected" would be wrong. Checked
+        //     BEFORE the airport-prepaid line so a return arrival reads as a plain
+        //     "Paid", not "Airport pickup".
+        if ($this->is_return_leg || $this->isEtoReturnLeg()) {
+            return 'Paid — collect nothing';
+        }
+
+        // 0c) A cash airport pickup (a one-way arrival) is prepaid up front.
+        if ($this->isPrepaidAirportPickup()) {
+            return 'Airport pickup — already paid, collect nothing';
         }
 
         // 2) FAILSAFE: never tell a driver "collect nothing" when money might be
@@ -3107,6 +3105,25 @@ class Booking extends Model
 
         // 4) Nothing known → say nothing (no false reassurance).
         return null;
+    }
+
+    /**
+     * OFFICE-ONLY: a return leg whose fare was taken in CASH on the outbound leg.
+     * The admin sees "Already collected on the outbound" so a £0 return isn't
+     * mistaken for unpaid. A card/account return was simply paid, so this is
+     * false for it — and the driver never sees any of this (they get "Paid").
+     * Suppressed when an office override genuinely puts cash on this return.
+     */
+    public function returnLegCollectedOnOutbound(): bool
+    {
+        if (! ($this->is_return_leg || $this->isEtoReturnLeg())) {
+            return false;
+        }
+        if ($this->hasCashToCollect()) {
+            return false; // an override put real cash on this leg — not "already collected"
+        }
+
+        return $this->driverCollectsOnThisJob();
     }
 
     /** True when the driver has cash to physically collect from the customer. */

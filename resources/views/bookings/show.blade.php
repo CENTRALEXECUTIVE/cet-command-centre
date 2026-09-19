@@ -57,6 +57,8 @@
                 @else
                     <span class="bh-chip warn" title="Driver has not yet acknowledged the cash reminder">💷 {{ $booking->cashToCollectDisplay() }} cash · not confirmed</span>
                 @endif
+            @elseif($booking->returnLegCollectedOnOutbound())
+                <span class="bh-chip ok" title="This is the return leg of a cash job — the driver collected the whole fare on the outbound, so there is nothing to collect here. The driver's link just shows 'Paid'.">💷 already collected on the outbound</span>
             @elseif($booking->paymentNeedsChecking())
                 <span class="bh-chip warn" title="A balance may be owed but the amount isn't clear on the booking — the driver is told to check with the office">💷 payment unclear — check</span>
             @endif

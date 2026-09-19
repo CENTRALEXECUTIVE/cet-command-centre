@@ -458,10 +458,12 @@ class BookingTest extends TestCase
         $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
         $this->assertStringContainsString('outbound £125 + return £135', $outbound->fresh()->driverCollectLine());
 
-        // Return (B) collects nothing.
+        // Return (B) collects nothing. The DRIVER just sees "Paid" — the
+        // "collected on the outbound" detail is office-only.
         $this->assertTrue($return->isEtoReturnLeg());
         $this->assertFalse($return->fresh()->hasCashToCollect());
-        $this->assertStringContainsString('collected on the outbound', $return->fresh()->driverCollectLine());
+        $this->assertSame('Paid — collect nothing', $return->fresh()->driverCollectLine());
+        $this->assertTrue($return->fresh()->returnLegCollectedOnOutbound());
     }
 
     public function test_a_card_outbound_of_a_return_pair_is_not_treated_as_cash(): void
