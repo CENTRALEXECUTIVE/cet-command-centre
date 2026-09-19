@@ -188,6 +188,54 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('As directed (hourly hire)', $booking->destination_address);
     }
 
+    public function test_a_web_booking_defaults_to_cash_so_the_driver_collects(): void
+    {
+        // A web booking takes no card up front, so the customer pays on the day
+        // and the DRIVER collects. Stamping it 'card' told the driver "collect
+        // nothing" and lost the fare — regression guard.
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH',      // NOT an airport pickup
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'Cash Carl', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('cash', $booking->payment_method?->value);
+
+        // With a fare, the driver link tells them to collect it — never "nothing".
+        $booking->forceFill(['final_price' => 120])->save();
+        $line = (string) $booking->fresh()->driverCollectLine();
+        $this->assertStringContainsString('collect (cash)', $line);
+        $this->assertStringNotContainsString('collect nothing', $line);
+    }
+
+    public function test_a_web_fare_paid_online_via_square_is_not_collected_again(): void
+    {
+        // If the customer DOES pay online, Square records it and the driver must
+        // not also collect cash — that would double-charge. The business holds the
+        // money and pays the driver via payroll instead.
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $booking = \App\Models\Booking::factory()->forVehicleType($executive)->create([
+            'source' => 'web',
+            'pickup_address' => 'Sheffield S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'payment_method' => 'cash',
+            'payment_status' => 'pending',
+            'final_price' => 120,
+        ]);
+
+        $booking->markFarePaid('sq_fare_1', 120.0);
+        $booking->refresh();
+
+        $this->assertTrue($booking->businessCollectedCash());
+        $this->assertNull($booking->cashDueToDriver());
+        $this->assertStringContainsString('collect nothing', (string) $booking->driverCollectLine());
+    }
+
     public function test_minibus_xl_is_hidden_from_the_booking_page(): void
     {
         $this->get(route('widget.book'))->assertOk()

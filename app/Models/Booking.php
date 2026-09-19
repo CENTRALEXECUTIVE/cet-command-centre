@@ -3709,7 +3709,12 @@ class Booking extends Model
      */
     public function businessCollectedCash(): bool
     {
-        return (bool) ($this->meta['payroll']['company_collected'] ?? false);
+        // A fare paid online via Square went straight to the business, so the
+        // driver must NOT also collect it in the car (that would double-charge the
+        // customer). The business holds the money and settles the driver via
+        // payroll — exactly the "company collected" case.
+        return (bool) ($this->meta['payroll']['company_collected'] ?? false)
+            || filled($this->meta['square_payment'] ?? null);
     }
 
     /** The office has eyeballed/confirmed the cash the driver collects. */

@@ -155,7 +155,13 @@ class BookingWidgetController extends Controller
             'flight_number' => $data['flight_number'] ?? null,
             'special_requests' => $data['notes'] ?? null,
             'status' => BookingStatus::Pending->value,
-            'payment_method' => 'card',
+            // No card is taken at booking time — the customer pays on the day, so
+            // the DRIVER collects the fare in cash. If they later pay online via
+            // Square, markFarePaid() records it and the driver-collect logic then
+            // shows "collect nothing" (Square counts as the business collecting).
+            // Stamping this 'card' told the driver to collect nothing and lost the
+            // fare. The office can switch it to card/account when confirming.
+            'payment_method' => 'cash',
             'payment_status' => 'pending',
             'source' => 'web',
             'quoted_price' => $quote['price'],
@@ -188,7 +194,9 @@ class BookingWidgetController extends Controller
                 'passengers' => $data['passengers'],
                 'special_requests' => $data['notes'] ?? null,
                 'status' => BookingStatus::Pending->value,
-                'payment_method' => 'card',
+                // Cash by default (see the outbound leg above). A return leg never
+                // collects on the day anyway — the outbound carries the fare.
+                'payment_method' => 'cash',
                 'payment_status' => 'pending',
                 'source' => 'web',
                 'meta' => array_filter([
