@@ -442,8 +442,12 @@ class GoogleCalendarService
      *
      * @return array<int, array<string, mixed>>
      */
+    /** Whether the most recent eventsBetween() call actually reached Google. */
+    public bool $lastReadOk = false;
+
     public function eventsBetween(string $calendarId, \DateTimeInterface $from, \DateTimeInterface $to): array
     {
+        $this->lastReadOk = false;
         if (! $this->configured()) {
             return [];
         }
@@ -468,6 +472,8 @@ class GoogleCalendarService
                 if (! $resp->successful()) {
                     break;
                 }
+                // We reached Google and got a valid response — the mirror is fresh.
+                $this->lastReadOk = true;
                 foreach ($resp->json('items', []) as $item) {
                     $events[] = $item;
                 }

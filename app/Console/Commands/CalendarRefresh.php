@@ -57,6 +57,12 @@ class CalendarRefresh extends Command
         $calendarId = (string) Setting::get('calendar_id', 'admin@centralexecutivetransfers.co.uk');
         $events = $google->eventsBetween($calendarId, $from->copy()->subDays(3), $to->copy()->addDays(3));
 
+        // Record the last time we genuinely reached Google, so the app can WARN
+        // when its mirror has gone stale (today's silent-drift never again).
+        if ($google->lastReadOk) {
+            Setting::set('calendar_last_sync_ok', now()->toIso8601String());
+        }
+
         if ($events === []) {
             $this->warn('Read the calendar but it returned no events for the window — check the connection.');
         }
