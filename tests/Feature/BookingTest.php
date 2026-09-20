@@ -466,6 +466,42 @@ class BookingTest extends TestCase
         $this->assertTrue($return->fresh()->returnLegCollectedOnOutbound());
     }
 
+    public function test_a_paired_return_with_deposits_adds_only_the_cash_balance(): void
+    {
+        // George scenario: each leg carries a £15 Square deposit. The driver must
+        // collect only the CASH BALANCE of each leg (£125 + £135 = £260), NEVER the
+        // gross fares (£140 + £150 = £290, or the £275 bug). The gross fare stays on
+        // final_price; only the "Balance £X (Cash)" is collected.
+        $outbound = Booking::factory()->create([
+            'external_reference' => 'QRDEPA', 'payment_method' => 'cash',
+            'pickup_address' => '31 Overend Way, Sheffield',
+            'destination_address' => 'Manchester Airport (MAN)',
+            'quoted_price' => 140, 'final_price' => 140, // gross incl. £15 deposit
+        ]);
+        $outbound->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* Deposit £15 (Square) Paid, Balance £125 (Cash) Pending, Amount Due £125",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $return = Booking::factory()->create([
+            'external_reference' => 'QRDEPB', 'payment_method' => 'cash',
+            'pickup_address' => 'Manchester Airport (MAN)',
+            'destination_address' => '31 Overend Way, Sheffield',
+            'quoted_price' => 150, 'final_price' => 150, // gross incl. £15 deposit
+        ]);
+        $return->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'y', 'location' => 'y',
+            'description' => "📑 Booking Confirmation\n• *Payment:* Deposit £15 (Square) Paid, Balance £135 (Cash) Pending, Amount Due £135",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+
+        $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
+        $line = $outbound->fresh()->driverCollectLine();
+        $this->assertStringContainsString('outbound £125 + return £135', $line);
+        $this->assertStringNotContainsString('275', $line);
+        $this->assertStringNotContainsString('150', $line);
+    }
+
     public function test_a_card_outbound_of_a_return_pair_is_not_treated_as_cash(): void
     {
         // Regression: pairing must never turn a CARD job into a cash job — the

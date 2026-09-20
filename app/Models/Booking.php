@@ -3590,12 +3590,17 @@ class Booking extends Model
         return $this->etoReturnLeg() === null ? $this->pairedAirportReturn() : null;
     }
 
-    /** The paired return's own fare, or 0 when there's no clear match. */
+    /**
+     * The CASH the driver collects for the paired return on the outbound — the
+     * return's cash BALANCE (deposits already paid excluded), not its gross fare.
+     * A "£150 fare, £15 deposit paid, £135 cash" return contributes £135, so the
+     * outbound total is right (£125 + £135 = £260, never £275). 0 when no match.
+     */
     public function pairedReturnFare(): float
     {
         $paired = $this->pairedReturnForCollection();
 
-        return $paired ? (float) ($paired->final_price ?? $paired->quoted_price ?? 0) : 0.0;
+        return $paired ? $paired->parseCashBalance() : 0.0;
     }
 
     /**
@@ -3669,6 +3674,23 @@ class Booking extends Model
             return null;
         }
 
+        return $this->parseCashBalance() ?: null;
+    }
+
+    /**
+     * The cash the customer still OWES on this booking (the balance, with any
+     * deposit already paid excluded), parsed from its payment text — NO leg-type
+     * suppression. Used two ways: ownCashDueToDriver() applies the suppression
+     * rules then falls back to this; pairedReturnFare() uses it directly on the
+     * matching return so the driver collects the return's CASH BALANCE, not its
+     * gross fare. Returns 0.0 when nothing is clearly owed in cash.
+     *
+     * Why this matters: a return of "Deposit £15 Paid, Balance £135 (Cash)" has a
+     * gross fare of £150 but only £135 to collect. Adding the £150 fare to the
+     * outbound over-charged the customer (£275 instead of £260).
+     */
+    private function parseCashBalance(): float
+    {
         $isCashJob = ($this->payment_method?->value ?? null) === 'cash';
         $fare = $this->final_price ?? $this->quoted_price;
 
@@ -3715,7 +3737,7 @@ class Booking extends Model
         }
 
         // 4) Non-cash job with no cash figure anywhere → nothing to collect.
-        return null;
+        return 0.0;
     }
 
     /**
