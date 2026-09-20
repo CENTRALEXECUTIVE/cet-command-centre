@@ -55,7 +55,10 @@ class BookingIntakeService
             .'flight_number, passengers (integer), suitcases (integer, large/hold bags), '
             .'hand_luggage (integer, cabin/small bags), vehicle (one of: Executive, Estate, V Class, '
             .'Minibus 8 Seater, Rolls Royce Ghost), payment (cash|card|account), paid (true|false), '
-            .'booked_by, notes. Use empty string when a field is not present.';
+            .'price (number — the fare/total in GBP, digits only, no £ sign), '
+            .'booked_by, notes. Put ANY additional/accessibility/meet-and-greet/special '
+            .'requirement (e.g. wheelchair, child seat, extra stops) into notes. '
+            .'Use empty string when a field is not present.';
 
         $parsed = $this->ai->completeJson("Message:\n\n".$text, $system, ['max_tokens' => 800]) ?? [];
 
@@ -99,6 +102,10 @@ class BookingIntakeService
             'vehicle' => $get('vehicle') ?: 'Executive',
             'payment' => in_array($get('payment'), ['cash', 'card', 'account'], true) ? $get('payment') : 'card',
             'paid' => filter_var($in['paid'] ?? false, FILTER_VALIDATE_BOOL),
+            // The fare/total — a number (£ sign and commas stripped), or '' if none.
+            'price' => is_numeric($in['price'] ?? null)
+                ? (float) $in['price']
+                : ((float) preg_replace('/[^\d.]/', '', (string) ($in['price'] ?? '')) ?: ''),
             'booked_by' => $get('booked_by'),
             'notes' => $get('notes'),
             // A covering / non-ETO reference the operator wants on the calendar
@@ -138,6 +145,8 @@ class BookingIntakeService
             'status' => BookingStatus::Pending->value,
             'payment_method' => $f['payment'] ?? 'card',
             'payment_status' => ! empty($f['paid']) ? 'paid' : 'pending',
+            'quoted_price' => is_numeric($f['price'] ?? null) ? (float) $f['price'] : null,
+            'final_price' => (is_numeric($f['price'] ?? null) && ! empty($f['paid'])) ? (float) $f['price'] : null,
         ]);
         // In-memory relations + meta the calendar title/description read from.
         $booking->setRelation('vehicleType', $vehicleType);
@@ -217,6 +226,8 @@ class BookingIntakeService
                 'status' => BookingStatus::Pending->value,
                 'payment_method' => $f['payment'] ?? 'card',
                 'payment_status' => ! empty($f['paid']) ? 'paid' : 'pending',
+                'quoted_price' => is_numeric($f['price'] ?? null) ? (float) $f['price'] : null,
+                'final_price' => (is_numeric($f['price'] ?? null) && ! empty($f['paid'])) ? (float) $f['price'] : null,
                 'created_by' => $creator?->id,
                 'meta' => array_filter([
                     'lead_name' => $f['lead_name'] ?: null,

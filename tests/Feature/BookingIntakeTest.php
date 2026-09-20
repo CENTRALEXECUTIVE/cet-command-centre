@@ -41,6 +41,36 @@ class BookingIntakeTest extends TestCase
         ], $overrides);
     }
 
+    public function test_a_pasted_message_captures_price_accessibility_and_all_bags(): void
+    {
+        $msg = "🗓 Date: 21-09-26 13:55\n"
+            ."🚗 Vehicle Type: Executive Minibus\n"
+            ."📍 Pick-up: Manchester Airport\n"
+            ."📍 Drop-off: S17 3NW\n"
+            ."✈️ Flight: Jet2 LS988 – Arrival 13:55\n"
+            ."👥 Passengers: 2 adults\n"
+            ."🧳 Bags: 1 medium suitcase, 1 large suitcase & 2 backpacks\n"
+            ."♿ Additional: Folding manual wheelchair\n"
+            .'£130 card paid';
+
+        $f = app(\App\Services\Intake\FreeIntakeParser::class)->parse($msg);
+
+        // The fare, the accessibility note, and BOTH bag types must survive.
+        $this->assertSame(130.0, (float) $f['price']);
+        $this->assertStringContainsString('wheelchair', strtolower((string) $f['notes']));
+        $this->assertSame(2, $f['suitcases']);       // 1 medium + 1 large suitcase
+        $this->assertSame(2, $f['hand_luggage']);    // 2 backpacks
+        $this->assertSame('card', $f['payment']);
+        $this->assertTrue($f['paid']);
+
+        // And they flow onto the draft booking (fare + special requests).
+        $svc = app(BookingIntakeService::class);
+        $draft = $svc->draft($svc->normalise($f));
+        $this->assertSame(130.0, (float) $draft->quoted_price);
+        $this->assertSame(130.0, (float) $draft->final_price); // paid up front
+        $this->assertStringContainsString('wheelchair', strtolower((string) $draft->special_requests));
+    }
+
     public function test_preview_builds_cet_title_without_saving(): void
     {
         $preview = app(BookingIntakeService::class)->preview($this->fields());

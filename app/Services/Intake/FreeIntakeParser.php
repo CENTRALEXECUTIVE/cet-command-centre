@@ -82,6 +82,14 @@ class FreeIntakeParser
             $passengers = $this->passengersFromText($text);
         }
 
+        // Gather EVERY note-like line so nothing (e.g. "Additional: wheelchair",
+        // accessibility, meet & greet) is silently dropped.
+        $notes = collect(['notes', 'comments', 'special requests', 'special request',
+            'meet & greet note', 'additional', 'additional info', 'additional information',
+            'accessibility', 'requirements', 'extra', 'extras', 'instructions'])
+            ->map(fn ($k) => $labels[$k] ?? null)
+            ->filter()->unique()->implode(' · ');
+
         return [
             'lead_name' => $get('customer name', 'lead passenger', 'passenger name', 'lead name', 'name', 'customer') ?: $this->guessName($text),
             'contact_no' => $this->phone($get('contact no', 'contact number', 'phone number', 'contact', 'phone', 'mobile', 'tel'), $text),
@@ -98,9 +106,24 @@ class FreeIntakeParser
             'payment' => $payment['method'],
             'paid' => $payment['paid'],
             'booked_by' => $get('booked by', 'booker') ?? '',
-            'notes' => $get('notes', 'comments', 'special requests', 'meet & greet note') ?? '',
+            'notes' => $notes,
+            'price' => $this->price($get('price', 'fare', 'total', 'cost', 'amount', 'charge'), $text),
             'reference' => $get('reference', 'ref', 'booking reference', 'reference number') ?: $this->reference($text),
         ];
+    }
+
+    /** The fare from a "Price/Total: £X" label, else the largest £ figure in the text. */
+    private function price(?string $value, string $text): ?float
+    {
+        $source = $value ?: $text;
+        if (! preg_match_all('/£\s?([\d,]+(?:\.\d{1,2})?)/', $source, $m) || empty($m[1])) {
+            return null;
+        }
+        $amounts = array_map(fn ($a) => (float) str_replace(',', '', $a), $m[1]);
+
+        // A labelled price is exact; a bare scan takes the largest figure (the
+        // fare/total, not a small deposit).
+        return $value ? $amounts[0] : max($amounts);
     }
 
     /** "Landing in Manchester [15:05]" / "arriving at Heathrow" → "Manchester Airport". */
@@ -295,18 +318,39 @@ class FreeIntakeParser
         return null;
     }
 
-    /** "8 Suitcases + 4 Hand Luggage" → [8, 4]; separate labels also honoured. */
+    /**
+     * "8 Suitcases + 4 Hand Luggage" → [8, 4]; separate labels also honoured; and
+     * a mixed list like "1 medium suitcase, 1 large suitcase & 2 backpacks" is
+     * split and summed per type (→ [2, 2]) so nothing is lost.
+     */
     private function luggage(?string $value, array $labels): array
     {
         $suitcases = isset($labels['suitcases']) ? (int) $labels['suitcases'] : null;
         $hand = isset($labels['hand luggage']) ? (int) $labels['hand luggage'] : null;
 
         if ($value) {
-            if (preg_match('/(\d+)\s*suitcase/i', $value, $m)) {
-                $suitcases ??= (int) $m[1];
+            // Sum each "N <type>" fragment, classifying by keyword. Cabin-sized
+            // items (backpack/rucksack/holdall/cabin/hand/carry-on) count as hand
+            // luggage; suitcases/cases/hold bags/checked as suitcases.
+            $sumSuit = 0;
+            $sumHand = 0;
+            $found = false;
+            foreach (preg_split('/[,&]|\band\b|\+/i', $value) as $frag) {
+                if (! preg_match('/(\d+)/', $frag, $n)) {
+                    continue;
+                }
+                $qty = (int) $n[1];
+                if (preg_match('/back\s?pack|ruck\s?sack|hand|cabin|carry|holdall|rucksac/i', $frag)) {
+                    $sumHand += $qty;
+                    $found = true;
+                } elseif (preg_match('/suit\s?case|\bcase\b|\bbag\b|hold|checked|luggage/i', $frag)) {
+                    $sumSuit += $qty;
+                    $found = true;
+                }
             }
-            if (preg_match('/(\d+)\s*hand/i', $value, $m)) {
-                $hand ??= (int) $m[1];
+            if ($found) {
+                $suitcases ??= $sumSuit;
+                $hand ??= $sumHand;
             }
             // Bare number → treat as suitcases.
             if ($suitcases === null && $hand === null && preg_match('/^\s*(\d+)\s*$/', $value, $m)) {
