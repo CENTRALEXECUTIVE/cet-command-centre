@@ -1018,14 +1018,19 @@
             @endif
 
             <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">
-                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end">
+                @php $suggestedPay = $booking->suggestedDriverPay(); $payPrefill = $pay ?? $suggestedPay; @endphp
+                <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
                     @csrf
                     <input type="hidden" name="action" value="set">
                     <div class="field" style="margin:0">
                         <label for="pay-amount" style="font-size:12px">Job pays the driver (£)</label>
-                        <input id="pay-amount" name="amount" type="number" step="0.01" min="0" value="{{ $pay }}" required style="width:130px">
+                        <input id="pay-amount" name="amount" type="number" step="0.01" min="0"
+                               value="{{ $payPrefill !== null ? number_format($payPrefill, 2, '.', '') : '' }}" required style="width:130px">
                     </div>
-                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Set pay</button>
+                    <button class="btn {{ $pay === null && $suggestedPay !== null ? 'btn-primary' : 'btn-ghost' }}" style="padding:8px 14px;font-size:13px">{{ $pay === null && $suggestedPay !== null ? '✓ Confirm pay' : 'Set pay' }}</button>
+                    @if($pay === null && $suggestedPay !== null)
+                        <span class="hint" style="flex-basis:100%;margin:2px 0 0">Standard 10% of £{{ number_format($booking->fareAmount(), 2) }} = <strong>£{{ number_format($suggestedPay, 2) }}</strong> — click Confirm, or type a different figure.</span>
+                    @endif
                 </form>
 
                 @if($jobLeft > 0)

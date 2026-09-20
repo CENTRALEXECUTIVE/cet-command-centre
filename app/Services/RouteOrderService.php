@@ -17,13 +17,13 @@ class RouteOrderService
     /**
      * @return array{scope:string, tabs:Collection, selected:?string, vehicleTabs:Collection, selectedVehicle:string, rows:Collection}
      */
-    public function build(?string $route, ?string $scope, ?string $vehicle = null): array
+    public function build(?string $route, ?string $scope, ?string $vehicle = null, bool $executiveOnly = false): array
     {
         $scope = in_array($scope, ['today', 'past', 'all'], true) ? $scope : 'upcoming';
 
         $query = Booking::query()
             ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
-            ->with(['driver', 'customer', 'airport']);
+            ->with(['driver', 'customer', 'airport', 'vehicleType']);
 
         match ($scope) {
             'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()]),
@@ -33,6 +33,12 @@ class RouteOrderService
         };
 
         $bookings = $query->orderBy('pickup_at')->limit(2000)->get();
+
+        // Rotation view: only EXECUTIVE jobs rotate (Abdi↔Maj), so scope the whole
+        // thing — tabs, counts and rows — to vehicle types that affect rotation.
+        if ($executiveOnly) {
+            $bookings = $bookings->filter(fn (Booking $b) => (bool) $b->vehicleType?->affects_rotation)->values();
+        }
 
         // Some data carries a "FREE_ROAM" airport code — fold it into the real
         // "Free Roam" tag (from isFreeRoam) so there's ONE free-roam bucket.
@@ -73,6 +79,13 @@ class RouteOrderService
                 'tag' => $name,
                 'count' => $byVehicle->get($name)->count(),
             ]))->values();
+
+        // In executive-only (rotation) mode every job is already executive, so the
+        // vehicle filter is pointless — collapse it to a single tab (the panel then
+        // hides the filter row) and show all the executive rows.
+        if ($executiveOnly) {
+            $vehicleTabs = collect([['tag' => 'All', 'count' => $routeRows->count()]]);
+        }
 
         $selectedVehicle = $vehicle && $vehicleTabs->contains('tag', $vehicle) ? $vehicle : 'All';
         $rows = $selectedVehicle === 'All'

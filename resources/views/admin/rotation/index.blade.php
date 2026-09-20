@@ -93,8 +93,8 @@
         @endif
     </div>
 
-    <h2 class="page-title" style="font-size:20px;margin-top:24px">🔢 Route order</h2>
-    <p class="page-sub">Each route's bookings in time order, with the driver assigned — check jobs are going out in the right order.</p>
+    <h2 class="page-title" style="font-size:20px;margin-top:24px">✈ Airport order — executive bookings &amp; rotation driver</h2>
+    <p class="page-sub"><strong>Click an airport below</strong> to see its <strong>executive</strong> jobs in the order they came through, with the rotation driver each was given. Spot a job on the wrong driver? Change it inline. (Executive only — that's what Abdi↔Maj rotate on.)</p>
     @include('admin.route-order._panel', [
         'panelRoute' => 'rotation.index',
         'scope' => $orderScope,

@@ -62,12 +62,40 @@ class RouteOrderTest extends TestCase
         $this->actingAs($admin)->get(route('route-order.index', ['route' => 'Free Roam']))
             ->assertOk()->assertSee('Peaky Roamer');
 
-        // The same route order is embedded on the Driver rotation page.
+        // The same airport order is embedded on the Driver rotation page (executive).
         $this->actingAs($admin)->get(route('rotation.index', ['route' => 'MAN']))
             ->assertOk()
-            ->assertSee('Route order')
+            ->assertSee('Airport order')
             ->assertSee('Abdi')
             ->assertSee('Maj');
+    }
+
+    public function test_the_rotation_page_airport_order_is_executive_only(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
+        $cover = User::factory()->driver()->create(['name' => 'Cover Carl']);
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $minibus = VehicleType::where('slug', 'minibus-8')->first();
+
+        // Executive MAN job (rotates) + a minibus MAN job (cover, doesn't rotate).
+        Booking::factory()->create([
+            'driver_id' => $abdi->id, 'vehicle_type_id' => $exec->id,
+            'pickup_at' => now()->addDay()->setTime(9, 0),
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]);
+        Booking::factory()->create([
+            'driver_id' => $cover->id, 'vehicle_type_id' => $minibus->id,
+            'pickup_at' => now()->addDay()->setTime(10, 0),
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Leeds',
+        ]);
+
+        // The rotation page's MAN airport shows ONLY the executive job's driver —
+        // the minibus cover job is not part of the rotation and is excluded.
+        $this->actingAs($admin)->get(route('rotation.index', ['route' => 'MAN']))
+            ->assertOk()
+            ->assertSee('Abdi')
+            ->assertDontSee('Cover Carl');
     }
 
     public function test_route_order_can_filter_to_executive_only(): void

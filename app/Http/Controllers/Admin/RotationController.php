@@ -25,8 +25,9 @@ class RotationController extends Controller
         $log = RotationLog::with(['fromDriver', 'toDriver', 'airport', 'vehicleType', 'booking'])
             ->latest()->limit(40)->get();
 
-        // Route order (bookings per route with driver order) shown on this page too.
-        $order = $routeOrder->build($request->query('route'), $request->query('scope'), $request->query('vehicle'));
+        // Route order (bookings per airport with the rotation driver) shown on this
+        // page too — EXECUTIVE ONLY, because that's what the Abdi↔Maj rotation covers.
+        $order = $routeOrder->build($request->query('route'), $request->query('scope'), $request->query('vehicle'), executiveOnly: true);
 
         return view('admin.rotation.index', array_merge([
             'drivers' => $overview['drivers'],
