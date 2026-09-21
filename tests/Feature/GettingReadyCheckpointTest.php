@@ -154,6 +154,8 @@ class GettingReadyCheckpointTest extends TestCase
         // out so the set-off deadline (flat-30 lead) has NOT passed — isolating the
         // missed checkpoint as the sole trigger.
         $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), leadTime: now()->subMinutes(10));
+        // This driver's jobs ring the business line (owner-style routing).
+        config(['cet.checkpoint.office_call_drivers' => $b->driver->email]);
 
         $this->tick();
 

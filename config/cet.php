@@ -147,7 +147,14 @@ return [
         // Who the emergency call rings: 'office' (the business line, office_call_number
         // — it forwards to the on-call director) or 'driver' (the assigned driver's
         // own phone first, then the backup director when route_to_backup is on).
+        // This is the FALLBACK; office_call_drivers below routes per-driver.
         'call_target' => (string) env('CET_CHECKPOINT_CALL_TARGET', 'office'),
+        // Per-driver routing (emails, comma-separated): a job whose driver is in
+        // this list rings the BUSINESS LINE (which forwards to the on-call
+        // director); everyone else is rung DIRECTLY on their own phone. Default:
+        // the owner (admin@…) — his jobs ring the office; the other director's
+        // (e.g. Maj) ring him directly.
+        'office_call_drivers' => (string) env('CET_CHECKPOINT_OFFICE_CALL_DRIVERS', 'admin@centralexecutivetransfers.co.uk'),
     ],
 
     // Driver "getting ready" checkpoint, driven by each booking's LEAD TIME —

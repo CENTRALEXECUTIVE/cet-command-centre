@@ -481,6 +481,21 @@ class BookingTest extends TestCase
         $this->assertNull($noFare->suggestedDriverPay());
     }
 
+    public function test_emergency_call_routes_the_owner_to_office_and_others_direct(): void
+    {
+        // The owner's missed jobs ring the business line; another director's
+        // (e.g. Maj) ring him directly on his own phone.
+        $owner = User::factory()->driver()->create();
+        $maj = User::factory()->driver()->create();
+        config(['cet.checkpoint.office_call_drivers' => $owner->email]);
+
+        $ownerJob = Booking::factory()->create(['driver_id' => $owner->id]);
+        $majJob = Booking::factory()->create(['driver_id' => $maj->id]);
+
+        $this->assertSame('office', $ownerJob->emergencyCallTarget());
+        $this->assertSame('driver', $majJob->emergencyCallTarget());
+    }
+
     public function test_a_paired_return_with_deposits_adds_only_the_cash_balance(): void
     {
         // George scenario: each leg carries a £15 Square deposit. The driver must

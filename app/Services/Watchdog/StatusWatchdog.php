@@ -385,7 +385,10 @@ class StatusWatchdog
                     $lastCall = $priorCalls->first();
                     if (! $lastCall || $lastCall->sent_at->lt(now()->subMinutes(self::AT_RISK_CALL_EVERY_MINUTES))) {
                         $placed = false;
-                        $target = strtolower((string) config('cet.checkpoint.call_target', 'office'));
+                        // Per-driver routing: the owner's own jobs ring the business
+                        // line (forwards to the on-call director); every other driver
+                        // (e.g. Maj) is rung DIRECTLY on their own phone.
+                        $target = $booking->emergencyCallTarget();
 
                         if ($target === 'office') {
                             // Ring the business line directly — the number the office set up.
