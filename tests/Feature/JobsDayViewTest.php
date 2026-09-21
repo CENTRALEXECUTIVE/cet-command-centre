@@ -56,4 +56,41 @@ class JobsDayViewTest extends TestCase
         $this->actingAs($admin)->get(route('jobs.day', ['date' => '2026-07-20']))
             ->assertOk()->assertSee('20 July 2026');
     }
+
+    public function test_every_booking_on_the_day_is_listed_none_dropped(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first()->id;
+        $day = \Illuminate\Support\Carbon::create(2026, 7, 20, 12, 0);
+
+        // Three jobs that day: one with a calendar event, one with NO event,
+        // and one whose event title is NOT in CET format. None must be hidden.
+        foreach ([
+            ['Alice Adams', '2026-07-20 08:00', true, '*Alice Adams MAN (MAJ)*'],
+            ['Bob Barker', '2026-07-20 10:30', false, null],
+            ['Carol Clark', '2026-07-20 14:15', true, 'Carol pickup — no stars'],
+        ] as [$name, $at, $withEvent, $title]) {
+            $booking = Booking::create([
+                'reference' => Booking::generateReference(),
+                'customer_id' => Customer::create(['name' => $name])->id,
+                'vehicle_type_id' => $exec,
+                'pickup_at' => $at, 'pickup_address' => 'Sheffield',
+                'destination_address' => 'Manchester Airport', 'passengers' => 1,
+                'status' => 'pending', 'payment_method' => 'card',
+            ]);
+            if ($withEvent) {
+                CalendarEvent::create([
+                    'booking_id' => $booking->id, 'title' => $title,
+                    'start_at' => $at, 'end_at' => $day, 'sync_status' => 'synced',
+                ]);
+            }
+        }
+
+        $this->actingAs($admin)->get(route('jobs.day', ['date' => '2026-07-20']))
+            ->assertOk()
+            ->assertSee('3 job(s)')
+            ->assertSee('Alice Adams')
+            ->assertSee('Bob Barker')
+            ->assertSee('Carol Clark');
+    }
 }

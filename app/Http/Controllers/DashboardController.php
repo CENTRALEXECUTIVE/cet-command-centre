@@ -67,7 +67,7 @@ class DashboardController extends Controller
                     ->where('payment_status', '!=', 'paid')
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->sum(DB::raw($revenue)),
-                'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
+                'todaySchedule' => $this->dayJobs(today()),
                 'remindersToSend' => $this->remindersToSend(),
             ]);
         }
@@ -171,9 +171,45 @@ class DashboardController extends Controller
     public function day(Request $request): View
     {
         $day = ($request->date('date') ?? today())->startOfDay();
-        $jobs = $this->calendarStats->jobsOn($day) ?? $this->jobsFromDatabase($day);
 
-        return view('dashboard.jobs', ['day' => $day, 'jobs' => $jobs]);
+        return view('dashboard.jobs', ['day' => $day, 'jobs' => $this->dayJobs($day)]);
+    }
+
+    /**
+     * Every job on a day, so NONE is ever missed: the union of the system's
+     * bookings and the Google Calendar's events, de-duplicated. The calendar
+     * filter (strict CET title format) can hide events, and a booking's calendar
+     * mirror can be unmatched — so we never rely on one source alone. The system
+     * row wins when a job is in both (it's always openable); calendar-only jobs
+     * are kept so they can still be pulled in with "Add to bookings".
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function dayJobs(Carbon $day): array
+    {
+        $dbJobs = $this->jobsFromDatabase($day);
+        $calendarJobs = $this->calendarStats->jobsOn($day) ?? [];
+
+        $seen = [];
+        $merged = [];
+        foreach ([...$dbJobs, ...$calendarJobs] as $job) {
+            $ref = trim((string) ($job['ref'] ?? ''));
+            $ref = ($ref !== '' && $ref !== '—') ? strtoupper($ref) : null;
+            $when = $job['pickup'] instanceof \DateTimeInterface ? $job['pickup']->format('Y-m-d H:i') : (string) ($job['pickup'] ?? '');
+            $fallback = $when.'|'.strtolower(trim((string) ($job['customer'] ?? '')));
+
+            $id = $ref ?? $fallback;
+            if (isset($seen[$id]) || isset($seen[$fallback])) {
+                continue; // already shown from the other source
+            }
+            $seen[$id] = true;
+            $seen[$fallback] = true;
+            $merged[] = $job;
+        }
+
+        usort($merged, fn ($a, $b) => $a['pickup'] <=> $b['pickup']);
+
+        return $merged;
     }
 
     /** Day's jobs from the database, mapped to the same detail rows. */
