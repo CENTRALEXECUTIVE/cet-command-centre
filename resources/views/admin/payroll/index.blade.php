@@ -80,7 +80,10 @@
                             <input type="hidden" name="range_from" value="{{ $periodParam['from'] ?? '' }}">
                             <input type="hidden" name="range_to" value="{{ $periodParam['to'] ?? '' }}">
                             <span class="muted">£</span>
+                            {{-- Pre-fill the standard 90%-of-fare suggestion so the office just reconfirms and taps Set. Blank when there's no fare to base it on. --}}
+                            @php $suggestedPay = $b->suggestedDriverPay(); @endphp
                             <input type="number" name="amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" required
+                                   value="{{ $suggestedPay !== null ? number_format($suggestedPay, 2, '.', '') : '' }}"
                                    style="width:90px;padding:5px 8px" aria-label="Driver pay for {{ $b->reference }}">
                             <button class="btn btn-primary" style="padding:5px 14px;font-size:13px">Set</button>
                         </form>

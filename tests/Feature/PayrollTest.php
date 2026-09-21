@@ -182,6 +182,38 @@ class PayrollTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_missing_pay_box_is_prefilled_with_the_90pct_suggestion(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $driver = User::factory()->driver()->create(['name' => 'Pre Fill']);
+
+        // A completed job with a £100 fare and NO pay set → the box should
+        // pre-fill the standard 90% (£90.00) so the office just reconfirms + Set.
+        Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::Complete,
+            'pickup_at' => '2026-07-06 09:00',
+            'quoted_price' => 100,
+        ]);
+
+        // A completed job with NO fare → box must stay blank (never errors).
+        Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::Complete,
+            'pickup_at' => '2026-07-07 09:00',
+            'quoted_price' => null,
+            'final_price' => null,
+        ]);
+
+        $this->actingAs($admin)->get(route('payroll.index'))
+            ->assertOk()
+            ->assertSee('completed job(s) have no driver pay set')
+            ->assertSee('value="90.00"', false); // the £100 job pre-fills 90%
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_a_job_that_ran_but_was_never_marked_complete_still_needs_pay_set(): void
     {
         \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
