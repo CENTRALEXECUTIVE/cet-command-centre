@@ -160,6 +160,9 @@ class CalendarStats
             'url' => $booking ? route('bookings.show', $booking) : null,
             'event_id' => $event['id'] ?? null,
             'flight' => $this->field($description, 'Flight Number'),
+            // Sourced from the calendar, so it IS on the calendar.
+            'on_calendar' => true,
+            'booking_id' => $booking?->id,
         ];
     }
 

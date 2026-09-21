@@ -232,6 +232,9 @@ class DashboardController extends Controller
                 'description' => (string) ($b->calendarEvent?->description ?? ''),
                 'event_id' => null,
                 'flight' => $b->flight_number,
+                // On the Google Calendar only once its mirror has a Google event id.
+                'on_calendar' => (bool) $b->calendarEvent?->google_event_id,
+                'booking_id' => $b->id,
             ])
             ->all();
     }

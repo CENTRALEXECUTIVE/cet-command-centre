@@ -47,6 +47,9 @@ Route::middleware('auth')->group(function () {
     // Pull a calendar-only job into the booking system (admin only).
     Route::post('jobs/import', [\App\Http\Controllers\CalendarJobController::class, 'store'])
         ->middleware('role:admin', 'throttle:30,1')->name('jobs.import');
+    // Push a system booking that's NOT on the calendar up to Google (admin only).
+    Route::post('jobs/{booking}/to-calendar', [\App\Http\Controllers\CalendarJobController::class, 'toCalendar'])
+        ->middleware('role:admin', 'throttle:30,1')->name('jobs.to-calendar');
 
     // Bookings + AI quotes — admins and corporate clients.
     Route::middleware('role:admin,corporate_client')->group(function () {

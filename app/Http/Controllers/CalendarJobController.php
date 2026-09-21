@@ -102,6 +102,39 @@ class CalendarJobController extends Controller
             ->with('status', 'Added to bookings — you can now edit it and send the customer a message.');
     }
 
+    /**
+     * The reverse of store(): push a job that's in CET but NOT on the Google
+     * Calendar up to the calendar. Operator-initiated and confirmed. It only ever
+     * CREATES the event (the job has no Google event yet), never edits an
+     * existing one. When the calendar isn't connected the event is built and left
+     * pending for the next sync — never silently dropped.
+     */
+    public function toCalendar(
+        Request $request,
+        Booking $booking,
+        \App\Services\CalendarEventBuilder $builder,
+        \App\Services\Calendar\GoogleCalendarService $google,
+    ): RedirectResponse {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        // Already on the calendar? Nothing to do.
+        if ($booking->calendarEvent?->google_event_id) {
+            return back()->with('status', 'That job is already on the calendar.');
+        }
+
+        $event = $builder->buildFor($booking->loadMissing(['customer', 'vehicleType', 'driver']));
+
+        if (! $google->active()) {
+            return back()->with('status', 'The Google Calendar isn’t connected yet — this job is queued and will appear on it as soon as it is.');
+        }
+
+        $ok = $google->push($event);
+
+        return back()->with('status', $ok
+            ? $booking->displayName().' has been added to the Google Calendar.'
+            : 'Couldn’t reach the Google Calendar just now — the job is queued and will sync on the next run.');
+    }
+
     private function resolveCustomer(array $parsed): Customer
     {
         $phone = $parsed['customer_phone'] ?: null;

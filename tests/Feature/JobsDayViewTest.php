@@ -93,4 +93,33 @@ class JobsDayViewTest extends TestCase
             ->assertSee('Bob Barker')
             ->assertSee('Carol Clark');
     }
+
+    public function test_job_not_on_calendar_is_marked_and_can_be_pushed(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => Customer::create(['name' => 'Derek Dean'])->id,
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'pickup_at' => '2026-07-20 09:00', 'pickup_address' => 'Sheffield',
+            'destination_address' => 'Manchester Airport', 'passengers' => 1,
+            'status' => 'pending', 'payment_method' => 'card',
+        ]);
+        // No calendar event → should be flagged on the day view.
+        $this->assertNull($booking->calendarEvent);
+
+        $this->actingAs($admin)->get(route('jobs.day', ['date' => '2026-07-20']))
+            ->assertOk()
+            ->assertSee('Not on calendar')
+            ->assertSee('Add to calendar');
+
+        // Pushing builds the calendar-event mirror (pending, since Google isn't
+        // connected in tests) — never silently dropped.
+        $this->actingAs($admin)->post(route('jobs.to-calendar', $booking))
+            ->assertRedirect();
+
+        $event = \App\Models\CalendarEvent::where('booking_id', $booking->id)->first();
+        $this->assertNotNull($event);
+        $this->assertStringContainsString('Derek Dean', $event->title);
+    }
 }

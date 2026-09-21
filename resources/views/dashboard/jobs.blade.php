@@ -26,6 +26,9 @@
                 </div>
                 <div>
                     <span class="badge badge-{{ \Illuminate\Support\Str::slug($job['status']) }}">{{ $job['status'] }}</span>
+                    @unless($job['on_calendar'] ?? true)
+                        <span class="badge" style="background:#b8860b;color:#fff" title="This job is in the system but not yet on the Google Calendar.">⚠ Not on calendar</span>
+                    @endunless
                     @if($job['url'])
                         <a href="{{ $job['url'] }}" style="font-size:13px;margin-left:8px">Open booking →</a>
                     @elseif(auth()->user()->isAdmin() && !empty($job['event_id']))
@@ -36,6 +39,13 @@
                         </form>
                     @else
                         <span class="muted" title="This job is on the calendar but not in the booking system." style="font-size:12px;margin-left:8px">calendar only</span>
+                    @endif
+                    @if(auth()->user()->isAdmin() && ! ($job['on_calendar'] ?? true) && !empty($job['booking_id']))
+                        <form method="POST" action="{{ route('jobs.to-calendar', $job['booking_id']) }}" style="display:inline;margin-left:8px"
+                              onsubmit="return confirm('Add this job to the Google Calendar?')">
+                            @csrf
+                            <button class="btn btn-light" style="padding:4px 12px;font-size:12px" title="Add this system job to the Google Calendar">＋ Add to calendar</button>
+                        </form>
                     @endif
                 </div>
             </div>
