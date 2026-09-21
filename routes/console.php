@@ -17,6 +17,11 @@ Schedule::command('cet:send-due-messages')->everyMinute()->withoutOverlapping();
 // up promptly, not just twice a day. Idempotent and cheap.
 Schedule::command('cet:prepare-reminders')->hourly()->withoutOverlapping();
 
+// The Command Centre backs itself up: a full gzipped database snapshot every
+// hour (keeps the newest 72 ≈ 3 days), so data can never be silently lost and
+// any state can be recalled with cet:restore-database. Read-only against data.
+Schedule::command('cet:backup-database')->hourly()->withoutOverlapping();
+
 // GDPR: prune GPS pings past the retention window, daily.
 Schedule::command('cet:prune-gps')->dailyAt('03:00');
 
