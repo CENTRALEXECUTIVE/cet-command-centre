@@ -1029,7 +1029,7 @@
                     </div>
                     <button class="btn {{ $pay === null && $suggestedPay !== null ? 'btn-primary' : 'btn-ghost' }}" style="padding:8px 14px;font-size:13px">{{ $pay === null && $suggestedPay !== null ? '✓ Confirm pay' : 'Set pay' }}</button>
                     @if($pay === null && $suggestedPay !== null)
-                        <span class="hint" style="flex-basis:100%;margin:2px 0 0">Standard 10% of £{{ number_format($booking->fareAmount(), 2) }} = <strong>£{{ number_format($suggestedPay, 2) }}</strong> — click Confirm, or type a different figure.</span>
+                        <span class="hint" style="flex-basis:100%;margin:2px 0 0">Standard {{ rtrim(rtrim(number_format($booking->driverPayPercent(), 1), '0'), '.') }}% of £{{ number_format($booking->fareAmount(), 2) }} = <strong>£{{ number_format($suggestedPay, 2) }}</strong> — click Confirm, or type a different figure.</span>
                     @endif
                 </form>
 

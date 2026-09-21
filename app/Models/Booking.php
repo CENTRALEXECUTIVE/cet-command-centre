@@ -3389,10 +3389,18 @@ class Booking extends Model
     }
 
     /**
-     * The STANDARD driver pay suggestion — a percentage of the fare (default 10%,
-     * tunable via the `driver_pay_percent` setting). Pre-filled in the payroll box
-     * so the office just clicks to confirm, or types a different figure. Null when
-     * there's no fare to base it on.
+     * The standard share of the fare the DRIVER keeps (default 90% — the company
+     * takes 10% commission). Tunable via the `driver_pay_percent` setting.
+     */
+    public function driverPayPercent(): float
+    {
+        return (float) \App\Models\Setting::get('driver_pay_percent', 90);
+    }
+
+    /**
+     * The STANDARD driver pay suggestion — the driver's share of the fare (default
+     * 90%). Pre-filled in the payroll box so the office just clicks to confirm, or
+     * types a different figure. Null when there's no fare to base it on.
      */
     public function suggestedDriverPay(): ?float
     {
@@ -3400,9 +3408,8 @@ class Booking extends Model
         if ($fare === null || $fare <= 0) {
             return null;
         }
-        $pct = (float) \App\Models\Setting::get('driver_pay_percent', 10);
 
-        return round($fare * $pct / 100, 2);
+        return round($fare * $this->driverPayPercent() / 100, 2);
     }
 
     /** How much of the driver's pay has been handed over so far. */

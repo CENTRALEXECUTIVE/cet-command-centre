@@ -466,14 +466,15 @@ class BookingTest extends TestCase
         $this->assertTrue($return->fresh()->returnLegCollectedOnOutbound());
     }
 
-    public function test_driver_pay_defaults_to_ten_percent_of_the_fare(): void
+    public function test_driver_pay_defaults_to_ninety_percent_of_the_fare(): void
     {
+        // The DRIVER keeps 90% (the company takes 10% commission).
         $b = Booking::factory()->create(['final_price' => 200, 'quoted_price' => 180]);
-        $this->assertSame(20.0, $b->suggestedDriverPay()); // 10% of the £200 fare
+        $this->assertSame(180.0, $b->suggestedDriverPay()); // 90% of the £200 fare
 
         // The standard percentage is tunable without a deploy.
-        \App\Models\Setting::set('driver_pay_percent', 15);
-        $this->assertSame(30.0, $b->suggestedDriverPay());
+        \App\Models\Setting::set('driver_pay_percent', 85);
+        $this->assertSame(170.0, $b->suggestedDriverPay());
 
         // No fare → no suggestion (nothing to base it on).
         $noFare = Booking::factory()->create(['final_price' => null, 'quoted_price' => null]);
