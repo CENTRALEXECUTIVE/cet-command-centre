@@ -22,8 +22,8 @@ class RotationController extends Controller
 
         $overview = $rotation->overview();
 
-        $log = RotationLog::with(['fromDriver', 'toDriver', 'airport', 'vehicleType', 'booking'])
-            ->latest()->limit(40)->get();
+        $log = RotationLog::with(['fromDriver', 'toDriver', 'airport', 'vehicleType', 'booking.customer'])
+            ->latest()->paginate(50);
 
         return view('admin.rotation.index', [
             'drivers' => $overview['drivers'],

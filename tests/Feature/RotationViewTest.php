@@ -59,7 +59,7 @@ class RotationViewTest extends TestCase
 
         $this->actingAs($admin)->get(route('rotation.index'))
             ->assertOk()
-            ->assertSee('Recent history')
+            ->assertSee('Job-by-job order')
             ->assertSee($booking->reference);
     }
 
