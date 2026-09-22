@@ -241,13 +241,36 @@ class EtoEmailParser
     }
 
     /** Count of a seat type in the email, e.g. "2 child seats" → 2, else 1 if mentioned. */
+    /**
+     * Count the seats for the given pipe-delimited keywords. Scanned LINE BY LINE
+     * so a number on another line ("Passengers: 3") can never leak in, and every
+     * matching line is SUMMED ("Child seats: 1" + "Infant seats: 1" = 2). Handles
+     * both "N type seat" and "type seat(s): N" (and "x N"); a bare mention = 1.
+     *
+     * (The old whole-body regex matched "3\nChild seat" across the newline and
+     * stamped the PASSENGER count onto the child seats — a driver would then be
+     * told the wrong number of child seats. Never again.)
+     */
     private function seatCount(string $body, string $types): int
     {
-        if (preg_match('/(\d+)\s*(?:x\s*)?(?:'.$types.')\s*seat/i', $body, $m)) {
-            return (int) $m[1];
+        $total = 0;
+        $found = false;
+        foreach (preg_split('/\r?\n/', (string) $body) as $line) {
+            // The line must name one of the types (as a whole word) AND a seat.
+            if (! preg_match('/\b(?:'.$types.')\b/i', $line) || ! preg_match('/seats?\b/i', $line)) {
+                continue;
+            }
+            $found = true;
+            if (preg_match('/:\s*(\d+)/', $line, $m)                              // "Child seats: 2"
+                || preg_match('/(\d+)\s*(?:x\s*)?(?:'.$types.')\b/i', $line, $m)  // "2 child seats"
+                || preg_match('/seats?\s*[:x]?\s*(\d+)/i', $line, $m)) {          // "seat x 2"
+                $total += max(0, (int) $m[1]);
+            } else {
+                $total += 1; // named with no number → assume one
+            }
         }
 
-        return preg_match('/\b(?:'.$types.')\s*seat/i', $body) ? 1 : 0;
+        return $found ? $total : 0;
     }
 
     private function isYes(?string $value): bool

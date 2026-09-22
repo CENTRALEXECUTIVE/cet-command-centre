@@ -264,6 +264,45 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals('cancelled', $svc->upsertFromParsed($cancel)['action']);
     }
 
+    public function test_child_and_infant_seats_are_counted_not_the_passenger_number(): void
+    {
+        // Regression: "Passengers: 3" on the line above must NOT leak into the seat
+        // count. 1 child seat + 1 infant seat = 2 — never 3 (the passenger count).
+        config(['services.anthropic.key' => null]);
+
+        $body = <<<'EML'
+        New booking SWACRP has been created.
+
+        Journey
+        Date & time:	23/09/2026 13:20
+        Time zone:	UTC+1 London
+        Pickup:	1 Division Lane, Sheffield City Centre, Sheffield, UK
+        Dropoff:	Manchester Airport (MAN), Manchester, UK
+        Departure flight number:	FR3226
+        Vehicle type:	8 Seater
+        Passengers:	3
+        Child seats:	1
+        Infant seats:	1
+        Suitcases:	1
+        Hand luggage:	4
+        Customer
+        Name:	Celina Bassili
+        Phone number:	+447595520102
+        Reservation
+        Reference number:	SWACRP
+        Total:	£160
+        Payments:	£160 (Square) - Paid
+        EML;
+
+        $parsed = app(OutlookBookingService::class)
+            ->parse('New booking SWACRP has been created.', $body, 'noreply@easytaxioffice.co.uk');
+
+        // 1 child + 1 infant = 2 child-type seats; NOT 3 (the passenger count).
+        $this->assertSame(2, (int) $parsed['child_seats']);
+        $this->assertSame(0, (int) $parsed['booster_seats']);
+        $this->assertSame(3, (int) $parsed['passengers']);
+    }
+
     public function test_eto_email_without_iata_code_or_lead_passenger(): void
     {
         config(['services.anthropic.key' => null]);
