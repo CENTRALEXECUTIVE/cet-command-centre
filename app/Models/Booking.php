@@ -2578,21 +2578,39 @@ class Booking extends Model
         if ($desc === '') {
             return null;
         }
-        // Find a line that mentions child/booster/infant + "seat" then a colon,
-        // and capture the value after it — whatever the exact label reads. The
-        // `\*?` after the colon consumes the calendar's closing markdown-bold
-        // asterisk ("• *Child Seats:* 3"), exactly as descriptionValue() does —
-        // without it the value captured as "* 3" and the driver saw "🚼 * 3".
-        if (! preg_match('/(?:child|booster|infant)[^\n:]*seats?[^\n:]*:\*?\s*([^\n]+)/i', $desc, $m)) {
+        // Capture EVERY seat line (Child / Infant / Booster) — a job can carry more
+        // than one type at once (e.g. "Child Seats: 1" AND "Infant Seats: 1"), and
+        // grabbing only the first silently dropped the others. `\*?` consumes the
+        // calendar's closing markdown-bold asterisk ("• *Child Seats:* 1").
+        if (! preg_match_all('/(child|infant|booster)[^\n:]*seats?[^\n:]*:\*?\s*([^\n]+)/i', $desc, $ms, PREG_SET_ORDER)) {
             return null;
         }
-        $val = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]/u', '', $m[1]);
-        $val = trim(preg_replace('/\s+/', ' ', $val));
-        // Backstop: strip any stray markdown-bold asterisks the label wraps in,
-        // so a value can never render with a leading/trailing "*".
-        $val = trim($val, " *");
+        // Clean each seat line's value (strip emoji + the closing markdown "*").
+        $items = [];
+        foreach ($ms as $m) {
+            $val = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]/u', '', $m[2]);
+            $val = trim(preg_replace('/\s+/', ' ', $val), " *");
+            if ($val === '' || preg_match('/^(none|n\/?a|no\b|nil|0)/i', $val)) {
+                continue;
+            }
+            $items[] = ['word' => strtolower($m[1]), 'val' => $val];
+        }
+        if ($items === []) {
+            return null;
+        }
+        // A single seat line keeps its raw value verbatim (the calendar is the
+        // office-verified source of truth). Multiple types are combined into one
+        // readable line so nothing is dropped, e.g. "1 child seat · 1 infant seat".
+        if (count($items) === 1) {
+            return $items[0]['val'];
+        }
+        $parts = [];
+        foreach ($items as $it) {
+            $n = preg_match('/(\d+)/', $it['val'], $nm) ? (int) $nm[1] : 1;
+            $parts[] = $n.' '.$it['word'].' '.\Illuminate\Support\Str::plural('seat', $n);
+        }
 
-        return $val !== '' ? $val : null;
+        return implode(' · ', $parts);
     }
 
     /** Whether this job carries any child/booster/infant seat (for the 🚼 mark). */

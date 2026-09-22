@@ -97,16 +97,20 @@ class EtoEmailParser
         $notes = $this->getFlat($fields, 'comments') ?? $this->getFlat($fields, 'notes');
         $payment = $this->payment($fields);
 
-        // Child/booster/infant seat anywhere in the email → 🚼.
-        $childSeats = $this->seatCount($body, 'child|baby|infant|car');
+        // Child / infant / booster seats counted SEPARATELY so a job with, e.g.,
+        // 1 child + 1 infant reads as both (2 seats total), and the driver knows an
+        // infant carrier is needed — not just a generic child seat.
+        $childSeats = $this->seatCount($body, 'child|car');
+        $infantSeats = $this->seatCount($body, 'infant|baby');
         $boosterSeats = $this->seatCount($body, 'booster');
-        $childSeat = $childSeats > 0 || $boosterSeats > 0;
+        $childSeat = $childSeats > 0 || $infantSeats > 0 || $boosterSeats > 0;
 
         return [
             'is_booking' => true,
             'cancelled' => false,
             'reference' => $reference,
             'child_seats' => $childSeats,
+            'infant_seats' => $infantSeats,
             'booster_seats' => $boosterSeats,
             'customer_name' => $name ?? 'ETO customer',
             'customer_phone' => $phone,

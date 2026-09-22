@@ -294,13 +294,21 @@ class OutlookIngestionTest extends TestCase
         Payments:	£160 (Square) - Paid
         EML;
 
-        $parsed = app(OutlookBookingService::class)
-            ->parse('New booking SWACRP has been created.', $body, 'noreply@easytaxioffice.co.uk');
+        $svc = app(OutlookBookingService::class);
+        $parsed = $svc->parse('New booking SWACRP has been created.', $body, 'noreply@easytaxioffice.co.uk');
 
-        // 1 child + 1 infant = 2 child-type seats; NOT 3 (the passenger count).
-        $this->assertSame(2, (int) $parsed['child_seats']);
-        $this->assertSame(0, (int) $parsed['booster_seats']);
+        // Child and infant counted SEPARATELY (2 seats total), NOT the passenger 3.
+        $this->assertSame(1, (int) $parsed['child_seats']);
+        $this->assertSame(1, (int) $parsed['infant_seats']);
+        $this->assertSame(0, (int) ($parsed['booster_seats'] ?? 0));
         $this->assertSame(3, (int) $parsed['passengers']);
+
+        // End to end: the booking + its calendar block show BOTH seats to the driver.
+        $svc->upsertFromParsed($parsed);
+        $booking = Booking::where('external_reference', 'SWACRP')->first();
+        $seats = strtolower((string) $booking->displayChildSeats());
+        $this->assertStringContainsString('1 child seat', $seats);
+        $this->assertStringContainsString('1 infant seat', $seats);
     }
 
     public function test_eto_email_without_iata_code_or_lead_passenger(): void

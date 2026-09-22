@@ -195,6 +195,9 @@ class CalendarEventBuilder
         if ((int) ($meta['child_seats'] ?? 0) > 0) {
             $add('Child Seats', (string) $meta['child_seats']);
         }
+        if ((int) ($meta['infant_seats'] ?? 0) > 0) {
+            $add('Infant Seats', (string) $meta['infant_seats']);
+        }
         if ((int) ($meta['booster_seats'] ?? 0) > 0) {
             $add('Booster Seats', (string) $meta['booster_seats']);
         }
@@ -253,6 +256,9 @@ class CalendarEventBuilder
         $add('Luggage', $this->luggageText($booking));
         if ((int) ($meta['child_seats'] ?? 0) > 0) {
             $add('Child Seats', (string) $meta['child_seats']);
+        }
+        if ((int) ($meta['infant_seats'] ?? 0) > 0) {
+            $add('Infant Seats', (string) $meta['infant_seats']);
         }
         if ((int) ($meta['booster_seats'] ?? 0) > 0) {
             $add('Booster Seats', (string) $meta['booster_seats']);

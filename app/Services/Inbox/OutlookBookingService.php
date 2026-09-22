@@ -133,6 +133,7 @@ class OutlookBookingService
             .'{"is_booking": true, "reference": string|null, "cancelled": boolean, "customer_name": string, '
             .'"customer_phone": string|null, "customer_email": string|null, "pickup_address": string, '
             .'"destination_address": string, "pickup_at": "YYYY-MM-DD HH:MM", "passengers": number, '
+            .'"child_seats": number, "infant_seats": number, "booster_seats": number, '
             .'"vehicle_type": string|null, "flight_number": string|null}. "reference" is the ETO booking '
             .'reference. "cancelled" is true if the email cancels the booking. vehicle_type is one of: '
             .'Executive, Estate, V Class, 8 Seater, 8 Seater XL, Luxury.';
@@ -315,6 +316,7 @@ class OutlookBookingService
         // GUARD: never more seats than passengers (impossible data).
         $pax = max(1, (int) ($parsed['passengers'] ?? 1));
         $childSeats = min((int) ($parsed['child_seats'] ?? 0), $pax);
+        $infantSeats = min((int) ($parsed['infant_seats'] ?? 0), $pax);
         $boosterSeats = min((int) ($parsed['booster_seats'] ?? 0), $pax);
 
         return array_filter([
@@ -330,8 +332,9 @@ class OutlookBookingService
             // Always show the lead passenger, never the booker/company (rule 9).
             'lead_name' => $parsed['customer_name'] ?? null,
             'meet_and_greet' => $meetGreet,
-            'child_seat' => ! empty($parsed['child_seat']) || $childSeats > 0 || $boosterSeats > 0,
+            'child_seat' => ! empty($parsed['child_seat']) || $childSeats > 0 || $infantSeats > 0 || $boosterSeats > 0,
             'child_seats' => $childSeats,
+            'infant_seats' => $infantSeats,
             'booster_seats' => $boosterSeats,
             'stops' => $parsed['stops'] ?? [],
             'payment_text' => $parsed['payment_text'] ?? null,
