@@ -303,6 +303,56 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   columns + live ping-age chips, dark fleet map with heading arrows.
   `prefers-reduced-motion` and no-backdrop-filter fallbacks throughout.
 
+## Money & ops rules locked in (Sep 2026) — DO NOT REGRESS
+
+Hard-won from live incidents. Each has a regression test; keep them green.
+
+- **Cash the driver collects = the BALANCE owed, never the gross fare.** Deposits
+  already paid (e.g. "Deposit £15 (Square) Paid, Balance £135 (Cash)") are
+  excluded — collect £135, not £150. `Booking::parseCashBalance()` is the single
+  parser; `ownCashDueToDriver()` applies the suppression rules then falls back to
+  it. A £150 fare with a £15 deposit must never bill £150.
+- **Paired airport return:** the outbound collects its OWN balance PLUS the
+  matching return's **cash balance** (`pairedReturnFare()` → `parseCashBalance`),
+  so George = £125 + £135 = **£260**, never £275/£290. ETO A/B refs pair the legs.
+- **Airport ARRIVAL (pickup) on cash = prepaid** → collect nothing. **Return leg:**
+  the DRIVER only ever sees **"Paid — collect nothing"** (card or cash); the
+  "already collected on the outbound" note is OFFICE-ONLY
+  (`returnLegCollectedOnOutbound()`). Never tell a card-job driver "cash collected".
+- **Pairing must never turn a CARD/account job into cash** (the outbound-of-a-return
+  wrapper only adds the return when this leg genuinely collects cash).
+- **Driver pay default = 90% of the fare** (company keeps 10%; `driver_pay_percent`
+  setting, default 90). Pre-filled so the office just Confirms; **never overwrites a
+  price already on the job** — minibus/V Class cover jobs carry their offered price.
+- **Per-stop waiting:** every via stop bills from arrival until the driver continues
+  (`stopsWaitingBillableMinutes`, `waiting_stop_grace_minutes` default 0), each
+  counted separately, summed into `waitingChargeableMinutes`. An open (forgotten)
+  stop is capped; a finished stop keeps its real wait.
+- **Number masking uses the office-set contact** (`customerContactNumber()` — the
+  notes-number override wins over the raw `customer->phone`), in BOTH the switchboard
+  bridge and Twilio Proxy. A number set from the notes must be able to ring the driver.
+- **At-risk emergency call:** `call_scope=super_admins` (BOTH directors — their
+  driver accounts are `abdi@`/`maj@`, NOT `admin@`). Per-driver routing via
+  `checkpoint.office_call_drivers` (`Booking::emergencyCallTarget()`): the owner's
+  jobs ring the business line (forwards to on-call), other directors ring direct.
+- **Paste-a-booking (`/intake`)** captures the **price** (£ figure), accessibility/
+  "Additional" notes, and multi-type bag lists — none silently dropped.
+
+## Resilience (never let a hosting blip take the office down)
+
+- **The app must never crash when Google/DNS is unreachable.** Calendar reads are
+  best-effort — `eventsBetween()`/`searchEvents()` catch network errors and return
+  what they have. On 21 Sep 2026 a GoDaddy server-DNS outage (couldn't resolve any
+  host) 500'd the site; the fix is graceful degradation, not depending on Google.
+- **Calendar staleness alarm:** `cet:calendar-refresh` stamps `calendar_last_sync_ok`
+  on every successful read; `CalendarHealth` flags the mirror stale after 20 min and
+  the admin layout shows a banner — so out-of-date money is never shown as current.
+- **Backups:** automatic DB backups + the calendar is the source of truth (mirrored
+  into the DB, so the web never needs to reach Google live). Nothing lives only in chat.
+- **Deploy:** `cet:auto-deploy` pulls this branch every 2 min (migrate + optimize:clear
+  + opcache reset). The whole watchdog/nudge/call layer needs the `schedule:run` cron
+  to actually be running — verify it if alerts/calls go silent.
+
 ## Handover to another Claude account
 
 Everything is in Git — nothing lives only in a chat. To continue elsewhere:
