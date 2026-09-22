@@ -120,6 +120,58 @@ class OutlookIngestionTest extends TestCase
         $this->assertSame('15:30', $booking->pickup_at->format('H:i')); // detail still updated
     }
 
+    public function test_reingesting_an_email_never_reverts_an_office_edited_pickup_time(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed()); // email pickup = 14:00
+        $booking = Booking::where('external_reference', 'ZWR6MM')->first();
+
+        // The office moves the pickup in Command Centre (e.g. for a flight delay)
+        // and it is recorded as a per-field edit.
+        $booking->forceFill([
+            'pickup_at' => '2026-07-01 17:30',
+            'meta' => array_merge($booking->meta ?? [], [
+                'manually_edited_at' => now()->toIso8601String(),
+                'edited_fields' => ['pickup_at'],
+            ]),
+        ])->save();
+
+        // The 5-minute ingest re-reads the SAME email (still says 14:00) many times.
+        $svc->upsertFromParsed($this->parsed());
+        $svc->upsertFromParsed($this->parsed());
+
+        // The office's edited time holds — it never snaps back to the email's 14:00.
+        $booking = $booking->fresh();
+        $this->assertSame('17:30', $booking->pickup_at->format('H:i'));
+        $this->assertSame('17:30', $booking->calendarEvent->start_at->format('H:i'));
+
+        // A field the office did NOT edit still mirrors the email.
+        $svc->upsertFromParsed($this->parsed(['flight_number' => 'BA999']));
+        $this->assertSame('BA999', $booking->fresh()->flight_number);
+        $this->assertSame('17:30', $booking->fresh()->pickup_at->format('H:i'));
+    }
+
+    public function test_reingesting_an_email_never_reverts_office_edited_seat_counts(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed(['child_seats' => 0, 'infant_seats' => 0]));
+        $booking = Booking::where('external_reference', 'ZWR6MM')->first();
+
+        // Office corrects the seats: 1 child + 1 infant, marked as an edit.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'child_seats' => 1, 'infant_seats' => 1, 'booster_seats' => 0, 'child_seat' => true,
+            'manually_edited_at' => now()->toIso8601String(),
+            'edited_fields' => ['child_seats'],
+        ])])->save();
+
+        // Re-ingest of the seat-less email must not wipe the corrected counts.
+        $svc->upsertFromParsed($this->parsed(['child_seats' => 0, 'infant_seats' => 0]));
+
+        $booking = $booking->fresh();
+        $this->assertSame(1, (int) $booking->meta['child_seats']);
+        $this->assertSame(1, (int) $booking->meta['infant_seats']);
+    }
+
     public function test_ingest_leaves_a_completed_job_untouched(): void
     {
         config(['services.anthropic.key' => null]);

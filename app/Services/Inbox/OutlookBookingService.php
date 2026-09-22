@@ -239,6 +239,50 @@ class OutlookBookingService
                 // the money and tokens we've recorded. Replacing meta wholesale
                 // here was wiping driver pay every 5-minute ingest run.
                 $fields['meta'] = array_merge($existing->meta ?? [], $fields['meta']);
+
+                // EDITS STICK. A routine re-ingest must NEVER overwrite a field
+                // the office has changed in the app. Once a person edits the
+                // pickup time (or address, flight, passengers, seats, luggage…)
+                // in Command Centre, that value is authoritative and the email
+                // only refreshes the fields nobody has touched — the same
+                // per-field rule the calendar sync uses. Without this, the
+                // 5-minute Outlook ingest silently reverted an edited pickup time
+                // back to the email's original (a flight delay we'd moved the
+                // pickup for would snap back every few minutes).
+                $existingMeta = $existing->meta ?? [];
+                $columnFor = [
+                    'pickup_at' => 'pickup_at',
+                    'pickup_address' => 'pickup_address',
+                    'destination_address' => 'destination_address',
+                    'flight_number' => 'flight_number',
+                    'passengers' => 'passengers',
+                    'vehicle_type' => 'vehicle_type_id',
+                    'customer_name' => 'customer_id',
+                    'luggage' => 'luggage',
+                ];
+                foreach ($columnFor as $editedKey => $column) {
+                    if ($existing->fieldEdited($editedKey)) {
+                        unset($fields[$column]);
+                    }
+                }
+                // Meta-backed fields (luggage split, seat counts) keep the
+                // office's own values when edited, since the merge above lets the
+                // email win by default.
+                if ($existing->fieldEdited('luggage')) {
+                    foreach (['suitcases', 'hand_luggage', 'luggage_text'] as $k) {
+                        if (array_key_exists($k, $existingMeta)) {
+                            $fields['meta'][$k] = $existingMeta[$k];
+                        }
+                    }
+                }
+                if ($existing->fieldEdited('child_seats')) {
+                    foreach (['child_seats', 'infant_seats', 'booster_seats', 'child_seat'] as $k) {
+                        if (array_key_exists($k, $existingMeta)) {
+                            $fields['meta'][$k] = $existingMeta[$k];
+                        }
+                    }
+                }
+
                 $existing->forceFill($fields)->save();
                 $booking = $existing;
                 $action = 'updated';
