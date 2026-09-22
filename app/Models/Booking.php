@@ -2202,6 +2202,59 @@ class Booking extends Model
     }
 
     /**
+     * THE OFFICE IS THE BOSS. A value a person sets in Command Centre is FINAL:
+     * no automatic source (ETO email re-ingest, CSV import, calendar sync,
+     * flight monitor) may ever silently overwrite it. This maps each editable
+     * field to the booking column(s) and/or meta key(s) it owns, so every
+     * background writer can enforce the same rule from ONE place.
+     */
+    public const OFFICE_OWNED_FIELDS = [
+        'pickup_at' => ['columns' => ['pickup_at']],
+        'pickup_address' => ['columns' => ['pickup_address']],
+        'destination_address' => ['columns' => ['destination_address']],
+        'flight_number' => ['columns' => ['flight_number']],
+        'passengers' => ['columns' => ['passengers']],
+        'vehicle_type' => ['columns' => ['vehicle_type_id']],
+        'customer_name' => ['columns' => ['customer_id']],
+        'luggage' => ['columns' => ['luggage'], 'meta' => ['suitcases', 'hand_luggage', 'luggage_text']],
+        'child_seats' => ['meta' => ['child_seats', 'infant_seats', 'booster_seats', 'child_seat']],
+    ];
+
+    /**
+     * Strip office-edited fields out of an AUTOMATIC update so a person's edit in
+     * the app is never reverted by a background source. Pass the [column => value]
+     * array the automatic source wants to write (its 'meta' entry is filtered
+     * per-key too, keeping the office's own value); get back only what it may
+     * still write. EVERY non-office writer must run its update through this.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    public function applyOfficeEdits(array $fields): array
+    {
+        $existingMeta = $this->meta ?? [];
+        foreach (self::OFFICE_OWNED_FIELDS as $editedKey => $owns) {
+            if (! $this->fieldEdited($editedKey)) {
+                continue;
+            }
+            foreach ($owns['columns'] ?? [] as $column) {
+                unset($fields[$column]);
+            }
+            if (isset($fields['meta']) && is_array($fields['meta'])) {
+                foreach ($owns['meta'] ?? [] as $metaKey) {
+                    if (array_key_exists($metaKey, $existingMeta)) {
+                        $fields['meta'][$metaKey] = $existingMeta[$metaKey]; // office value wins
+                    } else {
+                        unset($fields['meta'][$metaKey]);
+                    }
+                }
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
      * Choose which source to display for one field. When the office actually
      * changed that field, its value wins (calendar fills a blank); otherwise the
      * calendar wins (own value fills a blank). Empty strings count as blank.

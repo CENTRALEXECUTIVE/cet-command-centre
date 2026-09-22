@@ -61,6 +61,30 @@ class FlightMonitorTest extends TestCase
         $this->assertDatabaseHas('messages', ['to_address' => '07700900500', 'channel' => 'whatsapp']);
     }
 
+    public function test_a_delay_never_moves_a_pickup_the_office_set_by_hand(): void
+    {
+        // THE OFFICE IS THE BOSS: an edited pickup time is final — the flight
+        // monitor flags the delay but must not move the time the office set.
+        $this->fakeClient(45);
+        $booking = $this->flightBooking();
+        $booking->forceFill([
+            'meta' => array_merge($booking->meta ?? [], [
+                'manually_edited_at' => now()->toIso8601String(),
+                'edited_fields' => ['pickup_at'],
+            ]),
+        ])->save();
+        $original = $booking->pickup_at->copy();
+
+        $monitor = app(FlightMonitorService::class)->monitor($booking);
+
+        $this->assertFalse($monitor->pickup_adjusted);
+        $this->assertEquals($original->format('H:i'), $booking->fresh()->pickup_at->format('H:i'));
+        // Office is still told about the delay so they can decide.
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $booking->id, 'event_type' => 'flight_delayed']);
+        // No "we've moved your pickup" message is queued to the customer.
+        $this->assertDatabaseMissing('messages', ['to_address' => '07700900500', 'channel' => 'whatsapp']);
+    }
+
     public function test_small_delay_does_not_adjust_pickup(): void
     {
         $this->fakeClient(5);

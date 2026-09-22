@@ -128,7 +128,9 @@ class ImportBookingsCsv extends Command
 
             $existing = Booking::where('source_system', 'eto')->where('external_reference', $ref)->first();
             if ($existing) {
-                $existing->forceFill($fields)->save();
+                // THE OFFICE IS THE BOSS: a bulk re-import never reverts a field
+                // the office has edited in the app.
+                $existing->forceFill($existing->applyOfficeEdits($fields))->save();
                 $booking = $existing;
                 $stats['updated']++;
             } else {

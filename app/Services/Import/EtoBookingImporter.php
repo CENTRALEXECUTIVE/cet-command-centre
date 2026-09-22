@@ -195,6 +195,10 @@ class EtoBookingImporter
             }
         }
 
+        // THE OFFICE IS THE BOSS: never let a CSV re-import overwrite a luggage /
+        // seat / detail value the office has edited in the app.
+        $fields = $booking->applyOfficeEdits($fields);
+
         $booking->forceFill($fields);
 
         // Correct the "came through" date to ETO's original creation date, so a

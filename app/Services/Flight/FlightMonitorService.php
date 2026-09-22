@@ -79,16 +79,23 @@ class FlightMonitorService
         }
 
         // 2) DELAYED — push the pickup back automatically, and tell office + driver.
+        //    THE OFFICE IS THE BOSS: only auto-move a pickup the office has NOT
+        //    set by hand. If they've edited the time in the app, we leave it exactly
+        //    as they set it and just flag the delay for them to decide.
         if ($info['delay_minutes'] >= $threshold || $deltaMin >= $threshold) {
             $mins = max($info['delay_minutes'], $deltaMin);
-            if (! $monitor->pickup_adjusted) {
+            $officeSetTime = $booking->fieldEdited('pickup_at');
+            if (! $monitor->pickup_adjusted && ! $officeSetTime) {
                 $this->adjustAndNotifyCustomer($booking, $mins);
                 $monitor->pickup_adjusted = true;
                 $monitor->customer_notified = true;
             }
+            $pickup = $booking->fresh()->pickup_at->format('H:i');
             $this->alert($booking, 'delayed', 'warning',
                 "✈️ {$flight} delayed ~{$mins} min",
-                "Flight {$flight} for {$booking->displayName()} is delayed ~{$mins} min. Pickup moved to {$booking->fresh()->pickup_at->format('H:i')}.");
+                $officeSetTime
+                    ? "Flight {$flight} for {$booking->displayName()} is delayed ~{$mins} min. Pickup is set to {$pickup} (set in the app) — change it if you need to."
+                    : "Flight {$flight} for {$booking->displayName()} is delayed ~{$mins} min. Pickup moved to {$pickup}.");
         }
 
         // 3) EARLY — landing sooner than scheduled; driver needs to be there
