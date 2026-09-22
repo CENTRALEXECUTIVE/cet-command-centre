@@ -92,6 +92,11 @@ return [
     // billable time AFTER this grace period elapses.
     'waiting_grace_minutes' => (int) env('CET_WAITING_GRACE_MINUTES', 15),
 
+    // Free waiting at each VIA STOP before it starts billing (a multi-drop job
+    // waits at each stop until the driver continues). Default 0 — the meter runs
+    // from arrival at the stop, per the ops rule "waiting starts after each one".
+    'waiting_stop_grace_minutes' => (int) env('CET_WAITING_STOP_GRACE_MINUTES', 0),
+
     // Safety cap on AUTO-computed billable waiting minutes. If a driver forgets to
     // tap POB / Complete, the clock would otherwise run for hours/days and invent
     // an absurd charge. The automatic figure is capped here (default 3h); the

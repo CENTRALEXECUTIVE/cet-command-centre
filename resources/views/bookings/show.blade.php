@@ -929,7 +929,7 @@
                     <button class="btn btn-light" style="padding:8px 14px;font-size:13px">Set waiting</button>
                     <button type="submit" name="clear" value="1" class="btn btn-ghost" style="padding:8px 14px;font-size:13px"
                             onclick="return confirm('Remove the waiting charge for this job?')">No waiting charge</button>
-                    <span class="hint" style="flex-basis:100%;margin:2px 0 0">Currently {{ $wMin }} chargeable min = <strong>£{{ number_format($booking->waitingCharge(), 2) }}</strong>. Use <strong>No waiting charge</strong> if the driver forgot to update the job.</span>
+                    <span class="hint" style="flex-basis:100%;margin:2px 0 0">Currently {{ $wMin }} chargeable min = <strong>£{{ number_format($booking->waitingCharge(), 2) }}</strong>@if($booking->hasViaStops() && $booking->stopsWaitingBillableMinutes() > 0) — includes <strong>{{ $booking->stopsWaitingBillableMinutes() }} min</strong> across the stops (each counted separately)@endif. Use <strong>No waiting charge</strong> if the driver forgot to update the job.</span>
                 </form>
             @endif
         </div>

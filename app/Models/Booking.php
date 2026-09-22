@@ -808,14 +808,52 @@ class Booking extends Model
         return (float) ($rates[$slug] ?? $rates['default'] ?? 20);
     }
 
+    /** Free minutes at each via stop before it bills (ops rule: usually 0). */
+    public function stopWaitGraceMinutes(): int
+    {
+        return max(0, (int) config('cet.waiting_stop_grace_minutes', 0));
+    }
+
     /**
-     * Chargeable waiting minutes: the pickup waiting past the free grace (which
-     * recordedWaitingMinutes/waitingBillableMinutes already exclude), minus the
-     * minutes the customer prepaid. 0 until they're over both allowances.
+     * Billable waiting accrued at the VIA STOPS — each stop is charged separately:
+     * the wait from arriving at that stop until the driver continues, past the
+     * per-stop grace, all summed. Live for the stop the driver is currently at. A
+     * still-open stop (driver forgot to continue) is capped like the pickup auto
+     * figure so it can't invent an absurd charge; a completed stop keeps its real
+     * wait uncapped.
+     */
+    public function stopsWaitingBillableMinutes(): int
+    {
+        $grace = $this->stopWaitGraceMinutes();
+        $cap = (int) config('cet.waiting_max_auto_minutes', 180);
+        $total = 0;
+        foreach ($this->viaStops() as $i => $stop) {
+            $secs = $this->stopWaitSeconds($i);
+            if ($secs === null) {
+                continue; // not arrived at this stop yet
+            }
+            $mins = max(0, intdiv($secs, 60) - $grace);
+            // Only cap a stop still in progress (never "continued") — a finished
+            // stop's wait is real and stays uncapped.
+            if ($cap > 0 && $this->stopPickedUpAt($i) === null) {
+                $mins = min($mins, $cap);
+            }
+            $total += $mins;
+        }
+
+        return $total;
+    }
+
+    /**
+     * Chargeable waiting minutes: the pickup waiting past the free grace PLUS the
+     * waiting at every via stop, minus the minutes the customer prepaid. 0 until
+     * they're over the allowances. A manual office override (recordedWaitingMinutes)
+     * is the verbatim total and already accounts for everything.
      */
     public function waitingChargeableMinutes(): int
     {
-        $billable = $this->recordedWaitingMinutes() ?? $this->waitingBillableMinutes();
+        $billable = $this->recordedWaitingMinutes()
+            ?? ($this->waitingBillableMinutes() + $this->stopsWaitingBillableMinutes());
 
         return (int) max(0, $billable - $this->waitingIncludedMinutes());
     }

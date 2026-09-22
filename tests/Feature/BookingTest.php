@@ -481,6 +481,41 @@ class BookingTest extends TestCase
         $this->assertNull($noFare->suggestedDriverPay());
     }
 
+    public function test_via_stop_waiting_time_is_charged_per_stop(): void
+    {
+        config(['cet.waiting_stop_grace_minutes' => 0, 'cet.waiting_charge_per_hour' => ['default' => 60]]);
+
+        $b = Booking::factory()->create([
+            'meta' => [
+                'stops' => ['136 Sandford Grove Road', '227 Ellesmere Road'],
+                'stop_events' => [
+                    0 => ['arrived_at' => now()->subMinutes(50)->toIso8601String(), 'picked_up_at' => now()->subMinutes(30)->toIso8601String()], // 20 min
+                    1 => ['arrived_at' => now()->subMinutes(20)->toIso8601String(), 'picked_up_at' => now()->subMinutes(5)->toIso8601String()],  // 15 min
+                ],
+            ],
+        ]);
+
+        // Each stop counted separately: 20 + 15 = 35 billable minutes.
+        $this->assertSame(35, $b->stopsWaitingBillableMinutes());
+        $this->assertSame(35, $b->waitingChargeableMinutes());
+        $this->assertSame(35.0, $b->waitingCharge()); // 35 min @ £60/h
+    }
+
+    public function test_a_forgotten_open_stop_wait_is_capped(): void
+    {
+        config(['cet.waiting_stop_grace_minutes' => 0, 'cet.waiting_max_auto_minutes' => 180]);
+
+        // Arrived 10 hours ago, never continued → capped at 180, not 600.
+        $b = Booking::factory()->create([
+            'meta' => [
+                'stops' => ['Somewhere'],
+                'stop_events' => [0 => ['arrived_at' => now()->subHours(10)->toIso8601String()]],
+            ],
+        ]);
+
+        $this->assertSame(180, $b->stopsWaitingBillableMinutes());
+    }
+
     public function test_emergency_call_routes_the_owner_to_office_and_others_direct(): void
     {
         // The owner's missed jobs ring the business line; another director's
