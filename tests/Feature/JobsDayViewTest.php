@@ -50,6 +50,28 @@ class JobsDayViewTest extends TestCase
             ->assertSee('ABC123');
     }
 
+    public function test_a_system_booking_not_on_the_calendar_still_shows(): void
+    {
+        // The "Maria" case: a partner job added straight to the system, with NO
+        // calendar event. It shows on the dispatch board (DB) but was being
+        // dropped from the Jobs day view (calendar-only). It must now appear so
+        // the two screens agree.
+        $admin = User::factory()->admin()->create();
+        Booking::create([
+            'reference' => Booking::generateReference(), 'external_reference' => 'H7424',
+            'customer_id' => Customer::create(['name' => 'Maria'])->id,
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'pickup_at' => '2026-09-23 17:15', 'pickup_address' => 'AMRC, Rotherham',
+            'destination_address' => 'Sheffield Train Station', 'passengers' => 1,
+            'status' => 'pending', 'payment_method' => 'account',
+        ]);
+
+        $this->actingAs($admin)->get(route('jobs.day', ['date' => '2026-09-23']))
+            ->assertOk()
+            ->assertSee('Maria')
+            ->assertSee('H7424');
+    }
+
     public function test_day_view_navigates_by_date(): void
     {
         // Pin "now" so the target date is never "today" (which renders as "Today"

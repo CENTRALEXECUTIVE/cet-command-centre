@@ -459,9 +459,45 @@ class DashboardController extends Controller
     public function day(Request $request): View
     {
         $day = ($request->date('date') ?? today())->startOfDay();
-        $jobs = $this->calendarStats->jobsOn($day) ?? $this->jobsFromDatabase($day);
 
-        return view('dashboard.jobs', ['day' => $day, 'jobs' => $jobs]);
+        return view('dashboard.jobs', ['day' => $day, 'jobs' => $this->dayJobs($day)]);
+    }
+
+    /**
+     * Every job on a day, so NONE is ever missed — the union of the system's own
+     * bookings and the Google Calendar's events, de-duplicated. Reading the
+     * calendar alone dropped bookings that aren't on it yet (e.g. a partner job
+     * added straight to the system), which is why the Jobs day view disagreed
+     * with the dispatch board. The system row wins when a job is in both (it's
+     * always openable); calendar-only jobs are kept too.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function dayJobs(Carbon $day): array
+    {
+        $dbJobs = $this->jobsFromDatabase($day);
+        $calendarJobs = $this->calendarStats->jobsOn($day) ?? [];
+
+        $seen = [];
+        $merged = [];
+        foreach (array_merge($dbJobs, $calendarJobs) as $job) {
+            $ref = trim((string) ($job['ref'] ?? ''));
+            $ref = ($ref !== '' && $ref !== '—') ? strtoupper($ref) : null;
+            $when = ($job['pickup'] ?? null) instanceof \DateTimeInterface ? $job['pickup']->format('Y-m-d H:i') : (string) ($job['pickup'] ?? '');
+            $fallback = $when.'|'.strtolower(trim((string) ($job['customer'] ?? '')));
+
+            $id = $ref ?? $fallback;
+            if (isset($seen[$id]) || isset($seen[$fallback])) {
+                continue; // already shown from the other source
+            }
+            $seen[$id] = true;
+            $seen[$fallback] = true;
+            $merged[] = $job;
+        }
+
+        usort($merged, fn ($a, $b) => ($a['pickup'] ?? null) <=> ($b['pickup'] ?? null));
+
+        return $merged;
     }
 
     /** Day's jobs from the database, mapped to the same detail rows. */
