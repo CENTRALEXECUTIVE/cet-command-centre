@@ -758,6 +758,53 @@ class BookingController extends Controller
     }
 
     /**
+     * Per-pickup contacts for a shared / multi-pickup job. Each via stop that's a
+     * separate PARTY carries its own name + number so masking can follow the
+     * journey (the current pickup is live, the collected one drops). ADMIN-ONLY:
+     * these numbers are never shown to a driver — they only drive the masked line.
+     * Stored in meta['stop_contacts'] keyed by via-stop index; a blank number
+     * clears that stop's contact (back to a plain waypoint).
+     */
+    public function pickupContacts(Request $request, Booking $booking, \App\Services\Telephony\TwilioProxyService $proxy): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'contacts' => ['array'],
+            'contacts.*.name' => ['nullable', 'string', 'max:120'],
+            'contacts.*.phone' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $contacts = [];
+        foreach ((array) ($data['contacts'] ?? []) as $i => $row) {
+            $phone = trim((string) ($row['phone'] ?? ''));
+            if ($phone === '') {
+                continue; // blank → not a separate party, just a waypoint
+            }
+            $contacts[(int) $i] = array_filter([
+                'name' => trim((string) ($row['name'] ?? '')) ?: null,
+                'phone' => $phone,
+            ], fn ($v) => $v !== null);
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'stop_contacts' => $contacts,
+        ])])->save();
+
+        // If a mask is open, re-point it at the party who's live now — the number
+        // may have just changed. Best-effort; never block the save.
+        if ($booking->driver && ! $booking->status->isTerminal()) {
+            try {
+                $proxy->syncCustomerParticipant($booking->fresh());
+            } catch (\Throwable) {
+                // masking hiccup must never fail an office edit
+            }
+        }
+
+        return back()->with('status', 'Pickup contacts saved — each party is reachable on the masked line for their own leg. Numbers stay office-only.');
+    }
+
+    /**
      * Per-booking LEAD TIME — the clock time the driver would set their alarm for
      * this job. The "Getting ready" prompt and the emergency escalation key off
      * it, so we never alert before their alarm. Parsed in the app timezone (UK

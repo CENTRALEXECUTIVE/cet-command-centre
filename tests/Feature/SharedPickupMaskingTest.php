@@ -100,6 +100,57 @@ class SharedPickupMaskingTest extends TestCase
         $this->assertSame($b->customerContactNumber(), $b->currentCustomerContactNumber());
     }
 
+    public function test_an_admin_can_save_pickup_contacts_and_they_stay_office_only(): void
+    {
+        $lead = Customer::create(['name' => 'Margaret Moran', 'phone' => '07544616024']);
+        $b = Booking::factory()->create([
+            'customer_id' => $lead->id,
+            'driver_id' => $this->driver->id,
+            'status' => BookingStatus::Allocated,
+            'pickup_at' => now()->addMinutes(20),
+            'meta' => ['stops' => [['address' => '47 Lockwood Avenue, S25 5GQ']]],
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post(route('bookings.pickup-contacts', $b), [
+                'contacts' => [0 => ['name' => 'Barbara Horsfield', 'phone' => '07986942673']],
+            ])
+            ->assertRedirect();
+
+        $b->refresh();
+        $this->assertSame('07986942673', $b->meta['stop_contacts'][0]['phone']);
+        $this->assertTrue($b->hasMultiplePickupParties());
+
+        // The number is NEVER rendered on the driver's job screen.
+        $page = $this->actingAs($this->driver)->get(route('driver.job', $b))->assertOk();
+        $page->assertDontSee('07986942673');
+    }
+
+    public function test_a_driver_cannot_save_pickup_contacts(): void
+    {
+        $b = $this->sharedJob();
+
+        $this->actingAs($this->driver)
+            ->post(route('bookings.pickup-contacts', $b), [
+                'contacts' => [0 => ['name' => 'Hacker', 'phone' => '07000000000']],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_a_blank_number_clears_a_stop_contact(): void
+    {
+        $b = $this->sharedJob();
+        $this->assertTrue($b->hasMultiplePickupParties());
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post(route('bookings.pickup-contacts', $b), ['contacts' => [0 => ['name' => '', 'phone' => '']]])
+            ->assertRedirect();
+
+        $this->assertFalse($b->fresh()->hasMultiplePickupParties());
+    }
+
     public function test_the_switchboard_bridges_the_driver_to_the_live_party_only(): void
     {
         $b = $this->sharedJob();

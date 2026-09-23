@@ -138,6 +138,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/toggle-masking', [BookingController::class, 'toggleMasking'])->middleware('throttle:20,1')->name('bookings.toggle-masking');
         // Per-booking masking timing: when the line goes live + when it closes.
         Route::post('bookings/{booking}/masking-timing', [BookingController::class, 'maskingTiming'])->middleware('throttle:30,1')->name('bookings.masking-timing');
+        // Admin-only per-pickup contacts for a shared/multi-pickup job — the
+        // second party's number drives per-leg masking and is never shown to a driver.
+        Route::post('bookings/{booking}/pickup-contacts', [BookingController::class, 'pickupContacts'])->middleware('throttle:30,1')->name('bookings.pickup-contacts');
         Route::post('bookings/{booking}/lead-time', [BookingController::class, 'leadTime'])->middleware('throttle:30,1')->name('bookings.lead-time');
         // Quick edits from the booking page: the job price, and the waiting minutes.
         Route::post('bookings/{booking}/price', [BookingController::class, 'setPrice'])->middleware('throttle:30,1')->name('bookings.price');

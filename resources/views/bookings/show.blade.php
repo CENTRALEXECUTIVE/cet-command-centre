@@ -1346,6 +1346,56 @@
                 </form>
                 <p class="hint" style="margin:-4px 0 12px">The masked number is on the driver's job screen from allocation. A call or text <strong>before</strong> the connect time plays a Central Executive Transfers message instead of connecting. <strong>Marking the job Complete closes the line straight away</strong> — the backstop only kicks in if a job is never marked complete.</p>
             @endif
+
+            {{-- Per-pickup contacts (shared / multi-pickup jobs). Each via stop that's
+                 a separate PARTY gets its own number so masking follows the journey —
+                 the party being collected is live, then their number drops and the
+                 next pickup's goes live. ADMIN-ONLY: these numbers never reach a
+                 driver, they only drive the masked line. --}}
+            @if($booking->hasViaStops())
+                @php
+                    $stopContacts = (array) ($booking->meta['stop_contacts'] ?? []);
+                    $activeParty = $booking->pickupParties()[$booking->activePickupIndex()] ?? null;
+                    $activeStop = $activeParty['stop'] ?? null; // null = the lead pickup is live
+                @endphp
+                <form method="POST" action="{{ route('bookings.pickup-contacts', $booking) }}"
+                      style="padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                    @csrf
+                    <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🧍 Per-pickup contacts — office only, never shown to the driver</div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px;{{ $activeStop === null ? 'border-color:rgba(31,122,68,.55);background:rgba(31,157,85,.06)' : '' }}">
+                        <div>
+                            <div style="font-weight:700;font-size:14px">1 · {{ $booking->displayCustomerName() ?? 'Lead pickup' }} <span class="muted" style="font-weight:400;font-size:12px">— {{ \Illuminate\Support\Str::limit($booking->displayPickupAddress() ?? $booking->pickup_address, 42) }}</span></div>
+                            <div class="muted mono" style="font-size:12px">{{ $booking->customerContactNumber() ?? '—' }} <span style="font-size:11px">(the booking's own customer)</span></div>
+                        </div>
+                        @if($activeStop === null)<span style="font-size:11px;font-weight:700;color:#1f7a44">● LIVE NOW</span>@endif
+                    </div>
+
+                    @foreach($booking->viaStops() as $i => $stop)
+                        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;{{ $activeStop === $i ? 'border-color:rgba(31,122,68,.55);background:rgba(31,157,85,.06)' : '' }}">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                                <div style="font-weight:700;font-size:14px">{{ $i + 2 }} · Stop {{ $i + 1 }} <span class="muted" style="font-weight:400;font-size:12px">— {{ \Illuminate\Support\Str::limit($stop, 42) }}</span></div>
+                                @if($activeStop === $i)<span style="font-size:11px;font-weight:700;color:#1f7a44">● LIVE NOW</span>@endif
+                            </div>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                                <div class="field" style="margin:0;flex:1;min-width:160px">
+                                    <label style="font-size:12px" for="pc-name-{{ $i }}">Name</label>
+                                    <input id="pc-name-{{ $i }}" name="contacts[{{ $i }}][name]" type="text" maxlength="120"
+                                           value="{{ $stopContacts[$i]['name'] ?? '' }}" placeholder="Passenger at this pickup" style="width:100%">
+                                </div>
+                                <div class="field" style="margin:0;flex:1;min-width:160px">
+                                    <label style="font-size:12px" for="pc-phone-{{ $i }}">Mobile (office only)</label>
+                                    <input id="pc-phone-{{ $i }}" name="contacts[{{ $i }}][phone]" type="tel" maxlength="40"
+                                           value="{{ $stopContacts[$i]['phone'] ?? '' }}" placeholder="07…" style="width:100%">
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+
+                    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Save pickup contacts</button>
+                    <span class="hint" style="margin-left:6px">A number here makes that pickup its own party — the masked line follows the journey. Leave blank for a plain waypoint. Numbers stay office-only.</span>
+                </form>
+            @endif
                 </div>
             </details>
 
