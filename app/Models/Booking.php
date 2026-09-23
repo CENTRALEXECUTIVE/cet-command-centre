@@ -3099,11 +3099,25 @@ class Booking extends Model
     public function confirmGettingReady(?User $by = null): void
     {
         if (isset($this->meta['getting_ready']['at'])) {
-            return;
+            return; // already checked in — notify the office only once
         }
         $meta = $this->meta ?? [];
         $meta['getting_ready'] = ['at' => now()->toIso8601String(), 'by' => $by?->id];
         $this->forceFill(['meta' => $meta])->save();
+
+        // Tell the office the driver has checked in (info ping, once). Best-effort:
+        // a notification hiccup must never fail the driver's confirmation tap.
+        try {
+            $driver = $this->driverPublicName() ?: 'The driver';
+            $time = $this->pickup_at?->format('H:i');
+            $body = $driver.' has checked in (getting ready) for the '.$time.' pickup'
+                .($this->displayName() ? ' — '.$this->displayName() : '').'.';
+            \App\Models\WatchdogEvent::log('driver_checked_in', $body, 'info', $this);
+            app(\App\Services\Watchdog\AdminAlerts::class)
+                ->notify('driver_checked_in', '🟢 '.$driver.' checked in', $body, 'info', $this);
+        } catch (\Throwable) {
+            // never block the check-in on an alerting problem
+        }
     }
 
     /* ---- Lead time (the driver's alarm time for this job) -------------------

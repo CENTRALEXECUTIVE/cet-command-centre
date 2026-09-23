@@ -1422,6 +1422,29 @@
                         @endif
                     </span>
                 </form>
+
+                {{-- Exactly when the check-in opens and when it rings if unconfirmed,
+                     for THIS job — so the per-job timing is visible, not implied. --}}
+                @php
+                    $checkInAt = $booking->gettingReadyPromptAt();
+                    $ringAt = $booking->gettingReadyEscalateAt();
+                    $checkedInAt = $booking->gettingReadyConfirmedAt();
+                @endphp
+                @if($checkInAt && $ringAt)
+                    <div style="border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:14px">
+                        @if($checkedInAt)
+                            <span style="color:#1f7a44;font-weight:700">🟢 Checked in at {{ $checkedInAt->format('D d M, H:i') }}</span>
+                            <span class="muted"> — no call will fire.</span>
+                        @else
+                            ⏰ Check-in opens <strong>{{ $checkInAt->format('D d M, H:i') }}</strong>
+                            · 📞 rings {{ $booking->emergencyCallTarget() === 'office' ? 'the business line' : 'the driver' }}
+                            at <strong>{{ $ringAt->format('H:i') }}</strong> if not confirmed
+                            @if(! $booking->emergencyCallActive())
+                                <span class="muted">(this driver isn't in the call scope — office gets an alert, no call)</span>
+                            @endif
+                        @endif
+                    </div>
+                @endif
             @endunless
 
             {{-- Notes for the driver — a free-text brief shown on the driver's job

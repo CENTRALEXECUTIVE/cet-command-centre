@@ -101,6 +101,7 @@ class User extends Authenticatable
         'at_risk' => 'Driver not set off — job at risk',
         'unacted' => 'Driver ignoring nudges',
         'unallocated' => 'Job unallocated near pickup',
+        'driver_checked_in' => 'Driver checked in (getting ready)',
         'driver_set_off' => 'Driver has set off',
         'driver_arrived' => 'Driver arrived at pickup',
         'driver_on_board' => 'Passenger picked up',
