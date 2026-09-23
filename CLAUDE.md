@@ -270,6 +270,17 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   metadata only). Purged on the 90-day GPS schedule. WhatsApp masking is out
   of scope. The legacy single-number bridge (`MaskingService`, `/webhooks/voice`)
   still works as a fallback.
+- **WhatsApp masking — DEFERRED (decided Sep 2026), do not build.** Calls and
+  texts (SMS) are already masked both ways via Twilio Proxy + the switchboard, so
+  customers can already reach the driver with no real numbers exposed — WhatsApp
+  would only add a third channel for the same job. It also breaks the "free
+  where possible" rule (per-conversation WhatsApp fees) and is the flakiest
+  option (Twilio Proxy can't carry WhatsApp at all; the 24-hour session window
+  needs approved templates; a driver with two concurrent jobs can't be
+  disambiguated on one shared number). A spec was reviewed and parked. To avoid
+  dead-end messages, the inbound WhatsApp sender is disconnected on Twilio so a
+  customer's WhatsApp can't vanish unanswered — hand customers the call/text
+  masked line only. Revisit only with real post-go-live demand.
 
 ## Status watchdog & alerts (ops room)
 
