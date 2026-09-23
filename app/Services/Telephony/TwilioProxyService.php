@@ -60,8 +60,11 @@ class TwilioProxyService
 
         // The EFFECTIVE customer contact — the office override (e.g. the caller
         // named in the notes) wins over the linked record, so the masked session
-        // is opened for the person who will actually call, not a stale number.
-        $customerPhone = $booking->customerContactNumber();
+        // is opened for the person who will actually call, not a stale number. On
+        // a shared/multi-pickup job this is the CURRENT leg's party, so the mask
+        // follows the journey (syncCustomerParticipant re-opens it when the leg
+        // changes, since Twilio Proxy participants can't be swapped in place).
+        $customerPhone = $booking->currentCustomerContactNumber();
         if (! $this->configured() || blank($customerPhone) || blank($driver->phone)) {
             return null;
         }
@@ -112,12 +115,52 @@ class TwilioProxyService
             'closes_at' => $closesAt,
         ]);
 
+        // Remember which party this mask is pinned to, so a leg change (multi-
+        // pickup) knows when it must re-open onto the next customer.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'proxy_active_phone' => $this->normalise($customerPhone),
+        ])])->save();
+
         $this->audit($row, $booking, 'session_opened', [
             'driver' => $driver->name,
             'closes_at' => $closesAt->toDateTimeString(),
         ]);
 
         return $row;
+    }
+
+    /**
+     * Re-point an open mask at the CURRENT leg's customer on a shared/multi-pickup
+     * job — call it when a pickup is collected so a passenger who's now aboard
+     * drops off the line and the next pickup goes live. Twilio Proxy participants
+     * can't be swapped in place, so this closes the session and opens a fresh one
+     * on the new party (the driver's job screen then shows the new masked number).
+     * A no-op when the mask already points at the right party. Best-effort: every
+     * failure is caught upstream so it never blocks the driver's status update.
+     */
+    public function syncCustomerParticipant(Booking $booking): void
+    {
+        if (! $this->configured()) {
+            return;
+        }
+        $session = $booking->proxySessions()->open()->latest('opened_at')->first();
+        if (! $session) {
+            return; // nothing open to move
+        }
+
+        $driver = $booking->driver;
+        if (! $driver) {
+            return;
+        }
+
+        $want = $this->normalise((string) $booking->currentCustomerContactNumber());
+        $have = $this->normalise((string) ($booking->meta['proxy_active_phone'] ?? ''));
+        if (blank($want) || $want === $have) {
+            return; // already masking the right party
+        }
+
+        $this->closeSession($booking, 'pickup collected — moving to next party');
+        $this->openSession($booking->fresh(), $driver);
     }
 
     /** Close the booking's open mask (job done/cancelled/reassigned/expired). */

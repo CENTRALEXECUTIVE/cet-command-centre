@@ -134,14 +134,23 @@ class MaskingService
             // driver's line DIALS to reach the customer. Matching only
             // customer->phone here meant an office-set contact number couldn't be
             // recognised, so that person couldn't ring the driver at all.
-            $customerDial = $this->normalise($booking->customerContactNumber());
+            // The number the driver's line DIALS is the CURRENT leg's party — for
+            // a shared/multi-pickup job this follows the journey (the collected
+            // passenger drops off the line, the next pickup goes live); for an
+            // ordinary job it's just the customer.
+            $customerDial = $this->normalise($booking->currentCustomerContactNumber());
             // Accept ANY legitimate customer number as "the customer" so both the
-            // office-set contact and the original record still connect.
-            $customerNumbers = array_values(array_filter(array_unique([
+            // office-set contact and the original record still connect — plus every
+            // pickup party's own number on a shared job.
+            $partyNumbers = array_map(
+                fn ($p) => $this->normalise($p['phone'] ?? null),
+                $booking->pickupParties(),
+            );
+            $customerNumbers = array_values(array_filter(array_unique(array_merge([
                 $this->normalise($booking->displayContact()),
                 $this->normalise($booking->calendarField('Contact No')),
                 $this->normalise($booking->customer?->phone),
-            ])));
+            ], $partyNumbers))));
             // The driver's number: an allocated login driver's OWN number is the
             // source of truth (never the manual driver_details, which could be a
             // different person with the same first name); a job with no login
@@ -152,6 +161,31 @@ class MaskingService
             $isDriver = $driver && $driver === $from && $customerDial;
             if (! $isCustomer && ! $isDriver) {
                 continue; // caller isn't a party on this job
+            }
+
+            // On a SHARED (multi-pickup) job only the LIVE party's line connects: a
+            // party whose pickup hasn't come up yet, or who's already aboard, is not
+            // bridged to the driver — they're pointed at the office instead. This
+            // never applies to an ordinary single-customer job, where every
+            // recognised number (record / calendar / office override) is the same
+            // person and must still connect.
+            if ($isCustomer && $booking->hasMultiplePickupParties()) {
+                $active = $booking->pickupParties()[$booking->activePickupIndex()] ?? null;
+                $activeNumbers = [$this->normalise($active['phone'] ?? null)];
+                if (($active['stop'] ?? null) === null) {
+                    // The lead party — accept all of its aliases too.
+                    $activeNumbers = array_merge($activeNumbers, [
+                        $this->normalise($booking->displayContact()),
+                        $this->normalise($booking->calendarField('Contact No')),
+                        $this->normalise($booking->customer?->phone),
+                    ]);
+                }
+                $activeNumbers = array_values(array_filter(array_unique($activeNumbers)));
+                if (! in_array($from, $activeNumbers, true)) {
+                    $outOfWindow ??= ['office' => true, 'reason' => 'not_live', 'booking' => $booking];
+
+                    continue;
+                }
             }
 
             // Inside this job's live window? (pickup − lead … drop-off + grace)
@@ -243,6 +277,7 @@ class MaskingService
         return match ($reason) {
             'too_early' => 'Thanks for calling Central Executive Transfers. Your driver isn\'t reachable on this line just yet — it opens closer to your pickup time. For anything urgent please call the office.',
             'closed' => 'Thanks for calling Central Executive Transfers. This journey\'s line has now closed. For anything further please call the office.',
+            'not_live' => 'Thanks for calling Central Executive Transfers. Your driver is with another pickup on this shared journey right now. For anything urgent please call the office.',
             default => 'Sorry, we could not connect your call. Please contact Central Executive Transfers directly.',
         };
     }

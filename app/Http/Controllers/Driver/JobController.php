@@ -161,6 +161,20 @@ class JobController extends Controller
         }
 
         $booking->markStopPickedUp($i);
+
+        // Shared/multi-pickup: this passenger is now aboard — move the masked line
+        // on to the next pickup party (their number goes live, this one's drops).
+        // Best-effort; a telephony hiccup must never block the driver's tap. The
+        // switchboard follows the current party automatically; this re-points a
+        // Twilio Proxy session.
+        try {
+            app(\App\Services\Telephony\TwilioProxyService::class)->syncCustomerParticipant($booking->fresh());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Proxy resync after stop pickup failed', [
+                'booking' => $booking->reference, 'error' => $e->getMessage(),
+            ]);
+        }
+
         $verb = $booking->stopActionVerb(); // "Picked up" (outbound) / "Dropped off" (return)
 
         return back()->with('status', $booking->allViaStopsReached()

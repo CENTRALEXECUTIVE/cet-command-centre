@@ -2327,6 +2327,122 @@ class Booking extends Model
         return $this->displayContact();
     }
 
+    /* ---- Per-leg masking for shared / multi-pickup jobs --------------------
+     * A shared car can pick up more than one PARTY (different people, different
+     * numbers) on the way. Each extra pickup is a via stop that carries its own
+     * ADMIN-ONLY contact in meta['stop_contacts'][<via index>] = ['name'=>…,
+     * 'phone'=>…]. These numbers are NEVER shown to a (non-admin) driver — they
+     * exist only so masking can follow the journey: the party being collected is
+     * live, and once they're aboard their number drops and the next pickup's goes
+     * live. An ordinary single-customer job has no stop_contacts and behaves
+     * exactly as before. */
+
+    /**
+     * Pickup parties in journey order. Index 0 is the lead (the booking's own
+     * customer + contact); each later entry is a via stop that has its own
+     * person. Numbers are admin-only.
+     *
+     * @return array<int, array{name: ?string, phone: ?string, stop: ?int}>
+     */
+    public function pickupParties(): array
+    {
+        $parties = [[
+            'name' => $this->displayCustomerName(),
+            'phone' => $this->customerContactNumber(),
+            'stop' => null, // the lead pickup (pickup_address)
+        ]];
+
+        $contacts = (array) ($this->meta['stop_contacts'] ?? []);
+        foreach (array_keys($this->viaStops()) as $i) {
+            $phone = $contacts[$i]['phone'] ?? null;
+            if (blank($phone)) {
+                continue; // a plain waypoint, not a separate customer
+            }
+            $parties[] = [
+                'name' => $contacts[$i]['name'] ?? null,
+                'phone' => $phone,
+                'stop' => $i,
+            ];
+        }
+
+        return $parties;
+    }
+
+    /** More than one pickup PARTY (each a different person with their own number). */
+    public function hasMultiplePickupParties(): bool
+    {
+        return count($this->pickupParties()) > 1;
+    }
+
+    /** True once the lead passenger (the first pickup) is aboard. */
+    public function leadPickupCollected(): bool
+    {
+        return in_array($this->status, [BookingStatus::Collected, BookingStatus::Complete], true);
+    }
+
+    /**
+     * Index (into pickupParties()) of the party the driver is currently heading
+     * to / should be able to reach: the first one not yet collected, in order.
+     * Once everyone's aboard it stays on the last party (harmless — they're in
+     * the car with the driver already).
+     */
+    public function activePickupIndex(): int
+    {
+        $parties = $this->pickupParties();
+        foreach ($parties as $idx => $party) {
+            $collected = $party['stop'] === null
+                ? $this->leadPickupCollected()
+                : ($this->stopPickedUpAt($party['stop']) !== null);
+            if (! $collected) {
+                return $idx;
+            }
+        }
+
+        return max(0, count($parties) - 1);
+    }
+
+    /**
+     * The number masking should bridge the driver to RIGHT NOW. For an ordinary
+     * single-customer job this is just the customer's number (unchanged); for a
+     * multi-pickup job it follows the journey — a collected passenger's number
+     * drops and the next pickup's goes live. Admin-only.
+     */
+    public function currentCustomerContactNumber(): ?string
+    {
+        $parties = $this->pickupParties();
+        if (count($parties) <= 1) {
+            return $this->customerContactNumber();
+        }
+
+        return $parties[$this->activePickupIndex()]['phone'] ?? $this->customerContactNumber();
+    }
+
+    /** True once every pickup party is aboard (lead + each via-stop pickup). */
+    public function pickupsAllCollected(): bool
+    {
+        foreach ($this->pickupParties() as $party) {
+            $done = $party['stop'] === null
+                ? $this->leadPickupCollected()
+                : ($this->stopPickedUpAt($party['stop']) !== null);
+            if (! $done) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** The current leg's party NAME only — safe to show a driver (no number). */
+    public function currentPickupName(): ?string
+    {
+        $parties = $this->pickupParties();
+        if (count($parties) <= 1) {
+            return $this->displayCustomerName();
+        }
+
+        return $parties[$this->activePickupIndex()]['name'] ?? $this->displayCustomerName();
+    }
+
     /**
      * Data-integrity check: the calendar's "Contact No" for this booking when it
      * DISAGREES with the linked customer record's stored phone — otherwise null.

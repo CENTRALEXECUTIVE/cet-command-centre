@@ -405,15 +405,24 @@ class BookingStatusService
                 $this->adminAlerts->notify('driver_on_board', '🧍 '.$driver.' — passenger on board', $body, 'info', $booking);
             }
 
-            // POB is effectively the end of phone contact — the passenger is in
-            // the car. Keep the masked line alive for a short grace window (30
-            // min) to cover a bag-left-behind / follow-up call, then let it
-            // close. This frees the pooled number for the next job far sooner
-            // than holding it to drop-off + grace, and once closed a later call
-            // can't reach a driver/customer the number was reassigned to (Twilio
-            // rejects out-of-session callers). The terminal close below stays as
-            // a backstop for any job that completes without passing through POB.
-            $this->proxy->closeAfterMinutes($booking, \App\Services\Telephony\TwilioProxyService::POB_GRACE_MINUTES);
+            // Shared/multi-pickup job: the FIRST passenger is aboard but there are
+            // more pickups to collect — move the masked line on to the next party
+            // (their number goes live, the collected passenger's drops) instead of
+            // winding it down. The switchboard follows the current party on its
+            // own; this re-points a Twilio Proxy session.
+            if ($booking->hasMultiplePickupParties() && ! $booking->pickupsAllCollected()) {
+                $this->proxy->syncCustomerParticipant($booking);
+            } else {
+                // POB is effectively the end of phone contact — the passenger is in
+                // the car. Keep the masked line alive for a short grace window (30
+                // min) to cover a bag-left-behind / follow-up call, then let it
+                // close. This frees the pooled number for the next job far sooner
+                // than holding it to drop-off + grace, and once closed a later call
+                // can't reach a driver/customer the number was reassigned to (Twilio
+                // rejects out-of-session callers). The terminal close below stays as
+                // a backstop for any job that completes without passing through POB.
+                $this->proxy->closeAfterMinutes($booking, \App\Services\Telephony\TwilioProxyService::POB_GRACE_MINUTES);
+            }
         }
 
         // Review request 30 minutes after completion (delivered by the scheduler).
