@@ -51,7 +51,8 @@
     <div class="da-hero-route">
         <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
         @foreach($viaStops as $i => $stop)
-            <span class="da-addr" style="{{ $i < $stopsReached ? 'opacity:.55' : '' }}">🔀 Stop {{ $i + 1 }}: {{ $stop }}{{ $i < $stopsReached ? ' ✓ done' : '' }}</span>
+            @php $stopName = $booking->stopContactName($i); @endphp
+            <span class="da-addr" style="{{ $i < $stopsReached ? 'opacity:.55' : '' }}">🔀 Stop {{ $i + 1 }}: {{ $stop }}@if($stopName) · 🧍 {{ $stopName }}@endif{{ $i < $stopsReached ? ' ✓ done' : '' }}</span>
         @endforeach
         <span class="da-addr">🏁 {{ $booking->displayDropoffAddress() }}</span>
     </div>
@@ -414,6 +415,11 @@
          and moves on to the next stop (or the final drop-off). --}}
     <div class="card" style="border-left:4px solid #7a45e0;background:rgba(122,69,224,.08);margin-bottom:12px">
         <div style="font-weight:800;font-size:15px">🔀 Stop {{ $stopIndex + 1 }} of {{ count($viaStops) }}</div>
+        @php $stopName = $booking->stopContactName($stopIndex); @endphp
+        @if($stopName)
+            <div style="margin:4px 0 0;font-size:16px;font-weight:800">🧍 Now collecting: {{ $stopName }}</div>
+            <div class="hint" style="margin:2px 0 0">Call them on the same masked line — it now reaches this pickup.</div>
+        @endif
         <div style="margin:6px 0 10px;font-size:15px">{{ $nextStop }}</div>
         {{-- color:#000 is set inline on purpose: this anchor sits inside a .card,
              where "body.driver-app .card a" would otherwise paint it gold — gold

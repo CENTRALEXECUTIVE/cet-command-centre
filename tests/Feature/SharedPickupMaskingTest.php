@@ -139,6 +139,26 @@ class SharedPickupMaskingTest extends TestCase
         $page->assertSee('LIVE NOW'); // the lead is live before any collection
     }
 
+    public function test_the_driver_screen_names_the_next_pickup_but_never_shows_its_number(): void
+    {
+        $lead = Customer::create(['name' => 'Margaret Moran', 'phone' => '07544616024']);
+        $b = Booking::factory()->create([
+            'customer_id' => $lead->id,
+            'driver_id' => $this->driver->id,
+            'status' => BookingStatus::Collected, // lead aboard, heading to the stop
+            'pickup_at' => now()->subMinutes(10),
+            'meta' => [
+                'stops' => [['address' => '47 Lockwood Avenue, S25 5GQ']],
+                'stop_contacts' => [['name' => 'Barbara Horsfield', 'phone' => '07986942673']],
+            ],
+        ]);
+
+        $page = $this->actingAs($this->driver)->get(route('driver.job', $b))->assertOk();
+        $page->assertSee('Barbara Horsfield');       // the driver DOES see who's next
+        $page->assertSee('Now collecting', false);
+        $page->assertDontSee('07986942673');         // but NEVER the number
+    }
+
     public function test_a_driver_cannot_save_pickup_contacts(): void
     {
         $b = $this->sharedJob();

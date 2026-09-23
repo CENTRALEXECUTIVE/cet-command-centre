@@ -2374,6 +2374,18 @@ class Booking extends Model
         return count($this->pickupParties()) > 1;
     }
 
+    /**
+     * The party NAME set for a via stop (admin-entered) — so the driver's screen
+     * can show WHO they're collecting at each stop. Name only; the number is never
+     * exposed to the driver.
+     */
+    public function stopContactName(int $i): ?string
+    {
+        $name = $this->meta['stop_contacts'][$i]['name'] ?? null;
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
+    }
+
     /** True once the lead passenger (the first pickup) is aboard. */
     public function leadPickupCollected(): bool
     {
