@@ -139,16 +139,17 @@ return [
     //
     // The getting-ready checkpoint + AT RISK push/alert apply to every driver
     // (scope 'all'). The emergency PHONE CALL is separate and narrower — it only
-    // rings for jobs whose assigned driver is in `call_scope`. Default: Abdi's own
-    // account, so the automated call only ever rings HIM for HIS jobs (not other
-    // drivers). Widen with 'super_admins' (both directors), 'all', or a comma-list
-    // of login emails. route_to_backup off = the call only ever rings the assigned
-    // driver, never hands off to the other director.
+    // rings for jobs whose assigned driver is in `call_scope`. Default:
+    // 'super_admins' = BOTH directors (their driver accounts are abdi@ and maj@ —
+    // NOT admin@), so the automated call rings for either director's own jobs.
+    // Widen with 'all' or a comma-list of login emails. route_to_backup off = the
+    // call only ever rings the assigned driver, never hands off to the other
+    // director.
     'checkpoint' => [
         'scope' => (string) env('CET_CHECKPOINT_SCOPE', 'all'),
         'route_to_backup' => (bool) env('CET_CHECKPOINT_ROUTE_TO_BACKUP', false),
         'emergency_call' => (bool) env('CET_CHECKPOINT_EMERGENCY_CALL', true),
-        'call_scope' => (string) env('CET_CHECKPOINT_CALL_SCOPE', 'admin@centralexecutivetransfers.co.uk'),
+        'call_scope' => (string) env('CET_CHECKPOINT_CALL_SCOPE', 'super_admins'),
         // Who the emergency call rings: 'office' (the business line, office_call_number
         // — it forwards to the on-call director) or 'driver' (the assigned driver's
         // own phone first, then the backup director when route_to_backup is on).
@@ -157,9 +158,9 @@ return [
         // Per-driver routing (emails, comma-separated): a job whose driver is in
         // this list rings the BUSINESS LINE (which forwards to the on-call
         // director); everyone else is rung DIRECTLY on their own phone. Default:
-        // the owner (admin@…) — his jobs ring the office; the other director's
-        // (e.g. Maj) ring him directly.
-        'office_call_drivers' => (string) env('CET_CHECKPOINT_OFFICE_CALL_DRIVERS', 'admin@centralexecutivetransfers.co.uk'),
+        // the owner, abdi@… — his jobs ring the office line; the other director's
+        // (maj@…) ring him directly.
+        'office_call_drivers' => (string) env('CET_CHECKPOINT_OFFICE_CALL_DRIVERS', 'abdi@centralexecutivetransfers.co.uk'),
     ],
 
     // Driver "getting ready" checkpoint, driven by each booking's LEAD TIME —

@@ -2878,7 +2878,7 @@ class Booking extends Model
      * WHERE the at-risk emergency call rings for THIS job's driver:
      *   'office' — the business line (which forwards to the on-call director) —
      *              used for the drivers listed in checkpoint.office_call_drivers
-     *              (default: the owner, admin@…). Their missed jobs ring the office.
+     *              (default: the owner, abdi@…). Their missed jobs ring the office.
      *   'driver' — the assigned driver's OWN phone — everyone else (e.g. Maj), so
      *              their missed jobs ring them directly, not the office line.
      */
