@@ -141,6 +141,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Admin-only per-pickup contacts for a shared/multi-pickup job — the
         // second party's number drives per-leg masking and is never shown to a driver.
         Route::post('bookings/{booking}/pickup-contacts', [BookingController::class, 'pickupContacts'])->middleware('throttle:30,1')->name('bookings.pickup-contacts');
+        // Admin-only "Notes for the driver" — free-text brief shown on the driver's job screen.
+        Route::post('bookings/{booking}/driver-notes', [BookingController::class, 'driverNotes'])->middleware('throttle:30,1')->name('bookings.driver-notes');
         Route::post('bookings/{booking}/lead-time', [BookingController::class, 'leadTime'])->middleware('throttle:30,1')->name('bookings.lead-time');
         // Quick edits from the booking page: the job price, and the waiting minutes.
         Route::post('bookings/{booking}/price', [BookingController::class, 'setPrice'])->middleware('throttle:30,1')->name('bookings.price');

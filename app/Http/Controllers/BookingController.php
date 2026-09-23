@@ -805,6 +805,28 @@ class BookingController extends Controller
     }
 
     /**
+     * Save the office "Notes for the driver" — a free-text brief that shows on the
+     * driver's job screen for them to read and confirm. Admin-only. Changing the
+     * text clears any previous "read" acknowledgement so the driver re-confirms.
+     * Numbers should NOT be put here (drivers see it) — reach the customer on the
+     * masked line; the panel warns of this.
+     */
+    public function driverNotes(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'driver_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $booking->setDriverNotes($data['driver_notes'] ?? null);
+
+        return back()->with('status', blank($data['driver_notes'] ?? null)
+            ? 'Notes for the driver cleared.'
+            : 'Notes for the driver saved — they’ll see it on their job screen and confirm they’ve read it.');
+    }
+
+    /**
      * Per-booking LEAD TIME — the clock time the driver would set their alarm for
      * this job. The "Getting ready" prompt and the emergency escalation key off
      * it, so we never alert before their alarm. Parsed in the app timezone (UK

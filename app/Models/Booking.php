@@ -2961,6 +2961,32 @@ class Booking extends Model
         return $at ? \Illuminate\Support\Carbon::parse($at) : null;
     }
 
+    /**
+     * Set (or clear, with null) the office "Notes for the driver". When the text
+     * actually changes, the driver's previous "read" acknowledgement is cleared
+     * so they must re-confirm they've seen the new note. Stored in meta so an ETO
+     * re-import or calendar sync never wipes it.
+     */
+    public function setDriverNotes(?string $notes): void
+    {
+        $notes = trim((string) $notes);
+        $meta = $this->meta ?? [];
+        $current = trim((string) ($meta['driver_notes'] ?? ''));
+
+        if ($notes === $current) {
+            return; // no change — keep any existing read-ack
+        }
+
+        if ($notes === '') {
+            unset($meta['driver_notes']);
+        } else {
+            $meta['driver_notes'] = $notes;
+        }
+        unset($meta['driver_notes_ack']); // note changed → driver re-reads
+
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
     /** Record the driver confirming they've read the office notes. */
     public function confirmDriverNotesRead(?User $by = null): void
     {

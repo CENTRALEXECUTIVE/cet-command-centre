@@ -1424,6 +1424,32 @@
                 </form>
             @endunless
 
+            {{-- Notes for the driver — a free-text brief shown on the driver's job
+                 screen for them to read and confirm. Admin-only to edit. Changing
+                 the text makes the driver re-confirm they've read it. Numbers do
+                 NOT go here (the driver sees it) — reach the customer on the
+                 masked line. --}}
+            @php $dNotes = $booking->meta['driver_notes'] ?? ''; @endphp
+            <form method="POST" action="{{ route('bookings.driver-notes', $booking) }}"
+                  style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+                @csrf
+                <label for="driver-notes" style="font-weight:700;font-size:14px;display:block;margin-bottom:6px">📝 Notes for the driver</label>
+                <textarea id="driver-notes" name="driver_notes" rows="4" maxlength="2000"
+                          placeholder="Anything the driver needs to know for this job — pickups, timings, meeting point, what to collect. No phone numbers — they reach the customer on the masked line."
+                          style="width:100%;font-size:14px;line-height:1.5">{{ old('driver_notes', $dNotes) }}</textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+                    <span class="hint">Shows on the driver's job screen; they tap to confirm they've read it. <strong>Don't put phone numbers here</strong> — the masked line reaches the customer.</span>
+                    <span style="display:flex;gap:8px;align-items:center">
+                        @if($booking->driverNotesAckAt())
+                            <span class="bh-chip ok" style="font-size:12px">read ✓ {{ $booking->driverNotesAckAt()->format('D d M, H:i') }}</span>
+                        @elseif($booking->driverReadNotes())
+                            <span class="badge badge-pending" style="font-size:12px">not read yet</span>
+                        @endif
+                        <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Save notes</button>
+                    </span>
+                </div>
+            </form>
+
             @php
                 $md = $booking->meta['driver_details'] ?? null;
                 $hasDriver = (is_array($md) && !empty($md['name'])) || $booking->driver;
