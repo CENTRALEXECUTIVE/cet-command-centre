@@ -43,7 +43,7 @@ class SharedPickupMaskingTest extends TestCase
 
     private function sharedJob(): Booking
     {
-        $lead = Customer::create(['name' => 'Margaret Moran', 'phone' => '07544616024']);
+        $lead = Customer::create(['name' => 'Test Lead', 'phone' => '07100000001']);
 
         return Booking::factory()->create([
             'customer_id' => $lead->id,
@@ -55,7 +55,7 @@ class SharedPickupMaskingTest extends TestCase
             'meta' => [
                 'stops' => [['address' => '47 Lockwood Avenue, South Anston, S25 5GQ']],
                 // ADMIN-ONLY second-party contact — never shown to the driver.
-                'stop_contacts' => [['name' => 'Barbara Horsfield', 'phone' => '07986942673']],
+                'stop_contacts' => [['name' => 'Second Party', 'phone' => '07100000002']],
             ],
         ]);
     }
@@ -69,15 +69,15 @@ class SharedPickupMaskingTest extends TestCase
 
         // Leg 1 — heading to the lead pickup.
         $this->assertSame(0, $b->activePickupIndex());
-        $this->assertStringEndsWith('7544616024', $b->currentCustomerContactNumber());
-        $this->assertSame('Margaret Moran', $b->currentPickupName());
+        $this->assertStringEndsWith('7100000001', $b->currentCustomerContactNumber());
+        $this->assertSame('Test Lead', $b->currentPickupName());
 
         // Lead aboard → the next pickup is now live.
         $b->update(['status' => BookingStatus::Collected]);
         $b->refresh();
         $this->assertSame(1, $b->activePickupIndex());
-        $this->assertStringEndsWith('7986942673', $b->currentCustomerContactNumber());
-        $this->assertSame('Barbara Horsfield', $b->currentPickupName());
+        $this->assertStringEndsWith('7100000002', $b->currentCustomerContactNumber());
+        $this->assertSame('Second Party', $b->currentPickupName());
         $this->assertFalse($b->pickupsAllCollected());
 
         // Second party aboard → everyone collected.
@@ -102,7 +102,7 @@ class SharedPickupMaskingTest extends TestCase
 
     public function test_an_admin_can_save_pickup_contacts_and_they_stay_office_only(): void
     {
-        $lead = Customer::create(['name' => 'Margaret Moran', 'phone' => '07544616024']);
+        $lead = Customer::create(['name' => 'Test Lead', 'phone' => '07100000001']);
         $b = Booking::factory()->create([
             'customer_id' => $lead->id,
             'driver_id' => $this->driver->id,
@@ -114,17 +114,17 @@ class SharedPickupMaskingTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('bookings.pickup-contacts', $b), [
-                'contacts' => [0 => ['name' => 'Barbara Horsfield', 'phone' => '07986942673']],
+                'contacts' => [0 => ['name' => 'Second Party', 'phone' => '07100000002']],
             ])
             ->assertRedirect();
 
         $b->refresh();
-        $this->assertSame('07986942673', $b->meta['stop_contacts'][0]['phone']);
+        $this->assertSame('07100000002', $b->meta['stop_contacts'][0]['phone']);
         $this->assertTrue($b->hasMultiplePickupParties());
 
         // The number is NEVER rendered on the driver's job screen.
         $page = $this->actingAs($this->driver)->get(route('driver.job', $b))->assertOk();
-        $page->assertDontSee('07986942673');
+        $page->assertDontSee('07100000002');
     }
 
     public function test_the_admin_booking_page_shows_the_pickup_panel_and_the_live_marker(): void
@@ -135,13 +135,13 @@ class SharedPickupMaskingTest extends TestCase
         $page = $this->actingAs($admin)->get(route('bookings.show', $b))->assertOk();
         $page->assertSee('Per-pickup contacts');
         $page->assertSee('47 Lockwood Avenue', false);
-        $page->assertSee('7986942673', false); // admin CAN see the number (office-side)
+        $page->assertSee('7100000002', false); // admin CAN see the number (office-side)
         $page->assertSee('LIVE NOW'); // the lead is live before any collection
     }
 
     public function test_the_driver_screen_names_the_next_pickup_but_never_shows_its_number(): void
     {
-        $lead = Customer::create(['name' => 'Margaret Moran', 'phone' => '07544616024']);
+        $lead = Customer::create(['name' => 'Test Lead', 'phone' => '07100000001']);
         $b = Booking::factory()->create([
             'customer_id' => $lead->id,
             'driver_id' => $this->driver->id,
@@ -149,14 +149,14 @@ class SharedPickupMaskingTest extends TestCase
             'pickup_at' => now()->subMinutes(10),
             'meta' => [
                 'stops' => [['address' => '47 Lockwood Avenue, S25 5GQ']],
-                'stop_contacts' => [['name' => 'Barbara Horsfield', 'phone' => '07986942673']],
+                'stop_contacts' => [['name' => 'Second Party', 'phone' => '07100000002']],
             ],
         ]);
 
         $page = $this->actingAs($this->driver)->get(route('driver.job', $b))->assertOk();
-        $page->assertSee('Barbara Horsfield');       // the driver DOES see who's next
+        $page->assertSee('Second Party');       // the driver DOES see who's next
         $page->assertSee('Now collecting', false);
-        $page->assertDontSee('07986942673');         // but NEVER the number
+        $page->assertDontSee('07100000002');         // but NEVER the number
     }
 
     public function test_a_driver_cannot_save_pickup_contacts(): void
@@ -209,12 +209,12 @@ class SharedPickupMaskingTest extends TestCase
 
         // Mask opens on the LEAD party.
         $proxy->openSession($b->fresh(['customer', 'driver']), $this->driver);
-        $this->assertStringEndsWith('7544616024', (string) $b->fresh()->meta['proxy_active_phone']);
+        $this->assertStringEndsWith('7100000001', (string) $b->fresh()->meta['proxy_active_phone']);
 
         // Driver marks passenger on board → the POB handler swaps the mask to the
         // next pickup (the second party) because more pickups remain.
         app(\App\Services\BookingStatusService::class)->transition($b->fresh(['customer', 'driver']), BookingStatus::Collected, $this->driver);
-        $this->assertStringEndsWith('7986942673', (string) $b->fresh()->meta['proxy_active_phone']);
+        $this->assertStringEndsWith('7100000002', (string) $b->fresh()->meta['proxy_active_phone']);
 
         // A session was closed and a fresh one opened (the swap actually happened).
         \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_ends_with($r->url(), '/Sessions/KC1'));
@@ -262,19 +262,19 @@ class SharedPickupMaskingTest extends TestCase
         // Driver rings the line → reaches the LEAD (leg 1).
         $asDriver = $masking->resolve('07111222333');
         $this->assertSame('customer', $asDriver['to']);
-        $this->assertStringEndsWith('7544616024', $asDriver['dial']);
+        $this->assertStringEndsWith('7100000001', $asDriver['dial']);
 
         // The lead can reach the driver; the not-yet-live second party cannot.
-        $this->assertSame('driver', $masking->resolve('07544616024')['to']);
-        $this->assertTrue($masking->resolve('07986942673')['office'] ?? false);
-        $this->assertSame('not_live', $masking->resolve('07986942673')['reason']);
+        $this->assertSame('driver', $masking->resolve('07100000001')['to']);
+        $this->assertTrue($masking->resolve('07100000002')['office'] ?? false);
+        $this->assertSame('not_live', $masking->resolve('07100000002')['reason']);
 
         // Lead aboard → the line now follows to the second party.
         $b->update(['status' => BookingStatus::Collected]);
 
-        $this->assertStringEndsWith('7986942673', $masking->resolve('07111222333')['dial']);
-        $this->assertSame('driver', $masking->resolve('07986942673')['to']);
+        $this->assertStringEndsWith('7100000002', $masking->resolve('07111222333')['dial']);
+        $this->assertSame('driver', $masking->resolve('07100000002')['to']);
         // The collected lead is no longer bridged mid-journey.
-        $this->assertSame('not_live', $masking->resolve('07544616024')['reason']);
+        $this->assertSame('not_live', $masking->resolve('07100000001')['reason']);
     }
 }
