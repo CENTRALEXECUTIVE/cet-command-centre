@@ -241,7 +241,9 @@
                             <div class="cet-field"><label for="b-when">Date &amp; time <span style="font-weight:600;color:var(--muted);font-size:11px">· min {{ (int) config('cet.public_min_lead_hours', 8) }}h notice</span></label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
                             <div class="cet-field"><label for="b-pax">Passengers</label>
-                                <input id="b-pax" name="passengers" type="number" min="1" max="60" value="1" required></div>
+                                <select id="b-pax" name="passengers" required>
+                                    @for($i = 1; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
+                                </select></div>
                         </div>
                         <div class="cet-field" id="b-return-field" style="display:none">
                             <label for="b-return">Return date &amp; time</label>
@@ -254,12 +256,14 @@
                         </div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-suit">Suitcases</label>
-                                <input id="b-suit" name="suitcases" type="number" min="0" max="30" value="0"></div>
+                                <select id="b-suit" name="suitcases">
+                                    @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
+                                </select></div>
                             <div class="cet-field"><label for="b-hand">Hand luggage</label>
-                                <input id="b-hand" name="hand_luggage" type="number" min="0" max="30" value="0"></div>
+                                <select id="b-hand" name="hand_luggage">
+                                    @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
+                                </select></div>
                         </div>
-                        <div class="cet-field"><label for="b-flight">Flight number <span class="opt">(optional)</span></label>
-                            <input id="b-flight" name="flight_number" placeholder="e.g. BA1234"></div>
                         <div class="cet-err" data-err="1"></div>
                         <div class="cet-actions">
                             <button type="button" class="cet-btn" data-next="2">Continue →</button>
