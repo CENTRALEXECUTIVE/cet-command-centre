@@ -105,7 +105,8 @@ class QuoteService
 
         return [
             'price' => $price,
-            'basis' => 'Free roam · '.$d['miles'].' miles'.($d['source'] === 'estimate' ? ' (est.)' : ''),
+            // Customer-facing label — no internal "free roam" jargon; just the distance.
+            'basis' => $d['miles'].' miles'.($d['source'] === 'estimate' ? ' (est.)' : ''),
             'miles' => $d['miles'],
             'fixed' => false,
         ];

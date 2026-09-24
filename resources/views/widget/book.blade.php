@@ -75,6 +75,14 @@
 
         .cet-step[hidden] { display:none; }
         .cet-step-title { font-size:17px; font-weight:800; margin:4px 0 14px; letter-spacing:-.2px; }
+        /* Booking summary on the details step */
+        .cet-summary { border:1px solid var(--line); border-radius:14px; background:var(--cream); padding:14px 16px; margin-bottom:16px; }
+        .cet-summary h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:var(--muted); }
+        .cet-summary .row { display:flex; justify-content:space-between; gap:14px; padding:5px 0; font-size:13.5px; }
+        .cet-summary .row .k { color:var(--muted); flex:0 0 auto; }
+        .cet-summary .row .v { font-weight:700; text-align:right; }
+        .cet-summary .tot { margin-top:8px; padding-top:10px; border-top:1px solid var(--line); }
+        .cet-summary .tot .v { font-size:18px; font-weight:800; }
 
         .cet-field { margin-bottom:12px; }
         .cet-field label { display:block; font-size:12.5px; font-weight:600; color:#3a3a40; margin-bottom:6px; }
@@ -292,6 +300,9 @@
                     {{-- STEP 3 — Details --}}
                     <div class="cet-step" data-step="3" hidden>
                         <div class="cet-step-title">👤 Your details</div>
+                        {{-- Full journey summary (like ETO's confirmation) so the customer
+                             sees everything — incl. luggage — before they book. --}}
+                        <div class="cet-summary" id="cet-summary"></div>
                         <div class="cet-field"><label for="b-name">Full name</label>
                             <input id="b-name" name="customer_name" required></div>
                         <div class="cet-two">
@@ -431,6 +442,7 @@
                     var next = +btn.dataset.next;
                     goTo(next);
                     if (next === 2) priceSelected();
+                    if (next === 3) fillSummary();
                 });
             });
             form.querySelectorAll('[data-back]').forEach(function (btn) {
@@ -439,6 +451,35 @@
 
             // Vehicle card selection.
             var priceBox = document.getElementById('cet-price');
+            var lastQuote = null;
+
+            // Fill the booking summary shown on the details step (all info + luggage).
+            function fillSummary() {
+                var box = document.getElementById('cet-summary');
+                if (!box) return;
+                function val(id){ var el=document.getElementById(id); return el ? String(el.value||'').trim() : ''; }
+                function when(){ var v=val('b-when'); if(!v) return '—'; var d=new Date(v); if(isNaN(d)) return v;
+                    return d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' · '+
+                           d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+                var vehCard = form.querySelector('input[name="vehicle_type_id"]:checked');
+                var vehName = vehCard ? (vehCard.closest('.cet-veh').querySelector('.cet-veh-name')||{}).textContent : '';
+                var jt = journeyEl ? journeyEl.value : 'one_way';
+                var dropoff = jt === 'hourly' ? 'As directed (hourly hire)' : (val('b-dropoff') || '—');
+                function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+(v||'—')+'</span></div>'; }
+                var html = '<h4>Your journey</h4>'
+                    + row('Date &amp; time', when())
+                    + row('Vehicle', vehName || '—')
+                    + row('Pick-up', val('b-pickup'))
+                    + row('Drop-off', dropoff)
+                    + row('Passengers', val('b-pax') || '—')
+                    + row('Suitcases', val('b-suit') || '0')
+                    + row('Hand luggage', val('b-hand') || '0');
+                if (val('b-flight')) html += row('Flight', val('b-flight'));
+                if (lastQuote && lastQuote.formatted) {
+                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">'+lastQuote.formatted+'</span></div>';
+                }
+                box.innerHTML = html;
+            }
             form.querySelectorAll('.cet-veh').forEach(function (card) {
                 card.addEventListener('click', function () {
                     form.querySelectorAll('.cet-veh').forEach(function (c) { c.classList.remove('sel'); });
@@ -464,6 +505,7 @@
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
+                    lastQuote = d;
                     priceBox.innerHTML = '<b>' + d.formatted + '</b><br><span style="color:#7a6a3a;font-size:13px">' + d.vehicle + ' · ' + d.basis + '</span>';
                     reportHeight();
                 })

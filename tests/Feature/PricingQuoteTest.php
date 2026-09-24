@@ -87,6 +87,9 @@ class PricingQuoteTest extends TestCase
         $q = $quotes->quote('Sheffield S1', 'Rotherham S60', $exec);
         $this->assertFalse($q['fixed']);
         $this->assertEquals(60.0, $q['price']); // 10mi estimate = min fare £50 + £10
+        // Customer-facing basis shows the distance, never the internal "free roam" term.
+        $this->assertStringNotContainsStringIgnoringCase('free roam', $q['basis']);
+        $this->assertStringContainsString('miles', $q['basis']);
     }
 
     public function test_estimate_endpoint_returns_a_price(): void
