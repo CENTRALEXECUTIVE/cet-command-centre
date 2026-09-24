@@ -96,15 +96,24 @@
 
         /* Vehicle cards */
         .cet-vehs { display:flex; flex-direction:column; gap:10px; }
-        .cet-veh { display:flex; align-items:center; gap:14px; padding:12px; border:1.5px solid var(--line);
-            border-radius:14px; background:var(--cream); cursor:pointer; position:relative; transition:.15s; }
-        .cet-veh:hover { border-color:var(--gold-deep); background:#fff; }
+        .cet-veh { display:flex; align-items:center; gap:15px; padding:13px 15px; border:1.5px solid var(--line);
+            border-radius:16px; background:var(--cream); cursor:pointer; position:relative;
+            transition:transform .12s ease,border-color .15s,box-shadow .15s; }
+        .cet-veh:hover { border-color:var(--gold-deep); background:#fff; box-shadow:0 8px 20px rgba(0,0,0,.07); transform:translateY(-1px); }
         .cet-veh input { position:absolute; opacity:0; pointer-events:none; }
         .cet-veh.sel { border-color:var(--gold); background:#fff; box-shadow:0 0 0 4px rgba(251,186,42,.16); }
-        .cet-veh-img { width:96px; height:64px; flex:0 0 auto; border-radius:10px; overflow:hidden;
-            background:linear-gradient(160deg,#f3f1ea,#e7e4db); display:grid; place-items:center; }
-        .cet-veh-img img { width:100%; height:100%; object-fit:cover; }
-        .cet-veh-img svg { width:78px; height:auto; opacity:.62; }
+        /* Uniform premium photo tile: the whole car shows (contain, never cropped),
+           centred on a soft white ground with a subtle drop shadow so it reads as a
+           proper product shot — real photos and placeholders line up identically. */
+        .cet-veh-img { width:122px; height:80px; flex:0 0 auto; border-radius:12px; overflow:hidden; padding:8px;
+            border:1px solid var(--line);
+            background:radial-gradient(130% 130% at 50% 16%,#ffffff 0%,#f1efe8 100%);
+            display:grid; place-items:center; }
+        .cet-veh-img img { width:100%; height:100%; object-fit:contain; object-position:center;
+            filter:drop-shadow(0 6px 9px rgba(0,0,0,.16)); }
+        .cet-veh-img svg { width:94px; height:auto; opacity:.8; }
+        .cet-veh.sel .cet-veh-img { border-color:rgba(251,186,42,.55); }
+        @media (max-width:460px){ .cet-veh-img { width:104px; height:70px; } }
         .cet-veh-meta { flex:1; min-width:0; }
         .cet-veh-name { font-weight:800; font-size:15.5px; }
         .cet-veh-tag { font-size:12.5px; color:var(--gold-deep); font-weight:700; margin-top:1px; }
@@ -221,7 +230,7 @@
                             <span class="pin">🏁</span>
                             <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places autocomplete="off"></div>
                         <div class="cet-two">
-                            <div class="cet-field"><label for="b-when">Date &amp; time</label>
+                            <div class="cet-field"><label for="b-when">Date &amp; time <span style="font-weight:600;color:var(--muted);font-size:11px">· min {{ (int) config('cet.public_min_lead_hours', 8) }}h notice</span></label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
                             <div class="cet-field"><label for="b-pax">Passengers</label>
                                 <input id="b-pax" name="passengers" type="number" min="1" max="60" value="1" required></div>
@@ -328,6 +337,20 @@
 
             var form = document.getElementById('cet-book');
             if (!form) return;
+
+            // Minimum notice for online bookings — the date picker can't go below
+            // now + N hours (office only for anything sooner).
+            var MIN_LEAD_H = {{ (int) config('cet.public_min_lead_hours', 8) }};
+            (function () {
+                function p(n){return (n<10?'0':'')+n;}
+                function fmt(d){return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
+                var earliest = new Date(Date.now() + MIN_LEAD_H*3600*1000);
+                earliest.setMinutes(Math.ceil(earliest.getMinutes()/15)*15, 0, 0);
+                var when = document.getElementById('b-when');
+                var ret = document.getElementById('b-return');
+                if (when) { when.min = fmt(earliest); if (!when.value) when.value = fmt(earliest); }
+                if (ret) { ret.min = fmt(earliest); }
+            })();
 
             var tokenEl = document.querySelector('meta[name="csrf-token"]');
             var token = tokenEl ? tokenEl.getAttribute('content') : '';

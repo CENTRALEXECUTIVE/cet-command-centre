@@ -143,6 +143,26 @@ class PublicBookingTest extends TestCase
         $this->assertSame(0, Booking::count());
     }
 
+    public function test_a_booking_within_the_minimum_notice_is_rejected(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        // 3 hours away — inside the 8-hour minimum, must be blocked.
+        $this->post(route('public.book.store'), $this->payload($exec->id, [
+            'pickup_at' => Carbon::now()->addHours(3)->format('Y-m-d\TH:i'),
+        ]))->assertSessionHasErrors('pickup_at');
+    }
+
+    public function test_a_booking_beyond_the_minimum_notice_is_accepted(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        // 9 hours away — beyond the 8-hour minimum, allowed.
+        $this->post(route('public.book.store'), $this->payload($exec->id, [
+            'pickup_at' => Carbon::now()->addHours(9)->format('Y-m-d\TH:i'),
+        ]))->assertSessionDoesntHaveErrors('pickup_at');
+    }
+
     private function payload(int $vehicleTypeId, array $extra = []): array
     {
         return array_merge([

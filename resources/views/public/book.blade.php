@@ -72,9 +72,11 @@
         .vcard:hover{border-color:#d8ca9a;box-shadow:var(--shadow-sm)}
         .vcard input{position:absolute;opacity:0;pointer-events:none}
         .vcard.sel{border-color:var(--gold);box-shadow:0 0 0 3px rgba(251,186,42,.18)}
-        .vcard .photo{width:150px;height:86px;display:grid;place-items:center;background:linear-gradient(180deg,#fafafa,#f0eee8);border-radius:10px;overflow:hidden}
-        .vcard .photo img{width:100%;height:100%;object-fit:contain}
-        .vcard .photo svg{width:132px;height:auto;opacity:.9}
+        .vcard .photo{width:158px;height:96px;display:grid;place-items:center;padding:9px;border:1px solid var(--line);
+            background:radial-gradient(130% 130% at 50% 16%,#ffffff 0%,#f1efe8 100%);border-radius:12px;overflow:hidden}
+        .vcard .photo img{width:100%;height:100%;object-fit:contain;object-position:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.16))}
+        .vcard .photo svg{width:120px;height:auto;opacity:.82}
+        .vcard.sel .photo{border-color:rgba(251,186,42,.55)}
         .vcard .nm{font-weight:800;font-size:16px;letter-spacing:.01em}
         .vcard .tag{color:var(--muted);font-size:12.5px;font-weight:600;margin-top:1px}
         .vcard .caps{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:9px;color:#444;font-size:12.5px}
@@ -87,7 +89,7 @@
         .vcard.poa .pr{font-size:15px;color:var(--muted);white-space:normal}
         @media(max-width:600px){
             .vcard{grid-template-columns:110px 1fr;grid-template-areas:"photo body" "price price";row-gap:10px}
-            .vcard .photo{grid-area:photo;width:110px;height:66px}.vcard .photo svg{width:98px}
+            .vcard .photo{grid-area:photo;width:116px;height:74px}.vcard .photo svg{width:92px}
             .vcard .body{grid-area:body}.vcard .price{grid-area:price;text-align:left;display:flex;align-items:center;gap:14px}
             .vcard .sel-btn{margin-top:0}
         }
@@ -161,7 +163,8 @@
         </div>
         <div class="grid three" style="margin-top:14px">
             <div><label class="f">Date &amp; time <span class="req">*</span></label>
-                <input type="datetime-local" name="pickup_at" id="pickup_at" value="{{ old('pickup_at') }}" required></div>
+                <input type="datetime-local" name="pickup_at" id="pickup_at" value="{{ old('pickup_at') }}" required>
+                <div class="note" style="margin-top:6px">Minimum {{ (int) config('cet.public_min_lead_hours', 8) }} hours’ notice — for sooner, please call the office.</div></div>
             <div><label class="f">Passengers <span class="req">*</span></label>
                 <input type="number" name="passengers" min="1" max="60" value="{{ old('passengers', 1) }}" required></div>
             <div><label class="f">Flight no. <small style="color:var(--muted)">(optional)</small></label>
@@ -276,9 +279,18 @@
     function setStep(n){document.querySelectorAll('#steps .s').forEach(function(s){var d=+s.getAttribute('data-step');
         s.classList.toggle('on',d===n);s.classList.toggle('done',d<n);});}
 
+    // Minimum notice for online bookings — the picker can't go below now + N hours.
+    var MIN_LEAD_H = {{ (int) config('cet.public_min_lead_hours', 8) }};
+    function fmtLocal(d){return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
     var pt=document.getElementById('pickup_at');
-    if(!pt.value){var d=new Date(Date.now()+2*3600*1000);d.setMinutes(Math.ceil(d.getMinutes()/15)*15,0,0);
-        pt.value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
+    var earliest=new Date(Date.now()+MIN_LEAD_H*3600*1000);earliest.setMinutes(Math.ceil(earliest.getMinutes()/15)*15,0,0);
+    pt.min=fmtLocal(earliest);
+    if(!pt.value){pt.value=fmtLocal(earliest);}
+    pt.addEventListener('change',function(){
+        var picked=new Date(pt.value);
+        if(pt.value && picked<earliest){ pt.value=fmtLocal(earliest);
+            note.textContent='We need at least '+MIN_LEAD_H+' hours’ notice — call the office for anything sooner.'; }
+    });
 
     document.getElementById('getPrices').addEventListener('click',function(){
         var pickup=document.getElementById('pickup').value.trim(), dest=document.getElementById('destination').value.trim();

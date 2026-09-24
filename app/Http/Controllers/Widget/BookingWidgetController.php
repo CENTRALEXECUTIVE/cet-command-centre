@@ -101,11 +101,15 @@ class BookingWidgetController extends Controller
                 ->header('Content-Security-Policy', $this->frameAncestors());
         }
 
+        // Minimum notice: no online booking within N hours of now (office-only below that).
+        $minLeadHours = (int) config('cet.public_min_lead_hours', 8);
+        $minPickup = now()->addHours($minLeadHours);
+
         $data = $request->validate([
             'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
-            'pickup_at' => ['required', 'date', 'after:now'],
+            'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],
             'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],
@@ -117,7 +121,9 @@ class BookingWidgetController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
-        ], [], ['customer_phone' => 'phone', 'customer_email' => 'email']);
+        ], [
+            'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
+        ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
 
         $journeyType = $data['journey_type'] ?? 'one_way';
         $isHourly = $journeyType === 'hourly';

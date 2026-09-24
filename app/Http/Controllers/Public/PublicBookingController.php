@@ -108,12 +108,16 @@ class PublicBookingController extends Controller
             return redirect()->route('public.book')->with('booked', 'thanks');
         }
 
+        // Minimum notice: no online booking within N hours of now (office-only below that).
+        $minLeadHours = (int) config('cet.public_min_lead_hours', 8);
+        $minPickup = now()->addHours($minLeadHours);
+
         $data = $request->validate([
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['required', 'string', 'max:12'],
             'destination_postcode' => ['nullable', 'string', 'max:12'],
-            'pickup_at' => ['required', 'date', 'after:now'],
+            'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],
             'passengers' => ['required', 'integer', 'min:1', 'max:60'],
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
@@ -133,7 +137,9 @@ class PublicBookingController extends Controller
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:20'],
-        ], [], ['customer_phone' => 'phone', 'customer_email' => 'email', 'pickup_postcode' => 'pick-up postcode']);
+        ], [
+            'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
+        ], ['customer_phone' => 'phone', 'customer_email' => 'email', 'pickup_postcode' => 'pick-up postcode']);
 
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
         $pickupAt = $this->parsePickup($data['pickup_at']);

@@ -180,6 +180,11 @@ return [
         'escalate_grace_minutes' => (int) env('CET_GET_READY_ESCALATE_GRACE', 5),
     ],
 
+    // Minimum notice for a CUSTOMER online booking (public form + widget). A
+    // booking can't be made within this many hours of now — anything sooner has
+    // to go through the office by phone. Does not affect office-made bookings.
+    'public_min_lead_hours' => (int) env('CET_PUBLIC_MIN_LEAD_HOURS', 8),
+
     // Who to ring — the business line (forwards to the other director on no-answer).
     'office_call_number' => env('CET_OFFICE_CALL_NUMBER', '+447405172435'),
     // Caller ID / "from" — a voice-capable Twilio number. Left blank, it uses the
