@@ -148,6 +148,10 @@ class BookingService
                 'passengers' => $data['passengers'],
                 'luggage' => $luggage,
                 'meta' => array_merge($booking->meta ?? [], [
+                    // Keep the imported lead_name in step with an edited customer
+                    // name, so the name shows consistently everywhere (driver link
+                    // included), not just where the customer record is read.
+                    'lead_name' => $data['customer_name'] ?? ($booking->meta['lead_name'] ?? null),
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
                     'child_seats' => $childCap,

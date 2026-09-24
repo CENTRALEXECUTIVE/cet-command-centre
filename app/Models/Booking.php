@@ -1980,6 +1980,14 @@ class Booking extends Model
      */
     public function displayName(): string
     {
+        // THE OFFICE IS THE BOSS: a manually-edited customer name overrides the
+        // stored lead_name (which comes from import). Without this, renaming a
+        // booking updated the customer record — and the admin page — but the
+        // driver link kept showing the old imported lead_name.
+        if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
+            return $this->customer->name;
+        }
+
         return $this->meta['lead_name'] ?? $this->customer?->name ?? 'Customer';
     }
 
