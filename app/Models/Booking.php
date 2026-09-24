@@ -852,8 +852,25 @@ class Booking extends Model
      */
     public function waitingChargeableMinutes(): int
     {
-        $billable = $this->recordedWaitingMinutes()
-            ?? ($this->waitingBillableMinutes() + $this->stopsWaitingBillableMinutes());
+        // A frozen/manual total (recorded at POB, or set by the office) is the
+        // verbatim figure and already accounts for everything.
+        $recorded = $this->recordedWaitingMinutes();
+        if ($recorded !== null) {
+            return (int) max(0, $recorded - $this->waitingIncludedMinutes());
+        }
+
+        // PICKUP waiting is only computed LIVE while the driver is actually AT the
+        // pickup waiting (status Arrived, before POB). Once the passenger is
+        // aboard or the job is finished with nothing frozen, the pickup wait is 0
+        // — NEVER recompute it to now(), or an old/completed job invents a
+        // phantom cap-sized charge (the "every booking shows £60 waiting" bug).
+        $pickup = $this->status === BookingStatus::Arrived
+            ? $this->waitingBillableMinutes()
+            : 0;
+
+        // Via-stop waiting is measured from frozen per-stop arrive→continue
+        // deltas, so it stays correct even after the job is complete.
+        $billable = $pickup + $this->stopsWaitingBillableMinutes();
 
         return (int) max(0, $billable - $this->waitingIncludedMinutes());
     }

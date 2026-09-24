@@ -114,6 +114,45 @@ class BookingPriceAndWaitingTest extends TestCase
         $this->assertSame(180, $b->fresh()->waitingBillableMinutes());
     }
 
+    public function test_a_completed_job_with_no_frozen_wait_shows_no_phantom_charge(): void
+    {
+        // The bug: a job driven live (GPS confirmed at pickup) but COMPLETED with
+        // nothing frozen recomputed the pickup wait to now() → capped at 180 min
+        // → £60 on every old booking. A finished job with no recorded wait must
+        // charge £0.
+        config(['cet.waiting_max_auto_minutes' => 180]);
+        $driver = User::factory()->driver()->create();
+        $pickup = [53.4, -1.5];
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id,
+            'status' => BookingStatus::Complete->value,
+            'pickup_at' => now()->subDays(2),
+            'meta' => ['geo' => ['pickup' => $pickup]],
+        ]);
+        $arrived = now()->subDays(2)->addMinutes(1);
+        $b->statusHistory()->create(['to_status' => 'arrived', 'created_at' => $arrived]);
+        DriverLocation::create([
+            'driver_id' => $driver->id, 'booking_id' => $b->id,
+            'latitude' => $pickup[0], 'longitude' => $pickup[1], 'accuracy' => 10,
+            'captured_at' => $arrived->copy()->addMinutes(1),
+        ]);
+
+        $this->assertSame(0, $b->fresh()->waitingChargeableMinutes());
+        $this->assertSame(0.0, $b->fresh()->waitingCharge());
+    }
+
+    public function test_a_frozen_wait_still_charges_after_completion(): void
+    {
+        $b = Booking::factory()->create([
+            'status' => BookingStatus::Complete->value,
+            'pickup_at' => now()->subDay(),
+            'meta' => ['waiting' => ['billable_minutes' => 30, 'grace_minutes' => 15, 'manual' => true]],
+        ]);
+        // A genuinely recorded wait survives — it's the frozen figure, not a live recompute.
+        $this->assertSame(30, $b->waitingChargeableMinutes());
+        $this->assertGreaterThan(0, $b->waitingCharge());
+    }
+
     /* ── Tip message body ────────────────────────────────────────────────── */
 
     public function test_a_tip_request_always_renders_the_tip_message_even_if_saved_wrong(): void
