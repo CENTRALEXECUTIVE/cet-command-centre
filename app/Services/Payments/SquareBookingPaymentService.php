@@ -23,22 +23,43 @@ class SquareBookingPaymentService
     /** Prefix stamped on a fare order's reference_id (vs TIP- for gratuities). */
     public const FARE_PREFIX = 'FARE-';
 
-    public function enabled(): bool
+    /**
+     * The Square credentials for a billing entity: 'transfers' (main, VAT) or
+     * 'chauffeurs' (sister company, no-VAT). The sister account falls back to the
+     * main one until it's configured, so nothing breaks before it exists.
+     *
+     * @return array{access_token:?string, location_id:?string, environment:?string, webhook_signature_key:?string}
+     */
+    private function account(string $entity = 'transfers'): array
     {
-        return filled(config('services.square.access_token'))
-            && filled(config('services.square.location_id'));
+        $main = (array) config('services.square');
+        if ($entity !== 'chauffeurs') {
+            return $main;
+        }
+        $sister = (array) config('services.square_chauffeurs');
+
+        return (filled($sister['access_token'] ?? null) && filled($sister['location_id'] ?? null))
+            ? array_merge($main, array_filter($sister, fn ($v) => $v !== null && $v !== ''))
+            : $main;
     }
 
-    private function baseUrl(): string
+    public function enabled(string $entity = 'transfers'): bool
     {
-        return config('services.square.environment') === 'sandbox'
+        $a = $this->account($entity);
+
+        return filled($a['access_token'] ?? null) && filled($a['location_id'] ?? null);
+    }
+
+    private function baseUrl(string $entity = 'transfers'): string
+    {
+        return ($this->account($entity)['environment'] ?? null) === 'sandbox'
             ? 'https://connect.squareupsandbox.com'
             : 'https://connect.squareup.com';
     }
 
-    private function http()
+    private function http(string $entity = 'transfers')
     {
-        return Http::withToken(config('services.square.access_token'))
+        return Http::withToken($this->account($entity)['access_token'] ?? '')
             ->withHeaders(['Square-Version' => self::VERSION])
             ->acceptJson()
             ->timeout(15);
@@ -47,15 +68,18 @@ class SquareBookingPaymentService
     /** A Square-hosted checkout URL to pay this booking's fare, or null if unavailable. */
     public function createCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null): ?string
     {
-        if (! $this->enabled() || $amount <= 0) {
+        // Route the payment to the right company's Square account (VAT-invoice
+        // customers → transfers; everyone else → the sister company chauffeurs).
+        $entity = $booking->billingEntity();
+        if (! $this->enabled($entity) || $amount <= 0) {
             return null;
         }
 
         try {
-            $res = $this->http()->post($this->baseUrl().'/v2/online-checkout/payment-links', [
+            $res = $this->http($entity)->post($this->baseUrl($entity).'/v2/online-checkout/payment-links', [
                 'idempotency_key' => (string) Str::uuid(),
                 'order' => [
-                    'location_id' => config('services.square.location_id'),
+                    'location_id' => $this->account($entity)['location_id'],
                     'reference_id' => self::FARE_PREFIX.$this->reference($booking),
                     'line_items' => [[
                         'name' => 'Journey fare — Central Executive Transfers ('.$booking->reference.')',
@@ -88,7 +112,7 @@ class SquareBookingPaymentService
      * completed. Returns the booking it marked, or null (not a fare, not
      * completed, no match, or already recorded).
      */
-    public function recordFareFromWebhook(array $payload): ?Booking
+    public function recordFareFromWebhook(array $payload, string $entity = 'transfers'): ?Booking
     {
         $payment = data_get($payload, 'data.object.payment');
         if (! is_array($payment)) {
@@ -106,7 +130,8 @@ class SquareBookingPaymentService
             return null;
         }
 
-        $reference = $this->retrieveOrderReference($orderId);
+        // Look the order up on the SAME account the webhook came from.
+        $reference = $this->retrieveOrderReference($orderId, $entity);
         if (! $reference || ! str_starts_with($reference, self::FARE_PREFIX)) {
             return null; // not one of our fare checkouts (a tip, or another charge)
         }
@@ -119,13 +144,13 @@ class SquareBookingPaymentService
             return null;
         }
 
-        return $booking->markFarePaid($paymentId, $amount / 100) ? $booking : null;
+        return $booking->markFarePaid($paymentId, $amount / 100, $entity) ? $booking : null;
     }
 
-    private function retrieveOrderReference(string $orderId): ?string
+    private function retrieveOrderReference(string $orderId, string $entity = 'transfers'): ?string
     {
         try {
-            $res = $this->http()->get($this->baseUrl().'/v2/orders/'.$orderId);
+            $res = $this->http($entity)->get($this->baseUrl($entity).'/v2/orders/'.$orderId);
 
             return $res->successful() ? ($res->json('order.reference_id') ?: null) : null;
         } catch (\Throwable $e) {
@@ -133,6 +158,12 @@ class SquareBookingPaymentService
 
             return null;
         }
+    }
+
+    /** The webhook signing key for an entity, for signature verification. */
+    public function webhookSignatureKey(string $entity = 'transfers'): ?string
+    {
+        return $this->account($entity)['webhook_signature_key'] ?? null;
     }
 
     private function reference(Booking $booking): string

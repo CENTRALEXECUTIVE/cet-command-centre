@@ -369,6 +369,11 @@ Route::post('webhooks/voice', [WebhookController::class, 'voice'])
 Route::post('webhooks/square', [WebhookController::class, 'square'])
     ->middleware('throttle:120,1')
     ->name('webhooks.square');
+// Square webhook for the sister company (Central Executive Chauffeurs) account —
+// no-VAT fare payments. Verified with the sister account's own signing key.
+Route::post('webhooks/square-chauffeurs', [WebhookController::class, 'squareChauffeurs'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.square-chauffeurs');
 // Twilio "at risk" auto-call — a keypress here acknowledges and stops the calls.
 Route::match(['get', 'post'], 'webhooks/alert-ack/{booking}', [WebhookController::class, 'alertAck'])
     ->middleware('throttle:120,1')

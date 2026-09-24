@@ -124,6 +124,37 @@ class WebhookController extends Controller
     }
 
     /**
+     * Square webhook for the SISTER company (Central Executive Chauffeurs) account —
+     * fare payments from no-VAT customers land here. Verified with the sister
+     * account's own signing key; only fare (FARE-) orders are recorded, attributed
+     * to the 'chauffeurs' entity. A separate endpoint keeps the two accounts'
+     * webhooks cleanly apart. 403 until the sister account is configured.
+     */
+    public function squareChauffeurs(Request $request): JsonResponse
+    {
+        $fares = app(\App\Services\Payments\SquareBookingPaymentService::class);
+        $sisterSet = filled(config('services.square_chauffeurs.access_token'))
+            && filled(config('services.square_chauffeurs.location_id'));
+        $key = $fares->webhookSignatureKey('chauffeurs');
+        $signature = $request->header('x-square-hmacsha256-signature');
+
+        if (! $sisterSet || blank($key) || blank($signature)) {
+            return response()->json(['error' => 'not configured'], 403);
+        }
+        $expected = base64_encode(hash_hmac('sha256', $request->fullUrl().$request->getContent(), $key, true));
+        if (! hash_equals($expected, (string) $signature)) {
+            return response()->json(['error' => 'bad signature'], 403);
+        }
+
+        $fareBooking = $fares->recordFareFromWebhook($request->json()->all(), 'chauffeurs');
+        if ($fareBooking) {
+            app(\App\Services\BookingStatusService::class)->confirmPaidWebBooking($fareBooking->fresh());
+        }
+
+        return response()->json(['recorded' => (bool) $fareBooking]);
+    }
+
+    /**
      * A keypress on the emergency "job at risk" auto-call. Acknowledges the job so
      * the watchdog stops ringing the office. Signed URL (the call TwiML carried
      * the signature); returns TwiML so Twilio speaks the confirmation.

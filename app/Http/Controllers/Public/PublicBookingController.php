@@ -198,6 +198,9 @@ class PublicBookingController extends Controller
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                 'web_quote_basis' => $fare['fixed'] ? 'Fixed price' : ($fare['base'] === null ? 'Price on request' : 'Distance'),
                 'vat_invoice_requested' => $needsInvoice,
+                // VAT invoice → Central Executive Transfers; no VAT → sister company
+                // Central Executive Chauffeurs (its Square account takes the money).
+                'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
                 'list_price' => $base,
                 'fare_surcharge' => $fare['surcharge'],
                 'fare_extras' => $fare['extras'],

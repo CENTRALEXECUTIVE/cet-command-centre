@@ -4352,17 +4352,42 @@ class Booking extends Model
      * Idempotent by Square payment id held in meta, so a repeated webhook can't
      * double-record. Returns true when it actually marked it paid.
      */
-    public function markFarePaid(string $paymentId, float $amount): bool
+    /**
+     * Which company's Square account takes this booking's fare payment. A customer
+     * who asked for a VAT invoice is billed by Central Executive TRANSFERS (VAT
+     * registered); everyone else (no VAT added) is taken by the sister company
+     * Central Executive CHAUFFEURS — the money lands in that account. Falls back to
+     * transfers when the sister account isn't configured, so nothing breaks. The
+     * customer-facing branding is identical either way.
+     */
+    public function billingEntity(): string
+    {
+        // A value stored at creation wins (so it never changes under a booking).
+        $stored = $this->meta['billing_entity'] ?? null;
+        if ($stored === 'transfers' || $stored === 'chauffeurs') {
+            return $stored;
+        }
+
+        $noVat = ! (bool) ($this->meta['vat_invoice_requested'] ?? false);
+        $sisterReady = filled(config('services.square_chauffeurs.access_token'))
+            && filled(config('services.square_chauffeurs.location_id'));
+
+        return ($noVat && $sisterReady) ? 'chauffeurs' : 'transfers';
+    }
+
+    public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool
     {
         $meta = $this->meta ?? [];
         if (($meta['square_payment']['id'] ?? null) === $paymentId) {
             return false; // already recorded
         }
-        $meta['square_payment'] = [
+        $meta['square_payment'] = array_filter([
             'id' => $paymentId,
             'amount' => round($amount, 2),
             'at' => now()->toIso8601String(),
-        ];
+            // Which company's Square account received the money (transfers/chauffeurs).
+            'entity' => $entity,
+        ], fn ($v) => $v !== null);
         $this->payment_status = 'paid';
         $this->forceFill(['meta' => $meta])->save();
 

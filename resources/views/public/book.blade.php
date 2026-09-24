@@ -194,8 +194,9 @@
                             <div class="nm">{{ $vt->name }}</div>
                             @if($vt->tagline())<div class="tag">{{ $vt->tagline() }}</div>@endif
                             <div class="caps">
-                                <span>👤 <b>{{ $vt->passenger_capacity }}</b> max</span>
-                                <span>🧳 <b>{{ $vt->luggage_capacity }}</b> cases</span>
+                                <span>👤 <b>{{ $vt->passenger_capacity }}</b> passengers</span>
+                                <span>🧳 <b>{{ $vt->luggage_capacity }}</b> suitcases</span>
+                                <span>👜 <b>{{ $vt->handLuggageCapacity() }}</b> hand luggage</span>
                             </div>
                         </div>
                         <div class="price">

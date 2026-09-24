@@ -26,6 +26,14 @@ class VehicleType extends Model
         return $this->hasMany(Vehicle::class);
     }
 
+    /** Max hand luggage shown on the booking cards (config-mapped by slug; else 2). */
+    public function handLuggageCapacity(): int
+    {
+        $map = (array) config('cet.hand_luggage_capacity', []);
+
+        return (int) ($map[$this->slug] ?? 2);
+    }
+
     /**
      * Marketing photo for the public booking page, if one has been dropped in at
      * public/images/fleet/{slug}.{webp|png|jpg}. Returns null when there isn't

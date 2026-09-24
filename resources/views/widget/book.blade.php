@@ -287,7 +287,7 @@
                                     <div class="cet-veh-meta">
                                         <div class="cet-veh-name">{{ $vt->name }}</div>
                                         @if($vt->tagline())<div class="cet-veh-tag">{{ $vt->tagline() }}</div>@endif
-                                        <div class="cet-veh-cap">👤 Up to {{ $vt->passenger_capacity }} · 🧳 {{ $vt->luggage_capacity }} bags</div>
+                                        <div class="cet-veh-cap">👤 {{ $vt->passenger_capacity }} passengers · 🧳 {{ $vt->luggage_capacity }} suitcases · 👜 {{ $vt->handLuggageCapacity() }} hand luggage</div>
                                     </div>
                                     <div class="cet-veh-tick">✓</div>
                                 </label>

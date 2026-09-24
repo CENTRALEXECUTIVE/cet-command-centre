@@ -68,6 +68,20 @@ return [
         'tip_amounts' => [5, 10, 20],
     ],
 
+    // Square for the SISTER company, Central Executive Chauffeurs. A customer who
+    // does NOT ask for a VAT invoice (no VAT added) is taken by the sister
+    // company: their fare payment goes to THIS Square account, so the money lands
+    // in the Central Executive Chauffeurs bank. Branding shown to the customer is
+    // unchanged. Silent fallback to the main account until these are set, so
+    // nothing breaks before the sister account exists.
+    'square_chauffeurs' => [
+        'environment' => env('SQUARE_CHAUFFEURS_ENVIRONMENT', env('SQUARE_ENVIRONMENT', 'production')),
+        'app_id' => env('SQUARE_CHAUFFEURS_APP_ID'),
+        'access_token' => env('SQUARE_CHAUFFEURS_ACCESS_TOKEN'),
+        'location_id' => env('SQUARE_CHAUFFEURS_LOCATION_ID'),
+        'webhook_signature_key' => env('SQUARE_CHAUFFEURS_WEBHOOK_SIGNATURE_KEY'),
+    ],
+
     // Anthropic Claude — powers the AI pricing engine and other AI features.
     // The model is pinned to claude-opus-4-8 via config/cet.php (ai_model).
     'anthropic' => [

@@ -185,6 +185,17 @@ return [
     // to go through the office by phone. Does not affect office-made bookings.
     'public_min_lead_hours' => (int) env('CET_PUBLIC_MIN_LEAD_HOURS', 8),
 
+    // Max HAND luggage per vehicle for the customer booking cards (suitcases come
+    // from the vehicle's luggage_capacity). Keyed by slug; falls back to 2.
+    'hand_luggage_capacity' => [
+        'executive' => 2,
+        'estate' => 4,
+        'v-class' => 4,
+        'minibus-8' => 4,
+        'minibus-8-xl' => 4,
+        'rolls-royce-ghost' => 2,
+    ],
+
     // Who to ring — the business line (forwards to the other director on no-answer).
     'office_call_number' => env('CET_OFFICE_CALL_NUMBER', '+447405172435'),
     // Caller ID / "from" — a voice-capable Twilio number. Left blank, it uses the
