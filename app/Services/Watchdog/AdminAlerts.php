@@ -80,6 +80,13 @@ class AdminAlerts
 
         User::where('role', UserRole::Admin->value)->where('is_active', true)->get()
             ->filter(fn (User $admin) => $admin->wantsAlert($prefType, $severity))
+            // NEVER blare next to a passenger: an admin who is themselves on a
+            // LIVE job (or has held their alerts) gets NO push — a siren going off
+            // with a customer in the car is unacceptable. The alert is still on
+            // the feed for when they're free, and any OTHER director still gets
+            // it, so nothing is lost. (The emergency CALL is separate and routes
+            // around a busy driver on its own.)
+            ->reject(fn (User $admin) => $admin->busyForAlerts())
             ->each(fn (User $admin) => $this->push->sendToUser($admin, $title, $body, [
                 'url' => $url,
                 'tag' => 'alert-'.$prefType.'-'.($booking?->id ?? 'general'),
