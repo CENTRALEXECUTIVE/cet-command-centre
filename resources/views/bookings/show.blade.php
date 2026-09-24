@@ -864,8 +864,8 @@
                 <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
                 <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                 <tr><th>Type</th><td>@if($booking->isHourlyHire())Hourly hire — {{ $booking->hourlyHireLabel() }}@else{{ ucfirst(str_replace('_',' ',$booking->journey_type)) }}{{ $booking->is_return_leg ? ' (return leg)' : '' }}@endif</td></tr>
-                @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
-                @if($booking->driverNotes())<tr><th>📝 Driver notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
+                @if($booking->special_requests)<tr><th>Special requests</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->special_requests) !!}</td></tr>@endif
+                @if($booking->driverNotes())<tr><th>📝 Driver notes</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverNotes()) !!}</td></tr>@endif
             </table>
         </div>
 

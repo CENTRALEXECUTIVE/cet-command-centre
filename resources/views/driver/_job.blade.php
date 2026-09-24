@@ -223,7 +223,7 @@
 @if($booking->driverReadNotes() && ! $booking->notesContainNumber())
     <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
         <div style="font-weight:800;font-size:15px">📝 Notes</div>
-        <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{{ $booking->driverReadNotes() }}</p>
+        <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverReadNotes()) !!}</p>
         @if($booking->driverNotesAcknowledged())
             <div style="font-weight:700;font-size:13px;color:#1f7a44">✓ You’ve confirmed you read these notes</div>
         @else
@@ -353,8 +353,8 @@
         @else
             <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
         @endif
-        @if($booking->special_requests && ! $booking->notesContainNumber())<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
-        @if($booking->driverNotes() && ! $booking->notesContainNumber())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
+        @if($booking->special_requests && ! $booking->notesContainNumber())<tr><th>Special requests</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->special_requests) !!}</td></tr>@endif
+        @if($booking->driverNotes() && ! $booking->notesContainNumber())<tr><th>Notes</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverNotes()) !!}</td></tr>@endif
     </table>
 </div>
 

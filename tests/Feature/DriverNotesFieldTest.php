@@ -74,6 +74,15 @@ class DriverNotesFieldTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_link_in_the_notes_is_clickable_on_the_driver_screen(): void
+    {
+        $b = $this->job();
+        $b->setDriverNotes('Account job — job card: https://cdserver2.com/JobCard.aspx?HIRE_ID=8791cc66');
+
+        $this->actingAs($b->driver)->get(route('driver.job', $b))->assertOk()
+            ->assertSee('<a href="https://cdserver2.com/JobCard.aspx?HIRE_ID=8791cc66"', false);
+    }
+
     public function test_a_number_in_the_notes_is_never_shown_to_the_driver(): void
     {
         $b = $this->job();
