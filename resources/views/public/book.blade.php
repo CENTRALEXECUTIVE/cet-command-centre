@@ -149,13 +149,13 @@
         <div class="sec-title"><span class="n">1</span> Your journey</div>
         <div class="addr-row">
             <div><label class="f">Pick-up address <span class="req">*</span></label>
-                <input name="pickup_address" id="pickup" value="{{ old('pickup_address') }}" placeholder="House / building and street" required></div>
+                <input name="pickup_address" id="pickup" value="{{ old('pickup_address') }}" placeholder="Start typing your address…" data-places autocomplete="off" required></div>
             <div><label class="f">Pick-up postcode <span class="req">*</span></label>
                 <input name="pickup_postcode" id="pickup_postcode" value="{{ old('pickup_postcode') }}" placeholder="e.g. S10 4BL" style="text-transform:uppercase" autocomplete="postal-code" required></div>
         </div>
         <div class="addr-row" style="margin-top:14px">
             <div><label class="f">Drop-off address <span class="req">*</span></label>
-                <input name="destination_address" id="destination" value="{{ old('destination_address') }}" placeholder="e.g. Manchester Airport (MAN)" required></div>
+                <input name="destination_address" id="destination" value="{{ old('destination_address') }}" placeholder="Start typing an address…" data-places autocomplete="off" required></div>
             <div><label class="f">Drop-off postcode</label>
                 <input name="destination_postcode" id="destination_postcode" value="{{ old('destination_postcode') }}" placeholder="If known" style="text-transform:uppercase" autocomplete="postal-code"></div>
         </div>
@@ -255,6 +255,12 @@
 </div>
 
 <footer class="wrap"><b>Central Executive Transfers Ltd</b> · Operator Licence OP037 · 07405 172435 · centralexecutivetransfers.co.uk</footer>
+
+{{-- Google address autocomplete on the pickup/drop-off fields, via the server
+     proxy (the Google key never reaches the browser). Falls back silently to a
+     plain text box if no key is set. --}}
+<script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";</script>
+<script src="{{ asset('js/cet-forms.js') }}" defer></script>
 
 <script>
 (function(){

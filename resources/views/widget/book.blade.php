@@ -216,10 +216,10 @@
                         </div>
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                             <span class="pin">🟡</span>
-                            <input id="b-pickup" name="pickup_address" required placeholder="e.g. Sheffield S1 2HH"></div>
+                            <input id="b-pickup" name="pickup_address" required placeholder="Start typing your address…" data-places autocomplete="off"></div>
                         <div class="cet-field icon"><label for="b-dropoff">Drop-off address</label>
                             <span class="pin">🏁</span>
-                            <input id="b-dropoff" name="destination_address" required placeholder="Where to?"></div>
+                            <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places autocomplete="off"></div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-when">Date &amp; time</label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
@@ -310,6 +310,10 @@
         @endif
         </div>
     </div>
+
+    {{-- Google address autocomplete via the server proxy (key stays server-side). --}}
+    <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";</script>
+    <script src="{{ asset('js/cet-forms.js') }}" defer></script>
 
     <script>
         (function () {

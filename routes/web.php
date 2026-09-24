@@ -424,6 +424,11 @@ Route::post('book', [\App\Http\Controllers\Public\PublicBookingController::class
     ->middleware('throttle:20,1')->name('public.book.store');
 Route::get('book/thanks', [\App\Http\Controllers\Public\PublicBookingController::class, 'thanks'])
     ->middleware('throttle:60,1')->name('public.book.thanks');
+// Public address autocomplete for the customer booking form (same server-side
+// Google proxy as the admin one — the key never reaches the browser). Throttled
+// per IP to keep Google costs down; returns [] when no key is set.
+Route::get('book/places', [\App\Http\Controllers\PlacesController::class, 'autocomplete'])
+    ->middleware('throttle:60,1')->name('public.book.places');
 
 // ----- Public embeddable WEB BOOKING WIDGETS (iframe into the marketing site) --
 // Mirrors ETO's "Web Widgets". Served from the Command Centre; the live website
