@@ -2,6 +2,8 @@
 
 namespace App\Services\Pricing;
 
+use App\Models\Setting;
+
 /**
  * CET's free-roam (non-fixed) fare, straight from the Price Guide:
  *   - First 10 miles: a flat minimum fare.
@@ -13,11 +15,15 @@ namespace App\Services\Pricing;
  * the result is rounded to the nearest £5 so customers only ever see clean
  * figures (…£0 / …£5). One-way. Airport transfers use the fixed-price matrix
  * instead (QuoteService). Estate is always Executive + £10. Rolls Royce is POA.
+ *
+ * Rates, the VAT uplift and the estate uplift are all office-editable from the
+ * Free-roam rates admin (stored in Settings), falling back to these defaults so
+ * pricing never breaks if nothing has been saved.
  */
 class FreeRoamPricer
 {
     /** vehicle slug => [flat first-10mi, per-mile 11–100, per-mile 100+] — VAT-exclusive. */
-    private const RATES = [
+    public const DEFAULT_RATES = [
         'executive' => [50.00, 2.00, 1.73],
         'estate' => [50.00, 2.00, 1.73],       // derived as Executive + £10 (see price())
         'minibus-8' => [70.00, 2.23, 2.15],    // "8 Seater"
@@ -26,21 +32,55 @@ class FreeRoamPricer
     ];
 
     /**
+     * The live rate table: the office-saved override merged over the defaults, so
+     * a partial save (one vehicle) leaves the rest at their defaults.
+     *
+     * @return array<string, array{0: float, 1: float, 2: float}>
+     */
+    public function rates(): array
+    {
+        $saved = (array) Setting::get('freeroam_rates', []);
+        $rates = self::DEFAULT_RATES;
+
+        foreach ($saved as $slug => $row) {
+            if (is_array($row) && count($row) === 3) {
+                $rates[$slug] = [(float) $row[0], (float) $row[1], (float) $row[2]];
+            }
+        }
+
+        return $rates;
+    }
+
+    /** The £ VAT uplift added to every free-roam quote (office-editable). */
+    public function vatUplift(): float
+    {
+        $v = Setting::get('freeroam_vat_uplift');
+
+        return $v === null ? (float) config('cet.freeroam_vat_uplift', 10) : (float) $v;
+    }
+
+    /** How much more an Estate is than an Executive (office-editable). */
+    public function estateUplift(): float
+    {
+        $v = Setting::get('freeroam_estate_uplift');
+
+        return $v === null ? (float) config('cet.estate_over_executive', 10) : (float) $v;
+    }
+
+    /**
      * The fare for a vehicle over a distance, VAT-inclusive and rounded to a clean
      * £5, or null when there's no rate (Rolls Royce = POA).
      */
     public function price(string $vehicleSlug, float $miles): ?float
     {
-        // Estate is always Executive + £10, kept exact and still a clean figure.
+        // Estate is always Executive + the estate uplift, kept exact and clean.
         if ($vehicleSlug === 'estate') {
             $executive = $this->price('executive', $miles);
 
-            return $executive === null
-                ? null
-                : $executive + (float) config('cet.estate_over_executive', 10);
+            return $executive === null ? null : $executive + $this->estateUplift();
         }
 
-        $rate = self::RATES[$vehicleSlug] ?? null;
+        $rate = $this->rates()[$vehicleSlug] ?? null;
         if ($rate === null) {
             return null;
         }
@@ -55,7 +95,7 @@ class FreeRoamPricer
         }
 
         // Add the flat VAT uplift, then round to the nearest £5 for a clean price.
-        return $this->roundToFive($raw + (float) config('cet.freeroam_vat_uplift', 10));
+        return $this->roundToFive($raw + $this->vatUplift());
     }
 
     /** Round to the nearest £5 so a fare always ends in £0 or £5 (never pennies). */
@@ -66,6 +106,6 @@ class FreeRoamPricer
 
     public function hasRate(string $vehicleSlug): bool
     {
-        return $vehicleSlug === 'estate' || isset(self::RATES[$vehicleSlug]);
+        return $vehicleSlug === 'estate' || isset($this->rates()[$vehicleSlug]);
     }
 }

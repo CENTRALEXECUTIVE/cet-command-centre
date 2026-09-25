@@ -96,7 +96,7 @@ class AiPricingEngine
      */
     private function extras(array $input): array
     {
-        $rates = (array) config('cet.surcharges', []);
+        $rates = \App\Support\Surcharges::rates();
         $items = [];
 
         $count = fn (string $key) => max(0, min(8, (int) ($input[$key] ?? 0)));

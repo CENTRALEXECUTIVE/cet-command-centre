@@ -91,7 +91,7 @@ class FareCalculator
      */
     private function extraItems(array $options, VehicleType $vehicleType): array
     {
-        $rates = (array) config('cet.surcharges', []);
+        $rates = \App\Support\Surcharges::rates();
         $items = [];
 
         $flag = fn ($k) => ! empty($options[$k]);

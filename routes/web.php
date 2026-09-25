@@ -242,6 +242,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
     Route::middleware('role:admin')->group(function () {
         Route::get('compliance', [ComplianceController::class, 'index'])->name('compliance.index');
 
+        // Settings hub — the one landing page linking every office control.
+        Route::get('settings/hub', [\App\Http\Controllers\Admin\SettingsHubController::class, 'index'])->name('settings.hub');
+
         // Settings — paste integration keys in-app (Google Maps, …).
         Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
@@ -268,6 +271,14 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // capacities, hand luggage, on/off, order). Prices live in the pricing editors.
         Route::get('settings/vehicles', [\App\Http\Controllers\Admin\VehicleTypeController::class, 'index'])->name('vehicles.index');
         Route::put('settings/vehicles/{vehicleType}', [\App\Http\Controllers\Admin\VehicleTypeController::class, 'update'])->name('vehicles.update');
+
+        // Free-roam rates — office control of the distance-based fares + VAT/estate uplift.
+        Route::get('settings/free-roam', [\App\Http\Controllers\Admin\FreeRoamRateController::class, 'index'])->name('free-roam.index');
+        Route::put('settings/free-roam', [\App\Http\Controllers\Admin\FreeRoamRateController::class, 'update'])->name('free-roam.update');
+
+        // Extra prices — office control of the add-on surcharge list (seats, ribbons, …).
+        Route::get('settings/extras', [\App\Http\Controllers\Admin\ExtraPriceController::class, 'index'])->name('extras.index');
+        Route::put('settings/extras', [\App\Http\Controllers\Admin\ExtraPriceController::class, 'update'])->name('extras.update');
 
         // In-app CSV imports (Google Ads report, ETO bookings export).
         Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');

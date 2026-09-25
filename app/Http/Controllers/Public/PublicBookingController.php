@@ -50,7 +50,7 @@ class PublicBookingController extends Controller
             'vehicleTypes' => $this->activeVehicleTypes(),
             'payEnabled' => $this->payments->enabled(),
             'vatPercent' => $this->vat->ratePercent(),
-            'surcharges' => (array) config('cet.surcharges', []),
+            'surcharges' => \App\Support\Surcharges::rates(),
         ]);
     }
 

@@ -112,7 +112,7 @@
                     <a href="{{ route('imports.index') }}" class="{{ request()->routeIs('imports.*') ? 'active' : '' }}">Imports</a>
                     <a href="{{ route('audit.index') }}" class="{{ request()->routeIs('audit.*') ? 'active' : '' }}">ETO audit</a>
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">Users</a>
-                    <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">Settings</a>
+                    <a href="{{ route('settings.hub') }}" class="{{ request()->routeIs('settings.*', 'vehicles.*', 'free-roam.*', 'extras.*', 'pricing.*') ? 'active' : '' }}">⚙️ Settings</a>
                     <a href="{{ route('web-widgets.index') }}" class="{{ request()->routeIs('web-widgets.*') ? 'active' : '' }}">Web widgets</a>
                     <a href="{{ route('widget.book') }}" target="_blank" rel="noopener">🌐 Online booking page ↗</a>
                     @if($u->isSuperAdmin())
