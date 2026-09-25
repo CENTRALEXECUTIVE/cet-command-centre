@@ -26,9 +26,26 @@ class VehicleType extends Model
         return $this->hasMany(Vehicle::class);
     }
 
-    /** Max hand luggage shown on the booking cards (config-mapped by slug; else 2). */
+    /**
+     * Office-editable overrides (tagline, hand luggage) stored in one Setting so
+     * staff can change them from the Vehicles admin with no code or migration.
+     *
+     * @return array<string, mixed>
+     */
+    public function metaOverrides(): array
+    {
+        $all = (array) \App\Models\Setting::get('vehicle_meta', []);
+
+        return (array) ($all[$this->slug] ?? []);
+    }
+
+    /** Max hand luggage shown on the booking cards — office override, else config, else 2. */
     public function handLuggageCapacity(): int
     {
+        $override = $this->metaOverrides()['hand_luggage'] ?? null;
+        if ($override !== null && $override !== '') {
+            return max(0, (int) $override);
+        }
         $map = (array) config('cet.hand_luggage_capacity', []);
 
         return (int) ($map[$this->slug] ?? 2);
@@ -68,6 +85,11 @@ class VehicleType extends Model
     /** Short marketing subtitle under the name on the booking cards. */
     public function tagline(): ?string
     {
+        $override = $this->metaOverrides()['tagline'] ?? null;
+        if (is_string($override) && trim($override) !== '') {
+            return trim($override);
+        }
+
         return match ($this->slug) {
             'executive' => 'Mercedes E/S-Class',
             'estate' => 'Mercedes E-Class Estate',

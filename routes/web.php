@@ -264,6 +264,11 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('settings/web-widgets', [\App\Http\Controllers\Admin\WebWidgetController::class, 'index'])->name('web-widgets.index');
         Route::put('settings/web-widgets', [\App\Http\Controllers\Admin\WebWidgetController::class, 'update'])->name('web-widgets.update');
 
+        // Vehicles — office control of the fleet classes customers see (name, subtitle,
+        // capacities, hand luggage, on/off, order). Prices live in the pricing editors.
+        Route::get('settings/vehicles', [\App\Http\Controllers\Admin\VehicleTypeController::class, 'index'])->name('vehicles.index');
+        Route::put('settings/vehicles/{vehicleType}', [\App\Http\Controllers\Admin\VehicleTypeController::class, 'update'])->name('vehicles.update');
+
         // In-app CSV imports (Google Ads report, ETO bookings export).
         Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');
         Route::post('imports/ads', [\App\Http\Controllers\Admin\ImportController::class, 'ads'])
