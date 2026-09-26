@@ -83,7 +83,11 @@ class BookingWidgetController extends Controller
             ->get(['id', 'name', 'slug', 'passenger_capacity', 'luggage_capacity']);
 
         return response()
-            ->view('widget.book', ['vehicleTypes' => $vehicleTypes, 'done' => false])
+            ->view('widget.book', [
+                'vehicleTypes' => $vehicleTypes,
+                'done' => false,
+                'surcharges' => \App\Support\Surcharges::rates(),
+            ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
 
@@ -150,6 +154,12 @@ class BookingWidgetController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            // ETO-style extras (captured for the office; guide price is confirmed).
+            'meet_greet' => ['nullable', 'boolean'],
+            'child_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
         ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
@@ -178,6 +188,13 @@ class BookingWidgetController extends Controller
 
         $customer = $this->resolveCustomer($data);
 
+        // ETO-style extras — captured for the office and folded into the notes the
+        // office/driver see. The guide price is confirmed by the office, so nothing
+        // is auto-charged; the seat counts also drive the calendar's child-seat mark.
+        $extra = $this->extrasFrom($data);
+        $composedNotes = $this->composedNotes($data['notes'] ?? null, $extra['labels']);
+        $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
+
         $booking = Booking::create([
             'reference' => Booking::generateReference(),
             'customer_id' => $customer->id,
@@ -187,8 +204,8 @@ class BookingWidgetController extends Controller
             'pickup_address' => $data['pickup_address'],
             'destination_address' => $destination,
             'passengers' => $data['passengers'],
-            'flight_number' => $data['flight_number'] ?? null,
-            'special_requests' => $data['notes'] ?? null,
+            'flight_number' => $flight,
+            'special_requests' => $composedNotes,
             'status' => BookingStatus::Pending->value,
             // No card is taken at booking time — the customer pays on the day, so
             // the DRIVER collects the fare in cash. If they later pay online via
@@ -204,10 +221,15 @@ class BookingWidgetController extends Controller
                 'web_booking' => true,
                 'suitcases' => (int) ($data['suitcases'] ?? 0),
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
-                'driver_notes' => $data['notes'] ?? null,
+                'driver_notes' => $composedNotes,
                 'web_quote_basis' => $quote['basis'],
                 'hourly_hours' => $isHourly ? (int) $data['hours'] : null,
-            ], fn ($v) => $v !== null && $v !== ''),
+                'meet_greet' => $extra['meet_greet'] ?: null,
+                'child_seats' => $extra['child_seats'] ?: null,
+                'booster_seats' => $extra['booster_seats'] ?: null,
+                'infant_seats' => $extra['infant_seats'] ?: null,
+                'extra_stops' => $extra['stopovers'] ?: null,
+            ], fn ($v) => $v !== null && $v !== '' && $v !== false),
         ]);
 
         // Return trip: create the linked inbound leg (office confirms; no rotation
@@ -227,7 +249,8 @@ class BookingWidgetController extends Controller
                 'pickup_address' => $destination,
                 'destination_address' => $data['pickup_address'],
                 'passengers' => $data['passengers'],
-                'special_requests' => $data['notes'] ?? null,
+                'flight_number' => null, // return leg has no inbound flight
+                'special_requests' => $composedNotes,
                 'status' => BookingStatus::Pending->value,
                 // Cash by default (see the outbound leg above). A return leg never
                 // collects on the day anyway — the outbound carries the fare.
@@ -238,7 +261,13 @@ class BookingWidgetController extends Controller
                     'web_booking' => true,
                     'suitcases' => (int) ($data['suitcases'] ?? 0),
                     'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
-                ], fn ($v) => $v !== null && $v !== ''),
+                    'driver_notes' => $composedNotes,
+                    'meet_greet' => $extra['meet_greet'] ?: null,
+                    'child_seats' => $extra['child_seats'] ?: null,
+                    'booster_seats' => $extra['booster_seats'] ?: null,
+                    'infant_seats' => $extra['infant_seats'] ?: null,
+                    'extra_stops' => $extra['stopovers'] ?: null,
+                ], fn ($v) => $v !== null && $v !== '' && $v !== false),
             ]);
             $booking->forceFill(['linked_booking_id' => $return->id])->save();
         }
@@ -301,6 +330,54 @@ class BookingWidgetController extends Controller
         return response()
             ->view('widget.paid', ['unavailable' => $request->boolean('unavailable')])
             ->header('Content-Security-Policy', $this->frameAncestors());
+    }
+
+    /**
+     * The extras the customer chose, as seat counts + a meet & greet flag, plus a
+     * human-readable label list for the notes the office/driver see.
+     *
+     * @return array{meet_greet: bool, child_seats: int, booster_seats: int, infant_seats: int, stopovers: int, labels: array<int, string>}
+     */
+    private function extrasFrom(array $data): array
+    {
+        $meetGreet = (bool) ($data['meet_greet'] ?? false);
+        $child = (int) ($data['child_seats'] ?? 0);
+        $booster = (int) ($data['booster_seats'] ?? 0);
+        $infant = (int) ($data['infant_seats'] ?? 0);
+        $stops = (int) ($data['stopovers'] ?? 0);
+
+        $labels = [];
+        if ($meetGreet) {
+            $labels[] = 'Meet & greet';
+        }
+        foreach ([[$child, 'child seat'], [$booster, 'booster seat'], [$infant, 'infant seat'], [$stops, 'extra stop']] as [$n, $word]) {
+            if ($n > 0) {
+                $labels[] = $n.'× '.$word.($n > 1 ? 's' : '');
+            }
+        }
+
+        return [
+            'meet_greet' => $meetGreet,
+            'child_seats' => $child,
+            'booster_seats' => $booster,
+            'infant_seats' => $infant,
+            'stopovers' => $stops,
+            'labels' => $labels,
+        ];
+    }
+
+    /** The customer's free-text notes with the chosen extras appended, or null. */
+    private function composedNotes(?string $notes, array $extraLabels): ?string
+    {
+        $parts = [];
+        if (filled($notes)) {
+            $parts[] = trim($notes);
+        }
+        if ($extraLabels) {
+            $parts[] = 'Extras: '.implode(', ', $extraLabels);
+        }
+
+        return $parts ? implode("\n", $parts) : null;
     }
 
     /** Match a customer by phone (then email), else create one. */

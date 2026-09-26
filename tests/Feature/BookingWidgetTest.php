@@ -303,6 +303,28 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('minibus-8-xl', $booking->vehicleType->slug);
     }
 
+    public function test_a_web_booking_captures_extras_and_flight(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 2, 'suitcases' => 1, 'hand_luggage' => 1,
+            'flight_number' => 'ba1368', 'meet_greet' => 1, 'child_seats' => 2, 'stopovers' => 1,
+            'customer_name' => 'Extras User', 'customer_phone' => '07464905385',
+            'notes' => 'Please call on arrival',
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('BA1368', $b->flight_number);
+        $this->assertSame(2, $b->meta['child_seats']);
+        $this->assertTrue((bool) $b->meta['meet_greet']);
+        $this->assertStringContainsString('Meet & greet', (string) $b->special_requests);
+        $this->assertStringContainsString('2× child seats', (string) $b->special_requests);
+        $this->assertStringContainsString('Please call on arrival', (string) $b->special_requests);
+    }
+
     public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
     {
         $minibus = VehicleType::where('slug', 'minibus-8')->first();

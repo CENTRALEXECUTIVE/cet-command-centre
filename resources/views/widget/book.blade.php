@@ -102,45 +102,65 @@
         .cet-two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         @media (max-width:460px){ .cet-two { grid-template-columns:1fr; } }
 
-        /* Vehicle cards */
+        /* Vehicle cards — a tidy 3-column grid: photo · details · tick. The price
+           sits on its own line inside the details so it never collides with the
+           capacity text, and each capacity stat stays on one piece when it wraps. */
         .cet-vehs { display:flex; flex-direction:column; gap:10px; }
-        .cet-veh { display:flex; align-items:center; gap:15px; padding:13px 15px; border:1.5px solid var(--line);
-            border-radius:16px; background:var(--cream); cursor:pointer; position:relative;
-            transition:transform .12s ease,border-color .15s,box-shadow .15s; }
+        .cet-veh { display:grid; grid-template-columns:88px 1fr 22px; gap:12px; align-items:center;
+            padding:12px; border:1.5px solid var(--line); border-radius:16px; background:var(--cream);
+            cursor:pointer; position:relative; transition:transform .12s ease,border-color .15s,box-shadow .15s; }
+        @media (min-width:440px){ .cet-veh { grid-template-columns:118px 1fr 24px; gap:15px; padding:13px 15px; } }
         .cet-veh:hover { border-color:var(--gold-deep); background:#fff; box-shadow:0 8px 20px rgba(0,0,0,.07); transform:translateY(-1px); }
         .cet-veh input { position:absolute; opacity:0; pointer-events:none; }
         .cet-veh.sel { border-color:var(--gold); background:#fff; box-shadow:0 0 0 4px rgba(251,186,42,.16); }
         /* Uniform premium photo tile: the whole car shows (contain, never cropped),
-           centred on a soft white ground with a subtle drop shadow so it reads as a
-           proper product shot — real photos and placeholders line up identically. */
-        .cet-veh-img { width:122px; height:80px; flex:0 0 auto; border-radius:12px; overflow:hidden; padding:8px;
+           centred on a soft white ground with a subtle drop shadow. */
+        .cet-veh-img { width:100%; height:64px; border-radius:12px; overflow:hidden; padding:7px;
             border:1px solid var(--line);
             background:radial-gradient(130% 130% at 50% 16%,#ffffff 0%,#f1efe8 100%);
             display:grid; place-items:center; }
+        @media (min-width:440px){ .cet-veh-img { height:78px; padding:8px; } }
         .cet-veh-img img { width:100%; height:100%; object-fit:contain; object-position:center;
             filter:drop-shadow(0 6px 9px rgba(0,0,0,.16)); }
-        .cet-veh-img svg { width:94px; height:auto; opacity:.8; }
+        .cet-veh-img svg { width:82px; height:auto; opacity:.8; }
         .cet-veh.sel .cet-veh-img { border-color:rgba(251,186,42,.55); }
-        @media (max-width:460px){ .cet-veh-img { width:104px; height:70px; } }
-        .cet-veh-meta { flex:1; min-width:0; }
-        .cet-veh-name { font-weight:800; font-size:15.5px; }
-        .cet-veh-tag { font-size:12.5px; color:var(--gold-deep); font-weight:700; margin-top:1px; }
-        .cet-veh-cap { font-size:12.5px; color:var(--muted); margin-top:3px; }
-        /* Per-card price (right of the meta, before the tick). */
-        .cet-veh-price { flex:0 0 auto; text-align:right; min-width:64px; }
-        .cet-veh-price .amt { font-weight:900; font-size:18px; letter-spacing:-.4px; white-space:nowrap; }
-        .cet-veh-price .amt.poa { font-size:13px; font-weight:800; color:var(--muted); }
-        .cet-veh-price .sub { font-size:10.5px; color:var(--muted-2); font-weight:600; }
-        @media (max-width:460px){ .cet-veh-price .amt { font-size:16px; } }
-        .cet-veh-tick { width:24px; height:24px; flex:0 0 auto; border-radius:50%; border:2px solid var(--line);
-            display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; }
+        .cet-veh-meta { min-width:0; }
+        .cet-veh-name { font-weight:800; font-size:16px; line-height:1.15; letter-spacing:-.2px; }
+        .cet-veh-tag { font-size:12px; color:var(--gold-deep); font-weight:700; margin-top:2px; }
+        .cet-veh-cap { display:flex; flex-wrap:wrap; gap:3px 12px; margin-top:6px; font-size:11.5px; color:var(--muted); }
+        .cet-veh-cap span { white-space:nowrap; }
+        /* Price on its own line under the details. */
+        .cet-veh-price { margin-top:8px; }
+        .cet-veh-price .amt { font-weight:900; font-size:19px; letter-spacing:-.4px; color:var(--ink); }
+        .cet-veh-price .amt.poa { font-size:14px; font-weight:800; color:var(--muted); }
+        .cet-veh-price .sub { font-size:11px; color:var(--muted-2); font-weight:600; margin-left:6px; }
+        .cet-veh-tick { width:22px; height:22px; border-radius:50%; border:2px solid var(--line);
+            display:grid; place-items:center; color:#fff; font-size:12px; font-weight:900; }
+        @media (min-width:440px){ .cet-veh-tick { width:24px; height:24px; font-size:13px; } }
         .cet-veh.sel .cet-veh-tick { background:var(--gold); border-color:var(--gold); color:#0b0b0c; }
         .cet-veh[hidden] { display:none; }
 
-        .cet-price { background:linear-gradient(135deg,#fff9ea,#fdf3d6); border:1px solid var(--gold);
-            border-radius:13px; padding:14px 16px; margin:14px 0 4px; display:none;
-            box-shadow:0 6px 18px -10px rgba(233,164,19,.5); }
-        .cet-price b { font-size:24px; font-weight:900; letter-spacing:-.5px; }
+        /* Extras (step 3) — ETO-style add-ons. */
+        .cet-mini-title { font-size:14px; font-weight:800; margin:18px 0 9px; letter-spacing:-.2px; display:flex; align-items:center; gap:7px; }
+        .cet-mini-title .opt { font-weight:500; }
+        .cet-check { display:flex; align-items:center; gap:11px; border:1px solid var(--line); border-radius:12px;
+            padding:12px 13px; cursor:pointer; background:var(--cream); font-size:14px; font-weight:600; }
+        .cet-check:hover { border-color:var(--gold-deep); background:#fff; }
+        .cet-check input { width:19px; height:19px; flex:0 0 auto; accent-color:var(--gold-deep); }
+        .cet-check .px { margin-left:auto; font-weight:800; color:var(--ink); }
+        .cet-check.on { border-color:var(--gold); background:#fff; box-shadow:0 0 0 3px rgba(251,186,42,.14); }
+        .cet-steppers { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+        @media (max-width:460px){ .cet-steppers { grid-template-columns:1fr; } }
+        .cet-stepper label { display:block; font-size:12.5px; font-weight:600; color:#3a3a40; margin-bottom:6px; }
+        .cet-stepper label .opt { font-weight:400; color:var(--muted-2); }
+        .cet-stepper .ctrl { display:flex; align-items:center; border:1px solid var(--line); border-radius:11px; overflow:hidden; background:var(--cream); }
+        .cet-stepper .ctrl button { width:44px; height:46px; border:0; background:transparent; font-size:22px; font-weight:700;
+            color:var(--gold-deep); cursor:pointer; line-height:1; flex:0 0 auto; }
+        .cet-stepper .ctrl button:active { background:#f2efe6; }
+        .cet-stepper .ctrl input { border:0; background:transparent; text-align:center; font-size:16px; font-weight:800;
+            width:100%; padding:12px 0; -moz-appearance:textfield; }
+        .cet-stepper .ctrl input::-webkit-outer-spin-button,
+        .cet-stepper .ctrl input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 
         .cet-actions { display:flex; gap:10px; margin-top:18px; }
         .cet-btn { flex:1; padding:15px; border:0; border-radius:12px;
@@ -299,9 +319,13 @@
                                     <div class="cet-veh-meta">
                                         <div class="cet-veh-name">{{ $vt->name }}</div>
                                         @if($vt->tagline())<div class="cet-veh-tag">{{ $vt->tagline() }}</div>@endif
-                                        <div class="cet-veh-cap">👤 {{ $vt->passenger_capacity }} passengers · 🧳 {{ $vt->luggage_capacity }} suitcases · 👜 {{ $vt->handLuggageCapacity() }} hand luggage</div>
+                                        <div class="cet-veh-cap">
+                                            <span>👤 {{ $vt->passenger_capacity }} passengers</span>
+                                            <span>🧳 {{ $vt->luggage_capacity }} suitcases</span>
+                                            <span>👜 {{ $vt->handLuggageCapacity() }} hand luggage</span>
+                                        </div>
+                                        <div class="cet-veh-price"><span class="amt" data-price>—</span></div>
                                     </div>
-                                    <div class="cet-veh-price"><div class="amt" data-price>—</div></div>
                                     <div class="cet-veh-tick">✓</div>
                                 </label>
                             @endforeach
@@ -327,8 +351,41 @@
                             <div class="cet-field"><label for="b-email">Email</label>
                                 <input id="b-email" name="customer_email" type="email"></div>
                         </div>
-                        <div class="cet-field"><label for="b-notes">Notes for us <span class="opt">(optional)</span></label>
-                            <textarea id="b-notes" name="notes" rows="2" placeholder="Meet &amp; greet, child seat, extra stops…"></textarea></div>
+
+                        {{-- ETO-style extras: flight, meet & greet, seats, extra stops.
+                             Captured for the office (guide price updated live). --}}
+                        @php $sc = $surcharges ?? []; @endphp
+                        <div class="cet-mini-title">✨ Extras <span class="opt">(optional)</span></div>
+                        <div class="cet-field" id="b-flight-field">
+                            <label for="b-flight">Flight number <span class="opt">— for airport pickups (we track it)</span></label>
+                            <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
+                        </div>
+                        <label class="cet-check" id="b-mg-wrap">
+                            <input type="checkbox" id="b-meet-greet" name="meet_greet" value="1" data-extra="{{ (float) ($sc['meet_greet'] ?? 0) }}">
+                            <span>Meet &amp; greet <span class="opt" style="font-weight:500;color:var(--muted-2)">— driver waits inside with a name board</span></span>
+                            <span class="px">£{{ number_format((float) ($sc['meet_greet'] ?? 0), 0) }}</span>
+                        </label>
+                        <div class="cet-steppers">
+                            @foreach ([
+                                'child_seats'   => ['Child seats',   $sc['child_seat']   ?? 0],
+                                'booster_seats' => ['Booster seats', $sc['booster_seat'] ?? 0],
+                                'infant_seats'  => ['Infant seats',  $sc['infant_seat']  ?? 0],
+                                'stopovers'     => ['Extra stops',   $sc['stopover']     ?? 0],
+                            ] as $field => [$label, $unit])
+                                <div class="cet-stepper">
+                                    <label for="b-{{ $field }}">{{ $label }} <span class="opt">£{{ number_format((float) $unit, 0) }} ea</span></label>
+                                    <div class="ctrl">
+                                        <button type="button" data-step-btn="-" aria-label="Less">−</button>
+                                        <input id="b-{{ $field }}" name="{{ $field }}" type="number" min="0" max="10" value="0"
+                                               inputmode="numeric" data-extra="{{ (float) $unit }}" readonly>
+                                        <button type="button" data-step-btn="+" aria-label="More">+</button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Notes for us <span class="opt">(optional)</span></label>
+                            <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
                         <div class="cet-err" data-err="3"></div>
                         <div class="cet-actions">
                             <button type="button" class="cet-back" data-back="2">← Back</button>
@@ -491,9 +548,14 @@
                     + row('Passengers', val('b-pax') || '—')
                     + row('Suitcases', val('b-suit') || '0')
                     + row('Hand luggage', val('b-hand') || '0');
-                if (val('b-flight')) html += row('Flight', val('b-flight'));
-                if (lastQuote && lastQuote.formatted) {
-                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">'+lastQuote.formatted+'</span></div>';
+                if (val('b-flight')) html += row('Flight', val('b-flight').toUpperCase());
+                var items = extrasList();
+                items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
+                if (lastQuote && !lastQuote.poa && lastQuote.price != null) {
+                    var total = Number(lastQuote.price) + extrasTotal();
+                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + money(total) + '</span></div>';
+                } else if (lastQuote && lastQuote.formatted) {
+                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + lastQuote.formatted + '</span></div>';
                 }
                 box.innerHTML = html;
             }
@@ -509,8 +571,45 @@
                 card.classList.add('sel');
                 var input = card.querySelector('input'); if (input) input.checked = true;
                 var q = priceById[card.dataset.id];
-                lastQuote = q ? { formatted: q.poa ? 'On request' : q.formatted } : null;
+                lastQuote = q ? { formatted: q.poa ? 'On request' : q.formatted, price: q.price, poa: !!q.poa } : null;
             }
+
+            // ETO-style extras: +/- steppers, the meet & greet toggle, and a live
+            // extras total added to the guide price.
+            function money(n){ return '£' + Number(n).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+            form.querySelectorAll('[data-step-btn]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var input = btn.parentElement.querySelector('input');
+                    if (!input) return;
+                    var v = parseInt(input.value, 10) || 0;
+                    var min = parseInt(input.min, 10) || 0, max = parseInt(input.max, 10) || 10;
+                    v += (btn.dataset.stepBtn === '+' ? 1 : -1);
+                    v = Math.max(min, Math.min(max, v));
+                    input.value = v;
+                    fillSummary();
+                });
+            });
+            var mg = document.getElementById('b-meet-greet');
+            if (mg) { mg.addEventListener('change', function () {
+                var w = document.getElementById('b-mg-wrap'); if (w) w.classList.toggle('on', mg.checked);
+                fillSummary();
+            }); }
+            var flightEl = document.getElementById('b-flight');
+            if (flightEl) { flightEl.addEventListener('input', fillSummary); }
+
+            function extrasList() {
+                var items = [];
+                if (mg && mg.checked) items.push({ label: 'Meet & greet', amount: parseFloat(mg.dataset.extra) || 0 });
+                [['b-child_seats','Child seat'],['b-booster_seats','Booster seat'],
+                 ['b-infant_seats','Infant seat'],['b-stopovers','Extra stop']].forEach(function (p) {
+                    var el = document.getElementById(p[0]); if (!el) return;
+                    var n = parseInt(el.value, 10) || 0; if (n <= 0) return;
+                    var unit = parseFloat(el.dataset.extra) || 0;
+                    items.push({ label: (n > 1 ? n + ' × ' : '') + p[1] + (n > 1 ? 's' : ''), amount: unit * n });
+                });
+                return items;
+            }
+            function extrasTotal() { return extrasList().reduce(function (s, i) { return s + i.amount; }, 0); }
 
             // Show only the minibus that fits: the standard 8-Seater normally, or the
             // XL as soon as the party is bigger than the 8-Seater's seats OR the
