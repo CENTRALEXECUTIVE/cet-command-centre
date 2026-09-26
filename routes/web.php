@@ -458,6 +458,8 @@ Route::get('widget/quote', [\App\Http\Controllers\Widget\BookingWidgetController
     ->middleware('throttle:180,1')->name('widget.mini');
 Route::post('widget/quote/price', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'price'])
     ->middleware('throttle:60,1')->name('widget.price');
+Route::post('widget/book/prices', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'prices'])
+    ->middleware('throttle:120,1')->name('widget.prices');
 Route::get('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'book'])
     ->middleware('throttle:180,1')->name('widget.book');
 Route::post('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'store'])

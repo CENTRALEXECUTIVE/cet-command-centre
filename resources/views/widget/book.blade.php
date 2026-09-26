@@ -126,9 +126,16 @@
         .cet-veh-name { font-weight:800; font-size:15.5px; }
         .cet-veh-tag { font-size:12.5px; color:var(--gold-deep); font-weight:700; margin-top:1px; }
         .cet-veh-cap { font-size:12.5px; color:var(--muted); margin-top:3px; }
+        /* Per-card price (right of the meta, before the tick). */
+        .cet-veh-price { flex:0 0 auto; text-align:right; min-width:64px; }
+        .cet-veh-price .amt { font-weight:900; font-size:18px; letter-spacing:-.4px; white-space:nowrap; }
+        .cet-veh-price .amt.poa { font-size:13px; font-weight:800; color:var(--muted); }
+        .cet-veh-price .sub { font-size:10.5px; color:var(--muted-2); font-weight:600; }
+        @media (max-width:460px){ .cet-veh-price .amt { font-size:16px; } }
         .cet-veh-tick { width:24px; height:24px; flex:0 0 auto; border-radius:50%; border:2px solid var(--line);
             display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; }
         .cet-veh.sel .cet-veh-tick { background:var(--gold); border-color:var(--gold); color:#0b0b0c; }
+        .cet-veh[hidden] { display:none; }
 
         .cet-price { background:linear-gradient(135deg,#fff9ea,#fdf3d6); border:1px solid var(--gold);
             border-radius:13px; padding:14px 16px; margin:14px 0 4px; display:none;
@@ -275,7 +282,12 @@
                         <div class="cet-step-title">🚘 Choose your vehicle</div>
                         <div class="cet-vehs">
                             @foreach($vehicleTypes as $vt)
-                                <label class="cet-veh {{ $loop->first ? 'sel' : '' }}">
+                                {{-- The standard 8-Seater and the XL are a swap-pair: only the
+                                     one that fits the party/luggage is shown (see minibusToggle). --}}
+                                <label class="cet-veh {{ $loop->first ? 'sel' : '' }}"
+                                       data-id="{{ $vt->id }}" data-slug="{{ $vt->slug }}"
+                                       data-cap-pax="{{ $vt->passenger_capacity }}" data-cap-lug="{{ $vt->luggage_capacity }}"
+                                       @if($vt->slug === 'minibus-8-xl') hidden @endif>
                                     <input type="radio" name="vehicle_type_id" value="{{ $vt->id }}" {{ $loop->first ? 'checked' : '' }}>
                                     <div class="cet-veh-img">
                                         @if($vt->photoUrl())
@@ -289,12 +301,12 @@
                                         @if($vt->tagline())<div class="cet-veh-tag">{{ $vt->tagline() }}</div>@endif
                                         <div class="cet-veh-cap">👤 {{ $vt->passenger_capacity }} passengers · 🧳 {{ $vt->luggage_capacity }} suitcases · 👜 {{ $vt->handLuggageCapacity() }} hand luggage</div>
                                     </div>
+                                    <div class="cet-veh-price"><div class="amt" data-price>—</div></div>
                                     <div class="cet-veh-tick">✓</div>
                                 </label>
                             @endforeach
                         </div>
-                        <div class="cet-price" id="cet-price"></div>
-                        <p class="cet-foot" style="margin-top:10px">Guide price — confirmed by our office before your journey.</p>
+                        <p class="cet-foot" style="margin-top:10px">Guide prices — confirmed by our office before your journey.</p>
                         <div class="cet-actions">
                             <button type="button" class="cet-back" data-back="1">← Back</button>
                             <button type="button" class="cet-btn" data-next="3">Continue →</button>
@@ -445,7 +457,7 @@
                     if (!validateStep(cur)) return;
                     var next = +btn.dataset.next;
                     goTo(next);
-                    if (next === 2) priceSelected();
+                    if (next === 2) { minibusToggle(); loadPrices(); }
                     if (next === 3) fillSummary();
                 });
             });
@@ -453,9 +465,10 @@
                 btn.addEventListener('click', function () { goTo(+btn.dataset.back); });
             });
 
-            // Vehicle card selection.
-            var priceBox = document.getElementById('cet-price');
-            var lastQuote = null;
+            // Vehicle card selection + per-card pricing.
+            var priceById = {};   // vehicle id -> { formatted, price, poa }
+            var pricesFor = '';   // the pickup|dropoff we last priced, to avoid refetch
+            var lastQuote = null; // the selected vehicle's quote (for the summary)
 
             // Fill the booking summary shown on the details step (all info + luggage).
             function fillSummary() {
@@ -486,35 +499,80 @@
             }
             form.querySelectorAll('.cet-veh').forEach(function (card) {
                 card.addEventListener('click', function () {
-                    form.querySelectorAll('.cet-veh').forEach(function (c) { c.classList.remove('sel'); });
-                    card.classList.add('sel');
-                    card.querySelector('input').checked = true;
-                    priceSelected();
+                    if (card.hidden) return;
+                    selectCard(card);
                 });
             });
 
-            function priceSelected() {
+            function selectCard(card) {
+                form.querySelectorAll('.cet-veh').forEach(function (c) { c.classList.remove('sel'); });
+                card.classList.add('sel');
+                var input = card.querySelector('input'); if (input) input.checked = true;
+                var q = priceById[card.dataset.id];
+                lastQuote = q ? { formatted: q.poa ? 'On request' : q.formatted } : null;
+            }
+
+            // Show only the minibus that fits: the standard 8-Seater normally, or the
+            // XL as soon as the party is bigger than the 8-Seater's seats OR the
+            // luggage is more than it holds. Only one of the pair is ever visible.
+            function minibusToggle() {
+                var std = form.querySelector('.cet-veh[data-slug="minibus-8"]');
+                var xl = form.querySelector('.cet-veh[data-slug="minibus-8-xl"]');
+                if (!std || !xl) return;
+                function num(id){ var el=document.getElementById(id); return el ? (parseInt(el.value,10)||0) : 0; }
+                var pax = num('b-pax');
+                var lug = num('b-suit') + num('b-hand');
+                var capPax = parseInt(std.dataset.capPax, 10) || 0;
+                var capLug = parseInt(std.dataset.capLug, 10) || 0;
+                var needXl = (pax > capPax) || (lug > capLug);
+                std.hidden = needXl;
+                xl.hidden = !needXl;
+                // If the now-hidden minibus was selected, move the choice to its
+                // visible partner so a hidden card is never the selection.
+                var hidden = needXl ? std : xl;
+                if (hidden.classList.contains('sel')) { selectCard(needXl ? xl : std); }
+            }
+
+            // Fetch a price for every (visible) vehicle and show it on the card.
+            function loadPrices() {
                 var pu = document.getElementById('b-pickup'), dp = document.getElementById('b-dropoff');
-                var veh = form.querySelector('input[name="vehicle_type_id"]:checked');
-                if (!priceBox || !pu || !dp || !veh || !nonEmpty(pu) || !nonEmpty(dp)) {
-                    if (priceBox) priceBox.style.display = 'none'; reportHeight(); return;
+                var jt = journeyEl ? journeyEl.value : 'one_way';
+                // Hourly hire has no drop-off / fixed route — the office prices it.
+                if (jt === 'hourly' || !pu || !dp || !nonEmpty(pu) || !nonEmpty(dp)) {
+                    form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) {
+                        el.textContent = ''; el.classList.remove('poa');
+                    });
+                    reportHeight(); return;
                 }
-                priceBox.style.display = 'block';
-                priceBox.innerHTML = '<span style="color:#7a6a3a">Checking your price…</span>';
-                reportHeight();
-                fetch('{{ route('widget.price') }}', {
+                var key = pu.value + '|' + dp.value;
+                if (key === pricesFor && Object.keys(priceById).length) { reportHeight(); return; }
+                form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) { el.textContent = '…'; });
+                fetch('{{ route('widget.prices') }}', {
                     method:'POST',
                     headers:{ 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN':token },
-                    body:JSON.stringify({ pickup:pu.value, destination:dp.value, vehicle_type_id:veh.value })
+                    body:JSON.stringify({ pickup:pu.value, destination:dp.value })
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
-                    lastQuote = d;
-                    priceBox.innerHTML = '<b>' + d.formatted + '</b><br><span style="color:#7a6a3a;font-size:13px">' + d.vehicle + ' · ' + d.basis + '</span>';
+                    pricesFor = key; priceById = {};
+                    (d.options || []).forEach(function (o) {
+                        priceById[o.id] = o;
+                        var card = form.querySelector('.cet-veh[data-id="' + o.id + '"]');
+                        if (!card) return;
+                        var el = card.querySelector('[data-price]');
+                        if (!el) return;
+                        el.classList.toggle('poa', !!o.poa);
+                        el.innerHTML = o.poa ? 'On request'
+                            : o.formatted + '<span class="sub">' + (o.fixed ? 'fixed price' : 'guide') + '</span>';
+                    });
+                    // Refresh the selected card's summary price.
+                    var sel = form.querySelector('.cet-veh.sel'); if (sel) selectCard(sel);
                     reportHeight();
                 })
                 .catch(function () {
-                    priceBox.innerHTML = '<span style="color:#7a6a3a">We\'ll confirm your price by phone — please continue.</span>';
+                    form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) {
+                        el.textContent = ''; el.classList.remove('poa');
+                    });
                     reportHeight();
                 });
             }

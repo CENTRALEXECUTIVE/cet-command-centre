@@ -236,11 +236,37 @@ class BookingWidgetTest extends TestCase
         $this->assertStringContainsString('collect nothing', (string) $booking->driverCollectLine());
     }
 
-    public function test_minibus_xl_is_hidden_from_the_booking_page(): void
+    public function test_minibus_xl_card_is_present_but_hidden_until_needed(): void
     {
-        $this->get(route('widget.book'))->assertOk()
+        // The XL card is rendered so its price is ready, but starts hidden — it's
+        // only revealed client-side when the party/luggage outgrows the 8-Seater.
+        $html = $this->get(route('widget.book'))->assertOk()
             ->assertSee('Minibus 8 Seater')
-            ->assertDontSee('Minibus 8 XL');
+            ->assertSee('data-slug="minibus-8-xl"', false)
+            ->getContent();
+
+        // The XL <label> carries the `hidden` attribute out of the box.
+        $this->assertMatchesRegularExpression(
+            '/data-slug="minibus-8-xl"[^>]*\shidden/',
+            $html,
+            'The Minibus XL card should be hidden by default.'
+        );
+    }
+
+    public function test_the_bulk_prices_endpoint_returns_a_price_per_vehicle(): void
+    {
+        $res = $this->postJson(route('widget.prices'), [
+            'pickup' => 'Sheffield S1 2HH',
+            'destination' => 'Manchester Airport',
+        ])->assertOk();
+
+        $options = $res->json('options');
+        $this->assertNotEmpty($options);
+        // Every active vehicle is priced (a figure or "On request"), keyed by id.
+        foreach ($options as $o) {
+            $this->assertArrayHasKey('id', $o);
+            $this->assertArrayHasKey('formatted', $o);
+        }
     }
 
     public function test_a_large_minibus_party_is_auto_upgraded_to_xl(): void

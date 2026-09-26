@@ -74,17 +74,46 @@ class BookingWidgetController extends Controller
     /** The full booking widget page (embeddable): complete a booking REQUEST. */
     public function book(): \Illuminate\Http\Response
     {
+        // The Minibus XL is shown to the customer ONLY when their party/luggage is
+        // too big for the standard 8-Seater (revealed client-side); otherwise the
+        // standard Minibus shows in its place. It's still in the list so the card
+        // and its price are ready to appear the instant it's needed.
         $vehicleTypes = VehicleType::where('is_active', true)
-            // Minibus XL isn't offered directly — a standard Minibus booking is
-            // auto-upgraded to it on the office side when the party/luggage is
-            // too big (see autoUpgradeMinibus in store()).
-            ->where('slug', '!=', 'minibus-8-xl')
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug', 'passenger_capacity', 'luggage_capacity']);
 
         return response()
             ->view('widget.book', ['vehicleTypes' => $vehicleTypes, 'done' => false])
             ->header('Content-Security-Policy', $this->frameAncestors());
+    }
+
+    /**
+     * Instant prices for EVERY vehicle for a journey (JSON), so the widget can show
+     * a price on each card. Lightweight — the existing pricing engine, nothing saved.
+     */
+    public function prices(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'pickup' => ['required', 'string', 'max:500'],
+            'destination' => ['required', 'string', 'max:500'],
+        ]);
+
+        $options = VehicleType::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'slug'])
+            ->map(function (VehicleType $type) use ($data) {
+                $q = $this->quotes->quote($data['pickup'], $data['destination'], $type);
+
+                return [
+                    'id' => $type->id,
+                    'price' => $q['price'],
+                    'fixed' => $q['fixed'],
+                    'poa' => $q['price'] === null,
+                    'formatted' => $q['price'] !== null ? '£'.number_format($q['price'], 0) : 'On request',
+                ];
+            })->values();
+
+        return response()->json(['options' => $options]);
     }
 
     /**
