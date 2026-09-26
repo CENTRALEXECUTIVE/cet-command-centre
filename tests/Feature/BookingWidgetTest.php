@@ -325,6 +325,35 @@ class BookingWidgetTest extends TestCase
         $this->assertStringContainsString('Please call on arrival', (string) $b->special_requests);
     }
 
+    public function test_a_vat_invoice_request_routes_billing_to_transfers(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $base = [
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 2,
+            'customer_name' => 'VAT User', 'customer_phone' => '07464905385',
+        ];
+
+        // Ticked → Central Executive Transfers.
+        $this->post(route('widget.book.store'), $base + ['vat_invoice' => 1])->assertOk();
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertTrue((bool) $b->meta['vat_invoice_requested']);
+        $this->assertSame('transfers', $b->billingEntity());
+
+        \App\Models\Booking::query()->delete();
+
+        // Unticked → sister company Central Executive Chauffeurs (when configured).
+        config([
+            'services.square_chauffeurs.access_token' => 'CHAUFFEURS_TOKEN',
+            'services.square_chauffeurs.location_id' => 'CHAUFFEURS_LOC',
+        ]);
+        $this->post(route('widget.book.store'), $base)->assertOk();
+        $b2 = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertFalse((bool) ($b2->meta['vat_invoice_requested'] ?? false));
+        $this->assertSame('chauffeurs', $b2->billingEntity());
+    }
+
     public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
     {
         $minibus = VehicleType::where('slug', 'minibus-8')->first();

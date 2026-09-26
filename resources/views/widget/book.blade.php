@@ -139,6 +139,12 @@
         @media (min-width:440px){ .cet-veh-tick { width:24px; height:24px; font-size:13px; } }
         .cet-veh.sel .cet-veh-tick { background:var(--gold); border-color:var(--gold); color:#0b0b0c; }
         .cet-veh[hidden] { display:none; }
+        /* A vehicle that can't fit the party/luggage is greyed and not selectable. */
+        .cet-veh.unfit { opacity:.5; filter:grayscale(.55); cursor:not-allowed; }
+        .cet-veh.unfit:hover { border-color:var(--line); background:var(--cream); box-shadow:none; transform:none; }
+        .cet-veh.unfit .cet-veh-price { display:none; }
+        .cet-veh-warn { display:none; margin-top:7px; font-size:11.5px; font-weight:700; color:var(--err); }
+        .cet-veh.unfit .cet-veh-warn { display:block; }
 
         /* Extras (step 3) — ETO-style add-ons. */
         .cet-mini-title { font-size:14px; font-weight:800; margin:18px 0 9px; letter-spacing:-.2px; display:flex; align-items:center; gap:7px; }
@@ -161,6 +167,13 @@
             width:100%; padding:12px 0; -moz-appearance:textfield; }
         .cet-stepper .ctrl input::-webkit-outer-spin-button,
         .cet-stepper .ctrl input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+
+        .cet-vat { display:flex; gap:11px; align-items:flex-start; margin-top:16px; padding:13px 14px;
+            border:1px dashed var(--line); border-radius:12px; background:var(--cream); cursor:pointer; }
+        .cet-vat input { width:19px; height:19px; margin-top:2px; flex:0 0 auto; accent-color:var(--gold-deep); }
+        .cet-vat .t { font-size:13px; color:var(--muted); line-height:1.4; }
+        .cet-vat .t b { color:var(--ink); }
+        .cet-vat.on { border-style:solid; border-color:var(--gold); background:#fff; box-shadow:0 0 0 3px rgba(251,186,42,.14); }
 
         .cet-actions { display:flex; gap:10px; margin-top:18px; }
         .cet-btn { flex:1; padding:15px; border:0; border-radius:12px;
@@ -307,6 +320,7 @@
                                 <label class="cet-veh {{ $loop->first ? 'sel' : '' }}"
                                        data-id="{{ $vt->id }}" data-slug="{{ $vt->slug }}"
                                        data-cap-pax="{{ $vt->passenger_capacity }}" data-cap-lug="{{ $vt->luggage_capacity }}"
+                                       data-cap-hand="{{ $vt->handLuggageCapacity() }}"
                                        @if($vt->slug === 'minibus-8-xl') hidden @endif>
                                     <input type="radio" name="vehicle_type_id" value="{{ $vt->id }}" {{ $loop->first ? 'checked' : '' }}>
                                     <div class="cet-veh-img">
@@ -325,6 +339,7 @@
                                             <span>👜 {{ $vt->handLuggageCapacity() }} hand luggage</span>
                                         </div>
                                         <div class="cet-veh-price"><span class="amt" data-price>—</span></div>
+                                        <div class="cet-veh-warn">Too small for your group</div>
                                     </div>
                                     <div class="cet-veh-tick">✓</div>
                                 </label>
@@ -386,6 +401,14 @@
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-notes">Notes for us <span class="opt">(optional)</span></label>
                             <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
+
+                        {{-- Business / VAT invoice. Ticked → 20% VAT added and a proper
+                             VAT invoice issued (billed by Central Executive Transfers);
+                             unticked → standard booking (sister company handles it). --}}
+                        <label class="cet-vat" id="b-vat-wrap">
+                            <input type="checkbox" id="b-vat" name="vat_invoice" value="1">
+                            <span class="t"><b>I need a business (VAT) invoice.</b> {{ $vatPercent ?? 20 }}% VAT is added on top and you’ll get a VAT invoice to reclaim it. Leave unticked for a standard booking.</span>
+                        </label>
                         <div class="cet-err" data-err="3"></div>
                         <div class="cet-actions">
                             <button type="button" class="cet-back" data-back="2">← Back</button>
@@ -514,7 +537,7 @@
                     if (!validateStep(cur)) return;
                     var next = +btn.dataset.next;
                     goTo(next);
-                    if (next === 2) { minibusToggle(); loadPrices(); }
+                    if (next === 2) { minibusToggle(); fitVehicles(); loadPrices(); }
                     if (next === 3) fillSummary();
                 });
             });
@@ -551,9 +574,15 @@
                 if (val('b-flight')) html += row('Flight', val('b-flight').toUpperCase());
                 var items = extrasList();
                 items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
+                var vat = !!(vatBox && vatBox.checked);
                 if (lastQuote && !lastQuote.poa && lastQuote.price != null) {
                     var total = Number(lastQuote.price) + extrasTotal();
-                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + money(total) + '</span></div>';
+                    if (vat) {
+                        html += row('VAT (' + vatPercent + '%)', money(total * vatPercent / 100));
+                        total = Math.round(total * (1 + vatPercent / 100));
+                    }
+                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + money(total)
+                        + (vat ? ' <span style="font-size:11px;color:var(--muted-2)">inc. VAT</span>' : '') + '</span></div>';
                 } else if (lastQuote && lastQuote.formatted) {
                     html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + lastQuote.formatted + '</span></div>';
                 }
@@ -561,10 +590,44 @@
             }
             form.querySelectorAll('.cet-veh').forEach(function (card) {
                 card.addEventListener('click', function () {
-                    if (card.hidden) return;
+                    if (card.hidden || card.classList.contains('unfit')) return;
                     selectCard(card);
                 });
             });
+
+            // Grey out any vehicle too small for the party/luggage and make sure the
+            // selected one always fits — auto-picking the first that does.
+            function fitVehicles() {
+                function num(id){ var el=document.getElementById(id); return el ? (parseInt(el.value,10)||0) : 0; }
+                var pax = num('b-pax'), suit = num('b-suit'), hand = num('b-hand');
+                var firstFit = null;
+                form.querySelectorAll('.cet-veh').forEach(function (card) {
+                    if (card.hidden) return;
+                    var capPax = parseInt(card.dataset.capPax, 10) || 0;
+                    var capLug = parseInt(card.dataset.capLug, 10) || 0;
+                    var capHand = parseInt(card.dataset.capHand, 10) || 0;
+                    var fits = pax <= capPax && suit <= capLug && hand <= capHand;
+                    card.classList.toggle('unfit', !fits);
+                    var input = card.querySelector('input'); if (input) input.disabled = !fits;
+                    if (fits && !firstFit) firstFit = card;
+                });
+                if (!firstFit) {
+                    // Nothing fits (rare) — don't lock the customer out; allow all and
+                    // pick the biggest, the office will sort the details.
+                    var big = null, bigCap = -1;
+                    form.querySelectorAll('.cet-veh').forEach(function (card) {
+                        card.classList.remove('unfit');
+                        var i = card.querySelector('input'); if (i) i.disabled = false;
+                        if (card.hidden) return;
+                        var c = parseInt(card.dataset.capPax, 10) || 0;
+                        if (c > bigCap) { bigCap = c; big = card; }
+                    });
+                    if (big) selectCard(big);
+                    return;
+                }
+                var sel = form.querySelector('.cet-veh.sel');
+                if (!sel || sel.hidden || sel.classList.contains('unfit')) selectCard(firstFit);
+            }
 
             function selectCard(card) {
                 form.querySelectorAll('.cet-veh').forEach(function (c) { c.classList.remove('sel'); });
@@ -596,6 +659,12 @@
             }); }
             var flightEl = document.getElementById('b-flight');
             if (flightEl) { flightEl.addEventListener('input', fillSummary); }
+            var vatPercent = {{ (int) ($vatPercent ?? 20) }};
+            var vatBox = document.getElementById('b-vat');
+            if (vatBox) { vatBox.addEventListener('change', function () {
+                var w = document.getElementById('b-vat-wrap'); if (w) w.classList.toggle('on', vatBox.checked);
+                fillSummary();
+            }); }
 
             function extrasList() {
                 var items = [];

@@ -87,6 +87,7 @@ class BookingWidgetController extends Controller
                 'vehicleTypes' => $vehicleTypes,
                 'done' => false,
                 'surcharges' => \App\Support\Surcharges::rates(),
+                'vatPercent' => app(\App\Services\Payments\VatService::class)->ratePercent(),
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
@@ -160,6 +161,7 @@ class BookingWidgetController extends Controller
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'vat_invoice' => ['nullable', 'boolean'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
         ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
@@ -195,6 +197,11 @@ class BookingWidgetController extends Controller
         $composedNotes = $this->composedNotes($data['notes'] ?? null, $extra['labels']);
         $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
 
+        // Business/VAT invoice → billed by Central Executive Transfers (20% on top,
+        // proper VAT invoice); no invoice → the sister company Central Executive
+        // Chauffeurs takes it (its Square account). Stored so billing routes right.
+        $needsInvoice = (bool) ($data['vat_invoice'] ?? false);
+
         $booking = Booking::create([
             'reference' => Booking::generateReference(),
             'customer_id' => $customer->id,
@@ -229,6 +236,8 @@ class BookingWidgetController extends Controller
                 'booster_seats' => $extra['booster_seats'] ?: null,
                 'infant_seats' => $extra['infant_seats'] ?: null,
                 'extra_stops' => $extra['stopovers'] ?: null,
+                'vat_invoice_requested' => $needsInvoice,
+                'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
             ], fn ($v) => $v !== null && $v !== '' && $v !== false),
         ]);
 
@@ -267,6 +276,8 @@ class BookingWidgetController extends Controller
                     'booster_seats' => $extra['booster_seats'] ?: null,
                     'infant_seats' => $extra['infant_seats'] ?: null,
                     'extra_stops' => $extra['stopovers'] ?: null,
+                    'vat_invoice_requested' => $needsInvoice,
+                    'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
                 ], fn ($v) => $v !== null && $v !== '' && $v !== false),
             ]);
             $booking->forceFill(['linked_booking_id' => $return->id])->save();
