@@ -24,19 +24,20 @@ class RotationViewTest extends TestCase
         $this->seed([VehicleTypeSeeder::class, DirectorSeeder::class, AirportSeeder::class, RotationSeeder::class]);
     }
 
-    public function test_page_shows_the_order_and_up_next(): void
+    public function test_page_shows_the_airport_order_view(): void
     {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->get(route('rotation.index'))
             ->assertOk()
-            ->assertSee('The order')
-            ->assertSee('Up next')
+            ->assertSee('Airport order')
+            ->assertSee('Executive only')
+            ->assertSee('Upcoming')
             ->assertSee('Abdi')
             ->assertSee('Maj');
     }
 
-    public function test_page_shows_history_after_an_allocation(): void
+    public function test_a_booking_shows_under_its_airport_with_the_rotation_driver(): void
     {
         $admin = User::factory()->admin()->create();
         $executive = VehicleType::where('slug', 'executive')->first();
@@ -57,9 +58,10 @@ class RotationViewTest extends TestCase
         ]);
         app(RotationService::class)->allocate($booking);
 
-        $this->actingAs($admin)->get(route('rotation.index'))
+        // The booking appears in its airport's order list with the assigned driver.
+        $this->actingAs($admin)->get(route('rotation.index', ['route' => 'LHR']))
             ->assertOk()
-            ->assertSee('Recent history')
+            ->assertSee('Airport order')
             ->assertSee($booking->reference);
     }
 

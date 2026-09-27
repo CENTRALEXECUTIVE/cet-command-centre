@@ -3,37 +3,29 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\RotationLog;
 use App\Services\RotationService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Read-only view of the driver rotation: the order Abdi and Maj take executive
- * saloon jobs, who is up next per airport, and the recent history of how the
- * pointer moved. Nothing here changes the rotation — allocation happens when a
- * booking is created (RotationService::allocate).
+ * The driver-rotation page: the "airport order" view — each airport's executive
+ * bookings in the order they came through, with the rotation driver each was
+ * given, and an inline driver change. Executive only, because that's what the
+ * Abdi↔Maj rotation covers. Allocation itself happens when a booking is created
+ * (RotationService::allocate); setNext() is the operator's pointer override.
  */
 class RotationController extends Controller
 {
-    public function index(Request $request, RotationService $rotation, \App\Services\RouteOrderService $routeOrder): View
+    public function index(Request $request, \App\Services\RouteOrderService $routeOrder): View
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $overview = $rotation->overview();
-
-        $log = RotationLog::with(['fromDriver', 'toDriver', 'airport', 'vehicleType', 'booking'])
-            ->latest()->limit(40)->get();
-
-        // Route order (bookings per airport with the rotation driver) shown on this
-        // page too — EXECUTIVE ONLY, because that's what the Abdi↔Maj rotation covers.
+        // The airport-order view: executive bookings per airport in the order they
+        // came through, each with the rotation driver — EXECUTIVE ONLY, because
+        // that's what the Abdi↔Maj rotation covers. Drivers can be changed inline.
         $order = $routeOrder->build($request->query('route'), $request->query('scope'), $request->query('vehicle'), executiveOnly: true);
 
-        return view('admin.rotation.index', array_merge([
-            'drivers' => $overview['drivers'],
-            'rows' => $overview['rows'],
-            'log' => $log,
-        ], [
+        return view('admin.rotation.index', [
             'orderScope' => $order['scope'],
             'orderTabs' => $order['tabs'],
             'orderSelected' => $order['selected'],
@@ -41,7 +33,7 @@ class RotationController extends Controller
             'orderSelectedVehicle' => $order['selectedVehicle'],
             'orderRows' => $order['rows'],
             'orderDrivers' => $order['drivers'],
-        ]));
+        ]);
     }
 
     /**
