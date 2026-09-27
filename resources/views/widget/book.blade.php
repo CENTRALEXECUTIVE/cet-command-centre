@@ -303,9 +303,13 @@
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                             <span class="pin">🟡</span>
                             <input id="b-pickup" name="pickup_address" required placeholder="Start typing your address…" data-places autocomplete="off"></div>
-                        <div class="cet-field icon"><label for="b-dropoff">Drop-off address</label>
+                        <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
+                            <input id="b-pickup-pc" name="pickup_postcode" required placeholder="e.g. S10 4BL" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
+                        <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
                             <span class="pin">🏁</span>
                             <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places autocomplete="off"></div>
+                        <div class="cet-field" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Drop-off postcode <span class="opt">(if known)</span></label>
+                            <input id="b-dropoff-pc" name="destination_postcode" placeholder="If known" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-when">Date &amp; time <span style="font-weight:600;color:var(--muted);font-size:11px">· min {{ (int) config('cet.public_min_lead_hours', 8) }}h notice</span></label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
@@ -404,36 +408,68 @@
                                 <input id="b-email" name="customer_email" type="email"></div>
                         </div>
 
-                        {{-- ETO-style extras: flight, meet & greet, seats, extra stops.
-                             Captured for the office (total updates live). --}}
+                        {{-- Booking for someone else — the passenger becomes the lead. --}}
+                        <label class="cet-check" id="b-else-wrap" style="margin-top:2px">
+                            <input type="checkbox" id="b-else" name="booking_for_other" value="1">
+                            <span>I’m booking for someone else</span>
+                        </label>
+                        <div id="b-lead-block" hidden>
+                            <div class="cet-two">
+                                <div class="cet-field"><label for="b-lead-name">Passenger’s full name</label>
+                                    <input id="b-lead-name" name="lead_passenger_name" autocomplete="off"></div>
+                                <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile <span class="opt">(optional)</span></label>
+                                    <input id="b-lead-phone" name="lead_passenger_phone" placeholder="07…" autocomplete="off"></div>
+                            </div>
+                        </div>
+
+                        {{-- Extras. Meet & greet appears (pre-ticked) only for airport
+                             pickups; child seats hide behind a tick, max 2 in total. --}}
                         @php $sc = $surcharges ?? []; @endphp
                         <div class="cet-mini-title">✨ Extras <span class="opt">(optional)</span></div>
                         <div class="cet-field" id="b-flight-field">
                             <label for="b-flight">Flight number <span class="opt">— for airport pickups (we track it)</span></label>
                             <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
                         </div>
-                        <label class="cet-check" id="b-mg-wrap">
+                        <label class="cet-check" id="b-mg-wrap" hidden>
                             <input type="checkbox" id="b-meet-greet" name="meet_greet" value="1" data-extra="{{ (float) ($sc['meet_greet'] ?? 0) }}">
-                            <span>Meet &amp; greet <span class="opt" style="font-weight:500;color:var(--muted-2)">— driver waits inside with a name board</span></span>
-                            <span class="px">£{{ number_format((float) ($sc['meet_greet'] ?? 0), 0) }}</span>
+                            <span>Meet &amp; greet <span class="opt" style="font-weight:500;color:var(--muted-2)">— driver waits inside arrivals with a name board</span></span>
                         </label>
-                        <div class="cet-steppers">
-                            @foreach ([
-                                'child_seats'   => ['Child seats',   $sc['child_seat']   ?? 0],
-                                'booster_seats' => ['Booster seats', $sc['booster_seat'] ?? 0],
-                                'infant_seats'  => ['Infant seats',  $sc['infant_seat']  ?? 0],
-                                'stopovers'     => ['Extra stops',   $sc['stopover']     ?? 0],
-                            ] as $field => [$label, $unit])
-                                <div class="cet-stepper">
-                                    <label for="b-{{ $field }}">{{ $label }} <span class="opt">£{{ number_format((float) $unit, 0) }} ea</span></label>
-                                    <div class="ctrl">
-                                        <button type="button" data-step-btn="-" aria-label="Less">−</button>
-                                        <input id="b-{{ $field }}" name="{{ $field }}" type="number" min="0" max="10" value="0"
-                                               inputmode="numeric" data-extra="{{ (float) $unit }}" readonly>
-                                        <button type="button" data-step-btn="+" aria-label="More">+</button>
+
+                        <label class="cet-check" id="b-need-seats-wrap" style="margin-top:9px">
+                            <input type="checkbox" id="b-need-seats" name="need_child_seat" value="1">
+                            <span>I require a child seat</span>
+                        </label>
+                        <div id="b-seats-block" hidden>
+                            <div class="cet-steppers">
+                                @foreach ([
+                                    'child_seats'   => ['Child seats',   $sc['child_seat']   ?? 0],
+                                    'booster_seats' => ['Booster seats', $sc['booster_seat'] ?? 0],
+                                    'infant_seats'  => ['Infant seats',  $sc['infant_seat']  ?? 0],
+                                ] as $field => [$label, $unit])
+                                    <div class="cet-stepper">
+                                        <label for="b-{{ $field }}">{{ $label }}</label>
+                                        <div class="ctrl">
+                                            <button type="button" data-step-btn="-" aria-label="Less">−</button>
+                                            <input id="b-{{ $field }}" name="{{ $field }}" type="number" min="0" max="2" value="0"
+                                                   inputmode="numeric" data-extra="{{ (float) $unit }}" data-seat="1" readonly>
+                                            <button type="button" data-step-btn="+" aria-label="More">+</button>
+                                        </div>
                                     </div>
+                                @endforeach
+                            </div>
+                            <p class="cet-foot" style="text-align:left;margin:8px 0 2px">Up to 2 seats in total (any mix of child, booster or infant).</p>
+                        </div>
+
+                        <div class="cet-steppers" style="grid-template-columns:1fr">
+                            <div class="cet-stepper">
+                                <label for="b-stopovers">Extra stops</label>
+                                <div class="ctrl">
+                                    <button type="button" data-step-btn="-" aria-label="Less">−</button>
+                                    <input id="b-stopovers" name="stopovers" type="number" min="0" max="10" value="0"
+                                           inputmode="numeric" data-extra="{{ (float) ($sc['stopover'] ?? 0) }}" readonly>
+                                    <button type="button" data-step-btn="+" aria-label="More">+</button>
                                 </div>
-                            @endforeach
+                            </div>
                         </div>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional — e.g. airport pickup location)</span></label>
@@ -554,11 +590,13 @@
             var returnField = document.getElementById('b-return-field');
             var hoursField = document.getElementById('b-hours-field');
             var dropWrap = document.getElementById('b-dropoff') ? document.getElementById('b-dropoff').closest('.cet-field') : null;
+            var dropPcWrap = document.getElementById('b-dropoff-pc-field');
             function toggleJourney() {
                 var v = journeyEl ? journeyEl.value : 'one_way';
                 if (returnField) returnField.style.display = v === 'return' ? '' : 'none';
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
                 if (dropWrap) dropWrap.style.display = v === 'hourly' ? 'none' : '';
+                if (dropPcWrap) dropPcWrap.style.display = v === 'hourly' ? 'none' : '';
             }
             if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); toggleJourney(); }
 
@@ -567,7 +605,7 @@
                 if (n === 1) {
                     var jt = journeyEl ? journeyEl.value : 'one_way';
                     var ok = true, first = null;
-                    var required = [['b-pickup','pickup'],['b-when','date & time']];
+                    var required = [['b-pickup','pickup'],['b-pickup-pc','pickup postcode'],['b-when','date & time']];
                     if (jt !== 'hourly') required.push(['b-dropoff','drop-off']);
                     if (jt === 'return') required.push(['b-return','return date & time']);
                     if (jt === 'hourly') required.push(['b-hours','hours']);
@@ -598,6 +636,11 @@
                     email.closest('.cet-field').classList.toggle('bad', !okContact);
                     if (!okName) { showErr(3, 'Please enter your name.'); nameEl.focus(); return false; }
                     if (!okContact) { showErr(3, 'Please give a phone number or an email so we can confirm.'); phone.focus(); return false; }
+                    var elseBox = document.getElementById('b-else'), leadName = document.getElementById('b-lead-name');
+                    if (elseBox && elseBox.checked && leadName && !nonEmpty(leadName)) {
+                        leadName.closest('.cet-field').classList.add('bad');
+                        showErr(3, 'Please enter the passenger’s name.'); leadName.focus(); return false;
+                    }
                     var terms = document.getElementById('b-terms'), privacy = document.getElementById('b-privacy');
                     if ((terms && !terms.checked) || (privacy && !privacy.checked)) {
                         showErr(3, 'Please accept the Terms & Conditions and Privacy Policy to continue.');
@@ -615,7 +658,7 @@
                     var next = +btn.dataset.next;
                     goTo(next);
                     if (next === 2) { minibusToggle(); fitVehicles(); loadPrices(); }
-                    if (next === 3) fillSummary();
+                    if (next === 3) { applyAirportMeetGreet(); fillSummary(); }
                 });
             });
             form.querySelectorAll('[data-back]').forEach(function (btn) {
@@ -648,6 +691,8 @@
                     + row('Passengers', val('b-pax') || '—')
                     + row('Suitcases', val('b-suit') || '0')
                     + row('Hand luggage', val('b-hand') || '0');
+                var elseBox2 = document.getElementById('b-else');
+                if (elseBox2 && elseBox2.checked && val('b-lead-name')) html += row('Passenger', val('b-lead-name'));
                 if (val('b-flight')) html += row('Flight', val('b-flight').toUpperCase());
                 var items = extrasList();
                 items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
@@ -739,23 +784,75 @@
                     el.textContent = money(withVat(o.price));
                 });
             }
+            // Total child/booster/infant seats we can carry across all three types.
+            var MAX_SEATS = 2;
+            function seatTotal() {
+                var t = 0;
+                ['b-child_seats','b-booster_seats','b-infant_seats'].forEach(function (id) {
+                    var el = document.getElementById(id); if (el) t += parseInt(el.value, 10) || 0;
+                });
+                return t;
+            }
             form.querySelectorAll('[data-step-btn]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var input = btn.parentElement.querySelector('input');
                     if (!input) return;
                     var v = parseInt(input.value, 10) || 0;
+                    var up = btn.dataset.stepBtn === '+';
+                    // Child/booster/infant are capped at MAX_SEATS in total.
+                    if (up && input.dataset.seat && seatTotal() >= MAX_SEATS) return;
                     var min = parseInt(input.min, 10) || 0, max = parseInt(input.max, 10) || 10;
-                    v += (btn.dataset.stepBtn === '+' ? 1 : -1);
+                    v += (up ? 1 : -1);
                     v = Math.max(min, Math.min(max, v));
                     input.value = v;
                     fillSummary();
                 });
             });
+
+            // Reveal handlers: "booking for someone else" and "I require a child seat".
+            var elseBox = document.getElementById('b-else'), leadBlock = document.getElementById('b-lead-block');
+            if (elseBox) { elseBox.addEventListener('change', function () {
+                document.getElementById('b-else-wrap').classList.toggle('on', elseBox.checked);
+                if (leadBlock) leadBlock.hidden = !elseBox.checked;
+                reportHeight(); fillSummary();
+            }); }
+            var needSeats = document.getElementById('b-need-seats'), seatsBlock = document.getElementById('b-seats-block');
+            if (needSeats) { needSeats.addEventListener('change', function () {
+                document.getElementById('b-need-seats-wrap').classList.toggle('on', needSeats.checked);
+                if (seatsBlock) seatsBlock.hidden = !needSeats.checked;
+                if (!needSeats.checked) { // clear seat counts when hidden
+                    ['b-child_seats','b-booster_seats','b-infant_seats'].forEach(function (id) {
+                        var el = document.getElementById(id); if (el) el.value = 0;
+                    });
+                }
+                reportHeight(); fillSummary();
+            }); }
+
             var mg = document.getElementById('b-meet-greet');
             if (mg) { mg.addEventListener('change', function () {
                 var w = document.getElementById('b-mg-wrap'); if (w) w.classList.toggle('on', mg.checked);
                 fillSummary();
             }); }
+
+            // Meet & greet is only relevant when picking a passenger up FROM an
+            // airport — shown (and pre-ticked) then, hidden otherwise.
+            function isAirportJourney() {
+                var pu = (document.getElementById('b-pickup') || {}).value || '';
+                var dp = (document.getElementById('b-dropoff') || {}).value || '';
+                var jt = journeyEl ? journeyEl.value : 'one_way';
+                var hay = (jt === 'return') ? (pu + ' ' + dp) : pu; // return legs pick up from either end
+                hay = hay.toLowerCase();
+                return /\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|\bt1\b|\bt2\b|\bt3\b|\bt5\b/.test(hay);
+            }
+            function applyAirportMeetGreet() {
+                var wrap = document.getElementById('b-mg-wrap'); if (!wrap || !mg) return;
+                var airport = isAirportJourney();
+                wrap.hidden = !airport;
+                if (airport) { if (!mg.dataset.userset) mg.checked = true; }
+                else { mg.checked = false; }
+                wrap.classList.toggle('on', mg.checked);
+            }
+            if (mg) { mg.addEventListener('change', function () { mg.dataset.userset = '1'; }); }
             var flightEl = document.getElementById('b-flight');
             if (flightEl) { flightEl.addEventListener('input', fillSummary); }
             var vatPercent = {{ (int) ($vatPercent ?? 20) }};
@@ -828,13 +925,17 @@
                     });
                     reportHeight(); return;
                 }
-                var key = pu.value + '|' + dp.value;
+                // Include postcodes so the fixed-price zones resolve accurately.
+                function withPc(addr, pcId){ var pc=(document.getElementById(pcId)||{}).value||''; pc=pc.trim();
+                    return (pc && addr.toUpperCase().indexOf(pc.toUpperCase())===-1) ? addr+', '+pc : addr; }
+                var pickup = withPc(pu.value, 'b-pickup-pc'), dest = withPc(dp.value, 'b-dropoff-pc');
+                var key = pickup + '|' + dest;
                 if (key === pricesFor && Object.keys(priceById).length) { renderPrices(); reportHeight(); return; }
                 form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) { el.textContent = '…'; });
                 fetch('{{ route('widget.prices') }}', {
                     method:'POST',
                     headers:{ 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN':token },
-                    body:JSON.stringify({ pickup:pu.value, destination:dp.value })
+                    body:JSON.stringify({ pickup:pickup, destination:dest })
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {

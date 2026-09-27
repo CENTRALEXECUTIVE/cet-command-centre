@@ -142,7 +142,9 @@ class BookingWidgetController extends Controller
         $data = $request->validate([
             'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
             'pickup_address' => ['required', 'string', 'max:500'],
+            'pickup_postcode' => ['required', 'string', 'max:12'],
             'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
+            'destination_postcode' => ['nullable', 'string', 'max:12'],
             'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],
             'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
@@ -157,15 +159,18 @@ class BookingWidgetController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             // ETO-style extras (captured for the office; guide price is confirmed).
             'meet_greet' => ['nullable', 'boolean'],
-            'child_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
-            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
-            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'child_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
+            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
+            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
             'vat_invoice' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['card', 'cash'])],
             'voucher' => ['nullable', 'string', 'max:40'],
             'accept_terms' => ['nullable', 'boolean'],
             'accept_privacy' => ['nullable', 'boolean'],
+            'booking_for_other' => ['nullable', 'boolean'],
+            'lead_passenger_name' => ['nullable', 'string', 'max:120'],
+            'lead_passenger_phone' => ['nullable', 'string', 'max:32'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
         ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
@@ -173,7 +178,22 @@ class BookingWidgetController extends Controller
         $journeyType = $data['journey_type'] ?? 'one_way';
         $isHourly = $journeyType === 'hourly';
         $isReturn = $journeyType === 'return';
-        $destination = $isHourly ? 'As directed (hourly hire)' : $data['destination_address'];
+
+        // Addresses always carry their postcode (accurate zone pricing + the driver).
+        $pickupFull = $this->withPostcode($data['pickup_address'], $data['pickup_postcode'] ?? null);
+        $destination = $isHourly
+            ? 'As directed (hourly hire)'
+            : $this->withPostcode($data['destination_address'], $data['destination_postcode'] ?? null);
+
+        // We can only carry two child/booster/infant seats in total (backstop; the
+        // form already caps it). Trim child → booster → infant if it's ever exceeded.
+        $seatCap = 2;
+        foreach (['child_seats', 'booster_seats', 'infant_seats'] as $seatField) {
+            $used = (int) ($data['child_seats'] ?? 0) + (int) ($data['booster_seats'] ?? 0) + (int) ($data['infant_seats'] ?? 0);
+            if ($used > $seatCap) {
+                $data[$seatField] = max(0, (int) ($data[$seatField] ?? 0) - ($used - $seatCap));
+            }
+        }
 
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
         // A big party or lots of luggage on a standard Minibus is bumped up to
@@ -190,15 +210,29 @@ class BookingWidgetController extends Controller
         // hire has no fixed route — the office confirms the price.
         $quote = $isHourly
             ? ['price' => null, 'basis' => 'Hourly hire — office to confirm', 'fixed' => false]
-            : $this->quotes->quote($data['pickup_address'], $destination, $vehicleType);
+            : $this->quotes->quote($pickupFull, $destination, $vehicleType);
 
         $customer = $this->resolveCustomer($data);
+
+        // "Booking for someone else" — the booker is the account/contact; the named
+        // passenger becomes the LEAD passenger (shown on the job, greeted, etc.).
+        $leadName = null;
+        $passengerLine = null;
+        if (! empty($data['booking_for_other']) && filled($data['lead_passenger_name'] ?? null)) {
+            $leadName = trim($data['lead_passenger_name']);
+            $passengerLine = 'Passenger: '.$leadName
+                .(filled($data['lead_passenger_phone'] ?? null) ? ' ('.trim($data['lead_passenger_phone']).')' : '')
+                .' · Booked by '.$customer->name;
+        }
 
         // ETO-style extras — captured for the office and folded into the notes the
         // office/driver see. The guide price is confirmed by the office, so nothing
         // is auto-charged; the seat counts also drive the calendar's child-seat mark.
         $extra = $this->extrasFrom($data);
         $composedNotes = $this->composedNotes($data['notes'] ?? null, $extra['labels']);
+        if ($passengerLine) {
+            $composedNotes = trim($passengerLine.($composedNotes ? "\n".$composedNotes : ''));
+        }
         $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
 
         // Business/VAT invoice → billed by Central Executive Transfers (20% on top,
@@ -235,7 +269,7 @@ class BookingWidgetController extends Controller
             'vehicle_type_id' => $vehicleType->id,
             'journey_type' => $journeyType,
             'pickup_at' => $pickupAt,
-            'pickup_address' => $data['pickup_address'],
+            'pickup_address' => $pickupFull,
             'destination_address' => $destination,
             'passengers' => $data['passengers'],
             'flight_number' => $flight,
@@ -253,6 +287,8 @@ class BookingWidgetController extends Controller
             'quoted_price' => $charge,
             'meta' => array_filter([
                 'web_booking' => true,
+                'lead_name' => $leadName,
+                'booked_by' => $leadName ? $customer->name : null,
                 'suitcases' => (int) ($data['suitcases'] ?? 0),
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                 'driver_notes' => $composedNotes,
@@ -288,7 +324,7 @@ class BookingWidgetController extends Controller
                 'linked_booking_id' => $booking->id,
                 'pickup_at' => $returnAt,
                 'pickup_address' => $destination,
-                'destination_address' => $data['pickup_address'],
+                'destination_address' => $pickupFull,
                 'passengers' => $data['passengers'],
                 'flight_number' => null, // return leg has no inbound flight
                 'special_requests' => $composedNotes,
@@ -300,6 +336,8 @@ class BookingWidgetController extends Controller
                 'source' => 'web',
                 'meta' => array_filter([
                     'web_booking' => true,
+                    'lead_name' => $leadName,
+                    'booked_by' => $leadName ? $customer->name : null,
                     'suitcases' => (int) ($data['suitcases'] ?? 0),
                     'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                     'driver_notes' => $composedNotes,
@@ -327,7 +365,7 @@ class BookingWidgetController extends Controller
         $typeLabel = $isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : '');
         $this->adminAlerts->notify('web_booking',
             '🌐 New web booking — '.$name.$typeLabel,
-            $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($data['pickup_address'], 30)
+            $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
                 .' → '.\Illuminate\Support\Str::limit($destination, 30).'. Confirm it.',
             'info', $booking);
 
@@ -423,6 +461,21 @@ class BookingWidgetController extends Controller
         }
 
         return $parts ? implode("\n", $parts) : null;
+    }
+
+    /**
+     * Combine an address with its postcode for pricing and the driver, without
+     * doubling up if the address already contains that postcode.
+     */
+    private function withPostcode(?string $address, ?string $postcode): string
+    {
+        $address = trim((string) $address);
+        $postcode = strtoupper(trim((string) $postcode));
+        if ($postcode === '' || stripos($address, $postcode) !== false) {
+            return $address;
+        }
+
+        return $address === '' ? $postcode : $address.', '.$postcode;
     }
 
     /** Match a customer by phone (then email), else create one. */

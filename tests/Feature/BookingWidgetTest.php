@@ -67,7 +67,7 @@ class BookingWidgetTest extends TestCase
         $executive = VehicleType::where('slug', 'executive')->first();
 
         $res = $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
             'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id,
@@ -152,7 +152,7 @@ class BookingWidgetTest extends TestCase
 
         $this->post(route('widget.book.store'), [
             'journey_type' => 'return',
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
@@ -176,7 +176,7 @@ class BookingWidgetTest extends TestCase
 
         $this->post(route('widget.book.store'), [
             'journey_type' => 'hourly', 'hours' => 4,
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => null,
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => null,
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
             'customer_name' => 'Hourly Hugh', 'customer_phone' => '07464905385',
@@ -196,7 +196,7 @@ class BookingWidgetTest extends TestCase
         $executive = VehicleType::where('slug', 'executive')->first();
 
         $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH',      // NOT an airport pickup
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',      // NOT an airport pickup
             'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
@@ -221,7 +221,7 @@ class BookingWidgetTest extends TestCase
         $executive = VehicleType::where('slug', 'executive')->first();
         $booking = \App\Models\Booking::factory()->forVehicleType($executive)->create([
             'source' => 'web',
-            'pickup_address' => 'Sheffield S1 2HH',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
             'destination_address' => 'Manchester Airport',
             'payment_method' => 'cash',
             'payment_status' => 'pending',
@@ -275,7 +275,7 @@ class BookingWidgetTest extends TestCase
 
         // 8 passengers is beyond the standard Minibus (7) — upgrade to XL.
         $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Leeds',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $minibus->id, 'passengers' => 8,
             'suitcases' => 0, 'hand_luggage' => 0,
@@ -292,7 +292,7 @@ class BookingWidgetTest extends TestCase
 
         // Within passenger limit but too many bags for the standard Minibus (5).
         $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Leeds',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $minibus->id, 'passengers' => 4,
             'suitcases' => 5, 'hand_luggage' => 3,
@@ -308,7 +308,7 @@ class BookingWidgetTest extends TestCase
         $exec = VehicleType::where('slug', 'executive')->first();
 
         $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $exec->id, 'passengers' => 2, 'suitcases' => 1, 'hand_luggage' => 1,
             'flight_number' => 'ba1368', 'meet_greet' => 1, 'child_seats' => 2, 'stopovers' => 1,
@@ -329,7 +329,7 @@ class BookingWidgetTest extends TestCase
     {
         $exec = VehicleType::where('slug', 'executive')->first();
         $base = [
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $exec->id, 'passengers' => 2,
             'customer_name' => 'VAT User', 'customer_phone' => '07464905385',
@@ -354,12 +354,62 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('chauffeurs', $b2->billingEntity());
     }
 
+    public function test_booking_for_someone_else_makes_them_the_lead_passenger(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 1,
+            'customer_name' => 'The Booker', 'customer_phone' => '07464905385',
+            'booking_for_other' => 1, 'lead_passenger_name' => 'Jane Passenger', 'lead_passenger_phone' => '07999888777',
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('Jane Passenger', $b->meta['lead_name']);
+        $this->assertSame('Jane Passenger', $b->displayName());
+        $this->assertStringContainsString('Booked by The Booker', (string) $b->special_requests);
+    }
+
+    public function test_child_seats_are_capped_at_two_in_total(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 4,
+            'customer_name' => 'Seat Family', 'customer_phone' => '07464905385',
+            'child_seats' => 2, 'booster_seats' => 2, 'infant_seats' => 2, // 6 → capped to 2
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $total = (int) ($b->meta['child_seats'] ?? 0) + (int) ($b->meta['booster_seats'] ?? 0) + (int) ($b->meta['infant_seats'] ?? 0);
+        $this->assertSame(2, $total);
+    }
+
+    public function test_the_pickup_postcode_is_required(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', // no postcode
+            'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 1,
+            'customer_name' => 'No Postcode', 'customer_phone' => '07464905385',
+        ])->assertSessionHasErrors(['pickup_postcode']);
+    }
+
     public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
     {
         $minibus = VehicleType::where('slug', 'minibus-8')->first();
 
         $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Leeds',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $minibus->id, 'passengers' => 6,
             'suitcases' => 2, 'hand_luggage' => 2,
