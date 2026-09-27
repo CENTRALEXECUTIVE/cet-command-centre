@@ -91,10 +91,10 @@ class VehicleType extends Model
         }
 
         return match ($this->slug) {
-            'executive' => 'Mercedes E/S-Class',
-            'estate' => 'Mercedes E-Class Estate',
-            'minibus-8' => '8 seats',
-            'minibus-8-xl' => 'Full capacity',
+            'executive' => 'Mercedes E-Class or similar',
+            'estate' => 'Mercedes E-Class Estate or similar',
+            'minibus-8' => 'Ford Tourneo, Mercedes Vito or similar',
+            'minibus-8-xl' => 'Ford Tourneo, Mercedes Vito or similar',
             'v-class' => 'Mercedes V-Class',
             'rolls-royce-ghost' => 'Rolls-Royce',
             default => null,

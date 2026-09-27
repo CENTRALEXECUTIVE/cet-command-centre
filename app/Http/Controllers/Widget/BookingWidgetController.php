@@ -162,6 +162,10 @@ class BookingWidgetController extends Controller
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:10'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
             'vat_invoice' => ['nullable', 'boolean'],
+            'payment_method' => ['nullable', Rule::in(['card', 'cash'])],
+            'voucher' => ['nullable', 'string', 'max:40'],
+            'accept_terms' => ['nullable', 'boolean'],
+            'accept_privacy' => ['nullable', 'boolean'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
         ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
@@ -202,6 +206,29 @@ class BookingWidgetController extends Controller
         // Chauffeurs takes it (its Square account). Stored so billing routes right.
         $needsInvoice = (bool) ($data['vat_invoice'] ?? false);
 
+        // All-in price the customer sees: vehicle + extras, less any voucher, plus
+        // VAT when a business invoice is wanted. Null for hourly / on-request.
+        $rates = \App\Support\Surcharges::rates();
+        $extrasTotal = ($extra['meet_greet'] ? (float) ($rates['meet_greet'] ?? 0) : 0)
+            + $extra['child_seats'] * (float) ($rates['child_seat'] ?? 0)
+            + $extra['booster_seats'] * (float) ($rates['booster_seat'] ?? 0)
+            + $extra['infant_seats'] * (float) ($rates['infant_seat'] ?? 0)
+            + $extra['stopovers'] * (float) ($rates['stopover'] ?? 0);
+
+        $net = $quote['price'] === null ? null : round((float) $quote['price'] + $extrasTotal, 2);
+        $voucher = \App\Models\Voucher::findByCode($data['voucher'] ?? null);
+        $discount = ($voucher && $voucher->isRedeemable() && $net !== null) ? $voucher->discountOn($net) : 0.0;
+        $afterDiscount = $net === null ? null : round($net - $discount, 2);
+        $vatRate = app(\App\Services\Payments\VatService::class)->rate();
+        $charge = $afterDiscount === null ? null : ($needsInvoice ? round($afterDiscount * (1 + $vatRate), 2) : $afterDiscount);
+
+        $wantsCard = ($data['payment_method'] ?? 'cash') === 'card';
+        // A discount code is recorded for the office even when we can't validate it
+        // (they apply it on confirm); a valid one is already reflected in $charge.
+        if (filled($data['voucher'] ?? null)) {
+            $composedNotes = trim(($composedNotes ? $composedNotes."\n" : '').'Discount code: '.strtoupper(trim($data['voucher'])));
+        }
+
         $booking = Booking::create([
             'reference' => Booking::generateReference(),
             'customer_id' => $customer->id,
@@ -223,7 +250,7 @@ class BookingWidgetController extends Controller
             'payment_method' => 'cash',
             'payment_status' => 'pending',
             'source' => 'web',
-            'quoted_price' => $quote['price'],
+            'quoted_price' => $charge,
             'meta' => array_filter([
                 'web_booking' => true,
                 'suitcases' => (int) ($data['suitcases'] ?? 0),
@@ -236,8 +263,13 @@ class BookingWidgetController extends Controller
                 'booster_seats' => $extra['booster_seats'] ?: null,
                 'infant_seats' => $extra['infant_seats'] ?: null,
                 'extra_stops' => $extra['stopovers'] ?: null,
+                'fare_extras_total' => $extrasTotal ?: null,
                 'vat_invoice_requested' => $needsInvoice,
                 'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
+                'payment_preference' => $wantsCard ? 'card' : 'cash',
+                'accepted_terms' => (bool) ($data['accept_terms'] ?? false) ?: null,
+                'accepted_privacy' => (bool) ($data['accept_privacy'] ?? false) ?: null,
+                'voucher_code' => filled($data['voucher'] ?? null) ? strtoupper(trim($data['voucher'])) : null,
             ], fn ($v) => $v !== null && $v !== '' && $v !== false),
         ]);
 
@@ -301,9 +333,10 @@ class BookingWidgetController extends Controller
 
         // Offer online card payment only when Square is live AND we have a firm
         // price to charge (a fixed-matrix fare). "Price on request" stays office-
-        // confirmed first — never charge a guess.
+        // confirmed first — never charge a guess. The booking stays 'cash' until
+        // payment actually succeeds, so nothing is lost if the customer doesn't pay.
         $payUrl = null;
-        if ($this->payments->enabled() && $quote['fixed'] && ($quote['price'] ?? 0) > 0) {
+        if ($this->payments->enabled() && $quote['fixed'] && ($charge ?? 0) > 0) {
             $payUrl = URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id]);
         }
 
@@ -313,7 +346,8 @@ class BookingWidgetController extends Controller
                 'done' => true,
                 'ref' => $booking->reference,
                 'payUrl' => $payUrl,
-                'payAmount' => $quote['price'] ?? null,
+                'payWanted' => $wantsCard,
+                'payAmount' => $charge,
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }

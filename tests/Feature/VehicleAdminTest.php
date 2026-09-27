@@ -89,7 +89,7 @@ class VehicleAdminTest extends TestCase
         ])->assertRedirect();
 
         // Falls back to the built-in default subtitle.
-        $this->assertSame('Mercedes E/S-Class', $exec->refresh()->tagline());
+        $this->assertSame('Mercedes E-Class or similar', $exec->refresh()->tagline());
     }
 
     public function test_a_non_admin_cannot_manage_vehicles(): void

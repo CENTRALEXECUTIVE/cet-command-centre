@@ -54,7 +54,7 @@ class BookingIntakeService
             .'destination_address, where (short airport code or destination word for the title, e.g. MAN, LHR, Sheffield), '
             .'flight_number, passengers (integer), suitcases (integer, large/hold bags), '
             .'hand_luggage (integer, cabin/small bags), vehicle (one of: Executive, Estate, V Class, '
-            .'Minibus 8 Seater, Rolls Royce Ghost), payment (cash|card|account), paid (true|false), '
+            .'Standard Minibus, Rolls Royce Ghost), payment (cash|card|account), paid (true|false), '
             .'price (number — the fare/total in GBP, digits only, no £ sign), '
             .'booked_by, notes. Put ANY additional/accessibility/meet-and-greet/special '
             .'requirement (e.g. wheelchair, child seat, extra stops) into notes. '

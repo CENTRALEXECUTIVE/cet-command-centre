@@ -175,6 +175,33 @@
         .cet-vat .t b { color:var(--ink); }
         .cet-vat.on { border-style:solid; border-color:var(--gold); background:#fff; box-shadow:0 0 0 3px rgba(251,186,42,.14); }
 
+        /* Payment method (ETO-style radios). */
+        .cet-pay { display:flex; align-items:center; gap:11px; border:1.5px solid var(--line); border-radius:12px;
+            padding:13px 14px; cursor:pointer; background:var(--cream); margin-top:9px; }
+        .cet-pay:hover { border-color:var(--gold-deep); background:#fff; }
+        .cet-pay input { width:19px; height:19px; flex:0 0 auto; accent-color:var(--gold-deep); }
+        .cet-pay .t { font-size:14px; }
+        .cet-pay .t .opt { color:var(--muted-2); font-weight:400; }
+        .cet-pay.on { border-color:var(--gold); background:#fff; box-shadow:0 0 0 3px rgba(251,186,42,.14); }
+
+        /* Total price band. */
+        .cet-total { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:16px;
+            padding:14px 16px; border-radius:13px; background:linear-gradient(135deg,#fff9ea,#fdf3d6);
+            border:1px solid var(--gold); box-shadow:0 6px 18px -10px rgba(233,164,19,.5); }
+        .cet-total .lbl { font-size:13px; font-weight:700; color:var(--ink); text-transform:uppercase; letter-spacing:.5px; }
+        .cet-total .amt { font-size:26px; font-weight:900; letter-spacing:-.6px; }
+        .cet-total .amt small { font-size:11px; font-weight:600; color:var(--muted); }
+
+        /* Terms / privacy acceptance. */
+        .cet-agree { display:flex; align-items:center; gap:10px; margin-top:11px; font-size:13.5px; color:#3a3a40; cursor:pointer; }
+        .cet-agree input { width:18px; height:18px; flex:0 0 auto; accent-color:var(--gold-deep); }
+        .cet-agree a { color:var(--gold-deep); font-weight:700; }
+
+        /* ETO-style notice banner (e.g. the 8-hour minimum notice). */
+        .cet-banner { display:none; margin:0 0 14px; padding:12px 14px; border-radius:11px; font-size:13.5px;
+            background:#fdecec; border:1px solid #f3b7b7; color:#8f1f1f; font-weight:600; }
+        .cet-banner.show { display:block; }
+
         .cet-actions { display:flex; gap:10px; margin-top:18px; }
         .cet-btn { flex:1; padding:15px; border:0; border-radius:12px;
             background:linear-gradient(135deg, var(--gold), var(--gold-deep)); color:#0b0b0c;
@@ -239,11 +266,12 @@
                     <p style="color:var(--muted);margin:0 0 6px">Our office will confirm your journey and price shortly.</p>
                     @if(isset($ref))<div class="cet-ref">Ref {{ $ref }}</div>@endif
                     @if(!empty($payUrl))
-                        <a href="{{ $payUrl }}" class="cet-btn" style="display:block;margin-top:18px;text-decoration:none;text-align:center">
+                        <a href="{{ $payUrl }}" target="_top" class="cet-btn" style="display:block;margin-top:18px;text-decoration:none;text-align:center">
                             Pay now to secure it{{ $payAmount ? ' · £'.number_format($payAmount, 0) : '' }}</a>
-                        <p class="cet-foot" style="margin-top:8px">Secure card payment by Square. Prefer to pay later? No problem — we'll be in touch.</p>
+                        <p class="cet-foot" style="margin-top:8px">Secure card payment by Square.
+                            @if(empty($payWanted))Prefer to pay later? No problem — we'll be in touch.@endif</p>
                     @else
-                        <p class="cet-foot" style="margin-top:12px">No payment has been taken.</p>
+                        <p class="cet-foot" style="margin-top:12px">No payment has been taken — our office will confirm your journey and price.</p>
                     @endif
                 </div>
             </div>
@@ -264,6 +292,7 @@
                     {{-- STEP 1 — Journey --}}
                     <div class="cet-step" data-step="1">
                         <div class="cet-step-title">📍 Where and when?</div>
+                        <div class="cet-banner" id="b-notice"></div>
                         <div class="cet-field"><label for="b-journey">Journey type</label>
                             <select id="b-journey" name="journey_type">
                                 <option value="one_way">One way</option>
@@ -304,6 +333,14 @@
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
                                 </select></div>
                         </div>
+
+                        {{-- Business / VAT invoice — ticked here so the prices on the next
+                             step already show the {{ $vatPercent ?? 20 }}% VAT added on top. --}}
+                        <label class="cet-vat" id="b-vat-wrap">
+                            <input type="checkbox" id="b-vat" name="vat_invoice" value="1">
+                            <span class="t"><b>I need a business (VAT) invoice.</b> {{ $vatPercent ?? 20 }}% VAT is added and you’ll get a VAT invoice to reclaim it. Leave unticked for a standard booking.</span>
+                        </label>
+
                         <div class="cet-err" data-err="1"></div>
                         <div class="cet-actions">
                             <button type="button" class="cet-btn" data-next="2">Continue →</button>
@@ -345,7 +382,7 @@
                                 </label>
                             @endforeach
                         </div>
-                        <p class="cet-foot" style="margin-top:10px">Guide prices — confirmed by our office before your journey.</p>
+                        <p class="cet-foot" style="margin-top:10px">Prices confirmed by our office before your journey.</p>
                         <div class="cet-actions">
                             <button type="button" class="cet-back" data-back="1">← Back</button>
                             <button type="button" class="cet-btn" data-next="3">Continue →</button>
@@ -368,7 +405,7 @@
                         </div>
 
                         {{-- ETO-style extras: flight, meet & greet, seats, extra stops.
-                             Captured for the office (guide price updated live). --}}
+                             Captured for the office (total updates live). --}}
                         @php $sc = $surcharges ?? []; @endphp
                         <div class="cet-mini-title">✨ Extras <span class="opt">(optional)</span></div>
                         <div class="cet-field" id="b-flight-field">
@@ -399,22 +436,40 @@
                             @endforeach
                         </div>
 
-                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Notes for us <span class="opt">(optional)</span></label>
+                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional — e.g. airport pickup location)</span></label>
                             <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
 
-                        {{-- Business / VAT invoice. Ticked → 20% VAT added and a proper
-                             VAT invoice issued (billed by Central Executive Transfers);
-                             unticked → standard booking (sister company handles it). --}}
-                        <label class="cet-vat" id="b-vat-wrap">
-                            <input type="checkbox" id="b-vat" name="vat_invoice" value="1">
-                            <span class="t"><b>I need a business (VAT) invoice.</b> {{ $vatPercent ?? 20 }}% VAT is added on top and you’ll get a VAT invoice to reclaim it. Leave unticked for a standard booking.</span>
+                        {{-- Payment method (like ETO): pay by card online, or cash to the
+                             driver on the day. --}}
+                        <div class="cet-mini-title">💳 Payment method</div>
+                        <label class="cet-pay" id="b-pay-card-wrap">
+                            <input type="radio" name="payment_method" id="b-pay-card" value="card" checked>
+                            <span class="t"><b>Credit or debit card</b><span class="opt"> — pay online to secure your booking</span></span>
                         </label>
+                        <label class="cet-pay" id="b-pay-cash-wrap">
+                            <input type="radio" name="payment_method" id="b-pay-cash" value="cash">
+                            <span class="t"><b>Cash</b><span class="opt"> — pay the driver on the day</span></span>
+                        </label>
+
+                        <div class="cet-field" style="margin-top:14px"><label for="b-voucher">Discount code <span class="opt">(optional)</span></label>
+                            <input id="b-voucher" name="voucher" placeholder="e.g. RACHEL20" autocomplete="off" style="text-transform:uppercase;max-width:260px"></div>
+
+                        <div class="cet-total" id="b-total">
+                            <span class="lbl">Total price</span>
+                            <span class="amt" id="b-total-amt">—</span>
+                        </div>
+
+                        <label class="cet-agree"><input type="checkbox" id="b-terms" name="accept_terms" value="1">
+                            <span>I accept the <a href="{{ url('/terms') }}" target="_blank" rel="noopener">Terms &amp; Conditions</a></span></label>
+                        <label class="cet-agree"><input type="checkbox" id="b-privacy" name="accept_privacy" value="1">
+                            <span>I accept the <a href="{{ url('/privacy') }}" target="_blank" rel="noopener">Privacy Policy</a></span></label>
+
                         <div class="cet-err" data-err="3"></div>
                         <div class="cet-actions">
                             <button type="button" class="cet-back" data-back="2">← Back</button>
-                            <button class="cet-btn" type="submit" id="cet-submit">Request booking</button>
+                            <button class="cet-btn" type="submit" id="cet-submit">Book now</button>
                         </div>
-                        <p class="cet-foot">No payment is taken now — our office confirms your journey and price first.</p>
+                        <p class="cet-foot" id="b-pay-note">Pay securely by card to confirm — or choose cash and our office will confirm your journey.</p>
                         <div class="cet-trust">
                             <span><span class="ic">🛡️</span> Licensed Operator OP037</span>
                             <span><span class="ic">💷</span> Fixed, upfront prices</span>
@@ -445,19 +500,29 @@
             var form = document.getElementById('cet-book');
             if (!form) return;
 
-            // Minimum notice for online bookings — the date picker can't go below
-            // now + N hours (office only for anything sooner).
+            // Minimum notice for online bookings — the date shown starts at now + N
+            // hours, and anything sooner is rejected with the same message as ETO.
             var MIN_LEAD_H = {{ (int) config('cet.public_min_lead_hours', 8) }};
+            var NOTICE_MSG = 'Please allow at least ' + MIN_LEAD_H + ' hour(s) for online bookings. Please call us for a quote or to book.';
+            function pad2(n){ return (n < 10 ? '0' : '') + n; }
+            function fmtLocal(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+            function earliestAllowed(){ var e = new Date(Date.now() + MIN_LEAD_H*3600*1000); e.setMinutes(Math.ceil(e.getMinutes()/15)*15, 0, 0); return e; }
+            var whenEl = document.getElementById('b-when');
+            var retEl = document.getElementById('b-return');
             (function () {
-                function p(n){return (n<10?'0':'')+n;}
-                function fmt(d){return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
-                var earliest = new Date(Date.now() + MIN_LEAD_H*3600*1000);
-                earliest.setMinutes(Math.ceil(earliest.getMinutes()/15)*15, 0, 0);
-                var when = document.getElementById('b-when');
-                var ret = document.getElementById('b-return');
-                if (when) { when.min = fmt(earliest); if (!when.value) when.value = fmt(earliest); }
-                if (ret) { ret.min = fmt(earliest); }
+                var earliest = earliestAllowed();
+                if (whenEl) { whenEl.min = fmtLocal(earliest); if (!whenEl.value) whenEl.value = fmtLocal(earliest); }
+                if (retEl) { retEl.min = fmtLocal(earliest); }
             })();
+            var noticeEl = document.getElementById('b-notice');
+            function showNotice(on){ if (noticeEl) { noticeEl.textContent = on ? NOTICE_MSG : ''; noticeEl.classList.toggle('show', !!on); } }
+            // True when the chosen pickup is too soon (inside the notice window).
+            function tooSoon(){
+                if (!whenEl || !whenEl.value) return false;
+                var picked = new Date(whenEl.value);
+                return !isNaN(picked) && picked.getTime() < earliestAllowed().getTime();
+            }
+            if (whenEl) { whenEl.addEventListener('change', function () { showNotice(tooSoon()); }); }
 
             var tokenEl = document.querySelector('meta[name="csrf-token"]');
             var token = tokenEl ? tokenEl.getAttribute('content') : '';
@@ -514,6 +579,13 @@
                         if (bad) ok = false;
                     });
                     if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
+                    // Minimum-notice guard — same message as ETO.
+                    if (ok && tooSoon()) {
+                        showNotice(true);
+                        var w = document.getElementById('b-when'); if (w) { w.closest('.cet-field').classList.add('bad'); w.focus(); }
+                        return false;
+                    }
+                    showNotice(false);
                     return ok;
                 }
                 if (n === 3) {
@@ -526,6 +598,11 @@
                     email.closest('.cet-field').classList.toggle('bad', !okContact);
                     if (!okName) { showErr(3, 'Please enter your name.'); nameEl.focus(); return false; }
                     if (!okContact) { showErr(3, 'Please give a phone number or an email so we can confirm.'); phone.focus(); return false; }
+                    var terms = document.getElementById('b-terms'), privacy = document.getElementById('b-privacy');
+                    if ((terms && !terms.checked) || (privacy && !privacy.checked)) {
+                        showErr(3, 'Please accept the Terms & Conditions and Privacy Policy to continue.');
+                        return false;
+                    }
                     return true;
                 }
                 return true;
@@ -574,19 +651,17 @@
                 if (val('b-flight')) html += row('Flight', val('b-flight').toUpperCase());
                 var items = extrasList();
                 items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
-                var vat = !!(vatBox && vatBox.checked);
+                var vat = vatOn();
                 if (lastQuote && !lastQuote.poa && lastQuote.price != null) {
-                    var total = Number(lastQuote.price) + extrasTotal();
-                    if (vat) {
-                        html += row('VAT (' + vatPercent + '%)', money(total * vatPercent / 100));
-                        total = Math.round(total * (1 + vatPercent / 100));
-                    }
-                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + money(total)
+                    var net = Number(lastQuote.price) + extrasTotal();
+                    if (vat) html += row('VAT (' + vatPercent + '%)', money(net * vatPercent / 100));
+                    html += '<div class="row tot"><span class="k">Total</span><span class="v">' + money(currentTotal())
                         + (vat ? ' <span style="font-size:11px;color:var(--muted-2)">inc. VAT</span>' : '') + '</span></div>';
                 } else if (lastQuote && lastQuote.formatted) {
-                    html += '<div class="row tot"><span class="k">Guide price</span><span class="v">' + lastQuote.formatted + '</span></div>';
+                    html += '<div class="row tot"><span class="k">Total</span><span class="v">' + lastQuote.formatted + '</span></div>';
                 }
                 box.innerHTML = html;
+                updateTotal();
             }
             form.querySelectorAll('.cet-veh').forEach(function (card) {
                 card.addEventListener('click', function () {
@@ -638,8 +713,32 @@
             }
 
             // ETO-style extras: +/- steppers, the meet & greet toggle, and a live
-            // extras total added to the guide price.
+            // total (vehicle + extras + VAT when a business invoice is wanted).
             function money(n){ return '£' + Number(n).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+            function vatOn(){ return !!(vatBox && vatBox.checked); }
+            function withVat(base){ return vatOn() ? Math.round(base * (1 + vatPercent / 100)) : Math.round(base); }
+            // The all-in total for the selected vehicle, or null when it's on request.
+            function currentTotal() {
+                if (!lastQuote || lastQuote.poa || lastQuote.price == null) return null;
+                return withVat(Number(lastQuote.price) + extrasTotal());
+            }
+            // The prominent Total-price band on the details step.
+            function updateTotal() {
+                var el = document.getElementById('b-total-amt'); if (!el) return;
+                var t = currentTotal();
+                el.innerHTML = (t == null) ? 'Office to confirm' : money(t) + (vatOn() ? ' <small>inc. VAT</small>' : '');
+            }
+            // Put the current price on each vehicle card (VAT added when wanted).
+            function renderPrices() {
+                form.querySelectorAll('.cet-veh').forEach(function (card) {
+                    var el = card.querySelector('[data-price]'); if (!el) return;
+                    var o = priceById[card.dataset.id];
+                    if (!o) { el.textContent = ''; el.classList.remove('poa'); return; }
+                    if (o.poa || o.price == null) { el.classList.add('poa'); el.textContent = 'On request'; return; }
+                    el.classList.remove('poa');
+                    el.textContent = money(withVat(o.price));
+                });
+            }
             form.querySelectorAll('[data-step-btn]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var input = btn.parentElement.querySelector('input');
@@ -663,8 +762,25 @@
             var vatBox = document.getElementById('b-vat');
             if (vatBox) { vatBox.addEventListener('change', function () {
                 var w = document.getElementById('b-vat-wrap'); if (w) w.classList.toggle('on', vatBox.checked);
-                fillSummary();
+                renderPrices(); fillSummary();
             }); }
+
+            // Payment method (card / cash) — ETO-style.
+            var payCard = document.getElementById('b-pay-card'), payCash = document.getElementById('b-pay-cash');
+            function syncPay() {
+                var card = !!(payCard && payCard.checked);
+                var cw = document.getElementById('b-pay-card-wrap'), hw = document.getElementById('b-pay-cash-wrap');
+                if (cw) cw.classList.toggle('on', card);
+                if (hw) hw.classList.toggle('on', !card);
+                var note = document.getElementById('b-pay-note');
+                if (note) note.textContent = card
+                    ? 'Pay securely by card to confirm your booking — our office checks the details first.'
+                    : 'Pay the driver on the day — our office will confirm your journey and price first.';
+                var btn = document.getElementById('cet-submit');
+                if (btn) btn.textContent = card ? 'Book & pay' : 'Request booking';
+            }
+            [payCard, payCash].forEach(function (r) { if (r) r.addEventListener('change', syncPay); });
+            syncPay();
 
             function extrasList() {
                 var items = [];
@@ -713,7 +829,7 @@
                     reportHeight(); return;
                 }
                 var key = pu.value + '|' + dp.value;
-                if (key === pricesFor && Object.keys(priceById).length) { reportHeight(); return; }
+                if (key === pricesFor && Object.keys(priceById).length) { renderPrices(); reportHeight(); return; }
                 form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) { el.textContent = '…'; });
                 fetch('{{ route('widget.prices') }}', {
                     method:'POST',
@@ -723,16 +839,8 @@
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     pricesFor = key; priceById = {};
-                    (d.options || []).forEach(function (o) {
-                        priceById[o.id] = o;
-                        var card = form.querySelector('.cet-veh[data-id="' + o.id + '"]');
-                        if (!card) return;
-                        var el = card.querySelector('[data-price]');
-                        if (!el) return;
-                        el.classList.toggle('poa', !!o.poa);
-                        el.innerHTML = o.poa ? 'On request'
-                            : o.formatted + '<span class="sub">' + (o.fixed ? 'fixed price' : 'guide') + '</span>';
-                    });
+                    (d.options || []).forEach(function (o) { priceById[o.id] = o; });
+                    renderPrices();
                     // Refresh the selected card's summary price.
                     var sel = form.querySelector('.cet-veh.sel'); if (sel) selectCard(sel);
                     reportHeight();

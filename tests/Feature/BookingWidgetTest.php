@@ -58,8 +58,8 @@ class BookingWidgetTest extends TestCase
     public function test_the_full_booking_page_is_public(): void
     {
         $this->get(route('widget.book'))->assertOk()
-            ->assertSee('Request booking')
-            ->assertSee('No payment is taken now');
+            ->assertSee('Book now')
+            ->assertSee('Payment method');
     }
 
     public function test_a_web_booking_lands_as_a_pending_request_and_alerts_the_office(): void
@@ -241,7 +241,7 @@ class BookingWidgetTest extends TestCase
         // The XL card is rendered so its price is ready, but starts hidden — it's
         // only revealed client-side when the party/luggage outgrows the 8-Seater.
         $html = $this->get(route('widget.book'))->assertOk()
-            ->assertSee('Minibus 8 Seater')
+            ->assertSee('Standard Minibus')
             ->assertSee('data-slug="minibus-8-xl"', false)
             ->getContent();
 
