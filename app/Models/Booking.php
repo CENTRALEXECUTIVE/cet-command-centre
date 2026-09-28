@@ -2428,7 +2428,13 @@ class Booking extends Model
             }
         }
 
-        // 2) Every named pickup party on a shared multi-pickup job.
+        // 2) Prose in the notes that asks us to display name(s) — pull the names out
+        //    ("... please display all their names at collection", "show James Carter").
+        if ($notes !== '' && ($prose = $this->proseSignboardNames($notes))) {
+            return $prose;
+        }
+
+        // 3) Every named pickup party on a shared multi-pickup job.
         if ($this->hasMultiplePickupParties()) {
             $names = array_values(array_filter(array_map(
                 fn ($p) => trim((string) ($p['name'] ?? '')),
@@ -2450,6 +2456,46 @@ class Booking extends Model
         $parts = preg_split('/\s*(?:,|&|\/|\band\b|\n)\s*/i', $raw) ?: [];
 
         return array_values(array_filter(array_map('trim', $parts)));
+    }
+
+    /**
+     * Best-effort: when the notes ASK us to display name(s) but without the "Board:"
+     * prefix ("please display all their names at collection", "show James Carter"),
+     * pull the person names out of the prose. Only runs when a display/board/sign
+     * intent is present, so ordinary notes don't put stray text on the board.
+     *
+     * @return array<int, string>
+     */
+    private function proseSignboardNames(string $notes): array
+    {
+        // Must read like a request to display a name / hold a sign.
+        $intent = preg_match('/\b(?:display|show|hold(?:ing)?|put)\b[^.\n]*\bnames?\b/i', $notes)
+            || preg_match('/\bnames?\b[^.\n]*\b(?:board|sign|collection|arrivals?)\b/i', $notes)
+            || preg_match('/\b(?:name\s*board|sign\s*board)\b/i', $notes);
+        if (! $intent) {
+            return [];
+        }
+
+        // Capitalised "First Last" (optionally a middle name) sequences.
+        if (! preg_match_all('/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b/', $notes, $mm)) {
+            return [];
+        }
+
+        // Drop capitalised phrases that clearly aren't a passenger's name.
+        $stop = ['airport', 'terminal', 'arrival', 'arrivals', 'collection', 'please', 'meet',
+            'greet', 'flight', 'gate', 'display', 'names', 'name', 'board', 'sign', 'central',
+            'executive', 'transfers', 'manchester', 'sheffield', 'leeds', 'birmingham', 'london'];
+        $names = [];
+        foreach ($mm[1] as $cand) {
+            $cand = trim($cand);
+            $words = preg_split('/\s+/', mb_strtolower($cand));
+            if (array_intersect($words, $stop)) {
+                continue;
+            }
+            $names[$cand] = true; // de-dupe, keep order
+        }
+
+        return array_slice(array_keys($names), 0, 6);
     }
 
     /**

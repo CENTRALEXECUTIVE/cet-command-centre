@@ -606,33 +606,44 @@
         cursor: pointer; white-space: nowrap; vertical-align: middle;
     }
     .da-signboard-btn:hover { background: rgba(255,255,255,.22); }
-    #cet-signboard {
-        position: fixed; inset: 0; z-index: 9999; display: none;
-        background: #ffffff; color: #0b0b0b; padding: 5vh 5vw; cursor: pointer;
-        flex-direction: column; align-items: center; justify-content: center; gap: 6vh;
+    #cet-signboard { position: fixed; inset: 0; z-index: 9999; display: none; background: #ffffff; color: #0b0b0b; cursor: pointer; }
+    #cet-signboard.on { display: block; }
+    #cet-signboard .sb-inner {
+        position: absolute; inset: 0; padding: 5vh 5vw;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6vh; text-align: center;
     }
-    #cet-signboard.on { display: flex; }
+    /* Portrait phones: rotate the board so it always reads in landscape and fills. */
+    @media (orientation: portrait) {
+        #cet-signboard .sb-inner {
+            inset: auto; top: 50%; left: 50%; width: 100vh; height: 100vw;
+            transform: translate(-50%, -50%) rotate(90deg);
+        }
+    }
     #cet-signboard .sb-logo {
         background: #0b0b0b; color: #fff; font-weight: 800; letter-spacing: .2em;
-        font-size: clamp(15px, 2.6vw, 28px); text-transform: uppercase;
-        padding: clamp(16px, 3.2vw, 40px) clamp(24px, 5vw, 64px); border-radius: 6px;
+        font-size: clamp(15px, 3.2vmin, 30px); text-transform: uppercase;
+        padding: clamp(16px, 3.5vmin, 42px) clamp(24px, 6vmin, 68px); border-radius: 6px;
     }
-    #cet-signboard .sb-names { display: flex; flex-direction: column; align-items: center; gap: 2.5vh; width: 100%; text-align: center; }
+    #cet-signboard .sb-names { display: flex; flex-direction: column; align-items: center; gap: 3vmin; width: 100%; }
+    /* vmax scales to the LONG screen edge, so the name is huge in landscape and in
+       the rotated-portrait view alike. */
     #cet-signboard .sb-name { font-weight: 900; line-height: 1.02; letter-spacing: -.02em;
-        font-size: clamp(48px, 15vw, 220px); text-wrap: balance; }
-    #cet-signboard .sb-names.multi .sb-name { font-size: clamp(34px, 9vw, 130px); }
-    #cet-signboard .sb-hint { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; color: #9a9aa2; font-size: 13px; }
+        font-size: clamp(48px, 15vmax, 240px); text-wrap: balance; }
+    #cet-signboard .sb-names.multi .sb-name { font-size: clamp(34px, 9vmax, 150px); }
+    #cet-signboard .sb-hint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #9a9aa2; font-size: 13px; }
 </style>
 <div id="cet-signboard" role="dialog" aria-label="Passenger name board">
-    @unless($unbranded ?? false)<div class="sb-logo">Central</div>@endunless
-    <div class="sb-names {{ count($signboardNames) > 1 ? 'multi' : '' }}">
-        @forelse($signboardNames as $name)
-            <div class="sb-name">{{ $name }}</div>
-        @empty
-            <div class="sb-name">{{ $booking->displayName() }}</div>
-        @endforelse
+    <div class="sb-inner">
+        @unless($unbranded ?? false)<div class="sb-logo">Central</div>@endunless
+        <div class="sb-names {{ count($signboardNames) > 1 ? 'multi' : '' }}">
+            @forelse($signboardNames as $name)
+                <div class="sb-name">{{ $name }}</div>
+            @empty
+                <div class="sb-name">{{ $booking->displayName() }}</div>
+            @endforelse
+        </div>
+        <div class="sb-hint">Tap anywhere to close</div>
     </div>
-    <div class="sb-hint">Tap anywhere to close</div>
 </div>
 <script>
     (function () {
@@ -643,12 +654,22 @@
         function open() {
             board.classList.add('on');
             try { document.body.style.overflow = 'hidden'; } catch (e) {}
+            // Go fullscreen, then lock to landscape where the device allows it
+            // (Android). iOS ignores the lock — the CSS rotate above covers that.
+            try {
+                var fs = board.requestFullscreen ? board.requestFullscreen() : null;
+                Promise.resolve(fs).then(function () {
+                    try { if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape'); } catch (e) {}
+                }).catch(function () {});
+            } catch (e) {}
             // Keep the screen awake while the sign is up, where supported.
             try { if (navigator.wakeLock && navigator.wakeLock.request) { navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () {}); } } catch (e) {}
         }
         function close() {
             board.classList.remove('on');
             try { document.body.style.overflow = ''; } catch (e) {}
+            try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+            try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
             try { if (wake) { wake.release(); wake = null; } } catch (e) {}
         }
         if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
