@@ -99,6 +99,12 @@
         .cet-field.icon { position:relative; }
         .cet-field.icon .pin { position:absolute; left:13px; top:37px; font-size:15px; }
         .cet-field.icon input { padding-left:38px; }
+        .cet-stop-row { position:relative; display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .cet-stop-row .pin { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:14px; pointer-events:none; }
+        .cet-stop-row input { flex:1; padding-left:38px; }
+        .cet-stop-x { flex:0 0 auto; width:40px; height:44px; border:1px solid var(--line); border-radius:11px; background:#fff; color:var(--err,#c02626); font-size:16px; font-weight:800; cursor:pointer; }
+        .cet-addstop { border:1px dashed var(--line); background:var(--cream,#fbfaf6); border-radius:11px; padding:10px 14px; font-weight:700; font-size:13px; cursor:pointer; color:var(--ink,#111); }
+        .cet-addstop:disabled { opacity:.5; cursor:default; }
         .cet-two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         @media (max-width:460px){ .cet-two { grid-template-columns:1fr; } }
 
@@ -308,6 +314,11 @@
                         <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
                             <input id="b-pickup-pc" name="pickup_postcode" required placeholder="Fills in from your address" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
                         </div>
+                        <div class="cet-field" id="b-stops-field" data-stop-rate="{{ (float) ($sc['stopover'] ?? 0) }}">
+                            <label>Extra stops <span class="opt">(optional — anywhere to call at on the way)</span></label>
+                            <div id="b-stops"></div>
+                            <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop</button>
+                        </div>
                         <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
                             <span class="pin">🏁</span>
                             <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off"></div>
@@ -464,18 +475,6 @@
                             <p class="cet-foot" style="text-align:left;margin:8px 0 2px">Up to 2 seats in total (any mix of child, booster or infant).</p>
                         </div>
 
-                        <div class="cet-steppers" style="grid-template-columns:1fr">
-                            <div class="cet-stepper">
-                                <label for="b-stopovers">Extra stops</label>
-                                <div class="ctrl">
-                                    <button type="button" data-step-btn="-" aria-label="Less">−</button>
-                                    <input id="b-stopovers" name="stopovers" type="number" min="0" max="10" value="0"
-                                           inputmode="numeric" data-extra="{{ (float) ($sc['stopover'] ?? 0) }}" readonly>
-                                    <button type="button" data-step-btn="+" aria-label="More">+</button>
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional — e.g. airport pickup location)</span></label>
                             <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
 
@@ -608,8 +607,43 @@
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
                 if (dropWrap) dropWrap.style.display = v === 'hourly' ? 'none' : '';
                 if (dropPcWrap) dropPcWrap.style.display = v === 'hourly' ? 'none' : '';
+                var stopsField = document.getElementById('b-stops-field');
+                if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
             }
             if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); toggleJourney(); }
+
+            // "Add a stop" — via points on the main page. Each is a Google-autocomplete
+            // address the driver must call at between pickup and drop-off; the count
+            // drives the per-stop surcharge in the live total.
+            (function () {
+                var wrap = document.getElementById('b-stops');
+                var addBtn = document.getElementById('b-add-stop');
+                if (!wrap || !addBtn) return;
+                var MAX_STOPS = 6;
+                function refresh() { if (typeof fillSummary === 'function') fillSummary(); addBtn.disabled = wrap.children.length >= MAX_STOPS; }
+                window.__cetCountStops = function () {
+                    var n = 0;
+                    wrap.querySelectorAll('input[name="stops[]"]').forEach(function (i) { if (String(i.value || '').trim() !== '') n++; });
+                    return n;
+                };
+                addBtn.addEventListener('click', function () {
+                    if (wrap.children.length >= MAX_STOPS) return;
+                    var row = document.createElement('div'); row.className = 'cet-stop-row';
+                    var pin = document.createElement('span'); pin.className = 'pin'; pin.textContent = '➕';
+                    var input = document.createElement('input');
+                    input.name = 'stops[]'; input.placeholder = 'Stop address…'; input.autocomplete = 'off';
+                    input.setAttribute('data-places', ''); input.setAttribute('data-places-types', 'address');
+                    input.setAttribute('data-postcode-target', ''); // no linked postcode box for stops
+                    var x = document.createElement('button'); x.type = 'button'; x.className = 'cet-stop-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove stop');
+                    x.addEventListener('click', function () { row.remove(); refresh(); reportHeight(); });
+                    input.addEventListener('input', refresh);
+                    input.addEventListener('change', refresh);
+                    row.appendChild(pin); row.appendChild(input); row.appendChild(x);
+                    wrap.appendChild(row);
+                    if (window.CETattachPlaces) window.CETattachPlaces(input);
+                    input.focus(); refresh(); reportHeight();
+                });
+            })();
 
             function validateStep(n) {
                 showErr(n, '');
@@ -694,10 +728,15 @@
                 var jt = journeyEl ? journeyEl.value : 'one_way';
                 var dropoff = jt === 'hourly' ? 'As directed (hourly hire)' : (val('b-dropoff') || '—');
                 function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+(v||'—')+'</span></div>'; }
+                var stopVals = [];
+                document.querySelectorAll('#b-stops input[name="stops[]"]').forEach(function (i) {
+                    var v = String(i.value || '').trim(); if (v) stopVals.push(v);
+                });
                 var html = '<h4>Your journey</h4>'
                     + row('Date &amp; time', when())
                     + row('Vehicle', vehName || '—')
                     + row('Pick-up', val('b-pickup'))
+                    + (stopVals.length ? row(stopVals.length > 1 ? 'Stops' : 'Stop', stopVals.join(' · ')) : '')
                     + row('Drop-off', dropoff)
                     + row('Passengers', val('b-pax') || '—')
                     + row('Suitcases', val('b-suit') || '0')
@@ -894,12 +933,19 @@
                 var items = [];
                 if (mg && mg.checked) items.push({ label: 'Meet & greet', amount: parseFloat(mg.dataset.extra) || 0 });
                 [['b-child_seats','Child seat'],['b-booster_seats','Booster seat'],
-                 ['b-infant_seats','Infant seat'],['b-stopovers','Extra stop']].forEach(function (p) {
+                 ['b-infant_seats','Infant seat']].forEach(function (p) {
                     var el = document.getElementById(p[0]); if (!el) return;
                     var n = parseInt(el.value, 10) || 0; if (n <= 0) return;
                     var unit = parseFloat(el.dataset.extra) || 0;
                     items.push({ label: (n > 1 ? n + ' × ' : '') + p[1] + (n > 1 ? 's' : ''), amount: unit * n });
                 });
+                // Extra stops added on the main page (each via point).
+                var stopsField = document.getElementById('b-stops-field');
+                var stopCount = window.__cetCountStops ? window.__cetCountStops() : 0;
+                if (stopsField && stopCount > 0) {
+                    var stopUnit = parseFloat(stopsField.dataset.stopRate) || 0;
+                    items.push({ label: (stopCount > 1 ? stopCount + ' × ' : '') + 'Extra stop' + (stopCount > 1 ? 's' : ''), amount: stopUnit * stopCount });
+                }
                 return items;
             }
             function extrasTotal() { return extrasList().reduce(function (s, i) { return s + i.amount; }, 0); }

@@ -92,6 +92,28 @@ class BookingWidgetTest extends TestCase
         ]);
     }
 
+    public function test_via_stops_added_on_the_form_are_stored_on_the_booking(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'Via Tester', 'customer_phone' => '07464905385',
+            'stops' => ['10 Ecclesall Road, Sheffield', '', '  Meadowhall, Sheffield  '],
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertNotNull($booking);
+        // Empty rows are dropped; the rest are trimmed and kept in order.
+        $this->assertSame(['10 Ecclesall Road, Sheffield', 'Meadowhall, Sheffield'], $booking->meta['stops']);
+        $this->assertSame(2, (int) $booking->meta['extra_stops']);
+        // Booking::viaStops() reads them so the driver/calendar sees the stops.
+        $this->assertSame(['10 Ecclesall Road, Sheffield', 'Meadowhall, Sheffield'], $booking->viaStops());
+    }
+
     public function test_the_honeypot_blocks_spam_bookings(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

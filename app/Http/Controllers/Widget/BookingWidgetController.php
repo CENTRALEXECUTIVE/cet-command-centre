@@ -163,6 +163,8 @@ class BookingWidgetController extends Controller
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'stops' => ['nullable', 'array', 'max:10'],
+            'stops.*' => ['nullable', 'string', 'max:500'],
             'vat_invoice' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['card', 'cash'])],
             'voucher' => ['nullable', 'string', 'max:40'],
@@ -178,6 +180,15 @@ class BookingWidgetController extends Controller
         $journeyType = $data['journey_type'] ?? 'one_way';
         $isHourly = $journeyType === 'hourly';
         $isReturn = $journeyType === 'return';
+
+        // Via stops added on the main page (addresses the driver calls at between
+        // pickup and drop-off). The count drives the per-stop surcharge, and the
+        // addresses are stored in meta['stops'] where Booking::viaStops() reads them.
+        $stops = array_values(array_filter(array_map(
+            fn ($s) => trim((string) $s),
+            (array) ($data['stops'] ?? []),
+        ), fn ($s) => $s !== ''));
+        $data['stopovers'] = count($stops);
 
         // Addresses always carry their postcode (accurate zone pricing + the driver).
         $pickupFull = $this->withPostcode($data['pickup_address'], $data['pickup_postcode'] ?? null);
@@ -299,6 +310,7 @@ class BookingWidgetController extends Controller
                 'booster_seats' => $extra['booster_seats'] ?: null,
                 'infant_seats' => $extra['infant_seats'] ?: null,
                 'extra_stops' => $extra['stopovers'] ?: null,
+                'stops' => $stops ?: null,
                 'fare_extras_total' => $extrasTotal ?: null,
                 'vat_invoice_requested' => $needsInvoice,
                 'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
