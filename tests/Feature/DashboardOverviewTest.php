@@ -97,6 +97,50 @@ class DashboardOverviewTest extends TestCase
         $this->assertCount(0, $res->viewData('reviewsToSend'));
     }
 
+    public function test_upcoming_list_shows_a_booking_even_when_it_is_not_on_the_calendar(): void
+    {
+        // The calendar mirror is reachable but doesn't have this booking yet (e.g. a
+        // web/intake job awaiting its calendar push). It MUST still show upcoming.
+        $mock = \Mockery::mock(\App\Services\Calendar\CalendarStats::class);
+        $mock->shouldReceive('counts')->andReturn(null);
+        $mock->shouldReceive('upcoming')->andReturn([]);   // calendar has nothing
+        $mock->shouldReceive('jobsOn')->andReturn(null);
+        $this->app->instance(\App\Services\Calendar\CalendarStats::class, $mock);
+
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Sukman Said', 'phone' => '07000000009']);
+
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->addHours(6),
+            'pickup_address' => 'Manchester Airport T2', 'destination_address' => 'Sheffield',
+            'passengers' => 2, 'status' => 'pending', 'payment_method' => 'cash', 'source' => 'web',
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $refs = array_column($res->viewData('upcoming'), 'ref');
+        $this->assertContains($booking->reference, $refs, 'A DB booking not on the calendar must still appear in the upcoming list.');
+    }
+
+    public function test_cancelled_bookings_are_left_out_of_the_upcoming_list(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Cx', 'phone' => '07000000010']);
+
+        $cancelled = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => now()->addHours(3),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => BookingStatus::Cancelled->value, 'payment_method' => 'cash',
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $refs = array_column($res->viewData('upcoming'), 'ref');
+        $this->assertNotContains($cancelled->reference, $refs);
+    }
+
     public function test_compliance_alert_shows_a_blocked_driver(): void
     {
         $admin = User::factory()->admin()->create();

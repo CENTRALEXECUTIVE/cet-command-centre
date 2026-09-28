@@ -75,7 +75,13 @@ class DashboardController extends Controller
                 'weekCount' => Booking::whereBetween('pickup_at', [now()->startOfDay(), now()->addDays(7)->endOfDay()])
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->count(),
-                'upcoming' => $this->calendarStats->upcoming(10) ?? $this->upcomingFromDatabase(),
+                // The upcoming LIST comes from the DATABASE — the authoritative
+                // record of every booking (same source as the dispatch board), so a
+                // real booking is NEVER hidden just because its calendar event
+                // hasn't been pushed/mirrored yet. (Headline counts still prefer the
+                // calendar above.) This fixed a dangerous gap where web/intake jobs
+                // awaiting a calendar push were missing from the dashboard.
+                'upcoming' => $this->upcomingFromDatabase(),
                 'reviewReminder' => $this->monthlyReviewDue(),
                 'complianceAlerts' => $this->complianceAlerts(),
                 'driverStatus' => $this->driverStatus(),
@@ -561,22 +567,25 @@ class DashboardController extends Controller
     }
 
     /**
-     * Upcoming jobs from the database, mapped to the SAME display rows the
-     * calendar produces — used only when the calendar can't be read.
+     * The next upcoming jobs, straight from the database — the authoritative record
+     * of every booking, so nothing is ever hidden (a booking awaiting its calendar
+     * push still shows). Cancelled / no-show jobs are left out. Mapped to the same
+     * display rows the calendar produced.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function upcomingFromDatabase(): array
+    private function upcomingFromDatabase(int $limit = 10): array
     {
         return Booking::with(['customer', 'vehicleType', 'driver'])
             ->where('pickup_at', '>=', now())
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
             ->orderBy('pickup_at')
-            ->limit(10)
+            ->limit($limit)
             ->get()
             ->map(fn (Booking $b) => [
                 'ref' => $b->external_reference ?? $b->reference,
                 'pickup' => $b->pickup_at,
-                'customer' => $b->customer?->name,
+                'customer' => $b->displayName(),
                 'vehicle' => $b->vehicleType?->name ?? '—',
                 'driver' => $b->driver?->name ?? '—',
                 'status' => $b->status?->label() ?? 'Scheduled',
