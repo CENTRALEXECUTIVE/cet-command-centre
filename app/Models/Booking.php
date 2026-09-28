@@ -111,9 +111,17 @@ class Booking extends Model
      */
     public function viaStops(): array
     {
-        // 1) Structured stops from the booking form (the stops table).
         $fromTable = $this->stops->pluck('address')
             ->map(fn ($a) => trim((string) $a))->filter()->values()->all();
+
+        // THE OFFICE IS THE BOSS: once via stops have been edited in the app, the
+        // office's list is authoritative — even when it's now empty (a via removed).
+        // Never fall back to the calendar/import for it, so an edit can't be undone.
+        if ($this->fieldEdited('via_stops')) {
+            return $fromTable;
+        }
+
+        // 1) Structured stops from the booking form (the stops table).
         if ($fromTable) {
             return $fromTable;
         }

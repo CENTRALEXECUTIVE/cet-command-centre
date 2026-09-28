@@ -132,6 +132,12 @@ class BookingService
                     ($booking->meta['child_seats'] ?? 0).'/'.($booking->meta['booster_seats'] ?? 0).'/'.($booking->meta['infant_seats'] ?? 0),
                     $childCap.'/'.$boosterCap.'/'.$infantCap,
                 ],
+                // Via stops (outbound legs) — mark edited whenever the submitted list
+                // differs, so the office's list wins over the calendar for good.
+                'via_stops' => [
+                    implode(' | ', $booking->viaStops()),
+                    implode(' | ', array_values(array_filter(array_map('trim', Arr::get($data, 'via_stops', []) ?? [])))),
+                ],
             ]);
             // A later edit adds to the set — never drops a field edited before.
             $editedFields = array_values(array_unique(array_merge(
