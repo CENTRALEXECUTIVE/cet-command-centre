@@ -75,6 +75,8 @@
                             <div class="loc-row" style="margin-bottom:8px">
                                 <span class="pin via">•</span>
                                 <div class="grow"><input name="via_stops[]" value="{{ $stop }}" data-places autocomplete="off" placeholder="Add a stop along the way"></div>
+                                <button type="button" class="via-remove" aria-label="Remove this stop" title="Remove this stop"
+                                        style="flex:0 0 auto;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#b32020;font-size:16px;font-weight:800;cursor:pointer;line-height:1">✕</button>
                             </div>
                         @endforeach
                     </div>
@@ -257,6 +259,13 @@
         (function () {
             var addBtn = document.getElementById('add-stop');
             var wrap = document.getElementById('via-stops');
+            function makeRemoveBtn() {
+                var x = document.createElement('button');
+                x.type = 'button'; x.className = 'via-remove'; x.textContent = '✕';
+                x.setAttribute('aria-label', 'Remove this stop'); x.title = 'Remove this stop';
+                x.style.cssText = 'flex:0 0 auto;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#b32020;font-size:16px;font-weight:800;cursor:pointer;line-height:1';
+                return x;
+            }
             if (addBtn) {
                 addBtn.addEventListener('click', function () {
                     var row = document.createElement('div');
@@ -267,8 +276,25 @@
                     input.name = 'via_stops[]';
                     input.placeholder = 'Add a stop along the way';
                     input.setAttribute('data-places', ''); input.setAttribute('autocomplete', 'off');
-                    grow.appendChild(input); row.appendChild(pin); row.appendChild(grow); wrap.appendChild(row);
+                    grow.appendChild(input); row.appendChild(pin); row.appendChild(grow); row.appendChild(makeRemoveBtn());
+                    wrap.appendChild(row);
                     if (window.CETattachPlaces) window.CETattachPlaces(input);
+                });
+            }
+            // Remove a via stop with the ✕ button. Removing the last one leaves a
+            // single empty row so the field still submits (empty = "no vias"), which
+            // the server records as a real removal.
+            if (wrap) {
+                wrap.addEventListener('click', function (e) {
+                    var btn = e.target.closest('.via-remove');
+                    if (!btn) return;
+                    var row = btn.closest('.loc-row');
+                    if (!row) return;
+                    if (wrap.querySelectorAll('.loc-row').length > 1) {
+                        row.remove();
+                    } else {
+                        var inp = row.querySelector('input'); if (inp) inp.value = '';
+                    }
                 });
             }
 
