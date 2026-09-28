@@ -12,6 +12,7 @@
         <a href="{{ $urls['book'] }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 16px">🌐 Open booking page ↗</a>
         <a href="{{ $urls['mini'] }}" target="_blank" rel="noopener" class="btn btn-dark" style="padding:8px 16px">💷 Open price checker ↗</a>
         <a href="{{ $urls['account'] }}" target="_blank" rel="noopener" class="btn btn-dark" style="padding:8px 16px">👤 Open customer account ↗</a>
+        <a href="{{ $urls['openAccount'] }}" target="_blank" rel="noopener" class="btn btn-dark" style="padding:8px 16px">🏢 Open an account (sign-up) ↗</a>
     </div>
 
     @php
@@ -25,6 +26,7 @@
             ['Mini price check', 'A quick From/To price checker — great on the home page.', $urls['mini'], 'cet-quote', 380],
             ['Full booking', 'The complete booking form (with online payment when a fixed price is known).', $urls['book'], 'cet-book', 680],
             ['Customer account', 'Customers look up & manage their own bookings.', $urls['account'], 'cet-account', 520],
+            ['Open an account', 'New customers sign up — personal, or a business/invoice account for your review.', $urls['openAccount'], 'cet-open-account', 720],
         ];
     @endphp
 

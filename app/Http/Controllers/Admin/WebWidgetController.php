@@ -26,6 +26,7 @@ class WebWidgetController extends Controller
                 'mini' => route('widget.mini'),
                 'book' => route('widget.book'),
                 'account' => route('widget.account'),
+                'openAccount' => route('widget.open-account'),
             ],
         ]);
     }

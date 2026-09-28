@@ -466,6 +466,12 @@ Route::post('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController
     ->middleware('throttle:20,1')->name('widget.book.store');
 Route::get('widget/pay/{booking}', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'pay'])
     ->middleware('throttle:20,1')->name('widget.pay');
+
+// Public "Open an account" sign-up (personal profile or a company/invoice account).
+Route::get('open-account', [\App\Http\Controllers\Widget\AccountRequestController::class, 'show'])
+    ->middleware('throttle:120,1')->name('widget.open-account');
+Route::post('open-account', [\App\Http\Controllers\Widget\AccountRequestController::class, 'store'])
+    ->middleware('throttle:10,1')->name('widget.open-account.store');
 Route::get('widget/paid', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'paid'])
     ->middleware('throttle:60,1')->name('widget.paid');
 

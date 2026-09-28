@@ -12,7 +12,7 @@ class CorporateAccount extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'account_code', 'billing_email', 'phone', 'billing_address',
+        'name', 'company_number', 'slug', 'account_code', 'billing_email', 'phone', 'billing_address',
         'vat_number', 'cost_code_required', 'payment_terms_days', 'is_active', 'notes',
     ];
 
