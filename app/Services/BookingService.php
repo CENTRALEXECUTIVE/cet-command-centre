@@ -132,13 +132,21 @@ class BookingService
                     ($booking->meta['child_seats'] ?? 0).'/'.($booking->meta['booster_seats'] ?? 0).'/'.($booking->meta['infant_seats'] ?? 0),
                     $childCap.'/'.$boosterCap.'/'.$infantCap,
                 ],
-                // Via stops (outbound legs) — mark edited whenever the submitted list
-                // differs, so the office's list wins over the calendar for good.
-                'via_stops' => [
-                    implode(' | ', $booking->viaStops()),
-                    implode(' | ', array_values(array_filter(array_map('trim', Arr::get($data, 'via_stops', []) ?? [])))),
-                ],
             ]);
+
+            // Via stops need their OWN check: changedFields ignores a change to an
+            // empty value (so blanking a required field isn't taken as an edit), but
+            // for vias an empty list is a real edit — the office REMOVED the stop.
+            // Mark it edited whenever the submitted list differs, empty included, so
+            // the removal wins over the calendar for good.
+            if (array_key_exists('via_stops', $data)) {
+                $submittedVia = implode(' | ', array_values(array_filter(array_map('trim', $data['via_stops'] ?? []))));
+                $currentVia = implode(' | ', $booking->viaStops());
+                if (mb_strtolower(trim($submittedVia)) !== mb_strtolower(trim($currentVia))) {
+                    $editedFields[] = 'via_stops';
+                }
+            }
+
             // A later edit adds to the set — never drops a field edited before.
             $editedFields = array_values(array_unique(array_merge(
                 (array) ($booking->meta['edited_fields'] ?? []), $editedFields,
@@ -214,10 +222,13 @@ class BookingService
                 }
             }
 
-            // Re-sync via stops (outbound legs only) from the submitted list.
-            if (! $booking->is_return_leg) {
+            // Re-sync via stops from the submitted list whenever the edit form
+            // included the via field — for ANY leg, so removing or changing a via
+            // always persists (a return leg is still the office's to edit; the old
+            // "outbound only" rule silently dropped return-leg via edits).
+            if (array_key_exists('via_stops', $data)) {
                 $booking->stops()->delete();
-                foreach (array_values(array_filter(Arr::get($data, 'via_stops', []) ?? [])) as $i => $address) {
+                foreach (array_values(array_filter(array_map('trim', Arr::get($data, 'via_stops', []) ?? []))) as $i => $address) {
                     $booking->stops()->create(['sequence' => $i + 1, 'address' => $address]);
                 }
             }

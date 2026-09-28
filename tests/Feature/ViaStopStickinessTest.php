@@ -69,6 +69,30 @@ class ViaStopStickinessTest extends TestCase
         $this->assertSame([], $booking->fresh(['stops', 'calendarEvent'])->viaStops());
     }
 
+    public function test_removing_a_via_persists_even_on_a_return_leg(): void
+    {
+        $exec = \App\Models\VehicleType::where('slug', 'executive')->firstOrFail();
+        $booking = $this->bookingWithCalendarVia();
+        $booking->forceFill(['is_return_leg' => true, 'vehicle_type_id' => $exec->id])->save();
+        $booking->stops()->create(['sequence' => 1, 'address' => 'Manchester Airport T3']);
+
+        // Office clears the via on the return leg (submits an empty via list).
+        app(\App\Services\BookingService::class)->updateFromForm($booking->fresh(['stops', 'calendarEvent', 'customer']), [
+            'customer_name' => 'Cx',
+            'vehicle_type_id' => $exec->id,
+            'pickup_at' => $booking->pickup_at->format('Y-m-d\TH:i'),
+            'pickup_address' => 'Manchester Airport T2',
+            'destination_address' => 'Sheffield',
+            'passengers' => 2,
+            'payment_method' => 'cash',
+            'via_stops' => [''], // removed
+        ]);
+
+        $fresh = $booking->fresh(['stops', 'calendarEvent']);
+        $this->assertSame(0, $fresh->stops()->count());
+        $this->assertSame([], $fresh->viaStops());
+    }
+
     public function test_editing_a_via_marks_it_and_sticks(): void
     {
         $exec = \App\Models\VehicleType::where('slug', 'executive')->firstOrFail();
