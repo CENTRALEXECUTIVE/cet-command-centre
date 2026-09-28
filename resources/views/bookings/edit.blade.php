@@ -254,7 +254,7 @@
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
         window.CET_ADDRESSES_URL = "{{ route('places.addresses') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=30"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=31"></script>
     @verbatim
     <script>
         (function () {

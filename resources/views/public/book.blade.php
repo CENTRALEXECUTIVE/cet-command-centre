@@ -265,7 +265,7 @@
      plain text box if no key is set. --}}
 <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
     window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";</script>
-<script src="{{ asset('js/cet-forms.js') }}?v=30" defer></script>
+<script src="{{ asset('js/cet-forms.js') }}?v=31" defer></script>
 
 <script>
 (function(){

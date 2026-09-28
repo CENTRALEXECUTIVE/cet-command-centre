@@ -300,18 +300,19 @@
                                 <option value="hourly">Hourly hire (as directed)</option>
                             </select>
                         </div>
-                        <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
-                            <input id="b-pickup-pc" name="pickup_postcode" required placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text" data-postcode-fill="#b-pickup">
-                            <div class="opt" id="b-pc-hint" style="font-size:12px;margin-top:5px">Type your postcode, then add your house number below to pick the exact address.</div>
-                        </div>
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                             <span class="pin">🟡</span>
-                            <input id="b-pickup" name="pickup_address" required placeholder="e.g. 12 Harney Close…" data-places data-places-types="address" autocomplete="off"></div>
+                            <input id="b-pickup" name="pickup_address" required placeholder="Start typing your address, e.g. 12 Harney Close…" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
+                            <div class="opt" id="b-pc-hint" style="font-size:12px;margin-top:5px">Type your house number and street, then pick your address from the list.</div>
+                        </div>
+                        <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
+                            <input id="b-pickup-pc" name="pickup_postcode" required placeholder="Fills in from your address" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
+                        </div>
                         <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
                             <span class="pin">🏁</span>
-                            <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places autocomplete="off"></div>
+                            <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off"></div>
                         <div class="cet-field" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Drop-off postcode <span class="opt">(if known)</span></label>
-                            <input id="b-dropoff-pc" name="destination_postcode" placeholder="If known" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
+                            <input id="b-dropoff-pc" name="destination_postcode" placeholder="Fills in from your address" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-when">Date &amp; time <span style="font-weight:600;color:var(--muted);font-size:11px">· min {{ (int) config('cet.public_min_lead_hours', 8) }}h notice</span></label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
@@ -524,7 +525,7 @@
     {{-- Google address autocomplete via the server proxy (key stays server-side). --}}
     <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
         window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";</script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=30" defer></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=31" defer></script>
 
     <script>
         (function () {

@@ -215,9 +215,21 @@
         [pickup, dest, veh].forEach(function (el) { el.addEventListener('change', refresh); el.addEventListener('blur', refresh); });
     }
 
+    // Auto-fill a postcode field from a chosen address (address-first flow):
+    // when the address changes, pull the postcode out of it into the target field.
+    function attachPostcodeExtractor(el) {
+        var target = document.querySelector(el.dataset.postcodeTarget || '');
+        if (!target) return;
+        el.addEventListener('change', function () {
+            var pc = extractPostcode(el.value);
+            if (pc) { target.value = pc; target.dispatchEvent(new Event('change')); }
+        });
+    }
+
     function init() {
         document.querySelectorAll('[data-places]').forEach(function (el) { attachPlaces(el); });
         document.querySelectorAll('[data-postcode-fill]').forEach(attachPostcodePicker);
+        document.querySelectorAll('[data-postcode-target]').forEach(attachPostcodeExtractor);
         initAutoQuote();
         window.CETattachPlaces = attachPlaces;
         // Upgrade to Google's own client-side autocomplete when a key is present.
