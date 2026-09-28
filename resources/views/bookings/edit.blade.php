@@ -253,7 +253,7 @@
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=4"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=28"></script>
     @verbatim
     <script>
         (function () {

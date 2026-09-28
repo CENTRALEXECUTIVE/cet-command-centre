@@ -523,7 +523,7 @@
 
     {{-- Google address autocomplete via the server proxy (key stays server-side). --}}
     <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";</script>
-    <script src="{{ asset('js/cet-forms.js') }}" defer></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=28" defer></script>
 
     <script>
         (function () {
