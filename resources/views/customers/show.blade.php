@@ -161,6 +161,7 @@
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
         window.CET_ADDRESSES_URL = "{{ route('places.addresses') }}";
+        window.CET_RESOLVE_URL = "{{ route('places.resolve') }}";
 
         // Copy-to-clipboard for the summary / confirmation email.
         document.querySelectorAll('[data-copy]').forEach(function (btn) {
@@ -183,5 +184,5 @@
             });
         });
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=31"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=32"></script>
 @endsection

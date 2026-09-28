@@ -104,6 +104,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Full postcode → every address list (Royal Mail PAF via getAddress.io).
         Route::get('places/addresses', [\App\Http\Controllers\PlacesController::class, 'addresses'])
             ->middleware('throttle:120,1')->name('places.addresses');
+        // Resolve a chosen address to its postcode + canonical full address.
+        Route::get('places/resolve', [\App\Http\Controllers\PlacesController::class, 'resolve'])
+            ->middleware('throttle:120,1')->name('places.resolve');
 
         // Live fare estimate (fixed airport price / free-roam distance).
         Route::get('pricing/estimate', [\App\Http\Controllers\PricingController::class, 'estimate'])
@@ -457,6 +460,9 @@ Route::get('book/places', [\App\Http\Controllers\PlacesController::class, 'autoc
 // unless a key is set; the form falls back to Google's type-ahead.
 Route::get('book/addresses', [\App\Http\Controllers\PlacesController::class, 'addresses'])
     ->middleware('throttle:60,1')->name('public.book.addresses');
+// Resolve a chosen address to its postcode (autocomplete predictions omit it).
+Route::get('book/resolve', [\App\Http\Controllers\PlacesController::class, 'resolve'])
+    ->middleware('throttle:60,1')->name('public.book.resolve');
 
 // ----- Public embeddable WEB BOOKING WIDGETS (iframe into the marketing site) --
 // Mirrors ETO's "Web Widgets". Served from the Command Centre; the live website

@@ -264,8 +264,9 @@
      proxy (the Google key never reaches the browser). Falls back silently to a
      plain text box if no key is set. --}}
 <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
-    window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";</script>
-<script src="{{ asset('js/cet-forms.js') }}?v=31" defer></script>
+    window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
+        window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";</script>
+<script src="{{ asset('js/cet-forms.js') }}?v=32" defer></script>
 
 <script>
 (function(){

@@ -66,6 +66,56 @@ class PlacesController extends Controller
         ]);
     }
 
+    /**
+     * Resolve a chosen address to its POSTCODE (and canonical full address).
+     * Google's autocomplete predictions usually omit the postcode, so once the
+     * customer picks an address we look it up with Places Text Search (part of the
+     * same Places API New) and pull the postal_code component out. Empty on any
+     * failure so the postcode box just stays manual.
+     */
+    public function resolve(Request $request): JsonResponse
+    {
+        $address = trim((string) $request->query('address', ''));
+        $key = Setting::mapsKey();
+
+        if (mb_strlen($address) < 4 || ! $key) {
+            return response()->json(['postcode' => '', 'formatted' => '']);
+        }
+
+        try {
+            $response = Http::timeout(8)
+                ->withHeaders([
+                    'X-Goog-Api-Key' => $key,
+                    'X-Goog-FieldMask' => 'places.formattedAddress,places.addressComponents',
+                ])
+                ->post('https://places.googleapis.com/v1/places:searchText', [
+                    'textQuery' => $address,
+                    'regionCode' => 'GB',
+                    'maxResultCount' => 1,
+                ]);
+
+            $place = $response->json('places.0');
+            if (! $place) {
+                return response()->json(['postcode' => '', 'formatted' => '']);
+            }
+
+            $postcode = '';
+            foreach (($place['addressComponents'] ?? []) as $component) {
+                if (in_array('postal_code', $component['types'] ?? [], true)) {
+                    $postcode = $component['longText'] ?? $component['shortText'] ?? '';
+                    break;
+                }
+            }
+
+            return response()->json([
+                'postcode' => strtoupper($postcode),
+                'formatted' => $place['formattedAddress'] ?? '',
+            ]);
+        } catch (\Throwable) {
+            return response()->json(['postcode' => '', 'formatted' => '']);
+        }
+    }
+
     /** One call to Google Places autocomplete; returns the suggestion strings. */
     private function fetch(string $key, string $query, array $primaryTypes): array
     {

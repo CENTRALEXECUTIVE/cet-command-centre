@@ -216,13 +216,25 @@
     }
 
     // Auto-fill a postcode field from a chosen address (address-first flow):
-    // when the address changes, pull the postcode out of it into the target field.
+    // when the address changes, pull the postcode out of the text; if it isn't
+    // there (Google's predictions usually omit it) resolve it via the server and
+    // upgrade the address to the canonical form that includes the postcode.
     function attachPostcodeExtractor(el) {
         var target = document.querySelector(el.dataset.postcodeTarget || '');
         if (!target) return;
         el.addEventListener('change', function () {
             var pc = extractPostcode(el.value);
-            if (pc) { target.value = pc; target.dispatchEvent(new Event('change')); }
+            if (pc) { target.value = pc; target.dispatchEvent(new Event('change')); return; }
+            var q = el.value.trim();
+            if (!window.CET_RESOLVE_URL || q.length < 4) return;
+            fetch(window.CET_RESOLVE_URL + '?address=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d && d.postcode) { target.value = d.postcode; target.dispatchEvent(new Event('change')); }
+                    // Upgrade to the full address (with postcode) if we didn't already have one.
+                    if (d && d.formatted && !extractPostcode(el.value)) { el.value = d.formatted; }
+                })
+                .catch(function () {});
         });
     }
 

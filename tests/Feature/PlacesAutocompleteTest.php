@@ -97,6 +97,40 @@ class PlacesAutocompleteTest extends TestCase
             ->assertOk()->assertJsonFragment(['Radisson Blu Hotel, Sheffield, UK']);
     }
 
+    public function test_resolve_returns_the_postcode_for_a_chosen_address(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('google_maps_key', 'AIzaTEST', 'string', 'integrations');
+
+        Http::fake(['places.googleapis.com/*' => Http::response([
+            'places' => [[
+                'formattedAddress' => '12 Harney Close, Darnall, Sheffield S9 5BW, UK',
+                'addressComponents' => [
+                    ['longText' => 'Sheffield', 'shortText' => 'Sheffield', 'types' => ['postal_town']],
+                    ['longText' => 'S9 5BW', 'shortText' => 'S9 5BW', 'types' => ['postal_code']],
+                ],
+            ]],
+        ], 200)]);
+
+        $this->actingAs($admin)->getJson(route('places.resolve', ['address' => '12 Harney Close, Sheffield']))
+            ->assertOk()
+            ->assertJson([
+                'postcode' => 'S9 5BW',
+                'formatted' => '12 Harney Close, Darnall, Sheffield S9 5BW, UK',
+            ]);
+    }
+
+    public function test_resolve_is_empty_without_a_key(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Http::fake();
+
+        $this->actingAs($admin)->getJson(route('places.resolve', ['address' => '12 Harney Close, Sheffield']))
+            ->assertOk()->assertExactJson(['postcode' => '', 'formatted' => '']);
+
+        Http::assertNothingSent();
+    }
+
     public function test_drivers_cannot_use_it(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
