@@ -627,9 +627,9 @@
     #cet-signboard .sb-names { display: flex; flex-direction: column; align-items: center; gap: 3vmin; width: 100%; }
     /* vmax scales to the LONG screen edge, so the name is huge in landscape and in
        the rotated-portrait view alike. */
-    #cet-signboard .sb-name { font-weight: 900; line-height: 1.02; letter-spacing: -.02em;
-        font-size: clamp(48px, 15vmax, 240px); text-wrap: balance; }
-    #cet-signboard .sb-names.multi .sb-name { font-size: clamp(34px, 9vmax, 150px); }
+    #cet-signboard .sb-name { font-weight: 900; line-height: 1.0; letter-spacing: -.02em; text-transform: uppercase;
+        font-size: clamp(64px, 19vmax, 320px); text-wrap: balance; }
+    #cet-signboard .sb-names.multi .sb-name { font-size: clamp(44px, 12vmax, 210px); }
     #cet-signboard .sb-hint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #9a9aa2; font-size: 13px; }
 </style>
 <div id="cet-signboard" role="dialog" aria-label="Passenger name board">
