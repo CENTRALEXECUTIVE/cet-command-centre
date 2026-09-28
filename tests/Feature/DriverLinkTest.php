@@ -37,6 +37,7 @@ class DriverLinkTest extends TestCase
             ->assertOk()
             ->assertSee('12 Fargate, Sheffield')
             ->assertSee('5 Moorbridge Crescent, Barnsley')
+            ->assertSee('Name board')             // meet & greet welcome-sign button
             ->assertSee('£120')                   // cash to collect
             ->assertSee('to collect')
             ->assertSee('On My Way');             // a working status button

@@ -47,7 +47,10 @@
 {{-- Modern job hero --}}
 <div class="da-hero">
     <div class="da-hero-time">{{ $booking->pickup_at->format('D d M') }} · <span>{{ $booking->pickup_at->format('H:i') }}</span></div>
-    <div class="da-hero-name">{{ $booking->displayName() }}@if($booking->hasChildSeat()) <span title="Child seat required">🚼</span>@endif</div>
+    <div class="da-hero-name">{{ $booking->displayName() }}@if($booking->hasChildSeat()) <span title="Child seat required">🚼</span>@endif
+        <button type="button" class="da-signboard-btn" data-signboard-name="{{ $booking->displayName() }}"
+                aria-label="Open name board" title="Open a welcome name board">🪧 Name board</button>
+    </div>
     <div class="da-hero-route">
         <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
         @foreach($viaStops as $i => $stop)
@@ -590,3 +593,61 @@
 @endverbatim
 <script src="{{ asset('js/cet-flight.js') }}"></script>
 <script src="{{ asset('js/cet-track.js') }}"></script>
+
+{{-- Meet & greet name board — a full-screen welcome sign the driver holds up at
+     arrivals, with the passenger's name. Opened from the "🪧 Name board" button. --}}
+<style>
+    .da-signboard-btn {
+        margin-left: 10px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12);
+        color: #fff; font-weight: 700; font-size: 12px; padding: 5px 11px; border-radius: 999px;
+        cursor: pointer; white-space: nowrap; vertical-align: middle;
+    }
+    .da-signboard-btn:hover { background: rgba(255,255,255,.22); }
+    #cet-signboard {
+        position: fixed; inset: 0; z-index: 9999; display: none;
+        background: radial-gradient(1200px 600px at 50% 0%, #17171a 0%, #000 70%);
+        color: #fff; padding: 24px; text-align: center; cursor: pointer;
+        flex-direction: column; align-items: center; justify-content: center; gap: 3vh;
+    }
+    #cet-signboard.on { display: flex; }
+    #cet-signboard .sb-brand { color: #FBBA2A; font-weight: 800; letter-spacing: .28em; font-size: clamp(12px, 2.4vw, 20px); text-transform: uppercase; }
+    #cet-signboard .sb-welcome { color: #c9c9cf; font-weight: 600; letter-spacing: .1em; font-size: clamp(16px, 4vw, 34px); text-transform: uppercase; }
+    #cet-signboard .sb-name { font-weight: 900; letter-spacing: -.01em; line-height: 1.05;
+        font-size: clamp(44px, 13vw, 190px); text-wrap: balance; padding: 0 2vw; }
+    #cet-signboard .sb-rule { width: min(60vw, 520px); height: 4px; border-radius: 4px;
+        background: linear-gradient(90deg, transparent, #FBBA2A, transparent); }
+    #cet-signboard .sb-hint { position: absolute; bottom: 20px; left: 0; right: 0; color: #7a7a82; font-size: 13px; }
+</style>
+<div id="cet-signboard" role="dialog" aria-label="Passenger name board">
+    @unless($unbranded ?? false)<div class="sb-brand">Central Executive Transfers</div>@endunless
+    <div class="sb-welcome">Welcome</div>
+    <div class="sb-rule"></div>
+    <div class="sb-name" id="cet-signboard-name"></div>
+    <div class="sb-rule"></div>
+    <div class="sb-hint">Tap anywhere to close</div>
+</div>
+<script>
+    (function () {
+        var board = document.getElementById('cet-signboard');
+        var nameEl = document.getElementById('cet-signboard-name');
+        if (!board || !nameEl) return;
+        var wake = null;
+        function open(name) {
+            nameEl.textContent = name || '';           // textContent = safe from injection
+            board.classList.add('on');
+            try { document.body.style.overflow = 'hidden'; } catch (e) {}
+            // Keep the screen awake while the sign is up, where supported.
+            try { if (navigator.wakeLock && navigator.wakeLock.request) { navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () {}); } } catch (e) {}
+        }
+        function close() {
+            board.classList.remove('on');
+            try { document.body.style.overflow = ''; } catch (e) {}
+            try { if (wake) { wake.release(); wake = null; } } catch (e) {}
+        }
+        document.querySelectorAll('.da-signboard-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) { e.preventDefault(); open(btn.getAttribute('data-signboard-name')); });
+        });
+        board.addEventListener('click', close);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    })();
+</script>
