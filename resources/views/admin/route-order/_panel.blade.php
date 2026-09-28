@@ -1,5 +1,19 @@
 {{-- Shared route-order panel. Expects: $scope, $tabs, $selected, $vehicleTabs,
      $selectedVehicle, $rows, and $panelRoute (the route name to link back to). --}}
+<style>
+    /* On phones the jobs table would need side-scrolling, so each row becomes a
+       self-contained card — every field on screen at once, no horizontal scroll. */
+    @media (max-width: 700px) {
+        .ro-table thead { display: none; }
+        .ro-table, .ro-table tbody, .ro-table tr, .ro-table td { display: block; width: 100%; }
+        .ro-table tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 10px 12px; }
+        .ro-table td { border: 0; padding: 3px 0; display: flex; gap: 8px; align-items: baseline; }
+        .ro-table td::before { content: attr(data-label); flex: 0 0 88px; font-size: 12px; font-weight: 700; color: var(--muted); }
+        .ro-table td[data-label="Driver"] { display: block; }
+        .ro-table td[data-label="Driver"] form { margin-top: 4px; }
+        .ro-table td[data-label="Driver"]::before { display: block; margin-bottom: 2px; }
+    }
+</style>
 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
     @foreach(['upcoming' => 'Upcoming', 'today' => 'Today', 'past' => 'Past 60d', 'all' => 'All (60d)'] as $key => $label)
         <a href="{{ route($panelRoute, ['scope' => $key, 'route' => $selected, 'vehicle' => $selectedVehicle]) }}"
@@ -36,18 +50,18 @@
         <p class="muted mb-0">No bookings on this route in this period.</p>
     @else
         <p class="hint" style="margin:-4px 0 10px">Newest first — the order jobs came through, and the driver the rotation gave each.</p>
-        <table>
+        <table class="ro-table">
             <thead><tr><th>#</th><th>Came in</th><th>Pickup</th><th>Ref</th><th>Vehicle</th><th>Driver</th><th>Status</th></tr></thead>
             <tbody>
             @foreach($rows as $i => $b)
                 <tr>
-                    <td class="muted">{{ $i + 1 }}</td>
-                    <td style="white-space:nowrap;font-size:13px">{{ $b->created_at?->format('D d M, H:i') }}</td>
-                    <td style="white-space:nowrap;font-size:13px">{{ $b->pickup_at?->format('D d M, H:i') }}</td>
-                    <td><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a>
-                        <div class="muted" style="font-size:12px">{{ \Illuminate\Support\Str::limit($b->displayName(), 18) }}</div></td>
-                    <td class="muted" style="font-size:13px">{{ $b->vehicleType?->name ?: $b->displayVehicleType() }}</td>
-                    <td>
+                    <td class="muted" data-label="#">{{ $i + 1 }}</td>
+                    <td data-label="Came in" style="white-space:nowrap;font-size:13px">{{ $b->created_at?->format('D d M, H:i') }}</td>
+                    <td data-label="Pickup" style="white-space:nowrap;font-size:13px">{{ $b->pickup_at?->format('D d M, H:i') }}</td>
+                    <td data-label="Ref"><a href="{{ route('bookings.show', $b) }}" class="mono">{{ $b->reference }}</a>
+                        <span class="muted" style="font-size:12px">{{ \Illuminate\Support\Str::limit($b->displayName(), 18) }}</span></td>
+                    <td class="muted" data-label="Vehicle" style="font-size:13px">{{ $b->vehicleType?->name ?: $b->displayVehicleType() }}</td>
+                    <td data-label="Driver">
                         <strong>{{ $b->assignedDriverLabel() }}</strong>
                         @if(($drivers ?? collect())->isNotEmpty() && ! $b->status->isTerminal())
                             <form method="POST" action="{{ route('despatch.reassign', $b) }}" style="margin:2px 0 0">
@@ -61,7 +75,7 @@
                             </form>
                         @endif
                     </td>
-                    <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
+                    <td data-label="Status"><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
                 </tr>
             @endforeach
             </tbody>

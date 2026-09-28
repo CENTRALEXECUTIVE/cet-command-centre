@@ -618,7 +618,7 @@ class BookingTest extends TestCase
         // The booking page shows the route-order card with both drivers.
         $this->actingAs($admin)->get(route('bookings.show', $this_job))
             ->assertOk()
-            ->assertSee('Route order — MAN')
+            ->assertSee('Driver rotation — MAN')
             ->assertSee('Abdi')
             ->assertSee('Maj');
     }

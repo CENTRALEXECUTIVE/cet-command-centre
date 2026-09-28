@@ -1698,23 +1698,33 @@
          rotation applies. --}}
     @if(auth()->user()->isAdmin() && $booking->vehicleType?->affects_rotation)
         @php $routeSeq = $booking->routeSequence(rotationOnly: true); @endphp
-        @if($routeSeq->count() > 1)
+        @if($routeSeq->count() >= 1)
+            <style>
+                /* Each job becomes a card on phones — no side-scrolling. */
+                @media (max-width: 700px) {
+                    .rot-check thead { display: none; }
+                    .rot-check, .rot-check tbody, .rot-check tr, .rot-check td { display: block; width: 100%; }
+                    .rot-check tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 10px 12px; }
+                    .rot-check td { border: 0; padding: 3px 0; }
+                    .rot-check td::before { content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 8px; }
+                }
+            </style>
             <details style="margin-top:8px">
-                <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Route order — {{ $booking->airportCode() }} (executive)</summary>
+                <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Driver rotation — {{ $booking->airportCode() }} · this job: <span style="color:var(--accent,#b8860b)">{{ $booking->assignedDriverLabel() }}</span> <span class="muted" style="font-weight:500">(tap to check the order)</span></summary>
                 <div class="card" style="margin-top:8px">
-                    <p class="hint" style="margin:0 0 10px">Executive {{ $booking->airportCode() }} jobs — newest that came through at the top, with the driver the rotation gave each. Change a driver here if the order's wrong.</p>
-                    <table>
+                    <p class="hint" style="margin:0 0 10px">Executive {{ $booking->airportCode() }} jobs — newest that came through at the top, with the driver the rotation gave each. This job is highlighted. Change a driver here if the order's wrong.</p>
+                    <table class="rot-check">
                         <thead><tr><th>Came in</th><th>Job</th><th>Driver</th></tr></thead>
                         <tbody>
                         @foreach($routeSeq as $r)
                             @php $isThis = $r->id === $booking->id; @endphp
                             <tr @if($isThis) style="background:rgba(251,186,42,.14);font-weight:700" @endif>
-                                <td style="white-space:nowrap;font-size:13px">{{ $r->created_at?->format('D d M, H:i') }}</td>
-                                <td style="font-size:13px">
+                                <td data-label="Came in" style="white-space:nowrap;font-size:13px">{{ $r->created_at?->format('D d M, H:i') }}</td>
+                                <td data-label="Job" style="font-size:13px">
                                     @if($isThis)➡ {{ $r->reference }}@else<a href="{{ route('bookings.show', $r) }}" class="mono">{{ $r->reference }}</a>@endif
                                     <span class="muted">· {{ \Illuminate\Support\Str::limit($r->displayName(), 16) }}</span>
                                 </td>
-                                <td>
+                                <td data-label="Driver">
                                     <strong>{{ $r->assignedDriverLabel() }}</strong>
                                     @if(! $r->status->isTerminal() && $allocatableDrivers->isNotEmpty())
                                         <form method="POST" action="{{ route('despatch.reassign', $r) }}" style="margin:2px 0 0">
