@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Widget;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Customer;
 use App\Services\Watchdog\AdminAlerts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -21,28 +22,38 @@ use Illuminate\Support\Str;
  */
 class CustomerAccountController extends Controller
 {
-    private const SESSION_KEY = 'widget_customer_id';
+    /** Shared session flag: the id of the customer verified for this browser session. */
+    public const SESSION_KEY = 'widget_customer_id';
 
     public function __construct(private readonly AdminAlerts $adminAlerts) {}
 
-    private function frameAncestors(): string
+    public static function frameAncestorsPolicy(): string
     {
         return "frame-ancestors 'self' https://centralexecutivetransfers.co.uk "
             .'https://*.centralexecutivetransfers.co.uk http://localhost:* http://127.0.0.1:*';
+    }
+
+    private function frameAncestors(): string
+    {
+        return self::frameAncestorsPolicy();
     }
 
     /** The account page: a lookup form, or the customer's bookings once verified. */
     public function show(Request $request): \Illuminate\Http\Response
     {
         $customerId = $request->session()->get(self::SESSION_KEY);
-        $bookings = $customerId
-            ? Booking::where('customer_id', $customerId)->with(['vehicleType', 'driver'])->orderByDesc('pickup_at')->get()
+        $customer = $customerId ? Customer::find($customerId) : null;
+        $bookings = $customer
+            ? Booking::where('customer_id', $customer->id)->with(['vehicleType', 'driver'])->orderByDesc('pickup_at')->get()
             : collect();
 
         return response()
             ->view('widget.account', [
-                'verified' => (bool) $customerId,
+                'verified' => (bool) $customer,
+                'customer' => $customer,
                 'bookings' => $bookings,
+                'passwordLogin' => Customer::passwordLoginAvailable(),
+                'hasPassword' => (bool) $customer?->hasPassword(),
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
@@ -65,6 +76,48 @@ class CustomerAccountController extends Controller
         $request->session()->put(self::SESSION_KEY, $booking->customer_id);
 
         return redirect()->route('widget.account');
+    }
+
+    /** Sign in with an email + password (customers who've set one). */
+    public function login(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'string', 'email', 'max:160'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $email = Str::lower(trim($data['email']));
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        // Generic error either way — never reveal whether an email is registered.
+        if (! $customer || ! $customer->checkPassword($data['password'])) {
+            return back()->with('account_error', 'That email and password didn’t match. Please try again.')
+                ->withInput(['login_email' => $data['email']]);
+        }
+
+        $request->session()->put(self::SESSION_KEY, $customer->id);
+
+        return redirect()->route('widget.account');
+    }
+
+    /** A verified customer sets or changes their login password for next time. */
+    public function setPassword(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless(Customer::passwordLoginAvailable(), 404);
+
+        $customerId = $request->session()->get(self::SESSION_KEY);
+        $customer = $customerId ? Customer::find($customerId) : null;
+        abort_if(! $customer, 403);
+
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'max:72', 'confirmed'],
+        ]);
+
+        $customer->setLoginPassword($data['password']);
+
+        return back()->with('account_status', filled($customer->email)
+            ? 'Password saved — next time just sign in with '.$customer->email.'.'
+            : 'Password saved.');
     }
 
     /** Raise a change/cancellation REQUEST on the customer's booking (office acts). */

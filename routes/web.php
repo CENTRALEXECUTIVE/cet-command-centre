@@ -481,6 +481,19 @@ Route::get('my-account', [\App\Http\Controllers\Widget\CustomerAccountController
     ->middleware('throttle:180,1')->name('widget.account');
 Route::post('my-account/verify', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'verify'])
     ->middleware('throttle:10,1')->name('widget.account.verify');
+// Password self-login for customers (isolated from staff auth; my-account only).
+Route::post('my-account/login', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'login'])
+    ->middleware('throttle:10,1')->name('widget.account.login');
+Route::post('my-account/password', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'setPassword'])
+    ->middleware('throttle:20,1')->name('widget.account.set-password');
+Route::get('my-account/forgot', [\App\Http\Controllers\Widget\CustomerPasswordController::class, 'forgot'])
+    ->middleware('throttle:60,1')->name('widget.account.forgot');
+Route::post('my-account/forgot', [\App\Http\Controllers\Widget\CustomerPasswordController::class, 'sendReset'])
+    ->middleware('throttle:6,1')->name('widget.account.send-reset');
+Route::get('my-account/reset', [\App\Http\Controllers\Widget\CustomerPasswordController::class, 'showReset'])
+    ->middleware('throttle:60,1')->name('widget.account.reset.show');
+Route::post('my-account/reset', [\App\Http\Controllers\Widget\CustomerPasswordController::class, 'reset'])
+    ->middleware('throttle:10,1')->name('widget.account.reset');
 Route::post('my-account/logout', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'logout'])
     ->middleware('throttle:30,1')->name('widget.account.logout');
 Route::post('my-account/booking/{booking}/request', [\App\Http\Controllers\Widget\CustomerAccountController::class, 'requestChange'])

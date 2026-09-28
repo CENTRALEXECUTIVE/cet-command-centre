@@ -96,6 +96,11 @@
                         <div class="field"><label>Mobile</label><input name="personal_phone" value="{{ old('personal_phone') }}" placeholder="07…"></div>
                         <div class="field"><label>Email</label><input name="personal_email" type="email" value="{{ old('personal_email') }}"></div>
                     </div>
+                    <div class="two">
+                        <div class="field"><label>Password <span class="opt">(optional)</span></label><input name="password" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password"></div>
+                        <div class="field"><label>Confirm password</label><input name="password_confirmation" type="password" minlength="8" placeholder="Re-type it" autocomplete="new-password"></div>
+                    </div>
+                    <p class="note" style="margin-top:0">🔑 Set a password to sign in to <b>My Account</b> and manage bookings. You can skip it and add one later.</p>
                 </div>
 
                 {{-- COMPANY --}}
@@ -116,6 +121,12 @@
                     </div>
                     <div class="field"><label>Main contact address <span class="opt">(optional)</span></label><textarea name="contact_address">{{ old('contact_address') }}</textarea></div>
 
+                    <div class="sec">Sign-in password <span class="opt" style="text-transform:none;letter-spacing:0;font-weight:500">(optional — for the main contact's My Account)</span></div>
+                    <div class="two">
+                        <div class="field"><label>Password</label><input name="password" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password"></div>
+                        <div class="field"><label>Confirm password</label><input name="password_confirmation" type="password" minlength="8" placeholder="Re-type it" autocomplete="new-password"></div>
+                    </div>
+
                     <div class="sec">Additional emails <span class="opt" style="text-transform:none;letter-spacing:0;font-weight:500">(optional — e.g. accounts / bookings inboxes)</span></div>
                     <div id="extra-emails"></div>
                     <button type="button" class="addbtn" id="add-email">＋ Add another email</button>
@@ -135,8 +146,16 @@
 <script>
     function cetType(t) {
         document.getElementById('account_type').value = t;
-        document.getElementById('panel-personal').style.display = t === 'personal' ? '' : 'none';
-        document.getElementById('panel-company').style.display = t === 'company' ? '' : 'none';
+        var pp = document.getElementById('panel-personal'), pc = document.getElementById('panel-company');
+        pp.style.display = t === 'personal' ? '' : 'none';
+        pc.style.display = t === 'company' ? '' : 'none';
+        // Disable the hidden panel's fields so they aren't submitted — otherwise the
+        // two panels' shared "password" inputs would collide on submit.
+        var toggle = function (panel, off) {
+            panel.querySelectorAll('input,textarea,select').forEach(function (el) { el.disabled = off; });
+        };
+        toggle(pp, t !== 'personal');
+        toggle(pc, t !== 'company');
         document.getElementById('seg-personal').classList.toggle('on', t === 'personal');
         document.getElementById('seg-company').classList.toggle('on', t === 'company');
         document.getElementById('submit').textContent = t === 'company' ? 'Request business account' : 'Create account';
@@ -152,7 +171,7 @@
             x.addEventListener('click', function () { row.remove(); });
             row.appendChild(input); row.appendChild(x); wrap.appendChild(row); input.focus();
         });
-        @if(old('account_type') === 'company') cetType('company'); @endif
+        cetType(@json(old('account_type') === 'company' ? 'company' : 'personal'));
     })();
 </script>
 </body>

@@ -57,6 +57,7 @@ class AccountRequestController extends Controller
                 'contact_address' => ['nullable', 'string', 'max:500'],
                 'extra_emails' => ['nullable', 'array', 'max:10'],
                 'extra_emails.*' => ['nullable', 'email', 'max:160'],
+                'password' => ['nullable', 'string', 'min:8', 'max:72', 'confirmed'],
             ]);
 
             $account = CorporateAccount::create([
@@ -93,6 +94,14 @@ class AccountRequestController extends Controller
                 ]);
             }
 
+            // Give the main contact a My Account login (a customer record — never a
+            // system user), linked to the pending company. Credit stays off until
+            // the office approves; the login just lets them see & manage bookings.
+            $this->upsertCustomerLogin(
+                $data['contact_name'], $data['contact_email'], $data['contact_phone'],
+                $data['password'] ?? null, $account->id,
+            );
+
             $this->adminAlerts->notify('account_request',
                 '🏢 New business account request — '.$account->name,
                 $account->name.' applied for an invoice/credit account. Review & approve to switch on credit terms.',
@@ -108,23 +117,13 @@ class AccountRequestController extends Controller
             'personal_name' => ['required', 'string', 'max:120'],
             'personal_email' => ['required', 'email', 'max:160'],
             'personal_phone' => ['required', 'string', 'max:32'],
+            'password' => ['nullable', 'string', 'min:8', 'max:72', 'confirmed'],
         ]);
 
-        $customer = Customer::where('phone', $data['personal_phone'])->first()
-            ?? Customer::where('email', $data['personal_email'])->first();
-        if ($customer) {
-            $customer->fill(array_filter([
-                'name' => $data['personal_name'],
-                'email' => $data['personal_email'],
-                'phone' => $data['personal_phone'],
-            ]))->save();
-        } else {
-            $customer = Customer::create([
-                'name' => $data['personal_name'],
-                'email' => $data['personal_email'],
-                'phone' => $data['personal_phone'],
-            ]);
-        }
+        $customer = $this->upsertCustomerLogin(
+            $data['personal_name'], $data['personal_email'], $data['personal_phone'],
+            $data['password'] ?? null,
+        );
 
         $this->adminAlerts->notify('account_request',
             '👤 New personal account — '.$customer->name,
@@ -133,6 +132,37 @@ class AccountRequestController extends Controller
 
         return response()->view('widget.open-account', ['done' => true, 'accountType' => 'personal'])
             ->header('Content-Security-Policy', $this->frameAncestors());
+    }
+
+    /**
+     * Find-or-create the customer record for a sign-up, optionally setting a
+     * self-service login password. Matches on phone first, then email, so we don't
+     * duplicate an existing customer. Never creates a system user.
+     */
+    private function upsertCustomerLogin(
+        string $name, string $email, string $phone, ?string $password = null, ?int $corporateAccountId = null,
+    ): Customer {
+        $customer = Customer::where('phone', $phone)->first()
+            ?? Customer::where('email', $email)->first();
+
+        $fields = array_filter([
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'corporate_account_id' => $corporateAccountId,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        if ($customer) {
+            $customer->fill($fields)->save();
+        } else {
+            $customer = Customer::create($fields);
+        }
+
+        if (filled($password) && Customer::passwordLoginAvailable()) {
+            $customer->setLoginPassword($password);
+        }
+
+        return $customer;
     }
 
     private function uniqueSlug(string $name): string
