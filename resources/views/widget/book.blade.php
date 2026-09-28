@@ -300,11 +300,17 @@
                                 <option value="hourly">Hourly hire (as directed)</option>
                             </select>
                         </div>
+                        <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
+                            <div style="display:flex;gap:8px">
+                                <input id="b-pickup-pc" name="pickup_postcode" required placeholder="e.g. S10 4BL" style="text-transform:uppercase;flex:1" autocomplete="postal-code" inputmode="text">
+                                <button type="button" id="b-pc-find" class="cet-btn" style="flex:0 0 auto;padding:0 18px;font-size:14px">Find address</button>
+                            </div>
+                            <select id="b-pc-results" style="display:none;margin-top:8px"></select>
+                            <div class="opt" id="b-pc-hint" style="font-size:12px;margin-top:5px"></div>
+                        </div>
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                             <span class="pin">🟡</span>
-                            <input id="b-pickup" name="pickup_address" required placeholder="Start typing your address…" data-places autocomplete="off"></div>
-                        <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
-                            <input id="b-pickup-pc" name="pickup_postcode" required placeholder="e.g. S10 4BL" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
+                            <input id="b-pickup" name="pickup_address" required placeholder="Choose from the postcode above, or type it" data-places autocomplete="off"></div>
                         <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
                             <span class="pin">🏁</span>
                             <input id="b-dropoff" name="destination_address" required placeholder="Start typing an address…" data-places autocomplete="off"></div>
@@ -417,9 +423,10 @@
                             <div class="cet-two">
                                 <div class="cet-field"><label for="b-lead-name">Passenger’s full name</label>
                                     <input id="b-lead-name" name="lead_passenger_name" autocomplete="off"></div>
-                                <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile <span class="opt">(optional)</span></label>
+                                <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile</label>
                                     <input id="b-lead-phone" name="lead_passenger_phone" placeholder="07…" autocomplete="off"></div>
                             </div>
+                            <p class="opt" style="font-size:12.5px;margin:2px 0 0;color:var(--muted)">👤 This is the <strong>lead passenger</strong> — the person the <strong>driver will be in contact with</strong> on the day.</p>
                         </div>
 
                         {{-- Extras. Meet & greet appears (pre-ticked) only for airport
@@ -535,6 +542,39 @@
 
             var form = document.getElementById('cet-book');
             if (!form) return;
+
+            // Postcode → address picker for the PICKUP: type the postcode, tap Find,
+            // choose the exact address from the list (guarantees the postcode + a
+            // full address). Uses the same address service as the type-ahead.
+            (function () {
+                var findBtn = document.getElementById('b-pc-find');
+                var pc = document.getElementById('b-pickup-pc');
+                var results = document.getElementById('b-pc-results');
+                var hint = document.getElementById('b-pc-hint');
+                var addr = document.getElementById('b-pickup');
+                if (!findBtn || !pc || !results || !addr) return;
+                function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+                function find() {
+                    var q = (pc.value || '').trim();
+                    if (q.length < 4) { hint.textContent = 'Enter your full postcode, then tap Find address.'; results.style.display = 'none'; return; }
+                    hint.textContent = 'Searching…'; findBtn.disabled = true;
+                    fetch(window.CET_PLACES_URL + '?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            var list = (d.suggestions || []);
+                            if (!list.length) { hint.textContent = 'No addresses found — type your address below.'; results.style.display = 'none'; return; }
+                            results.innerHTML = '<option value="">' + list.length + ' found — choose your address…</option>'
+                                + list.map(function (a) { return '<option>' + esc(a) + '</option>'; }).join('');
+                            results.style.display = 'block';
+                            hint.textContent = 'Pick your address, or type it in below.';
+                        })
+                        .catch(function () { hint.textContent = 'Couldn’t search just now — type your address below.'; results.style.display = 'none'; })
+                        .finally(function () { findBtn.disabled = false; });
+                }
+                findBtn.addEventListener('click', find);
+                pc.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); find(); } });
+                results.addEventListener('change', function () { if (results.value) { addr.value = results.value; } });
+            })();
 
             // Minimum notice for online bookings — the date shown starts at now + N
             // hours, and anything sooner is rejected with the same message as ETO.
