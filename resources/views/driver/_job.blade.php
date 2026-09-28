@@ -48,7 +48,7 @@
 <div class="da-hero">
     <div class="da-hero-time">{{ $booking->pickup_at->format('D d M') }} · <span>{{ $booking->pickup_at->format('H:i') }}</span></div>
     <div class="da-hero-name">{{ $booking->displayName() }}@if($booking->hasChildSeat()) <span title="Child seat required">🚼</span>@endif
-        <button type="button" class="da-signboard-btn" data-signboard-name="{{ $booking->displayName() }}"
+        <button type="button" class="da-signboard-btn" id="open-signboard"
                 aria-label="Open name board" title="Open a welcome name board">🪧 Name board</button>
     </div>
     <div class="da-hero-route">
@@ -595,7 +595,10 @@
 <script src="{{ asset('js/cet-track.js') }}"></script>
 
 {{-- Meet & greet name board — a full-screen welcome sign the driver holds up at
-     arrivals, with the passenger's name. Opened from the "🪧 Name board" button. --}}
+     arrivals. White card, CENTRAL logo, the passenger name(s) in big black type.
+     The name(s) come from Booking::signboardNames() (office "Board:" note wins,
+     else all pickup parties, else the lead passenger). --}}
+@php $signboardNames = $booking->signboardNames(); @endphp
 <style>
     .da-signboard-btn {
         margin-left: 10px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12);
@@ -605,35 +608,39 @@
     .da-signboard-btn:hover { background: rgba(255,255,255,.22); }
     #cet-signboard {
         position: fixed; inset: 0; z-index: 9999; display: none;
-        background: radial-gradient(1200px 600px at 50% 0%, #17171a 0%, #000 70%);
-        color: #fff; padding: 24px; text-align: center; cursor: pointer;
-        flex-direction: column; align-items: center; justify-content: center; gap: 3vh;
+        background: #ffffff; color: #0b0b0b; padding: 5vh 5vw; cursor: pointer;
+        flex-direction: column; align-items: center; justify-content: center; gap: 6vh;
     }
     #cet-signboard.on { display: flex; }
-    #cet-signboard .sb-brand { color: #FBBA2A; font-weight: 800; letter-spacing: .28em; font-size: clamp(12px, 2.4vw, 20px); text-transform: uppercase; }
-    #cet-signboard .sb-welcome { color: #c9c9cf; font-weight: 600; letter-spacing: .1em; font-size: clamp(16px, 4vw, 34px); text-transform: uppercase; }
-    #cet-signboard .sb-name { font-weight: 900; letter-spacing: -.01em; line-height: 1.05;
-        font-size: clamp(44px, 13vw, 190px); text-wrap: balance; padding: 0 2vw; }
-    #cet-signboard .sb-rule { width: min(60vw, 520px); height: 4px; border-radius: 4px;
-        background: linear-gradient(90deg, transparent, #FBBA2A, transparent); }
-    #cet-signboard .sb-hint { position: absolute; bottom: 20px; left: 0; right: 0; color: #7a7a82; font-size: 13px; }
+    #cet-signboard .sb-logo {
+        background: #0b0b0b; color: #fff; font-weight: 800; letter-spacing: .2em;
+        font-size: clamp(15px, 2.6vw, 28px); text-transform: uppercase;
+        padding: clamp(16px, 3.2vw, 40px) clamp(24px, 5vw, 64px); border-radius: 6px;
+    }
+    #cet-signboard .sb-names { display: flex; flex-direction: column; align-items: center; gap: 2.5vh; width: 100%; text-align: center; }
+    #cet-signboard .sb-name { font-weight: 900; line-height: 1.02; letter-spacing: -.02em;
+        font-size: clamp(48px, 15vw, 220px); text-wrap: balance; }
+    #cet-signboard .sb-names.multi .sb-name { font-size: clamp(34px, 9vw, 130px); }
+    #cet-signboard .sb-hint { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; color: #9a9aa2; font-size: 13px; }
 </style>
 <div id="cet-signboard" role="dialog" aria-label="Passenger name board">
-    @unless($unbranded ?? false)<div class="sb-brand">Central Executive Transfers</div>@endunless
-    <div class="sb-welcome">Welcome</div>
-    <div class="sb-rule"></div>
-    <div class="sb-name" id="cet-signboard-name"></div>
-    <div class="sb-rule"></div>
+    @unless($unbranded ?? false)<div class="sb-logo">Central</div>@endunless
+    <div class="sb-names {{ count($signboardNames) > 1 ? 'multi' : '' }}">
+        @forelse($signboardNames as $name)
+            <div class="sb-name">{{ $name }}</div>
+        @empty
+            <div class="sb-name">{{ $booking->displayName() }}</div>
+        @endforelse
+    </div>
     <div class="sb-hint">Tap anywhere to close</div>
 </div>
 <script>
     (function () {
         var board = document.getElementById('cet-signboard');
-        var nameEl = document.getElementById('cet-signboard-name');
-        if (!board || !nameEl) return;
+        var openBtn = document.getElementById('open-signboard');
+        if (!board) return;
         var wake = null;
-        function open(name) {
-            nameEl.textContent = name || '';           // textContent = safe from injection
+        function open() {
             board.classList.add('on');
             try { document.body.style.overflow = 'hidden'; } catch (e) {}
             // Keep the screen awake while the sign is up, where supported.
@@ -644,9 +651,7 @@
             try { document.body.style.overflow = ''; } catch (e) {}
             try { if (wake) { wake.release(); wake = null; } } catch (e) {}
         }
-        document.querySelectorAll('.da-signboard-btn').forEach(function (btn) {
-            btn.addEventListener('click', function (e) { e.preventDefault(); open(btn.getAttribute('data-signboard-name')); });
-        });
+        if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
         board.addEventListener('click', close);
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
     })();

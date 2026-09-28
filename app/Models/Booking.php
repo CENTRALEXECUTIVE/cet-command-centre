@@ -2408,6 +2408,51 @@ class Booking extends Model
     }
 
     /**
+     * The name(s) to print on the meet & greet name board, in priority order:
+     *   1. An explicit office instruction in the notes — a line starting
+     *      "Board:", "Sign:", "Signboard:" or "Name board:" is used verbatim
+     *      (split into one line per name on commas / & / "and").
+     *   2. Every named pickup party on a shared multi-pickup job.
+     *   3. The lead passenger's name.
+     *
+     * @return array<int, string>
+     */
+    public function signboardNames(): array
+    {
+        // 1) Explicit office instruction in the notes.
+        $notes = trim(((string) ($this->special_requests ?? ''))."\n".((string) $this->driverNotes()));
+        if ($notes !== '' && preg_match('/(?:^|\n)\s*(?:sign\s*board|name\s*board|board|sign)\s*[:\-]\s*(.+)/i', $notes, $m)) {
+            $names = $this->splitSignboardNames($m[1]);
+            if ($names) {
+                return $names;
+            }
+        }
+
+        // 2) Every named pickup party on a shared multi-pickup job.
+        if ($this->hasMultiplePickupParties()) {
+            $names = array_values(array_filter(array_map(
+                fn ($p) => trim((string) ($p['name'] ?? '')),
+                $this->pickupParties(),
+            )));
+            if (count($names) > 1) {
+                return $names;
+            }
+        }
+
+        // 3) The lead passenger.
+        return array_values(array_filter([trim((string) $this->displayName())]));
+    }
+
+    /** Split an office board instruction ("Smith, Jones & Lee") into names. */
+    private function splitSignboardNames(string $raw): array
+    {
+        $raw = trim(rtrim(trim($raw), '.'));
+        $parts = preg_split('/\s*(?:,|&|\/|\band\b|\n)\s*/i', $raw) ?: [];
+
+        return array_values(array_filter(array_map('trim', $parts)));
+    }
+
+    /**
      * The party NAME set for a via stop (admin-entered) — so the driver's screen
      * can show WHO they're collecting at each stop. Name only; the number is never
      * exposed to the driver.
