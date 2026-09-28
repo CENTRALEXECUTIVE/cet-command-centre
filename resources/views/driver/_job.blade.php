@@ -609,7 +609,7 @@
     #cet-signboard { position: fixed; inset: 0; z-index: 9999; display: none; background: #ffffff; color: #0b0b0b; cursor: pointer; }
     #cet-signboard.on { display: block; }
     #cet-signboard .sb-inner {
-        position: absolute; inset: 0; padding: 5vh 5vw;
+        position: absolute; inset: 0; padding: 5vh 5vw; overflow: hidden;
         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6vh; text-align: center;
     }
     /* Portrait phones: rotate the board so it always reads in landscape and fills. */
@@ -651,9 +651,28 @@
         var openBtn = document.getElementById('open-signboard');
         if (!board) return;
         var wake = null;
+        var inner = board.querySelector('.sb-inner');
+        var names = Array.prototype.slice.call(board.querySelectorAll('.sb-name'));
+
+        // Auto-shrink the name(s) to the largest size that still FITS the board —
+        // whatever the length or number of names, nothing is ever cut off.
+        function fitNames() {
+            if (!inner || !names.length) return;
+            var size = Math.min(inner.clientWidth, inner.clientHeight); // start big
+            var min = 20, guard = 400;
+            function set(px) { names.forEach(function (n) { n.style.fontSize = px + 'px'; }); }
+            set(size);
+            while (guard-- > 0 && size > min &&
+                   (inner.scrollWidth > inner.clientWidth + 1 || inner.scrollHeight > inner.clientHeight + 1)) {
+                size -= Math.max(2, size * 0.05);
+                set(size);
+            }
+        }
+
         function open() {
             board.classList.add('on');
             try { document.body.style.overflow = 'hidden'; } catch (e) {}
+            requestAnimationFrame(function () { requestAnimationFrame(fitNames); });
             // Go fullscreen, then lock to landscape where the device allows it
             // (Android). iOS ignores the lock — the CSS rotate above covers that.
             try {
@@ -675,5 +694,10 @@
         if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
         board.addEventListener('click', close);
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+        // Re-fit when the screen turns, resizes, or enters/leaves fullscreen.
+        function refit() { if (board.classList.contains('on')) requestAnimationFrame(fitNames); }
+        window.addEventListener('resize', refit);
+        window.addEventListener('orientationchange', function () { setTimeout(refit, 250); });
+        document.addEventListener('fullscreenchange', function () { setTimeout(refit, 100); });
     })();
 </script>
