@@ -362,6 +362,14 @@ class BookingController extends Controller
      */
     private function autoFollowCalendar(Booking $booking): void
     {
+        // THE OFFICE IS THE BOSS: the moment a booking is edited in the app, its
+        // stored copy becomes the truth and the calendar auto-follow NEVER touches
+        // it again — no field can be silently pulled back. The office re-syncs on
+        // purpose only via the "Match calendar" button.
+        if ($booking->manuallyEdited()) {
+            return;
+        }
+
         if (! $this->google->configured() || ! $this->google->active()) {
             return; // not connected — the manual "Scan calendar" button still works
         }
