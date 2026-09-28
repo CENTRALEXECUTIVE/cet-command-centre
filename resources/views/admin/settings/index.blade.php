@@ -28,6 +28,19 @@
         </div>
 
         <div class="card">
+            <h2>🏠 Postcode address finder <span class="muted" style="font-size:13px;font-weight:400">(optional)</span></h2>
+            <p class="muted" style="margin-top:0">Lets a customer type just their <strong>postcode</strong> and pick their exact house from the full list of addresses — the "postcode → choose your address" experience. Uses <strong>getAddress.io</strong> (Royal Mail PAF). Sign up at <a href="https://getaddress.io" target="_blank" rel="noopener">getaddress.io</a> (there's a free tier), then paste the API key here. Without it, the form still works using Google's live suggestions as you type.</p>
+            <label>getAddress.io API key
+                <input type="text" name="getaddress_key" value="{{ $getAddressKey }}" placeholder="e.g. AbCd…" autocomplete="off" spellcheck="false">
+            </label>
+            @if($getAddressKey)
+                <p class="muted" style="font-size:12px;margin-bottom:8px;color:#1f7a44">✓ Key saved — customers can pick their exact address from a postcode.</p>
+            @else
+                <p class="muted" style="font-size:12px;margin-bottom:8px">Not set — the form uses Google's live address suggestions (type your house number).</p>
+            @endif
+        </div>
+
+        <div class="card">
             <h2>📞 Phone lines (number masking)</h2>
             <p class="muted" style="margin-top:0">Your two permanent Twilio numbers. The <strong>customer line</strong> is the masked number customers ring/text to reach the driver; the <strong>driver line</strong> is on the driver's job screen to reach the customer. Change a number here — no server access needed.</p>
             <div class="grid grid-2">

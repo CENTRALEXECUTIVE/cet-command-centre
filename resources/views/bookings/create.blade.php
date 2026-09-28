@@ -290,9 +290,10 @@
     <script>
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
+        window.CET_ADDRESSES_URL = "{{ route('places.addresses') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=29"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=30"></script>
     @verbatim
     <script>
         (function () {

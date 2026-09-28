@@ -76,6 +76,30 @@
         return m ? m[1].replace(/\s+/g, ' ').trim() : '';
     }
 
+    // If the WHOLE value is a complete UK postcode, return it normalised
+    // ("S95BW" → "S9 5BW"); otherwise ''. Used to switch to the full PAF list.
+    function fullPostcode(text) {
+        var pc = String(text || '').toUpperCase().replace(/\s+/g, '');
+        if (!/^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(pc)) return '';
+        return pc.slice(0, -3) + ' ' + pc.slice(-3);
+    }
+
+    // Fetch every address at a postcode (Royal Mail PAF via getAddress.io). Falls
+    // back to Google's address type-ahead when PAF isn't set up or finds nothing.
+    function postcodeAddresses(query) {
+        var pc = fullPostcode(query);
+        if (pc && window.CET_ADDRESSES_URL) {
+            return fetch(window.CET_ADDRESSES_URL + '?postcode=' + encodeURIComponent(pc), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d && d.addresses && d.addresses.length) return d.addresses;
+                    return suggest(query, 'address');
+                })
+                .catch(function () { return suggest(query, 'address'); });
+        }
+        return suggest(query, 'address');
+    }
+
     /**
      * attachPlaces(el, opts)
      *   opts.minLen  minimum characters before suggesting (default 3)
@@ -88,6 +112,7 @@
         opts = opts || {};
         var minLen = opts.minLen || 3;
         var types = opts.types || el.dataset.placesTypes || '';
+        var fetcher = opts.fetcher || function (q) { return suggest(q, types); };
         var onPick = opts.onPick || function (text) { el.value = text; el.dispatchEvent(new Event('change')); };
 
         var menu = document.createElement('div');
@@ -127,7 +152,7 @@
             if (q.length < minLen) { close(); return; }
             var mine = ++seq;
             timer = setTimeout(function () {
-                suggest(q, types).then(function (items) { if (mine === seq) render(items); });
+                fetcher(q).then(function (items) { if (mine === seq) render(items); });
             }, 200);
         });
         el.addEventListener('blur', function () { setTimeout(close, 200); });
@@ -146,7 +171,7 @@
         var addr = document.querySelector(el.dataset.postcodeFill || '');
         attachPlaces(el, {
             minLen: 2,
-            types: 'address',
+            fetcher: postcodeAddresses,
             onPick: function (text) {
                 var pc = extractPostcode(text);
                 if (pc) { el.value = pc; el.dispatchEvent(new Event('change')); }

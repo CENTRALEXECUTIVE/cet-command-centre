@@ -263,8 +263,9 @@
 {{-- Google address autocomplete on the pickup/drop-off fields, via the server
      proxy (the Google key never reaches the browser). Falls back silently to a
      plain text box if no key is set. --}}
-<script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";</script>
-<script src="{{ asset('js/cet-forms.js') }}?v=29" defer></script>
+<script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
+    window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";</script>
+<script src="{{ asset('js/cet-forms.js') }}?v=30" defer></script>
 
 <script>
 (function(){

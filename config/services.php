@@ -95,6 +95,11 @@ return [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    // getAddress.io — full "postcode → every address" lookup (Royal Mail PAF).
+    'getaddress' => [
+        'key' => env('GETADDRESS_API_KEY'),
+    ],
+
     // Flight status API (e.g. AviationStack) — delay monitoring.
     'flight' => [
         'key' => env('FLIGHT_API_KEY'),

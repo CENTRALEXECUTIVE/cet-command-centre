@@ -101,6 +101,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Address autocomplete (server-side proxy to Google Places).
         Route::get('places/autocomplete', [\App\Http\Controllers\PlacesController::class, 'autocomplete'])
             ->middleware('throttle:120,1')->name('places.autocomplete');
+        // Full postcode → every address list (Royal Mail PAF via getAddress.io).
+        Route::get('places/addresses', [\App\Http\Controllers\PlacesController::class, 'addresses'])
+            ->middleware('throttle:120,1')->name('places.addresses');
 
         // Live fare estimate (fixed airport price / free-roam distance).
         Route::get('pricing/estimate', [\App\Http\Controllers\PricingController::class, 'estimate'])
@@ -450,6 +453,10 @@ Route::get('book/thanks', [\App\Http\Controllers\Public\PublicBookingController:
 // per IP to keep Google costs down; returns [] when no key is set.
 Route::get('book/places', [\App\Http\Controllers\PlacesController::class, 'autocomplete'])
     ->middleware('throttle:60,1')->name('public.book.places');
+// Full "postcode → every address" list (Royal Mail PAF via getAddress.io). Empty
+// unless a key is set; the form falls back to Google's type-ahead.
+Route::get('book/addresses', [\App\Http\Controllers\PlacesController::class, 'addresses'])
+    ->middleware('throttle:60,1')->name('public.book.addresses');
 
 // ----- Public embeddable WEB BOOKING WIDGETS (iframe into the marketing site) --
 // Mirrors ETO's "Web Widgets". Served from the Command Centre; the live website

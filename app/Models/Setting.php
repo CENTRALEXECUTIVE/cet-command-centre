@@ -32,6 +32,12 @@ class Setting extends Model
         return static::get('google_maps_key') ?: config('services.google_maps.key');
     }
 
+    /** getAddress.io key (postcode → full address list): in-app wins, else .env. */
+    public static function getAddressKey(): ?string
+    {
+        return static::get('getaddress_key') ?: config('services.getaddress.key');
+    }
+
     public static function set(string $key, mixed $value, string $type = 'string', string $group = 'general'): void
     {
         $stored = $type === 'json' ? json_encode($value) : (string) $value;

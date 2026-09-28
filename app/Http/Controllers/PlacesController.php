@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\Address\PostcodeAddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -46,6 +47,23 @@ class PlacesController extends Controller
         } catch (\Throwable) {
             return response()->json(['suggestions' => []]);
         }
+    }
+
+    /**
+     * Full "every address at this postcode" list via getAddress.io (Royal Mail
+     * PAF). Empty when no key is set or the postcode is invalid — the form then
+     * falls back to Google's type-ahead. Includes `enabled` so the client knows
+     * whether to keep offering Google suggestions.
+     */
+    public function addresses(Request $request, PostcodeAddressService $paf): JsonResponse
+    {
+        $postcode = trim((string) $request->query('postcode', ''));
+
+        return response()->json([
+            'enabled' => $paf->enabled(),
+            'postcode' => $paf->normalise($postcode),
+            'addresses' => $paf->lookup($postcode),
+        ]);
     }
 
     /** One call to Google Places autocomplete; returns the suggestion strings. */
