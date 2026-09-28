@@ -63,6 +63,40 @@ class PlacesAutocompleteTest extends TestCase
         Http::assertSent(fn ($r) => str_contains($r->url(), 'places.googleapis.com'));
     }
 
+    public function test_address_types_bias_the_search_to_precise_addresses(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('google_maps_key', 'AIzaTEST', 'string', 'integrations');
+
+        Http::fake(['places.googleapis.com/*' => Http::response([
+            'suggestions' => [
+                ['placePrediction' => ['text' => ['text' => '12 Harney Close, Darnall, Sheffield S9 5BW, UK']]],
+            ],
+        ], 200)]);
+
+        $this->actingAs($admin)->getJson(route('places.autocomplete', ['q' => '12 Harney', 'types' => 'address']))
+            ->assertOk()->assertJsonFragment(['12 Harney Close, Darnall, Sheffield S9 5BW, UK']);
+
+        Http::assertSent(fn ($r) => is_array($r['includedPrimaryTypes'] ?? null)
+            && in_array('street_address', $r['includedPrimaryTypes'], true));
+    }
+
+    public function test_address_search_falls_back_to_unrestricted_when_nothing_matches(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('google_maps_key', 'AIzaTEST', 'string', 'integrations');
+
+        // First (restricted) call returns nothing; the unrestricted retry finds it.
+        Http::fakeSequence('places.googleapis.com/*')
+            ->push(['suggestions' => []], 200)
+            ->push(['suggestions' => [
+                ['placePrediction' => ['text' => ['text' => 'Radisson Blu Hotel, Sheffield, UK']]],
+            ]], 200);
+
+        $this->actingAs($admin)->getJson(route('places.autocomplete', ['q' => 'Radisson', 'types' => 'address']))
+            ->assertOk()->assertJsonFragment(['Radisson Blu Hotel, Sheffield, UK']);
+    }
+
     public function test_drivers_cannot_use_it(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

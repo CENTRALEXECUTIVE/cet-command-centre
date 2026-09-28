@@ -23,26 +23,47 @@
         }).then(function () { return google.maps.importLibrary('places'); }).then(function () { googleReady = true; });
     }
 
-    // Returns a Promise of an array of address strings for the query.
-    function suggest(query) {
+    // Precise-address place types — house/street/postcode, no businesses.
+    var ADDRESS_TYPES = ['street_address', 'premise', 'subpremise', 'route', 'postal_code'];
+
+    // Returns a Promise of an array of address strings for the query. When
+    // types === 'address' the results are biased to precise addresses so typing a
+    // house number lists the exact addresses to choose from.
+    function suggest(query, types) {
+        var wantAddresses = types === 'address';
         if (googleReady) {
             return google.maps.importLibrary('places').then(function (places) {
                 if (!window._cetToken) window._cetToken = new places.AutocompleteSessionToken();
-                return places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-                    input: query, includedRegionCodes: ['gb'], sessionToken: window._cetToken
-                }).then(function (res) {
-                    return (res.suggestions || []).map(function (s) {
+                var req = { input: query, includedRegionCodes: ['gb'], sessionToken: window._cetToken };
+                if (wantAddresses) req.includedPrimaryTypes = ADDRESS_TYPES;
+                return places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req).then(function (res) {
+                    var out = (res.suggestions || []).map(function (s) {
                         return s.placePrediction && s.placePrediction.text ? s.placePrediction.text.text : null;
                     }).filter(Boolean);
+                    // Fall back to an unrestricted search rather than showing nothing.
+                    if (!out.length && wantAddresses) return suggestGoogle(places, query, false);
+                    return out;
                 });
-            }).catch(function () { return proxySuggest(query); });
+            }).catch(function () { return proxySuggest(query, types); });
         }
-        return proxySuggest(query);
+        return proxySuggest(query, types);
     }
 
-    function proxySuggest(query) {
+    function suggestGoogle(places, query, wantAddresses) {
+        var req = { input: query, includedRegionCodes: ['gb'], sessionToken: window._cetToken };
+        if (wantAddresses) req.includedPrimaryTypes = ADDRESS_TYPES;
+        return places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req).then(function (res) {
+            return (res.suggestions || []).map(function (s) {
+                return s.placePrediction && s.placePrediction.text ? s.placePrediction.text.text : null;
+            }).filter(Boolean);
+        });
+    }
+
+    function proxySuggest(query, types) {
         if (!window.CET_PLACES_URL) return Promise.resolve([]);
-        return fetch(window.CET_PLACES_URL + '?q=' + encodeURIComponent(query), { headers: { 'Accept': 'application/json' } })
+        var url = window.CET_PLACES_URL + '?q=' + encodeURIComponent(query)
+            + (types ? '&types=' + encodeURIComponent(types) : '');
+        return fetch(url, { headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.json(); })
             .then(function (d) { return d.suggestions || []; })
             .catch(function () { return []; });
@@ -66,6 +87,7 @@
         el.dataset.placesReady = '1';
         opts = opts || {};
         var minLen = opts.minLen || 3;
+        var types = opts.types || el.dataset.placesTypes || '';
         var onPick = opts.onPick || function (text) { el.value = text; el.dispatchEvent(new Event('change')); };
 
         var menu = document.createElement('div');
@@ -105,7 +127,7 @@
             if (q.length < minLen) { close(); return; }
             var mine = ++seq;
             timer = setTimeout(function () {
-                suggest(q).then(function (items) { if (mine === seq) render(items); });
+                suggest(q, types).then(function (items) { if (mine === seq) render(items); });
             }, 200);
         });
         el.addEventListener('blur', function () { setTimeout(close, 200); });
@@ -124,10 +146,17 @@
         var addr = document.querySelector(el.dataset.postcodeFill || '');
         attachPlaces(el, {
             minLen: 2,
+            types: 'address',
             onPick: function (text) {
-                if (addr) { addr.value = text; addr.dispatchEvent(new Event('change')); }
                 var pc = extractPostcode(text);
                 if (pc) { el.value = pc; el.dispatchEvent(new Event('change')); }
+                if (addr) {
+                    addr.value = text;
+                    addr.dispatchEvent(new Event('change'));
+                    // Drop the cursor at the start so the customer can add their
+                    // house number and pick the exact address from the list.
+                    try { addr.focus(); addr.setSelectionRange(0, 0); } catch (e) {}
+                }
             }
         });
     }
