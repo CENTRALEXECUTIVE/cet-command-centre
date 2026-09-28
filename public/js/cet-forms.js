@@ -48,9 +48,25 @@
             .catch(function () { return []; });
     }
 
-    function attachPlaces(el) {
+    // Pull a UK postcode out of a Google suggestion like
+    // "Harney Close, Darnall, Sheffield S9 5BW, UK".
+    function extractPostcode(text) {
+        var m = String(text || '').toUpperCase().match(/([A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2})/);
+        return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+    }
+
+    /**
+     * attachPlaces(el, opts)
+     *   opts.minLen  minimum characters before suggesting (default 3)
+     *   opts.onPick(text)  what to do when a suggestion is chosen
+     *                      (default: set el.value = text and fire change)
+     */
+    function attachPlaces(el, opts) {
         if (!el || el.dataset.placesReady) return;
         el.dataset.placesReady = '1';
+        opts = opts || {};
+        var minLen = opts.minLen || 3;
+        var onPick = opts.onPick || function (text) { el.value = text; el.dispatchEvent(new Event('change')); };
 
         var menu = document.createElement('div');
         menu.style.cssText = 'position:fixed;z-index:9999;background:#fff;color:#111;border:1px solid rgba(0,0,0,.2);border-radius:8px;max-height:280px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.18)';
@@ -71,7 +87,7 @@
                 var opt = document.createElement('div');
                 opt.textContent = text;
                 opt.style.cssText = 'padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(0,0,0,.08)';
-                opt.addEventListener('mousedown', function (e) { e.preventDefault(); el.value = text; close(); el.dispatchEvent(new Event('change')); });
+                opt.addEventListener('mousedown', function (e) { e.preventDefault(); onPick(text); close(); });
                 opt.addEventListener('mouseenter', function () { opt.style.background = 'rgba(251,186,42,.22)'; });
                 opt.addEventListener('mouseleave', function () { opt.style.background = ''; });
                 menu.appendChild(opt);
@@ -86,7 +102,7 @@
         el.addEventListener('input', function () {
             var q = el.value.trim();
             clearTimeout(timer);
-            if (q.length < 3) { close(); return; }
+            if (q.length < minLen) { close(); return; }
             var mine = ++seq;
             timer = setTimeout(function () {
                 suggest(q).then(function (items) { if (mine === seq) render(items); });
@@ -96,6 +112,24 @@
         el.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
         window.addEventListener('scroll', function () { if (menu.style.display === 'block') place(); }, true);
         window.addEventListener('resize', function () { if (menu.style.display === 'block') place(); });
+    }
+
+    /**
+     * Live postcode → address picker. As the customer types their postcode (or
+     * the start of their address) Google suggests matches; choosing one drops the
+     * full address into the linked field and back-fills the postcode itself.
+     * el.dataset.postcodeFill is a selector for the address field to populate.
+     */
+    function attachPostcodePicker(el) {
+        var addr = document.querySelector(el.dataset.postcodeFill || '');
+        attachPlaces(el, {
+            minLen: 2,
+            onPick: function (text) {
+                if (addr) { addr.value = text; addr.dispatchEvent(new Event('change')); }
+                var pc = extractPostcode(text);
+                if (pc) { el.value = pc; el.dispatchEvent(new Event('change')); }
+            }
+        });
     }
 
     function initAutoQuote() {
@@ -128,7 +162,8 @@
     }
 
     function init() {
-        document.querySelectorAll('[data-places]').forEach(attachPlaces);
+        document.querySelectorAll('[data-places]').forEach(function (el) { attachPlaces(el); });
+        document.querySelectorAll('[data-postcode-fill]').forEach(attachPostcodePicker);
         initAutoQuote();
         window.CETattachPlaces = attachPlaces;
         // Upgrade to Google's own client-side autocomplete when a key is present.

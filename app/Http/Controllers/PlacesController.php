@@ -19,7 +19,9 @@ class PlacesController extends Controller
         $query = trim((string) $request->query('q', ''));
         $key = Setting::mapsKey();
 
-        if (mb_strlen($query) < 3 || ! $key) {
+        // Two characters is enough for a postcode prefix (e.g. "S9") to start
+        // suggesting; the type-ahead debounces so this isn't chatty.
+        if (mb_strlen($query) < 2 || ! $key) {
             return response()->json(['suggestions' => []]);
         }
 
