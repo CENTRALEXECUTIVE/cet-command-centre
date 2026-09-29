@@ -34,18 +34,14 @@ class CorporateAccount extends Model
     }
 
     /**
-     * A professional, randomised account number — 7 characters from an
-     * unambiguous alphabet (no O/0/I/1/L so it's never misread on an invoice or
-     * over the phone), e.g. "K7P4Q2M". Guaranteed unique across all accounts.
+     * A professional account number: the prefix "MP" followed by a random 5-digit
+     * number (e.g. "MP40318") — short, clean and easy to read on an invoice or
+     * over the phone. Guaranteed unique across all accounts.
      */
     public static function generateAccountCode(): string
     {
-        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
         do {
-            $code = '';
-            for ($i = 0; $i < 7; $i++) {
-                $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
-            }
+            $code = 'MP'.random_int(10000, 99999);
         } while (static::withTrashed()->where('account_code', $code)->exists());
 
         return $code;

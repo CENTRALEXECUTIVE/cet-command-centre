@@ -76,8 +76,8 @@ class CorporateAccountAdminTest extends TestCase
         $codes = collect(range(1, 25))->map(fn () => CorporateAccount::generateAccountCode());
 
         foreach ($codes as $code) {
-            // 7 chars, unambiguous alphabet only (no O/0/I/1/L).
-            $this->assertMatchesRegularExpression('/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{7}$/', $code);
+            // "MP" prefix + 5 digits, e.g. MP40318.
+            $this->assertMatchesRegularExpression('/^MP[0-9]{5}$/', $code);
         }
         // Randomised — a batch is distinct.
         $this->assertSame($codes->count(), $codes->unique()->count());
