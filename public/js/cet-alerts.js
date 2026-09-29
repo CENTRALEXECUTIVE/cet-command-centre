@@ -206,9 +206,13 @@
 
         renderToasts(data);
         badge(data.critical);
+        // NO SOUND while the signed-in user is out on a job (or has held their
+        // alerts): the feed still updates and popups still show — it just stays
+        // silent so a phone never disturbs a driver mid-journey.
+        var muted = !!data.mute_sound;
         if (hadNewCritical) { silenced = false; }        // a new critical re-arms the alarm
-        if (hadNewCritical && chimeOn) chime();
-        if (alarmOn && hasLiveCritical) { startAlarm(); } else { stopAlarm(true); }
+        if (hadNewCritical && chimeOn && !muted) chime();
+        if (alarmOn && hasLiveCritical && !muted) { startAlarm(); } else { stopAlarm(true); }
         if (stamp) {
             var d = new Date();
             stamp.textContent = 'Updated ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);

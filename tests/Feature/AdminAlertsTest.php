@@ -249,6 +249,24 @@ class AdminAlertsTest extends TestCase
 
     /* ── Preference filtering ────────────────────────────────────────────── */
 
+    public function test_the_alerts_feed_mutes_sound_while_the_user_is_on_a_job(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Free: the feed plays sound (not muted).
+        $this->actingAs($admin)->getJson(route('alerts.feed'))
+            ->assertOk()->assertJson(['mute_sound' => false]);
+
+        // Out on a job: the feed still returns, but sound is muted.
+        Booking::factory()->create([
+            'driver_id' => $admin->id,
+            'status' => BookingStatus::EnRoute->value,
+            'pickup_at' => now()->subMinutes(5),
+        ]);
+        $this->actingAs($admin)->getJson(route('alerts.feed'))
+            ->assertOk()->assertJson(['mute_sound' => true]);
+    }
+
     public function test_preferences_filter_event_types_per_admin(): void
     {
         $muted = $this->admin(['notification_preferences' => ['unallocated' => false]]);

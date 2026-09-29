@@ -246,7 +246,7 @@
     <div id="alerts-toasts" aria-live="assertive" aria-label="Live alerts"
          data-feed="{{ route('alerts.feed') }}"
          data-chime="{{ $u->alertPreferences()['chime'] ? '1' : '0' }}"></div>
-    <script src="{{ asset('js/cet-alerts.js') }}?v=8" defer></script>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=9" defer></script>
 @endif
 
 @include('partials.cookie-consent')
