@@ -225,6 +225,36 @@ class BookingWidgetTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_a_flight_number_is_required_for_an_airport_return(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        // Return touching an airport, no flight number → rejected.
+        $this->post(route('widget.book.store'), [
+            'journey_type' => 'return',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'No Flight', 'customer_phone' => '07464905385',
+        ])->assertSessionHasErrors('flight_number');
+    }
+
+    public function test_a_flight_number_is_not_required_going_to_the_airport_one_way(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        // One-way TO the airport (a departure) needs no flight number.
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'To Airport', 'customer_phone' => '07464905385',
+        ])->assertOk();
+    }
+
     public function test_the_honeypot_blocks_spam_bookings(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
@@ -290,6 +320,7 @@ class BookingWidgetTest extends TestCase
             'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
             'customer_name' => 'Return Rita', 'customer_phone' => '07464905385',
+            'flight_number' => 'BA1368', // airport return — flight required
         ])->assertOk();
 
         $out = \App\Models\Booking::where('is_return_leg', false)->where('source', 'web')->first();

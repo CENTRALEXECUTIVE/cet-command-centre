@@ -31,6 +31,13 @@ return [
         'account_number' => env('CET_BANK_ACCOUNT', ''),
     ],
 
+    // Public policy pages linked from the booking widget (customer-facing).
+    'links' => [
+        'terms' => env('CET_TERMS_URL', 'https://www.centralexecutivetransfers.co.uk/terms-and-conditions'),
+        'privacy' => env('CET_PRIVACY_URL', 'https://www.centralexecutivetransfers.co.uk/privacy-policy'),
+        'cancellation' => env('CET_CANCELLATION_URL', 'https://www.centralexecutivetransfers.co.uk/cancellation-policy'),
+    ],
+
     // VAT switched ON the day the company registered. When true, fares are treated
     // as VAT-inclusive for the public (the price the customer sees already
     // contains VAT) and net + VAT is shown separately on corporate invoices.

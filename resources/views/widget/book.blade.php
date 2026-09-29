@@ -20,6 +20,9 @@
             --radius:16px;
         }
         * { box-sizing:border-box; }
+        /* Ensure [hidden] always wins over component display rules (flex/grid),
+           so gated bits (account payment, meet & greet, panels) stay hidden. */
+        [hidden] { display:none !important; }
         html, body { margin:0; }
         body {
             font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -166,7 +169,20 @@
         .cet-check input { width:19px; height:19px; flex:0 0 auto; accent-color:var(--gold-deep); }
         .cet-check .px { margin-left:auto; font-weight:800; color:var(--ink); }
         .cet-check.on { border-color:var(--gold); background:#fff; box-shadow:0 0 0 3px rgba(251,186,42,.14); }
-        .cet-steppers { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+        /* ETO-style auth tabs (guest / sign in / register). */
+        .cet-authtabs { display:flex; gap:6px; margin-bottom:14px; background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:4px; }
+        .cet-authtabs button { flex:1; padding:9px 6px; border:0; border-radius:9px; background:transparent; font-weight:700; font-size:13px; color:var(--muted); cursor:pointer; }
+        .cet-authtabs button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.10); }
+        .cet-signedin { border:1px solid #bfe6cd; background:#eef8f1; color:#1f7a44; border-radius:12px; padding:11px 14px; font-size:14px; font-weight:600; margin-bottom:14px; }
+        .cet-signedin #b-me-acct { color:var(--muted); font-weight:500; }
+        .cet-btn-sm { padding:9px 18px; font-size:14px; }
+        /* Compact extras list. */
+        .cet-xtras { display:flex; flex-direction:column; gap:8px; }
+        .cet-check-sm { padding:10px 12px; font-size:13.5px; font-weight:600; gap:10px; }
+        .cet-check-sm input { width:17px; height:17px; }
+        .cet-check-sm .opt { font-weight:400; color:var(--muted-2); font-size:12.5px; }
+        .cet-check-sm .px { margin-left:auto; font-weight:800; color:var(--ink); font-size:13px; }
+        .cet-steppers { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:2px; }
         @media (max-width:460px){ .cet-steppers { grid-template-columns:1fr; } }
         .cet-stepper label { display:block; font-size:12.5px; font-weight:600; color:#3a3a40; margin-bottom:6px; }
         .cet-stepper label .opt { font-weight:400; color:var(--muted-2); }
@@ -419,103 +435,115 @@
                              sees everything — incl. luggage — before they book. --}}
                         <div class="cet-summary" id="cet-summary"></div>
 
-                        {{-- Account sign-in — lets business-account contacts book on account. --}}
-                        @if($passwordLogin ?? false)
-                        <div class="cet-acctbar" id="b-acctbar">
-                            <div id="b-loggedout">
-                                <button type="button" id="b-login-toggle" class="cet-linkbtn">🔑 Have an account? Sign in</button>
-                                <div id="b-login-form" hidden style="margin-top:10px">
-                                    <div class="cet-two">
-                                        <div class="cet-field"><label for="b-login-email">Email</label>
-                                            <input id="b-login-email" type="email" autocomplete="email"></div>
-                                        <div class="cet-field"><label for="b-login-pass">Password</label>
-                                            <input id="b-login-pass" type="password" autocomplete="current-password"></div>
-                                    </div>
-                                    <button type="button" id="b-login-btn" class="cet-btn" style="padding:9px 16px;font-size:14px">Sign in</button>
-                                    <a class="cet-linkbtn" href="{{ route('widget.account.forgot') }}" target="_top" style="margin-left:10px">Forgot password?</a>
-                                    <div id="b-login-err" class="cet-bad-note" hidden style="margin-top:8px"></div>
-                                </div>
-                            </div>
-                            <div id="b-loggedin" hidden>✓ Signed in as <strong id="b-me-name"></strong><span id="b-me-acct"></span></div>
+                        @php $sc = $surcharges ?? []; $pw = $passwordLogin ?? false; @endphp
+                        <input type="hidden" name="create_account" id="b-create" value="">
+
+                        {{-- Book as guest / Sign in / Register (ETO-style tabs). --}}
+                        @if($pw)
+                        <div class="cet-authtabs" id="b-authtabs" role="tablist">
+                            <button type="button" class="on" data-auth="guest">Book as guest</button>
+                            <button type="button" data-auth="login">Sign in</button>
+                            <button type="button" data-auth="register">Register</button>
                         </div>
+                        <div id="b-signedin" class="cet-signedin" hidden>✓ Signed in as <strong id="b-me-name"></strong><span id="b-me-acct"></span></div>
                         @endif
 
-                        <div class="cet-field"><label for="b-name">Full name</label>
-                            <input id="b-name" name="customer_name" required></div>
-                        <div class="cet-two">
-                            <div class="cet-field"><label for="b-phone">Mobile number</label>
-                                <input id="b-phone" name="customer_phone" placeholder="07…"></div>
-                            <div class="cet-field"><label for="b-email">Email</label>
-                                <input id="b-email" name="customer_email" type="email"></div>
-                        </div>
-
-                        {{-- Create an account (optional) — guests can still book. --}}
-                        @if($passwordLogin ?? false)
-                        <label class="cet-check" id="b-create-wrap" style="margin-top:2px">
-                            <input type="checkbox" id="b-create" name="create_account" value="1">
-                            <span>Create an account for faster booking next time</span>
-                        </label>
-                        <div id="b-create-block" hidden>
-                            <div class="cet-field"><label for="b-create-pass">Choose a password</label>
-                                <input id="b-create-pass" name="password" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password"></div>
-                            <p class="opt" style="font-size:12.5px;margin:2px 0 0;color:var(--muted)">✓ Save your details, track &amp; manage your bookings, and rebook in seconds. Business accounts can book on account.</p>
-                        </div>
-                        @endif
-
-                        {{-- Booking for someone else — the passenger becomes the lead. --}}
-                        <label class="cet-check" id="b-else-wrap" style="margin-top:2px">
-                            <input type="checkbox" id="b-else" name="booking_for_other" value="1">
-                            <span>I’m booking for someone else</span>
-                        </label>
-                        <div id="b-lead-block" hidden>
+                        {{-- SIGN IN panel --}}
+                        <div id="b-login-panel" hidden>
                             <div class="cet-two">
-                                <div class="cet-field"><label for="b-lead-name">Passenger’s full name</label>
-                                    <input id="b-lead-name" name="lead_passenger_name" autocomplete="off"></div>
-                                <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile</label>
-                                    <input id="b-lead-phone" name="lead_passenger_phone" placeholder="07…" autocomplete="off"></div>
+                                <div class="cet-field"><label for="b-login-email">Email</label>
+                                    <input id="b-login-email" type="email" autocomplete="email"></div>
+                                <div class="cet-field"><label for="b-login-pass">Password</label>
+                                    <input id="b-login-pass" type="password" autocomplete="current-password"></div>
                             </div>
-                            <p class="opt" style="font-size:12.5px;margin:2px 0 0;color:var(--muted)">👤 This is the <strong>lead passenger</strong> — the person the <strong>driver will be in contact with</strong> on the day.</p>
+                            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                                <button type="button" id="b-login-btn" class="cet-btn cet-btn-sm">Sign in</button>
+                                <a class="cet-linkbtn" href="{{ route('widget.account.forgot') }}" target="_top">Forgot password?</a>
+                            </div>
+                            <div id="b-login-err" class="cet-bad-note" hidden style="margin-top:8px"></div>
                         </div>
 
-                        {{-- Extras. Meet & greet appears (pre-ticked) only for airport
-                             pickups; child seats hide behind a tick, max 2 in total. --}}
-                        @php $sc = $surcharges ?? []; @endphp
-                        <div class="cet-mini-title">✨ Extras <span class="opt">(optional)</span></div>
+                        {{-- GUEST / REGISTER — the actual booking contact details. --}}
+                        <div id="b-guest-panel">
+                            <div class="cet-field"><label for="b-name">Full name</label>
+                                <input id="b-name" name="customer_name" required></div>
+                            <div class="cet-two">
+                                <div class="cet-field"><label for="b-phone">Mobile number</label>
+                                    <input id="b-phone" name="customer_phone" placeholder="07…"></div>
+                                <div class="cet-field"><label for="b-email">Email</label>
+                                    <input id="b-email" name="customer_email" type="email"></div>
+                            </div>
+                            <div class="cet-field" id="b-reg-pass-field" hidden>
+                                <label for="b-reg-pass">Choose a password</label>
+                                <input id="b-reg-pass" name="password" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password" disabled>
+                                <p class="opt" style="font-size:12px;margin:5px 0 0;color:var(--muted)">Save your details, track &amp; manage bookings and rebook in seconds.</p>
+                            </div>
+
+                            <label class="cet-check cet-check-sm" id="b-else-wrap" style="margin-top:10px">
+                                <input type="checkbox" id="b-else" name="booking_for_other" value="1">
+                                <span>I’m booking for someone else</span>
+                            </label>
+                            <div id="b-lead-block" hidden>
+                                <div class="cet-two">
+                                    <div class="cet-field"><label for="b-lead-name">Passenger’s full name</label>
+                                        <input id="b-lead-name" name="lead_passenger_name" autocomplete="off"></div>
+                                    <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile</label>
+                                        <input id="b-lead-phone" name="lead_passenger_phone" placeholder="07…" autocomplete="off"></div>
+                                </div>
+                                <p class="opt" style="font-size:12px;margin:2px 0 0;color:var(--muted)">This is the <strong>lead passenger</strong> — who the <strong>driver contacts</strong> on the day.</p>
+                            </div>
+                        </div>
+
+                        {{-- Extras — compact. Meet & greet appears (pre-ticked) only for airport
+                             journeys; child seats hide behind a tick, max 2 in total. --}}
+                        <div class="cet-mini-title">Extras <span class="opt">(optional)</span></div>
                         <div class="cet-field" id="b-flight-field">
-                            <label for="b-flight">Flight number <span class="opt">— for airport pickups (we track it)</span></label>
+                            <label for="b-flight">Flight number <span class="opt" id="b-flight-opt">— for airport pickups (we track it)</span></label>
                             <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
                         </div>
-                        <label class="cet-check" id="b-mg-wrap" hidden>
-                            <input type="checkbox" id="b-meet-greet" name="meet_greet" value="1" data-extra="{{ (float) ($sc['meet_greet'] ?? 0) }}">
-                            <span>Meet &amp; greet <span class="opt" style="font-weight:500;color:var(--muted-2)">— driver waits inside arrivals with a name board</span></span>
-                        </label>
-
-                        <label class="cet-check" id="b-need-seats-wrap" style="margin-top:9px">
-                            <input type="checkbox" id="b-need-seats" name="need_child_seat" value="1">
-                            <span>I require a child seat</span>
-                        </label>
-                        <div id="b-seats-block" hidden>
-                            <div class="cet-steppers">
-                                @foreach ([
-                                    'child_seats'   => ['Child seats',   $sc['child_seat']   ?? 0],
-                                    'booster_seats' => ['Booster seats', $sc['booster_seat'] ?? 0],
-                                    'infant_seats'  => ['Infant seats',  $sc['infant_seat']  ?? 0],
-                                ] as $field => [$label, $unit])
-                                    <div class="cet-stepper">
-                                        <label for="b-{{ $field }}">{{ $label }}</label>
-                                        <div class="ctrl">
-                                            <button type="button" data-step-btn="-" aria-label="Less">−</button>
-                                            <input id="b-{{ $field }}" name="{{ $field }}" type="number" min="0" max="2" value="0"
-                                                   inputmode="numeric" data-extra="{{ (float) $unit }}" data-seat="1" readonly>
-                                            <button type="button" data-step-btn="+" aria-label="More">+</button>
+                        <div class="cet-xtras">
+                            <label class="cet-check cet-check-sm" id="b-mg-wrap" hidden>
+                                <input type="checkbox" id="b-meet-greet" name="meet_greet" value="1" data-extra="{{ (float) ($sc['meet_greet'] ?? 0) }}">
+                                <span>Meet &amp; greet <span class="opt">— driver waits in arrivals with a name board</span></span>
+                                @if(($sc['meet_greet'] ?? 0) > 0)<span class="px">+£{{ (int) ($sc['meet_greet']) }}</span>@endif
+                            </label>
+                            <label class="cet-check cet-check-sm" id="b-need-seats-wrap">
+                                <input type="checkbox" id="b-need-seats" name="need_child_seat" value="1">
+                                <span>Child / booster / infant seat</span>
+                            </label>
+                            <div id="b-seats-block" hidden>
+                                <div class="cet-steppers">
+                                    @foreach ([
+                                        'child_seats'   => ['Child',   $sc['child_seat']   ?? 0],
+                                        'booster_seats' => ['Booster', $sc['booster_seat'] ?? 0],
+                                        'infant_seats'  => ['Infant',  $sc['infant_seat']  ?? 0],
+                                    ] as $field => [$label, $unit])
+                                        <div class="cet-stepper">
+                                            <label for="b-{{ $field }}">{{ $label }}@if($unit > 0) <span class="opt">+£{{ (int) $unit }}</span>@endif</label>
+                                            <div class="ctrl">
+                                                <button type="button" data-step-btn="-" aria-label="Less">−</button>
+                                                <input id="b-{{ $field }}" name="{{ $field }}" type="number" min="0" max="2" value="0"
+                                                       inputmode="numeric" data-extra="{{ (float) $unit }}" data-seat="1" readonly>
+                                                <button type="button" data-step-btn="+" aria-label="More">+</button>
+                                            </div>
                                         </div>
-                                    </div>
-                                @endforeach
+                                    @endforeach
+                                </div>
+                                <p class="cet-foot" style="text-align:left;margin:8px 0 2px">Up to 2 seats in total (any mix).</p>
                             </div>
-                            <p class="cet-foot" style="text-align:left;margin:8px 0 2px">Up to 2 seats in total (any mix of child, booster or infant).</p>
+                            <label class="cet-check cet-check-sm">
+                                <input type="checkbox" id="b-wheelchair" name="wheelchair" value="1" data-extra="{{ (float) ($sc['wheelchair'] ?? 0) }}">
+                                <span>Wheelchair accessible vehicle</span>
+                                @if(($sc['wheelchair'] ?? 0) > 0)<span class="px">+£{{ (int) ($sc['wheelchair']) }}</span>@endif
+                            </label>
+                            <label class="cet-check cet-check-sm">
+                                <input type="checkbox" id="b-ribbons" name="ribbons" value="1" data-extra="{{ (float) ($sc['ribbons_car'] ?? 0) }}">
+                                <span>Wedding ribbons</span>
+                                @if(($sc['ribbons_car'] ?? 0) > 0)<span class="px">+£{{ (int) ($sc['ribbons_car']) }}</span>@endif
+                            </label>
                         </div>
 
-                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional — e.g. airport pickup location)</span></label>
+                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional — e.g. pickup notes, accessibility needs)</span></label>
                             <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
 
                         {{-- Payment method (like ETO): pay by card online, or cash to the
@@ -546,9 +574,10 @@
                         </div>
 
                         <label class="cet-agree"><input type="checkbox" id="b-terms" name="accept_terms" value="1">
-                            <span>I accept the <a href="{{ url('/terms') }}" target="_blank" rel="noopener">Terms &amp; Conditions</a></span></label>
+                            <span>I accept the <a href="{{ config('cet.links.terms') }}" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+                            and <a href="{{ config('cet.links.cancellation') }}" target="_blank" rel="noopener">Cancellation Policy</a></span></label>
                         <label class="cet-agree"><input type="checkbox" id="b-privacy" name="accept_privacy" value="1">
-                            <span>I accept the <a href="{{ url('/privacy') }}" target="_blank" rel="noopener">Privacy Policy</a></span></label>
+                            <span>I accept the <a href="{{ config('cet.links.privacy') }}" target="_blank" rel="noopener">Privacy Policy</a></span></label>
 
                         <div class="cet-err" data-err="3"></div>
                         <div class="cet-actions">
@@ -723,6 +752,9 @@
                     return ok;
                 }
                 if (n === 3) {
+                    // On the "Sign in" tab without signing in? Nudge them.
+                    var auth = window.__cetAuthState ? window.__cetAuthState() : { onLogin: false };
+                    if (auth.onLogin) { showErr(3, 'Please sign in, or choose “Book as guest”.'); return false; }
                     var nameEl = document.getElementById('b-name');
                     var phone = document.getElementById('b-phone'), email = document.getElementById('b-email');
                     var okName = nonEmpty(nameEl);
@@ -732,6 +764,18 @@
                     email.closest('.cet-field').classList.toggle('bad', !okContact);
                     if (!okName) { showErr(3, 'Please enter your name.'); nameEl.focus(); return false; }
                     if (!okContact) { showErr(3, 'Please give a phone number or an email so we can confirm.'); phone.focus(); return false; }
+                    // Flight number is required for airport journeys (arrivals we track).
+                    var flightField = document.getElementById('b-flight-field'), flightIn = document.getElementById('b-flight');
+                    if (flightIn && flightIn.dataset.required === '1' && !nonEmpty(flightIn)) {
+                        if (flightField) flightField.classList.add('bad');
+                        showErr(3, 'Please enter the flight number for your airport journey.'); flightIn.focus(); return false;
+                    }
+                    // Registering — need a password of at least 8 characters.
+                    var regPass = document.getElementById('b-reg-pass');
+                    if (regPass && !regPass.disabled && (regPass.value || '').length < 8) {
+                        regPass.closest('.cet-field').classList.add('bad');
+                        showErr(3, 'Please choose a password of at least 8 characters, or switch to “Book as guest”.'); regPass.focus(); return false;
+                    }
                     var elseBox = document.getElementById('b-else'), leadName = document.getElementById('b-lead-name');
                     if (elseBox && elseBox.checked && leadName && !nonEmpty(leadName)) {
                         leadName.closest('.cet-field').classList.add('bad');
@@ -945,17 +989,43 @@
                 hay = hay.toLowerCase();
                 return /\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|\bt1\b|\bt2\b|\bt3\b|\bt5\b/.test(hay);
             }
+            // True when the journey is an airport RETURN (return trip touching an airport).
+            function isAirportReturn() {
+                var jt = journeyEl ? journeyEl.value : 'one_way';
+                return jt === 'return' && isAirportJourney();
+            }
             function applyAirportMeetGreet() {
-                var wrap = document.getElementById('b-mg-wrap'); if (!wrap || !mg) return;
                 var airport = isAirportJourney();
-                wrap.hidden = !airport;
-                if (airport) { if (!mg.dataset.userset) mg.checked = true; }
-                else { mg.checked = false; }
-                wrap.classList.toggle('on', mg.checked);
+                var wrap = document.getElementById('b-mg-wrap');
+                if (wrap && mg) {
+                    wrap.hidden = !airport;
+                    // Auto-tick for airport journeys (especially a return pickup from the
+                    // airport); off + hidden otherwise. The customer can still untick.
+                    if (airport) { if (!mg.dataset.userset) mg.checked = true; }
+                    else { mg.checked = false; }
+                    wrap.classList.toggle('on', mg.checked);
+                }
+                // Flight number is REQUIRED on airport journeys (arrivals we track).
+                var ff = document.getElementById('b-flight-field');
+                var fe = document.getElementById('b-flight');
+                var opt = document.getElementById('b-flight-opt');
+                if (fe) {
+                    fe.dataset.required = airport ? '1' : '';
+                    if (opt) opt.textContent = airport ? '— required for airport journeys (we track it)' : '— for airport pickups (we track it)';
+                }
+                if (ff) ff.classList.toggle('cet-need', airport);
             }
             if (mg) { mg.addEventListener('change', function () { mg.dataset.userset = '1'; }); }
             var flightEl = document.getElementById('b-flight');
             if (flightEl) { flightEl.addEventListener('input', fillSummary); }
+            // Wheelchair / ribbons checkbox extras — highlight + live total.
+            ['b-wheelchair', 'b-ribbons'].forEach(function (id) {
+                var el = document.getElementById(id); if (!el) return;
+                el.addEventListener('change', function () {
+                    var lab = el.closest('.cet-check'); if (lab) lab.classList.toggle('on', el.checked);
+                    fillSummary();
+                });
+            });
             var vatPercent = {{ (int) ($vatPercent ?? 20) }};
             var vatBox = document.getElementById('b-vat');
             if (vatBox) { vatBox.addEventListener('change', function () {
@@ -990,29 +1060,60 @@
             [payCard, payCash, payAccount].forEach(function (r) { if (r) r.addEventListener('change', syncPay); });
             syncPay();
 
-            // Account booking requires SIGNING IN — the "Account" payment option is
-            // only ever shown to a signed-in business account. Guests can't pick it.
+            // Book as guest / Sign in / Register tabs. Account payment is only ever
+            // shown to a SIGNED-IN business account — guests/register can't pick it.
             (function () {
                 var acctWrap = document.getElementById('b-pay-account-wrap');
                 var acctName = document.getElementById('b-account-name');
-                function revealAccount(account, me) {
-                    // Prefill details from the signed-in customer.
+                var tabs = document.getElementById('b-authtabs');
+                var loginPanel = document.getElementById('b-login-panel');
+                var guestPanel = document.getElementById('b-guest-panel');
+                var regPassField = document.getElementById('b-reg-pass-field');
+                var regPass = document.getElementById('b-reg-pass');
+                var createFlag = document.getElementById('b-create');
+                var nameEl = document.getElementById('b-name');
+                var signedin = document.getElementById('b-signedin');
+                var signedIn = false;
+
+                // Switch tab: guest | login | register.
+                function setTab(which) {
+                    if (tabs) tabs.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.auth === which); });
+                    if (loginPanel) loginPanel.hidden = which !== 'login';
+                    if (guestPanel) guestPanel.hidden = which === 'login';
+                    // Register → collect a password + flag account creation.
+                    var reg = which === 'register';
+                    if (regPassField) regPassField.hidden = !reg;
+                    if (regPass) regPass.disabled = !reg;
+                    if (createFlag) createFlag.value = reg ? '1' : '';
+                    // Name is only required when the guest/register fields are visible.
+                    if (nameEl) { if (which === 'login') nameEl.removeAttribute('required'); else nameEl.setAttribute('required', 'required'); }
+                    reportHeight();
+                }
+                if (tabs) tabs.querySelectorAll('button').forEach(function (b) {
+                    b.addEventListener('click', function () { setTab(b.dataset.auth); });
+                });
+
+                function signIn(account, me) {
+                    signedIn = true;
                     if (me) {
-                        var n = document.getElementById('b-name'), ph = document.getElementById('b-phone'), em = document.getElementById('b-email');
-                        if (n && me.name) n.value = me.name;
+                        var ph = document.getElementById('b-phone'), em = document.getElementById('b-email');
+                        if (nameEl && me.name) nameEl.value = me.name;
                         if (ph && me.phone) ph.value = me.phone;
                         if (em && me.email) em.value = me.email;
                     }
-                    // Show "signed in" state, hide the login prompt + the create-account offer.
-                    var lo = document.getElementById('b-loggedout'), li = document.getElementById('b-loggedin'),
-                        meName = document.getElementById('b-me-name'), meAcct = document.getElementById('b-me-acct'),
-                        createWrap = document.getElementById('b-create-wrap'), createBlk = document.getElementById('b-create-block');
-                    if (lo) lo.hidden = true;
-                    if (li && me) { li.hidden = false; if (meName) meName.textContent = me.name || 'your account'; }
-                    if (meAcct) meAcct.textContent = account ? ' · ' + account.name + ' (acct ' + account.code + ')' : '';
-                    if (createWrap) createWrap.style.display = 'none';
-                    if (createBlk) createBlk.hidden = true;
-                    // Reveal + select the Account payment option for a business account.
+                    if (tabs) tabs.hidden = true;
+                    if (signedin && me) { signedin.hidden = false;
+                        var mn = document.getElementById('b-me-name'), ma = document.getElementById('b-me-acct');
+                        if (mn) mn.textContent = me.name || 'your account';
+                        if (ma) ma.textContent = account ? ' · ' + account.name + ' (acct ' + account.code + ')' : '';
+                    }
+                    if (loginPanel) loginPanel.hidden = true;
+                    if (guestPanel) guestPanel.hidden = false;
+                    if (regPassField) regPassField.hidden = true;
+                    if (regPass) regPass.disabled = true;
+                    if (createFlag) createFlag.value = '';
+                    if (nameEl) nameEl.setAttribute('required', 'required');
+                    // Reveal + select Account payment for a business account.
                     if (account && acctWrap) {
                         if (acctName) acctName.textContent = account.name;
                         acctWrap.hidden = false;
@@ -1022,14 +1123,7 @@
                 }
 
                 // Already signed in when the page loaded?
-                if (window.CET_ME) revealAccount(window.CET_ME_ACCOUNT, window.CET_ME);
-
-                var toggle = document.getElementById('b-login-toggle');
-                var loginForm = document.getElementById('b-login-form');
-                if (toggle && loginForm) toggle.addEventListener('click', function () {
-                    loginForm.hidden = !loginForm.hidden; reportHeight();
-                    var e = document.getElementById('b-login-email'); if (e && !loginForm.hidden) e.focus();
-                });
+                if (window.CET_ME) signIn(window.CET_ME_ACCOUNT, window.CET_ME);
 
                 var loginBtn = document.getElementById('b-login-btn');
                 if (loginBtn && window.CET_LOGIN_URL) loginBtn.addEventListener('click', function () {
@@ -1044,18 +1138,19 @@
                         body: JSON.stringify({ email: email.trim(), password: pass })
                     }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
                       .then(function (d) {
-                          if (d && d.ok) { revealAccount(d.account, d); }
+                          if (d && d.ok) { signIn(d.account, d); }
                           else { if (err) { err.hidden = false; err.textContent = 'That email and password didn’t match.'; } }
                       })
                       .catch(function () { if (err) { err.hidden = false; err.textContent = 'That email and password didn’t match.'; } })
                       .finally(function () { loginBtn.disabled = false; loginBtn.textContent = 'Sign in'; });
                 });
 
-                // "Create an account" reveals the password field.
-                var createBox = document.getElementById('b-create'), createBlk2 = document.getElementById('b-create-block');
-                if (createBox && createBlk2) createBox.addEventListener('change', function () {
-                    createBlk2.hidden = !createBox.checked; reportHeight();
-                });
+                // Expose whether the booker is on the login tab without signing in,
+                // so step validation can nudge them.
+                window.__cetAuthState = function () {
+                    var onLogin = loginPanel && !loginPanel.hidden && !signedIn;
+                    return { onLogin: !!onLogin, signedIn: signedIn };
+                };
             })();
 
             function extrasList() {
@@ -1067,6 +1162,11 @@
                     var n = parseInt(el.value, 10) || 0; if (n <= 0) return;
                     var unit = parseFloat(el.dataset.extra) || 0;
                     items.push({ label: (n > 1 ? n + ' × ' : '') + p[1] + (n > 1 ? 's' : ''), amount: unit * n });
+                });
+                // Checkbox extras (wheelchair, wedding ribbons).
+                [['b-wheelchair','Wheelchair accessible vehicle'],['b-ribbons','Wedding ribbons']].forEach(function (p) {
+                    var el = document.getElementById(p[0]); if (!el || !el.checked) return;
+                    items.push({ label: p[1], amount: parseFloat(el.dataset.extra) || 0 });
                 });
                 // Extra stops added on the main page (each via point).
                 var stopsField = document.getElementById('b-stops-field');

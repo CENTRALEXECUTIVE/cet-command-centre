@@ -254,6 +254,8 @@ class BookingWidgetController extends Controller
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
             'stops' => ['nullable', 'array', 'max:10'],
             'stops.*' => ['nullable', 'string', 'max:500'],
+            'wheelchair' => ['nullable', 'boolean'],
+            'ribbons' => ['nullable', 'boolean'],
             'vat_invoice' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['card', 'cash', 'account'])],
             'voucher' => ['nullable', 'string', 'max:40'],
@@ -281,6 +283,15 @@ class BookingWidgetController extends Controller
             (array) ($data['stops'] ?? []),
         ), fn ($s) => $s !== ''));
         $data['stopovers'] = count($stops);
+
+        // Flight number MUST be provided for airport journeys (arrivals we track):
+        // a one-way pickup FROM an airport, or a return touching an airport.
+        if ($this->isAirportArrival($journeyType, $data['pickup_address'], $data['destination_address'] ?? null)
+            && blank($data['flight_number'] ?? null)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'flight_number' => 'Please provide the flight number for your airport journey.',
+            ]);
+        }
 
         // Addresses always carry their postcode (accurate zone pricing + the driver).
         $pickupFull = $this->withPostcode($data['pickup_address'], $data['pickup_postcode'] ?? null);
@@ -362,7 +373,9 @@ class BookingWidgetController extends Controller
             + $extra['child_seats'] * (float) ($rates['child_seat'] ?? 0)
             + $extra['booster_seats'] * (float) ($rates['booster_seat'] ?? 0)
             + $extra['infant_seats'] * (float) ($rates['infant_seat'] ?? 0)
-            + $extra['stopovers'] * (float) ($rates['stopover'] ?? 0);
+            + $extra['stopovers'] * (float) ($rates['stopover'] ?? 0)
+            + ($extra['wheelchair'] ? (float) ($rates['wheelchair'] ?? 0) : 0)
+            + ($extra['ribbons'] ? (float) ($rates['ribbons_car'] ?? 0) : 0);
 
         $net = $quote['price'] === null ? null : round((float) $quote['price'] + $extrasTotal, 2);
         $voucher = \App\Models\Voucher::findByCode($data['voucher'] ?? null);
@@ -568,6 +581,8 @@ class BookingWidgetController extends Controller
         $booster = (int) ($data['booster_seats'] ?? 0);
         $infant = (int) ($data['infant_seats'] ?? 0);
         $stops = (int) ($data['stopovers'] ?? 0);
+        $wheelchair = (bool) ($data['wheelchair'] ?? false);
+        $ribbons = (bool) ($data['ribbons'] ?? false);
 
         $labels = [];
         if ($meetGreet) {
@@ -578,6 +593,12 @@ class BookingWidgetController extends Controller
                 $labels[] = $n.'× '.$word.($n > 1 ? 's' : '');
             }
         }
+        if ($wheelchair) {
+            $labels[] = 'Wheelchair accessible';
+        }
+        if ($ribbons) {
+            $labels[] = 'Wedding ribbons';
+        }
 
         return [
             'meet_greet' => $meetGreet,
@@ -585,8 +606,21 @@ class BookingWidgetController extends Controller
             'booster_seats' => $booster,
             'infant_seats' => $infant,
             'stopovers' => $stops,
+            'wheelchair' => $wheelchair,
+            'ribbons' => $ribbons,
             'labels' => $labels,
         ];
+    }
+
+    /** Does this journey arrive from an airport (so a flight number is required)? */
+    private function isAirportArrival(string $journeyType, string $pickup, ?string $destination): bool
+    {
+        $pattern = '/\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bt[1-5]\b/i';
+        // One-way: only an arrival when the PICKUP is the airport (a departure to the
+        // airport needs no flight). Return: either end may be the airport arrival.
+        $haystack = $journeyType === 'return' ? $pickup.' '.(string) $destination : $pickup;
+
+        return (bool) preg_match($pattern, $haystack);
     }
 
     /** The customer's free-text notes with the chosen extras appended, or null. */
