@@ -266,7 +266,7 @@
 <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
     window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";</script>
-<script src="{{ asset('js/cet-forms.js') }}?v=32" defer></script>
+<script src="{{ asset('js/cet-forms.js') }}?v=33" defer></script>
 
 <script>
 (function(){

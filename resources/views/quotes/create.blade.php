@@ -164,7 +164,7 @@
         window.CET_RESOLVE_URL = "{{ route('places.resolve') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=32"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=33"></script>
     @verbatim
     <script>
         (function () {

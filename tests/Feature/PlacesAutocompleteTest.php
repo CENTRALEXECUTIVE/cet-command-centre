@@ -19,15 +19,17 @@ class PlacesAutocompleteTest extends TestCase
 
         Http::fake(['places.googleapis.com/*' => Http::response([
             'suggestions' => [
-                ['placePrediction' => ['text' => ['text' => 'Sheffield Town Hall, Pinstone Street, Sheffield, UK']]],
-                ['placePrediction' => ['text' => ['text' => 'Sheffield Station, Sheaf Street, Sheffield, UK']]],
+                ['placePrediction' => ['placeId' => 'PID_HALL', 'text' => ['text' => 'Sheffield Town Hall, Pinstone Street, Sheffield, UK']]],
+                ['placePrediction' => ['placeId' => 'PID_STN', 'text' => ['text' => 'Sheffield Station, Sheaf Street, Sheffield, UK']]],
             ],
         ], 200)]);
 
         $this->actingAs($admin)->getJson(route('places.autocomplete', ['q' => 'Sheffield']))
             ->assertOk()
             ->assertJsonCount(2, 'suggestions')
-            ->assertJsonFragment(['Sheffield Town Hall, Pinstone Street, Sheffield, UK']);
+            ->assertJsonFragment(['Sheffield Town Hall, Pinstone Street, Sheffield, UK'])
+            // Place ids ride along so a chosen address can be resolved to its postcode.
+            ->assertJsonFragment(['text' => 'Sheffield Town Hall, Pinstone Street, Sheffield, UK', 'placeId' => 'PID_HALL']);
     }
 
     public function test_empty_without_a_key_or_short_query(): void
@@ -118,6 +120,27 @@ class PlacesAutocompleteTest extends TestCase
                 'postcode' => 'S9 5BW',
                 'formatted' => '12 Harney Close, Darnall, Sheffield S9 5BW, UK',
             ]);
+    }
+
+    public function test_resolve_uses_place_details_for_a_place_id(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('google_maps_key', 'AIzaTEST', 'string', 'integrations');
+
+        Http::fake(['places.googleapis.com/*' => Http::response([
+            'formattedAddress' => '12 Harney Close, Darnall, Sheffield S9 5BW, UK',
+            'addressComponents' => [
+                ['longText' => 'Sheffield', 'shortText' => 'Sheffield', 'types' => ['postal_town']],
+                ['longText' => 'S9 5BW', 'shortText' => 'S9 5BW', 'types' => ['postal_code']],
+            ],
+        ], 200)]);
+
+        $this->actingAs($admin)->getJson(route('places.resolve', ['place_id' => 'ChIJ_test123']))
+            ->assertOk()
+            ->assertJson(['postcode' => 'S9 5BW', 'formatted' => '12 Harney Close, Darnall, Sheffield S9 5BW, UK']);
+
+        // It used Place Details (GET /places/{id}), not a text search.
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/v1/places/ChIJ_test123'));
     }
 
     public function test_resolve_is_empty_without_a_key(): void

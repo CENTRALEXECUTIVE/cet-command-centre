@@ -35,17 +35,22 @@ class PlacesController extends Controller
         $wantAddresses = $request->query('types') === 'address';
 
         try {
-            $suggestions = $this->fetch($key, $query, $wantAddresses ? self::ADDRESS_TYPES : []);
+            $predictions = $this->fetch($key, $query, $wantAddresses ? self::ADDRESS_TYPES : []);
 
             // Never let the address filter leave the box empty: fall back to an
             // unrestricted search if the precise-address pass found nothing.
-            if (empty($suggestions) && $wantAddresses) {
-                $suggestions = $this->fetch($key, $query, []);
+            if (empty($predictions) && $wantAddresses) {
+                $predictions = $this->fetch($key, $query, []);
             }
 
-            return response()->json(['suggestions' => $suggestions]);
+            return response()->json([
+                // Backward-compatible flat list for display, plus the place ids so
+                // a chosen address can be resolved to its postcode reliably.
+                'suggestions' => array_column($predictions, 'text'),
+                'predictions' => $predictions,
+            ]);
         } catch (\Throwable) {
-            return response()->json(['suggestions' => []]);
+            return response()->json(['suggestions' => [], 'predictions' => []]);
         }
     }
 
@@ -69,32 +74,27 @@ class PlacesController extends Controller
     /**
      * Resolve a chosen address to its POSTCODE (and canonical full address).
      * Google's autocomplete predictions usually omit the postcode, so once the
-     * customer picks an address we look it up with Places Text Search (part of the
-     * same Places API New) and pull the postal_code component out. Empty on any
-     * failure so the postcode box just stays manual.
+     * customer picks an address we look it up and pull the postal_code component.
+     *
+     * Preferred path is Place Details by the prediction's placeId (reliable, and
+     * always returns addressComponents). Free-typed addresses with no placeId fall
+     * back to a Text Search. Empty on any failure so the postcode box stays manual.
      */
     public function resolve(Request $request): JsonResponse
     {
+        $placeId = trim((string) $request->query('place_id', ''));
         $address = trim((string) $request->query('address', ''));
         $key = Setting::mapsKey();
 
-        if (mb_strlen($address) < 4 || ! $key) {
+        if (! $key || ($placeId === '' && mb_strlen($address) < 4)) {
             return response()->json(['postcode' => '', 'formatted' => '']);
         }
 
         try {
-            $response = Http::timeout(8)
-                ->withHeaders([
-                    'X-Goog-Api-Key' => $key,
-                    'X-Goog-FieldMask' => 'places.formattedAddress,places.addressComponents',
-                ])
-                ->post('https://places.googleapis.com/v1/places:searchText', [
-                    'textQuery' => $address,
-                    'regionCode' => 'GB',
-                    'maxResultCount' => 1,
-                ]);
+            $place = $placeId !== ''
+                ? $this->placeDetails($key, $placeId)
+                : $this->textSearchPlace($key, $address);
 
-            $place = $response->json('places.0');
             if (! $place) {
                 return response()->json(['postcode' => '', 'formatted' => '']);
             }
@@ -116,7 +116,42 @@ class PlacesController extends Controller
         }
     }
 
-    /** One call to Google Places autocomplete; returns the suggestion strings. */
+    /** Place Details (New) for a known placeId — returns address + components. */
+    private function placeDetails(string $key, string $placeId): ?array
+    {
+        $response = Http::timeout(8)
+            ->withHeaders([
+                'X-Goog-Api-Key' => $key,
+                'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
+            ])
+            ->get('https://places.googleapis.com/v1/places/'.rawurlencode($placeId));
+
+        return $response->successful() ? $response->json() : null;
+    }
+
+    /** Text Search (New) fallback for a free-typed address (no placeId). */
+    private function textSearchPlace(string $key, string $address): ?array
+    {
+        $response = Http::timeout(8)
+            ->withHeaders([
+                'X-Goog-Api-Key' => $key,
+                'X-Goog-FieldMask' => 'places.formattedAddress,places.addressComponents',
+            ])
+            ->post('https://places.googleapis.com/v1/places:searchText', [
+                'textQuery' => $address,
+                'regionCode' => 'GB',
+                'maxResultCount' => 1,
+            ]);
+
+        return $response->json('places.0');
+    }
+
+    /**
+     * One call to Google Places autocomplete; returns [{text, placeId}] rows so a
+     * chosen address can later be resolved to its postcode by place id.
+     *
+     * @return array<int, array{text: string, placeId: string}>
+     */
     private function fetch(string $key, string $query, array $primaryTypes): array
     {
         $body = ['input' => $query, 'includedRegionCodes' => ['gb']];
@@ -129,8 +164,11 @@ class PlacesController extends Controller
             ->post('https://places.googleapis.com/v1/places:autocomplete', $body);
 
         return collect($response->json('suggestions', []))
-            ->map(fn ($s) => $s['placePrediction']['text']['text'] ?? null)
-            ->filter()
+            ->map(fn ($s) => [
+                'text' => $s['placePrediction']['text']['text'] ?? null,
+                'placeId' => $s['placePrediction']['placeId'] ?? '',
+            ])
+            ->filter(fn ($p) => filled($p['text']))
             ->values()
             ->all();
     }

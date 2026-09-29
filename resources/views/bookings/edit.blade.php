@@ -255,7 +255,7 @@
         window.CET_ADDRESSES_URL = "{{ route('places.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('places.resolve') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=32"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=33"></script>
     @verbatim
     <script>
         (function () {

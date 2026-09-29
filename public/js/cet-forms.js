@@ -26,6 +26,12 @@
     // Precise-address place types — house/street/postcode, no businesses.
     var ADDRESS_TYPES = ['street_address', 'premise', 'subpremise', 'route', 'postal_code'];
 
+    // Remember each suggestion's Google placeId (keyed by its display text) so a
+    // chosen address can be resolved to its postcode reliably by place id.
+    var placeIds = {};
+    function remember(text, placeId) { if (text && placeId) placeIds[text] = placeId; }
+    function placeIdFor(text) { return placeIds[String(text || '').trim()] || ''; }
+
     // Returns a Promise of an array of address strings for the query. When
     // types === 'address' the results are biased to precise addresses so typing a
     // house number lists the exact addresses to choose from.
@@ -38,7 +44,8 @@
                 if (wantAddresses) req.includedPrimaryTypes = ADDRESS_TYPES;
                 return places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req).then(function (res) {
                     var out = (res.suggestions || []).map(function (s) {
-                        return s.placePrediction && s.placePrediction.text ? s.placePrediction.text.text : null;
+                        var p = s.placePrediction; if (!p || !p.text) return null;
+                        var text = p.text.text; remember(text, p.placeId); return text;
                     }).filter(Boolean);
                     // Fall back to an unrestricted search rather than showing nothing.
                     if (!out.length && wantAddresses) return suggestGoogle(places, query, false);
@@ -54,7 +61,8 @@
         if (wantAddresses) req.includedPrimaryTypes = ADDRESS_TYPES;
         return places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req).then(function (res) {
             return (res.suggestions || []).map(function (s) {
-                return s.placePrediction && s.placePrediction.text ? s.placePrediction.text.text : null;
+                var p = s.placePrediction; if (!p || !p.text) return null;
+                var text = p.text.text; remember(text, p.placeId); return text;
             }).filter(Boolean);
         });
     }
@@ -65,7 +73,10 @@
             + (types ? '&types=' + encodeURIComponent(types) : '');
         return fetch(url, { headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.json(); })
-            .then(function (d) { return d.suggestions || []; })
+            .then(function (d) {
+                (d.predictions || []).forEach(function (p) { remember(p.text, p.placeId); });
+                return d.suggestions || [];
+            })
             .catch(function () { return []; });
     }
 
@@ -227,7 +238,13 @@
             if (pc) { target.value = pc; target.dispatchEvent(new Event('change')); return; }
             var q = el.value.trim();
             if (!window.CET_RESOLVE_URL || q.length < 4) return;
-            fetch(window.CET_RESOLVE_URL + '?address=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+            // Resolve by the chosen suggestion's placeId when we have it (reliable),
+            // else by the typed text.
+            var pid = placeIdFor(q);
+            var url = window.CET_RESOLVE_URL + (pid
+                ? '?place_id=' + encodeURIComponent(pid)
+                : '?address=' + encodeURIComponent(q));
+            fetch(url, { headers: { 'Accept': 'application/json' } })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d && d.postcode) { target.value = d.postcode; target.dispatchEvent(new Event('change')); }
