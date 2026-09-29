@@ -422,9 +422,15 @@ class StatusWatchdog
             }
         }
 
-        // Driver nudge sent twice and still no reaction 5 min later.
+        // Driver nudge sent twice and still no reaction 5 min later — UNLESS the
+        // driver is on another active job right now (en route / at pickup / POB).
+        // They physically can't set off for the next job while finishing this one,
+        // so a "hasn't set off" alarm is wrong: never fire it while they're out.
         foreach (self::UNACTED_MAP as $type => [$statuses, $action]) {
             if (! in_array($booking->status, $statuses, true)) {
+                continue;
+            }
+            if ($this->driverBusyElsewhere($booking)) {
                 continue;
             }
             $last = JobNudge::where('booking_id', $booking->id)

@@ -287,6 +287,50 @@ class StatusWatchdogTest extends TestCase
         ]);
     }
 
+    public function test_no_hasnt_set_off_alarm_while_the_driver_is_on_another_job(): void
+    {
+        // Job B is allocated and its set-off time has passed; the driver was nudged
+        // twice, 6 min ago — normally this escalates "hasn't set off" to the office.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+        foreach ([12, 6] as $ago) {
+            JobNudge::create([
+                'booking_id' => $b->id, 'nudge_type' => 'set_off', 'recipient_type' => 'driver',
+                'recipient_id' => $b->driver_id, 'sent_at' => now()->subMinutes($ago), 'channel' => 'push',
+            ]);
+        }
+        // But the SAME driver is currently out on another job (passenger on board).
+        Booking::factory()->create([
+            'driver_id' => $b->driver_id, 'status' => BookingStatus::Collected->value,
+            'pickup_at' => now()->subMinutes(30),
+        ]);
+
+        app(StatusWatchdog::class)->adminPass($b->fresh());
+
+        $this->assertDatabaseMissing('watchdog_events', [
+            'booking_id' => $b->id, 'event_type' => 'admin_unacted_set_off',
+        ]);
+        $this->assertSame(0, JobNudge::where('booking_id', $b->id)
+            ->where('nudge_type', 'admin_unacted_set_off')->count());
+    }
+
+    public function test_hasnt_set_off_alarm_still_fires_when_the_driver_is_free(): void
+    {
+        // Same as above, but the driver is NOT on any other job → the alarm fires.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(20));
+        foreach ([12, 6] as $ago) {
+            JobNudge::create([
+                'booking_id' => $b->id, 'nudge_type' => 'set_off', 'recipient_type' => 'driver',
+                'recipient_id' => $b->driver_id, 'sent_at' => now()->subMinutes($ago), 'channel' => 'push',
+            ]);
+        }
+
+        app(StatusWatchdog::class)->adminPass($b->fresh());
+
+        $this->assertDatabaseHas('watchdog_events', [
+            'booking_id' => $b->id, 'event_type' => 'admin_unacted_set_off',
+        ]);
+    }
+
     public function test_at_risk_does_not_fire_once_the_driver_has_set_off(): void
     {
         // Same timing but the driver has SET OFF (En Route) — no risk, no alert.
