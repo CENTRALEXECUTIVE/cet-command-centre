@@ -40,9 +40,15 @@ class BookingInvoicePdf
         $paid = ($booking->payment_status ?? null) === 'paid';
         $paidAmount = $paid ? $vat['gross'] : (float) ($booking->meta['square_payment']['amount'] ?? 0);
 
+        $account = $booking->corporateAccount;
+
         return [
-            'company' => (array) config('cet.company'),
-            'vatNumber' => $this->vat->number(),
+            'company' => \App\Support\InvoiceProfile::company(),
+            'bank' => \App\Support\InvoiceProfile::bank(),
+            'footerNote' => \App\Support\InvoiceProfile::footerNote(),
+            'isAccount' => ($booking->payment_method?->value ?? null) === 'account',
+            'account' => $account,
+            'vatNumber' => \App\Support\InvoiceProfile::company()['vat_number'],
             'reference' => $booking->external_reference ?: $booking->reference,
             'issueDate' => ($booking->created_at ?? now())->format('d/m/Y'),
             'dueDate' => ($booking->pickup_at ?? now())->format('d/m/Y'),

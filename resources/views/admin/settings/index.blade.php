@@ -28,6 +28,41 @@
         </div>
 
         <div class="card">
+            <h2>🧾 Company &amp; invoice details</h2>
+            <p class="muted" style="margin-top:0">Shown on every invoice and receipt. Company accounts with a VAT number get a proper VAT invoice (net + VAT) they can reclaim. Bank details appear on account invoices for payment by transfer.</p>
+            <label>Registered / correspondence address
+                <textarea name="invoice_company_address" rows="3" placeholder="e.g. 123 Example Street, Sheffield, S1 2AB">{{ $invoiceProfile['address'] }}</textarea>
+            </label>
+            <div class="grid grid-2">
+                <label>VAT registration number
+                    <input type="text" name="invoice_vat_number" value="{{ $invoiceProfile['vat_number'] }}" placeholder="GB123456789" autocomplete="off">
+                </label>
+                <label>Invoice contact email
+                    <input type="email" name="invoice_email" value="{{ $invoiceProfile['email'] }}" placeholder="accounts@…" autocomplete="off">
+                </label>
+                <label>Invoice contact phone
+                    <input type="text" name="invoice_phone" value="{{ $invoiceProfile['phone'] }}" placeholder="0114 …" autocomplete="off">
+                </label>
+            </div>
+            <h3 style="margin:16px 0 6px;font-size:14px">Bank details (for account invoices)</h3>
+            <div class="grid grid-2">
+                <label>Account name
+                    <input type="text" name="invoice_bank_name" value="{{ $invoiceProfile['bank_name'] }}" placeholder="Central Executive Transfers Ltd" autocomplete="off">
+                </label>
+                <label>Sort code
+                    <input type="text" name="invoice_bank_sort" value="{{ $invoiceProfile['bank_sort'] }}" placeholder="00-00-00" autocomplete="off">
+                </label>
+                <label>Account number
+                    <input type="text" name="invoice_bank_account" value="{{ $invoiceProfile['bank_account'] }}" placeholder="12345678" autocomplete="off">
+                </label>
+            </div>
+            <label style="margin-top:8px">Invoice footer note <span class="muted" style="font-weight:400">(optional)</span>
+                <input type="text" name="invoice_footer_note" value="{{ $invoiceProfile['footer_note'] }}" placeholder="e.g. Thank you for your business" autocomplete="off">
+            </label>
+            <p class="muted" style="font-size:12px;margin-bottom:0">Press <strong>Save</strong> at the bottom to apply.</p>
+        </div>
+
+        <div class="card">
             <h2>🏠 Postcode address finder <span class="muted" style="font-size:13px;font-weight:400">(optional)</span></h2>
             <p class="muted" style="margin-top:0">Lets a customer type just their <strong>postcode</strong> and pick their exact house from the full list of addresses — the "postcode → choose your address" experience. Uses <strong>getAddress.io</strong> (Royal Mail PAF). Sign up at <a href="https://getaddress.io" target="_blank" rel="noopener">getaddress.io</a> (there's a free tier), then paste the API key here. Without it, the form still works using Google's live suggestions as you type.</p>
             <label>getAddress.io API key

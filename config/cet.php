@@ -16,6 +16,19 @@ return [
         // VAT registration number — set CET_VAT_NUMBER in .env once you have it
         // (e.g. "GB123456789"). Shown on customer receipts and VAT invoices.
         'vat_number' => env('CET_VAT_NUMBER', ''),
+        // Registered/correspondence address + contact for invoices. Best set in
+        // the app (Settings → Company & invoice details), which overrides these.
+        'address' => env('CET_COMPANY_ADDRESS', ''),
+        'phone' => env('CET_COMPANY_PHONE', ''),
+        'email' => env('CET_COMPANY_EMAIL', 'admin@centralexecutivetransfers.co.uk'),
+    ],
+
+    // Bank details printed on account (BACS) invoices. Set in Settings → Company
+    // & invoice details, or via .env. Shown only when a sort code + account are set.
+    'bank' => [
+        'name' => env('CET_BANK_NAME', ''),
+        'sort_code' => env('CET_BANK_SORT', ''),
+        'account_number' => env('CET_BANK_ACCOUNT', ''),
     ],
 
     // VAT switched ON the day the company registered. When true, fares are treated

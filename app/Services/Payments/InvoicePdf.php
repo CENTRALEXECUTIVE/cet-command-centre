@@ -22,7 +22,12 @@ class InvoicePdf
         $options->set('isRemoteEnabled', false);
         $dompdf = new Dompdf($options);
         $dompdf->setPaper('A4');
-        $dompdf->loadHtml(View::make('pdf.invoice', ['invoice' => $invoice])->render());
+        $dompdf->loadHtml(View::make('pdf.invoice', [
+            'invoice' => $invoice,
+            'company' => \App\Support\InvoiceProfile::company(),
+            'bank' => \App\Support\InvoiceProfile::bank(),
+            'footerNote' => \App\Support\InvoiceProfile::footerNote(),
+        ])->render());
         $dompdf->render();
 
         return $dompdf->output();

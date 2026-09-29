@@ -28,6 +28,16 @@ class SettingsController extends Controller
             'prevLine' => Setting::get('twilio_customer_line_prev'),
             'prevNames' => Setting::get('twilio_customer_line_prev_names'),
             'unbrandedLinkBase' => Setting::get('unbranded_link_base'),
+            'invoiceProfile' => [
+                'address' => Setting::get('invoice_company_address'),
+                'vat_number' => Setting::get('invoice_vat_number'),
+                'phone' => Setting::get('invoice_phone'),
+                'email' => Setting::get('invoice_email'),
+                'bank_name' => Setting::get('invoice_bank_name'),
+                'bank_sort' => Setting::get('invoice_bank_sort'),
+                'bank_account' => Setting::get('invoice_bank_account'),
+                'footer_note' => Setting::get('invoice_footer_note'),
+            ],
             'smsWebhook' => $base.'/webhooks/sms'.$suffix,
             'voiceWebhook' => $base.'/webhooks/voice'.$suffix,
         ]);
@@ -41,6 +51,14 @@ class SettingsController extends Controller
             'twilio_customer_line' => ['nullable', 'string', 'max:32'],
             'twilio_driver_line' => ['nullable', 'string', 'max:32'],
             'unbranded_link_base' => ['nullable', 'url', 'max:120'],
+            'invoice_company_address' => ['nullable', 'string', 'max:500'],
+            'invoice_vat_number' => ['nullable', 'string', 'max:32'],
+            'invoice_phone' => ['nullable', 'string', 'max:32'],
+            'invoice_email' => ['nullable', 'email', 'max:160'],
+            'invoice_bank_name' => ['nullable', 'string', 'max:120'],
+            'invoice_bank_sort' => ['nullable', 'string', 'max:12'],
+            'invoice_bank_account' => ['nullable', 'string', 'max:20'],
+            'invoice_footer_note' => ['nullable', 'string', 'max:500'],
         ]);
 
         Setting::set('google_maps_key', trim((string) ($data['google_maps_key'] ?? '')), 'string', 'integrations');
@@ -48,6 +66,13 @@ class SettingsController extends Controller
         Setting::set('twilio_customer_line', trim((string) ($data['twilio_customer_line'] ?? '')), 'string', 'telephony');
         Setting::set('twilio_driver_line', trim((string) ($data['twilio_driver_line'] ?? '')), 'string', 'telephony');
         Setting::set('unbranded_link_base', trim((string) ($data['unbranded_link_base'] ?? '')), 'string', 'integrations');
+
+        foreach ([
+            'invoice_company_address', 'invoice_vat_number', 'invoice_phone', 'invoice_email',
+            'invoice_bank_name', 'invoice_bank_sort', 'invoice_bank_account', 'invoice_footer_note',
+        ] as $key) {
+            Setting::set($key, trim((string) ($data[$key] ?? '')), 'string', 'invoicing');
+        }
 
         return back()->with('status', 'Settings saved.');
     }
