@@ -480,6 +480,9 @@ Route::post('widget/book/prices', [\App\Http\Controllers\Widget\BookingWidgetCon
 // Is this email a recognised business account? Reveals the "Account" pay option.
 Route::get('widget/book/account-check', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'accountCheck'])
     ->middleware('throttle:60,1')->name('widget.account-check');
+// Sign in from the booking widget (email + password) to book on account.
+Route::post('widget/book/login', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'login'])
+    ->middleware('throttle:10,1')->name('widget.login');
 Route::get('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'book'])
     ->middleware('throttle:180,1')->name('widget.book');
 Route::post('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'store'])

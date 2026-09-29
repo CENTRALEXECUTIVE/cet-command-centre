@@ -105,6 +105,11 @@
         .cet-stop-x { flex:0 0 auto; width:40px; height:44px; border:1px solid var(--line); border-radius:11px; background:#fff; color:var(--err,#c02626); font-size:16px; font-weight:800; cursor:pointer; }
         .cet-addstop { border:1px dashed var(--line); background:var(--cream,#fbfaf6); border-radius:11px; padding:10px 14px; font-weight:700; font-size:13px; cursor:pointer; color:var(--ink,#111); }
         .cet-addstop:disabled { opacity:.5; cursor:default; }
+        .cet-acctbar { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; background:var(--cream,#fbfaf6); }
+        .cet-linkbtn { background:none; border:0; padding:0; color:var(--gold-deep,#E9A413); font-weight:700; font-size:13.5px; cursor:pointer; text-decoration:underline; }
+        #b-loggedin { font-size:14px; color:#1f7a44; font-weight:600; }
+        #b-loggedin #b-me-acct { color:var(--muted,#666); font-weight:500; }
+        .cet-bad-note { background:#fbeaea; color:#b32020; border-radius:8px; padding:8px 10px; font-size:13px; }
         .cet-two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         @media (max-width:460px){ .cet-two { grid-template-columns:1fr; } }
 
@@ -413,6 +418,28 @@
                         {{-- Full journey summary (like ETO's confirmation) so the customer
                              sees everything — incl. luggage — before they book. --}}
                         <div class="cet-summary" id="cet-summary"></div>
+
+                        {{-- Account sign-in — lets business-account contacts book on account. --}}
+                        @if($passwordLogin ?? false)
+                        <div class="cet-acctbar" id="b-acctbar">
+                            <div id="b-loggedout">
+                                <button type="button" id="b-login-toggle" class="cet-linkbtn">🔑 Have an account? Sign in</button>
+                                <div id="b-login-form" hidden style="margin-top:10px">
+                                    <div class="cet-two">
+                                        <div class="cet-field"><label for="b-login-email">Email</label>
+                                            <input id="b-login-email" type="email" autocomplete="email"></div>
+                                        <div class="cet-field"><label for="b-login-pass">Password</label>
+                                            <input id="b-login-pass" type="password" autocomplete="current-password"></div>
+                                    </div>
+                                    <button type="button" id="b-login-btn" class="cet-btn" style="padding:9px 16px;font-size:14px">Sign in</button>
+                                    <a class="cet-linkbtn" href="{{ route('widget.account.forgot') }}" target="_top" style="margin-left:10px">Forgot password?</a>
+                                    <div id="b-login-err" class="cet-bad-note" hidden style="margin-top:8px"></div>
+                                </div>
+                            </div>
+                            <div id="b-loggedin" hidden>✓ Signed in as <strong id="b-me-name"></strong><span id="b-me-acct"></span></div>
+                        </div>
+                        @endif
+
                         <div class="cet-field"><label for="b-name">Full name</label>
                             <input id="b-name" name="customer_name" required></div>
                         <div class="cet-two">
@@ -421,6 +448,19 @@
                             <div class="cet-field"><label for="b-email">Email</label>
                                 <input id="b-email" name="customer_email" type="email"></div>
                         </div>
+
+                        {{-- Create an account (optional) — guests can still book. --}}
+                        @if($passwordLogin ?? false)
+                        <label class="cet-check" id="b-create-wrap" style="margin-top:2px">
+                            <input type="checkbox" id="b-create" name="create_account" value="1">
+                            <span>Create an account for faster booking next time</span>
+                        </label>
+                        <div id="b-create-block" hidden>
+                            <div class="cet-field"><label for="b-create-pass">Choose a password</label>
+                                <input id="b-create-pass" name="password" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password"></div>
+                            <p class="opt" style="font-size:12.5px;margin:2px 0 0;color:var(--muted)">✓ Save your details, track &amp; manage your bookings, and rebook in seconds. Business accounts can book on account.</p>
+                        </div>
+                        @endif
 
                         {{-- Booking for someone else — the passenger becomes the lead. --}}
                         <label class="cet-check" id="b-else-wrap" style="margin-top:2px">
@@ -532,7 +572,10 @@
     <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
         window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";
-        window.CET_ACCOUNT_CHECK_URL = "{{ route('widget.account-check') }}";</script>
+        window.CET_ACCOUNT_CHECK_URL = "{{ route('widget.account-check') }}";
+        window.CET_LOGIN_URL = "{{ route('widget.login') }}";
+        window.CET_ME = {!! json_encode($me ?? null) !!};
+        window.CET_ME_ACCOUNT = {!! json_encode($meAccount ?? null) !!};</script>
     <script src="{{ asset('js/cet-forms.js') }}?v=33" defer></script>
 
     <script>
@@ -947,39 +990,72 @@
             [payCard, payCash, payAccount].forEach(function (r) { if (r) r.addEventListener('change', syncPay); });
             syncPay();
 
-            // Reveal the "Account" option only when the entered email is a recognised
-            // business-account contact (checked server-side as they type).
+            // Account booking requires SIGNING IN — the "Account" payment option is
+            // only ever shown to a signed-in business account. Guests can't pick it.
             (function () {
-                var emailEl = document.getElementById('b-email');
-                var wrap = document.getElementById('b-pay-account-wrap');
-                var nameEl = document.getElementById('b-account-name');
-                if (!emailEl || !wrap || !window.CET_ACCOUNT_CHECK_URL) return;
-                var timer = null;
-                function hide() {
-                    if (wrap.hidden) return;
-                    wrap.hidden = true;
-                    if (payAccount && payAccount.checked) { payAccount.checked = false; if (payCard) payCard.checked = true; syncPay(); }
-                    reportHeight();
+                var acctWrap = document.getElementById('b-pay-account-wrap');
+                var acctName = document.getElementById('b-account-name');
+                function revealAccount(account, me) {
+                    // Prefill details from the signed-in customer.
+                    if (me) {
+                        var n = document.getElementById('b-name'), ph = document.getElementById('b-phone'), em = document.getElementById('b-email');
+                        if (n && me.name) n.value = me.name;
+                        if (ph && me.phone) ph.value = me.phone;
+                        if (em && me.email) em.value = me.email;
+                    }
+                    // Show "signed in" state, hide the login prompt + the create-account offer.
+                    var lo = document.getElementById('b-loggedout'), li = document.getElementById('b-loggedin'),
+                        meName = document.getElementById('b-me-name'), meAcct = document.getElementById('b-me-acct'),
+                        createWrap = document.getElementById('b-create-wrap'), createBlk = document.getElementById('b-create-block');
+                    if (lo) lo.hidden = true;
+                    if (li && me) { li.hidden = false; if (meName) meName.textContent = me.name || 'your account'; }
+                    if (meAcct) meAcct.textContent = account ? ' · ' + account.name + ' (acct ' + account.code + ')' : '';
+                    if (createWrap) createWrap.style.display = 'none';
+                    if (createBlk) createBlk.hidden = true;
+                    // Reveal + select the Account payment option for a business account.
+                    if (account && acctWrap) {
+                        if (acctName) acctName.textContent = account.name;
+                        acctWrap.hidden = false;
+                        if (payAccount) { payAccount.checked = true; syncPay(); }
+                    }
+                    reportHeight(); fillSummary();
                 }
-                function check() {
-                    var email = (emailEl.value || '').trim();
-                    clearTimeout(timer);
-                    if (email.indexOf('@') < 1) { hide(); return; }
-                    timer = setTimeout(function () {
-                        fetch(window.CET_ACCOUNT_CHECK_URL + '?email=' + encodeURIComponent(email), { headers: { 'Accept': 'application/json' } })
-                            .then(function (r) { return r.json(); })
-                            .then(function (d) {
-                                if (d && d.account) {
-                                    if (nameEl) nameEl.textContent = d.name || 'your account';
-                                    wrap.hidden = false; reportHeight();
-                                } else { hide(); }
-                            })
-                            .catch(function () {});
-                    }, 400);
-                }
-                emailEl.addEventListener('input', check);
-                emailEl.addEventListener('change', check);
-                check();
+
+                // Already signed in when the page loaded?
+                if (window.CET_ME) revealAccount(window.CET_ME_ACCOUNT, window.CET_ME);
+
+                var toggle = document.getElementById('b-login-toggle');
+                var loginForm = document.getElementById('b-login-form');
+                if (toggle && loginForm) toggle.addEventListener('click', function () {
+                    loginForm.hidden = !loginForm.hidden; reportHeight();
+                    var e = document.getElementById('b-login-email'); if (e && !loginForm.hidden) e.focus();
+                });
+
+                var loginBtn = document.getElementById('b-login-btn');
+                if (loginBtn && window.CET_LOGIN_URL) loginBtn.addEventListener('click', function () {
+                    var email = (document.getElementById('b-login-email') || {}).value || '';
+                    var pass = (document.getElementById('b-login-pass') || {}).value || '';
+                    var err = document.getElementById('b-login-err');
+                    if (err) err.hidden = true;
+                    loginBtn.disabled = true; loginBtn.textContent = 'Signing in…';
+                    fetch(window.CET_LOGIN_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                        body: JSON.stringify({ email: email.trim(), password: pass })
+                    }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                      .then(function (d) {
+                          if (d && d.ok) { revealAccount(d.account, d); }
+                          else { if (err) { err.hidden = false; err.textContent = 'That email and password didn’t match.'; } }
+                      })
+                      .catch(function () { if (err) { err.hidden = false; err.textContent = 'That email and password didn’t match.'; } })
+                      .finally(function () { loginBtn.disabled = false; loginBtn.textContent = 'Sign in'; });
+                });
+
+                // "Create an account" reveals the password field.
+                var createBox = document.getElementById('b-create'), createBlk2 = document.getElementById('b-create-block');
+                if (createBox && createBlk2) createBox.addEventListener('change', function () {
+                    createBlk2.hidden = !createBox.checked; reportHeight();
+                });
             })();
 
             function extrasList() {

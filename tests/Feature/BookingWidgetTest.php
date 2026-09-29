@@ -141,11 +141,45 @@ class BookingWidgetTest extends TestCase
             ->assertOk()->assertJson(['account' => false]);
     }
 
-    public function test_a_recognised_account_can_book_on_account_with_no_payment(): void
+    private function accountCustomer(CorporateAccount $account): \App\Models\Customer
+    {
+        return \App\Models\Customer::create([
+            'name' => 'Jayne Craven', 'email' => 'jcraven@meps.co.uk',
+            'phone' => '07700900123', 'corporate_account_id' => $account->id,
+        ]);
+    }
+
+    public function test_a_signed_in_account_can_book_on_account_with_no_payment(): void
     {
         $account = $this->makeAccount();
+        $customer = $this->accountCustomer($account);
         $executive = VehicleType::where('slug', 'executive')->first();
 
+        // Signed in this session (as My Account / widget login would set).
+        $this->withSession(['widget_customer_id' => $customer->id])
+            ->post(route('widget.book.store'), [
+                'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+                'destination_address' => 'Manchester Airport',
+                'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+                'vehicle_type_id' => $executive->id, 'passengers' => 2,
+                'customer_name' => 'Jayne Craven', 'customer_email' => 'jcraven@meps.co.uk',
+                'payment_method' => 'account',
+            ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertNotNull($booking);
+        $this->assertSame(\App\Enums\PaymentMethod::Account, $booking->payment_method);
+        $this->assertSame('pending', $booking->payment_status);
+        $this->assertSame($account->id, (int) $booking->corporate_account_id);
+        $this->assertTrue((bool) ($booking->meta['account_booking'] ?? false));
+    }
+
+    public function test_account_payment_is_refused_when_not_signed_in(): void
+    {
+        $this->makeAccount();
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        // Right email, but NOT signed in — account payment must not be honoured.
         $this->post(route('widget.book.store'), [
             'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
             'destination_address' => 'Manchester Airport',
@@ -156,33 +190,39 @@ class BookingWidgetTest extends TestCase
         ])->assertOk();
 
         $booking = \App\Models\Booking::firstWhere('source', 'web');
-        $this->assertNotNull($booking);
-        $this->assertSame(\App\Enums\PaymentMethod::Account, $booking->payment_method);
-        $this->assertSame('pending', $booking->payment_status);
-        $this->assertSame($account->id, (int) $booking->corporate_account_id);
-        // The customer is linked to the account for next time.
-        $this->assertSame($account->id, (int) $booking->customer->corporate_account_id);
-        $this->assertTrue((bool) ($booking->meta['account_booking'] ?? false));
+        $this->assertNotSame(\App\Enums\PaymentMethod::Account, $booking->payment_method);
+        $this->assertNull($booking->corporate_account_id);
     }
 
-    public function test_account_payment_is_ignored_for_an_unrecognised_email(): void
+    public function test_a_guest_can_create_an_account_at_checkout(): void
     {
-        $this->makeAccount();
         $executive = VehicleType::where('slug', 'executive')->first();
 
         $this->post(route('widget.book.store'), [
             'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
             'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
-            'vehicle_type_id' => $executive->id, 'passengers' => 2,
-            'customer_name' => 'Random Person', 'customer_email' => 'random@nowhere.com',
-            'payment_method' => 'account',
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'New Customer', 'customer_email' => 'newbie@example.com',
+            'create_account' => '1', 'password' => 'secret123',
         ])->assertOk();
 
-        $booking = \App\Models\Booking::firstWhere('source', 'web');
-        // Not a recognised account — it must NOT become an account job.
-        $this->assertNotSame(\App\Enums\PaymentMethod::Account, $booking->payment_method);
-        $this->assertNull($booking->corporate_account_id);
+        $customer = \App\Models\Customer::where('email', 'newbie@example.com')->first();
+        $this->assertNotNull($customer);
+        $this->assertTrue($customer->checkPassword('secret123'));
+    }
+
+    public function test_widget_login_succeeds_and_reports_the_account(): void
+    {
+        $account = $this->makeAccount();
+        $customer = $this->accountCustomer($account);
+        $customer->setLoginPassword('secret123');
+
+        $this->postJson(route('widget.login'), ['email' => 'jcraven@meps.co.uk', 'password' => 'secret123'])
+            ->assertOk()->assertJson(['ok' => true, 'account' => ['name' => 'MEPS International Ltd']]);
+
+        $this->postJson(route('widget.login'), ['email' => 'jcraven@meps.co.uk', 'password' => 'wrong'])
+            ->assertStatus(422);
     }
 
     public function test_the_honeypot_blocks_spam_bookings(): void

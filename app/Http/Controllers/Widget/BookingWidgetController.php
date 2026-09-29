@@ -74,7 +74,7 @@ class BookingWidgetController extends Controller
     }
 
     /** The full booking widget page (embeddable): complete a booking REQUEST. */
-    public function book(): \Illuminate\Http\Response
+    public function book(Request $request): \Illuminate\Http\Response
     {
         // The Minibus XL is shown to the customer ONLY when their party/luggage is
         // too big for the standard 8-Seater (revealed client-side); otherwise the
@@ -84,12 +84,21 @@ class BookingWidgetController extends Controller
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug', 'passenger_capacity', 'luggage_capacity']);
 
+        // Already signed in this browser (via My Account or the widget)? Prefill and,
+        // for a business account, unlock the "Account" payment option on load.
+        $me = ($sid = $request->session()->get(CustomerAccountController::SESSION_KEY))
+            ? Customer::find($sid) : null;
+        $meAccount = $me ? $this->resolveAccountFor($me) : null;
+
         return response()
             ->view('widget.book', [
                 'vehicleTypes' => $vehicleTypes,
                 'done' => false,
                 'surcharges' => \App\Support\Surcharges::rates(),
                 'vatPercent' => app(\App\Services\Payments\VatService::class)->ratePercent(),
+                'me' => $me ? ['name' => $me->name, 'email' => $me->email, 'phone' => $me->phone] : null,
+                'meAccount' => $meAccount ? ['name' => $meAccount->name, 'code' => $meAccount->account_code] : null,
+                'passwordLogin' => Customer::passwordLoginAvailable(),
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
@@ -106,6 +115,37 @@ class BookingWidgetController extends Controller
         return response()->json($account
             ? ['account' => true, 'name' => $account->name]
             : ['account' => false]);
+    }
+
+    /**
+     * Sign a customer in from the booking widget (email + password) so they can
+     * book on account. Sets the shared My-Account session and reports whether they
+     * hold an active business account (which unlocks the "Account" payment option).
+     */
+    public function login(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'string', 'email', 'max:160'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $email = \Illuminate\Support\Str::lower(trim($data['email']));
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        if (! $customer || ! $customer->checkPassword($data['password'])) {
+            return response()->json(['ok' => false], 422);
+        }
+
+        $request->session()->put(CustomerAccountController::SESSION_KEY, $customer->id);
+        $account = $this->resolveAccountFor($customer);
+
+        return response()->json([
+            'ok' => true,
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'phone' => $customer->phone,
+            'account' => $account ? ['name' => $account->name, 'code' => $account->account_code] : null,
+        ]);
     }
 
     /** An active business account whose contact (or billing) email matches. */
@@ -222,6 +262,9 @@ class BookingWidgetController extends Controller
             'booking_for_other' => ['nullable', 'boolean'],
             'lead_passenger_name' => ['nullable', 'string', 'max:120'],
             'lead_passenger_phone' => ['nullable', 'string', 'max:32'],
+            // Optional "create an account" at checkout (guests can still book).
+            'create_account' => ['nullable', 'boolean'],
+            'password' => ['nullable', 'string', 'min:8', 'max:72'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
         ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
@@ -272,7 +315,19 @@ class BookingWidgetController extends Controller
             ? ['price' => null, 'basis' => 'Hourly hire — office to confirm', 'fixed' => false]
             : $this->quotes->quote($pickupFull, $destination, $vehicleType);
 
-        $customer = $this->resolveCustomer($data);
+        // A logged-in customer (verified in this browser session) is the booker —
+        // this is what makes "book on account" possible: only a signed-in company
+        // account can bill on account. Guests fall back to find-or-create.
+        $sessionCustomer = ($sid = $request->session()->get(CustomerAccountController::SESSION_KEY))
+            ? Customer::find($sid) : null;
+        $customer = $sessionCustomer ?: $this->resolveCustomer($data);
+
+        // "Create an account" at checkout — set a login password and sign them in,
+        // so next time is faster (and a company contact can book on account).
+        if (! empty($data['create_account']) && filled($data['password'] ?? null) && Customer::passwordLoginAvailable()) {
+            $customer->setLoginPassword($data['password']);
+            $request->session()->put(CustomerAccountController::SESSION_KEY, $customer->id);
+        }
 
         // "Booking for someone else" — the booker is the account/contact; the named
         // passenger becomes the LEAD passenger (shown on the job, greeted, etc.).
@@ -315,12 +370,12 @@ class BookingWidgetController extends Controller
         $afterDiscount = $net === null ? null : round($net - $discount, 2);
         $vatRate = app(\App\Services\Payments\VatService::class)->rate();
 
-        // Account (monthly invoice): only for a recognised, active business account
-        // whose contact email matches. No payment is taken; the fare is billed on
-        // the account (stored NET — VAT is added on the invoice). Never trust the
-        // client's "account" choice — it's validated here.
-        $account = ($data['payment_method'] ?? null) === 'account'
-            ? $this->resolveAccountFor($customer)
+        // Account (monthly invoice): ONLY for a signed-in customer whose account is
+        // an active business account. No payment is taken; the fare is billed on the
+        // account (stored NET — VAT added on the invoice). Never trust the client's
+        // "account" choice — it requires a real, logged-in company account here.
+        $account = (($data['payment_method'] ?? null) === 'account' && $sessionCustomer)
+            ? $this->resolveAccountFor($sessionCustomer)
             : null;
         $isAccount = $account !== null;
         if ($isAccount) {
