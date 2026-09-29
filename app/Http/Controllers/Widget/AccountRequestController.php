@@ -177,12 +177,23 @@ class AccountRequestController extends Controller
         return $slug;
     }
 
+    /**
+     * The next sequential account NUMBER (ETO-style), from 1000 up — the highest
+     * existing numeric code + 1, so accounts read like "1001", "1002", …
+     */
     private function uniqueAccountCode(): string
     {
-        do {
-            $code = strtoupper(Str::random(6));
-        } while (CorporateAccount::where('account_code', $code)->exists());
+        $highest = CorporateAccount::withTrashed()
+            ->pluck('account_code')
+            ->filter(fn ($c) => ctype_digit((string) $c))
+            ->map(fn ($c) => (int) $c)
+            ->max();
 
-        return $code;
+        $next = max(1000, (int) $highest + 1);
+        while (CorporateAccount::withTrashed()->where('account_code', (string) $next)->exists()) {
+            $next++;
+        }
+
+        return (string) $next;
     }
 }

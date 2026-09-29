@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\CorporateAccount;
+use App\Models\CorporateContact;
 use App\Models\VehicleType;
 use Database\Seeders\VehicleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,6 +114,75 @@ class BookingWidgetTest extends TestCase
         $this->assertSame(2, (int) $booking->meta['extra_stops']);
         // Booking::viaStops() reads them so the driver/calendar sees the stops.
         $this->assertSame(['10 Ecclesall Road, Sheffield', 'Meadowhall, Sheffield'], $booking->viaStops());
+    }
+
+    private function makeAccount(string $contactEmail = 'jcraven@meps.co.uk'): CorporateAccount
+    {
+        $account = CorporateAccount::create([
+            'name' => 'MEPS International Ltd', 'account_code' => '1001',
+            'slug' => 'meps-international', 'is_active' => true, 'payment_terms_days' => 30,
+        ]);
+        CorporateContact::create([
+            'corporate_account_id' => $account->id, 'name' => 'Jayne Craven',
+            'email' => $contactEmail, 'is_primary' => true,
+        ]);
+
+        return $account;
+    }
+
+    public function test_account_check_recognises_a_business_contact_email(): void
+    {
+        $this->makeAccount();
+
+        $this->getJson(route('widget.account-check', ['email' => 'JCraven@meps.co.uk']))
+            ->assertOk()->assertJson(['account' => true, 'name' => 'MEPS International Ltd']);
+
+        $this->getJson(route('widget.account-check', ['email' => 'random@nowhere.com']))
+            ->assertOk()->assertJson(['account' => false]);
+    }
+
+    public function test_a_recognised_account_can_book_on_account_with_no_payment(): void
+    {
+        $account = $this->makeAccount();
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'Jayne Craven', 'customer_email' => 'jcraven@meps.co.uk',
+            'payment_method' => 'account',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertNotNull($booking);
+        $this->assertSame(\App\Enums\PaymentMethod::Account, $booking->payment_method);
+        $this->assertSame('pending', $booking->payment_status);
+        $this->assertSame($account->id, (int) $booking->corporate_account_id);
+        // The customer is linked to the account for next time.
+        $this->assertSame($account->id, (int) $booking->customer->corporate_account_id);
+        $this->assertTrue((bool) ($booking->meta['account_booking'] ?? false));
+    }
+
+    public function test_account_payment_is_ignored_for_an_unrecognised_email(): void
+    {
+        $this->makeAccount();
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'Random Person', 'customer_email' => 'random@nowhere.com',
+            'payment_method' => 'account',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        // Not a recognised account — it must NOT become an account job.
+        $this->assertNotSame(\App\Enums\PaymentMethod::Account, $booking->payment_method);
+        $this->assertNull($booking->corporate_account_id);
     }
 
     public function test_the_honeypot_blocks_spam_bookings(): void

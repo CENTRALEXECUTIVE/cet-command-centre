@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Widget;
 use App\Enums\BookingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\CorporateAccount;
+use App\Models\CorporateContact;
 use App\Models\Customer;
 use App\Models\VehicleType;
 use App\Services\Payments\SquareBookingPaymentService;
@@ -93,6 +95,53 @@ class BookingWidgetController extends Controller
     }
 
     /**
+     * Is this email a recognised business-account contact? The widget calls this
+     * as the customer types their email and, if so, reveals the "Account (monthly
+     * invoice)" payment option — so only approved account users ever see it.
+     */
+    public function accountCheck(Request $request): JsonResponse
+    {
+        $account = $this->findAccountByEmail((string) $request->query('email', ''));
+
+        return response()->json($account
+            ? ['account' => true, 'name' => $account->name]
+            : ['account' => false]);
+    }
+
+    /** An active business account whose contact (or billing) email matches. */
+    private function findAccountByEmail(?string $email): ?CorporateAccount
+    {
+        $email = strtolower(trim((string) $email));
+        if ($email === '' || ! str_contains($email, '@')) {
+            return null;
+        }
+
+        $contact = CorporateContact::whereRaw('LOWER(email) = ?', [$email])
+            ->whereHas('corporateAccount', fn ($q) => $q->where('is_active', true))
+            ->first();
+        if ($contact) {
+            return $contact->corporateAccount;
+        }
+
+        return CorporateAccount::where('is_active', true)
+            ->whereRaw('LOWER(billing_email) = ?', [$email])
+            ->first();
+    }
+
+    /** The account this customer may book on: their linked account, else by email. */
+    private function resolveAccountFor(Customer $customer): ?CorporateAccount
+    {
+        if ($customer->corporate_account_id) {
+            $linked = CorporateAccount::find($customer->corporate_account_id);
+            if ($linked && $linked->is_active) {
+                return $linked;
+            }
+        }
+
+        return $this->findAccountByEmail($customer->email);
+    }
+
+    /**
      * Instant prices for EVERY vehicle for a journey (JSON), so the widget can show
      * a price on each card. Lightweight — the existing pricing engine, nothing saved.
      */
@@ -166,7 +215,7 @@ class BookingWidgetController extends Controller
             'stops' => ['nullable', 'array', 'max:10'],
             'stops.*' => ['nullable', 'string', 'max:500'],
             'vat_invoice' => ['nullable', 'boolean'],
-            'payment_method' => ['nullable', Rule::in(['card', 'cash'])],
+            'payment_method' => ['nullable', Rule::in(['card', 'cash', 'account'])],
             'voucher' => ['nullable', 'string', 'max:40'],
             'accept_terms' => ['nullable', 'boolean'],
             'accept_privacy' => ['nullable', 'boolean'],
@@ -265,18 +314,40 @@ class BookingWidgetController extends Controller
         $discount = ($voucher && $voucher->isRedeemable() && $net !== null) ? $voucher->discountOn($net) : 0.0;
         $afterDiscount = $net === null ? null : round($net - $discount, 2);
         $vatRate = app(\App\Services\Payments\VatService::class)->rate();
-        $charge = $afterDiscount === null ? null : ($needsInvoice ? round($afterDiscount * (1 + $vatRate), 2) : $afterDiscount);
 
-        $wantsCard = ($data['payment_method'] ?? 'cash') === 'card';
+        // Account (monthly invoice): only for a recognised, active business account
+        // whose contact email matches. No payment is taken; the fare is billed on
+        // the account (stored NET — VAT is added on the invoice). Never trust the
+        // client's "account" choice — it's validated here.
+        $account = ($data['payment_method'] ?? null) === 'account'
+            ? $this->resolveAccountFor($customer)
+            : null;
+        $isAccount = $account !== null;
+        if ($isAccount) {
+            $needsInvoice = true; // account fares are invoiced with VAT
+        }
+
+        $charge = $afterDiscount === null ? null : ($needsInvoice ? round($afterDiscount * (1 + $vatRate), 2) : $afterDiscount);
+        // Account jobs store the NET fare (fareVatBreakdown adds VAT for account);
+        // card/cash store the all-in charge the customer pays.
+        $quotedPrice = $isAccount ? $afterDiscount : $charge;
+
+        $wantsCard = ! $isAccount && ($data['payment_method'] ?? 'cash') === 'card';
         // A discount code is recorded for the office even when we can't validate it
         // (they apply it on confirm); a valid one is already reflected in $charge.
         if (filled($data['voucher'] ?? null)) {
             $composedNotes = trim(($composedNotes ? $composedNotes."\n" : '').'Discount code: '.strtoupper(trim($data['voucher'])));
         }
 
+        // Link the customer to the account so future bookings are recognised at once.
+        if ($isAccount && (int) $customer->corporate_account_id !== (int) $account->id) {
+            $customer->forceFill(['corporate_account_id' => $account->id])->save();
+        }
+
         $booking = Booking::create([
             'reference' => Booking::generateReference(),
             'customer_id' => $customer->id,
+            'corporate_account_id' => $account?->id,
             'vehicle_type_id' => $vehicleType->id,
             'journey_type' => $journeyType,
             'pickup_at' => $pickupAt,
@@ -286,16 +357,15 @@ class BookingWidgetController extends Controller
             'flight_number' => $flight,
             'special_requests' => $composedNotes,
             'status' => BookingStatus::Pending->value,
-            // No card is taken at booking time — the customer pays on the day, so
-            // the DRIVER collects the fare in cash. If they later pay online via
-            // Square, markFarePaid() records it and the driver-collect logic then
-            // shows "collect nothing" (Square counts as the business collecting).
-            // Stamping this 'card' told the driver to collect nothing and lost the
-            // fare. The office can switch it to card/account when confirming.
-            'payment_method' => 'cash',
+            // Account jobs are billed monthly (driver collects nothing). Otherwise no
+            // card is taken at booking time — the customer pays on the day, so the
+            // DRIVER collects the fare in cash. If they later pay online via Square,
+            // markFarePaid() records it and the driver-collect logic then shows
+            // "collect nothing". The office can switch card/cash/account on confirm.
+            'payment_method' => $isAccount ? 'account' : 'cash',
             'payment_status' => 'pending',
             'source' => 'web',
-            'quoted_price' => $charge,
+            'quoted_price' => $quotedPrice,
             'meta' => array_filter([
                 'web_booking' => true,
                 'lead_name' => $leadName,
@@ -314,7 +384,10 @@ class BookingWidgetController extends Controller
                 'fare_extras_total' => $extrasTotal ?: null,
                 'vat_invoice_requested' => $needsInvoice,
                 'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
-                'payment_preference' => $wantsCard ? 'card' : 'cash',
+                'payment_preference' => $isAccount ? 'account' : ($wantsCard ? 'card' : 'cash'),
+                'account_booking' => $isAccount ?: null,
+                'account_code' => $account?->account_code,
+                'account_name' => $account?->name,
                 'accepted_terms' => (bool) ($data['accept_terms'] ?? false) ?: null,
                 'accepted_privacy' => (bool) ($data['accept_privacy'] ?? false) ?: null,
                 'voucher_code' => filled($data['voucher'] ?? null) ? strtoupper(trim($data['voucher'])) : null,
@@ -386,7 +459,7 @@ class BookingWidgetController extends Controller
         // confirmed first — never charge a guess. The booking stays 'cash' until
         // payment actually succeeds, so nothing is lost if the customer doesn't pay.
         $payUrl = null;
-        if ($this->payments->enabled() && $quote['fixed'] && ($charge ?? 0) > 0) {
+        if (! $isAccount && $this->payments->enabled() && $quote['fixed'] && ($charge ?? 0) > 0) {
             $payUrl = URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id]);
         }
 

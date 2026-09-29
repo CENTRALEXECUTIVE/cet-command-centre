@@ -473,6 +473,9 @@ Route::post('widget/quote/price', [\App\Http\Controllers\Widget\BookingWidgetCon
     ->middleware('throttle:60,1')->name('widget.price');
 Route::post('widget/book/prices', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'prices'])
     ->middleware('throttle:120,1')->name('widget.prices');
+// Is this email a recognised business account? Reveals the "Account" pay option.
+Route::get('widget/book/account-check', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'accountCheck'])
+    ->middleware('throttle:60,1')->name('widget.account-check');
 Route::get('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'book'])
     ->middleware('throttle:180,1')->name('widget.book');
 Route::post('widget/book', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'store'])

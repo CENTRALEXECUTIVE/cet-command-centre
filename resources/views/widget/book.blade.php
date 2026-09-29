@@ -489,6 +489,13 @@
                             <input type="radio" name="payment_method" id="b-pay-cash" value="cash">
                             <span class="t"><b>Cash</b><span class="opt"> — pay the driver on the day</span></span>
                         </label>
+                        {{-- Account (monthly invoice) — revealed only when the email entered
+                             is a recognised business-account contact. No payment is taken;
+                             the job is stored pending and billed on the account. --}}
+                        <label class="cet-pay" id="b-pay-account-wrap" hidden>
+                            <input type="radio" name="payment_method" id="b-pay-account" value="account">
+                            <span class="t"><b>Account</b> <span class="opt">— <span id="b-account-name">on account</span>, invoiced monthly (no payment now)</span></span>
+                        </label>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-voucher">Discount code <span class="opt">(optional)</span></label>
                             <input id="b-voucher" name="voucher" placeholder="e.g. RACHEL20" autocomplete="off" style="text-transform:uppercase;max-width:260px"></div>
@@ -524,7 +531,8 @@
     {{-- Google address autocomplete via the server proxy (key stays server-side). --}}
     <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
         window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
-        window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";</script>
+        window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";
+        window.CET_ACCOUNT_CHECK_URL = "{{ route('widget.account-check') }}";</script>
     <script src="{{ asset('js/cet-forms.js') }}?v=33" defer></script>
 
     <script>
@@ -912,22 +920,67 @@
                 renderPrices(); fillSummary();
             }); }
 
-            // Payment method (card / cash) — ETO-style.
-            var payCard = document.getElementById('b-pay-card'), payCash = document.getElementById('b-pay-cash');
-            function syncPay() {
-                var card = !!(payCard && payCard.checked);
-                var cw = document.getElementById('b-pay-card-wrap'), hw = document.getElementById('b-pay-cash-wrap');
-                if (cw) cw.classList.toggle('on', card);
-                if (hw) hw.classList.toggle('on', !card);
-                var note = document.getElementById('b-pay-note');
-                if (note) note.textContent = card
-                    ? 'Pay securely by card to confirm your booking — our office checks the details first.'
-                    : 'Pay the driver on the day — our office will confirm your journey and price first.';
-                var btn = document.getElementById('cet-submit');
-                if (btn) btn.textContent = card ? 'Book & pay' : 'Request booking';
+            // Payment method (card / cash / account) — ETO-style.
+            var payCard = document.getElementById('b-pay-card'), payCash = document.getElementById('b-pay-cash'),
+                payAccount = document.getElementById('b-pay-account');
+            function selectedPay() {
+                if (payAccount && payAccount.checked) return 'account';
+                if (payCash && payCash.checked) return 'cash';
+                return 'card';
             }
-            [payCard, payCash].forEach(function (r) { if (r) r.addEventListener('change', syncPay); });
+            function syncPay() {
+                var v = selectedPay();
+                var cw = document.getElementById('b-pay-card-wrap'), hw = document.getElementById('b-pay-cash-wrap'),
+                    aw = document.getElementById('b-pay-account-wrap');
+                if (cw) cw.classList.toggle('on', v === 'card');
+                if (hw) hw.classList.toggle('on', v === 'cash');
+                if (aw) aw.classList.toggle('on', v === 'account');
+                var note = document.getElementById('b-pay-note');
+                if (note) note.textContent = v === 'card'
+                    ? 'Pay securely by card to confirm your booking — our office checks the details first.'
+                    : (v === 'account'
+                        ? 'No payment now — this journey is billed to your business account and confirmed by our office.'
+                        : 'Pay the driver on the day — our office will confirm your journey and price first.');
+                var btn = document.getElementById('cet-submit');
+                if (btn) btn.textContent = v === 'card' ? 'Book & pay' : 'Request booking';
+            }
+            [payCard, payCash, payAccount].forEach(function (r) { if (r) r.addEventListener('change', syncPay); });
             syncPay();
+
+            // Reveal the "Account" option only when the entered email is a recognised
+            // business-account contact (checked server-side as they type).
+            (function () {
+                var emailEl = document.getElementById('b-email');
+                var wrap = document.getElementById('b-pay-account-wrap');
+                var nameEl = document.getElementById('b-account-name');
+                if (!emailEl || !wrap || !window.CET_ACCOUNT_CHECK_URL) return;
+                var timer = null;
+                function hide() {
+                    if (wrap.hidden) return;
+                    wrap.hidden = true;
+                    if (payAccount && payAccount.checked) { payAccount.checked = false; if (payCard) payCard.checked = true; syncPay(); }
+                    reportHeight();
+                }
+                function check() {
+                    var email = (emailEl.value || '').trim();
+                    clearTimeout(timer);
+                    if (email.indexOf('@') < 1) { hide(); return; }
+                    timer = setTimeout(function () {
+                        fetch(window.CET_ACCOUNT_CHECK_URL + '?email=' + encodeURIComponent(email), { headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.json(); })
+                            .then(function (d) {
+                                if (d && d.account) {
+                                    if (nameEl) nameEl.textContent = d.name || 'your account';
+                                    wrap.hidden = false; reportHeight();
+                                } else { hide(); }
+                            })
+                            .catch(function () {});
+                    }, 400);
+                }
+                emailEl.addEventListener('input', check);
+                emailEl.addEventListener('change', check);
+                check();
+            })();
 
             function extrasList() {
                 var items = [];
