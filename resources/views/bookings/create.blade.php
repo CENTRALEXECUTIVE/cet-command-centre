@@ -2,6 +2,17 @@
 @section('title', 'New Booking')
 
 @section('content')
+    <style>
+        .veh-prices { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+        .veh-prices .vp { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px;
+            padding:8px 12px; background:#fff; cursor:pointer; font-size:13px; transition:border-color .12s, box-shadow .12s; }
+        .veh-prices .vp:hover { border-color:var(--gold, #FBBA2A); }
+        .veh-prices .vp.sel { border-color:var(--gold, #FBBA2A); box-shadow:0 0 0 3px rgba(251,186,42,.18); }
+        .veh-prices .vp .n { font-weight:600; color:var(--ink, #111); }
+        .veh-prices .vp .p { font-weight:800; }
+        .veh-prices .vp .p.poa { font-weight:600; color:var(--muted, #666); }
+        .veh-prices .vp-hint { font-size:12px; color:var(--muted, #666); align-self:center; }
+    </style>
     <div class="form-hero">
         <div class="form-hero-glow"></div>
         <div class="fh-eyebrow">Sales · new job</div>
@@ -153,6 +164,9 @@
                         @endforeach
                     </select>
                     @error('vehicle_type_id') <div class="error">{{ $message }}</div> @enderror
+                    {{-- Live prices for every vehicle — tap one to pick it + set the fare.
+                         Fast quoting on the phone. --}}
+                    <div id="veh-prices" class="veh-prices" hidden></div>
                 </div>
 
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
@@ -293,6 +307,7 @@
         window.CET_ADDRESSES_URL = "{{ route('places.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('places.resolve') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
+        window.CET_PRICES_URL = "{{ route('widget.prices') }}";
     </script>
     <script src="{{ asset('js/cet-forms.js') }}?v=33"></script>
     @verbatim
@@ -358,6 +373,58 @@
             document.querySelectorAll('[data-collapsible] > .head').forEach(function (h) {
                 h.addEventListener('click', function () { h.parentNode.classList.toggle('closed'); });
             });
+
+            // Live prices for EVERY vehicle as the agent types the journey — tap a
+            // chip to pick that vehicle and drop its fare in. Fast phone quoting.
+            (function () {
+                var strip = document.getElementById('veh-prices');
+                var pickup = document.getElementById('pickup_address');
+                var dest = document.getElementById('destination_address');
+                var vehSel = document.getElementById('vehicle_type_id');
+                var priceEl = document.getElementById('quoted_price');
+                if (!strip || !pickup || !dest || !vehSel || !window.CET_PRICES_URL) return;
+                var tokenEl = document.querySelector('meta[name="csrf-token"]');
+                var token = tokenEl ? tokenEl.getAttribute('content') : '';
+                // id -> name, from the select options.
+                var names = {};
+                Array.prototype.forEach.call(vehSel.options, function (o) { if (o.value) names[o.value] = o.textContent.trim(); });
+                var timer = null, lastKey = '';
+
+                function render(options) {
+                    strip.innerHTML = '';
+                    options.forEach(function (o) {
+                        var chip = document.createElement('button');
+                        chip.type = 'button'; chip.className = 'vp' + (String(vehSel.value) === String(o.id) ? ' sel' : '');
+                        chip.dataset.id = o.id; chip.dataset.price = (o.price == null ? '' : o.price);
+                        chip.innerHTML = '<span class="n"></span> <span class="p' + (o.poa ? ' poa' : '') + '"></span>';
+                        chip.querySelector('.n').textContent = (names[o.id] || 'Vehicle').replace(/\s*\(up to.*\)$/, '');
+                        chip.querySelector('.p').textContent = o.formatted;
+                        chip.addEventListener('click', function () {
+                            vehSel.value = String(o.id); vehSel.dispatchEvent(new Event('change'));
+                            if (priceEl && o.price != null) { priceEl.value = Number(o.price).toFixed(2); priceEl.dispatchEvent(new Event('input')); }
+                            strip.querySelectorAll('.vp').forEach(function (c) { c.classList.toggle('sel', c === chip); });
+                        });
+                        strip.appendChild(chip);
+                    });
+                    strip.hidden = options.length === 0;
+                }
+
+                function refresh() {
+                    var p = pickup.value.trim(), d = dest.value.trim();
+                    if (p.length < 4 || d.length < 4) { strip.hidden = true; return; }
+                    var key = p + '||' + d;
+                    if (key === lastKey) return;
+                    lastKey = key;
+                    fetch(window.CET_PRICES_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                        body: JSON.stringify({ pickup: p, destination: d })
+                    }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                      .then(function (d) { if (d && d.options) render(d.options); })
+                      .catch(function () {});
+                }
+                [pickup, dest].forEach(function (el) { el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
+            })();
 
             // Mirror the quoted price into the total bar.
             var price = document.getElementById('quoted_price');
