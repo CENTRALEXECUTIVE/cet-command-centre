@@ -71,6 +71,18 @@ class CorporateAccountAdminTest extends TestCase
             ->assertSee('MEPS International Ltd');
     }
 
+    public function test_generated_account_codes_are_professional(): void
+    {
+        $codes = collect(range(1, 25))->map(fn () => CorporateAccount::generateAccountCode());
+
+        foreach ($codes as $code) {
+            // 7 chars, unambiguous alphabet only (no O/0/I/1/L).
+            $this->assertMatchesRegularExpression('/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{7}$/', $code);
+        }
+        // Randomised — a batch is distinct.
+        $this->assertSame($codes->count(), $codes->unique()->count());
+    }
+
     public function test_business_accounts_are_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

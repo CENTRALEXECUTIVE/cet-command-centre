@@ -33,6 +33,24 @@ class CorporateAccount extends Model
         static::deleted($forget);
     }
 
+    /**
+     * A professional, randomised account number — 7 characters from an
+     * unambiguous alphabet (no O/0/I/1/L so it's never misread on an invoice or
+     * over the phone), e.g. "K7P4Q2M". Guaranteed unique across all accounts.
+     */
+    public static function generateAccountCode(): string
+    {
+        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        do {
+            $code = '';
+            for ($i = 0; $i < 7; $i++) {
+                $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+            }
+        } while (static::withTrashed()->where('account_code', $code)->exists());
+
+        return $code;
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(CorporateContact::class);

@@ -15,22 +15,25 @@ return new class extends Migration
             return;
         }
 
-        $account = CorporateAccount::updateOrCreate(
-            ['account_code' => '1001'],
-            [
-                'name' => 'MEPS International Ltd',
-                'company_number' => '02060184',
-                'slug' => 'meps-international',
-                'billing_email' => 'lroberts@meps.co.uk',
-                'phone' => '+44 114 275 0570',
-                'billing_address' => "MEPS International Ltd\n263 Glossop Road\nSheffield\nS10 2GZ",
-                'vat_number' => 'GB 439097618',
-                'cost_code_required' => false,
-                'payment_terms_days' => 30,
-                'is_active' => true,
-                'notes' => "Monthly invoice account. Invoices to Lorna Roberts (lroberts@meps.co.uk) & Jayne Craven (jcraven@meps.co.uk). Set up 29 Sep 2026.",
-            ],
-        );
+        // Keyed by slug so re-runs never duplicate it; the account NUMBER is a
+        // professional randomised code assigned once on first create.
+        $account = CorporateAccount::firstOrNew(['slug' => 'meps-international']);
+        if (! $account->exists) {
+            $account->account_code = CorporateAccount::generateAccountCode();
+        }
+        $account->fill([
+            'name' => 'MEPS International Ltd',
+            'company_number' => '02060184',
+            'billing_email' => 'lroberts@meps.co.uk',
+            'phone' => '+44 114 275 0570',
+            'billing_address' => "MEPS International Ltd\n263 Glossop Road\nSheffield\nS10 2GZ",
+            'vat_number' => 'GB 439097618',
+            'cost_code_required' => false,
+            'payment_terms_days' => 30,
+            'is_active' => true,
+            'notes' => "Monthly invoice account. Invoices to Lorna Roberts (lroberts@meps.co.uk) & Jayne Craven (jcraven@meps.co.uk). Set up 29 Sep 2026.",
+        ]);
+        $account->save();
 
         $contacts = [
             ['name' => 'Lorna Roberts', 'email' => 'lroberts@meps.co.uk', 'phone' => '07712129000', 'job_title' => 'Head of HR and Executive Assistant', 'is_primary' => true],
@@ -59,7 +62,7 @@ return new class extends Migration
             return;
         }
 
-        $account = CorporateAccount::where('account_code', '1001')->first();
+        $account = CorporateAccount::where('slug', 'meps-international')->first();
         $account?->contacts()->delete();
         $account?->delete();
     }
