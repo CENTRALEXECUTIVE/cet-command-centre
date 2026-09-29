@@ -191,6 +191,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::put('cover-drivers/{coverDriver}', [\App\Http\Controllers\CoverDriverController::class, 'update'])->name('cover-drivers.update');
         Route::delete('cover-drivers/{coverDriver}', [\App\Http\Controllers\CoverDriverController::class, 'destroy'])->name('cover-drivers.destroy');
 
+        // Business (corporate) accounts — monthly-invoice companies like MEPS.
+        Route::get('accounts', [\App\Http\Controllers\Admin\CorporateAccountController::class, 'index'])->name('accounts.index');
+        Route::get('accounts/{account}', [\App\Http\Controllers\Admin\CorporateAccountController::class, 'show'])->name('accounts.show');
+
         // Customer CRM.
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');

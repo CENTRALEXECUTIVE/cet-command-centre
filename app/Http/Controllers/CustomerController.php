@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
+use App\Models\CorporateAccount;
 use App\Models\Customer;
 use App\Services\CustomerSummaryService;
 use Illuminate\Http\RedirectResponse;
@@ -36,7 +37,17 @@ class CustomerController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('customers.index', ['customers' => $customers, 'term' => $term]);
+        // Companies aren't "customers" — they're business accounts. Surface any that
+        // match so a search like "MEPS" points the office to the right place.
+        $accounts = $term === '' ? collect() : CorporateAccount::query()
+            ->where(fn ($w) => $w
+                ->where('name', 'like', "%{$term}%")
+                ->orWhere('account_code', 'like', "%{$term}%"))
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+
+        return view('customers.index', ['customers' => $customers, 'term' => $term, 'accounts' => $accounts]);
     }
 
     public function show(Customer $customer, CustomerSummaryService $summaries): View

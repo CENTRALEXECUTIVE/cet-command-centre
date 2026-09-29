@@ -68,7 +68,7 @@
 
             @if($u->isAdmin())
                 @php
-                    $inSales = request()->routeIs('quotes.*', 'enquiries.*', 'customers.*', 'invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
+                    $inSales = request()->routeIs('quotes.*', 'enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
                     $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*');
                     $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'route-order.*', 'fleet-photos.*', 'driver.documents*');
                     $inAdmin = request()->routeIs('imports.*', 'audit.*', 'users.*', 'settings.*', 'gdpr.*');
@@ -79,6 +79,7 @@
                     <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
                     <a href="{{ route('enquiries.index') }}" class="{{ request()->routeIs('enquiries.*') ? 'active' : '' }}">Enquiries</a>
                     <a href="{{ route('customers.index') }}" class="{{ request()->routeIs('customers.*') ? 'active' : '' }}">Customers</a>
+                    <a href="{{ route('accounts.index') }}" class="{{ request()->routeIs('accounts.*') ? 'active' : '' }}">Business accounts</a>
                     <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
                     <a href="{{ route('payments.index') }}" class="{{ request()->routeIs('payments.*') ? 'active' : '' }}">Payments</a>
                     <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>

@@ -13,9 +13,18 @@
         @endif
     </form>
 
+    @if(isset($accounts) && $accounts->isNotEmpty())
+        <div class="card" style="margin-bottom:14px;border-left:4px solid #FBBA2A">
+            <p class="muted" style="margin:0 0 8px;font-size:13px">🏢 Matching <strong>business accounts</strong> (invoiced companies, not individual customers):</p>
+            @foreach($accounts as $a)
+                <a href="{{ route('accounts.show', $a) }}" style="display:inline-block;margin:0 8px 6px 0;font-size:14px">{{ $a->name }} <span class="muted">· acct {{ $a->account_code }}</span> →</a>
+            @endforeach
+        </div>
+    @endif
+
     <div class="card">
         @if($customers->isEmpty())
-            <p class="muted mb-0">No customers found{{ $term ? ' for “'.$term.'”' : '' }}.</p>
+            <p class="muted mb-0">No individual customers found{{ $term ? ' for “'.$term.'”' : '' }}.@if(isset($accounts) && $accounts->isNotEmpty()) See the matching business account above.@endif</p>
         @else
             <table>
                 <thead>
