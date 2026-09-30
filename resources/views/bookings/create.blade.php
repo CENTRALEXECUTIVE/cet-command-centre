@@ -33,9 +33,17 @@
         </div>
     @endif
 
+    @if(($enquiry ?? null))
+        <div class="alert alert-success">
+            ✉️ Prefilled from the email enquiry from <strong>{{ $enquiry->from_name ?: $enquiry->from_email }}</strong> — check the details and confirm.
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('bookings.store') }}" class="eto-form">
         @csrf
         @if($quote)<input type="hidden" name="quote_id" value="{{ $quote->id }}">@endif
+        @if(($enquiry ?? null))<input type="hidden" name="enquiry_id" value="{{ $enquiry->id }}">@endif
+        @php $pf = $prefill ?? []; @endphp
 
         {{-- ───────────── Customer ───────────── --}}
         <div class="eto-section">
@@ -44,18 +52,18 @@
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="customer_name">Full name <span class="req">*</span></label>
-                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $customer?->name) }}" required>
+                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $pf['customer_name'] ?? $customer?->name) }}" required>
                         @error('customer_name') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field">
                         <label for="customer_phone">Mobile number</label>
-                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $customer?->phone) }}" placeholder="07…">
+                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $pf['customer_phone'] ?? $customer?->phone) }}" placeholder="07…">
                         @error('customer_phone') <div class="error">{{ $message }}</div> @enderror
                     </div>
                 </div>
                 <div class="field">
                     <label for="customer_email">Email address</label>
-                    <input id="customer_email" type="email" name="customer_email" value="{{ old('customer_email', $customer?->email) }}">
+                    <input id="customer_email" type="email" name="customer_email" value="{{ old('customer_email', $pf['customer_email'] ?? $customer?->email) }}">
                     <div class="hint">Provide a phone number or an email so we can send confirmations.</div>
                     @error('customer_email') <div class="error">{{ $message }}</div> @enderror
                 </div>
@@ -91,7 +99,7 @@
                     <div class="loc-row">
                         <span class="pin pickup">A</span>
                         <div class="grow">
-                            <textarea id="pickup_address" name="pickup_address" data-places autocomplete="off" placeholder="Start typing an address…" required>{{ old('pickup_address', $quote?->pickup_address) }}</textarea>
+                            <textarea id="pickup_address" name="pickup_address" data-places autocomplete="off" placeholder="Start typing an address…" required>{{ old('pickup_address', $pf['pickup_address'] ?? $quote?->pickup_address) }}</textarea>
                         </div>
                     </div>
                     @error('pickup_address') <div class="error">{{ $message }}</div> @enderror
@@ -116,7 +124,7 @@
                     <div class="loc-row">
                         <span class="pin drop">B</span>
                         <div class="grow">
-                            <textarea id="destination_address" name="destination_address" data-places autocomplete="off" placeholder="Start typing an address…" required>{{ old('destination_address', $quote?->destination_address) }}</textarea>
+                            <textarea id="destination_address" name="destination_address" data-places autocomplete="off" placeholder="Start typing an address…" required>{{ old('destination_address', $pf['destination_address'] ?? $quote?->destination_address) }}</textarea>
                         </div>
                     </div>
                     @error('destination_address') <div class="error">{{ $message }}</div> @enderror
@@ -125,7 +133,7 @@
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="pickup_at">Pickup date &amp; time <span class="req">*</span></label>
-                        <input id="pickup_at" type="datetime-local" name="pickup_at" value="{{ old('pickup_at', $quote?->pickup_at?->format('Y-m-d\TH:i')) }}" required>
+                        <input id="pickup_at" type="datetime-local" name="pickup_at" value="{{ old('pickup_at', $pf['pickup_at'] ?? $quote?->pickup_at?->format('Y-m-d\TH:i')) }}" required>
                         @error('pickup_at') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field" id="return_field">
@@ -158,7 +166,7 @@
                     <select id="vehicle_type_id" name="vehicle_type_id" required>
                         <option value="">— Select —</option>
                         @foreach($vehicleTypes as $vt)
-                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id', $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id)==$vt->id)>
+                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id', $pf['vehicle_type_id'] ?? $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id)==$vt->id)>
                                 {{ $vt->name }} (up to {{ $vt->passenger_capacity }})
                             </option>
                         @endforeach
@@ -173,7 +181,7 @@
                     <span class="lbl">Passengers <span class="req">*</span><span class="sub">People travelling</span></span>
                     <div class="stepper" data-stepper>
                         <button type="button" data-dec>−</button>
-                        <input id="passengers" type="number" name="passengers" min="1" max="60" value="{{ old('passengers', 1) }}" required>
+                        <input id="passengers" type="number" name="passengers" min="1" max="60" value="{{ old('passengers', $pf['passengers'] ?? 1) }}" required>
                         <button type="button" data-inc>+</button>
                     </div>
                 </div>
@@ -248,7 +256,7 @@
                     </div>
                     <div class="field">
                         <label for="quoted_price">Quoted price (£)</label>
-                        <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price', $quote?->price) }}">
+                        <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price', $pf['quoted_price'] ?? $quote?->price) }}">
                         @error('quoted_price') <div class="error">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -261,7 +269,7 @@
             <div class="body">
                 <div class="field">
                     <label for="special_requests">Special requests</label>
-                    <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests') }}</textarea>
+                    <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests', $pf['special_requests'] ?? null) }}</textarea>
                     @error('special_requests') <div class="error">{{ $message }}</div> @enderror
                 </div>
                 <div class="field" style="margin-bottom:0">

@@ -33,7 +33,7 @@
                 <tr><th>Vehicle</th><td>{{ $ex['vehicle'] ?? '—' }}</td></tr>
                 <tr><th>Quote basis</th><td>{{ $enquiry->quote_basis ?? '—' }}</td></tr>
             </table>
-            <a href="{{ route('bookings.create', array_filter(['customer' => $enquiry->customer_id])) }}" class="btn btn-dark" style="margin-top:10px;padding:8px 14px">Convert to booking →</a>
+            <a href="{{ route('bookings.create', array_filter(['enquiry' => $enquiry->id, 'customer' => $enquiry->customer_id])) }}" class="btn btn-dark" style="margin-top:10px;padding:8px 14px">Convert to booking →</a>
         </div>
     </div>
 

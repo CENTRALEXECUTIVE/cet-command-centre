@@ -305,7 +305,50 @@ class BookingController extends Controller
             ? \App\Models\Customer::with('preferredVehicleType')->find($request->integer('customer'))
             : null;
 
-        return view('bookings.create', $this->formData($request) + ['quote' => $quote, 'customer' => $customer]);
+        // Optionally prefill from an EMAIL enquiry (enquiry=ID) — pulls the whole
+        // journey (pickup, drop-off, time, passengers, vehicle, price) the AI
+        // already read from the email, so an emailed booking is one click away.
+        $enquiry = $request->filled('enquiry')
+            ? \App\Models\EmailEnquiry::find($request->integer('enquiry'))
+            : null;
+
+        return view('bookings.create', $this->formData($request) + [
+            'quote' => $quote,
+            'customer' => $customer,
+            'enquiry' => $enquiry,
+            'prefill' => $enquiry ? $this->prefillFromEnquiry($enquiry) : [],
+        ]);
+    }
+
+    /** Map an email enquiry's AI-extracted fields onto the booking form. */
+    private function prefillFromEnquiry(\App\Models\EmailEnquiry $enquiry): array
+    {
+        $ex = $enquiry->extracted ?? [];
+
+        $pickupAt = null;
+        if (! empty($ex['pickup_datetime'])) {
+            try {
+                $pickupAt = \Illuminate\Support\Carbon::parse($ex['pickup_datetime'])->format('Y-m-d\TH:i');
+            } catch (\Throwable) {
+                $pickupAt = null;
+            }
+        }
+
+        $vehicleId = ! empty($ex['vehicle'])
+            ? \App\Models\VehicleType::where('slug', $ex['vehicle'])->value('id')
+            : null;
+
+        return array_filter([
+            'customer_name' => $enquiry->from_name ?: ($ex['customer_name'] ?? null),
+            'customer_email' => $enquiry->from_email,
+            'pickup_address' => $ex['pickup'] ?? null,
+            'destination_address' => $ex['destination'] ?? null,
+            'pickup_at' => $pickupAt,
+            'passengers' => $ex['passengers'] ?? null,
+            'vehicle_type_id' => $vehicleId,
+            'quoted_price' => $enquiry->quote_amount,
+            'special_requests' => $ex['notes'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
     }
 
     public function store(StoreBookingRequest $request): RedirectResponse
@@ -317,6 +360,12 @@ class BookingController extends Controller
             Quote::where('id', $request->integer('quote_id'))
                 ->whereNull('converted_booking_id')
                 ->update(['converted_booking_id' => $booking->id]);
+        }
+
+        // Mark the source email enquiry as booked so it drops off the open inbox.
+        if ($request->filled('enquiry_id')) {
+            \App\Models\EmailEnquiry::where('id', $request->integer('enquiry_id'))
+                ->update(['status' => 'booked', 'customer_id' => $booking->customer_id]);
         }
 
         return redirect()
