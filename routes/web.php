@@ -176,6 +176,16 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments.index');
         Route::post('bookings/{booking}/paid', [\App\Http\Controllers\PaymentController::class, 'markPaid'])->name('payments.paid');
 
+        // ETO-style per-booking payment ledger ("Payment history"): add/edit/delete/
+        // duplicate transactions, mark paid, and send a card payment link.
+        Route::post('bookings/{booking}/transactions', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'store'])->middleware('throttle:60,1')->name('bookings.transactions.store');
+        Route::put('bookings/{booking}/transactions/{payment}', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'update'])->middleware('throttle:60,1')->name('bookings.transactions.update');
+        Route::post('bookings/{booking}/transactions/{payment}/status', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'status'])->middleware('throttle:60,1')->name('bookings.transactions.status');
+        Route::post('bookings/{booking}/transactions/{payment}/pay-now', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'payNow'])->middleware('throttle:60,1')->name('bookings.transactions.pay-now');
+        Route::post('bookings/{booking}/transactions/{payment}/duplicate', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'duplicate'])->middleware('throttle:60,1')->name('bookings.transactions.duplicate');
+        Route::post('bookings/{booking}/transactions/{payment}/send-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'sendLink'])->middleware('throttle:30,1')->name('bookings.transactions.send-link');
+        Route::delete('bookings/{booking}/transactions/{payment}', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'destroy'])->middleware('throttle:60,1')->name('bookings.transactions.destroy');
+
         // User management (admins; admin/super-admin creation is super-admin only).
         Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
         Route::get('users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('users.create');

@@ -961,6 +961,50 @@ class Booking extends Model
         return $this->hasMany(Payment::class);
     }
 
+    /** Total of the payment-ledger transactions marked paid (£). */
+    public function transactionsPaidTotal(): float
+    {
+        return (float) $this->payments->where('status', 'paid')->sum('amount');
+    }
+
+    /** Total of all payment-ledger transactions, paid or not (£). */
+    public function transactionsTotal(): float
+    {
+        return (float) $this->payments->sum('amount');
+    }
+
+    /**
+     * What's still owed against the fare after the paid transactions (£, never
+     * below zero). Null when there's no fare on the job yet.
+     */
+    public function transactionsAmountDue(): ?float
+    {
+        $fare = $this->fareGross();
+        if ($fare === null) {
+            return null;
+        }
+
+        return max(0.0, round($fare - $this->transactionsPaidTotal(), 2));
+    }
+
+    /**
+     * Keep the booking's headline payment_status in step with its transaction
+     * ledger: paid once the paid transactions cover the fare, else pending. Never
+     * touches a cancelled/refunded job's own state beyond this flag.
+     */
+    public function reconcilePaymentStatusFromTransactions(): void
+    {
+        $fare = $this->fareGross();
+        if ($fare === null || $fare <= 0) {
+            return;
+        }
+        $paid = $this->transactionsPaidTotal();
+        $status = $paid + 0.01 >= $fare ? 'paid' : 'pending';
+        if ($this->payment_status !== $status) {
+            $this->forceFill(['payment_status' => $status])->save();
+        }
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);

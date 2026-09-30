@@ -1187,23 +1187,118 @@
     @endif
 
 
-    @if($booking->payments->isNotEmpty())
-        <div class="card">
-            <h2>Payment</h2>
-            <table>
-                @foreach($booking->payments as $payment)
-                    <tr>
-                        <th>{{ ucfirst($payment->method) }}</th>
-                        <td>
-                            £{{ number_format($payment->amount, 2) }} ·
-                            <span class="badge badge-{{ $payment->status === 'paid' ? 'complete' : 'pending' }}">{{ ucfirst(str_replace('_',' ',$payment->status)) }}</span>
-                            @if($payment->tide_payment_link)
-                                · <a href="{{ $payment->tide_payment_link }}" target="_blank" rel="noopener">Tide payment link</a>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </table>
+    @if(auth()->user()->isAdmin())
+        @php
+            $txns = $booking->payments->sortByDesc('id');
+            $fareGross = $booking->fareGross();
+            $paidTotal = $booking->transactionsPaidTotal();
+            $amountDue = $booking->transactionsAmountDue();
+            $txStatuses = ['pending' => 'Pending', 'link_sent' => 'Link sent', 'paid' => 'Paid', 'balance_remaining' => 'Balance remaining', 'failed' => 'Failed', 'refunded' => 'Refunded'];
+            $badgeFor = fn ($s) => $s === 'paid' ? 'complete' : ($s === 'failed' || $s === 'refunded' ? 'cancelled' : 'pending');
+        @endphp
+        <div id="transactions" class="card" style="scroll-margin-top:16px">
+            <h2 style="margin:0 0 4px">💳 Payment history</h2>
+            <p class="hint" style="margin:0 0 12px">Every payment on this booking. Add a deposit or balance, send a card payment link, or mark a transaction paid.</p>
+
+            @if(session('sms_link'))
+                <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin:0 0 12px;padding:10px 14px">
+                    <div style="font-weight:700;margin-bottom:6px">Payment link ready</div>
+                    <a href="{{ session('sms_link') }}" class="btn btn-primary" style="padding:7px 14px;font-size:13px">💬 Open SMS with the link</a>
+                    <button type="button" class="btn btn-ghost copy-pay-link" data-link="{{ session('copy_link') }}" style="padding:7px 14px;font-size:13px">⧉ Copy link</button>
+                </div>
+            @endif
+
+            {{-- Totals (ETO-style). --}}
+            <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px">
+                <div><div class="muted" style="font-size:12px">Total</div><div style="font-weight:800;font-size:18px">£{{ number_format($fareGross ?? 0, 2) }}</div></div>
+                <div><div class="muted" style="font-size:12px">Paid</div><div style="font-weight:800;font-size:18px;color:#1f7a44">£{{ number_format($paidTotal, 2) }}</div></div>
+                <div><div class="muted" style="font-size:12px">Amount due</div><div style="font-weight:800;font-size:18px;{{ ($amountDue ?? 0) > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($amountDue ?? 0, 2) }}</div></div>
+            </div>
+
+            @if($txns->isNotEmpty())
+                <div style="overflow-x:auto">
+                <table style="width:100%">
+                    <thead><tr><th>Name</th><th>Amount</th><th>Charge</th><th>Method</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+                    <tbody>
+                    @foreach($txns as $payment)
+                        <tr>
+                            <td>{{ $payment->name() }}<div class="muted" style="font-size:11px">{{ $payment->updated_at?->format('d/m/Y H:i') }}</div></td>
+                            <td>£{{ number_format((float) $payment->amount, 2) }}</td>
+                            <td>£{{ number_format($payment->charge(), 2) }}</td>
+                            <td>{{ $payment->methodLabel() }}</td>
+                            <td><span class="badge badge-{{ $badgeFor($payment->status) }}">{{ $payment->statusLabel() }}</span></td>
+                            <td style="text-align:right;white-space:nowrap">
+                                <details style="display:inline-block;position:relative">
+                                    <summary class="btn btn-ghost" style="padding:4px 10px;font-size:12px;list-style:none;cursor:pointer">Actions ▾</summary>
+                                    <div style="position:absolute;right:0;z-index:20;background:#fff;border:1px solid rgba(0,0,0,.15);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:8px;min-width:210px;text-align:left">
+                                        @if(! $payment->isPaid())
+                                            <form method="POST" action="{{ route('bookings.transactions.pay-now', [$booking, $payment]) }}">@csrf
+                                                <button class="txn-menu-item" style="color:#1f7a44">✓ Pay now (mark paid)</button>
+                                            </form>
+                                        @endif
+                                        <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
+                                            <input type="hidden" name="channel" value="email">
+                                            <button class="txn-menu-item">✉ Send payment link by email</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
+                                            <input type="hidden" name="channel" value="sms">
+                                            <button class="txn-menu-item">💬 Send payment link via SMS</button>
+                                        </form>
+                                        <button type="button" class="txn-menu-item txn-edit-toggle" data-target="txn-edit-{{ $payment->id }}">✎ Edit</button>
+                                        <form method="POST" action="{{ route('bookings.transactions.duplicate', [$booking, $payment]) }}">@csrf
+                                            <button class="txn-menu-item">⧉ Duplicate</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('bookings.transactions.destroy', [$booking, $payment]) }}" onsubmit="return confirm('Delete this transaction?')">@csrf @method('DELETE')
+                                            <button class="txn-menu-item" style="color:#b32020">🗑 Delete</button>
+                                        </form>
+                                    </div>
+                                </details>
+                                @if($payment->tide_payment_link)
+                                    <a href="{{ $payment->tide_payment_link }}" target="_blank" rel="noopener" class="muted" style="display:block;font-size:11px;margin-top:4px">payment link ↗</a>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr id="txn-edit-{{ $payment->id }}" hidden><td colspan="6" style="background:rgba(128,128,128,.05)">
+                            <form method="POST" action="{{ route('bookings.transactions.update', [$booking, $payment]) }}" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;padding:6px 0">
+                                @csrf @method('PUT')
+                                <div class="field" style="margin:0"><label style="font-size:12px">Name</label><input name="name" value="{{ $payment->name() }}" style="width:130px"></div>
+                                <div class="field" style="margin:0"><label style="font-size:12px">Amount (£)</label><input name="amount" type="number" step="0.01" min="0" value="{{ number_format((float) $payment->amount, 2, '.', '') }}" style="width:100px"></div>
+                                <div class="field" style="margin:0"><label style="font-size:12px">Charge (£)</label><input name="charge" type="number" step="0.01" min="0" value="{{ $payment->charge() ? number_format($payment->charge(), 2, '.', '') : '' }}" style="width:90px"></div>
+                                <div class="field" style="margin:0"><label style="font-size:12px">Method</label><select name="method" style="width:120px">
+                                    @foreach(['card' => 'Card / Square', 'cash' => 'Cash', 'account' => 'Account'] as $mv => $ml)<option value="{{ $mv }}" @selected($payment->method === $mv)>{{ $ml }}</option>@endforeach
+                                </select></div>
+                                <div class="field" style="margin:0"><label style="font-size:12px">Status</label><select name="status" style="width:150px">
+                                    @foreach($txStatuses as $sv => $sl)<option value="{{ $sv }}" @selected($payment->status === $sv)>{{ $sl }}</option>@endforeach
+                                </select></div>
+                                <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">Save</button>
+                            </form>
+                        </td></tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                </div>
+            @else
+                <p class="muted" style="margin:0 0 10px">No transactions recorded yet.</p>
+            @endif
+
+            {{-- Add a new transaction. --}}
+            <details style="margin-top:12px" {{ $errors->any() && old('amount') ? 'open' : '' }}>
+                <summary class="btn btn-light" style="padding:8px 14px;font-size:13px;display:inline-block;cursor:pointer">＋ Add new transaction</summary>
+                <form method="POST" action="{{ route('bookings.transactions.store', $booking) }}" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px">
+                    @csrf
+                    <div class="field" style="margin:0"><label style="font-size:12px">Name</label><input name="name" placeholder="Full amount" value="{{ old('name', 'Full amount') }}" style="width:130px"></div>
+                    <div class="field" style="margin:0"><label style="font-size:12px">Amount (£)</label><input name="amount" type="number" step="0.01" min="0" required value="{{ old('amount', $amountDue !== null ? number_format($amountDue, 2, '.', '') : '') }}" style="width:100px"></div>
+                    <div class="field" style="margin:0"><label style="font-size:12px">Charge (£)</label><input name="charge" type="number" step="0.01" min="0" value="{{ old('charge') }}" style="width:90px"></div>
+                    <div class="field" style="margin:0"><label style="font-size:12px">Method</label><select name="method" style="width:120px">
+                        @foreach(['card' => 'Card / Square', 'cash' => 'Cash', 'account' => 'Account'] as $mv => $ml)<option value="{{ $mv }}" @selected(old('method', $booking->payment_method?->value) === $mv)>{{ $ml }}</option>@endforeach
+                    </select></div>
+                    <div class="field" style="margin:0"><label style="font-size:12px">Status</label><select name="status" style="width:150px">
+                        @foreach($txStatuses as $sv => $sl)<option value="{{ $sv }}" @selected(old('status', 'pending') === $sv)>{{ $sl }}</option>@endforeach
+                    </select></div>
+                    <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">Add transaction</button>
+                </form>
+            </details>
+            <p class="hint" style="margin:12px 0 0">These transactions include one-way and return bookings.</p>
         </div>
     @endif
 
@@ -1747,14 +1842,39 @@
         @endif
     @endif
 
+    <style>
+        .txn-menu-item { display:block; width:100%; text-align:left; background:none; border:0; padding:8px 10px;
+            font-size:13px; cursor:pointer; border-radius:7px; color:inherit; }
+        .txn-menu-item:hover { background:rgba(251,186,42,.16); }
+    </style>
     <script src="{{ asset('js/cet-flight.js') }}"></script>
     <script>
         // After a payroll/extra-car action the page reloads with a #anchor; some
         // browsers don't scroll to a fragment that came from a redirect, so land
         // the user back on the section they were using instead of the top.
         document.addEventListener('DOMContentLoaded', function () {
-            if (!window.location.hash) return;
-            var el = document.querySelector(window.location.hash);
+            // Payment-ledger: toggle a transaction's inline edit row.
+            document.querySelectorAll('.txn-edit-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var row = document.getElementById(btn.dataset.target);
+                    if (row) row.hidden = !row.hidden;
+                    var menu = btn.closest('details'); if (menu) menu.open = false;
+                });
+            });
+            // Copy a payment link to the clipboard.
+            document.querySelectorAll('.copy-pay-link').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    navigator.clipboard.writeText(btn.dataset.link || '').then(function () {
+                        var old = btn.textContent; btn.textContent = '✓ Copied';
+                        setTimeout(function () { btn.textContent = old; }, 1500);
+                    });
+                });
+            });
+            // Land back on the section a redirect pointed at (flash 'scroll' or #hash).
+            var target = @json(session('scroll')) ;
+            var sel = window.location.hash || (target ? '#' + target : '');
+            if (!sel) return;
+            var el = document.querySelector(sel);
             if (el) {
                 if (el.tagName === 'DETAILS') { el.open = true; }
                 el.scrollIntoView({ block: 'start' });
