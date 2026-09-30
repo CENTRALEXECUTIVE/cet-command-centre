@@ -671,6 +671,29 @@ class BookingWidgetTest extends TestCase
         $this->assertSame(1, \App\Models\Booking::where('source', 'web')->count());
     }
 
+    public function test_an_on_request_vehicle_lands_as_a_quote_request(): void
+    {
+        // Rolls Royce (POA) has no online price and no payment method — it's a
+        // "request a quote": it still lands as a pending booking, flagged so the
+        // office knows to email a price back, and the thanks page says so.
+        $rolls = VehicleType::where('slug', 'rolls-royce-ghost')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Chatsworth House',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $rolls->id, 'passengers' => 2,
+            'customer_name' => 'Wants A Quote', 'customer_phone' => '07464905385',
+            'customer_email' => 'quote@example.com',
+            // No payment_method sent — the widget hides it for a quote request.
+        ])->assertOk()->assertSee('Quote request received');
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertNotNull($booking);
+        $this->assertTrue((bool) ($booking->meta['quote_request'] ?? false));
+        $this->assertNull($booking->quoted_price);
+    }
+
     public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
     {
         $minibus = VehicleType::where('slug', 'minibus-8')->first();

@@ -58,9 +58,18 @@ class DistanceService
                     'destination' => ['address' => $destination],
                     'travelMode' => 'DRIVE',
                     'units' => 'IMPERIAL',
+                    // Ask for alternative routes so we can bill the SHORTEST sensible
+                    // one, not Google's default (fastest, which often takes a longer
+                    // motorway loop — e.g. Sheffield→Bolton 78mi via M60 vs 57mi direct).
+                    'computeAlternativeRoutes' => true,
                 ]);
 
-            $route = $response->json('routes.0');
+            // Choose the shortest-by-distance of the routes Google offers (they're
+            // all valid driving routes, so this is "shortest sensible", not a silly
+            // path). Falls back to the single route when no alternatives came back.
+            $routes = $response->json('routes', []);
+            usort($routes, fn ($a, $b) => ($a['distanceMeters'] ?? PHP_INT_MAX) <=> ($b['distanceMeters'] ?? PHP_INT_MAX));
+            $route = $routes[0] ?? null;
             if ($response->successful() && ! empty($route['distanceMeters'])) {
                 return [
                     'miles' => round(($route['distanceMeters'] ?? 0) / 1609.34, 1),

@@ -346,10 +346,17 @@
             <div class="cet-body">
                 <div class="cet-done">
                     <div class="tick">✓</div>
-                    <h2>Booking request received</h2>
-                    <p style="color:var(--muted);margin:0 0 6px">Our office will confirm your journey and price shortly.</p>
+                    @if(!empty($quoteRequest))
+                        <h2>Quote request received</h2>
+                        <p style="color:var(--muted);margin:0 0 6px">Thank you — we’ll email you a price for your chosen vehicle shortly.</p>
+                    @else
+                        <h2>Booking request received</h2>
+                        <p style="color:var(--muted);margin:0 0 6px">Our office will confirm your journey and price shortly.</p>
+                    @endif
                     @if(isset($ref))<div class="cet-ref">Ref {{ $ref }}</div>@endif
-                    @if(!empty($payUrl))
+                    @if(!empty($quoteRequest))
+                        <p class="cet-foot" style="margin-top:12px">No payment has been taken — this vehicle is quoted on request.</p>
+                    @elseif(!empty($payUrl))
                         <a href="{{ $payUrl }}" target="_top" class="cet-btn" style="display:block;margin-top:18px;text-decoration:none;text-align:center">
                             Pay now to secure it{{ $payAmount ? ' · £'.number_format($payAmount, 0) : '' }}</a>
                         <p class="cet-foot" style="margin-top:8px">Secure card payment by Square.
@@ -565,12 +572,12 @@
                         {{-- Extras — compact. Meet & greet appears (pre-ticked) only for airport
                              journeys; child seats hide behind a tick, max 2 in total. --}}
                         <div class="cet-mini-title">Extras <span class="opt">(optional)</span></div>
-                        <div class="cet-field" id="b-flight-field">
-                            <label for="b-flight">Flight number <span class="opt" id="b-flight-opt">— for airport pickups (we track it)</span></label>
+                        <div class="cet-field" id="b-flight-field" hidden>
+                            <label for="b-flight"><span id="b-flight-label">Flight number</span> <span class="opt" id="b-flight-opt">— for airport journeys (we track it)</span></label>
                             <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
                         </div>
                         <div class="cet-field" id="b-flight-landing-field" hidden>
-                            <label for="b-flight-landing">Flight landing time <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
+                            <label for="b-flight-landing"><span id="b-flight-landing-label">Flight landing time</span> <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
                             <input id="b-flight-landing" name="flight_landing_at" type="datetime-local">
                         </div>
                         <div class="cet-xtras">
@@ -610,11 +617,13 @@
                             </label>
                         </div>
 
-                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional — e.g. pickup notes, accessibility needs)</span></label>
+                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional)</span></label>
                             <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
 
                         {{-- Payment method (like ETO): pay by card online, or cash to the
-                             driver on the day. --}}
+                             driver on the day. Hidden entirely for a quote-only vehicle
+                             (Rolls Royce / on request) — then it's a request-a-quote. --}}
+                        <div id="b-payment-section">
                         <div class="cet-mini-title">💳 Payment method</div>
                         <label class="cet-pay" id="b-pay-card-wrap">
                             <input type="radio" name="payment_method" id="b-pay-card" value="card" checked>
@@ -631,6 +640,8 @@
                             <input type="radio" name="payment_method" id="b-pay-account" value="account">
                             <span class="t"><b>Account</b> <span class="opt">— <span id="b-account-name">on account</span>, invoiced monthly (no payment now)</span></span>
                         </label>
+                        </div>{{-- /#b-payment-section --}}
+                        <p class="cet-foot" id="b-quote-note" hidden style="margin:6px 0 0;text-align:left">This vehicle is quoted on request — no payment now. Give us your details and we’ll email you a price.</p>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-voucher">Discount code <span class="opt">(optional)</span></label>
                             <input id="b-voucher" name="voucher" placeholder="" autocomplete="off" style="text-transform:uppercase;max-width:260px"></div>
@@ -927,11 +938,13 @@
                     var phone = document.getElementById('b-phone'), email = document.getElementById('b-email');
                     var okName = nonEmpty(nameEl);
                     nameEl.closest('.cet-field').classList.toggle('bad', !okName);
-                    var okContact = nonEmpty(phone) || nonEmpty(email);
-                    phone.closest('.cet-field').classList.toggle('bad', !okContact);
-                    email.closest('.cet-field').classList.toggle('bad', !okContact);
+                    // BOTH a mobile number and an email are required.
+                    var okPhone = nonEmpty(phone), okEmail = nonEmpty(email);
+                    phone.closest('.cet-field').classList.toggle('bad', !okPhone);
+                    email.closest('.cet-field').classList.toggle('bad', !okEmail);
                     if (!okName) { showErr(3, 'Please enter your name.'); nameEl.focus(); return false; }
-                    if (!okContact) { showErr(3, 'Please give a phone number or an email so we can confirm.'); phone.focus(); return false; }
+                    if (!okPhone) { showErr(3, 'Please enter your mobile number.'); phone.focus(); return false; }
+                    if (!okEmail) { showErr(3, 'Please enter your email address.'); email.focus(); return false; }
                     // Flight number is required for airport journeys (arrivals we track).
                     var flightField = document.getElementById('b-flight-field'), flightIn = document.getElementById('b-flight');
                     if (flightIn && flightIn.dataset.required === '1' && !nonEmpty(flightIn)) {
@@ -969,7 +982,7 @@
             function proceedTo(next) {
                 goTo(next);
                 if (next === 2) { minibusToggle(); fitVehicles(); loadPrices(); }
-                if (next === 3) { applyAirportMeetGreet(); fillSummary(); }
+                if (next === 3) { applyAirportMeetGreet(); syncQuoteMode(); fillSummary(); }
             }
 
             // One-way "are you sure you don't want a return?" prompt — offered once.
@@ -1205,35 +1218,75 @@
                 var jt = journeyEl ? journeyEl.value : 'one_way';
                 return jt === 'return' && isAirportJourney();
             }
+            function airportIn(v) {
+                return /\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|\bt1\b|\bt2\b|\bt3\b|\bt5\b/.test(String(v || '').toLowerCase());
+            }
+            function isAirportPickup() { return airportIn((document.getElementById('b-pickup') || {}).value); }
+            function isAirportDropoff() { return airportIn((document.getElementById('b-dropoff') || {}).value); }
+
             function applyAirportMeetGreet() {
-                var airport = isAirportJourney();
-                var airportReturn = isAirportReturn();
+                var jt = journeyEl ? journeyEl.value : 'one_way';
+                var isReturn = jt === 'return';
+                var puAir = isAirportPickup();
+                var dpAir = isAirportDropoff();
+                var anyAir = puAir || dpAir;
+                // "arrival" = we meet them off a flight: a one-way airport pickup, or ANY
+                // return touching an airport (they land on the way back).
+                var arrival = puAir || (isReturn && anyAir);
+
                 var wrap = document.getElementById('b-mg-wrap');
                 if (wrap && mg) {
-                    wrap.hidden = !airport;
-                    // Auto-tick for airport journeys. On an airport RETURN meet & greet
-                    // is applied no matter what (forced on); on a one-way airport pickup
-                    // it's pre-ticked but the customer can still untick it.
-                    if (airportReturn) { mg.checked = true; }
-                    else if (airport) { if (!mg.dataset.userset) mg.checked = true; }
+                    wrap.hidden = !arrival;               // meet & greet only when meeting an arrival
+                    if (isReturn && anyAir) { mg.checked = true; }        // forced on for airport returns
+                    else if (arrival) { if (!mg.dataset.userset) mg.checked = true; }
                     else { mg.checked = false; }
                     wrap.classList.toggle('on', mg.checked);
                 }
-                // Flight number + landing time are REQUIRED on airport journeys
-                // (arrivals we track) — and never missed on an airport return.
+
                 var ff = document.getElementById('b-flight-field');
                 var fe = document.getElementById('b-flight');
-                var opt = document.getElementById('b-flight-opt');
-                if (fe) {
-                    fe.dataset.required = airport ? '1' : '';
-                    if (opt) opt.textContent = airport ? '— required for your airport journey (we track it)' : '— for airport pickups (we track it)';
-                }
-                if (ff) ff.classList.toggle('cet-need', airport);
-                // Flight landing time — shown and required alongside the flight number.
+                var flabel = document.getElementById('b-flight-label');
+                var fopt = document.getElementById('b-flight-opt');
                 var lf = document.getElementById('b-flight-landing-field');
                 var le = document.getElementById('b-flight-landing');
-                if (lf) lf.hidden = !airport;
-                if (le) le.dataset.required = airport ? '1' : '';
+                var llabel = document.getElementById('b-flight-landing-label');
+
+                // Show the flight field for any airport journey; require it (and landing)
+                // for arrivals/returns; a plain one-way DEPARTURE is optional, no landing.
+                if (ff) ff.hidden = !anyAir;
+                if (fe) fe.dataset.required = arrival ? '1' : '';
+                if (lf) lf.hidden = !arrival;
+                if (le) le.dataset.required = arrival ? '1' : '';
+
+                if (isReturn && anyAir) {
+                    if (flabel) flabel.textContent = 'Return flight number';
+                    if (fopt) fopt.textContent = '— required (the flight you land on coming back)';
+                    if (llabel) llabel.textContent = 'Return flight landing time';
+                } else if (puAir) {
+                    if (flabel) flabel.textContent = 'Flight number';
+                    if (fopt) fopt.textContent = '— required (arrival flight we track)';
+                    if (llabel) llabel.textContent = 'Flight landing time';
+                } else if (dpAir) {
+                    if (flabel) flabel.textContent = 'Departure flight number';
+                    if (fopt) fopt.textContent = '— optional';
+                }
+            }
+
+            // Rolls Royce / any "on request" vehicle: no payment method — it's a
+            // request-a-quote (we take details, then email the office/customer a price).
+            function syncQuoteMode() {
+                var poa = !!(lastQuote && lastQuote.poa);
+                var sec = document.getElementById('b-payment-section');
+                var qn = document.getElementById('b-quote-note');
+                var payNote = document.getElementById('b-pay-note');
+                if (sec) sec.hidden = poa;
+                if (qn) qn.hidden = !poa;
+                if (payNote) payNote.hidden = poa;
+                var btn = document.getElementById('cet-submit');
+                if (btn) {
+                    if (poa) btn.textContent = 'Request a quote';
+                    else syncPay();
+                }
             }
             if (mg) { mg.addEventListener('change', function () { mg.dataset.userset = '1'; }); }
             var flightEl = document.getElementById('b-flight');

@@ -349,6 +349,12 @@ class BookingWidgetController extends Controller
             ? ['price' => null, 'basis' => 'Hourly hire — office to confirm', 'fixed' => false]
             : $this->quotes->quote($pickupFull, $destination, $vehicleType);
 
+        // "On request" vehicle (Rolls Royce / any POA class): no online price and
+        // no payment method — it's a REQUEST A QUOTE. We take the full details and
+        // the office emails a price back. Hourly hire is office-confirmed, not a
+        // quote request in this sense (it has a payment choice).
+        $isQuoteRequest = ! $isHourly && ($quote['price'] === null);
+
         // A logged-in customer (verified in this browser session) is the booker —
         // this is what makes "book on account" possible: only a signed-in company
         // account can bill on account. Guests fall back to find-or-create.
@@ -492,6 +498,9 @@ class BookingWidgetController extends Controller
                 'accepted_terms' => (bool) ($data['accept_terms'] ?? false) ?: null,
                 'accepted_privacy' => (bool) ($data['accept_privacy'] ?? false) ?: null,
                 'voucher_code' => filled($data['voucher'] ?? null) ? strtoupper(trim($data['voucher'])) : null,
+                // Flag an on-request (Rolls Royce / POA) enquiry so the office knows
+                // to email a price rather than treat it as a priced booking.
+                'quote_request' => $isQuoteRequest ?: null,
             ], fn ($v) => $v !== null && $v !== '' && $v !== false),
         ]);
 
@@ -548,11 +557,13 @@ class BookingWidgetController extends Controller
         $name = $customer->name;
         $when = $pickupAt->format('D d M, H:i');
         \App\Models\WatchdogEvent::log('web_booking', 'New web booking request — '.$name, 'info', $booking);
-        $typeLabel = $isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : '');
+        $typeLabel = $isQuoteRequest ? ' ('.$vehicleType->name.' — quote request)'
+            : ($isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : ''));
+        $action = $isQuoteRequest ? 'Email them a price.' : 'Confirm it.';
         $this->adminAlerts->notify('web_booking',
-            '🌐 New web booking — '.$name.$typeLabel,
+            ($isQuoteRequest ? '💬 New quote request — ' : '🌐 New web booking — ').$name.$typeLabel,
             $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
-                .' → '.\Illuminate\Support\Str::limit($destination, 30).'. Confirm it.',
+                .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
             'info', $booking);
 
         // Email the office too (mirrors ETO's "New booking" notification), so the
@@ -583,6 +594,7 @@ class BookingWidgetController extends Controller
                 'payUrl' => $payUrl,
                 'payWanted' => $wantsCard,
                 'payAmount' => $charge,
+                'quoteRequest' => $isQuoteRequest,
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
