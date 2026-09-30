@@ -2936,6 +2936,34 @@ class Booking extends Model
         return $this->airportCode() ?? ($this->isFreeRoam() ? 'Free Roam' : null);
     }
 
+    /**
+     * A plain-English label for what KIND of job this is, auto-recognised from the
+     * addresses — a specific airport (to or from), an hourly hire, or a free-roam
+     * (distance-priced) run. Shown on the booking so the office can see at a glance
+     * how the job was classified (and spot a mis-detection).
+     */
+    public function jobTypeLabel(): string
+    {
+        if ($code = $this->airportCode()) {
+            $name = self::knownAirports()[$code] ?? null;
+
+            return $name
+                ? 'Airport transfer — '.$name.' ('.$code.')'
+                : 'Airport transfer — '.$code;
+        }
+        if ($this->isHourlyHire()) {
+            return $this->hourlyHireLabel() ?? 'Hourly hire (as directed)';
+        }
+
+        return 'Free-roam job (distance priced)';
+    }
+
+    /** True when the office allocates this job by the Abdi↔Maj executive rotation. */
+    public function onDriverRotation(): bool
+    {
+        return (bool) $this->vehicleType?->affects_rotation;
+    }
+
     /** Configured airports as code => name (cached, upper-cased codes). */
     private static function knownAirports(): array
     {

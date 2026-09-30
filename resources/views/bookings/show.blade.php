@@ -1916,26 +1916,55 @@
     </script>
     @endverbatim
 
-    {{-- Route order (executive rotation only) — collapsed, at the very bottom so
-         it stays out of the way. Only shown on executive jobs, where the Abdi↔Maj
-         rotation applies. --}}
-    @if(auth()->user()->isAdmin() && $booking->vehicleType?->affects_rotation)
-        @php $routeSeq = $booking->routeSequence(rotationOnly: true); @endphp
-        @if($routeSeq->count() >= 1)
-            <style>
-                /* Each job becomes a card on phones — no side-scrolling. */
-                @media (max-width: 700px) {
-                    .rot-check thead { display: none; }
-                    .rot-check, .rot-check tbody, .rot-check tr, .rot-check td { display: block; width: 100%; }
-                    .rot-check tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 10px 12px; }
-                    .rot-check td { border: 0; padding: 3px 0; }
-                    .rot-check td::before { content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 8px; }
-                }
-            </style>
-            <details style="margin-top:8px">
-                <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Driver rotation — {{ $booking->airportCode() }} · this job: <span style="color:var(--accent,#b8860b)">{{ $booking->assignedDriverLabel() }}</span> <span class="muted" style="font-weight:500">(tap to check the order)</span></summary>
-                <div class="card" style="margin-top:8px">
-                    <p class="hint" style="margin:0 0 10px">Executive {{ $booking->airportCode() }} jobs — newest that came through at the top, with the driver the rotation gave each. This job is highlighted. Change a driver here if the order's wrong.</p>
+    {{-- Job type & driver rotation — collapsed, at the very bottom. Shown on EVERY
+         booking so the office can see how the job was auto-classified (which airport,
+         or free-roam) and correct the driver/rotation if it's wrong. --}}
+    @if(auth()->user()->isAdmin())
+        @php
+            $onRotation = $booking->onDriverRotation();
+            $routeSeq = $onRotation ? $booking->routeSequence(rotationOnly: true) : collect();
+            $jobType = $booking->jobTypeLabel();
+        @endphp
+        <style>
+            /* Each job becomes a card on phones — no side-scrolling. */
+            @media (max-width: 700px) {
+                .rot-check thead { display: none; }
+                .rot-check, .rot-check tbody, .rot-check tr, .rot-check td { display: block; width: 100%; }
+                .rot-check tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 10px 12px; }
+                .rot-check td { border: 0; padding: 3px 0; }
+                .rot-check td::before { content: attr(data-label); font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 8px; }
+            }
+        </style>
+        <details style="margin-top:8px">
+            <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Job type &amp; driver — <span style="color:var(--accent,#b8860b)">{{ $jobType }}</span> <span class="muted" style="font-weight:500">(tap to check / correct)</span></summary>
+            <div class="card" style="margin-top:8px">
+                <p style="margin:0 0 6px"><strong>Recognised as:</strong> {{ $jobType }}</p>
+                <p class="hint" style="margin:0 0 12px">
+                    @if($onRotation)
+                        Executive job — allocated by the <strong>Abdi ↔ Maj rotation</strong>. If the order looks wrong, change a driver below and the office decision sticks.
+                    @else
+                        Not on the executive rotation — {{ $booking->vehicleType?->name ?? 'this vehicle' }} jobs are allocated by hand. Assign or change the driver below.
+                    @endif
+                </p>
+
+                {{-- This job's driver — correctable on any booking. --}}
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+                    <div>This job: <strong style="color:var(--accent,#b8860b)">{{ $booking->assignedDriverLabel() }}</strong></div>
+                    @if(! $booking->status->isTerminal() && $allocatableDrivers->isNotEmpty())
+                        <form method="POST" action="{{ route('despatch.reassign', $booking) }}" style="margin:0">
+                            @csrf
+                            <select name="driver_id" onchange="this.form.submit()" style="font-size:13px;max-width:180px;padding:5px 8px">
+                                <option value="" disabled selected>Change driver…</option>
+                                @foreach($allocatableDrivers as $d)
+                                    <option value="{{ $d->id }}" @selected($booking->driver_id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @endif
+                </div>
+
+                @if($onRotation && $routeSeq->count() >= 1)
+                    <p class="hint" style="margin:0 0 10px">Executive {{ $booking->airportCode() ?: 'rotation' }} jobs — newest that came through at the top, with the driver the rotation gave each. This job is highlighted. Change a driver here if the order's wrong.</p>
                     <table class="rot-check">
                         <thead><tr><th>Came in</th><th>Job</th><th>Driver</th></tr></thead>
                         <tbody>
@@ -1965,9 +1994,9 @@
                         @endforeach
                         </tbody>
                     </table>
-                </div>
-            </details>
-        @endif
+                @endif
+            </div>
+        </details>
     @endif
 
     <style>

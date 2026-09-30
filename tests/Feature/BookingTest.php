@@ -615,10 +615,11 @@ class BookingTest extends TestCase
         $this->assertSame('Abdi', $prev->assignedDriverLabel());
         $this->assertGreaterThan(1, $this_job->routeSequence()->count());
 
-        // The booking page shows the route-order card with both drivers.
+        // The booking page shows the job-type & rotation card with both drivers.
         $this->actingAs($admin)->get(route('bookings.show', $this_job))
             ->assertOk()
-            ->assertSee('Driver rotation — MAN')
+            ->assertSee('Job type &amp; driver', false)
+            ->assertSee('MAN')
             ->assertSee('Abdi')
             ->assertSee('Maj');
     }

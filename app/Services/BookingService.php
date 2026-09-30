@@ -82,6 +82,11 @@ class BookingService
     public function updateFromForm(Booking $booking, array $data): Booking
     {
         return DB::transaction(function () use ($booking, $data) {
+            // The contact number the booking CURRENTLY shows (override → calendar
+            // "Contact No" → customer phone). We compare the office's edit against
+            // this so a genuinely changed number sticks — see the override below.
+            $priorContact = $booking->customerContactNumber();
+
             // Keep the customer's contact details current.
             if ($customer = $booking->customer) {
                 $customer->fill(array_filter([
@@ -90,6 +95,17 @@ class BookingService
                     'email' => $data['customer_email'] ?? null,
                 ], fn ($v) => $v !== null && $v !== ''))->save();
             }
+
+            // "I'm the boss — listen to what I input." When the office edits the
+            // contact number on the booking to something OTHER than what's shown,
+            // pin it as this booking's override so it wins over a stale ETO calendar
+            // "Contact No" (which otherwise beats the customer's phone and makes the
+            // edit look like it "reverted"). Compared on digits so formatting/+44
+            // differences aren't mistaken for a change.
+            $submittedPhone = trim((string) ($data['customer_phone'] ?? ''));
+            $digits = fn ($v) => substr(preg_replace('/\D/', '', (string) $v), -9);
+            $contactOverride = ($submittedPhone !== '' && $digits($submittedPhone) !== $digits($priorContact))
+                ? $submittedPhone : null;
 
             [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
@@ -181,6 +197,9 @@ class BookingService
                     // (the source of truth); only edited fields win over it.
                     'manually_edited_at' => now()->toIso8601String(),
                     'edited_fields' => $editedFields,
+                    // An explicitly changed contact number wins over the calendar;
+                    // an unchanged one leaves any existing override untouched.
+                    'contact_override' => $contactOverride ?: ($booking->meta['contact_override'] ?? null),
                 ]),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],
