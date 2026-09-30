@@ -117,12 +117,10 @@
         .cet-field.bad input, .cet-field.bad textarea { border-color:var(--err); background:#fdf3f3; }
         .cet-field.icon { position:relative; }
         .cet-field.icon input { padding-right:46px; }
-        /* Address + postcode on one line (postcode a small box, no extra row). */
-        .cet-addr-row { display:flex; gap:10px; align-items:flex-start; }
+        /* Address stays full width (never cropped); the postcode sits on its own
+           line below it as a compact box. */
         .cet-addr-row .cet-field { margin-bottom:12px; }
-        .cet-pc { flex:0 0 96px; width:96px; }
-        .cet-pc input { padding-left:11px; padding-right:11px; text-align:center; }
-        @media (max-width:400px){ .cet-pc { flex-basis:84px; width:84px; } }
+        .cet-pc { max-width:180px; }
         /* The location/clear button turns into a red ✕ when the field has an address. */
         .cet-field.icon .geo.is-clear { color:var(--err); font-weight:700; }
         /* "Use my current location" button (like ETO's crosshair). */
@@ -790,7 +788,7 @@
                 var v = journeyEl ? journeyEl.value : 'one_way';
                 if (returnField) returnField.style.display = v === 'return' ? '' : 'none';
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
-                if (dropRow) dropRow.style.display = v === 'hourly' ? 'none' : 'flex';
+                if (dropRow) dropRow.style.display = v === 'hourly' ? 'none' : '';
                 var stopsField = document.getElementById('b-stops-field');
                 if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
                 // No cash bookings on return journeys — hide Cash, force card (or account).
