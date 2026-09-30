@@ -1297,6 +1297,25 @@
                     </tbody>
                 </table>
                 </div>
+            @elseif($booking->fareIsPaid() && $fareGross)
+                {{-- No itemised ledger rows, but the fare is already paid (e.g. online
+                     via Square, recorded on the booking) — show it so it never reads
+                     as £0/unpaid. --}}
+                @php
+                    $sqRef = $booking->meta['square_payment']['id'] ?? null;
+                    $paidMethod = $sqRef ? 'Card / Square' : ucfirst($booking->payment_method?->value ?? 'card');
+                    $paidNote = 'Recorded on the booking'.($sqRef ? ' (Square)' : '').'. Add a transaction below only if you need to split it into a deposit + balance.';
+                @endphp
+                <table style="width:100%">
+                    <thead><tr><th>Name</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+                    <tbody><tr>
+                        <td>Full amount</td>
+                        <td>£{{ number_format($fareGross, 2) }}</td>
+                        <td>{{ $paidMethod }}</td>
+                        <td><span class="badge badge-complete">Paid</span></td>
+                    </tr></tbody>
+                </table>
+                <p class="hint" style="margin:6px 0 0">{{ $paidNote }}</p>
             @else
                 <p class="muted" style="margin:0 0 10px">No transactions recorded yet.</p>
             @endif

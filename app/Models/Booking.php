@@ -1024,10 +1024,28 @@ class Booking extends Model
         return $this->hasMany(Payment::class);
     }
 
-    /** Total of the payment-ledger transactions marked paid (£). */
+    /**
+     * The fare has been paid to the office (online via Square, or the office
+     * marked it paid) — even when it isn't itemised as a ledger transaction.
+     */
+    public function fareIsPaid(): bool
+    {
+        return $this->payment_status === 'paid' || filled($this->meta['square_payment'] ?? null);
+    }
+
+    /**
+     * Total paid against this booking (£). Uses the transaction ledger when it has
+     * rows; otherwise falls back to the booking's own paid fare (e.g. a Square
+     * payment recorded on the booking, not as a ledger row) so a paid job never
+     * shows £0 paid.
+     */
     public function transactionsPaidTotal(): float
     {
-        return (float) $this->payments->where('status', 'paid')->sum('amount');
+        if ($this->payments->isNotEmpty()) {
+            return (float) $this->payments->where('status', 'paid')->sum('amount');
+        }
+
+        return $this->fareIsPaid() ? (float) ($this->fareGross() ?? 0) : 0.0;
     }
 
     /** Total of all payment-ledger transactions, paid or not (£). */

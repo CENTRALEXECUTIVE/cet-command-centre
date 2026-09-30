@@ -88,6 +88,26 @@ class BookingTransactionsTest extends TestCase
         $this->assertSame(1, $booking->fresh()->payments()->count());
     }
 
+    public function test_a_square_paid_booking_with_no_ledger_rows_reads_as_paid(): void
+    {
+        // Paid online via Square (recorded on the booking, not as a ledger row) —
+        // the Payment history must show it paid, not £0 / amount due.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'quoted_price' => 115.00,
+            'payment_status' => 'paid',
+            'meta' => ['square_payment' => ['id' => 'sq_abc', 'amount' => 115]],
+        ]);
+
+        $this->assertTrue($booking->fareIsPaid());
+        $this->assertEqualsWithDelta(115.0, $booking->transactionsPaidTotal(), 0.001);
+        $this->assertEqualsWithDelta(0.0, $booking->transactionsAmountDue(), 0.001);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('Full amount')->assertDontSee('No transactions recorded yet');
+    }
+
     public function test_a_driver_cannot_touch_the_ledger(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
