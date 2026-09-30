@@ -467,6 +467,9 @@ Route::get('book/addresses', [\App\Http\Controllers\PlacesController::class, 'ad
 // Resolve a chosen address to its postcode (autocomplete predictions omit it).
 Route::get('book/resolve', [\App\Http\Controllers\PlacesController::class, 'resolve'])
     ->middleware('throttle:60,1')->name('public.book.resolve');
+// Reverse-geocode the browser's "use my location" coordinates to an address.
+Route::get('book/reverse', [\App\Http\Controllers\PlacesController::class, 'reverse'])
+    ->middleware('throttle:60,1')->name('public.book.reverse');
 
 // ----- Public embeddable WEB BOOKING WIDGETS (iframe into the marketing site) --
 // Mirrors ETO's "Web Widgets". Served from the Command Centre; the live website

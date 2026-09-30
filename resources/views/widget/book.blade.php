@@ -101,7 +101,14 @@
         .cet-field.bad input, .cet-field.bad textarea { border-color:var(--err); background:#fdf3f3; }
         .cet-field.icon { position:relative; }
         .cet-field.icon .pin { position:absolute; left:13px; top:37px; font-size:15px; }
-        .cet-field.icon input { padding-left:38px; }
+        .cet-field.icon input { padding-left:38px; padding-right:46px; }
+        /* "Use my current location" button (like ETO's crosshair). */
+        .cet-field.icon .geo { position:absolute; right:7px; top:25px; width:38px; height:40px; border:0;
+            background:transparent; color:var(--muted); font-size:20px; line-height:1; cursor:pointer;
+            display:grid; place-items:center; border-radius:9px; transition:background .15s, color .15s; }
+        .cet-field.icon .geo:hover { background:rgba(0,0,0,.05); color:var(--gold-deep); }
+        .cet-field.icon .geo.busy { opacity:.5; cursor:default; }
+        .cet-field.icon .geo.busy::after { content:""; }
         .cet-stop-row { position:relative; display:flex; align-items:center; gap:8px; margin-bottom:8px; }
         .cet-stop-row .pin { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:14px; pointer-events:none; }
         .cet-stop-row input { flex:1; padding-left:38px; }
@@ -341,19 +348,21 @@
                         </div>
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                             <span class="pin">🟡</span>
-                            <input id="b-pickup" name="pickup_address" required placeholder="" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
+                            <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
+                            <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Use my current location" title="Use my current location">◎</button>
                         </div>
                         <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
                             <input id="b-pickup-pc" name="pickup_postcode" required placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
                         </div>
                         <div class="cet-field" id="b-stops-field" data-stop-rate="{{ (float) ($sc['stopover'] ?? 0) }}">
-                            <label>Extra stops <span class="opt">(optional — anywhere to call at on the way)</span></label>
+                            <label>Extra stops <span class="opt">(optional)</span></label>
                             <div id="b-stops"></div>
                             <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop</button>
                         </div>
                         <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
                             <span class="pin">🏁</span>
-                            <input id="b-dropoff" name="destination_address" required placeholder="" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off"></div>
+                            <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
+                            <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Use my current location" title="Use my current location">◎</button></div>
                         <div class="cet-field" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Drop-off postcode <span class="opt">(if known)</span></label>
                             <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         <div class="cet-two">
@@ -629,6 +638,7 @@
     <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
         window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";
+        window.CET_REVERSE_URL = "{{ route('public.book.reverse') }}";
         window.CET_ACCOUNT_CHECK_URL = "{{ route('widget.account-check') }}";
         window.CET_LOGIN_URL = "{{ route('widget.login') }}";
         window.CET_ME = {!! json_encode($me ?? null) !!};
@@ -753,6 +763,32 @@
                     input.focus(); refresh(); reportHeight();
                 });
             })();
+
+            // "Use my current location" buttons on the pickup / drop-off fields —
+            // like ETO's crosshair. Uses the browser's geolocation, then reverse-
+            // geocodes the coordinates on the server (Google key stays server-side).
+            form.querySelectorAll('.geo[data-geo]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var addr = document.querySelector(btn.dataset.geo);
+                    var pc = btn.dataset.geoPc ? document.querySelector(btn.dataset.geoPc) : null;
+                    if (!addr) return;
+                    if (!navigator.geolocation) { addr.focus(); return; }
+                    btn.classList.add('busy'); btn.textContent = '…';
+                    var done = function () { btn.classList.remove('busy'); btn.textContent = '◎'; };
+                    navigator.geolocation.getCurrentPosition(function (pos) {
+                        var q = window.CET_REVERSE_URL + '?lat=' + encodeURIComponent(pos.coords.latitude)
+                            + '&lng=' + encodeURIComponent(pos.coords.longitude);
+                        fetch(q, { headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.json(); })
+                            .then(function (d) {
+                                if (d && d.formatted) { addr.value = d.formatted; addr.dispatchEvent(new Event('change')); }
+                                if (pc && d && d.postcode) { pc.value = d.postcode; pc.dispatchEvent(new Event('change')); }
+                                done();
+                            })
+                            .catch(function () { done(); });
+                    }, function () { done(); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+                });
+            });
 
             function validateStep(n) {
                 showErr(n, '');

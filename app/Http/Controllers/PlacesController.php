@@ -116,6 +116,50 @@ class PlacesController extends Controller
         }
     }
 
+    /**
+     * Reverse-geocode a lat/lng (from the browser's "use my location" button) to a
+     * street address + postcode, so the customer doesn't have to type it. Uses the
+     * Google Geocoding API with the server-side key. Empty on any failure.
+     */
+    public function reverse(Request $request): JsonResponse
+    {
+        $lat = $request->query('lat');
+        $lng = $request->query('lng');
+        $key = Setting::mapsKey();
+
+        if (! $key || ! is_numeric($lat) || ! is_numeric($lng)) {
+            return response()->json(['postcode' => '', 'formatted' => '']);
+        }
+
+        try {
+            $response = Http::timeout(8)->get('https://maps.googleapis.com/maps/api/geocode/json', [
+                'latlng' => ((float) $lat).','.((float) $lng),
+                'region' => 'gb',
+                'key' => $key,
+            ]);
+
+            $result = $response->json('results.0');
+            if (! $result) {
+                return response()->json(['postcode' => '', 'formatted' => '']);
+            }
+
+            $postcode = '';
+            foreach (($result['address_components'] ?? []) as $component) {
+                if (in_array('postal_code', $component['types'] ?? [], true)) {
+                    $postcode = $component['long_name'] ?? $component['short_name'] ?? '';
+                    break;
+                }
+            }
+
+            return response()->json([
+                'postcode' => strtoupper($postcode),
+                'formatted' => $result['formatted_address'] ?? '',
+            ]);
+        } catch (\Throwable) {
+            return response()->json(['postcode' => '', 'formatted' => '']);
+        }
+    }
+
     /** Place Details (New) for a known placeId — returns address + components. */
     private function placeDetails(string $key, string $placeId): ?array
     {

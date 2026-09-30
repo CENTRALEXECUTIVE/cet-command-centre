@@ -545,6 +545,17 @@ class BookingWidgetController extends Controller
                 .' → '.\Illuminate\Support\Str::limit($destination, 30).'. Confirm it.',
             'info', $booking);
 
+        // Email the office too (mirrors ETO's "New booking" notification), so the
+        // office is aware of every web request — paid or not — and can chase up an
+        // unpaid one. The customer receipt is separate (sent on payment).
+        if ($ops = config('cet.ops_email')) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail($booking->fresh()));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[widget] office booking email failed: '.$e->getMessage());
+            }
+        }
+
         // Offer online card payment only when Square is live AND we have a firm
         // price to charge (a fixed-matrix fare). "Price on request" stays office-
         // confirmed first — never charge a guess. The booking stays 'cash' until

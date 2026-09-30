@@ -358,6 +358,27 @@ class BookingWidgetTest extends TestCase
         $this->assertSame(0, \App\Models\Booking::count());
     }
 
+    public function test_a_web_widget_booking_emails_the_office(): void
+    {
+        // The office is emailed for every widget request — paid or not — so they
+        // are aware of the booking and can chase up an unpaid one.
+        \Illuminate\Support\Facades\Mail::fake();
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'Office Notice', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        \Illuminate\Support\Facades\Mail::assertSent(
+            \App\Mail\OfficeBookingMail::class,
+            fn ($m) => $m->hasTo(config('cet.ops_email'))
+        );
+    }
+
     public function test_a_web_hourly_hire_booking_is_as_directed(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
