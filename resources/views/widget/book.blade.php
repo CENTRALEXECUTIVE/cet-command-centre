@@ -633,9 +633,11 @@
                             <input type="radio" name="payment_method" id="b-pay-cash" value="cash">
                             <span class="t"><b>Cash</b><span class="opt"> — pay the driver on the day</span></span>
                         </label>
-                        {{-- Account (monthly invoice) — revealed only when the email entered
-                             is a recognised business-account contact. No payment is taken;
-                             the job is stored pending and billed on the account. --}}
+                        {{-- Account (monthly invoice) — revealed ONLY after signing in as a
+                             recognised business account (see signIn() below); a guest or a
+                             personal customer never sees it, and the server refuses an
+                             "account" choice that isn't a signed-in business account. No
+                             payment is taken; the job is stored pending and billed on the account. --}}
                         <label class="cet-pay" id="b-pay-account-wrap" hidden>
                             <input type="radio" name="payment_method" id="b-pay-account" value="account">
                             <span class="t"><b>Account</b> <span class="opt">— <span id="b-account-name">on account</span>, invoiced monthly (no payment now)</span></span>
