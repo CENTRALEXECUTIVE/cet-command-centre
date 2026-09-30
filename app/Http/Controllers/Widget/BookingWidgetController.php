@@ -242,6 +242,7 @@ class BookingWidgetController extends Controller
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'flight_number' => ['nullable', 'string', 'max:32'],
+            'flight_landing_at' => ['nullable', 'date'],
             'customer_name' => ['required', 'string', 'max:120'],
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
@@ -284,13 +285,27 @@ class BookingWidgetController extends Controller
         ), fn ($s) => $s !== ''));
         $data['stopovers'] = count($stops);
 
-        // Flight number MUST be provided for airport journeys (arrivals we track):
-        // a one-way pickup FROM an airport, or a return touching an airport.
-        if ($this->isAirportArrival($journeyType, $data['pickup_address'], $data['destination_address'] ?? null)
-            && blank($data['flight_number'] ?? null)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'flight_number' => 'Please provide the flight number for your airport journey.',
-            ]);
+        // Flight number AND landing time MUST be provided for airport journeys
+        // (arrivals we track): a one-way pickup FROM an airport, or a return touching
+        // an airport. On a return these can never be missed.
+        $isAirportArrival = $this->isAirportArrival($journeyType, $data['pickup_address'], $data['destination_address'] ?? null);
+        if ($isAirportArrival) {
+            $flightErrors = [];
+            if (blank($data['flight_number'] ?? null)) {
+                $flightErrors['flight_number'] = 'Please provide the flight number for your airport journey.';
+            }
+            if (blank($data['flight_landing_at'] ?? null)) {
+                $flightErrors['flight_landing_at'] = 'Please provide your flight’s landing time for your airport journey.';
+            }
+            if ($flightErrors) {
+                throw \Illuminate\Validation\ValidationException::withMessages($flightErrors);
+            }
+        }
+
+        // A return journey that touches an airport ALWAYS gets meet & greet — the
+        // driver waits in arrivals with a name board, no matter what.
+        if ($isReturn && $isAirportArrival) {
+            $data['meet_greet'] = true;
         }
 
         // Addresses always carry their postcode (accurate zone pricing + the driver).
@@ -360,6 +375,13 @@ class BookingWidgetController extends Controller
             $composedNotes = trim($passengerLine.($composedNotes ? "\n".$composedNotes : ''));
         }
         $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
+        // Customer-entered flight landing time (UK-local, like every other clock we
+        // show — never converted; see the timezone rule). Stored for the office.
+        $flightLandingAt = null;
+        if (filled($data['flight_landing_at'] ?? null)) {
+            $flightLandingAt = (Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
+                ?: Carbon::parse($data['flight_landing_at']))->format('Y-m-d H:i');
+        }
 
         // Business/VAT invoice → billed by Central Executive Transfers (20% on top,
         // proper VAT invoice); no invoice → the sister company Central Executive
@@ -442,6 +464,7 @@ class BookingWidgetController extends Controller
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                 'driver_notes' => $composedNotes,
                 'web_quote_basis' => $quote['basis'],
+                'flight_landing_at' => $flightLandingAt,
                 'hourly_hours' => $isHourly ? (int) $data['hours'] : null,
                 'meet_greet' => $extra['meet_greet'] ?: null,
                 'child_seats' => $extra['child_seats'] ?: null,

@@ -13,9 +13,23 @@
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden">
 
-    {{-- Logo --}}
-    <tr><td style="padding:22px" align="center">
-        <div style="background:#0b0b0b;color:#fff;font-weight:700;letter-spacing:3px;font-size:22px;padding:34px 0;border-radius:8px">C=NTRAL</div>
+    {{-- Brand header (matches the booking widget) --}}
+    <tr><td style="padding:22px 22px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0b0c;border-radius:10px">
+            <tr><td style="padding:22px 24px">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="width:44px;vertical-align:middle">
+                            <div style="width:40px;height:40px;background:#FBBA2A;color:#0b0b0c;font-family:Georgia,serif;font-weight:800;font-size:26px;text-align:center;line-height:40px;border-radius:9px">C</div>
+                        </td>
+                        <td style="padding-left:12px;vertical-align:middle">
+                            <div style="color:#fff;font-weight:800;letter-spacing:2px;font-size:16px">CENTRAL <span style="color:#FBBA2A">EXECUTIVE</span></div>
+                            <div style="color:#b7b6b0;font-size:11px;letter-spacing:1px;margin-top:2px">TRANSFERS · SHEFFIELD</div>
+                        </td>
+                    </tr>
+                </table>
+            </td></tr>
+        </table>
     </td></tr>
 
     <tr><td style="padding:0 26px 8px">
@@ -34,6 +48,9 @@
             {!! $row('Vehicle type:', $booking->vehicleType?->name) !!}
             {!! $row('Passengers:', $booking->passengers) !!}
             {!! $row('Flight:', $booking->displayFlightNumber()) !!}
+            @php $landing = $booking->meta['flight_landing_at'] ?? null; @endphp
+            @if($landing){!! $row('Flight lands:', \Illuminate\Support\Carbon::parse($landing)->format('d/m/Y H:i')) !!}@endif
+            @if(!empty($booking->meta['meet_greet'])){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
         </table>
     </td></tr>
 

@@ -320,7 +320,8 @@ class BookingWidgetTest extends TestCase
             'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
             'customer_name' => 'Return Rita', 'customer_phone' => '07464905385',
-            'flight_number' => 'BA1368', // airport return — flight required
+            'flight_number' => 'BA1368', // airport return — flight + landing required
+            'flight_landing_at' => now()->addDay()->addHours(2)->format('Y-m-d\TH:i'),
         ])->assertOk();
 
         $out = \App\Models\Booking::where('is_return_leg', false)->where('source', 'web')->first();
@@ -332,6 +333,29 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('Manchester Airport', $ret->pickup_address);
         $this->assertSame('Sheffield S1 2HH', $ret->destination_address);
         $this->assertNull($ret->quoted_price);
+        // Airport return: meet & greet is applied no matter what, and the flight
+        // landing time is captured for the office.
+        $this->assertTrue((bool) $out->meta['meet_greet']);
+        $this->assertNotEmpty($out->meta['flight_landing_at']);
+    }
+
+    public function test_an_airport_return_requires_a_flight_landing_time(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        // Return touching an airport with a flight number but NO landing time → rejected.
+        $this->post(route('widget.book.store'), [
+            'journey_type' => 'return',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 2,
+            'customer_name' => 'No Landing', 'customer_phone' => '07464905385',
+            'flight_number' => 'BA1368',
+        ])->assertSessionHasErrors('flight_landing_at');
+
+        $this->assertSame(0, \App\Models\Booking::count());
     }
 
     public function test_a_web_hourly_hire_booking_is_as_directed(): void
