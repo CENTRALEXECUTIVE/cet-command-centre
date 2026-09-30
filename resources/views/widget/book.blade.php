@@ -386,7 +386,7 @@
                         </div>
                         <div class="cet-addr-row">
                             <div class="cet-field icon" style="flex:1;min-width:0"><label for="b-pickup">Pickup address</label>
-                                <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
+                                <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-postcode-target="#b-pickup-pc" autocomplete="off">
                                 <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Clear address" title="Clear address">✕</button>
                             </div>
                             <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode</label>
@@ -832,7 +832,7 @@
                     var pin = document.createElement('span'); pin.className = 'pin'; pin.textContent = '➕';
                     var input = document.createElement('input');
                     input.name = 'stops[]'; input.placeholder = 'Stop address…'; input.autocomplete = 'off';
-                    input.setAttribute('data-places', ''); input.setAttribute('data-places-types', 'address');
+                    input.setAttribute('data-places', '');
                     input.setAttribute('data-postcode-target', ''); // no linked postcode box for stops
                     var x = document.createElement('button'); x.type = 'button'; x.className = 'cet-stop-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove stop');
                     x.addEventListener('click', function () { row.remove(); refresh(); reportHeight(); });
