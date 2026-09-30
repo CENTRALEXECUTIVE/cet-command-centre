@@ -231,7 +231,7 @@ class BookingWidgetController extends Controller
         $data = $request->validate([
             'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
             'pickup_address' => ['required', 'string', 'max:500'],
-            'pickup_postcode' => ['required', 'string', 'max:12'],
+            'pickup_postcode' => ['nullable', 'string', 'max:12'],
             'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
             'destination_postcode' => ['nullable', 'string', 'max:12'],
             'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],

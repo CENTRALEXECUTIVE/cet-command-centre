@@ -653,17 +653,22 @@ class BookingWidgetTest extends TestCase
         $this->assertSame(2, $total);
     }
 
-    public function test_the_pickup_postcode_is_required(): void
+    public function test_a_booking_without_a_postcode_is_accepted(): void
     {
+        // Postcode is optional (airports/venues have none) — a booking without one
+        // must go through, not be blocked.
         $exec = VehicleType::where('slug', 'executive')->first();
 
         $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Sheffield S1 2HH', // no postcode
-            'destination_address' => 'Leeds',
+            'pickup_address' => 'Manchester Airport (MAN)', // an airport, no postcode
+            'destination_address' => 'Sheffield S1 2HH',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $exec->id, 'passengers' => 1,
             'customer_name' => 'No Postcode', 'customer_phone' => '07464905385',
-        ])->assertSessionHasErrors(['pickup_postcode']);
+            'flight_number' => 'BA1368', 'flight_landing_at' => now()->addDay()->format('Y-m-d\TH:i'),
+        ])->assertOk();
+
+        $this->assertSame(1, \App\Models\Booking::where('source', 'web')->count());
     }
 
     public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
