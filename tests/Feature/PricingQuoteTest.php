@@ -88,6 +88,31 @@ class PricingQuoteTest extends TestCase
         $this->assertSame(290.0, $quotes->quote('Sheffield S1', 'Heathrow Terminal 5, TW6 1AP', $exec)['price']);
     }
 
+    public function test_city_named_streets_do_not_trigger_long_distance_fares(): void
+    {
+        // Real-world trap: common street names contain city names. A local trip
+        // from "12 London Road" or "Bristol Road" must NOT price as a London /
+        // Bristol-airport fixed fare — it stays a local (free-roam) quote.
+        config(['services.google_maps.key' => null]); // force the free-roam estimate
+        $quotes = app(QuoteService::class);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        foreach ([
+            ['12 London Road, Sheffield S2 4LA', 'Meadowhall, Sheffield S9'],
+            ['5 Bristol Road, Sheffield S11', 'Sheffield Station, S1 2BP'],
+            ['8 Glasgow Road, Sheffield S9', 'Sheffield City Centre'],
+            ['3 Newcastle Street, Sheffield S3', 'Sheffield S1'],
+            ['22 Exeter Drive, Sheffield S2', 'Rotherham S60'],
+            ['1 Luton Road, Sheffield S9', 'Sheffield S1'],
+        ] as [$p, $d]) {
+            $this->assertFalse($quotes->quote($p, $d, $exec)['fixed'], "$p -> $d should not be a fixed fare");
+        }
+
+        // But a genuine airport/port/central-London destination still fixes.
+        $this->assertTrue($quotes->quote('Sheffield S1', 'Bristol Airport, BS48 3DY', $exec)['fixed']);
+        $this->assertTrue($quotes->quote('Sheffield S1', 'Central London, W1D 1AN', $exec)['fixed']);
+    }
+
     public function test_free_roam_quote_uses_distance(): void
     {
         // No maps key → DistanceService returns its estimate (10 miles) → minimum fare.

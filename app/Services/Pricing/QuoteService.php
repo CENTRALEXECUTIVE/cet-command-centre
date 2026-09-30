@@ -30,22 +30,24 @@ class QuoteService
      */
     private const DEST_ALIASES = [
         'liverpool' => ['liverpool john lennon', 'liverpool airport', 'port of liverpool'],
-        'humberside' => ['humberside'],
+        'humberside' => ['humberside airport'],
         'birmingham' => ['birmingham airport', 'birmingham international'],
-        'east-midlands' => ['east midlands airport', 'east midlands', '(ema)'],
-        'south-ports' => ['bournemouth', 'southampton', 'portsmouth'],
-        'exeter' => ['exeter'],
-        'bristol' => ['bristol'],
-        'glasgow' => ['glasgow'],
-        'gatwick' => ['gatwick'],
-        'southend' => ['southend'],
-        'stansted' => ['stansted'],
-        'luton' => ['luton'],
-        'newcastle' => ['newcastle'],
-        'heathrow' => ['heathrow'],
-        'leeds-bradford' => ['leeds bradford'],
+        'east-midlands' => ['east midlands airport', '(ema)'],
+        'south-ports' => ['port of bournemouth', 'port of southampton', 'port of portsmouth',
+            'bournemouth airport', 'southampton airport', 'southampton cruise', 'southampton docks',
+            'portsmouth harbour', 'portsmouth port'],
+        'exeter' => ['exeter airport'],
+        'bristol' => ['bristol airport', 'port of bristol'],
+        'glasgow' => ['glasgow airport'],
+        'gatwick' => ['gatwick'],       // only ever the airport
+        'southend' => ['southend airport'],
+        'stansted' => ['stansted'],     // only ever the airport
+        'luton' => ['luton airport'],
+        'newcastle' => ['newcastle airport', 'newcastle international', 'port of newcastle'],
+        'heathrow' => ['heathrow'],     // only ever the airport
+        'leeds-bradford' => ['leeds bradford'], // only ever the airport
         'manchester' => ['manchester airport'],
-        'central-london' => ['central london', 'london'], // lowest priority (last)
+        'central-london' => ['central london'],
     ];
 
     /**
@@ -242,6 +244,8 @@ class QuoteService
         'glasgow' => ['PA3'],
         'exeter' => ['EX5'],
         'southend' => ['SS2'],
+        // Central London — the core West End / City / Westminster outward codes.
+        'central-london' => ['EC1', 'EC2', 'EC3', 'EC4', 'WC1', 'WC2', 'SW1', 'W1'],
     ];
 
     /**
