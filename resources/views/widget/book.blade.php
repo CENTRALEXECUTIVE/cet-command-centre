@@ -389,7 +389,7 @@
                                 <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
                                 <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Clear address" title="Clear address">✕</button>
                             </div>
-                            <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode <span class="opt">(homes only)</span></label>
+                            <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode</label>
                                 <input id="b-pickup-pc" name="pickup_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
                             </div>
                         </div>
@@ -402,7 +402,7 @@
                             <div class="cet-field icon" id="b-dropoff-field" style="flex:1;min-width:0"><label for="b-dropoff">Drop-off address</label>
                                 <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
                                 <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button></div>
-                            <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode <span class="opt">(homes only)</span></label>
+                            <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode</label>
                                 <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         </div>
                         <div class="cet-two">
