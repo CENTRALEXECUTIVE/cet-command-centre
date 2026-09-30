@@ -115,6 +115,45 @@ class WebBookingEmailTest extends TestCase
         $this->assertStringNotContainsString('Add a tip', $html);
     }
 
+    public function test_a_cash_booking_email_says_pay_the_driver_not_square(): void
+    {
+        $exec = VehicleType::where('affects_rotation', true)->firstOrFail();
+        $booking = Booking::factory()->create([
+            'customer_id' => Customer::create(['name' => 'Cash Cathy', 'email' => 'cathy@example.com', 'phone' => '07700900124'])->id,
+            'vehicle_type_id' => $exec->id, 'source' => 'web',
+            'payment_method' => 'cash', 'payment_status' => 'pending', 'quoted_price' => 105,
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Rotherham S60 1AA',
+            'meta' => ['vat_invoice_requested' => false],
+        ]);
+
+        $html = (new BookingConfirmationMail($booking, paid: false))->render();
+
+        $this->assertStringContainsString('Pay the driver on the day', $html);
+        $this->assertStringNotContainsString('(Square)', $html);
+        $this->assertStringNotContainsString('Pay now', $html);
+        // No VAT line on a non-VAT booking.
+        $this->assertStringNotContainsString('Includes VAT', $html);
+    }
+
+    public function test_a_vat_booking_email_shows_vat_and_card_payment(): void
+    {
+        $exec = VehicleType::where('affects_rotation', true)->firstOrFail();
+        $booking = Booking::factory()->create([
+            'customer_id' => Customer::create(['name' => 'VAT Val', 'email' => 'val@example.com', 'phone' => '07700900125'])->id,
+            'vehicle_type_id' => $exec->id, 'source' => 'web',
+            'payment_method' => 'card', 'payment_status' => 'pending', 'quoted_price' => 120,
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds LS1 1AA',
+            'meta' => ['vat_invoice_requested' => true],
+        ]);
+
+        $html = (new BookingConfirmationMail($booking, paid: false, payUrl: 'https://pay.example/x'))->render();
+
+        $this->assertStringContainsString('Includes VAT', $html);
+        $this->assertStringContainsString('(Card)', $html);
+        $this->assertStringContainsString('Pay now', $html);
+        $this->assertStringNotContainsString('Pay the driver on the day', $html);
+    }
+
     public function test_the_invoice_pdf_renders_with_vat(): void
     {
         $booking = $this->paidWebBooking();

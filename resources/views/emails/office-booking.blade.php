@@ -51,9 +51,18 @@
             {!! $row('Booking date:', ($booking->created_at ?? now())->format('d/m/Y H:i')) !!}
             {!! $row('Summary:', 'Journey £'.number_format($gross, 2)) !!}
             {!! $row('Total:', '£'.number_format($gross, 2)) !!}
-            <tr><td style="padding:4px 14px 4px 0;color:#666">Payments:</td>
-                <td style="padding:4px 0;color:#111">£{{ number_format($gross, 2) }} (Square) —
-                    <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Pending' }}</strong></td></tr>
+            @php $method = $booking->payment_method?->value ?? null; @endphp
+            <tr><td style="padding:4px 14px 4px 0;color:#666">Payment:</td>
+                <td style="padding:4px 0;color:#111">
+                    @if($method === 'account')
+                        £{{ number_format($gross, 2) }} — <strong>On account (invoiced)</strong>
+                    @elseif($method === 'cash')
+                        £{{ number_format($gross, 2) }} — <strong>Cash to driver on the day</strong>
+                    @else
+                        £{{ number_format($gross, 2) }} (Card) —
+                        <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Pending' }}</strong>
+                    @endif
+                </td></tr>
         </table>
     </td></tr>
 

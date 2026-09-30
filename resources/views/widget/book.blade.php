@@ -803,20 +803,25 @@
                 var stopsField = document.getElementById('b-stops-field');
                 if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
                 // No cash bookings on return journeys — hide Cash, force card (or account).
-                applyReturnPaymentRule(v === 'return');
+                applyReturnPaymentRule();
             }
             if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); }
 
-            // Cash is not offered on return journeys (they must pay by card, or on
-            // account if signed in). Hide the Cash option and move any cash selection
-            // to Card. Called on journey-type change and after payment wiring is ready.
-            function applyReturnPaymentRule(isReturn) {
+            // Cash is not offered on return journeys OR on VAT-invoice bookings (both
+            // must pay by card, or on account if signed in — VAT bookings are always
+            // card). Hide the Cash option and move any cash selection to Card. Called
+            // on journey-type / VAT change and after payment wiring is ready.
+            function applyReturnPaymentRule() {
+                var isReturn = journeyEl && journeyEl.value === 'return';
+                var vatYesEl = document.getElementById('b-vat-yes');
+                var vatOn = !!(vatYesEl && vatYesEl.checked);
+                var noCash = isReturn || vatOn;
                 var cashWrap = document.getElementById('b-pay-cash-wrap');
                 var cashRadio = document.getElementById('b-pay-cash');
                 var cardRadio = document.getElementById('b-pay-card');
-                if (cashWrap) cashWrap.hidden = !!isReturn;
-                if (cashRadio) cashRadio.disabled = !!isReturn;
-                if (isReturn && cashRadio && cashRadio.checked && cardRadio) {
+                if (cashWrap) cashWrap.hidden = noCash;
+                if (cashRadio) cashRadio.disabled = noCash;
+                if (noCash && cashRadio && cashRadio.checked && cardRadio) {
                     cardRadio.checked = true;
                     if (typeof syncPay === 'function') syncPay();
                 }
@@ -1307,6 +1312,7 @@
                 var yw = document.getElementById('b-vat-yes-wrap'), nw = document.getElementById('b-vat-no-wrap');
                 if (yw) yw.classList.toggle('on', !!(vatYes && vatYes.checked));
                 if (nw) nw.classList.toggle('on', !!(vatNo && vatNo.checked));
+                applyReturnPaymentRule(); // VAT bookings are always card — hide cash
                 renderPrices(); fillSummary();
             }
             [vatYes, vatNo].forEach(function (r) { if (r) r.addEventListener('change', syncVat); });

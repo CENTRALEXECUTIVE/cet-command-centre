@@ -58,18 +58,27 @@
             {!! $row('Booking date:', ($booking->created_at ?? now())->format('d/m/Y H:i')) !!}
             {!! $row('Summary:', 'Journey £'.number_format($gross, 2)) !!}
             {!! $row('Total:', '£'.number_format($gross, 2)) !!}
-            @if($vat && ($vat['vat'] ?? 0) > 0)
+            @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
                 {!! $row('Includes VAT:', '£'.number_format($vat['vat'], 2).' (net £'.number_format($vat['net'], 2).')') !!}
             @endif
-            <tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top">Payments:</td>
+            @php $isCash = $booking->isCashCollectJob(); $isAccount = ($booking->payment_method?->value ?? null) === 'account'; @endphp
+            <tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top">Payment:</td>
                 <td style="padding:4px 0;color:#111">
-                    £{{ number_format($gross, 2) }} (Square) —
-                    <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Pending' }}</strong>
-                    @if(! $paid && $payUrl)
-                        <br><a href="{{ $payUrl }}" style="display:inline-block;margin-top:8px;background:#12a1c0;color:#fff;text-decoration:none;padding:9px 18px;border-radius:6px;font-weight:700">Pay now</a>
+                    @if($isAccount)
+                        £{{ number_format($gross, 2) }} — <strong>Billed to your business account</strong>
+                    @elseif($isCash)
+                        £{{ number_format($gross, 2) }} — <strong>Pay the driver on the day (cash)</strong>
+                    @else
+                        £{{ number_format($gross, 2) }} (Card) —
+                        <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Pending' }}</strong>
+                        @if(! $paid && $payUrl)
+                            <br><a href="{{ $payUrl }}" style="display:inline-block;margin-top:8px;background:#12a1c0;color:#fff;text-decoration:none;padding:9px 18px;border-radius:6px;font-weight:700">Pay now</a>
+                        @endif
                     @endif
                 </td></tr>
-            {!! $row('Amount due:', '£'.number_format($paid ? 0 : $gross, 2)) !!}
+            @unless($isCash || $isAccount)
+                {!! $row('Amount due:', '£'.number_format($paid ? 0 : $gross, 2)) !!}
+            @endunless
         </table>
     </td></tr>
 

@@ -616,6 +616,44 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('chauffeurs', $b2->billingEntity());
     }
 
+    public function test_a_vat_invoice_booking_is_stored_as_card_not_cash(): void
+    {
+        // "VAT bookings are always card" — even a one-way, and even if a cash choice
+        // slips through from a direct POST, the driver never collects cash on a VAT job.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $base = [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 2,
+            'customer_name' => 'VAT User', 'customer_phone' => '07464905385',
+            'vat_invoice' => 1,
+        ];
+
+        // Even with an explicit cash choice, a VAT booking is stored as card.
+        $this->post(route('widget.book.store'), $base + ['payment_method' => 'cash'])->assertOk();
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('card', $b->payment_method->value);
+        $this->assertTrue($b->vatInvoiceRequested());
+        $this->assertFalse($b->isCashCollectJob());
+    }
+
+    public function test_a_plain_one_way_without_vat_still_defaults_to_cash(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Rotherham S60 1AA',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 2,
+            'customer_name' => 'Cash User', 'customer_phone' => '07464905385',
+        ])->assertOk();
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('cash', $b->payment_method->value);
+        $this->assertTrue($b->isCashCollectJob());
+        $this->assertFalse($b->vatInvoiceRequested());
+    }
+
     public function test_booking_for_someone_else_makes_them_the_lead_passenger(): void
     {
         $exec = VehicleType::where('slug', 'executive')->first();

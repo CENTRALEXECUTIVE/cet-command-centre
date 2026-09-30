@@ -436,7 +436,11 @@ class BookingWidgetController extends Controller
         // card/cash store the all-in charge the customer pays.
         $quotedPrice = $isAccount ? $afterDiscount : $charge;
 
-        $wantsCard = ! $isAccount && ($data['payment_method'] ?? 'cash') === 'card';
+        // VAT-invoice bookings are ALWAYS card (never cash — the driver never collects
+        // cash on a VAT job), as are returns. Everything else keeps the cash default so
+        // the driver collects on the day. Account is invoiced monthly.
+        $effectiveMethod = $isAccount ? 'account' : (($isReturn || $needsInvoice) ? 'card' : 'cash');
+        $wantsCard = $effectiveMethod === 'card' || (! $isAccount && ($data['payment_method'] ?? 'cash') === 'card');
         // A discount code is recorded for the office even when we can't validate it
         // (they apply it on confirm); a valid one is already reflected in $charge.
         if (filled($data['voucher'] ?? null)) {
@@ -466,9 +470,9 @@ class BookingWidgetController extends Controller
             // DRIVER collects the fare in cash. If they later pay online via Square,
             // markFarePaid() records it and the driver-collect logic then shows
             // "collect nothing". The office can switch card/cash/account on confirm.
-            // Returns are never cash (see the guard above) — they're a card job so
-            // the driver never collects cash on a return; one-way keeps cash-collect.
-            'payment_method' => $isAccount ? 'account' : ($isReturn ? 'card' : 'cash'),
+            // Returns and VAT-invoice bookings are never cash — they're card jobs so
+            // the driver never collects cash on them; a plain one-way keeps cash-collect.
+            'payment_method' => $effectiveMethod,
             'payment_status' => 'pending',
             'source' => 'web',
             'quoted_price' => $quotedPrice,

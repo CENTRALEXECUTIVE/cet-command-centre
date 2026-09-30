@@ -999,6 +999,24 @@ class Booking extends Model
     }
 
     /**
+     * Did the customer ask for a VAT invoice? Such bookings are billed by the
+     * VAT-registered company (Transfers) with a VAT invoice, and are ALWAYS card —
+     * so the VAT line and the "pay by card" wording only apply here. Account jobs
+     * are invoiced with VAT too.
+     */
+    public function vatInvoiceRequested(): bool
+    {
+        return (bool) ($this->meta['vat_invoice_requested'] ?? false)
+            || ($this->payment_method?->value ?? null) === \App\Enums\PaymentMethod::Account->value;
+    }
+
+    /** True when the driver collects the fare in cash on the day (no card/account). */
+    public function isCashCollectJob(): bool
+    {
+        return ($this->payment_method?->value ?? null) === 'cash';
+    }
+
+    /**
      * The booking's calendar event. There is no unique constraint on
      * calendar_events.booking_id and several code paths can create a row, so a
      * booking may hold more than one. Without an explicit order a plain hasOne
