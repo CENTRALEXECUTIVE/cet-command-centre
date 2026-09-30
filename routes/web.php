@@ -188,6 +188,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
 
         // ETO-style "Send a notification": templated customer/driver messages.
         Route::post('bookings/{booking}/notify', [\App\Http\Controllers\Admin\BookingNotificationController::class, 'send'])->middleware('throttle:60,1')->name('bookings.notify');
+        // Preferred notification language (used to pick the message wording).
+        Route::post('bookings/{booking}/notification-language', [BookingController::class, 'notificationLanguage'])->middleware('throttle:30,1')->name('bookings.notification-language');
 
         // User management (admins; admin/super-admin creation is super-admin only).
         Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');

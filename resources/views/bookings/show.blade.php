@@ -861,6 +861,8 @@
                     </td></tr>
                 @endif
                 @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif
+                @if($booking->estimatedDistanceMiles() !== null)<tr><th>Estimated distance</th><td>{{ number_format($booking->estimatedDistanceMiles(), 1) }} mi</td></tr>@endif
+                @if($booking->estimatedDurationLabel())<tr><th>Estimated duration</th><td>{{ $booking->estimatedDurationLabel() }}</td></tr>@endif
                 <tr><th>Passengers</th><td>{{ $booking->passengerCount() }}</td></tr>
                 <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                 <tr><th>Type</th><td>@if($booking->isHourlyHire())Hourly hire — {{ $booking->hourlyHireLabel() }}@else{{ ucfirst(str_replace('_',' ',$booking->journey_type)) }}{{ $booking->is_return_leg ? ' (return leg)' : '' }}@endif</td></tr>
@@ -894,7 +896,25 @@
                 </td></tr>
                 @if($booking->quoted_price)<tr><th>Quoted</th><td>£{{ number_format($booking->quoted_price, 2) }}</td></tr>@endif
                 @if($booking->final_price)<tr><th>Final</th><td>£{{ number_format($booking->final_price, 2) }}</td></tr>@endif
+                <tr><th>Passenger charge</th><td>{{ $booking->fareGross() !== null ? '£'.number_format($booking->fareGross(), 2) : '—' }}</td></tr>
+                <tr><th>Driver income</th><td>{{ $booking->driverPay() !== null ? '£'.number_format($booking->driverPay(), 2) : '—' }}</td></tr>
+                <tr id="booking-details" style="scroll-margin-top:16px"><th>Notification language</th><td>{{ $booking->notificationLanguage() }}</td></tr>
             </table>
+            @if(auth()->user()->isAdmin())
+                {{-- Preferred notification language — which language the confirmation /
+                     reminder wording is written in for this customer. --}}
+                <form method="POST" action="{{ route('bookings.notification-language', $booking) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                    @csrf
+                    <div class="field" style="margin:0">
+                        <label for="notification_language" style="font-size:12px">Preferred notification language</label>
+                        @php $langs = ['English','Polski','Română','Українська','اردو','العربية','Français','Español','Deutsch','Português','Italiano','中文','हिन्दी']; @endphp
+                        <select id="notification_language" name="notification_language" style="width:180px">
+                            @foreach($langs as $lang)<option value="{{ $lang }}" @selected($booking->notificationLanguage() === $lang)>{{ $lang }}</option>@endforeach
+                        </select>
+                    </div>
+                    <button class="btn btn-light" style="padding:8px 14px;font-size:13px">Save language</button>
+                </form>
+            @endif
             @if(auth()->user()->isAdmin() && $booking->payment_status !== 'paid' && ! $booking->status->isTerminal())
                 <form method="POST" action="{{ route('payments.paid', $booking) }}" style="margin-top:8px">@csrf
                     <button class="btn btn-primary" style="padding:6px 14px;font-size:13px">Mark paid</button>

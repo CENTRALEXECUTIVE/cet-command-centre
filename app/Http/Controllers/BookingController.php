@@ -868,6 +868,31 @@ class BookingController extends Controller
      * Numbers should NOT be put here (drivers see it) — reach the customer on the
      * masked line; the panel warns of this.
      */
+    /**
+     * The customer's preferred notification language — used to pick the wording
+     * for confirmation / reminder messages. Stored in meta['notification_language'].
+     */
+    public function notificationLanguage(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'notification_language' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $meta = $booking->meta ?? [];
+        $lang = trim((string) ($data['notification_language'] ?? ''));
+        if ($lang === '' || strcasecmp($lang, 'English') === 0) {
+            unset($meta['notification_language']);
+        } else {
+            $meta['notification_language'] = $lang;
+        }
+        $booking->forceFill(['meta' => $meta])->save();
+
+        return back()->with('status', 'Preferred notification language set to '.$booking->notificationLanguage().'.')
+            ->with('scroll', 'booking-details');
+    }
+
     public function driverNotes(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);

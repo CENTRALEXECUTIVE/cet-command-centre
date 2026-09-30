@@ -906,6 +906,69 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
+    /**
+     * A rough journey distance in miles for the booking page, from the already-
+     * geocoded pickup/drop-off (straight line × a 1.3 road factor). Never geocodes
+     * on its own (no cost/latency on page load); null until the coords are cached
+     * or an explicit meta['distance_miles'] is set.
+     */
+    public function estimatedDistanceMiles(): ?float
+    {
+        if (isset($this->meta['distance_miles'])) {
+            return round((float) $this->meta['distance_miles'], 1);
+        }
+        $from = $this->pickupCoords();
+        $to = $this->dropoffCoords();
+        if (! $from || ! $to) {
+            return null;
+        }
+        $metres = \App\Support\Geo::haversineMeters($from[0], $from[1], $to[0], $to[1]) * 1.3;
+
+        return round($metres / 1609.344, 1);
+    }
+
+    /** A rough drive time in minutes (cached value, else a straight-line estimate). */
+    public function estimatedDriveMinutes(): ?int
+    {
+        $meta = (int) ($this->meta['duration_minutes'] ?? 0);
+        if ($meta > 0) {
+            return $meta;
+        }
+        $from = $this->pickupCoords();
+        $to = $this->dropoffCoords();
+        if (! $from || ! $to) {
+            return null;
+        }
+
+        return \App\Support\Geo::estimateDriveMinutes($from[0], $from[1], $to[0], $to[1]);
+    }
+
+    /** "1 hour 24 minutes" style label for the estimated drive time, or null. */
+    public function estimatedDurationLabel(): ?string
+    {
+        $mins = $this->estimatedDriveMinutes();
+        if ($mins === null) {
+            return null;
+        }
+        $h = intdiv($mins, 60);
+        $m = $mins % 60;
+        $parts = [];
+        if ($h > 0) {
+            $parts[] = $h.' hour'.($h === 1 ? '' : 's');
+        }
+        if ($m > 0 || $h === 0) {
+            $parts[] = $m.' minute'.($m === 1 ? '' : 's');
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /** The customer's preferred language for notifications (default English). */
+    public function notificationLanguage(): string
+    {
+        return trim((string) ($this->meta['notification_language'] ?? '')) ?: 'English';
+    }
+
     /** The fare charged (final if set, else the quote), or null when there's none. */
     public function fareGross(): ?float
     {
