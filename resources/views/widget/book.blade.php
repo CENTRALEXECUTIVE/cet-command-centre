@@ -117,6 +117,14 @@
         .cet-field.bad input, .cet-field.bad textarea { border-color:var(--err); background:#fdf3f3; }
         .cet-field.icon { position:relative; }
         .cet-field.icon input { padding-right:46px; }
+        /* Address + postcode on one line (postcode a small box, no extra row). */
+        .cet-addr-row { display:flex; gap:10px; align-items:flex-start; }
+        .cet-addr-row .cet-field { margin-bottom:12px; }
+        .cet-pc { flex:0 0 96px; width:96px; }
+        .cet-pc input { padding-left:11px; padding-right:11px; text-align:center; }
+        @media (max-width:400px){ .cet-pc { flex-basis:84px; width:84px; } }
+        /* The location/clear button turns into a red ✕ when the field has an address. */
+        .cet-field.icon .geo.is-clear { color:var(--err); font-weight:700; }
         /* "Use my current location" button (like ETO's crosshair). */
         .cet-field.icon .geo { position:absolute; right:7px; top:25px; width:38px; height:40px; border:0;
             background:transparent; color:var(--muted); font-size:20px; line-height:1; cursor:pointer;
@@ -378,23 +386,27 @@
                                 <option value="hourly">Hourly hire (as directed)</option>
                             </select>
                         </div>
-                        <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
-                            <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
-                            <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Use my current location" title="Use my current location">◎</button>
-                        </div>
-                        <div class="cet-field"><label for="b-pickup-pc">Pickup postcode</label>
-                            <input id="b-pickup-pc" name="pickup_postcode" required placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
+                        <div class="cet-addr-row">
+                            <div class="cet-field icon" style="flex:1;min-width:0"><label for="b-pickup">Pickup address</label>
+                                <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
+                                <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Use my current location" title="Use my current location">◎</button>
+                            </div>
+                            <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode</label>
+                                <input id="b-pickup-pc" name="pickup_postcode" required placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
+                            </div>
                         </div>
                         <div class="cet-field" id="b-stops-field" data-stop-rate="{{ (float) ($sc['stopover'] ?? 0) }}">
                             <label>Extra stops <span class="opt">(optional)</span></label>
                             <div id="b-stops"></div>
                             <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop</button>
                         </div>
-                        <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
-                            <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
-                            <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Use my current location" title="Use my current location">◎</button></div>
-                        <div class="cet-field" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Drop-off postcode <span class="opt">(if known)</span></label>
-                            <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
+                        <div class="cet-addr-row" id="b-dropoff-row">
+                            <div class="cet-field icon" id="b-dropoff-field" style="flex:1;min-width:0"><label for="b-dropoff">Drop-off address</label>
+                                <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
+                                <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Use my current location" title="Use my current location">◎</button></div>
+                            <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode</label>
+                                <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
+                        </div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-when">Date &amp; time</label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
@@ -581,7 +593,7 @@
                                         'infant_seats'  => ['Infant',  $sc['infant_seat']  ?? 0],
                                     ] as $field => [$label, $unit])
                                         <div class="cet-stepper">
-                                            <label for="b-{{ $field }}">{{ $label }}@if($unit > 0) <span class="opt">+£{{ (int) $unit }}</span>@endif</label>
+                                            <label for="b-{{ $field }}">{{ $label }}</label>
                                             <div class="ctrl">
                                                 <button type="button" data-step-btn="-" aria-label="Less">−</button>
                                                 <input id="b-{{ $field }}" name="{{ $field }}" type="number" min="0" max="2" value="0"
@@ -593,11 +605,6 @@
                                 </div>
                                 <p class="cet-foot" style="text-align:left;margin:8px 0 2px">Up to 2 seats in total (any mix).</p>
                             </div>
-                            <label class="cet-check cet-check-sm">
-                                <input type="checkbox" id="b-wheelchair" name="wheelchair" value="1" data-extra="{{ (float) ($sc['wheelchair'] ?? 0) }}">
-                                <span>Wheelchair accessible vehicle</span>
-                                @if(($sc['wheelchair'] ?? 0) > 0)<span class="px">+£{{ (int) ($sc['wheelchair']) }}</span>@endif
-                            </label>
                             <label class="cet-check cet-check-sm">
                                 <input type="checkbox" id="b-ribbons" name="ribbons" value="1" data-extra="{{ (float) ($sc['ribbons_car'] ?? 0) }}">
                                 <span>Wedding ribbons</span>
@@ -628,7 +635,7 @@
                         </label>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-voucher">Discount code <span class="opt">(optional)</span></label>
-                            <input id="b-voucher" name="voucher" placeholder="e.g. RACHEL20" autocomplete="off" style="text-transform:uppercase;max-width:260px"></div>
+                            <input id="b-voucher" name="voucher" placeholder="" autocomplete="off" style="text-transform:uppercase;max-width:260px"></div>
 
                         <div class="cet-total" id="b-total">
                             <span class="lbl">Total price</span>
@@ -647,11 +654,6 @@
                             <button class="cet-btn" type="submit" id="cet-submit">Book now</button>
                         </div>
                         <p class="cet-foot" id="b-pay-note">Pay securely by card to confirm — or choose cash and our office will confirm your journey.</p>
-                        <div class="cet-trust">
-                            <span><span class="ic">🛡️</span> Licensed Operator OP037</span>
-                            <span><span class="ic">💷</span> Fixed, upfront prices</span>
-                            <span><span class="ic">🕐</span> 24/7 chauffeur service</span>
-                        </div>
                     </div>
                 </form>
             </div>
@@ -708,7 +710,7 @@
         window.CET_LOGIN_URL = "{{ route('widget.login') }}";
         window.CET_ME = {!! json_encode($me ?? null) !!};
         window.CET_ME_ACCOUNT = {!! json_encode($meAccount ?? null) !!};</script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=33" defer></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=34" defer></script>
 
     <script>
         (function () {
@@ -783,18 +785,34 @@
             var journeyEl = document.getElementById('b-journey');
             var returnField = document.getElementById('b-return-field');
             var hoursField = document.getElementById('b-hours-field');
-            var dropWrap = document.getElementById('b-dropoff') ? document.getElementById('b-dropoff').closest('.cet-field') : null;
-            var dropPcWrap = document.getElementById('b-dropoff-pc-field');
+            var dropRow = document.getElementById('b-dropoff-row');
             function toggleJourney() {
                 var v = journeyEl ? journeyEl.value : 'one_way';
                 if (returnField) returnField.style.display = v === 'return' ? '' : 'none';
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
-                if (dropWrap) dropWrap.style.display = v === 'hourly' ? 'none' : '';
-                if (dropPcWrap) dropPcWrap.style.display = v === 'hourly' ? 'none' : '';
+                if (dropRow) dropRow.style.display = v === 'hourly' ? 'none' : 'flex';
                 var stopsField = document.getElementById('b-stops-field');
                 if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
+                // No cash bookings on return journeys — hide Cash, force card (or account).
+                applyReturnPaymentRule(v === 'return');
             }
-            if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); toggleJourney(); }
+            if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); }
+
+            // Cash is not offered on return journeys (they must pay by card, or on
+            // account if signed in). Hide the Cash option and move any cash selection
+            // to Card. Called on journey-type change and after payment wiring is ready.
+            function applyReturnPaymentRule(isReturn) {
+                var cashWrap = document.getElementById('b-pay-cash-wrap');
+                var cashRadio = document.getElementById('b-pay-cash');
+                var cardRadio = document.getElementById('b-pay-card');
+                if (cashWrap) cashWrap.hidden = !!isReturn;
+                if (cashRadio) cashRadio.disabled = !!isReturn;
+                if (isReturn && cashRadio && cashRadio.checked && cardRadio) {
+                    cardRadio.checked = true;
+                    if (typeof syncPay === 'function') syncPay();
+                }
+            }
+            toggleJourney();
 
             // "Add a stop" — via points on the main page. Each is a Google-autocomplete
             // address the driver must call at between pickup and drop-off; the count
@@ -833,13 +851,33 @@
             // like ETO's crosshair. Uses the browser's geolocation, then reverse-
             // geocodes the coordinates on the server (Google key stays server-side).
             form.querySelectorAll('.geo[data-geo]').forEach(function (btn) {
+                var addr = document.querySelector(btn.dataset.geo);
+                var pc = btn.dataset.geoPc ? document.querySelector(btn.dataset.geoPc) : null;
+                if (!addr) return;
+                // Empty field → ◎ "use my location"; filled field → ✕ "clear".
+                function sync() {
+                    if (btn.classList.contains('busy')) return;
+                    var filled = String(addr.value || '').trim() !== '';
+                    btn.textContent = filled ? '✕' : '◎';
+                    btn.classList.toggle('is-clear', filled);
+                    btn.setAttribute('aria-label', filled ? 'Clear address' : 'Use my current location');
+                    btn.setAttribute('title', filled ? 'Clear address' : 'Use my current location');
+                }
+                addr.addEventListener('input', sync);
+                addr.addEventListener('change', sync);
+                sync();
                 btn.addEventListener('click', function () {
-                    var addr = document.querySelector(btn.dataset.geo);
-                    var pc = btn.dataset.geoPc ? document.querySelector(btn.dataset.geoPc) : null;
-                    if (!addr) return;
+                    // Filled → clear the address (and its postcode).
+                    if (String(addr.value || '').trim() !== '') {
+                        addr.value = ''; addr.dispatchEvent(new Event('change'));
+                        if (pc) { pc.value = ''; pc.dispatchEvent(new Event('change')); }
+                        sync(); addr.focus();
+                        return;
+                    }
+                    // Empty → use my current location.
                     if (!navigator.geolocation) { addr.focus(); return; }
                     btn.classList.add('busy'); btn.textContent = '…';
-                    var done = function () { btn.classList.remove('busy'); btn.textContent = '◎'; };
+                    var done = function () { btn.classList.remove('busy'); sync(); };
                     navigator.geolocation.getCurrentPosition(function (pos) {
                         var q = window.CET_REVERSE_URL + '?lat=' + encodeURIComponent(pos.coords.latitude)
                             + '&lng=' + encodeURIComponent(pos.coords.longitude);
@@ -882,10 +920,13 @@
                         if (vatField) vatField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         return false;
                     }
-                    // Minimum-notice guard — same message as ETO.
+                    // Minimum-notice guard — same message as ETO. Show it BOTH at the top
+                    // banner AND right by the Continue button so it's always on screen.
                     if (ok && tooSoon()) {
                         showNotice(true);
-                        var w = document.getElementById('b-when'); if (w) { w.closest('.cet-field').classList.add('bad'); w.focus(); }
+                        showErr(1, NOTICE_MSG);
+                        var w = document.getElementById('b-when'); if (w) { w.closest('.cet-field').classList.add('bad'); }
+                        var eb = form.querySelector('[data-err="1"]'); if (eb) eb.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         return false;
                     }
                     showNotice(false);

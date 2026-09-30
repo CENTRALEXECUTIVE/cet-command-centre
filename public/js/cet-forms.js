@@ -248,8 +248,11 @@
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d && d.postcode) { target.value = d.postcode; target.dispatchEvent(new Event('change')); }
-                    // Upgrade to the full address (with postcode) if we didn't already have one.
-                    if (d && d.formatted && !extractPostcode(el.value)) { el.value = d.formatted; }
+                    // NOTE: we deliberately do NOT overwrite the address text with
+                    // Google's canonical "formattedAddress" — that turns a chosen
+                    // "Manchester Airport T2 …" into the street name ("Melbourne Ave"),
+                    // which then misses the fixed-price rule. Keep what the customer
+                    // picked; we only pull the postcode from the lookup.
                 })
                 .catch(function () {});
         });

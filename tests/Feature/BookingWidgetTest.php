@@ -379,6 +379,59 @@ class BookingWidgetTest extends TestCase
         );
     }
 
+    public function test_a_return_journey_cannot_be_booked_as_cash(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'journey_type' => 'return',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'Cash Return', 'customer_phone' => '07464905385',
+            'payment_method' => 'cash',
+        ])->assertSessionHasErrors('payment_method');
+
+        $this->assertSame(0, \App\Models\Booking::count());
+    }
+
+    public function test_a_return_booking_is_stored_as_a_card_job_not_cash(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'journey_type' => 'return',
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Leeds',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'Card Return', 'customer_phone' => '07464905385',
+            'payment_method' => 'card',
+        ])->assertOk();
+
+        $out = \App\Models\Booking::where('is_return_leg', false)->where('source', 'web')->first();
+        $ret = \App\Models\Booking::where('is_return_leg', true)->first();
+        $this->assertSame('card', $out->payment_method?->value);
+        $this->assertSame('card', $ret->payment_method?->value);
+    }
+
+    public function test_a_sheffield_to_manchester_airport_executive_is_the_fixed_price(): void
+    {
+        // Regression: keeping the chosen airport address (not rewriting it to the
+        // street name) means the fixed-price rule applies — £110, not distance pricing.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $res = $this->postJson(route('widget.prices'), [
+            'pickup' => '9 Harney Close, Darnall, Sheffield, S9 5BW',
+            'destination' => 'Manchester Airport T2 West Multi Storey - P3, Melbourne Ave, Manchester, UK, M90 5PR',
+        ])->assertOk();
+
+        $execOption = collect($res->json('options'))->firstWhere('id', $exec->id);
+        $this->assertSame(110.0, (float) $execOption['price']);
+    }
+
     public function test_a_web_hourly_hire_booking_is_as_directed(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

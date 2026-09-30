@@ -308,6 +308,14 @@ class BookingWidgetController extends Controller
             $data['meet_greet'] = true;
         }
 
+        // No cash bookings on a return journey — the customer pays by card (or on
+        // account when signed in). A cash choice on a return is rejected.
+        if ($isReturn && ($data['payment_method'] ?? null) === 'cash') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_method' => 'Return journeys can’t be booked as cash — please pay by card.',
+            ]);
+        }
+
         // Addresses always carry their postcode (accurate zone pricing + the driver).
         $pickupFull = $this->withPostcode($data['pickup_address'], $data['pickup_postcode'] ?? null);
         $destination = $isHourly
@@ -452,7 +460,9 @@ class BookingWidgetController extends Controller
             // DRIVER collects the fare in cash. If they later pay online via Square,
             // markFarePaid() records it and the driver-collect logic then shows
             // "collect nothing". The office can switch card/cash/account on confirm.
-            'payment_method' => $isAccount ? 'account' : 'cash',
+            // Returns are never cash (see the guard above) — they're a card job so
+            // the driver never collects cash on a return; one-way keeps cash-collect.
+            'payment_method' => $isAccount ? 'account' : ($isReturn ? 'card' : 'cash'),
             'payment_status' => 'pending',
             'source' => 'web',
             'quoted_price' => $quotedPrice,
@@ -505,9 +515,9 @@ class BookingWidgetController extends Controller
                 'flight_number' => null, // return leg has no inbound flight
                 'special_requests' => $composedNotes,
                 'status' => BookingStatus::Pending->value,
-                // Cash by default (see the outbound leg above). A return leg never
-                // collects on the day anyway — the outbound carries the fare.
-                'payment_method' => 'cash',
+                // A return leg never collects on the day (the outbound carries the
+                // fare) and returns are card-only, so it's a card job — never cash.
+                'payment_method' => 'card',
                 'payment_status' => 'pending',
                 'source' => 'web',
                 'meta' => array_filter([

@@ -184,5 +184,5 @@
             });
         });
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=33"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=34"></script>
 @endsection
