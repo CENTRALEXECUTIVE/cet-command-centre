@@ -389,7 +389,7 @@
                         <div class="cet-addr-row">
                             <div class="cet-field icon" style="flex:1;min-width:0"><label for="b-pickup">Pickup address</label>
                                 <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
-                                <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Use my current location" title="Use my current location">◎</button>
+                                <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Clear address" title="Clear address">✕</button>
                             </div>
                             <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode</label>
                                 <input id="b-pickup-pc" name="pickup_postcode" required placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
@@ -403,7 +403,7 @@
                         <div class="cet-addr-row" id="b-dropoff-row">
                             <div class="cet-field icon" id="b-dropoff-field" style="flex:1;min-width:0"><label for="b-dropoff">Drop-off address</label>
                                 <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
-                                <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Use my current location" title="Use my current location">◎</button></div>
+                                <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button></div>
                             <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode</label>
                                 <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         </div>
@@ -850,46 +850,22 @@
             // "Use my current location" buttons on the pickup / drop-off fields —
             // like ETO's crosshair. Uses the browser's geolocation, then reverse-
             // geocodes the coordinates on the server (Google key stays server-side).
+            // Clear (✕) button inside each address field: shown only when the field
+            // has text, taps to clear the address (and its postcode). No location dot.
             form.querySelectorAll('.geo[data-geo]').forEach(function (btn) {
                 var addr = document.querySelector(btn.dataset.geo);
                 var pc = btn.dataset.geoPc ? document.querySelector(btn.dataset.geoPc) : null;
                 if (!addr) return;
-                // Empty field → ◎ "use my location"; filled field → ✕ "clear".
-                function sync() {
-                    if (btn.classList.contains('busy')) return;
-                    var filled = String(addr.value || '').trim() !== '';
-                    btn.textContent = filled ? '✕' : '◎';
-                    btn.classList.toggle('is-clear', filled);
-                    btn.setAttribute('aria-label', filled ? 'Clear address' : 'Use my current location');
-                    btn.setAttribute('title', filled ? 'Clear address' : 'Use my current location');
-                }
+                btn.textContent = '✕';
+                btn.classList.add('is-clear');
+                function sync() { btn.style.display = String(addr.value || '').trim() !== '' ? '' : 'none'; }
                 addr.addEventListener('input', sync);
                 addr.addEventListener('change', sync);
                 sync();
                 btn.addEventListener('click', function () {
-                    // Filled → clear the address (and its postcode).
-                    if (String(addr.value || '').trim() !== '') {
-                        addr.value = ''; addr.dispatchEvent(new Event('change'));
-                        if (pc) { pc.value = ''; pc.dispatchEvent(new Event('change')); }
-                        sync(); addr.focus();
-                        return;
-                    }
-                    // Empty → use my current location.
-                    if (!navigator.geolocation) { addr.focus(); return; }
-                    btn.classList.add('busy'); btn.textContent = '…';
-                    var done = function () { btn.classList.remove('busy'); sync(); };
-                    navigator.geolocation.getCurrentPosition(function (pos) {
-                        var q = window.CET_REVERSE_URL + '?lat=' + encodeURIComponent(pos.coords.latitude)
-                            + '&lng=' + encodeURIComponent(pos.coords.longitude);
-                        fetch(q, { headers: { 'Accept': 'application/json' } })
-                            .then(function (r) { return r.json(); })
-                            .then(function (d) {
-                                if (d && d.formatted) { addr.value = d.formatted; addr.dispatchEvent(new Event('change')); }
-                                if (pc && d && d.postcode) { pc.value = d.postcode; pc.dispatchEvent(new Event('change')); }
-                                done();
-                            })
-                            .catch(function () { done(); });
-                    }, function () { done(); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+                    addr.value = ''; addr.dispatchEvent(new Event('change'));
+                    if (pc) { pc.value = ''; pc.dispatchEvent(new Event('change')); }
+                    sync(); addr.focus();
                 });
             });
 

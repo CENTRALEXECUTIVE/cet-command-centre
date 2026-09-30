@@ -43,7 +43,7 @@ class PublicBookingTest extends TestCase
         ])->assertOk()->json('options');
 
         $exec = collect($res)->firstWhere('name', 'Executive');
-        $this->assertSame(110, (int) $exec['price']); // new fixed rate
+        $this->assertSame(105, (int) $exec['price']); // ETO fixed rate
         $this->assertFalse($exec['poa']);
     }
 
@@ -56,7 +56,7 @@ class PublicBookingTest extends TestCase
 
         $booking = Booking::latest('id')->first();
         $this->assertSame('web', $booking->source);
-        $this->assertSame(110.0, (float) $booking->quoted_price);
+        $this->assertSame(105.0, (float) $booking->quoted_price);
         $this->assertFalse((bool) ($booking->meta['vat_invoice_requested'] ?? false));
     }
 
@@ -68,7 +68,7 @@ class PublicBookingTest extends TestCase
             ->assertRedirect(route('public.book.thanks'));
 
         $booking = Booking::latest('id')->first();
-        $this->assertSame(132.0, (float) $booking->quoted_price); // 110 + 20%
+        $this->assertSame(126.0, (float) $booking->quoted_price); // 105 + 20%
         $this->assertTrue((bool) $booking->meta['vat_invoice_requested']);
     }
 
@@ -80,14 +80,14 @@ class PublicBookingTest extends TestCase
             'max_uses' => 1, 'valid_from' => now()->subDay(), 'valid_to' => now()->addYear(),
         ]);
 
-        // Base 110 + meet&greet 10 + 1 child seat 10 = 130; 20% off = 104.
+        // Base 105 + meet&greet 10 + 1 child seat 10 = 125; 20% off = 100.
         $this->post(route('public.book.store'), $this->payload($exec->id, [
             'meet_greet' => 1, 'child_seats' => 1, 'voucher' => 'rachel20',
         ]))->assertRedirect(route('public.book.thanks'));
 
         $booking = Booking::latest('id')->first();
-        $this->assertSame(104.0, (float) $booking->quoted_price);
-        $this->assertSame(26.0, (float) $booking->meta['voucher']['discount']); // 20% of 130
+        $this->assertSame(100.0, (float) $booking->quoted_price);
+        $this->assertSame(25.0, (float) $booking->meta['voucher']['discount']); // 20% of 125
         $this->assertSame(0, Voucher::first()->used_count); // not consumed until paid
     }
 

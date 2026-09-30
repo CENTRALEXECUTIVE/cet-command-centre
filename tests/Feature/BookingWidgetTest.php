@@ -47,8 +47,8 @@ class BookingWidgetTest extends TestCase
             'vehicle_type_id' => $executive->id,
         ])->assertOk()
             ->assertJson(['fixed' => true, 'vehicle' => $executive->name])
-            ->assertJsonPath('price', 110)
-            ->assertJsonPath('formatted', '£110');
+            ->assertJsonPath('price', 105)
+            ->assertJsonPath('formatted', '£105');
     }
 
     public function test_it_validates_the_inputs(): void
@@ -429,7 +429,7 @@ class BookingWidgetTest extends TestCase
         ])->assertOk();
 
         $execOption = collect($res->json('options'))->firstWhere('id', $exec->id);
-        $this->assertSame(110.0, (float) $execOption['price']);
+        $this->assertSame(105.0, (float) $execOption['price']);
     }
 
     public function test_a_web_hourly_hire_booking_is_as_directed(): void

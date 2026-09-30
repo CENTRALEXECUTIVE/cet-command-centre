@@ -44,9 +44,9 @@ class FareCalculatorTest extends TestCase
         $fare = $this->calc()->calculate('Sheffield S1', 'Manchester Airport', $this->executive(),
             Carbon::parse('2026-11-10 09:00'));
 
-        $this->assertSame(110.0, $fare['base']);      // new fixed rate
+        $this->assertSame(105.0, $fare['base']);      // ETO fixed rate
         $this->assertNull($fare['surcharge']);
-        $this->assertSame(110.0, $fare['subtotal']);
+        $this->assertSame(105.0, $fare['subtotal']);
     }
 
     public function test_a_holiday_multiplies_the_base(): void
@@ -55,8 +55,8 @@ class FareCalculatorTest extends TestCase
             Carbon::parse('2026-12-25 10:00'));
 
         $this->assertSame('Christmas Day', $fare['surcharge']['label']);
-        $this->assertSame(33.0, $fare['surcharge']['amount']); // 110 × 0.3
-        $this->assertSame(143.0, $fare['subtotal']);           // 110 + 33
+        $this->assertSame(31.5, $fare['surcharge']['amount']); // 105 × 0.3
+        $this->assertSame(136.5, $fare['subtotal']);           // 105 + 31.5
     }
 
     public function test_extras_are_itemised_and_added(): void
@@ -67,7 +67,7 @@ class FareCalculatorTest extends TestCase
 
         // £10 meet & greet + 2×£10 seats + 1×£10 stop = £40.
         $this->assertSame(40.0, $fare['extras_total']);
-        $this->assertSame(150.0, $fare['subtotal']); // 110 + 40
+        $this->assertSame(145.0, $fare['subtotal']); // 105 + 40
         $this->assertCount(3, $fare['extras']);
     }
 
