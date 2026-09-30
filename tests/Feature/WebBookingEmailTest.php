@@ -154,6 +154,30 @@ class WebBookingEmailTest extends TestCase
         $this->assertStringNotContainsString('Pay the driver on the day', $html);
     }
 
+    public function test_a_card_booking_without_vat_shows_no_vat_line_and_no_markup(): void
+    {
+        // Not all card jobs are VAT: a card booking with no VAT invoice requested
+        // shows "(Card)" but NO VAT line, and the fare is not marked up.
+        $exec = VehicleType::where('affects_rotation', true)->firstOrFail();
+        $booking = Booking::factory()->create([
+            'customer_id' => Customer::create(['name' => 'Card Carl', 'email' => 'carl@example.com', 'phone' => '07700900126'])->id,
+            'vehicle_type_id' => $exec->id, 'source' => 'web',
+            'payment_method' => 'card', 'payment_status' => 'pending', 'quoted_price' => 105,
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport',
+            'meta' => ['vat_invoice_requested' => false],
+        ]);
+
+        $this->assertFalse($booking->vatInvoiceRequested());
+
+        $html = (new BookingConfirmationMail($booking, paid: false, payUrl: 'https://pay.example/x'))->render();
+
+        $this->assertStringContainsString('(Card)', $html);
+        $this->assertStringNotContainsString('Includes VAT', $html);
+        // The fare is the plain £105 — never marked up by 20% for a non-VAT card job.
+        $this->assertStringContainsString('£105.00', $html);
+        $this->assertStringNotContainsString('£126.00', $html);
+    }
+
     public function test_the_invoice_pdf_renders_with_vat(): void
     {
         $booking = $this->paidWebBooking();
