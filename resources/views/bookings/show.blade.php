@@ -1322,6 +1322,54 @@
     @endif
 
     @if(auth()->user()->isAdmin())
+        {{-- ETO-style "Send a notification": pick a template, recipient and channel. --}}
+        <div id="send-notification" class="card" style="scroll-margin-top:16px">
+            <h2 style="margin:0 0 4px">🔔 Send a notification</h2>
+            <p class="hint" style="margin:0 0 12px">Pick a ready-made message, who it goes to and how — then tap to send it by hand (WhatsApp / SMS / email). Nothing is sent automatically.</p>
+
+            @if(session('notify_link'))
+                @php
+                    $nch = session('notify_channel');
+                    $nLabel = $nch === 'whatsapp' ? '📲 Open WhatsApp' : ($nch === 'sms' ? '💬 Open SMS' : '✉️ Open email');
+                    $nTarget = $nch === 'email' ? '' : 'target="_blank" rel="noopener"';
+                @endphp
+                <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin:0 0 12px;padding:10px 14px">
+                    <div style="font-weight:700;margin-bottom:6px">Ready to send</div>
+                    <a href="{{ session('notify_link') }}" {!! $nTarget !!} class="btn btn-primary" style="padding:7px 14px;font-size:13px">{{ $nLabel }}</a>
+                    <button type="button" class="btn btn-ghost copy-pay-link" data-link="{{ session('notify_copy') }}" style="padding:7px 14px;font-size:13px">⧉ Copy message</button>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('bookings.notify', $booking) }}" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+                @csrf
+                <div class="field" style="margin:0">
+                    <label for="notify-template" style="font-size:12px">Notification</label>
+                    <select id="notify-template" name="template" style="min-width:200px">
+                        @foreach(\App\Services\Messaging\NotificationTemplates::TEMPLATES as $tv => $tl)
+                            <option value="{{ $tv }}">{{ $tl }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field" style="margin:0">
+                    <label for="notify-recipient" style="font-size:12px">To</label>
+                    <select id="notify-recipient" name="recipient" style="min-width:130px">
+                        @foreach(\App\Services\Messaging\NotificationTemplates::RECIPIENTS as $rv => $rl)
+                            <option value="{{ $rv }}">{{ $rl }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field" style="margin:0">
+                    <label for="notify-channel" style="font-size:12px">Channel</label>
+                    <select id="notify-channel" name="channel" style="min-width:130px">
+                        <option value="whatsapp">🟢 WhatsApp</option>
+                        <option value="sms">💬 SMS</option>
+                        <option value="email">✉️ Email</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="padding:9px 16px;font-size:14px">Send a notification</button>
+            </form>
+        </div>
+
         @php
             $chan = ['whatsapp' => '🟢 WhatsApp', 'sms' => '💬 SMS', 'email' => '✉️ Email'];
             $mstatus = ['sent' => 'complete', 'queued' => 'pending', 'failed' => 'cancelled'];

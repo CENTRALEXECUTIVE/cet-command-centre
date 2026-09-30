@@ -11,6 +11,7 @@ class BookingShowRendersTest extends TestCase {
     $b = Booking::factory()->forVehicleType($exec)->create(['quoted_price'=>105]);
     $b->payments()->create(['method'=>'card','amount'=>105,'status'=>'paid','paid_at'=>now(),'meta'=>['name'=>'Full amount']]);
     $this->actingAs($admin)->get(route('bookings.show',$b))->assertOk()
-      ->assertSee('Payment history')->assertSee('Add new transaction')->assertSee('Full amount');
+      ->assertSee('Payment history')->assertSee('Add new transaction')->assertSee('Full amount')
+      ->assertSee('Send a notification')->assertSee('New confirmed booking');
   }
 }

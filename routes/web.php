@@ -186,6 +186,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/transactions/{payment}/send-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'sendLink'])->middleware('throttle:30,1')->name('bookings.transactions.send-link');
         Route::delete('bookings/{booking}/transactions/{payment}', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'destroy'])->middleware('throttle:60,1')->name('bookings.transactions.destroy');
 
+        // ETO-style "Send a notification": templated customer/driver messages.
+        Route::post('bookings/{booking}/notify', [\App\Http\Controllers\Admin\BookingNotificationController::class, 'send'])->middleware('throttle:60,1')->name('bookings.notify');
+
         // User management (admins; admin/super-admin creation is super-admin only).
         Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
         Route::get('users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('users.create');
