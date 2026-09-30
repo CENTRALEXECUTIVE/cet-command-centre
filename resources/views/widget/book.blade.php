@@ -48,7 +48,8 @@
         .cet-hero {
             background:radial-gradient(600px 200px at 12% -40%, rgba(251,186,42,.30), transparent 60%),
                 linear-gradient(135deg, #17171a 0%, #0b0b0c 100%);
-            color:#fff; padding:22px 24px 20px; position:relative;
+            color:#fff; padding:16px 24px 20px; position:relative;
+            display:flex; flex-direction:column;
         }
         .cet-hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3px;
             background:linear-gradient(90deg, var(--gold), var(--gold-deep)); }
@@ -62,9 +63,9 @@
         .cet-hero p { margin:0; color:#c7c6c0; font-size:13px; }
 
         /* Language switcher (ETO-style) — drives Google's free website translation. */
-        .cet-lang { position:absolute; top:16px; right:16px; display:flex; align-items:center; gap:5px;
+        .cet-lang { align-self:flex-end; display:inline-flex; align-items:center; gap:5px;
             background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:999px;
-            padding:5px 8px 5px 11px; z-index:5; }
+            padding:5px 8px 5px 11px; margin-bottom:12px; z-index:5; }
         .cet-lang .ic { font-size:13px; line-height:1; }
         .cet-lang select { background:transparent; border:0; color:#fff; font-family:inherit; font-size:12.5px;
             font-weight:700; cursor:pointer; outline:none; padding-right:2px; }
@@ -115,8 +116,7 @@
             outline:none; border-color:var(--gold); background:#fff; box-shadow:0 0 0 4px rgba(251,186,42,.18); }
         .cet-field.bad input, .cet-field.bad textarea { border-color:var(--err); background:#fdf3f3; }
         .cet-field.icon { position:relative; }
-        .cet-field.icon .pin { position:absolute; left:13px; top:37px; font-size:15px; }
-        .cet-field.icon input { padding-left:38px; padding-right:46px; }
+        .cet-field.icon input { padding-right:46px; }
         /* "Use my current location" button (like ETO's crosshair). */
         .cet-field.icon .geo { position:absolute; right:7px; top:25px; width:38px; height:40px; border:0;
             background:transparent; color:var(--muted); font-size:20px; line-height:1; cursor:pointer;
@@ -379,7 +379,6 @@
                             </select>
                         </div>
                         <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
-                            <span class="pin">🟡</span>
                             <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-places-types="address" data-postcode-target="#b-pickup-pc" autocomplete="off">
                             <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Use my current location" title="Use my current location">◎</button>
                         </div>
@@ -392,7 +391,6 @@
                             <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop</button>
                         </div>
                         <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
-                            <span class="pin">🏁</span>
                             <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
                             <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Use my current location" title="Use my current location">◎</button></div>
                         <div class="cet-field" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Drop-off postcode <span class="opt">(if known)</span></label>
@@ -425,12 +423,20 @@
                                 </select></div>
                         </div>
 
-                        {{-- Business / VAT invoice — ticked here so the prices on the next
-                             step already show the {{ $vatPercent ?? 20 }}% VAT added on top. --}}
-                        <label class="cet-vat" id="b-vat-wrap">
-                            <input type="checkbox" id="b-vat" name="vat_invoice" value="1">
-                            <span class="t"><b>I need a business (VAT) invoice.</b> {{ $vatPercent ?? 20 }}% VAT is added and you’ll get a VAT invoice to reclaim it. Leave unticked for a standard booking.</span>
-                        </label>
+                        {{-- Business / VAT invoice — a required Yes/No choice. "Yes" adds
+                             {{ $vatPercent ?? 20 }}% VAT and provides a VAT invoice to reclaim;
+                             "No" is the standard price. Must be chosen before continuing. --}}
+                        <div class="cet-field" id="b-vat-field">
+                            <label>Do you need a business (VAT) invoice?</label>
+                            <label class="cet-pay" id="b-vat-yes-wrap">
+                                <input type="radio" name="vat_invoice" id="b-vat-yes" value="1">
+                                <span class="t"><b>Yes</b><span class="opt"> — I’ll reclaim VAT ({{ $vatPercent ?? 20 }}% VAT added, VAT invoice provided)</span></span>
+                            </label>
+                            <label class="cet-pay" id="b-vat-no-wrap">
+                                <input type="radio" name="vat_invoice" id="b-vat-no" value="0">
+                                <span class="t"><b>No</b><span class="opt"> — standard price, no VAT reclaim needed</span></span>
+                            </label>
+                        </div>
 
                         <div class="cet-err" data-err="1"></div>
                         <div class="cet-actions">
@@ -866,6 +872,16 @@
                         if (bad) ok = false;
                     });
                     if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
+                    // Business (VAT) invoice — a Yes/No answer is required before moving on.
+                    var vatYesEl = document.getElementById('b-vat-yes'), vatNoEl = document.getElementById('b-vat-no');
+                    var vatChosen = (vatYesEl && vatYesEl.checked) || (vatNoEl && vatNoEl.checked);
+                    var vatField = document.getElementById('b-vat-field');
+                    if (vatField) vatField.classList.toggle('bad', !vatChosen);
+                    if (ok && !vatChosen) {
+                        showErr(1, 'Please choose Yes or No for a business (VAT) invoice.');
+                        if (vatField) vatField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return false;
+                    }
                     // Minimum-notice guard — same message as ETO.
                     if (ok && tooSoon()) {
                         showNotice(true);
@@ -1072,7 +1088,7 @@
             // ETO-style extras: +/- steppers, the meet & greet toggle, and a live
             // total (vehicle + extras + VAT when a business invoice is wanted).
             function money(n){ return '£' + Number(n).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-            function vatOn(){ return !!(vatBox && vatBox.checked); }
+            function vatOn(){ var y = document.getElementById('b-vat-yes'); return !!(y && y.checked); }
             function withVat(base){ return vatOn() ? Math.round(base * (1 + vatPercent / 100)) : Math.round(base); }
             // The all-in total for the selected vehicle, or null when it's on request.
             function currentTotal() {
@@ -1205,11 +1221,14 @@
                 });
             });
             var vatPercent = {{ (int) ($vatPercent ?? 20) }};
-            var vatBox = document.getElementById('b-vat');
-            if (vatBox) { vatBox.addEventListener('change', function () {
-                var w = document.getElementById('b-vat-wrap'); if (w) w.classList.toggle('on', vatBox.checked);
+            var vatYes = document.getElementById('b-vat-yes'), vatNo = document.getElementById('b-vat-no');
+            function syncVat() {
+                var yw = document.getElementById('b-vat-yes-wrap'), nw = document.getElementById('b-vat-no-wrap');
+                if (yw) yw.classList.toggle('on', !!(vatYes && vatYes.checked));
+                if (nw) nw.classList.toggle('on', !!(vatNo && vatNo.checked));
                 renderPrices(); fillSummary();
-            }); }
+            }
+            [vatYes, vatNo].forEach(function (r) { if (r) r.addEventListener('change', syncVat); });
 
             // Payment method (card / cash / account) — ETO-style.
             var payCard = document.getElementById('b-pay-card'), payCash = document.getElementById('b-pay-cash'),
