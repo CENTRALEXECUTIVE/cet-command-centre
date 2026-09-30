@@ -61,6 +61,21 @@
         .cet-hero h1 { margin:16px 0 2px; font-size:22px; font-weight:800; letter-spacing:-.4px; }
         .cet-hero p { margin:0; color:#c7c6c0; font-size:13px; }
 
+        /* Language switcher (ETO-style) — drives Google's free website translation. */
+        .cet-lang { position:absolute; top:16px; right:16px; display:flex; align-items:center; gap:5px;
+            background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:999px;
+            padding:5px 8px 5px 11px; z-index:5; }
+        .cet-lang .ic { font-size:13px; line-height:1; }
+        .cet-lang select { background:transparent; border:0; color:#fff; font-family:inherit; font-size:12.5px;
+            font-weight:700; cursor:pointer; outline:none; padding-right:2px; }
+        .cet-lang select option { color:#111; }
+        /* Hide Google's own gadget + top banner; keep the page from being pushed down. */
+        #google_translate_element { display:none; }
+        .goog-te-banner-frame, .goog-te-gadget-icon, .skiptranslate iframe { display:none !important; }
+        body { top:0 !important; }
+        /* Google wraps translated runs in <font> — keep them inheriting our styles. */
+        font { font:inherit !important; color:inherit !important; background:transparent !important; }
+
         /* Progress steps */
         .cet-steps { display:flex; align-items:center; gap:6px; padding:16px 24px 4px; }
         .cet-steps .st { display:flex; align-items:center; gap:8px; }
@@ -293,6 +308,23 @@
 
         <div class="cet-widget" id="cet-widget">
             <div class="cet-hero">
+                <div class="cet-lang" translate="no">
+                    <span class="ic">🌐</span>
+                    <select id="cet-lang-select" aria-label="Choose language">
+                        <option value="en">English</option>
+                        <option value="pl">Polski</option>
+                        <option value="ro">Română</option>
+                        <option value="ur">اردو</option>
+                        <option value="ar">العربية</option>
+                        <option value="fr">Français</option>
+                        <option value="es">Español</option>
+                        <option value="de">Deutsch</option>
+                        <option value="pt">Português</option>
+                        <option value="it">Italiano</option>
+                        <option value="zh-CN">中文</option>
+                        <option value="hi">हिन्दी</option>
+                    </select>
+                </div>
                 <div class="cet-brand">
                     <div class="cet-mark">C</div>
                     <div><div class="name">CENTRAL <span>EXECUTIVE</span></div><div class="sub">TRANSFERS · SHEFFIELD</div></div>
@@ -633,6 +665,33 @@
             </div>
         </div>
     </div>
+
+    {{-- Free Google website translation, driven by the styled switcher in the hero.
+         Google's own widget is hidden; our <select> sets the language. --}}
+    <div id="google_translate_element" translate="no"></div>
+    <script>
+        window.googleTranslateElementInit = function () {
+            try { new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element'); } catch (e) {}
+        };
+        (function () {
+            var sel = document.getElementById('cet-lang-select');
+            if (!sel) return;
+            // Reflect the current language (from Google's googtrans cookie) in the switcher.
+            try {
+                var m = document.cookie.match(/googtrans=\/[^/]*\/([^;]+)/);
+                if (m && m[1]) sel.value = decodeURIComponent(m[1]);
+            } catch (e) {}
+            function apply(code, tries) {
+                var combo = document.querySelector('.goog-te-combo');
+                if (!combo) { if ((tries || 0) < 40) return setTimeout(function () { apply(code, (tries || 0) + 1); }, 150); return; }
+                combo.value = code;
+                combo.dispatchEvent(new Event('change'));
+                setTimeout(function () { try { parent.postMessage({ cetWidgetHeight: document.getElementById('cet-widget').offsetHeight + 24 }, '*'); } catch (e) {} }, 400);
+            }
+            sel.addEventListener('change', function () { apply(sel.value, 0); });
+        })();
+    </script>
+    <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
 
     {{-- Google address autocomplete via the server proxy (key stays server-side). --}}
     <script>window.CET_PLACES_URL = "{{ route('public.book.places') }}";
