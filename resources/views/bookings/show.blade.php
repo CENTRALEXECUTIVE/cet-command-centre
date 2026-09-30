@@ -1322,6 +1322,47 @@
         </div>
     @endif
 
+    @if(auth()->user()->isAdmin())
+        @php $bookingFiles = collect($booking->meta['files'] ?? [])->sortByDesc('at'); @endphp
+        <div id="files" class="card" style="scroll-margin-top:16px">
+            <h2 style="margin:0 0 4px">📎 Additional files</h2>
+            <p class="hint" style="margin:0 0 12px">Attach documents to this booking — flight confirmations, meet-and-greet notes, receipts. Only the office can see or download them.</p>
+
+            @if($bookingFiles->isNotEmpty())
+                <table style="width:100%">
+                    <thead><tr><th>File</th><th>Size</th><th>Added</th><th style="text-align:right"></th></tr></thead>
+                    <tbody>
+                    @foreach($bookingFiles as $f)
+                        <tr>
+                            <td>
+                                <a href="{{ route('bookings.files.download', [$booking, $f['id']]) }}">{{ $f['label'] ?? $f['name'] }}</a>
+                                @if($f['label'])<div class="muted" style="font-size:11px">{{ $f['name'] }}</div>@endif
+                            </td>
+                            <td>{{ isset($f['size']) ? number_format($f['size'] / 1024, 0).' KB' : '—' }}</td>
+                            <td style="font-size:12px" class="muted">{{ isset($f['at']) ? \Illuminate\Support\Carbon::parse($f['at'])->format('d/m/Y H:i') : '' }}@if(!empty($f['by'])) · {{ $f['by'] }}@endif</td>
+                            <td style="text-align:right">
+                                <form method="POST" action="{{ route('bookings.files.destroy', [$booking, $f['id']]) }}" onsubmit="return confirm('Delete this file?')">@csrf @method('DELETE')
+                                    <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#b32020">🗑 Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            @else
+                <p class="muted" style="margin:0 0 10px">No files attached yet.</p>
+            @endif
+
+            <form method="POST" action="{{ route('bookings.files.store', $booking) }}" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px">
+                @csrf
+                <div class="field" style="margin:0"><label for="file-upload" style="font-size:12px">New file</label><input id="file-upload" type="file" name="file" required></div>
+                <div class="field" style="margin:0"><label for="file-label" style="font-size:12px">Label <span class="muted">(optional)</span></label><input id="file-label" name="label" placeholder="e.g. Flight confirmation" style="width:200px"></div>
+                <button class="btn btn-light" style="padding:8px 14px;font-size:13px">＋ Add file</button>
+            </form>
+            <p class="hint" style="margin:8px 0 0">Up to 10 MB — PDF, images, Word/Excel, CSV, text or .eml.</p>
+        </div>
+    @endif
+
     @if($booking->statusHistory->isNotEmpty())
         <div class="card">
             <h2>Status History</h2>

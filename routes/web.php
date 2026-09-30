@@ -191,6 +191,11 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Preferred notification language (used to pick the message wording).
         Route::post('bookings/{booking}/notification-language', [BookingController::class, 'notificationLanguage'])->middleware('throttle:30,1')->name('bookings.notification-language');
 
+        // ETO-style "Additional files": attach documents to a booking (private disk).
+        Route::post('bookings/{booking}/files', [\App\Http\Controllers\Admin\BookingFileController::class, 'store'])->middleware('throttle:30,1')->name('bookings.files.store');
+        Route::get('bookings/{booking}/files/{file}', [\App\Http\Controllers\Admin\BookingFileController::class, 'download'])->middleware('throttle:60,1')->name('bookings.files.download');
+        Route::delete('bookings/{booking}/files/{file}', [\App\Http\Controllers\Admin\BookingFileController::class, 'destroy'])->middleware('throttle:30,1')->name('bookings.files.destroy');
+
         // User management (admins; admin/super-admin creation is super-admin only).
         Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
         Route::get('users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('users.create');
