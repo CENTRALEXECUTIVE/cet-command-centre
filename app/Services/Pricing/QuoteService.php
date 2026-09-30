@@ -220,26 +220,85 @@ class QuoteService
     }
 
     /**
+     * Airport POSTCODE prefixes — the reliable signal. Google names airports all
+     * sorts of ways ("Terminal 3, Manchester", "Melbourne Ave", "MAN"…) but the
+     * postcode is stable, so we detect the airport from it when the name misses.
+     *
+     * @var array<string, list<string>>
+     */
+    private const AIRPORT_POSTCODES = [
+        'manchester' => ['M90'],
+        'heathrow' => ['TW6'],
+        'gatwick' => ['RH6'],
+        'stansted' => ['CM24', 'CM22'],
+        'luton' => ['LU2'],
+        'birmingham' => ['B26'],
+        'east-midlands' => ['DE74'],
+        'leeds-bradford' => ['LS19'],
+        'liverpool' => ['L24'],
+        'newcastle' => ['NE13'],
+        'bristol' => ['BS48'],
+        'humberside' => ['DN39'],
+        'glasgow' => ['PA3'],
+        'exeter' => ['EX5'],
+        'southend' => ['SS2'],
+    ];
+
+    /**
      * Find the special destination in either end; returns [destKey, otherEndText].
+     * Drop-off is checked first, then pickup (an airport arrival).
      *
      * @return array{0: string|null, 1: string}
      */
     private function detectDestination(string $pickup, string $destination): array
     {
-        $pl = strtolower($pickup);
-        $dl = strtolower($destination);
+        if ($key = $this->airportKeyIn($destination)) {
+            return [$key, $pickup]; // special is the drop-off → zone from the pickup
+        }
+        if ($key = $this->airportKeyIn($pickup)) {
+            return [$key, $destination]; // special is the pickup → zone from the drop-off
+        }
+
+        return [null, $destination];
+    }
+
+    /**
+     * The fixed-price destination key an address refers to, by name alias, then by
+     * airport postcode, then by "Terminal N … Manchester" (Google's common name for
+     * Manchester Airport, which contains no "airport"). Null when it's an ordinary
+     * address.
+     */
+    private function airportKeyIn(string $text): ?string
+    {
+        $t = strtolower($text);
+
+        // 1) Name aliases (airports/ports before the generic "london").
         foreach (self::DEST_ALIASES as $key => $aliases) {
             foreach ($aliases as $alias) {
-                if (str_contains($dl, $alias)) {
-                    return [$key, $pickup]; // destination is the drop-off → zone from pickup
-                }
-                if (str_contains($pl, $alias)) {
-                    return [$key, $destination]; // destination is the pickup → zone from drop-off
+                if (str_contains($t, $alias)) {
+                    return $key;
                 }
             }
         }
 
-        return [null, $destination];
+        // 2) Airport postcode (stable even when the name is odd).
+        $outward = $this->outward($text);
+        if ($outward !== null) {
+            foreach (self::AIRPORT_POSTCODES as $key => $codes) {
+                foreach ($codes as $code) {
+                    if (str_starts_with($outward, $code)) {
+                        return $key;
+                    }
+                }
+            }
+        }
+
+        // 3) "Terminal N, Manchester" → Manchester Airport (Google drops "airport").
+        if (str_contains($t, 'terminal') && str_contains($t, 'manchester')) {
+            return 'manchester';
+        }
+
+        return null;
     }
 
     /** Pickup zone tokens (specific → general) from a postcode or town name. */

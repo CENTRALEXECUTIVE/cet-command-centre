@@ -76,6 +76,18 @@ class PricingQuoteTest extends TestCase
         $this->assertEquals(450.0, $quotes->quote('Sheffield S1', 'Heathrow', $vclass)['price']);
     }
 
+    public function test_airport_detected_by_terminal_name_and_postcode(): void
+    {
+        // Google names Manchester Airport "Terminal 3, Manchester" (no "airport"),
+        // and other airports carry a stable postcode — both must hit the fixed price.
+        $quotes = app(QuoteService::class);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->assertSame(105.0, $quotes->quote('9 Harney Close, Sheffield S9 5BW', 'Terminal 3, Manchester, UK', $exec)['price']);
+        $this->assertSame(105.0, $quotes->quote('9 Harney Close, Sheffield S9 5BW', 'Melbourne Ave, Manchester M90 5PR', $exec)['price']);
+        $this->assertSame(290.0, $quotes->quote('Sheffield S1', 'Heathrow Terminal 5, TW6 1AP', $exec)['price']);
+    }
+
     public function test_free_roam_quote_uses_distance(): void
     {
         // No maps key → DistanceService returns its estimate (10 miles) → minimum fare.
