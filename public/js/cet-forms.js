@@ -248,6 +248,10 @@
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d && d.postcode) { target.value = d.postcode; target.dispatchEvent(new Event('change')); }
+                    // Record whether this is a home/street (postcode matters) or a
+                    // named venue (airport/station/hotel — no postcode expected), so
+                    // the form can require a postcode only for homes that lack one.
+                    el.dataset.residential = (d && d.residential) ? '1' : '0';
                     // NOTE: we deliberately do NOT overwrite the address text with
                     // Google's canonical "formattedAddress" — that turns a chosen
                     // "Manchester Airport T2 …" into the street name ("Melbourne Ave"),

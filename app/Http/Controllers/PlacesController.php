@@ -110,6 +110,9 @@ class PlacesController extends Controller
             return response()->json([
                 'postcode' => strtoupper($postcode),
                 'formatted' => $place['formattedAddress'] ?? '',
+                // Is this a home/street (needs a postcode for the driver) vs a named
+                // venue (airport/station/hotel — no postcode expected)?
+                'residential' => $this->isResidential($place['types'] ?? []),
             ]);
         } catch (\Throwable) {
             return response()->json(['postcode' => '', 'formatted' => '']);
@@ -166,11 +169,30 @@ class PlacesController extends Controller
         $response = Http::timeout(8)
             ->withHeaders([
                 'X-Goog-Api-Key' => $key,
-                'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
+                'X-Goog-FieldMask' => 'formattedAddress,addressComponents,types',
             ])
             ->get('https://places.googleapis.com/v1/places/'.rawurlencode($placeId));
 
         return $response->successful() ? $response->json() : null;
+    }
+
+    /**
+     * A home/street address (postcode matters for the driver) vs a named venue
+     * such as an airport, station or hotel (no postcode expected). Based on the
+     * Google place types.
+     *
+     * @param  list<string>  $types
+     */
+    private function isResidential(array $types): bool
+    {
+        $venue = ['airport', 'establishment', 'point_of_interest', 'transit_station',
+            'train_station', 'lodging', 'tourist_attraction', 'shopping_mall'];
+        if (array_intersect($types, $venue)) {
+            return false;
+        }
+        $home = ['premise', 'subpremise', 'street_address', 'route', 'residential'];
+
+        return (bool) array_intersect($types, $home);
     }
 
     /** Text Search (New) fallback for a free-typed address (no placeId). */
@@ -179,7 +201,7 @@ class PlacesController extends Controller
         $response = Http::timeout(8)
             ->withHeaders([
                 'X-Goog-Api-Key' => $key,
-                'X-Goog-FieldMask' => 'places.formattedAddress,places.addressComponents',
+                'X-Goog-FieldMask' => 'places.formattedAddress,places.addressComponents,places.types',
             ])
             ->post('https://places.googleapis.com/v1/places:searchText', [
                 'textQuery' => $address,

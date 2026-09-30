@@ -143,6 +143,36 @@ class PlacesAutocompleteTest extends TestCase
         Http::assertSent(fn ($r) => str_contains($r->url(), '/v1/places/ChIJ_test123'));
     }
 
+    public function test_resolve_flags_a_home_as_residential(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('google_maps_key', 'AIzaTEST', 'string', 'integrations');
+
+        Http::fake(['places.googleapis.com/*' => Http::response([
+            'formattedAddress' => '12 Harney Close, Sheffield S9 5BW, UK',
+            'types' => ['premise', 'street_address'],
+            'addressComponents' => [['longText' => 'S9 5BW', 'types' => ['postal_code']]],
+        ], 200)]);
+
+        $this->actingAs($admin)->getJson(route('places.resolve', ['place_id' => 'home1']))
+            ->assertOk()->assertJson(['residential' => true]);
+    }
+
+    public function test_resolve_flags_an_airport_as_not_residential(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Setting::set('google_maps_key', 'AIzaTEST', 'string', 'integrations');
+
+        Http::fake(['places.googleapis.com/*' => Http::response([
+            'formattedAddress' => 'Manchester Airport (MAN), Manchester, UK',
+            'types' => ['airport', 'establishment', 'point_of_interest'],
+            'addressComponents' => [],
+        ], 200)]);
+
+        $this->actingAs($admin)->getJson(route('places.resolve', ['place_id' => 'man1']))
+            ->assertOk()->assertJson(['residential' => false]);
+    }
+
     public function test_resolve_is_empty_without_a_key(): void
     {
         $admin = User::factory()->admin()->create();

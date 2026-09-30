@@ -708,7 +708,7 @@
         window.CET_LOGIN_URL = "{{ route('widget.login') }}";
         window.CET_ME = {!! json_encode($me ?? null) !!};
         window.CET_ME_ACCOUNT = {!! json_encode($meAccount ?? null) !!};</script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=34" defer></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=35" defer></script>
 
     <script>
         (function () {
@@ -884,6 +884,19 @@
                         if (bad) ok = false;
                     });
                     if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
+                    // Postcode is required only for a HOME/street pickup that's missing
+                    // one — a driver needs it. Airports/venues (residential !== '1') and
+                    // addresses that already resolved a postcode are never blocked.
+                    if (ok) {
+                        var puEl = document.getElementById('b-pickup');
+                        var puPc = document.getElementById('b-pickup-pc');
+                        if (puEl && puPc && puEl.dataset.residential === '1' && !nonEmpty(puPc)) {
+                            puPc.closest('.cet-field').classList.add('bad');
+                            showErr(1, 'Please add the pickup postcode so your driver can find the address.');
+                            puPc.focus();
+                            return false;
+                        }
+                    }
                     // Business (VAT) invoice — a Yes/No answer is required before moving on.
                     var vatYesEl = document.getElementById('b-vat-yes'), vatNoEl = document.getElementById('b-vat-no');
                     var vatChosen = (vatYesEl && vatYesEl.checked) || (vatNoEl && vatNoEl.checked);
