@@ -501,6 +501,37 @@ class BookingTest extends TestCase
         $this->assertSame(35.0, $b->waitingCharge()); // 35 min @ £60/h
     }
 
+    public function test_the_job_timeline_shows_each_via_stop_with_both_times(): void
+    {
+        // POB is recorded at the first pickup (collected), then each via stop shows
+        // BOTH times — when the driver arrived and when they moved on — in the timeline.
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'pickup_address' => '12 Fargate, Sheffield',
+            'destination_address' => 'Manchester Airport',
+            'meta' => [
+                'stops' => ['136 Sandford Grove Road', '227 Ellesmere Road'],
+                'stop_events' => [
+                    0 => ['arrived_at' => now()->setTime(6, 56)->toIso8601String(), 'picked_up_at' => now()->setTime(7, 4)->toIso8601String()],
+                    1 => ['arrived_at' => now()->setTime(7, 20)->toIso8601String(), 'picked_up_at' => now()->setTime(7, 33)->toIso8601String()],
+                ],
+            ],
+        ]);
+        // A status-history row so the Job timeline card renders (POB at first pickup).
+        $booking->statusHistory()->create(['to_status' => 'collected', 'created_at' => now()->setTime(6, 56)]);
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('Passenger on board')
+            ->assertSee('Stop 1')
+            ->assertSee('Stop 2')
+            ->assertSee('136 Sandford Grove Road')
+            // Both times are shown for a stop: arrived and picked up.
+            ->assertSee('06:56')
+            ->assertSee('07:04')
+            ->assertSee('Picked up');
+    }
+
     public function test_a_forgotten_open_stop_wait_is_capped(): void
     {
         config(['cet.waiting_stop_grace_minutes' => 0, 'cet.waiting_max_auto_minutes' => 180]);

@@ -226,6 +226,33 @@
                             <span class="muted" style="font-size:13px">—</span>
                         @endif
                     </div>
+
+                    {{-- Via stops sit between Passenger on board (first pickup) and Dropped
+                         off — each shows BOTH times: when the driver arrived at the stop and
+                         when they moved on (picked up / dropped off), plus how long they waited. --}}
+                    @if($key === 'collected' && $booking->hasViaStops())
+                        @foreach($booking->viaStops() as $si => $stopAddr)
+                            @php
+                                $sArr = $booking->stopArrivedAt($si);
+                                $sGo = $booking->stopPickedUpAt($si);
+                                $sWait = $booking->stopWaitLabel($si);
+                                $sVerb = $booking->stopActionVerb(); // "Picked up" / "Dropped off"
+                            @endphp
+                            <div style="display:flex;gap:10px;align-items:baseline;padding:7px 0 7px 26px;border-bottom:1px solid rgba(128,128,128,.1);flex-wrap:wrap;{{ $sArr ? '' : 'opacity:.4' }}">
+                                <span style="width:26px;flex:none;text-align:center">🛑</span>
+                                <span style="flex:1;min-width:120px;font-weight:600">Stop {{ $si + 1 }}<span class="muted" style="font-weight:400;font-size:12px"> · {{ \Illuminate\Support\Str::limit($stopAddr, 28) }}</span></span>
+                                @if($sArr)
+                                    <span style="font-size:12px">
+                                        Arrived <strong style="font-variant-numeric:tabular-nums">{{ $sArr->format('H:i') }}</strong>
+                                        @if($sGo)· {{ $sVerb }} <strong style="font-variant-numeric:tabular-nums">{{ $sGo->format('H:i') }}</strong>@else· <span style="color:#b8860b;font-weight:700">still here</span>@endif
+                                        @if($sWait)<span class="muted"> (waited {{ $sWait }})</span>@endif
+                                    </span>
+                                @else
+                                    <span class="muted" style="font-size:13px">not reached yet —</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    @endif
                 @endforeach
             </div>
         @endif
