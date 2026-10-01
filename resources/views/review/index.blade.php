@@ -3,7 +3,8 @@
 
 @section('content')
     <h1 class="page-title">Business Review</h1>
-    <p class="page-sub">{{ $start->format('d M Y') }} – {{ $end->format('d M Y') }}</p>
+    <p class="page-sub">{{ $start->format('d M Y') }} – {{ $end->format('d M Y') }}
+        · <a href="{{ route('reviews-sent.index') }}">Reviews sent report →</a></p>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
