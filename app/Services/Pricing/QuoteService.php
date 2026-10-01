@@ -197,9 +197,53 @@ class QuoteService
         ];
     }
 
+    /** The built-in matrix, exposed so the seeder can mirror it into the editable DB. */
+    public static function rules(): array
+    {
+        return self::RULES;
+    }
+
+    /** Pretty display names for the destination keys (for the pricing editor). */
+    public static function destinationNames(): array
+    {
+        return [
+            'manchester' => 'Manchester Airport', 'leeds-bradford' => 'Leeds Bradford Airport',
+            'east-midlands' => 'East Midlands Airport', 'birmingham' => 'Birmingham Airport',
+            'heathrow' => 'Heathrow Airport', 'gatwick' => 'Gatwick Airport', 'southend' => 'Southend Airport',
+            'stansted' => 'Stansted Airport', 'luton' => 'Luton Airport', 'newcastle' => 'Newcastle Airport',
+            'humberside' => 'Humberside Airport', 'liverpool' => 'Liverpool Airport',
+            'central-london' => 'Central London', 'south-ports' => 'South Coast Ports',
+            'exeter' => 'Exeter Airport', 'bristol' => 'Bristol Airport', 'glasgow' => 'Glasgow Airport',
+        ];
+    }
+
+    /** Zone display names + the postcode outcodes they cover (for the zones editor). */
+    public static function zoneDefinitions(): array
+    {
+        return [
+            'sheffield' => ['name' => 'Sheffield', 'prefixes' => ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S17', 'S18', 'S19', 'S35']],
+            's20' => ['name' => 'Sheffield S20', 'prefixes' => ['S20']],
+            'rotherham' => ['name' => 'Rotherham', 'prefixes' => ['S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66']],
+            'barnsley' => ['name' => 'Barnsley', 'prefixes' => ['S70', 'S71', 'S72', 'S73', 'S74', 'S75']],
+            'chesterfield' => ['name' => 'Chesterfield', 'prefixes' => ['S40', 'S41', 'S42', 'S43', 'S44', 'S45', 'S49']],
+            'worksop' => ['name' => 'Worksop', 'prefixes' => ['S80', 'S81']],
+            'doncaster' => ['name' => 'Doncaster', 'prefixes' => ['DN1', 'DN2', 'DN3', 'DN4', 'DN5', 'DN6', 'DN7', 'DN8', 'DN9', 'DN10', 'DN11', 'DN12']],
+            'mansfield' => ['name' => 'Mansfield', 'prefixes' => ['NG18', 'NG19', 'NG20', 'NG21']],
+            'matlock' => ['name' => 'Matlock', 'prefixes' => ['DE4']],
+        ];
+    }
+
     /** The fixed price for a destination, preferring the most specific pickup zone. */
     private function fixedPrice(string $destKey, array $zones, string $slug): ?float
     {
+        // The EDITABLE matrix (office-managed in /pricing) wins, so staff can change a
+        // customer-facing fare themselves. The built-in RULES below are the fallback /
+        // seed — identical values, so nothing changes until a price is actually edited.
+        $db = $this->dbPrice($destKey, $zones, $slug);
+        if ($db !== null) {
+            return $db;
+        }
+
         // Estate is always Executive + uplift (default £10) — derived, never the
         // stored figure, so it can't drift (see FixedPriceService for the same rule).
         if ($slug === 'estate') {
@@ -215,6 +259,38 @@ class QuoteService
                 if (in_array($destKey, $rule['dests'], true) && in_array($zone, $rule['zones'], true)) {
                     return isset($rule['prices'][$slug]) ? (float) $rule['prices'][$slug] : null;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * An office-edited fixed price from the DB (the /pricing editor), or null when
+     * there's no row — then the built-in matrix takes over. Zones are tried most-
+     * specific first (s20 before sheffield). Estate is derived from Executive by
+     * FixedPriceService, same rule as the built-in matrix.
+     */
+    private function dbPrice(string $destKey, array $zones, string $slug): ?float
+    {
+        $vt = VehicleType::where('slug', $slug)->first();
+        if (! $vt) {
+            return null;
+        }
+
+        // Look the row up by the SAME destination name the seeder stored it under, so
+        // the slug (Str::slug) matches.
+        $dest = self::destinationNames()[$destKey] ?? ucwords(str_replace('-', ' ', $destKey));
+
+        $service = app(FixedPriceService::class);
+        foreach ($zones as $zoneSlug) {
+            $zone = \App\Models\PricingZone::where('slug', $zoneSlug)->where('is_active', true)->first();
+            if (! $zone) {
+                continue;
+            }
+            $row = $service->lookup($zone, $dest, $vt);
+            if ($row) {
+                return (float) $row->price;
             }
         }
 
@@ -305,8 +381,35 @@ class QuoteService
         return null;
     }
 
-    /** Pickup zone tokens (specific → general) from a postcode or town name. */
+    /**
+     * Pickup zone slugs, most-specific first. The proven built-in detection always
+     * provides a base zone; any office-defined DB zone whose postcode list contains
+     * this exact outcode is PREPENDED (more specific), so staff can carve out a
+     * dearer "deep" area (e.g. S71 Barnsley Deep) without ever losing the base zone
+     * — so a fixed price always still resolves.
+     */
     private function zonesFor(string $text): array
+    {
+        $base = $this->builtinZonesFor($text);
+        $outward = $this->outward($text);
+        if ($outward === null) {
+            return $base;
+        }
+
+        $extra = \App\Models\PricingZone::where('is_active', true)->get()
+            ->filter(fn ($z) => collect($z->postcode_prefixes ?? [])
+                ->contains(fn ($p) => strtoupper(trim((string) $p)) === $outward))
+            ->sortBy(fn ($z) => count($z->postcode_prefixes ?? [])) // fewest prefixes = most specific
+            ->pluck('slug')
+            ->reject(fn ($slug) => in_array($slug, $base, true))
+            ->values()
+            ->all();
+
+        return array_merge($extra, $base);
+    }
+
+    /** The built-in (code) zone detection — the reliable base, DB layered on top. */
+    private function builtinZonesFor(string $text): array
     {
         $outward = $this->outward($text);
         if ($outward !== null) {
