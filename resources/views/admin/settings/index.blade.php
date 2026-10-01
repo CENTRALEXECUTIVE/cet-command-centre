@@ -129,6 +129,52 @@
             @endif
         </div>
 
+        <div class="card">
+            <h2>💳 Square card payments</h2>
+            <p class="muted" style="margin-top:0">Paste your Square keys to take card payments online. Leave a secret blank to keep the saved one. Once set, add the webhook URL below in your Square dashboard so paid bookings confirm automatically.</p>
+            <div class="grid grid-2" style="gap:12px">
+                <label>Environment
+                    <select name="square_environment">
+                        <option value="production" @selected(($square['environment'] ?? 'production')==='production')>Production (live)</option>
+                        <option value="sandbox" @selected(($square['environment'] ?? '')==='sandbox')>Sandbox (test cards)</option>
+                    </select>
+                </label>
+                <label>Application ID
+                    <input type="text" name="square_app_id" value="{{ $square['app_id'] }}" placeholder="sq0idp-…" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Access token
+                    <input type="text" name="square_access_token" value="{{ $square['access_token'] }}" placeholder="EAAA…" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Location ID
+                    <input type="text" name="square_location_id" value="{{ $square['location_id'] }}" placeholder="L…" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Webhook signature key
+                    <input type="text" name="square_webhook_signature_key" value="{{ $square['webhook_signature_key'] }}" placeholder="from Square → Webhooks" autocomplete="off" spellcheck="false">
+                </label>
+            </div>
+            <div class="card" style="margin-top:12px;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10)">
+                <strong>Webhook URL for Square</strong>
+                <p class="muted" style="margin:4px 0 0;font-size:13px">Add this in Square → Developer → Webhooks (event <code>payment.updated</code>):</p>
+                <div class="mono" style="font-size:13px;word-break:break-all;margin-top:4px">{{ $square['webhook_url'] }}</div>
+            </div>
+            <details style="margin-top:12px">
+                <summary style="cursor:pointer;font-weight:700">Sister company (Central Executive Chauffeurs) — optional</summary>
+                <p class="muted" style="font-size:13px;margin:6px 0">Non-VAT fares go to this Square account. Leave blank to use the main account for everything.</p>
+                <div class="grid grid-2" style="gap:12px">
+                    <label>Chauffeurs access token
+                        <input type="text" name="square_chauffeurs_access_token" value="{{ $square['chauffeurs_access_token'] }}" placeholder="EAAA…" autocomplete="off" spellcheck="false">
+                    </label>
+                    <label>Chauffeurs location ID
+                        <input type="text" name="square_chauffeurs_location_id" value="{{ $square['chauffeurs_location_id'] }}" placeholder="L…" autocomplete="off" spellcheck="false">
+                    </label>
+                    <label>Chauffeurs webhook signature key
+                        <input type="text" name="square_chauffeurs_webhook_signature_key" value="" placeholder="leave blank to keep saved" autocomplete="off" spellcheck="false">
+                    </label>
+                </div>
+                <div class="mono" style="font-size:13px;word-break:break-all;margin-top:6px">{{ $square['chauffeurs_webhook_url'] }}</div>
+            </details>
+        </div>
+
         <button type="submit" class="btn btn-primary">Save</button>
     </form>
 

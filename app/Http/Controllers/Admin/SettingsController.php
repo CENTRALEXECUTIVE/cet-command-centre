@@ -40,6 +40,17 @@ class SettingsController extends Controller
             ],
             'smsWebhook' => $base.'/webhooks/sms'.$suffix,
             'voiceWebhook' => $base.'/webhooks/voice'.$suffix,
+            'square' => [
+                'environment' => Setting::get('square_environment') ?: config('services.square.environment', 'production'),
+                'app_id' => Setting::get('square_app_id') ?: config('services.square.app_id'),
+                'access_token' => Setting::get('square_access_token') ?: config('services.square.access_token'),
+                'location_id' => Setting::get('square_location_id') ?: config('services.square.location_id'),
+                'webhook_signature_key' => Setting::get('square_webhook_signature_key') ?: config('services.square.webhook_signature_key'),
+                'chauffeurs_access_token' => Setting::get('square_chauffeurs_access_token') ?: config('services.square_chauffeurs.access_token'),
+                'chauffeurs_location_id' => Setting::get('square_chauffeurs_location_id') ?: config('services.square_chauffeurs.location_id'),
+                'webhook_url' => $base.'/webhooks/square',
+                'chauffeurs_webhook_url' => $base.'/webhooks/square-chauffeurs',
+            ],
         ]);
     }
 
@@ -59,6 +70,14 @@ class SettingsController extends Controller
             'invoice_bank_sort' => ['nullable', 'string', 'max:12'],
             'invoice_bank_account' => ['nullable', 'string', 'max:20'],
             'invoice_footer_note' => ['nullable', 'string', 'max:500'],
+            'square_environment' => ['nullable', 'in:production,sandbox'],
+            'square_app_id' => ['nullable', 'string', 'max:120'],
+            'square_access_token' => ['nullable', 'string', 'max:255'],
+            'square_location_id' => ['nullable', 'string', 'max:120'],
+            'square_webhook_signature_key' => ['nullable', 'string', 'max:255'],
+            'square_chauffeurs_access_token' => ['nullable', 'string', 'max:255'],
+            'square_chauffeurs_location_id' => ['nullable', 'string', 'max:120'],
+            'square_chauffeurs_webhook_signature_key' => ['nullable', 'string', 'max:255'],
         ]);
 
         Setting::set('google_maps_key', trim((string) ($data['google_maps_key'] ?? '')), 'string', 'integrations');
@@ -72,6 +91,18 @@ class SettingsController extends Controller
             'invoice_bank_name', 'invoice_bank_sort', 'invoice_bank_account', 'invoice_footer_note',
         ] as $key) {
             Setting::set($key, trim((string) ($data[$key] ?? '')), 'string', 'invoicing');
+        }
+
+        // Square payment keys (in-app wins over .env). Only overwrite when a value was
+        // provided, so leaving a secret field blank doesn't wipe a saved key.
+        foreach ([
+            'square_environment', 'square_app_id', 'square_access_token', 'square_location_id',
+            'square_webhook_signature_key', 'square_chauffeurs_access_token',
+            'square_chauffeurs_location_id', 'square_chauffeurs_webhook_signature_key',
+        ] as $key) {
+            if (array_key_exists($key, $data) && trim((string) ($data[$key] ?? '')) !== '') {
+                Setting::set($key, trim((string) $data[$key]), 'string', 'payments');
+            }
         }
 
         return back()->with('status', 'Settings saved.');

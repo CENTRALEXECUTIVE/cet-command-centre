@@ -32,13 +32,30 @@ class SquareBookingPaymentService
      */
     private function account(string $entity = 'transfers'): array
     {
-        $main = (array) config('services.square');
+        // In-app Settings win over .env, so keys can be pasted in the admin without a
+        // deploy (mirrors the Google Maps key pattern).
+        $setting = fn (string $key, string $configKey) => \App\Models\Setting::get($key) ?: config($configKey);
+
+        $main = [
+            'access_token' => $setting('square_access_token', 'services.square.access_token'),
+            'location_id' => $setting('square_location_id', 'services.square.location_id'),
+            'app_id' => $setting('square_app_id', 'services.square.app_id'),
+            'environment' => $setting('square_environment', 'services.square.environment') ?: 'production',
+            'webhook_signature_key' => $setting('square_webhook_signature_key', 'services.square.webhook_signature_key'),
+        ];
         if ($entity !== 'chauffeurs') {
             return $main;
         }
-        $sister = (array) config('services.square_chauffeurs');
 
-        return (filled($sister['access_token'] ?? null) && filled($sister['location_id'] ?? null))
+        $sister = [
+            'access_token' => $setting('square_chauffeurs_access_token', 'services.square_chauffeurs.access_token'),
+            'location_id' => $setting('square_chauffeurs_location_id', 'services.square_chauffeurs.location_id'),
+            'app_id' => $setting('square_chauffeurs_app_id', 'services.square_chauffeurs.app_id'),
+            'environment' => $setting('square_chauffeurs_environment', 'services.square_chauffeurs.environment') ?: $main['environment'],
+            'webhook_signature_key' => $setting('square_chauffeurs_webhook_signature_key', 'services.square_chauffeurs.webhook_signature_key'),
+        ];
+
+        return (filled($sister['access_token']) && filled($sister['location_id']))
             ? array_merge($main, array_filter($sister, fn ($v) => $v !== null && $v !== ''))
             : $main;
     }
