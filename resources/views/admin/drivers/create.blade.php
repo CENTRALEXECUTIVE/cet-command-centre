@@ -20,8 +20,8 @@
                 <label>Full name
                     <input type="text" name="name" value="{{ old('name') }}" required>
                 </label>
-                <label>Email (their login)
-                    <input type="email" name="email" value="{{ old('email') }}" required>
+                <label>Email (their login) <span class="muted" style="font-weight:400;font-size:13px">— optional</span>
+                    <input type="email" name="email" value="{{ old('email') }}" placeholder="Leave blank if they don’t log in (e.g. a cover driver)">
                 </label>
                 <label>Phone
                     <input type="text" name="phone" value="{{ old('phone') }}">

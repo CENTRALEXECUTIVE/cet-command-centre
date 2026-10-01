@@ -60,6 +60,42 @@ class AdminDriverManagementTest extends TestCase
         $this->assertNotNull($driver->password); // a password was set
     }
 
+    public function test_a_driver_can_be_created_without_an_email(): void
+    {
+        // A cover / third-party driver the office dispatches and messages on their
+        // phone needs no login — email can be skipped. The account is still created,
+        // with a non-routable placeholder login, and reads as "no app login".
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('drivers.store'), [
+            'name' => 'Aamer Hanif', 'phone' => '+447956717922', 'callsign' => 'Aamer',
+            'is_third_party' => '1',
+            // no email
+        ])->assertRedirect()->assertSessionHas('status');
+
+        $driver = User::where('name', 'Aamer Hanif')->first();
+        $this->assertNotNull($driver);
+        $this->assertFalse($driver->hasAppLogin());
+        $this->assertNull($driver->displayEmail());
+        $this->assertStringEndsWith('@no-login.cet', $driver->email);
+        // Still a usable driver record — profile created, phone kept.
+        $this->assertNotNull($driver->driverProfile);
+        $this->assertSame('+447956717922', $driver->phone);
+    }
+
+    public function test_two_drivers_without_an_email_do_not_clash(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('drivers.store'), ['name' => 'Cover One'])->assertRedirect();
+        $this->actingAs($admin)->post(route('drivers.store'), ['name' => 'Cover Two'])->assertRedirect();
+
+        $this->assertNotSame(
+            User::where('name', 'Cover One')->value('email'),
+            User::where('name', 'Cover Two')->value('email'),
+        );
+    }
+
     public function test_non_admin_cannot_create_drivers(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

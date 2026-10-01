@@ -26,8 +26,9 @@
                         <input id="name" type="text" name="name" value="{{ old('name', $driver->name) }}" required>
                     </div>
                     <div class="field">
-                        <label for="email">Email (login)</label>
-                        <input id="email" type="email" name="email" value="{{ old('email', $driver->email) }}" required>
+                        <label for="email">Email (login) <span class="muted" style="font-weight:400;font-size:13px">— optional</span></label>
+                        @php $realEmail = \Illuminate\Support\Str::endsWith($driver->email, '@no-login.cet') ? '' : $driver->email; @endphp
+                        <input id="email" type="email" name="email" value="{{ old('email', $realEmail) }}" placeholder="Leave blank if they don’t log in">
                     </div>
                     <div class="field">
                         <label for="phone">Phone</label>

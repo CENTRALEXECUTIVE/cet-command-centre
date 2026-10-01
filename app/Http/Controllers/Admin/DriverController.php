@@ -30,7 +30,9 @@ class DriverController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
+            // Email is the login, but it's OPTIONAL — a cover / third-party driver the
+            // office dispatches and messages on their phone doesn't need to log in.
+            'email' => ['nullable', 'email', 'max:190', Rule::unique('users', 'email')],
             'phone' => ['nullable', 'string', 'max:32'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],
             'callsign' => ['nullable', 'string', 'max:40'],
@@ -44,12 +46,19 @@ class DriverController extends Controller
             'vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')],
         ]);
 
+        // No email given → the driver has no app login (dispatched/messaged on their
+        // phone). Synthesise a unique, non-routable placeholder so the account can
+        // exist without a real inbox — keeps the not-null/unique column happy with no
+        // schema change. "@no-login.cet" is deliberately unroutable so nothing mails it.
+        $hasLogin = filled($data['email'] ?? null);
+        $email = $hasLogin ? $data['email'] : 'driver-'.Str::lower(Str::random(12)).'@no-login.cet';
+
         // Use the given password, or generate a shareable one to show once.
         $plainPassword = $data['password'] ?? Str::password(12);
 
         $user = User::create([
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => $email,
             'phone' => $data['phone'] ?? null,
             'password' => $plainPassword, // hashed by the model cast
             'role' => UserRole::Driver->value,
@@ -79,9 +88,13 @@ class DriverController extends Controller
             'is_available' => true,
         ]);
 
+        $loginLine = $hasLogin
+            ? "Login: {$user->email} · password: {$plainPassword} (share it, then they can change it)."
+            : 'No email login — dispatch and message them on their phone. (Add an email later if they need the driver app.)';
+
         return redirect()
             ->route('driver-documents.show', $user)
-            ->with('status', "Driver {$user->name} created. Login: {$user->email} · password: {$plainPassword} (share it, then they can change it). Now add their documents below.");
+            ->with('status', "Driver {$user->name} created. {$loginLine} Now add their documents below.");
     }
 
     public function edit(User $user): View
@@ -107,7 +120,9 @@ class DriverController extends Controller
         $data = $request->validate([
             // Account.
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
+            // Optional — a driver with no app login keeps their placeholder; leaving
+            // it blank doesn't wipe an existing login.
+            'email' => ['nullable', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:32'],
             'is_active' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],
@@ -140,7 +155,8 @@ class DriverController extends Controller
 
         $user->fill([
             'name' => $data['name'],
-            'email' => $data['email'],
+            // Keep the existing login (real or placeholder) when the field is left blank.
+            'email' => filled($data['email'] ?? null) ? $data['email'] : $user->email,
             'phone' => $data['phone'] ?? null,
             'is_active' => (bool) ($data['is_active'] ?? false),
         ]);

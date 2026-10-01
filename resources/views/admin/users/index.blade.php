@@ -62,7 +62,7 @@
                                 {{ $u->name }}@if($u->nickname())<span class="muted" style="font-size:12px"> · {{ $u->nickname() }}</span>@endif
                                 @if($u->id === $me)<span class="badge" style="background:var(--gold);color:#111;font-size:11px;margin-left:6px">You</span>@endif
                             </td>
-                            <td data-label="Email" class="muted" style="font-size:13px">{{ $u->email }}</td>
+                            <td data-label="Email" class="muted" style="font-size:13px">{{ $u->displayEmail() ?? '— no login' }}</td>
                             <td data-label="Role">
                                 @if($u->is_super_admin)<span class="badge" style="background:#0b0b0b;color:#FBBA2A">Super admin</span>
                                 @else<span class="badge">{{ $u->role->label() }}</span>@endif

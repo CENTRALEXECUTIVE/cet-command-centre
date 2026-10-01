@@ -239,6 +239,22 @@ class User extends Authenticatable
         return (bool) $this->is_super_admin && $this->role === UserRole::Admin;
     }
 
+    /**
+     * Does this user have a real email login? A driver added without an email
+     * carries a non-routable "@no-login.cet" placeholder so the account can exist
+     * without a login — they're dispatched and messaged on their phone instead.
+     */
+    public function hasAppLogin(): bool
+    {
+        return filled($this->email) && ! str_ends_with((string) $this->email, '@no-login.cet');
+    }
+
+    /** The email to SHOW — null for a placeholder login, so the UI shows "—". */
+    public function displayEmail(): ?string
+    {
+        return $this->hasAppLogin() ? $this->email : null;
+    }
+
     public function isDriver(): bool
     {
         return $this->role === UserRole::Driver;
