@@ -1079,6 +1079,7 @@
                     var totNotes = [];
                     if (vat) totNotes.push('inc. VAT');
                     if (mgFee() > 0) totNotes.push('including meet &amp; greet');
+                    if (lastQuote.surchargeLabel) totNotes.push('includes ' + lastQuote.surchargeLabel);
                     html += '<div class="row tot"><span class="k">Total</span><span class="v">' + money(currentTotal())
                         + (totNotes.length ? ' <span style="font-size:11px;color:var(--muted-2)">' + totNotes.join(' · ') + '</span>' : '') + '</span></div>';
                 } else if (lastQuote && lastQuote.formatted) {
@@ -1133,7 +1134,7 @@
                 card.classList.add('sel');
                 var input = card.querySelector('input'); if (input) input.checked = true;
                 var q = priceById[card.dataset.id];
-                lastQuote = q ? { formatted: q.poa ? 'On request' : q.formatted, price: q.price, poa: !!q.poa } : null;
+                lastQuote = q ? { formatted: q.poa ? 'On request' : q.formatted, price: q.price, poa: !!q.poa, surchargeLabel: q.surcharge_label || null } : null;
             }
 
             // ETO-style extras: +/- steppers, the meet & greet toggle, and a live
@@ -1524,13 +1525,14 @@
                 function withPc(addr, pcId){ var pc=(document.getElementById(pcId)||{}).value||''; pc=pc.trim();
                     return (pc && addr.toUpperCase().indexOf(pc.toUpperCase())===-1) ? addr+', '+pc : addr; }
                 var pickup = withPc(pu.value, 'b-pickup-pc'), dest = withPc(dp.value, 'b-dropoff-pc');
-                var key = pickup + '|' + dest;
+                var pickupAt = (document.getElementById('b-when') || {}).value || '';
+                var key = pickup + '|' + dest + '|' + pickupAt; // time can change night/holiday pricing
                 if (key === pricesFor && Object.keys(priceById).length) { renderPrices(); reportHeight(); return; }
                 form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) { el.textContent = '…'; });
                 fetch('{{ route('widget.prices') }}', {
                     method:'POST',
                     headers:{ 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN':token },
-                    body:JSON.stringify({ pickup:pickup, destination:dest })
+                    body:JSON.stringify({ pickup:pickup, destination:dest, pickup_at:pickupAt })
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {

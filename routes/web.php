@@ -384,6 +384,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Booking settings — min lead time, estate uplift, VAT, driver pay, policies.
         Route::get('settings/booking', [\App\Http\Controllers\Admin\BookingSettingsController::class, 'index'])->name('booking-settings.index');
         Route::put('settings/booking', [\App\Http\Controllers\Admin\BookingSettingsController::class, 'update'])->name('booking-settings.update');
+        // Time-based pricing — night surcharge + dated (holiday) uplifts.
+        Route::get('settings/time-pricing', [\App\Http\Controllers\Admin\TimeSurchargeController::class, 'index'])->name('time-surcharges.index');
+        Route::put('settings/time-pricing', [\App\Http\Controllers\Admin\TimeSurchargeController::class, 'update'])->name('time-surcharges.update');
         Route::get('settings/vouchers', [\App\Http\Controllers\Admin\VoucherController::class, 'index'])->name('vouchers.index');
         Route::post('settings/vouchers', [\App\Http\Controllers\Admin\VoucherController::class, 'store'])->name('vouchers.store');
         Route::put('settings/vouchers/{voucher}', [\App\Http\Controllers\Admin\VoucherController::class, 'update'])->name('vouchers.update');

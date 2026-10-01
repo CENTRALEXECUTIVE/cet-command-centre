@@ -166,9 +166,9 @@ class QuoteService
     ];
 
     /**
-     * @return array{price: float|null, basis: string, miles: float|null, fixed: bool}
+     * @return array{price: float|null, basis: string, miles: float|null, fixed: bool, surcharge?: float, surcharge_label?: string|null}
      */
-    public function quote(string $pickup, string $destination, VehicleType $vehicleType): array
+    public function quote(string $pickup, string $destination, VehicleType $vehicleType, ?\Illuminate\Support\Carbon $pickupAt = null): array
     {
         $slug = (string) $vehicleType->slug;
 
@@ -177,7 +177,10 @@ class QuoteService
         if ($destKey !== null) {
             $price = $this->fixedPrice($destKey, $this->zonesFor($localText), $slug);
             if ($price !== null) {
-                return ['price' => $price, 'basis' => 'Fixed price', 'miles' => null, 'fixed' => true];
+                return $this->withTimeSurcharge(
+                    ['price' => $price, 'basis' => 'Fixed price', 'miles' => null, 'fixed' => true],
+                    $pickupAt,
+                );
             }
         }
 
@@ -188,13 +191,26 @@ class QuoteService
         $d = $this->distance->resolve($pickup, $destination);
         $price = $this->freeRoam->price($slug, $d['miles']);
 
-        return [
+        return $this->withTimeSurcharge([
             'price' => $price,
             // Customer-facing label — no internal "free roam" jargon; just the distance.
             'basis' => $d['miles'].' miles'.($d['source'] === 'estimate' ? ' (est.)' : ''),
             'miles' => $d['miles'],
             'fixed' => false,
-        ];
+        ], $pickupAt);
+    }
+
+    /** Add any office-defined night / holiday surcharge for the pickup time to a quote. */
+    private function withTimeSurcharge(array $quote, ?\Illuminate\Support\Carbon $pickupAt): array
+    {
+        $surcharge = \App\Support\TimeSurcharges::surchargeFor($pickupAt, (float) ($quote['price'] ?? 0));
+        $quote['surcharge'] = $surcharge;
+        $quote['surcharge_label'] = $surcharge > 0 ? \App\Support\TimeSurcharges::labelFor($pickupAt) : null;
+        if ($surcharge > 0 && $quote['price'] !== null) {
+            $quote['price'] = round((float) $quote['price'] + $surcharge, 2);
+        }
+
+        return $quote;
     }
 
     /** The built-in matrix, exposed so the seeder can mirror it into the editable DB. */

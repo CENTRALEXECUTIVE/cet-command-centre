@@ -190,13 +190,16 @@ class BookingWidgetController extends Controller
         $data = $request->validate([
             'pickup' => ['required', 'string', 'max:500'],
             'destination' => ['required', 'string', 'max:500'],
+            'pickup_at' => ['nullable', 'string', 'max:40'],
         ]);
+
+        $pickupAt = $this->parsePickupAt($data['pickup_at'] ?? null);
 
         $options = VehicleType::where('is_active', true)
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug'])
-            ->map(function (VehicleType $type) use ($data) {
-                $q = $this->quotes->quote($data['pickup'], $data['destination'], $type);
+            ->map(function (VehicleType $type) use ($data, $pickupAt) {
+                $q = $this->quotes->quote($data['pickup'], $data['destination'], $type, $pickupAt);
 
                 return [
                     'id' => $type->id,
@@ -204,6 +207,9 @@ class BookingWidgetController extends Controller
                     'fixed' => $q['fixed'],
                     'poa' => $q['price'] === null,
                     'formatted' => $q['price'] !== null ? '£'.number_format($q['price'], 0) : 'On request',
+                    // When an office night/holiday surcharge applied, so the widget can note it.
+                    'surcharge' => $q['surcharge'] ?? 0,
+                    'surcharge_label' => $q['surcharge_label'] ?? null,
                 ];
             })->values();
 
@@ -349,7 +355,7 @@ class BookingWidgetController extends Controller
         // hire has no fixed route — the office confirms the price.
         $quote = $isHourly
             ? ['price' => null, 'basis' => 'Hourly hire — office to confirm', 'fixed' => false]
-            : $this->quotes->quote($pickupFull, $destination, $vehicleType);
+            : $this->quotes->quote($pickupFull, $destination, $vehicleType, $pickupAt);
 
         // "On request" vehicle (Rolls Royce / any POA class): no online price and
         // no payment method — it's a REQUEST A QUOTE. We take the full details and
@@ -712,6 +718,21 @@ class BookingWidgetController extends Controller
         }
 
         return $address === '' ? $postcode : $address.', '.$postcode;
+    }
+
+    /** Parse the widget's datetime-local pickup string to a UK-local Carbon, or null. */
+    private function parsePickupAt(?string $value): ?Carbon
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d\TH:i', $value, config('app.timezone'))
+                ?: Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** Match a customer by phone (then email), else create one. */
