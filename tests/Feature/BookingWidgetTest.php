@@ -732,6 +732,47 @@ class BookingWidgetTest extends TestCase
         $this->assertNull($booking->quoted_price);
     }
 
+    public function test_a_one_way_airport_pickup_forces_meet_and_greet_into_the_fare(): void
+    {
+        // Meet & greet is mandatory on an airport arrival and baked into the price —
+        // forced on server-side even if the form didn't send it, and the £10 is added
+        // to the stored fare (so £105 executive → £115).
+        config(['cet.surcharges.meet_greet' => 10]);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield S1 2HH',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 1,
+            'customer_name' => 'Arrival Annie', 'customer_phone' => '07464905385',
+            'customer_email' => 'annie@example.com',
+            'flight_number' => 'BA1368', 'flight_landing_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            // NB: no meet_greet sent — the server must force it.
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertTrue((bool) ($b->meta['meet_greet'] ?? false));
+        $this->assertEqualsWithDelta(115.0, (float) $b->quoted_price, 0.01); // 105 + 10 m&g
+    }
+
+    public function test_a_one_way_airport_departure_gets_no_meet_and_greet(): void
+    {
+        // Dropping someone AT the airport is not an arrival — no meet & greet, £105.
+        config(['cet.surcharges.meet_greet' => 10]);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport (MAN)',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 1,
+            'customer_name' => 'Departing Dave', 'customer_phone' => '07464905385',
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertFalse((bool) ($b->meta['meet_greet'] ?? false));
+        $this->assertEqualsWithDelta(105.0, (float) $b->quoted_price, 0.01);
+    }
+
     public function test_a_normal_minibus_party_stays_a_standard_minibus(): void
     {
         $minibus = VehicleType::where('slug', 'minibus-8')->first();

@@ -1074,10 +1074,13 @@
                 items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
                 var vat = vatOn();
                 if (lastQuote && !lastQuote.poa && lastQuote.price != null) {
-                    var net = Number(lastQuote.price) + extrasTotal();
+                    var net = Number(lastQuote.price) + mgFee() + extrasTotal();
                     if (vat) html += row('VAT (' + vatPercent + '%)', money(net * vatPercent / 100));
+                    var totNotes = [];
+                    if (vat) totNotes.push('inc. VAT');
+                    if (mgFee() > 0) totNotes.push('including meet &amp; greet');
                     html += '<div class="row tot"><span class="k">Total</span><span class="v">' + money(currentTotal())
-                        + (vat ? ' <span style="font-size:11px;color:var(--muted-2)">inc. VAT</span>' : '') + '</span></div>';
+                        + (totNotes.length ? ' <span style="font-size:11px;color:var(--muted-2)">' + totNotes.join(' · ') + '</span>' : '') + '</span></div>';
                 } else if (lastQuote && lastQuote.formatted) {
                     html += '<div class="row tot"><span class="k">Total</span><span class="v">' + lastQuote.formatted + '</span></div>';
                 }
@@ -1138,18 +1141,35 @@
             function money(n){ return '£' + Number(n).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:0}); }
             function vatOn(){ var y = document.getElementById('b-vat-yes'); return !!(y && y.checked); }
             function withVat(base){ return vatOn() ? Math.round(base * (1 + vatPercent / 100)) : Math.round(base); }
+            // Meet & greet is MANDATORY on an airport arrival (a one-way airport pickup,
+            // or any return touching an airport) — the driver waits in arrivals with a
+            // name board. It's baked into the price (shown on the vehicle cards and the
+            // total), never offered as a removable tick, so it can't be dropped.
+            function mgApplies() {
+                var jt = journeyEl ? journeyEl.value : 'one_way';
+                var isReturn = jt === 'return';
+                return isAirportPickup() || (isReturn && (isAirportPickup() || isAirportDropoff()));
+            }
+            function mgFee() {
+                return (mgApplies() && mg) ? (parseFloat(mg.dataset.extra) || 0) : 0;
+            }
             // The all-in total for the selected vehicle, or null when it's on request.
             function currentTotal() {
                 if (!lastQuote || lastQuote.poa || lastQuote.price == null) return null;
-                return withVat(Number(lastQuote.price) + extrasTotal());
+                return withVat(Number(lastQuote.price) + mgFee() + extrasTotal());
             }
             // The prominent Total-price band on the details step.
             function updateTotal() {
                 var el = document.getElementById('b-total-amt'); if (!el) return;
                 var t = currentTotal();
-                el.innerHTML = (t == null) ? 'Office to confirm' : money(t) + (vatOn() ? ' <small>inc. VAT</small>' : '');
+                if (t == null) { el.innerHTML = 'Office to confirm'; return; }
+                var notes = [];
+                if (vatOn()) notes.push('inc. VAT');
+                if (mgFee() > 0) notes.push('incl. meet &amp; greet');
+                el.innerHTML = money(t) + (notes.length ? ' <small>' + notes.join(' · ') + '</small>' : '');
             }
-            // Put the current price on each vehicle card (VAT added when wanted).
+            // Put the current price on each vehicle card (VAT added when wanted). Airport
+            // arrivals include the mandatory meet & greet in the shown price.
             function renderPrices() {
                 form.querySelectorAll('.cet-veh').forEach(function (card) {
                     var el = card.querySelector('[data-price]'); if (!el) return;
@@ -1157,7 +1177,7 @@
                     if (!o) { el.textContent = ''; el.classList.remove('poa'); return; }
                     if (o.poa || o.price == null) { el.classList.add('poa'); el.textContent = 'On request'; return; }
                     el.classList.remove('poa');
-                    el.textContent = money(withVat(o.price));
+                    el.textContent = money(withVat(o.price + mgFee()));
                 });
             }
             // Total child/booster/infant seats we can carry across all three types.
@@ -1243,11 +1263,12 @@
 
                 var wrap = document.getElementById('b-mg-wrap');
                 if (wrap && mg) {
-                    wrap.hidden = !arrival;               // meet & greet only when meeting an arrival
-                    if (isReturn && anyAir) { mg.checked = true; }        // forced on for airport returns
-                    else if (arrival) { if (!mg.dataset.userset) mg.checked = true; }
-                    else { mg.checked = false; }
-                    wrap.classList.toggle('on', mg.checked);
+                    // Meet & greet is mandatory on an arrival and baked into the price —
+                    // never shown as a removable option (so it can't be dropped). The
+                    // hidden checkbox still carries meet_greet=1 to the server.
+                    wrap.hidden = true;
+                    wrap.classList.remove('on');
+                    mg.checked = arrival;
                 }
 
                 var ff = document.getElementById('b-flight-field');
@@ -1440,8 +1461,10 @@
             })();
 
             function extrasList() {
+                // NB: meet & greet is NOT listed here — on an airport arrival it's
+                // mandatory and baked into the price (mgFee), shown as "including meet
+                // & greet" on the total rather than as a removable line item.
                 var items = [];
-                if (mg && mg.checked) items.push({ label: 'Meet & greet', amount: parseFloat(mg.dataset.extra) || 0 });
                 [['b-child_seats','Child seat'],['b-booster_seats','Booster seat'],
                  ['b-infant_seats','Infant seat']].forEach(function (p) {
                     var el = document.getElementById(p[0]); if (!el) return;

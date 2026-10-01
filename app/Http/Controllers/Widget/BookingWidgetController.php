@@ -302,9 +302,11 @@ class BookingWidgetController extends Controller
             }
         }
 
-        // A return journey that touches an airport ALWAYS gets meet & greet — the
-        // driver waits in arrivals with a name board, no matter what.
-        if ($isReturn && $isAirportArrival) {
+        // Any airport ARRIVAL (a one-way airport pickup, or any return touching an
+        // airport) ALWAYS gets meet & greet — the driver waits in arrivals with a name
+        // board. It's mandatory and baked into the price, never a removable option, so
+        // force it on here regardless of what the form submitted.
+        if ($isAirportArrival) {
             $data['meet_greet'] = true;
         }
 
