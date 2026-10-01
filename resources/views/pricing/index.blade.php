@@ -3,7 +3,7 @@
 
 @section('content')
     <h1 class="page-title">Fixed Prices</h1>
-    <p class="page-sub">Set a fixed fare per zone → destination, per vehicle type — mirrors your ETO Fixed Prices screen.</p>
+    <p class="page-sub">Set a fixed fare per zone → destination, per vehicle type — mirrors your ETO Fixed Prices screen. · <a href="{{ route('zones.index') }}">Manage zones &amp; postcodes →</a></p>
 
     @if($errors->any())<div class="alert alert-error">{{ $errors->first() }}</div>@endif
 

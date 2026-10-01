@@ -376,6 +376,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('pricing', [FixedPriceController::class, 'index'])->name('pricing.index');
         Route::post('pricing', [FixedPriceController::class, 'store'])->name('pricing.store');
         Route::delete('pricing', [FixedPriceController::class, 'destroy'])->name('pricing.destroy');
+        // Pricing zones — pickup areas + their postcode coverage (e.g. "deep" areas).
+        Route::get('settings/zones', [\App\Http\Controllers\Admin\PricingZoneController::class, 'index'])->name('zones.index');
+        Route::post('settings/zones', [\App\Http\Controllers\Admin\PricingZoneController::class, 'store'])->name('zones.store');
+        Route::put('settings/zones/{zone}', [\App\Http\Controllers\Admin\PricingZoneController::class, 'update'])->name('zones.update');
         Route::get('waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
         Route::post('waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
 
