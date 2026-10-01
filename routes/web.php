@@ -380,6 +380,11 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('settings/zones', [\App\Http\Controllers\Admin\PricingZoneController::class, 'index'])->name('zones.index');
         Route::post('settings/zones', [\App\Http\Controllers\Admin\PricingZoneController::class, 'store'])->name('zones.store');
         Route::put('settings/zones/{zone}', [\App\Http\Controllers\Admin\PricingZoneController::class, 'update'])->name('zones.update');
+        // Discount codes (vouchers) — % or £ off, optional cap + date window.
+        Route::get('settings/vouchers', [\App\Http\Controllers\Admin\VoucherController::class, 'index'])->name('vouchers.index');
+        Route::post('settings/vouchers', [\App\Http\Controllers\Admin\VoucherController::class, 'store'])->name('vouchers.store');
+        Route::put('settings/vouchers/{voucher}', [\App\Http\Controllers\Admin\VoucherController::class, 'update'])->name('vouchers.update');
+        Route::delete('settings/vouchers/{voucher}', [\App\Http\Controllers\Admin\VoucherController::class, 'destroy'])->name('vouchers.destroy');
         Route::get('waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
         Route::post('waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
 
