@@ -10,6 +10,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -46,6 +47,24 @@ class DriverController extends Controller
             'vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')],
         ]);
 
+        // Already on CET? If this registration is already a driver's vehicle, this
+        // person is on the system (often added via the driver directory) — don't
+        // create a duplicate (the plate is unique, so a second insert 500s). Take the
+        // office straight to that driver's record to add/update their documents.
+        if (! empty($data['registration'])) {
+            $reg = strtoupper(trim($data['registration']));
+            $existingVehicle = Vehicle::where('registration', $reg)->first();
+            $owner = $existingVehicle
+                ? User::where('role', UserRole::Driver->value)
+                    ->whereHas('driverProfile', fn ($q) => $q->where('default_vehicle_id', $existingVehicle->id))
+                    ->first()
+                : null;
+            if ($owner) {
+                return redirect()->route('driver-documents.show', $owner)
+                    ->with('status', "{$owner->name} ({$reg}) is already on CET — no need to add them again. Add or update their documents below.");
+            }
+        }
+
         // No email given → the driver has no app login (dispatched/messaged on their
         // phone). Synthesise a unique, non-routable placeholder so the account can
         // exist without a real inbox — keeps the not-null/unique column happy with no
@@ -56,37 +75,50 @@ class DriverController extends Controller
         // Use the given password, or generate a shareable one to show once.
         $plainPassword = $data['password'] ?? Str::password(12);
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $email,
-            'phone' => $data['phone'] ?? null,
-            'password' => $plainPassword, // hashed by the model cast
-            'role' => UserRole::Driver->value,
-            'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
-
-        $vehicleId = null;
-        if (! empty($data['registration'])) {
-            $vehicle = Vehicle::create([
-                'vehicle_type_id' => $data['vehicle_type_id'] ?? VehicleType::where('slug', 'executive')->value('id'),
-                'registration' => strtoupper($data['registration']),
-                'make' => $data['make'] ?? null,
-                'model' => $data['model'] ?? null,
-                'colour' => $data['colour'] ?? null,
-                'year' => $data['year'] ?? null,
+        // Create the login, vehicle and profile atomically — if anything fails, no
+        // half-made driver is left behind (the earlier 500 created the user but not
+        // the profile, orphaning the account).
+        $user = DB::transaction(function () use ($data, $email, $plainPassword) {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $email,
+                'phone' => $data['phone'] ?? null,
+                'password' => $plainPassword, // hashed by the model cast
+                'role' => UserRole::Driver->value,
                 'is_active' => true,
+                'email_verified_at' => now(),
             ]);
-            $vehicleId = $vehicle->id;
-        }
 
-        DriverProfile::create([
-            'user_id' => $user->id,
-            'callsign' => $data['callsign'] ?? null,
-            'is_third_party' => (bool) ($data['is_third_party'] ?? false),
-            'default_vehicle_id' => $vehicleId,
-            'is_available' => true,
-        ]);
+            $vehicleId = null;
+            if (! empty($data['registration'])) {
+                // Registration is unique — a plate that's already in the system (a
+                // re-submit, or that car added before) must REUSE the existing vehicle,
+                // not blow up with a duplicate-key 500. Match on the plate and refresh
+                // the details given (blank fields never wipe what's already stored).
+                $vehicle = Vehicle::updateOrCreate(
+                    ['registration' => strtoupper(trim($data['registration']))],
+                    array_filter([
+                        'vehicle_type_id' => $data['vehicle_type_id'] ?? VehicleType::where('slug', 'executive')->value('id'),
+                        'make' => $data['make'] ?? null,
+                        'model' => $data['model'] ?? null,
+                        'colour' => $data['colour'] ?? null,
+                        'year' => $data['year'] ?? null,
+                        'is_active' => true,
+                    ], fn ($v) => $v !== null),
+                );
+                $vehicleId = $vehicle->id;
+            }
+
+            DriverProfile::create([
+                'user_id' => $user->id,
+                'callsign' => $data['callsign'] ?? null,
+                'is_third_party' => (bool) ($data['is_third_party'] ?? false),
+                'default_vehicle_id' => $vehicleId,
+                'is_available' => true,
+            ]);
+
+            return $user;
+        });
 
         $loginLine = $hasLogin
             ? "Login: {$user->email} · password: {$plainPassword} (share it, then they can change it)."
@@ -201,7 +233,20 @@ class DriverController extends Controller
                 'is_active' => (bool) ($data['vehicle_active'] ?? true),
             ];
 
-            if ($vehicle) {
+            // Registration is unique. Whether creating or editing, a plate that
+            // already belongs to ANOTHER vehicle must reuse that row rather than
+            // crash on the unique key.
+            $reg = $vehicleData['registration'] ? strtoupper(trim($vehicleData['registration'])) : null;
+            $vehicleData['registration'] = $reg;
+            $clash = $reg
+                ? Vehicle::where('registration', $reg)->when($vehicle, fn ($q) => $q->where('id', '!=', $vehicle->id))->first()
+                : null;
+
+            if ($clash) {
+                // The plate is already on file — update that car and point the driver at it.
+                $clash->update(collect($vehicleData)->except('registration')->all());
+                $profile->default_vehicle_id = $clash->id;
+            } elseif ($vehicle) {
                 $vehicle->update($vehicleData);
             } else {
                 $vehicle = Vehicle::create($vehicleData);

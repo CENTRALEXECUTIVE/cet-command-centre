@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleType;
 use Database\Seeders\VehicleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -94,6 +95,44 @@ class AdminDriverManagementTest extends TestCase
             User::where('name', 'Cover One')->value('email'),
             User::where('name', 'Cover Two')->value('email'),
         );
+    }
+
+    public function test_re_adding_a_driver_whose_plate_is_on_cet_goes_to_their_record(): void
+    {
+        // A driver already on CET (their plate is on file) must be RECOGNISED, not
+        // added again — no duplicate, and definitely no unique-key 500.
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('drivers.store'), [
+            'name' => 'Amer', 'registration' => 'SL22 WCW', 'make' => 'Mercedes', 'model' => 'EQS',
+        ])->assertRedirect();
+        $owner = User::where('name', 'Amer')->firstOrFail();
+        $driversBefore = User::where('role', UserRole::Driver->value)->count();
+
+        // Same plate again (different name, different case) → taken to the existing record.
+        $this->actingAs($admin)->post(route('drivers.store'), [
+            'name' => 'Aamer Hanif', 'registration' => 'sl22 wcw', 'callsign' => 'Aamer',
+        ])->assertRedirect(route('driver-documents.show', $owner))->assertSessionHas('status');
+
+        $this->assertSame($driversBefore, User::where('role', UserRole::Driver->value)->count());
+        $this->assertNull(User::where('name', 'Aamer Hanif')->first());
+        $this->assertSame(1, Vehicle::where('registration', 'SL22 WCW')->count());
+    }
+
+    public function test_adding_a_driver_on_an_orphan_plate_reuses_the_vehicle(): void
+    {
+        // A plate on file but not assigned to any driver is reused, not duplicated.
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $orphan = Vehicle::create(['vehicle_type_id' => $exec->id, 'registration' => 'OR11 PHN', 'is_active' => true]);
+
+        $this->actingAs($admin)->post(route('drivers.store'), [
+            'name' => 'New Driver', 'registration' => 'or11 phn', 'make' => 'Audi',
+        ])->assertRedirect();
+
+        $this->assertSame(1, Vehicle::where('registration', 'OR11 PHN')->count());
+        $driver = User::where('name', 'New Driver')->firstOrFail();
+        $this->assertSame($orphan->id, $driver->driverProfile->default_vehicle_id);
     }
 
     public function test_non_admin_cannot_create_drivers(): void
