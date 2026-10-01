@@ -9,19 +9,25 @@
         $groups = [
             'Pricing' => [
                 ['Fixed prices', 'Set airport &amp; route prices per zone and vehicle.', 'pricing.index', '💷'],
+                ['Pricing zones', 'Pickup areas &amp; the postcodes they cover (deep areas).', 'zones.index', '🗺️'],
                 ['Free-roam rates', 'Distance-based fares, VAT &amp; estate uplift.', 'free-roam.index', '🛣️'],
                 ['Extra prices', 'Meet &amp; greet, child seats, ribbons and more.', 'extras.index', '➕'],
+                ['Time-based pricing', 'Night surcharge &amp; holiday (Christmas/NYE) uplifts.', 'time-surcharges.index', '🌙'],
+                ['Discount codes', 'Promo codes customers enter at checkout.', 'vouchers.index', '🏷️'],
             ],
             'Fleet' => [
                 ['Vehicles', 'Names, capacities, hand luggage, on/off &amp; order.', 'vehicles.index', '🚗'],
                 ['Vehicle photos', 'The pictures customers see on the booking page.', 'fleet-photos.index', '📸'],
             ],
             'Booking channels' => [
+                ['Booking settings', 'Lead time, VAT, driver pay, policies &amp; ops email.', 'booking-settings.index', '⚙️'],
                 ['Web widgets', 'Embed the booking form &amp; price checker on your site.', 'web-widgets.index', '🧩'],
                 ['Online booking page', 'Open the live customer booking page.', 'widget.book', '🌐', true],
+                ['Reviews sent', 'Who&rsquo;s been asked for a Google review.', 'reviews-sent.index', '⭐'],
             ],
             'Integrations' => [
                 ['Keys &amp; phone lines', 'Google Maps key and number-masking phone lines.', 'settings.index', '🔑'],
+                ['Card payments (Square)', 'Paste your Square keys to take card payments.', 'settings.index', '💳'],
             ],
             'People' => [
                 ['Users', 'Drivers, corporate clients and admins.', 'users.index', '👥'],

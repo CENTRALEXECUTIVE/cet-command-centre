@@ -22,7 +22,13 @@ class SettingsHubTest extends TestCase
             ->assertSee('Extra prices')
             ->assertSee('Fixed prices')
             ->assertSee(route('vehicles.index'))
-            ->assertSee(route('extras.index'));
+            ->assertSee(route('extras.index'))
+            // New admin areas are discoverable from the hub.
+            ->assertSee(route('zones.index'))
+            ->assertSee(route('vouchers.index'))
+            ->assertSee(route('booking-settings.index'))
+            ->assertSee(route('time-surcharges.index'))
+            ->assertSee(route('reviews-sent.index'));
     }
 
     public function test_the_notifications_card_is_super_admin_only(): void
