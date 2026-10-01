@@ -27,5 +27,13 @@ class AppServiceProvider extends ServiceProvider
         // renders oversized SVG arrows without Tailwind's utility classes).
         Paginator::defaultView('vendor.pagination.cet');
         Paginator::defaultSimpleView('vendor.pagination.cet');
+
+        // Merge office-editable booking settings over config('cet.*'). Wrapped so a
+        // not-yet-migrated DB (e.g. during `migrate`) can never take the app down.
+        try {
+            \App\Support\BookingSettings::apply();
+        } catch (\Throwable $e) {
+            // Settings table not ready / unreachable — fall back to config defaults.
+        }
     }
 }

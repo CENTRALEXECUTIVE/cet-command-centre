@@ -381,6 +381,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('settings/zones', [\App\Http\Controllers\Admin\PricingZoneController::class, 'store'])->name('zones.store');
         Route::put('settings/zones/{zone}', [\App\Http\Controllers\Admin\PricingZoneController::class, 'update'])->name('zones.update');
         // Discount codes (vouchers) — % or £ off, optional cap + date window.
+        // Booking settings — min lead time, estate uplift, VAT, driver pay, policies.
+        Route::get('settings/booking', [\App\Http\Controllers\Admin\BookingSettingsController::class, 'index'])->name('booking-settings.index');
+        Route::put('settings/booking', [\App\Http\Controllers\Admin\BookingSettingsController::class, 'update'])->name('booking-settings.update');
         Route::get('settings/vouchers', [\App\Http\Controllers\Admin\VoucherController::class, 'index'])->name('vouchers.index');
         Route::post('settings/vouchers', [\App\Http\Controllers\Admin\VoucherController::class, 'store'])->name('vouchers.store');
         Route::put('settings/vouchers/{voucher}', [\App\Http\Controllers\Admin\VoucherController::class, 'update'])->name('vouchers.update');
