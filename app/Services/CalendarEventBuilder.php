@@ -66,8 +66,12 @@ class CalendarEventBuilder
     private function title(Booking $booking, ?string $moneyEmoji): string
     {
         $name = $booking->meta['lead_name'] ?? $booking->customer?->name ?? 'Customer';
-        $where = $booking->meta['where']
-            ?? $booking->airport?->code
+        // Prefer a real airport: the set airport, else one detected from the
+        // addresses (so "Terminal 2, Manchester" reads as MAN, not FREE ROAM),
+        // then any stored/custom where, then the destination word.
+        $where = $booking->airport?->code
+            ?? \App\Support\AirportMatcher::codeFor($booking->pickup_address, $booking->destination_address)
+            ?? $booking->meta['where']
             ?? Str::upper(Str::words($booking->destination_address, 1, ''));
         $tag = $this->tag($booking);
 
@@ -163,6 +167,21 @@ class CalendarEventBuilder
         return $total > 0 ? $total.' Hand Luggage' : 'None';
     }
 
+    /**
+     * "Departure / Arrival / Transfer", with "(Meet & Greet)" appended exactly ONCE
+     * — never twice, even when a stored journey_label already includes it (which was
+     * doubling the suffix on imported bookings).
+     */
+    private function journeyLabel(Booking $booking): string
+    {
+        $label = $booking->meta['journey_label'] ?? 'Transfer';
+        if (! empty($booking->meta['meet_and_greet']) && stripos($label, 'meet') === false) {
+            $label .= ' (Meet & Greet)';
+        }
+
+        return $label;
+    }
+
     /** The "📑 Booking Confirmation" body, bold labels on both sides. */
     private function description(Booking $booking): string
     {
@@ -172,11 +191,7 @@ class CalendarEventBuilder
         // BOTH the title and the description. Meet & Greet is appended inside the
         // header (rule 5). NO blank line follows the header (rule 5 / rule 10).
         $childMark = $this->hasChildSeat($booking) ? ' 🚼' : '';
-        $journey = $meta['journey_label'] ?? 'Transfer';
-        if (! empty($meta['meet_and_greet'])) {
-            $journey .= ' (Meet & Greet)';
-        }
-        $lines[] = '📑 *Booking Confirmation – '.$journey.'*'.$childMark;
+        $lines[] = '📑 *Booking Confirmation – '.$this->journeyLabel($booking).'*'.$childMark;
 
         $add = function (string $label, ?string $value) use (&$lines): void {
             if (filled($value)) {
@@ -234,11 +249,7 @@ class CalendarEventBuilder
         $meta = $booking->meta ?? [];
         $lines = [];
         $childMark = $this->hasChildSeat($booking) ? ' 🚼' : '';
-        $journey = $meta['journey_label'] ?? 'Transfer';
-        if (! empty($meta['meet_and_greet'])) {
-            $journey .= ' (Meet & Greet)';
-        }
-        $lines[] = '📑 *Booking Confirmation – '.$journey.'*'.$childMark;
+        $lines[] = '📑 *Booking Confirmation – '.$this->journeyLabel($booking).'*'.$childMark;
 
         $add = function (string $label, ?string $value) use (&$lines): void {
             if (filled($value)) {

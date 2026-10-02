@@ -306,17 +306,20 @@ class OutlookBookingService
      */
     private function meta(array $parsed, ?int $airportId): array
     {
-        $pickup = strtolower($parsed['pickup_address'] ?? '');
-        $dropoff = strtolower($parsed['destination_address'] ?? '');
+        $pickup = $parsed['pickup_address'] ?? '';
+        $dropoff = $parsed['destination_address'] ?? '';
         $meetGreet = ! empty($parsed['meet_and_greet']);
 
         // Airport in the PICKUP → an arrival (meeting an inbound flight);
         // airport in the DROPOFF → a departure; otherwise a point-to-point transfer.
-        $pickupIsAirport = $airportId && str_contains($pickup, 'airport');
-        $dropoffIsAirport = str_contains($dropoff, 'airport');
+        // Uses the shared matcher so "Terminal 2, Manchester" counts as an airport.
+        $pickupIsAirport = \App\Support\AirportMatcher::isAirport($pickup);
+        $dropoffIsAirport = \App\Support\AirportMatcher::isAirport($dropoff);
 
+        // Store the plain journey type; the calendar builder appends "(Meet & Greet)"
+        // once from the meet_and_greet flag, so it's never doubled.
         if ($pickupIsAirport) {
-            $label = $meetGreet ? 'Arrival (Meet & Greet)' : 'Arrival';
+            $label = 'Arrival';
         } elseif ($dropoffIsAirport || $airportId) {
             $label = 'Departure';
         } else {
@@ -331,8 +334,8 @@ class OutlookBookingService
 
         return array_filter([
             'journey_label' => $label,
-            // Title location: airport code, else FREE ROAM (rule 8).
-            'where' => $this->airportCodeFor($parsed) ?? 'FREE ROAM',
+            // Title location: airport code (incl. "Terminal N, City"), else FREE ROAM (rule 8).
+            'where' => \App\Support\AirportMatcher::codeFor($pickup, $dropoff) ?? 'FREE ROAM',
             // Descriptive luggage, never a bare number (e.g. "1 Suitcase + 1 Hand Luggage").
             'luggage_text' => $this->luggageText((int) ($parsed['suitcases'] ?? 0), (int) ($parsed['hand_luggage'] ?? ($parsed['luggage'] ?? 0))),
             // Discrete counts so the booking pages can show the suitcase / hand
@@ -527,7 +530,10 @@ class OutlookBookingService
 
     private function detectAirport(array $parsed): ?int
     {
-        $code = $this->airportCodeFor($parsed);
+        $code = \App\Support\AirportMatcher::codeFor(
+            $parsed['pickup_address'] ?? null,
+            $parsed['destination_address'] ?? null,
+        );
 
         return $code ? Airport::where('code', $code)->value('id') : null;
     }
