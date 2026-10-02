@@ -356,7 +356,7 @@
         @if($dupes->isNotEmpty())
             <div id="duplicate" class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px;scroll-margin-top:16px">
                 <strong>⚠ Possible duplicate booking</strong>
-                <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off). Keep <strong>this</strong> copy and merge the other in — its driver, tips, calendar link and any missing details fold into this one, then it’s removed. <strong>Your Google Calendar isn’t touched.</strong></p>
+                <p class="hint" style="margin:6px 0 8px">Another live booking looks like the same journey (same time &amp; customer/drop-off, or the <strong>same flight for the same customer</strong>). Keep <strong>this</strong> copy and merge the other in — its driver, tips, calendar link and any missing details fold into this one, then it’s removed. <strong>Your Google Calendar isn’t touched.</strong></p>
                 @foreach($dupes as $d)
                     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(179,32,32,.15)">
                         <span><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</span>

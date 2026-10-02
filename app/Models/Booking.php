@@ -1739,10 +1739,14 @@ class Booking extends Model
     }
 
     /**
-     * Other LIVE bookings that look like the same journey (a likely duplicate):
-     * same pickup minute AND the same customer OR the same drop-off. Cancelled /
-     * no-show jobs are ignored. Used to flag double-bookings that slipped in via
-     * two different references.
+     * Other LIVE bookings that look like the same journey (a likely duplicate), by
+     * EITHER signal:
+     *   • same pickup minute AND same customer OR same drop-off; or
+     *   • the SAME flight number AND same customer within a couple of days — which
+     *     catches an arrival (or departure) entered twice, INCLUDING a paired a/b
+     *     where both legs ended up on the same flight. A genuine return has a
+     *     DIFFERENT flight each way, so it is never false-flagged.
+     * Cancelled / no-show jobs are ignored.
      */
     public function duplicateCandidates(): \Illuminate\Support\Collection
     {
@@ -1752,28 +1756,47 @@ class Booking extends Model
 
         $name = \Illuminate\Support\Str::lower(trim((string) ($this->displayCustomerName() ?? '')));
         $dropoff = \Illuminate\Support\Str::lower(trim((string) $this->destination_address));
+        $flight = strtoupper(trim((string) $this->flight_number));
         $myNotDupe = $this->notDuplicateKeys();
         $myKeys = $this->bookingKeys();
 
         return static::query()
             ->where('id', '!=', $this->id)
             ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
-            ->whereBetween('pickup_at', [$this->pickup_at->copy()->subMinute(), $this->pickup_at->copy()->addMinute()])
+            ->where(function ($q) use ($flight) {
+                // Close in time (the original signal)…
+                $q->whereBetween('pickup_at', [$this->pickup_at->copy()->subMinute(), $this->pickup_at->copy()->addMinute()]);
+                // …or the same flight within a couple of days.
+                if ($flight !== '') {
+                    $q->orWhere(function ($q2) use ($flight) {
+                        $q2->whereRaw('UPPER(flight_number) = ?', [$flight])
+                            ->whereBetween('pickup_at', [$this->pickup_at->copy()->subDays(2), $this->pickup_at->copy()->addDays(2)]);
+                    });
+                }
+            })
             ->with('customer')
             ->get()
-            ->filter(function (self $b) use ($name, $dropoff, $myNotDupe, $myKeys) {
+            ->filter(function (self $b) use ($name, $dropoff, $flight, $myNotDupe, $myKeys) {
                 $bName = \Illuminate\Support\Str::lower(trim((string) ($b->displayCustomerName() ?? '')));
                 $bDrop = \Illuminate\Support\Str::lower(trim((string) $b->destination_address));
+                $bFlight = strtoupper(trim((string) $b->flight_number));
 
-                $looksSame = ($name !== '' && $bName === $name)
-                    || ($dropoff !== '' && $bDrop === $dropoff);
-                if (! $looksSame) {
+                // Same flight + same customer = a duplicate leg (not a real return,
+                // which flies a different number each way).
+                $sameFlight = $flight !== '' && $bFlight === $flight && $name !== '' && $bName === $name;
+
+                // Same minute + same customer/drop-off = a classic double-entry.
+                $closeInTime = $b->pickup_at
+                    && abs($b->pickup_at->diffInSeconds($this->pickup_at)) <= 60
+                    && (($name !== '' && $bName === $name) || ($dropoff !== '' && $bDrop === $dropoff));
+
+                if (! $sameFlight && ! $closeInTime) {
                     return false;
                 }
 
                 // The operator confirmed this pair is NOT a duplicate — two real
-                // separate jobs that happen to share a time. Stay quiet about it
-                // (checked both ways, since the flag is written on both records).
+                // separate jobs. Stay quiet (checked both ways; the flag is written
+                // on both records).
                 $bKeys = $b->bookingKeys();
                 if (array_intersect($bKeys, $myNotDupe) || array_intersect($myKeys, $b->notDuplicateKeys())) {
                     return false;
