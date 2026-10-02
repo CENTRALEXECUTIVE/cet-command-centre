@@ -124,6 +124,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::delete('bookings/{booking}', [BookingController::class, 'destroy'])->middleware('throttle:30,1')->name('bookings.destroy');
+        Route::post('bookings-bulk', [BookingController::class, 'bulk'])->middleware('throttle:30,1')->name('bookings.bulk');
         // Trash: deleted bookings — restore, or purge permanently.
         Route::get('bookings-trash', [BookingController::class, 'trash'])->name('bookings.trash');
         Route::post('bookings/{booking}/restore', [BookingController::class, 'restore'])->middleware('throttle:30,1')->name('bookings.restore')->withTrashed();

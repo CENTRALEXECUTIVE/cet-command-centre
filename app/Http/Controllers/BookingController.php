@@ -546,6 +546,31 @@ class BookingController extends Controller
                 .'If it was on Google Calendar, remove that event by hand — the calendar is never touched automatically.');
     }
 
+    /** Bulk action on several bookings from the list (currently: delete). */
+    public function bulk(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'action' => ['required', 'in:delete'],
+            'ids' => ['required', 'string'],
+        ]);
+
+        $ids = collect(explode(',', $data['ids']))
+            ->map(fn ($id) => (int) trim($id))->filter()->unique()->values();
+
+        $count = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($ids, &$count) {
+            foreach (Booking::whereIn('id', $ids)->get() as $booking) {
+                Booking::withTrashed()->find($booking->linked_booking_id)?->delete();
+                $booking->delete();
+                $count++;
+            }
+        });
+
+        return back()->with('status', "{$count} booking(s) deleted — they're in the Trash and recoverable. Google Calendar is untouched.");
+    }
+
     /** The trash: recently deleted bookings an admin can restore or purge. */
     public function trash(Request $request): View
     {

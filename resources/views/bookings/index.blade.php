@@ -23,6 +23,7 @@
                 <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="padding:9px 16px;white-space:nowrap">+ New</a>
             @endif
             @if(auth()->user()->isAdmin())
+                <button type="button" id="bulk-toggle" class="btn btn-ghost" style="padding:9px 14px;white-space:nowrap" title="Select several to delete">☑ Select</button>
                 <a href="{{ route('bookings.trash') }}" class="btn btn-ghost" style="padding:9px 14px;white-space:nowrap" title="Deleted bookings">🗑️ Trash</a>
             @endif
         </div>
@@ -140,7 +141,7 @@
                     <div class="bk-day-label">{{ $dayLabel($day) }} <span class="bk-day-count">{{ $dayBookings->count() }}</span>@if($dayTakings > 0 && (auth()->user()->isAdmin() || auth()->user()->isCorporateClient()))<span class="muted" style="font-weight:500;margin-left:6px">· £{{ number_format($dayTakings, 0) }}</span>@endif</div>
 
                     @foreach($dayBookings as $b)
-                        <a href="{{ route('bookings.show', $b) }}" class="bk-card s-{{ $b->status->value }}">
+                        <a href="{{ route('bookings.show', $b) }}" class="bk-card s-{{ $b->status->value }}" data-id="{{ $b->id }}" data-ref="{{ $b->reference }}">
                             <div class="bk-time">
                                 <span class="t">{{ $b->pickup_at->format('H:i') }}</span>
                                 @if($b->airport?->code)<span class="d">✈ {{ $b->airport->code }}</span>@endif
@@ -209,5 +210,83 @@
         </div>
 
         <div style="margin-top:14px">{{ $bookings->links() }}</div>
+    @endif
+
+    @if(auth()->user()->isAdmin())
+        <style>
+            body.bk-select .bk-card { cursor:pointer; }
+            body.bk-select .bk-card::before { content:"○"; position:absolute; top:8px; right:10px; font-size:18px; color:#b9b8b2; }
+            .bk-card { position:relative; }
+            .bk-card.bk-sel { outline:2px solid var(--gold,#FBBA2A); outline-offset:-2px; background:rgba(251,186,42,.08); }
+            body.bk-select .bk-card.bk-sel::before { content:"✓"; color:#0b0b0c; background:var(--gold,#FBBA2A); border-radius:50%; width:20px; height:20px; display:grid; place-items:center; top:8px; right:10px; font-weight:800; }
+            #bulk-bar { position:fixed; left:0; right:0; bottom:0; z-index:50; background:#0b0b0c; color:#fff;
+                display:none; align-items:center; gap:14px; padding:12px 18px; box-shadow:0 -8px 24px -12px rgba(0,0,0,.5); }
+            #bulk-bar.on { display:flex; }
+            #bulk-bar .cnt { font-weight:800; }
+            #bulk-bar .spacer { flex:1; }
+            #bulk-bar button { padding:9px 16px; border-radius:10px; border:0; font-weight:800; cursor:pointer; font-family:inherit; }
+            #bulk-del { background:#b32020; color:#fff; }
+            #bulk-cancel { background:rgba(255,255,255,.14); color:#fff; }
+        </style>
+
+        <form id="bulk-form" method="POST" action="{{ route('bookings.bulk') }}" style="display:none">
+            @csrf
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="ids" id="bulk-ids">
+        </form>
+
+        <div id="bulk-bar">
+            <span class="cnt" id="bulk-count">0 selected</span>
+            <span class="spacer"></span>
+            <button type="button" id="bulk-cancel">Cancel</button>
+            <button type="button" id="bulk-del">🗑️ Delete selected</button>
+        </div>
+
+        <script>
+            (function () {
+                var selecting = false;
+                var sel = new Set();
+                var bar = document.getElementById('bulk-bar');
+                var countEl = document.getElementById('bulk-count');
+                var toggleBtn = document.getElementById('bulk-toggle');
+
+                function refresh() {
+                    countEl.textContent = sel.size + ' selected';
+                    bar.classList.toggle('on', selecting && sel.size > 0);
+                }
+                function setMode(on) {
+                    selecting = on;
+                    document.body.classList.toggle('bk-select', on);
+                    if (!on) { sel.forEach(function (id) { var c = card(id); if (c) c.classList.remove('bk-sel'); }); sel.clear(); }
+                    if (toggleBtn) toggleBtn.classList.toggle('btn-primary', on);
+                    refresh();
+                }
+                function card(id) { return document.querySelector('.bk-card[data-id="' + id + '"]'); }
+
+                if (toggleBtn) toggleBtn.addEventListener('click', function () { setMode(!selecting); });
+
+                document.querySelectorAll('.bk-card').forEach(function (c) {
+                    c.addEventListener('click', function (e) {
+                        if (!selecting) return;           // normal navigation when not selecting
+                        e.preventDefault(); e.stopPropagation();
+                        var id = c.dataset.id;
+                        if (sel.has(id)) { sel.delete(id); c.classList.remove('bk-sel'); }
+                        else { sel.add(id); c.classList.add('bk-sel'); }
+                        refresh();
+                    });
+                });
+
+                var cancel = document.getElementById('bulk-cancel');
+                if (cancel) cancel.addEventListener('click', function () { setMode(false); });
+
+                var del = document.getElementById('bulk-del');
+                if (del) del.addEventListener('click', function () {
+                    if (!sel.size) return;
+                    if (!confirm('Delete ' + sel.size + ' booking(s)? They go to the Trash (recoverable). Google Calendar is not touched.')) return;
+                    document.getElementById('bulk-ids').value = Array.from(sel).join(',');
+                    document.getElementById('bulk-form').submit();
+                });
+            })();
+        </script>
     @endif
 @endsection
