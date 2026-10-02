@@ -24,6 +24,7 @@
                 ['Web widgets', 'Embed the booking form &amp; price checker on your site.', 'web-widgets.index', '🧩'],
                 ['Online booking page', 'Open the live customer booking page.', 'widget.book', '🌐', true],
                 ['Reviews sent', 'Who&rsquo;s been asked for a Google review.', 'reviews-sent.index', '⭐'],
+                ['Message templates', 'Edit confirmation, reminder &amp; quote wording.', 'message-templates.index', '✍️'],
             ],
             'Integrations' => [
                 ['Keys &amp; phone lines', 'Google Maps key and number-masking phone lines.', 'settings.index', '🔑'],

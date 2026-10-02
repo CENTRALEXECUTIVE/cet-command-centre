@@ -395,6 +395,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Booking settings — min lead time, estate uplift, VAT, driver pay, policies.
         Route::get('settings/booking', [\App\Http\Controllers\Admin\BookingSettingsController::class, 'index'])->name('booking-settings.index');
         Route::put('settings/booking', [\App\Http\Controllers\Admin\BookingSettingsController::class, 'update'])->name('booking-settings.update');
+        // Message templates — edit the wording of customer/driver notifications.
+        Route::get('settings/message-templates', [\App\Http\Controllers\Admin\MessageTemplateController::class, 'index'])->name('message-templates.index');
+        Route::put('settings/message-templates/{template}', [\App\Http\Controllers\Admin\MessageTemplateController::class, 'update'])->name('message-templates.update');
         // Time-based pricing — night surcharge + dated (holiday) uplifts.
         Route::get('settings/time-pricing', [\App\Http\Controllers\Admin\TimeSurchargeController::class, 'index'])->name('time-surcharges.index');
         Route::put('settings/time-pricing', [\App\Http\Controllers\Admin\TimeSurchargeController::class, 'update'])->name('time-surcharges.update');
