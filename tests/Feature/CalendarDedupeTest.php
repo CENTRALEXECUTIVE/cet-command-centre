@@ -97,6 +97,61 @@ class CalendarDedupeTest extends TestCase
         Http::assertNotSent(fn ($r) => $r->method() === 'POST' && str_contains($r->url(), '/calendar/v3/'));
     }
 
+    public function test_pushing_the_same_event_twice_never_creates_a_duplicate(): void
+    {
+        // Two sync runs (or a re-sync after an edit) must UPDATE the same Google
+        // event, never post a second copy. The first push creates; the second has
+        // the stored id and goes straight to PUT.
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'oauth2.googleapis.com/token')) {
+                return Http::response(['access_token' => 'fake-token', 'expires_in' => 3600], 200);
+            }
+            if ($request->method() === 'GET' && str_contains($url, '/events?')) {
+                return Http::response(['items' => []], 200); // nothing on the calendar yet
+            }
+            return Http::response(['id' => 'created-id', 'status' => 'confirmed'], 200);
+        });
+
+        $service = app(GoogleCalendarService::class);
+        $event = $this->makeEvent('TWICE1');
+
+        $this->assertTrue($service->push($event));          // creates
+        $this->assertTrue($service->push($event->fresh())); // re-syncs → updates
+
+        // Exactly ONE create across both runs...
+        $creates = collect(Http::recorded())
+            ->filter(fn ($pair) => $pair[0]->method() === 'POST'
+                && str_contains($pair[0]->url(), '/calendar/v3/')
+                && str_contains($pair[0]->url(), '/events'))
+            ->count();
+        $this->assertSame(1, $creates, 'A second push must not create a duplicate event.');
+        // ...and the second run updated the same id.
+        Http::assertSent(fn ($r) => $r->method() === 'PUT' && str_contains($r->url(), '/events/created-id'));
+        $this->assertSame('created-id', $event->fresh()->google_event_id);
+    }
+
+    public function test_building_the_event_twice_keeps_one_row_per_booking(): void
+    {
+        // CalendarEventBuilder::buildFor is keyed on booking_id, so re-building (e.g.
+        // on allocation, then on edit) updates the single row — never a second event.
+        $vt = VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => Customer::create(['name' => 'Build Twice'])->id,
+            'vehicle_type_id' => $vt->id,
+            'pickup_at' => now()->addDay(),
+            'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+
+        $builder = app(\App\Services\CalendarEventBuilder::class);
+        $builder->buildFor($booking->fresh());
+        $builder->buildFor($booking->fresh());
+
+        $this->assertSame(1, CalendarEvent::where('booking_id', $booking->id)->count());
+    }
+
     public function test_push_does_nothing_while_calendar_is_paused(): void
     {
         \App\Models\Setting::set('calendar_paused', true, 'bool', 'calendar');
