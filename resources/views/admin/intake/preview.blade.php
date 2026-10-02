@@ -1,10 +1,16 @@
 @extends('layouts.app')
-@section('title', 'Add to the calendar')
+@section('title', 'Review booking')
 
 @section('content')
-    <p class="page-sub"><a href="{{ route('intake.index') }}">← Paste another</a></p>
-    <h1 class="page-title">Add to the calendar</h1>
-    <p class="page-sub">Fix anything that’s wrong, press <strong>Update preview</strong> to re-check, then <strong>copy</strong> each part onto Google Calendar. It appears in the Command Centre within ~5 minutes — the calendar stays the single source, so there are never duplicates.</p>
+    @include('partials.smart-form-skin')
+
+    <div class="smart-form">
+        <div class="smart-hero">
+            <div class="brand"><span class="mark">C</span><span class="name">CENTRAL <span>EXECUTIVE</span> TRANSFERS</span></div>
+            <span class="eyebrow"><a href="{{ route('intake.index') }}" style="color:inherit;text-decoration:none">← Paste another</a></span>
+            <h1>Review the booking</h1>
+            <p>Check and fix anything the AI pulled out, press <strong>Update preview</strong> to re-check, then either copy it onto the calendar or add it straight to the Command Centre.</p>
+        </div>
 
     @if($errors->any())
         <div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.08);margin-bottom:16px"><ul style="margin:0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
@@ -168,4 +174,5 @@
             <span class="hint" style="margin-left:8px">Creates the booking now and builds its calendar event — use for covering / non-ETO jobs.</span>
         </div>
     </form>
+    </div>{{-- /.smart-form --}}
 @endsection

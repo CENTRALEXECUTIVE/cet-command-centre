@@ -102,6 +102,18 @@
         background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.22);
         padding:12px 16px; border-radius:11px; font-weight:700; font-size:14px; cursor:pointer; }
 
+    /* Plain cards (intake paste/preview) get the same premium surface. */
+    .smart-form .card{ background:#fff; border:1px solid var(--sf-line); border-radius:16px;
+        box-shadow:0 1px 2px rgba(10,12,18,.04), 0 12px 30px -22px rgba(10,12,18,.20); padding:18px; }
+
+    /* Primary buttons anywhere in a smart form use the gold gradient. */
+    .smart-form .btn-primary{
+        background:linear-gradient(135deg,var(--sf-gold),var(--sf-gold-deep)); color:#0b0b0c; font-weight:800;
+        border:0; padding:12px 20px; border-radius:11px; font-size:15px; cursor:pointer;
+        box-shadow:0 10px 22px -12px rgba(233,164,19,.7); transition:transform .08s, box-shadow .15s; }
+    .smart-form .btn-primary:hover{ box-shadow:0 14px 28px -12px rgba(233,164,19,.9); }
+    .smart-form .btn-primary:active{ transform:translateY(1px); }
+
     /* Collapsible advanced sections */
     .smart-form .eto-section.collapsible.closed > .body{ display:none; }
     .smart-form .eto-section.collapsible > .head{ cursor:pointer; }
