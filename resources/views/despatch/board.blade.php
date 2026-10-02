@@ -42,6 +42,33 @@
         <span class="muted" style="font-size:12px" id="board-refreshed">Live — updates every 60s</span>
     </div>
 
+    {{-- Rotation at a glance: whose turn it is next, with who did the last job kept
+         beside it so the order stays visible while you allocate. Executive only. --}}
+    @if(isset($rotationTurns) && $rotationTurns->isNotEmpty())
+        <details class="card" open style="margin-bottom:12px;padding:10px 14px">
+            <summary style="cursor:pointer;font-weight:700;list-style:none">
+                🔁 Whose turn
+                @if(($rotationDrivers ?? collect())->isNotEmpty())
+                    <span class="muted" style="font-weight:400;font-size:12px">· {{ $rotationDrivers->map(fn ($d) => $d->driverProfile?->callsign ?: $d->name)->implode(' → ') }}</span>
+                @endif
+                <a href="{{ route('rotation.index') }}" class="muted" style="font-weight:400;font-size:12px;margin-left:6px">full rotation →</a>
+            </summary>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                @foreach($rotationTurns as $r)
+                    @php
+                        $nextName = $r['next']?->driverProfile?->callsign ?: $r['next']?->name;
+                        $lastName = $r['last_driver']?->driverProfile?->callsign ?: $r['last_driver']?->name;
+                    @endphp
+                    <span style="border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;white-space:nowrap">
+                        <strong>{{ $r['airport']->is_general_pool ? $r['airport']->name : ($r['airport']->code ?: $r['airport']->name) }}</strong>@if($multipleRotationVehicles ?? false) <span class="muted">{{ $r['vehicle_type']->name }}</span>@endif:
+                        <strong style="color:#b8860b">{{ $nextName ?: '—' }}</strong>
+                        @if($lastName)<span class="muted">(last {{ $lastName }})</span>@endif
+                    </span>
+                @endforeach
+            </div>
+        </details>
+    @endif
+
     <div class="board" id="live-board">
         @foreach($statuses as $status)
             @php $jobs = $columns[$status->value]; @endphp

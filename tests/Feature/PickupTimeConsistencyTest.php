@@ -65,8 +65,26 @@ class PickupTimeConsistencyTest extends TestCase
         $this->actingAs($admin)->get(route('bookings.show', $booking))
             ->assertOk()
             ->assertSee('ETOREF9')                       // the ETO reference is on the booking
-            ->assertSee('Full details (from the calendar)')
-            ->assertSee('2 Suitcases + 1 Hand Luggage'); // the calendar description is shown
+            ->assertSee('Full details')
+            ->assertSee('2 Suitcases + 1 Hand Luggage'); // the full detail block is shown
+    }
+
+    public function test_full_details_card_renders_live_without_a_stored_event(): void
+    {
+        // Moving off ETO: a booking created in CET has no stored calendar event yet
+        // (calendar off, or not synced). The "Full details" block must still show —
+        // built live from the booking in the same format, nothing missing.
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'pickup_at' => Carbon::parse('2026-07-16 09:30'),
+        ]);
+        $this->assertNull($booking->calendarEvent);
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))
+            ->assertOk()
+            ->assertSee('Full details')
+            ->assertSee('Booking Confirmation', false)   // the confirmation block format
+            ->assertSee('Not on Google Calendar yet');
     }
 
     public function test_luggage_is_mirrored_verbatim_from_the_calendar(): void

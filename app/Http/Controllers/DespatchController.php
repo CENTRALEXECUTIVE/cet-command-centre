@@ -25,7 +25,7 @@ class DespatchController extends Controller
         private readonly DriverComplianceService $compliance,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request, \App\Services\RotationService $rotation): View
     {
         $date = $request->date('date') ?? today();
 
@@ -53,6 +53,13 @@ class DespatchController extends Controller
             ->pluck('last_at', 'booking_id')
             ->map(fn ($at) => (int) abs(now()->diffInSeconds(\Illuminate\Support\Carbon::parse($at))));
 
+        // Rotation at a glance — whose turn it is next and who did the last job,
+        // per airport × executive vehicle type, so dispatch can allocate the right
+        // driver without opening the rotation page. Read-only; advances nothing.
+        $overview = $rotation->overview();
+        $rotationTurns = collect($overview['rows'])->filter(fn ($r) => $r['seeded'] || $r['last_booking'])->values();
+        $multipleRotationVehicles = collect($overview['rows'])->pluck('vehicle_type.id')->unique()->count() > 1;
+
         return view('despatch.board', [
             'date' => $date,
             'columns' => $columns,
@@ -60,6 +67,9 @@ class DespatchController extends Controller
             'drivers' => $drivers,
             'blockedDrivers' => $blockedDrivers,
             'pingAges' => $pingAges,
+            'rotationTurns' => $rotationTurns,
+            'rotationDrivers' => $overview['drivers'],
+            'multipleRotationVehicles' => $multipleRotationVehicles,
             'totals' => [
                 'all' => $bookings->count(),
                 'unallocated' => $bookings->where('status', BookingStatus::Pending)->count(),

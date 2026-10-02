@@ -46,6 +46,20 @@ class DespatchBoardTest extends TestCase
         $this->actingAs($admin)->get(route('despatch.board'))->assertOk()->assertSee('Dispatch Board');
     }
 
+    public function test_the_board_shows_the_rotation_turn_strip(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // Allocate an executive airport job so the rotation pointer has moved and a
+        // "last job" exists — the strip should then show whose turn it is.
+        $booking = $this->pendingBooking(['pickup_at' => today()->addHours(6)]);
+        app(\App\Services\RotationService::class)->allocate($booking);
+
+        $this->actingAs($admin)->get(route('despatch.board', ['date' => today()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Whose turn')
+            ->assertSee('last'); // "(last ABDI)" — who just went is kept visible
+    }
+
     public function test_driver_dropdown_shows_the_vehicle_reg_in_brackets(): void
     {
         $admin = User::factory()->admin()->create();

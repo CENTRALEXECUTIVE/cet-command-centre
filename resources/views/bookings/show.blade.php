@@ -892,32 +892,52 @@
         </div>
     @endif
 
-    {{-- The calendar's own words, front and centre — exactly what's on the
-         event, like a screenshot of its description. --}}
-    @if($booking->calendarEvent && filled($booking->calendarEvent->description))
+    {{-- The booking in full, in the confirmation format we read — title + the
+         Booking Confirmation block (notes and all). This is CET's OWN rendering
+         (CalendarEventBuilder), the exact text that goes onto Google Calendar, so
+         it's shown from the stored event when there is one, and built live from the
+         booking when there isn't — the format is always here, nothing missing. --}}
+    @php
+        $calEvent = $booking->calendarEvent;
+        $cal = null;
+        if ($calEvent && filled($calEvent->description)) {
+            $cal = ['title' => $calEvent->title, 'description' => $calEvent->description, 'location' => $calEvent->location];
+        } elseif ($booking->pickup_at) {
+            // No stored event yet (calendar off, or not synced) — render the format
+            // live so the detail block is never missing. Never let it crash the page.
+            try { $cal = app(\App\Services\CalendarEventBuilder::class)->preview($booking); } catch (\Throwable $e) { $cal = null; }
+        }
+        $calStart = $calEvent?->start_at ?? $booking->pickup_at;
+        $calEnd = $calEvent?->end_at ?? $booking->pickup_at?->copy()->addHour();
+    @endphp
+    @if($cal && filled($cal['description'] ?? null))
         <div class="card cal-panel">
             <div class="cal-panel-head">
-                <span>📅 Full details (from the calendar)</span>
-                <span class="muted" style="font-size:12px">{{ $booking->calendarEvent->start_at->format('D d M') }} · {{ $booking->calendarEvent->start_at->format('H:i') }} → {{ $booking->calendarEvent->end_at->format('H:i') }}</span>
+                <span>📅 Full details</span>
+                <span class="muted" style="font-size:12px">{{ $calStart?->format('D d M') }} · {{ $calStart?->format('H:i') }} → {{ $calEnd?->format('H:i') }}</span>
             </div>
-            <div class="cal-panel-title mono">{{ $booking->calendarEvent->title }}</div>
-            <div class="cal-panel-body">{{ str_replace('*', '', $booking->calendarEvent->description) }}</div>
+            <div class="cal-panel-title mono">{{ $cal['title'] }}</div>
+            <div class="cal-panel-body">{{ str_replace('*', '', $cal['description']) }}</div>
             @if(auth()->user()->isAdmin())
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
-                    @if($booking->calendarEvent->google_event_id)
+                    @if($calEvent?->google_event_id)
                         <form method="POST" action="{{ route('bookings.sync-time', $booking) }}"
                               onsubmit="return confirm('Set this booking\'s pickup time to whatever is on the Google Calendar right now? The calendar itself is not changed.')">
                             @csrf
                             <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px">🗓 Match time to calendar</button>
                         </form>
                     @endif
-                    <details>
-                        <summary class="muted" style="font-size:12px;cursor:pointer">Event details</summary>
-                        <table style="margin-top:6px">
-                            <tr><th>Location</th><td>{{ $booking->calendarEvent->location }}</td></tr>
-                            <tr><th>Sync</th><td>{{ ucfirst($booking->calendarEvent->sync_status) }}</td></tr>
-                        </table>
-                    </details>
+                    @if($calEvent)
+                        <details>
+                            <summary class="muted" style="font-size:12px;cursor:pointer">Calendar sync</summary>
+                            <table style="margin-top:6px">
+                                <tr><th>Location</th><td>{{ $calEvent->location }}</td></tr>
+                                <tr><th>Sync</th><td>{{ ucfirst($calEvent->sync_status) }}{{ $calEvent->google_event_id ? ' · on Google Calendar' : '' }}</td></tr>
+                            </table>
+                        </details>
+                    @else
+                        <span class="hint" style="font-size:12px">Not on Google Calendar yet.</span>
+                    @endif
                 </div>
             @endif
         </div>
