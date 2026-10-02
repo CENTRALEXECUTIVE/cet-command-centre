@@ -60,6 +60,33 @@ class BookingDeleteTest extends TestCase
             ->assertSee('Delete booking');
     }
 
+    public function test_the_delete_button_shows_on_a_terminal_booking(): void
+    {
+        // Regression: the delete button used to be hidden once a booking reached a
+        // terminal status (No Show / Cancelled / Completed) — exactly when the office
+        // needs to clear a test or junk booking. It must always be available to admins.
+        $admin = User::factory()->admin()->create();
+
+        foreach (['no_show', 'cancelled', 'complete'] as $status) {
+            $booking = Booking::factory()->create(['status' => $status]);
+
+            $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+                ->assertSee('Delete booking');
+        }
+    }
+
+    public function test_an_admin_can_delete_a_no_show_booking(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create(['status' => 'no_show']);
+
+        $this->actingAs($admin)->delete(route('bookings.destroy', $booking))
+            ->assertRedirect(route('bookings.index'))->assertSessionHas('status');
+
+        $this->assertNull(Booking::find($booking->id));
+        $this->assertNotNull(Booking::withTrashed()->find($booking->id)->deleted_at);
+    }
+
     public function test_a_driver_cannot_delete_a_booking(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

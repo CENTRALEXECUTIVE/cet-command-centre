@@ -371,17 +371,22 @@
         </div>
     @endif
 
-    @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+    @if(auth()->user()->isAdmin())
         <div class="toolbar" style="margin-bottom:16px">
-            @if(!empty($canScan))
-                <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}"
-                      onsubmit="return confirm('Match this booking to the Google Calendar?\n\nThis discards any changes you made in the app and takes the calendar as the truth — time, addresses, via stops and details. The calendar itself is not changed.')">
-                    @csrf
-                    <button class="btn btn-dark" style="padding:9px 16px">🔄 Match calendar</button>
-                </form>
+            @if(! $booking->status->isTerminal())
+                @if(!empty($canScan))
+                    <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}"
+                          onsubmit="return confirm('Match this booking to the Google Calendar?\n\nThis discards any changes you made in the app and takes the calendar as the truth — time, addresses, via stops and details. The calendar itself is not changed.')">
+                        @csrf
+                        <button class="btn btn-dark" style="padding:9px 16px">🔄 Match calendar</button>
+                    </form>
+                @endif
+                <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
+                <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
             @endif
-            <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
-            <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
+            {{-- Delete is ALWAYS available to an admin, including on terminal jobs
+                 (No Show / Cancelled / Completed) — that's exactly when you need to
+                 clear a test or junk booking. Soft delete; the calendar is untouched. --}}
             <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('delete-box').style.display='block';this.style.display='none'">🗑️ Delete booking</button>
         </div>
         <div id="delete-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
@@ -393,24 +398,26 @@
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('delete-box').style.display='none'">Keep it</button>
             </form>
         </div>
-        @if(!empty($canScan))
-            <p class="hint" style="margin:-8px 0 16px">
-                <strong>Match calendar</strong> finds this booking on your live Google Calendar (by its reference) and makes the app match it exactly — time, addresses, via stops and the full details block. Your own edits in the app always stick until you press this — pressing it discards them and takes the calendar as the truth. Never changes the calendar.
-                @if(!empty($booking->meta['calendar_scanned_at']))
-                    · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
-                @endif
-            </p>
+        @if(! $booking->status->isTerminal())
+            @if(!empty($canScan))
+                <p class="hint" style="margin:-8px 0 16px">
+                    <strong>Match calendar</strong> finds this booking on your live Google Calendar (by its reference) and makes the app match it exactly — time, addresses, via stops and the full details block. Your own edits in the app always stick until you press this — pressing it discards them and takes the calendar as the truth. Never changes the calendar.
+                    @if(!empty($booking->meta['calendar_scanned_at']))
+                        · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
+                    @endif
+                </p>
+            @endif
+            <div id="cancel-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin-bottom:16px">
+                <form method="POST" action="{{ route('bookings.cancel', $booking) }}">
+                    @csrf
+                    <label for="cancellation_reason" style="font-weight:600">Reason for cancellation <span class="req">*</span></label>
+                    <input id="cancellation_reason" name="cancellation_reason" required placeholder="e.g. Customer cancelled — no charge" style="margin:6px 0 10px">
+                    <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Confirm cancellation</button>
+                    <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('cancel-box').style.display='none'">Keep booking</button>
+                    <p class="hint" style="margin:8px 0 0">The calendar event isn't removed automatically — take it off Google Calendar yourself if it was pushed there.</p>
+                </form>
+            </div>
         @endif
-        <div id="cancel-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin-bottom:16px">
-            <form method="POST" action="{{ route('bookings.cancel', $booking) }}">
-                @csrf
-                <label for="cancellation_reason" style="font-weight:600">Reason for cancellation <span class="req">*</span></label>
-                <input id="cancellation_reason" name="cancellation_reason" required placeholder="e.g. Customer cancelled — no charge" style="margin:6px 0 10px">
-                <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Confirm cancellation</button>
-                <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('cancel-box').style.display='none'">Keep booking</button>
-                <p class="hint" style="margin:8px 0 0">The calendar event isn't removed automatically — take it off Google Calendar yourself if it was pushed there.</p>
-            </form>
-        </div>
     @endif
 
     @if(auth()->user()->isAdmin() && !empty($booking->meta['calendar_unverified']))
