@@ -85,19 +85,23 @@ class CalendarEventBuilder
     }
 
     /**
-     * The bracket tag is ALWAYS a person (rule 1) — ABDI, MAJ, COVER, or a named
-     * third-party driver — NEVER a vehicle type. Vehicle appears only on the
-     * "Vehicle Type" description line.
+     * The bracket tag names WHO is on the job once allocated — the driver's
+     * callsign (ABDI/MAJ) or name. UNTIL a driver is allocated it shows the
+     * VEHICLE TYPE needed (e.g. V CLASS, EXECUTIVE), so an unallocated job tells
+     * the office what car to put on it instead of a bare "COVER". The moment a
+     * driver is allocated, the tag becomes their name.
      */
     private function tag(Booking $booking): string
     {
-        // An explicit tag set by the operator/import wins (ABDI/MAJ/COVER/KASH…).
-        if (! empty($booking->meta['driver_tag'])) {
-            return Str::upper($booking->meta['driver_tag']);
+        // An explicit driver tag set by the operator/import wins (ABDI/MAJ/KASH…),
+        // but the old "COVER" placeholder is superseded by the vehicle type below.
+        $explicit = $booking->meta['driver_tag'] ?? null;
+        if (filled($explicit) && Str::upper(trim($explicit)) !== 'COVER') {
+            return Str::upper($explicit);
         }
 
-        // Otherwise the assigned driver's callsign: the operator-set callsign,
-        // else the email local-part (abdi@… → ABDI), else their first name.
+        // Allocated → the driver's callsign: the operator-set callsign, else the
+        // email local-part (abdi@… → ABDI), else their first name.
         if ($booking->driver) {
             if (filled($booking->driver->driverProfile?->callsign)) {
                 return Str::upper($booking->driver->driverProfile->callsign);
@@ -108,9 +112,9 @@ class CalendarEventBuilder
             return Str::upper($callsign !== '' ? $callsign : Str::before($booking->driver->name, ' '));
         }
 
-        // No driver yet → COVER (a person placeholder the operator overrides).
-        // Never fall back to the vehicle type — that is an error per rule 1.
-        return 'COVER';
+        // Not allocated yet → show the vehicle type so dispatch knows what to send;
+        // becomes the driver's name on allocation. COVER only if there's no vehicle.
+        return Str::upper($booking->vehicleType?->name ?: 'COVER');
     }
 
     /**

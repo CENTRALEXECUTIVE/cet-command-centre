@@ -609,15 +609,16 @@ class OutlookIngestionTest extends TestCase
         $this->assertStringContainsString('(MAJ)', $lba->calendarEvent->title);
 
         // Non-rotation vehicle (Executive 8 Seater → V Class) keeps no driver.
-        // The title bracket is a PERSON, never the vehicle (rule 1): with no
-        // driver assigned it shows COVER. Vehicle goes on the Vehicle Type line.
+        // Until a driver is allocated the title tag shows the VEHICLE TYPE needed
+        // (so dispatch knows what to send), NOT a bare COVER. It becomes the
+        // driver's name on allocation.
         $vclass = $svc->upsertFromParsed($this->parsed([
             'reference' => 'VC001', 'vehicle_type' => 'Executive 8 Seater',
             'customer_name' => 'Cust C', 'customer_email' => 'custc@example.com', 'customer_phone' => '07700900003',
         ]))['booking'];
         $this->assertNull($vclass->driver);
-        $this->assertStringContainsString('(COVER)', $vclass->calendarEvent->title);
-        $this->assertStringNotContainsString('V CLASS)', $vclass->calendarEvent->title);
+        $this->assertStringContainsString('('.strtoupper($vclass->vehicleType->name).')', $vclass->calendarEvent->title);
+        $this->assertStringNotContainsString('(COVER)', $vclass->calendarEvent->title);
     }
 
     public function test_remove_demo_deletes_non_eto_only(): void

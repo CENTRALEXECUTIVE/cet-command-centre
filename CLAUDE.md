@@ -145,8 +145,12 @@ There were no server backups. This must never happen again.
 Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
 
 - **Title:** `*[emoji ]Name WHERE (TAG)*` — bold asterisks, `WHERE` is the
-  airport code / destination word, `TAG` is ALWAYS a person (driver callsign
-  ABDI/MAJ/COVER/named driver), never a vehicle type.
+  airport code / destination word. **`TAG` = the driver once allocated** (callsign
+  ABDI/MAJ or named driver); **until a driver is allocated it shows the VEHICLE
+  TYPE needed** (e.g. V CLASS, EXECUTIVE) so dispatch knows what car to put on —
+  not a bare "COVER". It becomes the driver's name the moment one is allocated.
+  (Updated Oct 2026 — this replaces the earlier "TAG is always a person, never a
+  vehicle type" rule, at the operator's request.)
 - **Emojis:** 💰 cash outstanding, 👀 card/Square/Stripe balance (outbound/one-way
   only), 🚼 child/booster/infant seat, none = fully paid.
 - **Location field = the pickup address.** **Start** = pickup time, **end** =
