@@ -522,6 +522,31 @@ class BookingController extends Controller
     }
 
     /**
+     * Delete a booking (admin). Soft-deletes so it vanishes from every list but is
+     * still recoverable, and — per the safety rules — it does NOT touch the Google
+     * Calendar event (the operator removes that by hand). A return trip's linked leg
+     * is removed too, since it's one journey.
+     */
+    public function destroy(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $ref = $booking->reference;
+        $linked = $booking->linkedBooking; // the other leg of a return, if any
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $linked) {
+            $linked?->delete();
+            $booking->delete();
+        });
+
+        return redirect()
+            ->route('bookings.index')
+            ->with('status', "Booking {$ref}".($linked ? ' (and its return leg)' : '')
+                ." deleted. It's removed from the Command Centre and recoverable if needed. "
+                .'If it was on Google Calendar, remove that event by hand — the calendar is never touched automatically.');
+    }
+
+    /**
      * Merge a duplicate booking into this one. $booking is the copy we KEEP;
      * the duplicate is folded in (driver, tips, calendar link, any blank fields,
      * merged meta) and then removed — a "replace", not a bare delete. Only allowed

@@ -382,6 +382,16 @@
             @endif
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
+            <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('delete-box').style.display='block';this.style.display='none'">🗑️ Delete booking</button>
+        </div>
+        <div id="delete-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
+            <strong>Delete this booking?</strong>
+            <p class="hint" style="margin:6px 0 10px">It's removed from the Command Centre everywhere (bookings list, dispatch, review). Cancel instead if you just want to call it off but keep the record. The <strong>Google Calendar event is never touched</strong> — remove it by hand if it was pushed there. This is recoverable if you delete one by mistake.</p>
+            <form method="POST" action="{{ route('bookings.destroy', $booking) }}" onsubmit="return confirm('Delete booking {{ $booking->reference }}? It disappears from the Command Centre. The Google Calendar event is NOT removed.')" style="margin:0">
+                @csrf @method('DELETE')
+                <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Yes, delete booking</button>
+                <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('delete-box').style.display='none'">Keep it</button>
+            </form>
         </div>
         @if(!empty($canScan))
             <p class="hint" style="margin:-8px 0 16px">
