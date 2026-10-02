@@ -165,6 +165,16 @@
         </header>
 
         <main class="container">
+            @if(session(\App\Http\Controllers\Admin\ImpersonationController::KEY))
+                <div style="background:#0b0b0c;color:#FBBA2A;border:1px solid #FBBA2A;border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <span style="font-weight:800">👀 Viewing as {{ $u->name }}</span>
+                    <span style="color:#c9c8c3;font-size:13px">You're seeing the app as this user.</span>
+                    <form method="POST" action="{{ route('impersonate.stop') }}" style="margin-left:auto">
+                        @csrf
+                        <button class="btn" style="background:#FBBA2A;color:#0b0b0c;padding:7px 14px;font-weight:800">↩ Back to my account</button>
+                    </form>
+                </div>
+            @endif
             @if($u->isAdmin())
                 @include('partials.sync-health')
             @endif

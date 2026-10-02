@@ -70,6 +70,8 @@ Route::middleware('auth')->group(function () {
     Route::get('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('password.change');
     Route::put('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'update'])
         ->middleware('throttle:10,1')->name('password.update');
+    // Stop "view as driver" — available to the impersonated session (any role).
+    Route::post('stop-impersonating', [\App\Http\Controllers\Admin\ImpersonationController::class, 'stop'])->name('impersonate.stop');
 });
 
 // ----- Authenticated area ------------------------------------------------
@@ -209,6 +211,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('users/{user}/edit', [\App\Http\Controllers\Admin\UserController::class, 'edit'])->name('users.edit');
         Route::put('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
         Route::delete('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+        Route::post('users/{user}/impersonate', [\App\Http\Controllers\Admin\ImpersonationController::class, 'start'])->middleware('throttle:20,1')->name('impersonate.start');
 
         // Drivers directory (roster picked from when preparing reminders).
         Route::get('cover-drivers', [\App\Http\Controllers\CoverDriverController::class, 'index'])->name('cover-drivers.index');
