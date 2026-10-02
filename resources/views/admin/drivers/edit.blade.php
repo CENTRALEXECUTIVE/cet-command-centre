@@ -65,6 +65,25 @@
                     <label for="is_available">Available for allocation</label>
                 </div>
 
+                {{-- Weekly availability — which days this driver normally works. Leave all
+                     unticked if they work any day; a ticked set flags known days off. --}}
+                @php $savedDays = old('available_days', $profile?->availableWeekdays() ?? []); @endphp
+                <div class="field" style="margin-bottom:10px">
+                    <label>Normally works</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $i => $d)
+                            <label style="display:flex;gap:5px;align-items:center;padding:6px 10px;border:1px solid var(--line,#e9e7e0);border-radius:10px;font-size:13px">
+                                <input type="checkbox" name="available_days[]" value="{{ $i }}" style="width:auto" @checked(in_array((string)$i, array_map('strval',(array)$savedDays), true))> {{ $d }}
+                            </label>
+                        @endforeach
+                    </div>
+                    <span class="muted" style="font-size:12px">Leave all unticked = available any day.</span>
+                </div>
+                <div class="field" style="margin-bottom:14px">
+                    <label for="availability_note">Availability note <span class="muted">(optional)</span></label>
+                    <input id="availability_note" name="availability_note" value="{{ old('availability_note', $profile?->availability_note) }}" placeholder="e.g. mornings only, not school holidays">
+                </div>
+
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="phv_badge_number">PHV / private hire badge no.</label>
