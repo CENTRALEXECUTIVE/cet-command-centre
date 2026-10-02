@@ -31,6 +31,9 @@ Schedule::command('cet:check-compliance')->dailyAt('08:00');
 // Monthly corporate VAT invoices (1st of the month, for the previous month).
 Schedule::command('cet:generate-invoices')->monthlyOn(1, '06:00');
 
+// Standing/recurring bookings — create upcoming occurrences a few days ahead.
+Schedule::command('cet:generate-recurring')->dailyAt('04:30')->withoutOverlapping();
+
 // Flight delay monitoring for upcoming airport pickups, every 15 minutes.
 Schedule::command('cet:check-flights')->everyFifteenMinutes()->withoutOverlapping();
 

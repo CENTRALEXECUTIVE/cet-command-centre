@@ -127,6 +127,12 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::delete('bookings/{booking}', [BookingController::class, 'destroy'])->middleware('throttle:30,1')->name('bookings.destroy');
         Route::post('bookings-bulk', [BookingController::class, 'bulk'])->middleware('throttle:30,1')->name('bookings.bulk');
+        // Standing / recurring bookings.
+        Route::get('recurring-bookings', [\App\Http\Controllers\Admin\RecurringBookingController::class, 'index'])->name('recurring.index');
+        Route::post('recurring-bookings', [\App\Http\Controllers\Admin\RecurringBookingController::class, 'store'])->name('recurring.store');
+        Route::put('recurring-bookings/{recurring}', [\App\Http\Controllers\Admin\RecurringBookingController::class, 'update'])->name('recurring.update');
+        Route::delete('recurring-bookings/{recurring}', [\App\Http\Controllers\Admin\RecurringBookingController::class, 'destroy'])->name('recurring.destroy');
+        Route::post('recurring-bookings/generate', [\App\Http\Controllers\Admin\RecurringBookingController::class, 'generate'])->middleware('throttle:10,1')->name('recurring.generate');
         // Trash: deleted bookings — restore, or purge permanently.
         Route::get('bookings-trash', [BookingController::class, 'trash'])->name('bookings.trash');
         Route::post('bookings/{booking}/restore', [BookingController::class, 'restore'])->middleware('throttle:30,1')->name('bookings.restore')->withTrashed();

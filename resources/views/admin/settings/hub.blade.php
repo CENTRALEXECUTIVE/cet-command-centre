@@ -15,6 +15,9 @@
                 ['Time-based pricing', 'Night surcharge &amp; holiday (Christmas/NYE) uplifts.', 'time-surcharges.index', '🌙'],
                 ['Discount codes', 'Promo codes customers enter at checkout.', 'vouchers.index', '🏷️'],
             ],
+            'Bookings' => [
+                ['Standing bookings', 'Regular runs that create a booking automatically.', 'recurring.index', '🔁'],
+            ],
             'Fleet' => [
                 ['Vehicles', 'Names, capacities, hand luggage, on/off &amp; order.', 'vehicles.index', '🚗'],
                 ['Vehicle photos', 'The pictures customers see on the booking page.', 'fleet-photos.index', '📸'],
