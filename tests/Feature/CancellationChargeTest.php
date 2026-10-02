@@ -126,8 +126,73 @@ class CancellationChargeTest extends TestCase
         $booking = $this->cancelledJob(105);
 
         $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
-            ->assertSee('Cancelled — charge', false)
-            ->assertSee('Charge 50%');
+            ->assertSee('Cancellation outcome')
+            ->assertSee('Charge 50%')
+            ->assertSee('Refund to customer')
+            ->assertSee('Full refund');
+    }
+
+    public function test_recording_a_full_refund_marks_the_job_refunded(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->cancelledJob(105);
+        // Customer had paid in full before cancelling.
+        $booking->forceFill(['payment_status' => 'paid'])->save();
+
+        $this->actingAs($admin)->post(route('bookings.cancellation-charge', $booking), [
+            'fee' => '0', 'refund' => '105', 'refund_reason' => 'Cancelled in good time',
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertTrue($booking->hasCancellationRefund());
+        $this->assertSame(105.0, $booking->cancellationRefund());
+        $this->assertSame('Cancelled in good time', $booking->cancellationRefundReason());
+        $this->assertFalse($booking->hasCancellationCharge());
+        $this->assertSame('refunded', $booking->payment_status);
+
+        // A fully-refunded cancellation is no revenue.
+        $reports = app(\App\Services\Reporting\ReportService::class);
+        $summary = $reports->summary(now()->startOfMonth(), now()->endOfMonth());
+        $this->assertSame(0.0, $summary['revenue']);
+    }
+
+    public function test_a_part_charge_and_part_refund_coexist(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->cancelledJob(105);
+        $booking->forceFill(['payment_status' => 'paid'])->save();
+
+        // Keep £52.50, refund the other half.
+        $this->actingAs($admin)->post(route('bookings.cancellation-charge', $booking), [
+            'fee' => '52.50', 'driver_pay' => '30', 'refund' => '52.50',
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertTrue($booking->hasCancellationCharge());
+        $this->assertSame(52.5, $booking->cancellationFee());
+        $this->assertTrue($booking->hasCancellationRefund());
+        $this->assertSame(52.5, $booking->cancellationRefund());
+
+        // The kept £52.50 still counts in revenue.
+        $reports = app(\App\Services\Reporting\ReportService::class);
+        $summary = $reports->summary(now()->startOfMonth(), now()->endOfMonth());
+        $this->assertSame(52.5, $summary['revenue']);
+    }
+
+    public function test_removing_a_refund_restores_the_paid_status(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->cancelledJob(105);
+        $booking->forceFill(['payment_status' => 'paid'])->save();
+        $booking->setCancellationRefund(105, 'oops', $admin);
+        $this->assertSame('refunded', $booking->fresh()->payment_status);
+
+        $this->actingAs($admin)->post(route('bookings.cancellation-charge', $booking), ['clear_refund' => '1'])
+            ->assertRedirect();
+
+        $booking->refresh();
+        $this->assertFalse($booking->hasCancellationRefund());
+        $this->assertSame('paid', $booking->payment_status);
     }
 
     public function test_only_admins_can_set_a_cancellation_charge(): void

@@ -808,17 +808,45 @@ class BookingController extends Controller
             return back()->with('status', 'Cancellation charge removed — original fare restored.');
         }
 
+        if ($request->boolean('clear_refund')) {
+            $booking->clearCancellationRefund();
+
+            return back()->with('status', 'Refund record removed.');
+        }
+
         $data = $request->validate([
             'fee' => ['required', 'numeric', 'min:0', 'max:100000'],
             'driver_pay' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'refund' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'refund_reason' => ['nullable', 'string', 'max:300'],
         ]);
 
         $driverPay = ($data['driver_pay'] ?? null) !== null && $data['driver_pay'] !== ''
             ? (float) $data['driver_pay'] : null;
+
+        // Record the refund FIRST: a full refund sets the charge to £0, which zeroes
+        // the fare — and for a job paid without a ledger row the "paid" figure is
+        // derived from that fare, so it must be read before the charge is applied.
+        $refund = ($data['refund'] ?? null) !== null && $data['refund'] !== ''
+            ? (float) $data['refund'] : null;
+        if ($refund !== null && $refund > 0.001) {
+            $booking->setCancellationRefund($refund, $data['refund_reason'] ?? null, $request->user());
+        } else {
+            $booking->clearCancellationRefund();
+        }
+
         $booking->setCancellationCharge((float) $data['fee'], $driverPay, $request->user());
 
-        return back()->with('status', 'Cancellation charge saved — £'.number_format((float) $data['fee'], 2).' kept'
-            .($driverPay !== null ? ', £'.number_format($driverPay, 2).' to '.$booking->payrollDriverName() : '').'.');
+        $msg = 'Cancellation saved — £'.number_format((float) $data['fee'], 2).' kept';
+        if ($driverPay !== null) {
+            $msg .= ', £'.number_format($driverPay, 2).' to '.$booking->payrollDriverName();
+        }
+        $msg .= '.';
+        if ($refund !== null && $refund > 0.001) {
+            $msg .= ' Refund of £'.number_format($refund, 2).' recorded — process it in Square by hand.';
+        }
+
+        return back()->with('status', $msg);
     }
 
     /** @return array<string, mixed> */

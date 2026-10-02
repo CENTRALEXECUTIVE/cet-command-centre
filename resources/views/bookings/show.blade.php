@@ -258,23 +258,35 @@
         @endif
     @endif
 
-    {{-- Cancellation charge — for a cancelled/no-show job that's still charged
-         (e.g. 50%). Records the fee kept + the driver's share, so it counts on
-         payroll and in revenue instead of vanishing like a free cancellation. --}}
+    {{-- Cancellation outcome — full control over the money on a cancelled/no-show
+         job: charge nothing, charge part/all (driver still paid), and/or refund the
+         customer in full or part. A kept fee counts in revenue + payroll; a refund
+         is recorded (and marks the job refunded) — the real card refund is done by
+         hand in Square. The Google Calendar event is never touched either way. --}}
     @if(auth()->user()->isAdmin() && in_array($booking->status, [\App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow], true))
         @php
             $baseFare = $booking->cancellationOriginalFare() ?? $booking->fareAmount();
             $hasCharge = $booking->hasCancellationCharge();
+            $hasRefund = $booking->hasCancellationRefund();
+            $paid = $booking->transactionsPaidTotal();
+            $fullRefundAmount = $paid > 0 ? $paid : ($baseFare ?: 0);
         @endphp
         <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.08);margin-bottom:16px">
-            <h2 style="margin:0 0 4px">🚫 Cancelled — charge &amp; driver pay</h2>
-            @if($hasCharge)
+            <h2 style="margin:0 0 4px">🚫 Cancellation outcome</h2>
+            <p class="hint" style="margin:0 0 10px">Decide what happens to the money. Charge nothing, charge part or all (the driver still gets their share), or refund the customer in full or part. Nothing here touches Google Calendar.</p>
+
+            @if($paid > 0)
+                <p style="margin:0 0 8px;font-size:14px">Customer has paid <strong>£{{ number_format($paid, 2) }}</strong> so far{{ $booking->payment_status === 'refunded' ? ' · marked REFUNDED' : '' }}.</p>
+            @endif
+            @if($hasCharge || $hasRefund)
                 <p style="margin:0 0 10px;font-size:15px">
-                    Charging <strong>£{{ number_format($booking->cancellationFee(), 2) }}</strong>{{ $baseFare ? ' of the £'.number_format($baseFare, 2).' fare' : '' }}.
-                    Driver gets <strong>£{{ number_format($booking->cancellationDriverPay() ?? 0, 2) }}</strong>. This shows on Payroll and in revenue.
+                    @if($hasCharge)
+                        Charging <strong>£{{ number_format($booking->cancellationFee(), 2) }}</strong>{{ $baseFare ? ' of the £'.number_format($baseFare, 2).' fare' : '' }}; driver gets <strong>£{{ number_format($booking->cancellationDriverPay() ?? 0, 2) }}</strong>.
+                    @endif
+                    @if($hasRefund)
+                        <br>Refunding <strong>£{{ number_format($booking->cancellationRefund(), 2) }}</strong> to the customer{{ $booking->cancellationRefundReason() ? ' — '.$booking->cancellationRefundReason() : '' }}. <span class="hint">Process the card refund in Square.</span>
+                    @endif
                 </p>
-            @else
-                <p class="hint" style="margin:0 0 10px">This job is cancelled. If you're still charging the customer (e.g. 50%), record it here so the driver still gets paid and the money is counted.</p>
             @endif
 
             <form method="POST" action="{{ route('bookings.cancellation-charge', $booking) }}" id="cancel-charge-form">
@@ -282,27 +294,60 @@
                 <div class="grid grid-2" style="gap:12px">
                     <div class="field">
                         <label for="cc-fee">Charge to customer (£)</label>
-                        <input id="cc-fee" type="number" step="0.01" min="0" name="fee" value="{{ $booking->cancellationFee() }}" placeholder="e.g. {{ $baseFare ? number_format($baseFare / 2, 2, '.', '') : '52.50' }}">
+                        <input id="cc-fee" type="number" step="0.01" min="0" name="fee" value="{{ $booking->cancellationFee() }}" placeholder="0.00 = no charge">
                     </div>
                     <div class="field">
                         <label for="cc-driver">Driver pay (£)</label>
-                        <input id="cc-driver" type="number" step="0.01" min="0" name="driver_pay" value="{{ $booking->cancellationDriverPay() }}" placeholder="the driver's 50%">
+                        <input id="cc-driver" type="number" step="0.01" min="0" name="driver_pay" value="{{ $booking->cancellationDriverPay() }}" placeholder="leave blank if unpaid">
                     </div>
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+                <div class="grid grid-2" style="gap:12px;margin-top:4px">
+                    <div class="field">
+                        <label for="cc-refund">Refund to customer (£)</label>
+                        <input id="cc-refund" type="number" step="0.01" min="0" name="refund" value="{{ $booking->cancellationRefund() }}" placeholder="0.00 = no refund">
+                    </div>
+                    <div class="field">
+                        <label for="cc-refund-reason">Reason for refund <span class="hint">(optional)</span></label>
+                        <input id="cc-refund-reason" type="text" maxlength="300" name="refund_reason" value="{{ $booking->cancellationRefundReason() }}" placeholder="e.g. cancelled in good time">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+                    <span class="hint" style="align-self:center">Quick:</span>
+                    <button type="button" class="btn btn-light" style="padding:6px 12px;font-size:13px"
+                            onclick="cetCancelPreset(0, 0)">No charge</button>
                     @if($baseFare)
                         <button type="button" class="btn btn-light" style="padding:6px 12px;font-size:13px"
-                                onclick="document.getElementById('cc-fee').value='{{ number_format($baseFare / 2, 2, '.', '') }}'">Charge 50% (£{{ number_format($baseFare / 2, 2) }})</button>
+                                onclick="cetCancelPreset({{ number_format($baseFare / 2, 2, '.', '') }}, null)">Charge 50% (£{{ number_format($baseFare / 2, 2) }})</button>
+                        <button type="button" class="btn btn-light" style="padding:6px 12px;font-size:13px"
+                                onclick="cetCancelPreset({{ number_format($baseFare, 2, '.', '') }}, null)">Charge in full (£{{ number_format($baseFare, 2) }})</button>
                     @endif
-                    <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">Save charge</button>
-                    @if($hasCharge)
-                        <button type="submit" name="clear" value="1" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;color:var(--red)"
-                                onclick="return confirm('Remove the cancellation charge and restore the original fare?')">Remove charge</button>
+                    @if($fullRefundAmount > 0)
+                        <button type="button" class="btn btn-light" style="padding:6px 12px;font-size:13px;border-color:#b32020;color:#b32020"
+                                onclick="cetCancelPreset(0, 0, {{ number_format($fullRefundAmount, 2, '.', '') }})">Full refund (£{{ number_format($fullRefundAmount, 2) }})</button>
                     @endif
                 </div>
-                <p class="hint" style="margin:8px 0 0">Set the driver's pay here — it flows to <a href="{{ route('payroll.index') }}">Payroll</a> like any job. Leave it blank if the driver isn't paid for this one.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">
+                    <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">Save outcome</button>
+                    @if($hasCharge)
+                        <button type="submit" name="clear" value="1" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;color:#b32020"
+                                onclick="return confirm('Remove the cancellation charge and restore the original fare?')">Remove charge</button>
+                    @endif
+                    @if($hasRefund)
+                        <button type="submit" name="clear_refund" value="1" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;color:#b32020"
+                                onclick="return confirm('Remove the recorded refund?')">Remove refund</button>
+                    @endif
+                </div>
+                <p class="hint" style="margin:10px 0 0">A kept fee counts in <a href="{{ route('payroll.index') }}">Payroll</a> (driver's cut) and revenue. A refund is recorded for the books and marks the job refunded — <strong>you still process the actual card refund in Square by hand</strong>.</p>
             </form>
         </div>
+        <script>
+            function cetCancelPreset(fee, driver, refund){
+                var f = document.getElementById('cc-fee'); if (f) f.value = fee;
+                var d = document.getElementById('cc-driver'); if (d && driver !== null) d.value = driver;
+                var r = document.getElementById('cc-refund'); if (r && typeof refund !== 'undefined') r.value = refund;
+            }
+        </script>
     @endif
 
     {{-- Possible duplicate — another live booking looks like the same journey. --}}

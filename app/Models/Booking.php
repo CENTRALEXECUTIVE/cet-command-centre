@@ -1867,14 +1867,19 @@ class Booking extends Model
     public function setCancellationCharge(float $fee, ?float $driverPay, ?User $by = null): void
     {
         $meta = $this->meta ?? [];
+        $existing = $meta['cancellation'] ?? [];
         $meta['cancellation'] = [
             'fee' => round($fee, 2),
             'driver_pay' => $driverPay !== null ? round($driverPay, 2) : null,
             // Remember the original fare once, so re-editing the charge keeps it.
-            'original_fare' => $meta['cancellation']['original_fare'] ?? $this->fareAmount(),
+            'original_fare' => $existing['original_fare'] ?? $this->fareAmount(),
             'at' => now()->toIso8601String(),
             'by' => $by?->id,
         ];
+        // A charge and a refund are independent — keep any recorded refund in place.
+        if (isset($existing['refund'])) {
+            $meta['cancellation']['refund'] = $existing['refund'];
+        }
         if ($driverPay !== null) {
             $payroll = $meta['payroll'] ?? [];
             $payroll['pay'] = round($driverPay, 2);
@@ -1884,16 +1889,107 @@ class Booking extends Model
         $this->forceFill(['meta' => $meta])->save();
     }
 
-    /** Remove a cancellation charge, restoring the original fare. */
+    /** Remove a cancellation charge, restoring the original fare. Any refund stays. */
     public function clearCancellationCharge(): void
     {
         $meta = $this->meta ?? [];
-        $original = $meta['cancellation']['original_fare'] ?? null;
-        unset($meta['cancellation']);
+        $cancellation = $meta['cancellation'] ?? [];
+        $original = $cancellation['original_fare'] ?? null;
+        $refund = $cancellation['refund'] ?? null;
+
+        if ($refund !== null) {
+            // Keep the refund record (and the original fare it relates to).
+            $meta['cancellation'] = ['original_fare' => $original, 'refund' => $refund];
+        } else {
+            unset($meta['cancellation']);
+        }
         if ($original !== null) {
             $this->final_price = $original;
         }
         $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /* ---- Cancellation refund -------------------------------------------------
+     * Sometimes a cancellation is a FULL (or part) refund to the customer. The
+     * actual card refund is processed by hand in Square — this records what went
+     * back and why, and (when it covers what was paid) flips the job to
+     * 'refunded' so money returned to the customer isn't counted as revenue. */
+
+    /** The amount refunded to the customer on a cancelled/no-show job, or null. */
+    public function cancellationRefund(): ?float
+    {
+        $v = $this->meta['cancellation']['refund']['amount'] ?? null;
+
+        return $v !== null ? (float) $v : null;
+    }
+
+    /** Why the refund was given (operator's note), or null. */
+    public function cancellationRefundReason(): ?string
+    {
+        return $this->meta['cancellation']['refund']['reason'] ?? null;
+    }
+
+    /** True when a refund has been recorded on this cancelled/no-show job. */
+    public function hasCancellationRefund(): bool
+    {
+        return in_array($this->status, [BookingStatus::Cancelled, BookingStatus::NoShow], true)
+            && $this->cancellationRefund() !== null && $this->cancellationRefund() > 0.001;
+    }
+
+    /**
+     * Record a refund to the customer for a cancelled/no-show job. Logs the amount,
+     * reason and who did it; the real card refund is done by hand in Square. When
+     * the refund covers what the customer actually paid, the job is marked
+     * 'refunded' so it doesn't read as money still held.
+     */
+    public function setCancellationRefund(float $amount, ?string $reason, ?User $by = null): void
+    {
+        $meta = $this->meta ?? [];
+        $cancellation = $meta['cancellation'] ?? [];
+        $cancellation['original_fare'] = $cancellation['original_fare'] ?? $this->fareAmount();
+        $cancellation['refund'] = [
+            'amount' => round($amount, 2),
+            'reason' => $reason !== null && trim($reason) !== '' ? trim($reason) : null,
+            // Remember what the job's payment status was, so removing the refund can
+            // put it back (marking it 'refunded' loses the fact that it was paid).
+            'prior_payment_status' => $this->payment_status !== 'refunded'
+                ? $this->payment_status
+                : ($cancellation['refund']['prior_payment_status'] ?? $this->payment_status),
+            'at' => now()->toIso8601String(),
+            'by' => $by?->id,
+        ];
+        $meta['cancellation'] = $cancellation;
+
+        $update = ['meta' => $meta];
+        $paid = $this->transactionsPaidTotal();
+        if ($paid > 0 && $amount + 0.01 >= $paid) {
+            $update['payment_status'] = 'refunded';
+        }
+        $this->forceFill($update)->save();
+    }
+
+    /** Remove a recorded refund (and undo the 'refunded' flag if it was set). */
+    public function clearCancellationRefund(): void
+    {
+        $meta = $this->meta ?? [];
+        if (! isset($meta['cancellation']['refund'])) {
+            return;
+        }
+        $prior = $meta['cancellation']['refund']['prior_payment_status'] ?? null;
+        unset($meta['cancellation']['refund']);
+        // If no charge is left either, drop the whole cancellation block.
+        if (empty($meta['cancellation']['fee'])) {
+            unset($meta['cancellation']);
+        }
+
+        $update = ['meta' => $meta];
+        if ($this->payment_status === 'refunded') {
+            // Put back the status the job had before the refund (it was 'refunded'
+            // that hid the paid state); fall back to the ledger if we never stored it.
+            $update['payment_status'] = $prior
+                ?? ($this->transactionsPaidTotal() > 0 ? 'paid' : 'pending');
+        }
+        $this->forceFill($update)->save();
     }
 
     /**
