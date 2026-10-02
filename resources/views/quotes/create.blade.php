@@ -2,8 +2,17 @@
 @section('title', 'Instant Quote')
 
 @section('content')
+    <style>
+        .veh-prices { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+        .veh-prices .vp { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px;
+            padding:8px 12px; background:#fff; cursor:pointer; font-size:13px; transition:border-color .12s, box-shadow .12s; }
+        .veh-prices .vp:hover { border-color:var(--gold, #FBBA2A); }
+        .veh-prices .vp.sel { border-color:var(--gold, #FBBA2A); box-shadow:0 0 0 3px rgba(251,186,42,.18); }
+        .veh-prices .vp .n { font-weight:600; } .veh-prices .vp .p { font-weight:800; }
+        .veh-prices .vp .p.poa { font-weight:600; color:var(--muted, #666); }
+    </style>
     <h1 class="page-title">Instant Quote</h1>
-    <p class="page-sub">AI pricing powered by {{ config('cet.ai_model') }} — distance, time of day, demand and bank holidays.</p>
+    <p class="page-sub">Smart AI pricing — distance, time of day, demand and bank holidays. All vehicle prices shown side by side.</p>
 
     @if($errors->any())
         <div class="alert alert-error">{{ $errors->first() }}</div>
@@ -52,6 +61,8 @@
                                 <option value="{{ $vt->id }}" @selected(old('vehicle_type_id')==$vt->id)>{{ $vt->name }}</option>
                             @endforeach
                         </select>
+                        {{-- Live price for every vehicle at once — tap to pick. --}}
+                        <div id="veh-prices" class="veh-prices" hidden></div>
                     </div>
                     <div class="field">
                         <label for="pickup_at">Pickup date &amp; time <span class="req">*</span></label>
@@ -163,6 +174,7 @@
         window.CET_ADDRESSES_URL = "{{ route('places.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('places.resolve') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
+        window.CET_PRICES_URL = "{{ route('widget.prices') }}";
     </script>
     <script src="{{ asset('js/cet-forms.js') }}?v=35"></script>
     @verbatim
@@ -172,6 +184,53 @@
             document.querySelectorAll('[data-collapsible] > .head').forEach(function (h) {
                 h.addEventListener('click', function () { h.parentNode.classList.toggle('closed'); });
             });
+
+            // Live "all vehicles" price strip — tap a chip to pick that vehicle.
+            (function () {
+                var strip = document.getElementById('veh-prices');
+                var pickup = document.getElementById('pickup_address');
+                var dest = document.getElementById('destination_address');
+                var vehSel = document.getElementById('vehicle_type_id');
+                var whenEl = document.getElementById('pickup_at');
+                if (!strip || !pickup || !dest || !vehSel || !window.CET_PRICES_URL) return;
+                var tokenEl = document.querySelector('meta[name="csrf-token"]');
+                var token = tokenEl ? tokenEl.getAttribute('content') : '';
+                var names = {};
+                Array.prototype.forEach.call(vehSel.options, function (o) { if (o.value) names[o.value] = o.textContent.trim(); });
+                var timer = null, lastKey = '';
+                function render(options) {
+                    strip.innerHTML = '';
+                    options.forEach(function (o) {
+                        var chip = document.createElement('button');
+                        chip.type = 'button'; chip.className = 'vp' + (String(vehSel.value) === String(o.id) ? ' sel' : '');
+                        chip.innerHTML = '<span class="n"></span> <span class="p' + (o.poa ? ' poa' : '') + '"></span>';
+                        chip.querySelector('.n').textContent = (names[o.id] || 'Vehicle');
+                        chip.querySelector('.p').textContent = o.formatted;
+                        chip.addEventListener('click', function () {
+                            vehSel.value = String(o.id); vehSel.dispatchEvent(new Event('change'));
+                            strip.querySelectorAll('.vp').forEach(function (c) { c.classList.toggle('sel', c === chip); });
+                        });
+                        strip.appendChild(chip);
+                    });
+                    strip.hidden = options.length === 0;
+                }
+                function refresh() {
+                    var p = pickup.value.trim(), d = dest.value.trim();
+                    if (p.length < 4 || d.length < 4) { strip.hidden = true; return; }
+                    var when = whenEl ? (whenEl.value || '') : '';
+                    var key = p + '||' + d + '||' + when;
+                    if (key === lastKey) return;
+                    lastKey = key;
+                    fetch(window.CET_PRICES_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                        body: JSON.stringify({ pickup: p, destination: d, pickup_at: when })
+                    }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                      .then(function (d) { if (d && d.options) render(d.options); })
+                      .catch(function () {});
+                }
+                [pickup, dest, whenEl].forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
+            })();
             // Mirror the auto-quote basis/price (written to #quote-note) into the total bar.
             var note = document.getElementById('quote-note');
             var totalAmt = document.getElementById('total-amount');

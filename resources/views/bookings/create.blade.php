@@ -215,6 +215,40 @@
             </div>
         </div>
 
+        {{-- ───────────── Extras ───────────── --}}
+        <div class="eto-section">
+            <div class="head"><span class="ico">✨</span> Extras</div>
+            <div class="body">
+                <div class="checkbox-row" style="margin-bottom:12px">
+                    <input id="meet_greet" type="checkbox" name="meet_greet" value="1" {{ old('meet_greet') ? 'checked' : '' }}>
+                    <label for="meet_greet">Meet &amp; greet <span class="muted">(driver waits in arrivals with a name board)</span></label>
+                </div>
+                <div class="stepper-field" style="border-top:1px solid var(--line)">
+                    <span class="lbl">Child seats<span class="sub">Ages ~4–7</span></span>
+                    <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                        <input id="child_seats" type="number" name="child_seats" min="0" max="8" value="{{ old('child_seats', 0) }}"><button type="button" data-inc>+</button></div>
+                </div>
+                <div class="stepper-field" style="border-top:1px solid var(--line)">
+                    <span class="lbl">Booster seats<span class="sub">Ages ~7–11</span></span>
+                    <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                        <input id="booster_seats" type="number" name="booster_seats" min="0" max="8" value="{{ old('booster_seats', 0) }}"><button type="button" data-inc>+</button></div>
+                </div>
+                <div class="stepper-field" style="border-top:1px solid var(--line)">
+                    <span class="lbl">Infant seats<span class="sub">Rear-facing</span></span>
+                    <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                        <input id="infant_seats" type="number" name="infant_seats" min="0" max="8" value="{{ old('infant_seats', 0) }}"><button type="button" data-inc>+</button></div>
+                </div>
+                <div class="checkbox-row" style="border-top:1px solid var(--line);padding-top:12px;margin-top:4px">
+                    <input id="ribbon" type="checkbox" name="ribbon" value="1" {{ old('ribbon') ? 'checked' : '' }}>
+                    <label for="ribbon">Wedding ribbons</label>
+                </div>
+                <div class="checkbox-row">
+                    <input id="wheelchair" type="checkbox" name="wheelchair" value="1" {{ old('wheelchair') ? 'checked' : '' }}>
+                    <label for="wheelchair">Wheelchair accessible</label>
+                </div>
+            </div>
+        </div>
+
         {{-- ───────────── Payment & driver ───────────── --}}
         <div class="eto-section">
             <div class="head"><span class="ico">💳</span> Payment &amp; Driver</div>
@@ -417,21 +451,23 @@
                     strip.hidden = options.length === 0;
                 }
 
+                var whenEl = document.getElementById('pickup_at');
                 function refresh() {
                     var p = pickup.value.trim(), d = dest.value.trim();
                     if (p.length < 4 || d.length < 4) { strip.hidden = true; return; }
-                    var key = p + '||' + d;
+                    var when = whenEl ? (whenEl.value || '') : '';
+                    var key = p + '||' + d + '||' + when; // time can change night/holiday pricing
                     if (key === lastKey) return;
                     lastKey = key;
                     fetch(window.CET_PRICES_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-                        body: JSON.stringify({ pickup: p, destination: d })
+                        body: JSON.stringify({ pickup: p, destination: d, pickup_at: when })
                     }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
                       .then(function (d) { if (d && d.options) render(d.options); })
                       .catch(function () {});
                 }
-                [pickup, dest].forEach(function (el) { el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
+                [pickup, dest, whenEl].forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
             })();
 
             // Mirror the quoted price into the total bar.

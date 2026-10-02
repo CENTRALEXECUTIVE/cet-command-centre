@@ -56,6 +56,14 @@ class StoreBookingRequest extends FormRequest
             'special_requests' => ['nullable', 'string', 'max:1000'],
             'driver_notes' => ['nullable', 'string', 'max:2000'],
 
+            // Extras (same set the customer widget offers).
+            'meet_greet' => ['nullable', 'boolean'],
+            'child_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
+            'ribbon' => ['nullable', 'boolean'],
+            'wheelchair' => ['nullable', 'boolean'],
+
             // Return leg (paired booking)
             'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
 

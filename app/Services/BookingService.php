@@ -400,7 +400,17 @@ class BookingService
                 'hand_luggage' => $handLuggage,
                 'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
                 'hourly_hours' => $hourlyHours,
-            ]),
+                // Extras — same set the customer widget captures (child-seat counts are
+                // capped at the passenger count), so the calendar marks and the driver
+                // sheet show them.
+                'meet_greet' => ! empty($data['meet_greet']) ?: null,
+                'child_seats' => min((int) ($data['child_seats'] ?? 0), (int) $data['passengers']) ?: null,
+                'booster_seats' => min((int) ($data['booster_seats'] ?? 0), (int) $data['passengers']) ?: null,
+                'infant_seats' => min((int) ($data['infant_seats'] ?? 0), (int) $data['passengers']) ?: null,
+                'child_seat' => (((int) ($data['child_seats'] ?? 0)) + ((int) ($data['booster_seats'] ?? 0)) + ((int) ($data['infant_seats'] ?? 0))) > 0 ?: null,
+                'ribbon' => ! empty($data['ribbon']) ?: null,
+                'wheelchair' => ! empty($data['wheelchair']) ?: null,
+            ], fn ($v) => $v !== null && $v !== '' && $v !== false),
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,
             // The quoted price is the TOTAL for the journey — keep it on the

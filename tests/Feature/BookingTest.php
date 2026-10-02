@@ -43,6 +43,27 @@ class BookingTest extends TestCase
         ], $overrides);
     }
 
+    public function test_admin_create_captures_extras(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'passengers' => 3,
+            'meet_greet' => '1',
+            'child_seats' => 1,
+            'booster_seats' => 2,
+            'infant_seats' => 0,
+            'ribbon' => '1',
+        ]))->assertRedirect();
+
+        $booking = Booking::latest('id')->first();
+        $this->assertTrue((bool) ($booking->meta['meet_greet'] ?? false));
+        $this->assertSame(1, (int) ($booking->meta['child_seats'] ?? 0));
+        $this->assertSame(2, (int) ($booking->meta['booster_seats'] ?? 0));
+        $this->assertTrue((bool) ($booking->meta['child_seat'] ?? false));
+        $this->assertTrue((bool) ($booking->meta['ribbon'] ?? false));
+    }
+
     public function test_admin_can_create_a_booking_with_full_side_effects(): void
     {
         $admin = User::factory()->admin()->create();
