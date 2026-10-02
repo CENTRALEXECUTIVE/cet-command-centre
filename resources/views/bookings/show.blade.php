@@ -1329,11 +1329,20 @@
             <h2 style="margin:0 0 4px">💳 Payment history</h2>
             <p class="hint" style="margin:0 0 12px">Every payment on this booking. Add a deposit or balance, send a card payment link, or mark a transaction paid.</p>
 
-            @if(session('sms_link'))
+            @if(session('copy_link'))
                 <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin:0 0 12px;padding:10px 14px">
-                    <div style="font-weight:700;margin-bottom:6px">Payment link ready</div>
-                    <a href="{{ session('sms_link') }}" class="btn btn-primary" style="padding:7px 14px;font-size:13px">💬 Open SMS with the link</a>
-                    <button type="button" class="btn btn-ghost copy-pay-link" data-link="{{ session('copy_link') }}" style="padding:7px 14px;font-size:13px">⧉ Copy link</button>
+                    <div style="font-weight:700;margin-bottom:6px">💳 Square payment link ready</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        @if(session('share_wa'))
+                            <a href="{{ session('share_wa') }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:7px 14px;font-size:13px">📲 Open WhatsApp with the link</a>
+                        @endif
+                        @if(session('sms_link'))
+                            <a href="{{ session('sms_link') }}" class="btn btn-primary" style="padding:7px 14px;font-size:13px">💬 Open SMS with the link</a>
+                        @endif
+                        <button type="button" class="btn btn-ghost copy-link" data-link="{{ session('copy_link') }}" style="padding:7px 14px;font-size:13px">⧉ Copy link</button>
+                        <a href="{{ session('copy_link') }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:7px 14px;font-size:13px">↗ Open link</a>
+                        <span class="copy-link-done hint" style="color:#1f8b4c"></span>
+                    </div>
                 </div>
             @endif
 
@@ -1366,12 +1375,20 @@
                                             </form>
                                         @endif
                                         <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
-                                            <input type="hidden" name="channel" value="email">
-                                            <button class="txn-menu-item">✉ Send payment link by email</button>
+                                            <input type="hidden" name="channel" value="whatsapp">
+                                            <button class="txn-menu-item" style="color:#1f7a44">📲 Card link via WhatsApp</button>
                                         </form>
                                         <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
                                             <input type="hidden" name="channel" value="sms">
-                                            <button class="txn-menu-item">💬 Send payment link via SMS</button>
+                                            <button class="txn-menu-item">💬 Card link via SMS</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
+                                            <input type="hidden" name="channel" value="email">
+                                            <button class="txn-menu-item">✉ Card link by email</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
+                                            <input type="hidden" name="channel" value="copy">
+                                            <button class="txn-menu-item">⧉ Create &amp; copy card link</button>
                                         </form>
                                         <button type="button" class="txn-menu-item txn-edit-toggle" data-target="txn-edit-{{ $payment->id }}">✎ Edit</button>
                                         <form method="POST" action="{{ route('bookings.transactions.duplicate', [$booking, $payment]) }}">@csrf
@@ -1444,9 +1461,13 @@
                         @foreach($txStatuses as $sv => $sl)<option value="{{ $sv }}" @selected(old('status', 'pending') === $sv)>{{ $sl }}</option>@endforeach
                     </select></div>
                     <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">Add transaction</button>
+                    {{-- One tap: record the charge AND create the Square card link, then
+                         hand you WhatsApp/SMS/copy to send it (ETO-style). Card only. --}}
+                    <button class="btn btn-dark" style="padding:8px 14px;font-size:13px" name="create_link" value="whatsapp"
+                            title="Adds the charge and creates a Square card payment link to send">＋ Add &amp; create card link</button>
                 </form>
             </details>
-            <p class="hint" style="margin:12px 0 0">These transactions include one-way and return bookings.</p>
+            <p class="hint" style="margin:12px 0 0"><strong>Add transaction</strong> just records a line. To take a card payment, use <strong>Add &amp; create card link</strong> (or a row's <strong>Actions → Card link</strong>) — that makes a real Square checkout link you send by WhatsApp, SMS, email or copy. These transactions include one-way and return bookings.</p>
         </div>
     @endif
 

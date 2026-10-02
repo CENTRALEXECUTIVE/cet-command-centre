@@ -54,6 +54,20 @@ class BookingTransactionController extends Controller
         $booking->load('payments');
         $booking->reconcilePaymentStatusFromTransactions();
 
+        // One-step: add the charge AND create the Square card link in the same tap
+        // (ETO-style), then hand the office a way to send it.
+        $channel = $request->input('create_link');
+        if ($channel && in_array($channel, ['email', 'sms', 'whatsapp', 'copy'], true)
+            && $data['method'] === 'card' && (float) $payment->amount > 0 && $payment->status !== 'paid') {
+            $link = $this->createLink($booking, $payment, (float) $payment->amount);
+            if ($link) {
+                return $this->shareLink(back(), $booking, (float) $payment->amount, $link, $channel);
+            }
+
+            return back()->with('status', 'Transaction added.')
+                ->with('error', 'Card payments aren’t set up yet, so no link was created.')->with('scroll', 'transactions');
+        }
+
         return back()->with('status', 'Transaction added — '.$payment->name().' £'.number_format((float) $payment->amount, 2))
             ->with('scroll', 'transactions');
     }
@@ -153,51 +167,86 @@ class BookingTransactionController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
         abort_unless($payment->booking_id === $booking->id, 404);
-        $data = $request->validate(['channel' => ['required', Rule::in(['email', 'sms'])]]);
+        $data = $request->validate(['channel' => ['required', Rule::in(['email', 'sms', 'whatsapp', 'copy'])]]);
 
         $amount = (float) $payment->amount;
         if ($amount <= 0) {
             return back()->with('error', 'Set an amount on the transaction before sending a payment link.')->with('scroll', 'transactions');
         }
 
-        $link = $this->square->enabled($booking->billingEntity())
-            ? $this->square->createCheckoutUrl($booking, $amount, route('payments.index'))
-            : null;
-
+        $link = $this->createLink($booking, $payment, $amount);
         if (! $link) {
             return back()->with('error', 'Card payments aren’t set up yet, so no payment link could be created.')->with('scroll', 'transactions');
         }
 
-        $payment->forceFill([
-            'tide_payment_link' => $link,
-            'status' => $payment->status === 'paid' ? 'paid' : 'link_sent',
-        ])->save();
+        return $this->shareLink(back(), $booking, $amount, $link, $data['channel']);
+    }
 
-        if ($data['channel'] === 'email') {
+    /**
+     * Create the Square checkout link for a transaction's amount and store it on the
+     * transaction. Returns the URL, or null if card payments aren't configured.
+     */
+    private function createLink(Booking $booking, Payment $payment, float $amount): ?string
+    {
+        $link = $this->square->enabled($booking->billingEntity())
+            ? $this->square->createCheckoutUrl($booking, $amount, route('payments.index'))
+            : null;
+
+        if ($link) {
+            $payment->forceFill([
+                'tide_payment_link' => $link,
+                'status' => $payment->status === 'paid' ? 'paid' : 'link_sent',
+            ])->save();
+        }
+
+        return $link;
+    }
+
+    /**
+     * Hand the office the link the way they asked: email it, or give a ready-to-send
+     * WhatsApp / SMS deep link (keeping the "no paid messaging API" rule), or just
+     * the raw link to copy. The link is always copyable from the row too.
+     */
+    private function shareLink(RedirectResponse $redirect, Booking $booking, float $amount, string $link, string $channel): RedirectResponse
+    {
+        $redirect->with('copy_link', $link)->with('scroll', 'transactions');
+
+        $body = 'Central Executive Transfers — pay for booking '.$booking->reference.' (£'.number_format($amount, 2).'): '.$link;
+        $phone = $booking->customerContactNumber() ?: $booking->customer?->phone;
+
+        if ($channel === 'email') {
             $email = $booking->customer?->email;
             if (! $email) {
-                return back()->with('error', 'No customer email on file to send the payment link to.')->with('scroll', 'transactions');
+                return $redirect->with('error', 'No customer email on file — the link is created, copy it to send another way.');
             }
             try {
                 Mail::to($email)->send(new \App\Mail\PaymentLinkMail($booking, $amount, $link));
             } catch (\Throwable $e) {
                 Log::warning('[transactions] payment link email failed: '.$e->getMessage());
 
-                return back()->with('error', 'Could not send the payment-link email — please try again.')->with('scroll', 'transactions');
+                return $redirect->with('error', 'Could not email the link — it’s created, copy it to send another way.');
             }
 
-            return back()->with('status', 'Payment link emailed to '.$email.'.')->with('scroll', 'transactions');
+            return $redirect->with('status', 'Payment link emailed to '.$email.'.');
         }
 
-        // SMS: no paid gateway — hand the office an sms: deep link to send by hand.
-        $phone = $booking->customerContactNumber() ?: $booking->customer?->phone;
-        $body = 'Central Executive Transfers — pay for booking '.$booking->reference.' (£'.number_format($amount, 2).'): '.$link;
-        $smsLink = 'sms:'.($phone ? preg_replace('/[^0-9+]/', '', $phone) : '').'?&body='.rawurlencode($body);
+        if ($channel === 'whatsapp') {
+            $wa = \App\Support\Phone::wa($phone);
 
-        return back()
-            ->with('status', 'Payment link ready — tap to open your SMS app with it filled in.')
-            ->with('sms_link', $smsLink)
-            ->with('copy_link', $link)
-            ->with('scroll', 'transactions');
+            return $redirect
+                ->with('status', $wa ? 'WhatsApp link ready — tap to open the chat with it filled in.' : 'Link created — no mobile on file for WhatsApp, copy it to send.')
+                ->with('share_wa', $wa ? 'https://wa.me/'.$wa.'?text='.rawurlencode($body) : null);
+        }
+
+        if ($channel === 'sms') {
+            $digits = $phone ? preg_replace('/[^0-9+]/', '', $phone) : '';
+
+            return $redirect
+                ->with('status', 'SMS link ready — tap to open your SMS app with it filled in.')
+                ->with('sms_link', 'sms:'.$digits.'?&body='.rawurlencode($body));
+        }
+
+        // copy
+        return $redirect->with('status', 'Card payment link created — copy it to send however you like.');
     }
 }
