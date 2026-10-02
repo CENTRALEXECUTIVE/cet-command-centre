@@ -8,8 +8,14 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Scheduler heartbeat — stamps "the cron ran" every minute. If this stops, the
+// whole background layer (deploy, calendar sync, reminders, watchdog, backups) is
+// down; the System Health page and admin banner read it to surface that at once.
+Schedule::command('cet:heartbeat')->everyMinute();
+
 // Deliver due WhatsApp reminders (24h / 2h before pickup).
-Schedule::command('cet:send-due-messages')->everyMinute()->withoutOverlapping();
+Schedule::command('cet:send-due-messages')->everyMinute()->withoutOverlapping()
+    ->after(fn () => \App\Support\Heartbeat::stamp('send-due-messages'));
 
 // Make sure every upcoming booking (incl. ETO imports) has a reminder prepared
 // and on the "to send" list, and that any reminder queued later than the evening
@@ -20,7 +26,8 @@ Schedule::command('cet:prepare-reminders')->hourly()->withoutOverlapping();
 // The Command Centre backs itself up: a full gzipped database snapshot every
 // hour (keeps the newest 72 ≈ 3 days), so data can never be silently lost and
 // any state can be recalled with cet:restore-database. Read-only against data.
-Schedule::command('cet:backup-database')->hourly()->withoutOverlapping();
+Schedule::command('cet:backup-database')->hourly()->withoutOverlapping()
+    ->after(fn () => \App\Support\Heartbeat::stamp('backup-database'));
 
 // GDPR: prune GPS pings past the retention window, daily.
 Schedule::command('cet:prune-gps')->dailyAt('03:00');
@@ -44,7 +51,8 @@ Schedule::command('cet:sync-ads')->dailyAt('05:00');
 // new bookings in the correct format (CalendarEventBuilder) and matches existing
 // events by reference so it never duplicates. ICS import stays disabled (rule
 // 10 — the corruption source). Operator-driven edits/deletions are NOT done here.
-Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('cet:sync-calendar')->everyFiveMinutes()->withoutOverlapping()
+    ->after(fn () => \App\Support\Heartbeat::stamp('sync-calendar'));
 
 // PULL upcoming bookings into line with the live calendar (read-only), in the
 // shell where the Google connection is reliable — so the website never has to
@@ -68,7 +76,8 @@ Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
 
 // Status watchdog: nudge drivers who haven't set off / tapped the next status,
 // detect arrivals/POB/complete from GPS, and feed the dashboard alerts log.
-Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping();
+Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping()
+    ->after(fn () => \App\Support\Heartbeat::stamp('status-watchdog'));
 
 // Number masking safety net: close Proxy sessions past drop-off + 4h even if
 // a status change was missed. Twilio's own expiry backs this up.
@@ -78,4 +87,5 @@ Schedule::command('cet:close-proxy-sessions')->everyMinute()->withoutOverlapping
 // MINUTE, using this same scheduler cron — so a pushed fix goes live on its own,
 // within the minute, with no separate cron to maintain. No-op when up to date.
 // Turn off with CET_AUTO_DEPLOY=false in the environment.
-Schedule::command('cet:auto-deploy')->everyMinute()->withoutOverlapping();
+Schedule::command('cet:auto-deploy')->everyMinute()->withoutOverlapping()
+    ->after(fn () => \App\Support\Heartbeat::stamp('auto-deploy'));

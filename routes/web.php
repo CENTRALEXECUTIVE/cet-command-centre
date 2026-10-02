@@ -290,6 +290,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Settings hub — the one landing page linking every office control.
         Route::get('settings/hub', [\App\Http\Controllers\Admin\SettingsHubController::class, 'index'])->name('settings.hub');
 
+        // System Health — is everything that keeps the business running actually running.
+        Route::get('settings/health', [\App\Http\Controllers\Admin\HealthController::class, 'index'])->name('health.index');
+
         // Settings — paste integration keys in-app (Google Maps, …).
         Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');

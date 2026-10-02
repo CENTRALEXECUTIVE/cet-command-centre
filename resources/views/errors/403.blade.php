@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'No access')
+@section('code', 'Error 403')
+@section('heading', 'You don’t have access to that')
+@section('message', 'Your account can’t open this page. If you think it should, ask a super-admin to check your permissions.')

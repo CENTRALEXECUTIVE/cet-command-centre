@@ -37,6 +37,7 @@
                 ['Users', 'Drivers, corporate clients and admins.', 'users.index', '👥'],
             ],
             'Data' => [
+                ['System health', 'Is everything running — scheduler, calendar, backups, connections.', 'health.index', '🩺'],
                 ['Activity log', 'Who did what, when — across the system.', 'activity-log.index', '📜'],
                 ['Imports', 'Import ETO bookings and Google Ads reports.', 'imports.index', '📥'],
                 ['ETO audit', 'Reconcile bookings against the calendar.', 'audit.index', '✅'],

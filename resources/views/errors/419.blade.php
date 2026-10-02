@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Session expired')
+@section('code', 'Session expired')
+@section('heading', 'Your session timed out')
+@section('message', 'For security you were signed out after a spell of inactivity. Reload the page and sign in again — nothing was lost.')

@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Back in a moment')
+@section('code', 'Maintenance')
+@section('heading', 'Just a quick update')
+@section('message', 'The Command Centre is being updated and will be back in a moment. Your bookings and data are untouched.')

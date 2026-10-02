@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Page not found')
+@section('code', 'Error 404')
+@section('heading', 'That page isn’t here')
+@section('message', 'The link may be old or mistyped. Head back to the Command Centre and carry on.')
