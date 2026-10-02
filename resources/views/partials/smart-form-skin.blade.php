@@ -114,6 +114,11 @@
     .smart-form .btn-primary:hover{ box-shadow:0 14px 28px -12px rgba(233,164,19,.9); }
     .smart-form .btn-primary:active{ transform:translateY(1px); }
 
+    /* Airport prompt callout (reactive, like the customer side) */
+    .smart-form .airport-note{ margin-top:14px; padding:12px 14px; border-radius:12px; font-size:13.5px; line-height:1.5;
+        background:rgba(251,186,42,.12); border:1px solid rgba(233,164,19,.45); color:#5c4708; }
+    .smart-form .airport-note strong{ color:#3a2d02; }
+
     /* Collapsible advanced sections */
     .smart-form .eto-section.collapsible.closed > .body{ display:none; }
     .smart-form .eto-section.collapsible > .head{ cursor:pointer; }

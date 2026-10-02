@@ -404,6 +404,11 @@ class BookingService
                 // capped at the passenger count), so the calendar marks and the driver
                 // sheet show them.
                 'meet_greet' => ! empty($data['meet_greet']) ?: null,
+                // Flight landing time (airport arrivals) — kept so the office can
+                // track the flight and time the pickup; UK-local like all CET times.
+                'flight_landing_at' => ! empty($data['flight_landing_at'])
+                    ? \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->toDateTimeString()
+                    : null,
                 'child_seats' => min((int) ($data['child_seats'] ?? 0), (int) $data['passengers']) ?: null,
                 'booster_seats' => min((int) ($data['booster_seats'] ?? 0), (int) $data['passengers']) ?: null,
                 'infant_seats' => min((int) ($data['infant_seats'] ?? 0), (int) $data['passengers']) ?: null,

@@ -93,6 +93,32 @@ class BookingTest extends TestCase
         $this->assertEquals('Abdirazak Hassan', $booking->driver->name);
     }
 
+    public function test_an_airport_booking_stores_the_flight_landing_time(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $lhr = Airport::where('code', 'LHR')->first();
+        $landing = now()->addDay()->addHours(3);
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'airport_id' => $lhr->id,
+            'flight_number' => 'BA1234',
+            'flight_landing_at' => $landing->format('Y-m-d\TH:i'),
+        ]))->assertRedirect();
+
+        $booking = Booking::latest('id')->first();
+        $this->assertSame('BA1234', $booking->flight_number);
+        $this->assertNotEmpty($booking->meta['flight_landing_at'] ?? null);
+    }
+
+    public function test_the_booking_form_has_the_reactive_airport_prompt(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('bookings.create'))->assertOk()
+            ->assertSee('id="airport-note"', false)         // reactive airport callout
+            ->assertSee('id="flight_landing_at"', false);   // landing-time field
+    }
+
     public function test_bookings_list_can_be_searched(): void
     {
         $admin = User::factory()->admin()->create();

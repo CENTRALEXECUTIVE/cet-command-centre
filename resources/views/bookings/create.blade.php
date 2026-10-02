@@ -147,6 +147,13 @@
                         @endforeach
                     </select>
                 </div>
+
+                {{-- Airport prompt — appears automatically when the pickup/drop-off is an
+                     airport, so the flight number, landing time and meet & greet are never
+                     missed on an airport job. --}}
+                <div id="airport-note" class="airport-note" hidden>
+                    ✈ <strong>Airport job detected.</strong> <span id="airport-note-text">Add the flight number and landing time below so the office can track the flight — meet &amp; greet has been ticked for the arrivals pickup.</span>
+                </div>
             </div>
         </div>
 
@@ -200,10 +207,16 @@
                 </div>
                 @error('hand_luggage') <div class="error">{{ $message }}</div> @enderror
 
-                <div class="field" style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
-                    <label for="flight_number">Flight number <span class="muted">(if airport)</span></label>
-                    <input id="flight_number" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1234">
-                    @error('flight_number') <div class="error">{{ $message }}</div> @enderror
+                <div class="grid grid-2" id="flight-fields" style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
+                    <div class="field" style="margin-bottom:0">
+                        <label for="flight_number">Flight number <span class="muted" id="flight-hint">(if airport)</span></label>
+                        <input id="flight_number" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1234" style="text-transform:uppercase">
+                        @error('flight_number') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="field" id="flight-landing-field" style="margin-bottom:0" hidden>
+                        <label for="flight_landing_at">Flight landing time <span class="muted">(so we can track it)</span></label>
+                        <input id="flight_landing_at" type="datetime-local" name="flight_landing_at" value="{{ old('flight_landing_at') }}">
+                    </div>
                 </div>
             </div>
         </div>
@@ -392,6 +405,56 @@
                 }
             }
             if (journey) { journey.addEventListener('change', toggleJourney); toggleJourney(); }
+
+            // ── Airport reactivity ─────────────────────────────────────────────
+            // Mirror the customer side: when the pickup/drop-off is an airport, prompt
+            // for the flight number (required) + landing time, and pre-tick meet &
+            // greet for an arrivals pickup — so key info is never missed.
+            (function () {
+                var airportSel = document.getElementById('airport_id');
+                var pickup = document.getElementById('pickup_address');
+                var dest = document.getElementById('destination_address');
+                var note = document.getElementById('airport-note');
+                var noteText = document.getElementById('airport-note-text');
+                var flightIn = document.getElementById('flight_number');
+                var flightHint = document.getElementById('flight-hint');
+                var landingField = document.getElementById('flight-landing-field');
+                var meet = document.getElementById('meet_greet');
+                if (!flightIn) return;
+                var mgAuto = false; // only auto-manage the tick we set ourselves
+
+                var rx = /\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bman\b|manchester airport|east midlands|\bema\b|\blba\b|leeds bradford|doncaster|\bt[1-5]\b/i;
+                function looksAirport(v) { return rx.test(String(v || '')); }
+                function isPickupAirport() { return (airportSel && airportSel.value !== '') || looksAirport(pickup && pickup.value); }
+                function isAnyAirport() { return isPickupAirport() || looksAirport(dest && dest.value); }
+
+                function apply() {
+                    var any = isAnyAirport();
+                    var arrival = isPickupAirport();
+                    if (note) note.hidden = !any;
+                    if (landingField) landingField.hidden = !any;
+                    // Flight number becomes required on any airport job.
+                    flightIn.required = any;
+                    if (flightHint) flightHint.textContent = any ? '— required for airport jobs' : '(if airport)';
+                    if (noteText) noteText.textContent = arrival
+                        ? 'Add the flight number and landing time below so the office can track the flight — meet & greet has been ticked for the arrivals pickup.'
+                        : 'Add the flight number and landing time below so the office can track the flight.';
+                    // Pre-tick meet & greet for an ARRIVAL (airport pickup); untick the
+                    // auto-tick if it stops being an arrival, but never fight a manual tick.
+                    if (meet) {
+                        if (arrival && !meet.checked) { meet.checked = true; mgAuto = true; }
+                        else if (!arrival && mgAuto && meet.checked) { meet.checked = false; mgAuto = false; }
+                    }
+                }
+                if (meet) meet.addEventListener('change', function () { mgAuto = false; });
+                [airportSel, pickup, dest].forEach(function (el) {
+                    if (!el) return;
+                    el.addEventListener('change', apply);
+                    el.addEventListener('blur', apply);
+                    el.addEventListener('input', apply);
+                });
+                apply();
+            })();
 
             // Number steppers.
             document.querySelectorAll('[data-stepper]').forEach(function (s) {
