@@ -124,6 +124,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::delete('bookings/{booking}', [BookingController::class, 'destroy'])->middleware('throttle:30,1')->name('bookings.destroy');
+        // Trash: deleted bookings — restore, or purge permanently.
+        Route::get('bookings-trash', [BookingController::class, 'trash'])->name('bookings.trash');
+        Route::post('bookings/{booking}/restore', [BookingController::class, 'restore'])->middleware('throttle:30,1')->name('bookings.restore')->withTrashed();
+        Route::delete('bookings/{booking}/force', [BookingController::class, 'forceDestroy'])->middleware('throttle:30,1')->name('bookings.force-destroy')->withTrashed();
         Route::post('bookings/{booking}/merge', [BookingController::class, 'merge'])->middleware('throttle:30,1')->name('bookings.merge');
         Route::post('bookings/{booking}/keep-separate', [BookingController::class, 'keepSeparate'])->middleware('throttle:30,1')->name('bookings.keep-separate');
         Route::post('bookings/{booking}/extra-drivers', [BookingController::class, 'addExtraDriver'])->middleware('throttle:30,1')->name('bookings.extra-drivers.add');

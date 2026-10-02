@@ -546,6 +546,48 @@ class BookingController extends Controller
                 .'If it was on Google Calendar, remove that event by hand — the calendar is never touched automatically.');
     }
 
+    /** The trash: recently deleted bookings an admin can restore or purge. */
+    public function trash(Request $request): View
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $bookings = Booking::onlyTrashed()
+            ->with(['customer', 'vehicleType'])
+            ->orderByDesc('deleted_at')
+            ->paginate(40);
+
+        return view('bookings.trash', compact('bookings'));
+    }
+
+    /** Restore a deleted booking (and its return leg). */
+    public function restore(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $linked = Booking::withTrashed()->find($booking->linked_booking_id);
+        $booking->restore();
+        $linked?->restore();
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('status', "Booking {$booking->reference} restored.");
+    }
+
+    /** Permanently delete a booking from the trash — cannot be undone. */
+    public function forceDestroy(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $ref = $booking->reference;
+        $linked = Booking::withTrashed()->find($booking->linked_booking_id);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $linked) {
+            $linked?->forceDelete();
+            $booking->forceDelete();
+        });
+
+        return redirect()->route('bookings.trash')
+            ->with('status', "Booking {$ref} permanently deleted. The Google Calendar event, if any, is untouched.");
+    }
+
     /**
      * Merge a duplicate booking into this one. $booking is the copy we KEEP;
      * the duplicate is folded in (driver, tips, calendar link, any blank fields,

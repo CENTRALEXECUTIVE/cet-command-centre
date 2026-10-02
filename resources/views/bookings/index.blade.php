@@ -22,6 +22,9 @@
             @if(auth()->user()->isAdmin() || auth()->user()->isCorporateClient())
                 <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="padding:9px 16px;white-space:nowrap">+ New</a>
             @endif
+            @if(auth()->user()->isAdmin())
+                <a href="{{ route('bookings.trash') }}" class="btn btn-ghost" style="padding:9px 14px;white-space:nowrap" title="Deleted bookings">🗑️ Trash</a>
+            @endif
         </div>
     </div>
 
