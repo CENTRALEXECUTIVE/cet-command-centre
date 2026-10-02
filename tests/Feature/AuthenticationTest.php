@@ -148,7 +148,7 @@ class AuthenticationTest extends TestCase
         $this->seed(AirportSeeder::class);
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)->get(route('bookings.create'))->assertOk()->assertSee('Smart Booking');
+        $this->actingAs($admin)->get(route('bookings.create'))->assertOk()->assertSee('New booking');
     }
 
     public function test_users_can_logout(): void

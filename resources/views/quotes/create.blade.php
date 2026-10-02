@@ -2,21 +2,20 @@
 @section('title', 'Instant Quote')
 
 @section('content')
-    <style>
-        .veh-prices { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
-        .veh-prices .vp { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px;
-            padding:8px 12px; background:#fff; cursor:pointer; font-size:13px; transition:border-color .12s, box-shadow .12s; }
-        .veh-prices .vp:hover { border-color:var(--gold, #FBBA2A); }
-        .veh-prices .vp.sel { border-color:var(--gold, #FBBA2A); box-shadow:0 0 0 3px rgba(251,186,42,.18); }
-        .veh-prices .vp .n { font-weight:600; } .veh-prices .vp .p { font-weight:800; }
-        .veh-prices .vp .p.poa { font-weight:600; color:var(--muted, #666); }
-    </style>
-    <h1 class="page-title">Instant Quote</h1>
-    <p class="page-sub">Smart AI pricing — distance, time of day, demand and bank holidays. All vehicle prices shown side by side.</p>
+    @include('partials.smart-form-skin')
 
-    @if($errors->any())
-        <div class="alert alert-error">{{ $errors->first() }}</div>
-    @endif
+    <div class="smart-form">
+        <div class="smart-hero">
+            <div class="brand"><span class="mark">C</span><span class="name">CENTRAL <span>EXECUTIVE</span> TRANSFERS</span></div>
+            <span class="eyebrow">Sales · Instant price</span>
+            <h1>Get an instant price</h1>
+            <p>Smart pricing — distance, time of day, demand and bank holidays. Every vehicle priced side by side so you can quote in seconds.</p>
+            <span class="pill">💷 Prices are a guide · confirmed on booking</span>
+        </div>
+
+        @if($errors->any())
+            <div class="alert alert-error">{{ $errors->first() }}</div>
+        @endif
 
     <form method="POST" action="{{ route('quotes.store') }}" class="eto-form">
         @csrf
@@ -163,10 +162,11 @@
                 <div class="total-amount" id="total-amount">£0.00<span class="basis" id="total-basis">enter journey for a live price</span></div>
             </div>
             <div class="actions">
-                <button type="submit" class="btn btn-primary">Generate Quote</button>
+                <button type="submit" class="btn btn-primary">Generate quote →</button>
             </div>
         </div>
     </form>
+    </div>{{-- /.smart-form --}}
 
     <script>
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";

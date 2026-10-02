@@ -2,23 +2,16 @@
 @section('title', 'New Booking')
 
 @section('content')
-    <style>
-        .veh-prices { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
-        .veh-prices .vp { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px;
-            padding:8px 12px; background:#fff; cursor:pointer; font-size:13px; transition:border-color .12s, box-shadow .12s; }
-        .veh-prices .vp:hover { border-color:var(--gold, #FBBA2A); }
-        .veh-prices .vp.sel { border-color:var(--gold, #FBBA2A); box-shadow:0 0 0 3px rgba(251,186,42,.18); }
-        .veh-prices .vp .n { font-weight:600; color:var(--ink, #111); }
-        .veh-prices .vp .p { font-weight:800; }
-        .veh-prices .vp .p.poa { font-weight:600; color:var(--muted, #666); }
-        .veh-prices .vp-hint { font-size:12px; color:var(--muted, #666); align-self:center; }
-    </style>
-    <div class="form-hero">
-        <div class="form-hero-glow"></div>
-        <div class="fh-eyebrow">Sales · new job</div>
-        <div class="fh-title">Smart Booking</div>
-        <div class="fh-sub">Quote to confirmed booking in under 60 seconds.</div>
-    </div>
+    @include('partials.smart-form-skin')
+
+    <div class="smart-form">
+        <div class="smart-hero">
+            <div class="brand"><span class="mark">C</span><span class="name">CENTRAL <span>EXECUTIVE</span> TRANSFERS</span></div>
+            <span class="eyebrow">Sales · New job</span>
+            <h1>New booking</h1>
+            <p>The customer booking form, with your admin controls built in — quote to confirmed booking in under 60 seconds.</p>
+            <span class="pill">⚡ Live price · driver &amp; payment control</span>
+        </div>
 
     @if($errors->any())
         <div class="alert alert-error">
@@ -338,10 +331,11 @@
             </div>
             <div class="actions">
                 <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
-                <button type="submit" class="btn btn-primary">Confirm Booking</button>
+                <button type="submit" class="btn btn-primary">Confirm booking →</button>
             </div>
         </div>
     </form>
+    </div>{{-- /.smart-form --}}
 
     <script>
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
