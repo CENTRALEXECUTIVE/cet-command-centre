@@ -97,6 +97,28 @@ class RotationViewTest extends TestCase
             ->assertSee($booking->reference);
     }
 
+    public function test_the_turn_panel_has_an_inline_set_turn_control(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Editable Turn']);
+        $airport = \App\Models\Airport::where('code', 'LHR')->first();
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => $customer->id,
+            'vehicle_type_id' => $executive->id,
+            'airport_id' => $airport?->id,
+            'pickup_at' => now()->addDay(),
+            'pickup_address' => 'Pickup', 'destination_address' => 'Destination',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+        app(RotationService::class)->allocate($booking);
+
+        $this->actingAs($admin)->get(route('rotation.index'))->assertOk()
+            ->assertSee('Set turn')
+            ->assertSee(route('rotation.set-next'), false);
+    }
+
     public function test_non_admin_cannot_view_rotation(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

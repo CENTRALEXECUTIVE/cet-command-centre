@@ -59,6 +59,21 @@
                                 @endif
                             </span>
                         </div>
+                        {{-- Set who's up next for this airport × vehicle. Logged as a
+                             manual override; only the rotation drivers are selectable. --}}
+                        @if(($rotationDrivers ?? collect())->count() > 1)
+                            <form method="POST" action="{{ route('rotation.set-next') }}" style="margin-top:10px;display:flex;gap:6px;align-items:center">
+                                @csrf
+                                <input type="hidden" name="airport_id" value="{{ $r['airport']->id }}">
+                                <input type="hidden" name="vehicle_type_id" value="{{ $r['vehicle_type']->id }}">
+                                <span class="muted" style="font-size:11px">Set turn:</span>
+                                <select name="driver_id" onchange="this.form.submit()" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px">
+                                    @foreach($rotationDrivers as $d)
+                                        <option value="{{ $d->id }}" @selected($r['next'] && $r['next']->id === $d->id)>{{ $d->driverProfile?->callsign ?: $d->name }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        @endif
                     </div>
                 @endforeach
             </div>
