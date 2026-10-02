@@ -21,4 +21,9 @@ class Airport extends Model
     {
         return $this->hasMany(RotationState::class);
     }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
 }

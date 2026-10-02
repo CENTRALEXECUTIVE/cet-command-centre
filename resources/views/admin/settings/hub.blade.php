@@ -20,6 +20,7 @@
             ],
             'Fleet' => [
                 ['Vehicles', 'Names, capacities, hand luggage, on/off &amp; order.', 'vehicles.index', '🚗'],
+                ['Airports', 'Add or edit airports, set the Free Roam pool.', 'airports.index', '✈️'],
                 ['Vehicle photos', 'The pictures customers see on the booking page.', 'fleet-photos.index', '📸'],
             ],
             'Booking channels' => [

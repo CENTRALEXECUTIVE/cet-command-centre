@@ -293,6 +293,12 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // System Health — is everything that keeps the business running actually running.
         Route::get('settings/health', [\App\Http\Controllers\Admin\HealthController::class, 'index'])->name('health.index');
 
+        // Airports — the list that drives the booking form + driver rotation.
+        Route::get('settings/airports', [\App\Http\Controllers\Admin\AirportController::class, 'index'])->name('airports.index');
+        Route::post('settings/airports', [\App\Http\Controllers\Admin\AirportController::class, 'store'])->name('airports.store');
+        Route::put('settings/airports/{airport}', [\App\Http\Controllers\Admin\AirportController::class, 'update'])->name('airports.update');
+        Route::delete('settings/airports/{airport}', [\App\Http\Controllers\Admin\AirportController::class, 'destroy'])->name('airports.destroy');
+
         // Settings — paste integration keys in-app (Google Maps, …).
         Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
