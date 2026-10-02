@@ -16,7 +16,7 @@ use Illuminate\View\View;
  */
 class RotationController extends Controller
 {
-    public function index(Request $request, \App\Services\RouteOrderService $routeOrder): View
+    public function index(Request $request, \App\Services\RouteOrderService $routeOrder, RotationService $rotation): View
     {
         abort_unless($request->user()->isAdmin(), 403);
 
@@ -25,7 +25,13 @@ class RotationController extends Controller
         // that's what the Abdi↔Maj rotation covers. Drivers can be changed inline.
         $order = $routeOrder->build($request->query('route'), $request->query('scope'), $request->query('vehicle'), executiveOnly: true);
 
+        // Whose turn is it — and who did the last job — per airport × vehicle type,
+        // so the running order is visible at a glance above the job list.
+        $overview = $rotation->overview();
+
         return view('admin.rotation.index', [
+            'rotationDrivers' => $overview['drivers'],
+            'rotationRows' => $overview['rows'],
             'orderScope' => $order['scope'],
             'orderTabs' => $order['tabs'],
             'orderSelected' => $order['selected'],

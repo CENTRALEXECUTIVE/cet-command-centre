@@ -65,6 +65,38 @@ class RotationViewTest extends TestCase
             ->assertSee($booking->reference);
     }
 
+    public function test_the_turn_panel_shows_whose_turn_and_who_did_the_last_job(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Rotation Passenger']);
+        $airport = \App\Models\Airport::where('code', 'LHR')->first();
+
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => $customer->id,
+            'vehicle_type_id' => $executive->id,
+            'airport_id' => $airport?->id,
+            'pickup_at' => now()->addDay(),
+            'pickup_address' => 'Pickup',
+            'destination_address' => 'Destination',
+            'passengers' => 1,
+            'status' => 'pending',
+            'payment_method' => 'card',
+        ]);
+        // Abdi (first driver) takes it; the pointer advances to Maj.
+        $driver = app(RotationService::class)->allocate($booking);
+
+        $this->actingAs($admin)->get(route('rotation.index'))
+            ->assertOk()
+            ->assertSee('Whose turn')
+            ->assertSee('Turn now')
+            ->assertSee('Last job')
+            // The driver who just went is still shown next to whose turn it is now.
+            ->assertSee($driver->name)
+            ->assertSee($booking->reference);
+    }
+
     public function test_non_admin_cannot_view_rotation(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

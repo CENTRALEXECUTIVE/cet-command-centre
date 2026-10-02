@@ -45,16 +45,36 @@ class RotationService
         $states = RotationState::with('nextDriver')->get()
             ->keyBy(fn ($s) => $s->airport_id.'-'.$s->vehicle_type_id);
 
+        // Who did the LAST job for each airport × vehicle type — shown next to who's
+        // up next so the running order stays visible instead of being replaced.
+        $lastJobs = Booking::query()
+            ->whereIn('driver_id', $drivers->pluck('id'))
+            ->whereIn('vehicle_type_id', $vehicleTypes->pluck('id'))
+            ->whereNotNull('airport_id')
+            ->whereNotIn('status', [
+                \App\Enums\BookingStatus::Cancelled->value,
+                \App\Enums\BookingStatus::NoShow->value,
+            ])
+            ->with('driver')
+            ->orderByDesc('created_at')
+            ->get(['id', 'reference', 'airport_id', 'vehicle_type_id', 'driver_id', 'pickup_at', 'created_at', 'status'])
+            ->groupBy(fn ($b) => $b->airport_id.'-'.$b->vehicle_type_id)
+            ->map(fn ($group) => $group->first());
+
         $rows = [];
         foreach ($airports as $airport) {
             foreach ($vehicleTypes as $type) {
-                $state = $states->get($airport->id.'-'.$type->id);
+                $key = $airport->id.'-'.$type->id;
+                $state = $states->get($key);
                 // No pointer yet → the default first driver (ABDI) is up next.
                 $next = $state?->nextDriver ?? $first;
+                $last = $lastJobs->get($key);
                 $rows[] = [
                     'airport' => $airport,
                     'vehicle_type' => $type,
                     'next' => $next,
+                    'last_driver' => $last?->driver,
+                    'last_booking' => $last,
                     'last_advanced_at' => $state?->last_advanced_at,
                     'seeded' => (bool) $state,
                 ];
