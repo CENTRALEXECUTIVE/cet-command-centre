@@ -83,7 +83,36 @@ Needed for distance/route pricing, the live fleet map and geocoding. Enable
 > The Maps key was shared in chat once during build — **regenerate it after go-live**
 > and restrict it to the staging domain.
 
-### 4. Embed the booking widget on the website
+### 4. Connect Google Calendar (put bookings on the calendar)
+
+Where: `.env` — `GOOGLE_CALENDAR_CREDENTIALS` + `CET_CALENDAR_ID`.
+
+Now that CET is the booking system, it writes every booking onto the Google
+Calendar in the exact CET format (title + full confirmation block), so the
+calendar keeps working the way you read it. **This is off until credentials are
+set** — then it turns on automatically.
+
+1. In Google Cloud, create a **service account**, enable the **Calendar API**,
+   download its JSON key.
+2. Put the key on the server and point `GOOGLE_CALENDAR_CREDENTIALS` at it (path
+   or the JSON itself); set `CET_CALENDAR_ID` to the calendar's id (default
+   `admin@centralexecutivetransfers.co.uk`).
+3. **Share the calendar with the service account's `client_email`** with
+   *"Make changes to events"*.
+4. Verify: `php artisan cet:test-calendar` — it reports exactly where it fails if
+   anything's off (clock, sharing, API not enabled).
+
+**No duplicates — by design.** Before adding an event, the sync searches the
+calendar for the same **Booking Reference** and *updates that one* instead of
+posting a second copy (so events you or ETO already placed are adopted, not
+duplicated). It stores the Google event id and reads the event back to confirm.
+`cet:sync-calendar` runs every 5 min (needs the scheduler — step 6).
+
+> Safety: the calendar can be paused any time with `php artisan cet:calendar-pause`
+> (resume with `cet:calendar-resume`), or hard-killed with `CALENDAR_SYNC_ENABLED=false`.
+> Deleting a booking in CET never removes its calendar event — you do that by hand.
+
+### 5. Embed the booking widget on the website
 
 Where: **Settings → Web widgets** — copy the ready-made iframe snippets.
 
@@ -98,11 +127,11 @@ Paste the snippet into the marketing site's page editor (WordPress/HTML block) �
 **do not edit `public_html` files**, just drop the iframe in through the CMS. The
 widget is responsive and shows a standalone backdrop only when opened directly.
 
-### 5. Confirm the scheduler is running
+### 6. Confirm the scheduler is running
 
 The watchdog, driver nudges, proxy-session cleanup, auto-deploy, recurring-booking
-generation and calendar refresh all depend on Laravel's scheduler. Confirm the cron
-is installed on the server:
+generation, **calendar sync** and calendar refresh all depend on Laravel's
+scheduler. Confirm the cron is installed on the server:
 
 ```
 * * * * * cd ~/cet-staging && php artisan schedule:run >> /dev/null 2>&1
@@ -115,7 +144,7 @@ silent, this cron is the first thing to check.**
 
 ## OPTIONAL / when ready
 
-### 6. Customer confirmation emails (default OFF)
+### 7. Customer confirmation emails (default OFF)
 
 Where: **Settings → Web widgets** → "Automatic customer confirmation emails".
 
@@ -123,20 +152,20 @@ Off by default (nothing auto-sends to customers). Turn on only if you want
 website-widget bookings to auto-email the customer a confirmation. Office
 notification emails are separate and already send to the ops inbox.
 
-### 7. Number masking (Twilio) — optional
+### 8. Number masking (Twilio) — optional
 
 Silent no-op until set. To enable masked calls/texts between driver & customer, set
 `TWILIO_PROXY_SERVICE_SID` (+ `TWILIO_SID`/`TWILIO_AUTH_TOKEN` and the line numbers)
 in `.env`. Proxy webhook: `/webhooks/twilio-proxy`. WhatsApp masking is deferred by
 design — don't build it.
 
-### 8. Driver push notifications — optional
+### 9. Driver push notifications — optional
 
 Generate VAPID keys once: `php artisan cet:make-vapid`, then set
 `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` in `.env` and `composer install`. No-op
 until set. Drivers opt in from **My jobs**.
 
-### 9. Policy URLs + ops email
+### 10. Policy URLs + ops email
 
 Confirm Terms / Privacy / Cancellation URLs and `CET_OPS_EMAIL` are set so
 confirmations and the footer link to the right places.
@@ -150,5 +179,5 @@ confirmations and the footer link to the right places.
 - [ ] Watch the dashboard control-tower panel for a day; acknowledge alerts.
 - [ ] Confirm `calendar_last_sync_ok` is fresh (no staleness banner).
 
-Everything here is wiring, not code. Once steps 1–5 are done, CET takes live
-bookings and payments.
+Everything here is wiring, not code. Once steps 1–6 are done, CET takes live
+bookings and payments, and writes every booking onto the calendar.
