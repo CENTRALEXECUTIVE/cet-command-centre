@@ -430,6 +430,13 @@
                 @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='block';this.style.display='none'">↩ Create return leg</button>
                 @endif
+                @if($booking->is_return_leg || ($booking->linked_booking_id && $booking->journey_type === 'return'))
+                    <form method="POST" action="{{ route('bookings.unlink-return', $booking) }}"
+                          onsubmit="return confirm('Mark this as NOT a return and unlink it from the other leg? Both bookings stay — only the return pairing is removed.')">
+                        @csrf
+                        <button class="btn btn-ghost" style="padding:9px 16px">⛓ Not a return — unlink</button>
+                    </form>
+                @endif
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('postpone-box').style.display='block';this.style.display='none'">⏸ Postpone</button>
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
             @endif

@@ -620,6 +620,22 @@ class BookingController extends Controller
     }
 
     /**
+     * "This isn't a return" — unlink two bookings ETO's a/b suffix wrongly paired
+     * as outbound/return (two independent bookings on the same journey). Clears the
+     * false "Return" label and the link on both legs. Both bookings stay — only the
+     * wrong pairing is removed.
+     */
+    public function unlinkReturn(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $booking->unlinkReturnPair();
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('status', "Unlinked {$booking->reference} — it's no longer treated as a return. Both bookings stay as separate jobs.");
+    }
+
+    /**
      * Create the return leg of an existing one-way booking in one tap: a new
      * booking with pickup and drop-off swapped, the same customer / vehicle /
      * passengers / payment, linked to the original both ways. It's left Pending

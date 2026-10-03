@@ -493,7 +493,7 @@ class OutlookBookingService
         // the a/b suffix for two bookings on the SAME journey — e.g. two passengers
         // on one flight going to the same place — and those must NOT be paired or
         // labelled "Return" (that was showing a real second booking as a duplicate).
-        if (! $sibling || ! $this->isReversedRoute($booking, $sibling)) {
+        if (! $sibling || ! $booking->isReversedRouteWith($sibling)) {
             $this->rotation->allocate($booking); // standalone — normal rotation
 
             return;
@@ -530,33 +530,6 @@ class OutlookBookingService
         }
 
         $sibling->forceFill(['linked_booking_id' => $booking->id, 'journey_type' => 'return'])->save();
-    }
-
-    /**
-     * Are these two legs a genuine outbound/return? A real return reverses the
-     * route, so the two legs start from DIFFERENT places (airport → home one way,
-     * home → airport the other). Two bookings on the SAME journey — e.g. two
-     * passengers on one flight to the same address — share the SAME pickup, and
-     * those must never be paired or labelled "Return" (that showed a real second
-     * booking as a duplicate). Comparing the pickups is the reliable signal: you
-     * can't have both the outbound and the return starting at the same place.
-     */
-    private function isReversedRoute(Booking $a, Booking $b): bool
-    {
-        $norm = fn (?string $s) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $s));
-        $x = $norm($a->pickup_address);
-        $y = $norm($b->pickup_address);
-        if ($x === '' || $y === '') {
-            return true; // not enough address info to tell — keep the old behaviour
-        }
-        // "Same place" tolerant of terminal/formatting differences at an airport:
-        // the shorter normalised pickup is a prefix (first 8+ chars) of the longer.
-        $short = strlen($x) <= strlen($y) ? $x : $y;
-        $long = $short === $x ? $y : $x;
-        $key = substr($short, 0, max(8, (int) floor(strlen($short) * 0.6)));
-        $samePickup = $key !== '' && str_starts_with($long, $key);
-
-        return ! $samePickup; // different pickups ⇒ a genuine outbound/return
     }
 
     /** The other leg of a paired ETO booking (…a ↔ …b), if it exists. */
