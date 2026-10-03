@@ -64,8 +64,9 @@ Schedule::command('cet:calendar-refresh')->everyFiveMinutes()->withoutOverlappin
 // existing and freshly-pulled jobs are picked up without hand-allocating.
 Schedule::command('cet:auto-allocate-tagged')->everyFiveMinutes()->withoutOverlapping();
 
-// Parse Outlook booking emails into bookings, every 5 minutes.
-Schedule::command('cet:ingest-outlook')->everyFiveMinutes()->withoutOverlapping();
+// Parse Outlook booking emails into bookings, every 2 minutes — so an ETO
+// amendment or cancellation reaches the Command Centre quickly.
+Schedule::command('cet:ingest-outlook')->everyTwoMinutes()->withoutOverlapping();
 
 // Turn Outlook customer enquiries into reviewable quotes + draft replies, every
 // 10 minutes (during the sending window).

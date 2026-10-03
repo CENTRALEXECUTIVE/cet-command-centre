@@ -399,11 +399,19 @@
 </a>
 
 @php
-    $next = $booking->status->nextStatuses();
-    // Drivers can't cancel or mark no-show — only admins (the office).
-    if (! $viewerIsAdmin) {
-        $next = array_values(array_filter($next, fn ($s) => ! in_array($s->value, ['cancelled', 'no_show'], true)));
-    }
+    $allNext = $booking->status->nextStatuses();
+    // The driver's FORWARD flow — the only status changes a driver is permitted to
+    // make (accept → on my way → arrived → passenger on board → completed). These
+    // are the big tap buttons for everyone on this screen. Anything else (wind back
+    // to Pending, Cancel, No Show) is NOT a driver action — showing it here let a
+    // driver tap a "Pending" button that the server then rejected with an error.
+    $driverAllowed = ['accepted', 'en_route', 'arrived', 'collected', 'complete'];
+    $next = array_values(array_filter($allNext, fn ($s) => in_array($s->value, $driverAllowed, true)));
+    // Office-only controls, shown to an admin viewing this screen and kept in their
+    // own row so they're never mistaken for the driver's next tap.
+    $officeSteps = $viewerIsAdmin
+        ? array_values(array_filter($allNext, fn ($s) => ! in_array($s->value, $driverAllowed, true)))
+        : [];
     // The passenger is on board but there's still a via stop to handle — the job
     // isn't finished, so guide the driver through the stop instead of offering
     // Complete straight away.
@@ -470,6 +478,7 @@
                     default => 'tap-cancel',
                 };
                 $btnLabel = match($status->value) {
+                    'accepted' => 'Accept this job',
                     'en_route' => 'On My Way', 'collected' => 'Passenger On Board',
                     'complete' => count($viaStops) ? 'Completed (final drop-off)' : 'Completed',
                     default => $status->label(),
@@ -488,6 +497,25 @@
     </div>
 @else
     <div class="card"><p class="muted mb-0">This job is {{ $booking->status->label() }} — no further action.</p></div>
+@endif
+
+@if($viewerIsAdmin && !empty($officeSteps))
+    {{-- Office-only status controls — never shown to a driver. Kept separate from
+         the driver's forward flow so Cancel / No Show / wind-back aren't mistaken
+         for the driver's next tap. The booking page has the full controls. --}}
+    <div class="card" style="margin-top:12px;border-left:4px solid #b32020;background:rgba(179,32,32,.05)">
+        <p class="hint" style="margin:0 0 8px"><strong>Office controls</strong> — only you (admin) see these, not the driver.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @foreach($officeSteps as $status)
+                @php $label = $status->value === 'pending' ? 'Send back to Pending' : $status->label(); @endphp
+                <form method="POST" action="{{ $statusUrl }}" onsubmit="return confirm('Office action — set this job to {{ $status->label() }}?')">
+                    @csrf
+                    <input type="hidden" name="status" value="{{ $status->value }}">
+                    <button type="submit" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;color:#b32020">{{ $label }}</button>
+                </form>
+            @endforeach
+        </div>
+    </div>
 @endif
 
 <script>window.CET_IS_DRIVER = @json($isAssignedDriver);</script>
