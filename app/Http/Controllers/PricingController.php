@@ -65,11 +65,27 @@ class PricingController extends Controller
                 $fare = $fares->calculate($data['pickup'], $data['destination'], $vt, $pickupAt, $options);
                 $total = $fare['subtotal'];
 
+                // A human-readable breakdown so the office sees exactly what makes
+                // up the fare (base + any surcharge + each priced extra), not just
+                // a total — the "live fare breakdown" the admin form was missing.
+                $lines = [];
+                if ($fare['base'] !== null) {
+                    $lines[] = ['label' => 'Base fare', 'amount' => (float) $fare['base']];
+                }
+                if (! empty($fare['surcharge'])) {
+                    $lines[] = ['label' => $fare['surcharge']['label'], 'amount' => (float) $fare['surcharge']['amount']];
+                }
+                foreach ($fare['extras'] as $extra) {
+                    $label = $extra['qty'] > 1 ? $extra['label'].' ×'.$extra['qty'] : $extra['label'];
+                    $lines[] = ['label' => $label, 'amount' => (float) $extra['amount']];
+                }
+
                 return [
                     'id' => $vt->id,
                     'price' => $total,
                     'poa' => $fare['poa'],
                     'extras_total' => $fare['extras_total'],
+                    'breakdown' => $lines,
                     'formatted' => $fare['poa'] || $total === null
                         ? 'POA'
                         : '£'.number_format((float) $total, 2),

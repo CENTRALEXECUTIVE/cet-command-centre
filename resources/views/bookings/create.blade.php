@@ -179,6 +179,7 @@
                     {{-- Live prices for every vehicle — tap one to pick it + set the fare.
                          Fast quoting on the phone. --}}
                     <div id="veh-prices" class="veh-prices" hidden></div>
+                    <div id="fare-breakdown" class="fare-breakdown" hidden></div>
                 </div>
 
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
@@ -365,6 +366,12 @@
             border: 1px solid #FBBA2A; border-radius: 6px; padding: 6px 10px; }
         .price-nudge .link { background: none; border: 0; padding: 0; color: #1d4ed8;
             font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+        /* Itemised fare breakdown for the chosen vehicle. */
+        .fare-breakdown { margin-top: 8px; font-size: 13px; border: 1px solid #e6e6e6;
+            border-radius: 8px; padding: 8px 12px; background: #fafafa; max-width: 320px; }
+        .fare-breakdown .row { display: flex; justify-content: space-between; padding: 2px 0; }
+        .fare-breakdown .row.total { border-top: 1px solid #e0e0e0; margin-top: 4px;
+            padding-top: 5px; font-weight: 700; }
     </style>
 
     <script>
@@ -551,7 +558,24 @@
                 }
 
                 var priceNudge = document.getElementById('price-nudge');
+                var breakdownEl = document.getElementById('fare-breakdown');
                 var lastOptions = [];
+
+                // Itemised fare for the CHOSEN vehicle: base + surcharge + each extra
+                // = total, so the office sees what makes up the price, not just a figure.
+                function showBreakdown() {
+                    if (!breakdownEl) return;
+                    var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
+                    var lines = opt && opt.breakdown ? opt.breakdown : [];
+                    if (!opt || opt.poa || lines.length < 2) { breakdownEl.hidden = true; breakdownEl.innerHTML = ''; return; }
+                    var html = '';
+                    lines.forEach(function (l) {
+                        html += '<div class="row"><span>' + l.label + '</span><span>£' + Number(l.amount).toFixed(2) + '</span></div>';
+                    });
+                    html += '<div class="row total"><span>Total</span><span>£' + Number(opt.price).toFixed(2) + '</span></div>';
+                    breakdownEl.innerHTML = html;
+                    breakdownEl.hidden = false;
+                }
 
                 // Nudge when the typed price doesn't match the live full quote for
                 // the CHOSEN vehicle (incl. via-stop fee + ticked extras). Catches
@@ -594,6 +618,7 @@
                     strip.hidden = options.length === 0;
                     applyFit();
                     nudge();
+                    showBreakdown();
                 }
 
                 function refresh() {
@@ -623,7 +648,7 @@
                 // Passengers / luggage change only the FIT, not the price.
                 [paxEl, suitEl, handEl, vehSel].forEach(function (el) { if (el) el.addEventListener('change', applyFit); });
                 // Choosing a vehicle, or editing the price, re-checks the drift nudge.
-                if (vehSel) vehSel.addEventListener('change', nudge);
+                if (vehSel) vehSel.addEventListener('change', function () { nudge(); showBreakdown(); });
                 if (priceEl) { priceEl.addEventListener('input', nudge); priceEl.addEventListener('change', nudge); }
 
                 // Soft confirm on submit if the chosen vehicle is too small for the

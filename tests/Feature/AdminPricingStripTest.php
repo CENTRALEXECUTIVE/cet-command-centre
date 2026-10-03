@@ -63,6 +63,34 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta(135.0, $this->execPrice($options), 0.001);
     }
 
+    public function test_strip_returns_an_itemised_breakdown(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        $options = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+            'stops' => 1, 'meet_greet' => true,
+        ])->assertOk()->json('options');
+
+        $execOpt = collect($options)->firstWhere('id', $exec->id);
+        $labels = array_column($execOpt['breakdown'], 'label');
+
+        $this->assertContains('Base fare', $labels);
+        // The via stop and the meet & greet each show as their own priced line.
+        $this->assertTrue(
+            (bool) collect($execOpt['breakdown'])->first(fn ($l) => stripos($l['label'], 'stop') !== false),
+            'the via-stop line is itemised'
+        );
+        $this->assertTrue(
+            (bool) collect($execOpt['breakdown'])->first(fn ($l) => stripos($l['label'], 'meet') !== false),
+            'the meet & greet line is itemised'
+        );
+        // The lines add up to the quoted total.
+        $sum = array_sum(array_column($execOpt['breakdown'], 'amount'));
+        $this->assertEqualsWithDelta($execOpt['price'], $sum, 0.001);
+    }
+
     public function test_strip_is_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
