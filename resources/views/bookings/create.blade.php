@@ -414,6 +414,10 @@
                     row.appendChild(pin); row.appendChild(grow);
                     wrap.appendChild(row);
                     if (window.CETattachPlaces) window.CETattachPlaces(input);
+                    // A stop added after load must also re-quote the price strip
+                    // (the strip only wired the stops present at load otherwise).
+                    input.addEventListener('change', function () { if (window.CETrequote) window.CETrequote(); });
+                    input.addEventListener('blur', function () { if (window.CETrequote) window.CETrequote(); });
                 });
             }
             // Show the return field for returns, the hours field for hourly hire,
@@ -651,6 +655,8 @@
                 var priceInputs = [pickup, dest, whenEl];
                 document.querySelectorAll('input[name="via_stops[]"], #meet_greet, #child_seats, #booster_seats, #infant_seats, #ribbon').forEach(function (el) { priceInputs.push(el); });
                 priceInputs.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
+                // Exposed so a dynamically-added via stop can trigger a re-quote too.
+                window.CETrequote = function () { clearTimeout(timer); timer = setTimeout(refresh, 300); };
                 // Passengers / luggage change only the FIT, not the price.
                 [paxEl, suitEl, handEl, vehSel].forEach(function (el) { if (el) el.addEventListener('change', applyFit); });
                 // Choosing a vehicle, or editing the price, re-checks the drift nudge.

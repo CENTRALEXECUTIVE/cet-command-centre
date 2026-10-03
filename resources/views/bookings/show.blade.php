@@ -427,6 +427,9 @@
                     </form>
                 @endif
                 <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
+                @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
+                    <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='block';this.style.display='none'">↩ Create return leg</button>
+                @endif
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('postpone-box').style.display='block';this.style.display='none'">⏸ Postpone</button>
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
             @endif
@@ -452,6 +455,27 @@
                         · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
                     @endif
                 </p>
+            @endif
+            @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
+                <div id="return-box" class="card" style="display:none;border-left:4px solid #111;margin-bottom:16px">
+                    <form method="POST" action="{{ route('bookings.return-leg', $booking) }}">
+                        @csrf
+                        <strong>Create the return leg</strong>
+                        <p class="hint" style="margin:6px 0 10px">Makes a new booking with pickup and drop-off swapped, same customer, vehicle and passengers. It's left unpriced and unallocated for you to price and assign. Nothing is pushed to Google Calendar automatically.</p>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+                            <div>
+                                <label for="return_pickup_at" style="font-weight:600;display:block">Return pickup <span class="req">*</span></label>
+                                <input id="return_pickup_at" type="datetime-local" name="return_pickup_at" required style="margin-top:4px">
+                            </div>
+                            <div>
+                                <label for="return_flight" style="font-weight:600;display:block">Return flight (optional)</label>
+                                <input id="return_flight" name="flight_number" placeholder="e.g. BA1235" style="margin-top:4px">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="padding:9px 16px">Create return leg</button>
+                            <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='none'">Cancel</button>
+                        </div>
+                    </form>
+                </div>
             @endif
             <div id="postpone-box" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
                 <form method="POST" action="{{ route('bookings.postpone', $booking) }}">

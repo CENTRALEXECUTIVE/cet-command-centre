@@ -620,6 +620,70 @@ class BookingController extends Controller
     }
 
     /**
+     * Create the return leg of an existing one-way booking in one tap: a new
+     * booking with pickup and drop-off swapped, the same customer / vehicle /
+     * passengers / payment, linked to the original both ways. It's left Pending
+     * and unpriced for the office to price and allocate — nothing is pushed to the
+     * calendar automatically. Does nothing if the booking is already a leg of a pair.
+     */
+    public function createReturnLeg(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if ($booking->linked_booking_id || $booking->is_return_leg) {
+            return redirect()->route('bookings.show', $booking)
+                ->with('status', 'This booking is already part of a return pair.');
+        }
+
+        $data = $request->validate([
+            'return_pickup_at' => ['required', 'date', 'after:now'],
+            'flight_number' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        // UK-local wall time — never shifted by a timezone conversion.
+        $when = Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone'))
+            ?: Carbon::parse($data['return_pickup_at'], config('app.timezone'));
+
+        $return = \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $when, $data) {
+            $leg = $booking->replicate(['reference', 'status', 'driver_id', 'linked_booking_id', 'quoted_price', 'final_price']);
+            $leg->reference = Booking::generateReference();
+            $leg->status = BookingStatus::Pending;
+            $leg->driver_id = null;
+            $leg->is_return_leg = true;
+            // Swap the ends for the return.
+            $leg->pickup_address = $booking->destination_address;
+            $leg->pickup_postcode = $booking->destination_postcode;
+            $leg->destination_address = $booking->pickup_address;
+            $leg->destination_postcode = $booking->pickup_postcode;
+            $leg->pickup_at = $when;
+            $leg->flight_number = $data['flight_number'] ?? null;
+            // The return is priced and paid separately by the office.
+            $leg->quoted_price = null;
+            $leg->final_price = null;
+
+            // Drop per-leg meta that must not carry across (geocode, audit flags,
+            // payroll, any discount/voucher, postpone/reschedule marks, overrides).
+            $meta = $booking->meta ?? [];
+            foreach (['geo', 'audit_issues', 'payroll', 'discount', 'voucher_code', 'contact_override',
+                'rescheduled_from', 'rescheduled_at', 'postponed', 'postpone_reason', 'postponed_at',
+                'postponed_from_pickup_at', 'cancellation_reason', 'cancelled_at', 'status_locked_at', 'status_locked_to'] as $k) {
+                unset($meta[$k]);
+            }
+            $leg->meta = $meta ?: null;
+            $leg->save();
+
+            // Link both ways so the pair is recognised.
+            $leg->forceFill(['linked_booking_id' => $booking->id])->save();
+            $booking->forceFill(['linked_booking_id' => $leg->id])->save();
+
+            return $leg;
+        });
+
+        return redirect()->route('bookings.show', $return)
+            ->with('status', "Return leg {$return->reference} created — pickup and drop-off swapped. Set its price and allocate a driver, then add it to Google Calendar yourself (nothing is pushed automatically).");
+    }
+
+    /**
      * Delete a booking (admin). Soft-deletes so it vanishes from every list but is
      * still recoverable, and — per the safety rules — it does NOT touch the Google
      * Calendar event (the operator removes that by hand). A return trip's linked leg
