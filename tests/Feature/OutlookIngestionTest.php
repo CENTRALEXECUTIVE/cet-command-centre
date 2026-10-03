@@ -316,6 +316,52 @@ class OutlookIngestionTest extends TestCase
         $this->assertEquals('cancelled', $svc->upsertFromParsed($cancel)['action']);
     }
 
+    public function test_deposit_paid_with_a_cash_balance_is_not_shown_as_fully_paid(): void
+    {
+        // The real "Abhishek DFGXUG" bug: ETO puts the balance on its OWN line
+        // under Payments. Dropping that line made a £25 deposit look like the
+        // whole £165 was "Paid (Square)" and hid the £140 cash to collect.
+        config(['services.anthropic.key' => null]);
+
+        $body = <<<'EML'
+        New booking DFGXUG has been created.
+
+        Journey
+        Date & time:	04/10/2026 07:30
+        Time zone:	UTC+1 London
+        Pickup:	Dinnington, Sheffield S25 2AW, UK, 1, Meadow Court,
+        Dinnington S25 2AW
+        Dropoff:	Manchester Airport (MAN), Manchester, UK
+        Vehicle type:	Executive 8 Seater
+        Passengers:	4
+        Customer
+        Name:	ABHISHEK THAREJA
+        Phone number:	+919899789289
+        Reservation
+        Reference number:	DFGXUG
+        Summary:	Journey £165
+        Total:	£165
+        Payments:	Deposit £25 (Square) - Paid
+        Remaining balance £140 (Cash) - Pending
+        Amount due:	£140
+        EML;
+
+        $parsed = app(OutlookBookingService::class)
+            ->parse('New booking DFGXUG has been created.', $body, 'noreply@easytaxioffice.co.uk');
+
+        $this->assertNotNull($parsed);
+        // NOT fully paid — a deposit with a cash balance still owed.
+        $this->assertSame('deposit', $parsed['payment_status']);
+        $this->assertNotSame('paid', $parsed['payment_status']);
+        // The payment text keeps the balance so the £140 cash to collect survives.
+        $this->assertStringContainsString('140', (string) $parsed['payment_text']);
+        $this->assertStringContainsStringIgnoringCase('cash', (string) $parsed['payment_text']);
+        $this->assertStringNotContainsString('Paid £165', (string) $parsed['payment_text']);
+        // The two-line address is stitched back together, not truncated.
+        $this->assertStringContainsString('Meadow Court', (string) $parsed['pickup_address']);
+        $this->assertStringContainsString('Dinnington S25 2AW', (string) $parsed['pickup_address']);
+    }
+
     public function test_child_and_infant_seats_are_counted_not_the_passenger_number(): void
     {
         // Regression: "Passengers: 3" on the line above must NOT leak into the seat

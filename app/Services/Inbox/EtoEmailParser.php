@@ -206,6 +206,12 @@ class EtoEmailParser
         $methodPart = $method ? " ({$method})" : '';
         if ($status === 'paid') {
             $text = trim("Paid {$amount}{$methodPart}");
+        } elseif (in_array($status, ['deposit', 'partial'], true)) {
+            // Keep the FULL breakdown verbatim — "Deposit £25 (Square) - Paid,
+            // Remaining balance £140 (Cash) - Pending" — so the cash balance owed
+            // survives (parseCashBalance reads it) and we NEVER show a part-paid
+            // deposit as the whole fare "Paid". Money rule: collect the balance.
+            $text = trim((string) preg_replace('/\s+/', ' ', $payments)) ?: trim(ucfirst($status)." {$amount}{$methodPart}");
         } elseif ($amount !== '') {
             $text = trim(ucfirst($status)." {$amount}{$methodPart}");
         } else {
@@ -320,6 +326,8 @@ class EtoEmailParser
         $sections = [];
         $flat = [];
         $current = 'general';
+        $lastLabel = null;        // the field a no-colon continuation line belongs to
+        $lastSection = $current;
 
         foreach (preg_split('/\r\n|\r|\n/', $body) as $line) {
             $line = trim($line);
@@ -330,6 +338,7 @@ class EtoEmailParser
             $heading = strtolower($line);
             if (in_array($heading, self::SECTIONS, true)) {
                 $current = $heading;
+                $lastLabel = null; // a new section ends any multi-line value
 
                 continue;
             }
@@ -337,11 +346,24 @@ class EtoEmailParser
             if (preg_match('/^([^:]+):\s*(.*)$/', $line, $m)) {
                 $label = strtolower(trim($m[1]));
                 $value = trim($m[2]);
+                $lastLabel = $label;      // remember it for continuation lines
+                $lastSection = $current;
                 if ($value === '') {
                     continue;
                 }
                 $sections[$current][$label] ??= $value;
                 $flat[$label] ??= $value;
+
+                continue;
+            }
+
+            // A line with NO "label:" is a continuation of the field above it —
+            // ETO puts the second payment part ("Remaining balance £140 (Cash) -
+            // Pending") and the second address line on their own lines. Dropping
+            // them hid the cash balance and made a deposit look fully paid.
+            if ($lastLabel !== null) {
+                $sections[$lastSection][$lastLabel] = trim(($sections[$lastSection][$lastLabel] ?? '').' '.$line);
+                $flat[$lastLabel] = trim(($flat[$lastLabel] ?? '').' '.$line);
             }
         }
 
