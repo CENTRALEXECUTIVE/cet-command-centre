@@ -37,7 +37,15 @@ class BookingService
             $customer = $this->resolveCustomer($data);
             $this->recordPrivacyConsent($customer, $data);
 
+            // A voucher code typed on the admin form reduces the customer price the
+            // same way the customer/widget flow does, and is recorded for the office.
+            [$data, $voucherMeta] = $this->applyVoucherDiscount($data);
+
             $outbound = $this->buildLeg($data, $customer, $creator, isReturn: false);
+
+            if ($voucherMeta) {
+                $outbound->forceFill(['meta' => array_merge($outbound->meta ?? [], $voucherMeta)])->save();
+            }
 
             if (($data['journey_type'] ?? 'one_way') === 'return') {
                 $return = $this->buildLeg($data, $customer, $creator, isReturn: true);
@@ -69,6 +77,48 @@ class BookingService
 
             return $outbound;
         });
+    }
+
+    /**
+     * Apply a voucher code typed on the admin booking form. Mirrors the
+     * customer/widget flow: a redeemable code reduces the outbound customer price
+     * (the fare), and the code is always recorded in the notes for the office even
+     * when it can't be validated. Returns [$data (price + notes adjusted), $meta]
+     * where $meta carries voucher_code and any discount for the booking's meta.
+     * Driver pay is deliberately NOT auto-reduced — a discounted booking leaves
+     * the payroll box blank for the office to set by hand (see suggestedDriverPay).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
+     */
+    private function applyVoucherDiscount(array $data): array
+    {
+        $code = strtoupper(trim((string) ($data['voucher'] ?? '')));
+        if ($code === '') {
+            return [$data, null];
+        }
+
+        $price = $data['quoted_price'] ?? null;
+        $voucher = \App\Models\Voucher::findByCode($code);
+        $discount = ($voucher && $voucher->isRedeemable() && $price !== null && (float) $price > 0)
+            ? $voucher->discountOn((float) $price)
+            : 0.0;
+
+        if ($discount > 0) {
+            $data['quoted_price'] = round((float) $price - $discount, 2);
+        }
+
+        $note = 'Discount code: '.$code.($discount > 0
+            ? ' (−£'.number_format($discount, 2).')'
+            : ' (not applied)');
+        $data['special_requests'] = trim((! empty($data['special_requests']) ? $data['special_requests']."\n" : '').$note);
+
+        $meta = array_filter([
+            'voucher_code' => $code,
+            'discount' => $discount > 0 ? round($discount, 2) : null,
+        ], fn ($v) => $v !== null);
+
+        return [$data, $meta];
     }
 
     /**

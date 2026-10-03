@@ -305,6 +305,12 @@
                         <div id="price-nudge" class="price-nudge" hidden></div>
                         @error('quoted_price') <div class="error">{{ $message }}</div> @enderror
                     </div>
+                    <div class="field">
+                        <label for="voucher">Discount code</label>
+                        <input id="voucher" name="voucher" maxlength="40" placeholder="e.g. WELCOME10" value="{{ old('voucher') }}" style="text-transform:uppercase">
+                        <p class="hint" style="margin:4px 0 0">A valid code comes off the customer price. Driver pay is left blank for you to set by hand on a discounted job.</p>
+                        @error('voucher') <div class="error">{{ $message }}</div> @enderror
+                    </div>
                 </div>
             </div>
         </div>

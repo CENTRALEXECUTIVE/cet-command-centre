@@ -4140,6 +4140,13 @@ class Booking extends Model
      */
     public function suggestedDriverPay(): ?float
     {
+        // A discounted booking leaves driver pay for the office to set by hand: the
+        // company absorbs the goodwill, so we don't auto-suggest 90% of a fare that
+        // a voucher has already reduced. The payroll box stays blank for a manual figure.
+        if (! empty($this->meta['discount'])) {
+            return null;
+        }
+
         $fare = $this->fareAmount();
         if ($fare === null || $fare <= 0) {
             return null;
