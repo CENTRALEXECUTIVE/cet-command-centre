@@ -301,6 +301,7 @@
                     <div class="field">
                         <label for="quoted_price">Quoted price (£)</label>
                         <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price', $pf['quoted_price'] ?? $quote?->price) }}">
+                        <div id="price-nudge" class="price-nudge" hidden></div>
                         @error('quoted_price') <div class="error">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -359,6 +360,11 @@
            the customer booking page, so the agent sees what actually fits. */
         .veh-prices .vp.unfit { opacity: .4; }
         .veh-prices .vp.unfit .n::after { content: ' ⚠'; }
+        /* Price-drift nudge: the typed price differs from the live full quote. */
+        .price-nudge { margin-top: 6px; font-size: 13px; color: #8a6d00; background: #fff0cc;
+            border: 1px solid #FBBA2A; border-radius: 6px; padding: 6px 10px; }
+        .price-nudge .link { background: none; border: 0; padding: 0; color: #1d4ed8;
+            font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
     </style>
 
     <script>
@@ -544,7 +550,32 @@
                     });
                 }
 
+                var priceNudge = document.getElementById('price-nudge');
+                var lastOptions = [];
+
+                // Nudge when the typed price doesn't match the live full quote for
+                // the CHOSEN vehicle (incl. via-stop fee + ticked extras). Catches
+                // both a stale typed price and extras ticked but not folded in.
+                function nudge() {
+                    if (!priceNudge || !priceEl) return;
+                    var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
+                    if (!opt || opt.price == null || opt.poa) { priceNudge.hidden = true; return; }
+                    var typed = parseFloat(priceEl.value);
+                    var live = Number(opt.price);
+                    if (isNaN(typed) || Math.abs(typed - live) < 0.01) { priceNudge.hidden = true; return; }
+                    var extra = Number(opt.extras_total || 0) > 0 ? ' (incl. stop / extras)' : '';
+                    priceNudge.innerHTML = '';
+                    var span = document.createElement('span');
+                    span.textContent = 'Live quote for this vehicle is £' + live.toFixed(2) + extra + '. ';
+                    var btn = document.createElement('button');
+                    btn.type = 'button'; btn.className = 'link'; btn.textContent = 'Use £' + live.toFixed(2);
+                    btn.addEventListener('click', function () { priceEl.value = live.toFixed(2); priceEl.dispatchEvent(new Event('input')); nudge(); });
+                    priceNudge.appendChild(span); priceNudge.appendChild(btn);
+                    priceNudge.hidden = false;
+                }
+
                 function render(options) {
+                    lastOptions = options || [];
                     strip.innerHTML = '';
                     options.forEach(function (o) {
                         var chip = document.createElement('button');
@@ -562,6 +593,7 @@
                     });
                     strip.hidden = options.length === 0;
                     applyFit();
+                    nudge();
                 }
 
                 function refresh() {
@@ -590,6 +622,30 @@
                 priceInputs.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
                 // Passengers / luggage change only the FIT, not the price.
                 [paxEl, suitEl, handEl, vehSel].forEach(function (el) { if (el) el.addEventListener('change', applyFit); });
+                // Choosing a vehicle, or editing the price, re-checks the drift nudge.
+                if (vehSel) vehSel.addEventListener('change', nudge);
+                if (priceEl) { priceEl.addEventListener('input', nudge); priceEl.addEventListener('change', nudge); }
+
+                // Soft confirm on submit if the chosen vehicle is too small for the
+                // party entered — the office can override (it sometimes knows better),
+                // but it won't save an over-capacity job by accident.
+                var formEl = vehSel.form;
+                if (formEl) {
+                    formEl.addEventListener('submit', function (e) {
+                        var c = caps[vehSel.value];
+                        if (!c) return;
+                        var pax = num(paxEl), suit = num(suitEl), hand = num(handEl);
+                        if (pax <= c.pax && suit <= c.lug && hand <= c.hand) return;
+                        var name = (names[vehSel.value] || 'This vehicle').replace(/\s*\(up to.*\)$/, '');
+                        var why = [];
+                        if (pax > c.pax) why.push(pax + ' passengers (seats ' + c.pax + ')');
+                        if (suit > c.lug) why.push(suit + ' suitcases (holds ' + c.lug + ')');
+                        if (hand > c.hand) why.push(hand + ' hand bags (holds ' + c.hand + ')');
+                        if (!confirm(name + ' is too small for ' + why.join(' and ') + '.\n\nSave this booking anyway?')) {
+                            e.preventDefault();
+                        }
+                    });
+                }
             })();
 
             // Mirror the quoted price into the total bar.

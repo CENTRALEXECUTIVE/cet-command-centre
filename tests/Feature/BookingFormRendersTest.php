@@ -30,7 +30,8 @@ class BookingFormRendersTest extends TestCase
             ->assertSee(route('pricing.estimate'), false)
             ->assertSee(route('pricing.strip'), false)  // full-fare strip (stops + extras)
             ->assertSee('data-cap-pax', false)          // vehicle capacity for fit-filtering
-            ->assertSee('data-cap-lug', false);
+            ->assertSee('data-cap-lug', false)
+            ->assertSee('id="price-nudge"', false);      // typed-price vs live-quote nudge
     }
 
     public function test_an_email_enquiry_prefills_the_booking_form(): void
