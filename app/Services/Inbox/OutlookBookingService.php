@@ -168,7 +168,42 @@ class OutlookBookingService
      *   leaves the rotation pointer untouched — those jobs are assigned manually.
      * @return array{booking: Booking, action: 'created'|'updated'|'cancelled'}|null
      */
-    public function upsertFromParsed(array $parsed, bool $allocateRotation = true): ?array
+    /**
+     * Force-resync ONE booking from its latest ETO email: find the most recent
+     * email whose reference matches this booking and apply it as the TRUTH
+     * (office-edit pins ignored and cleared, so the booking tracks ETO again) —
+     * the email equivalent of "Match calendar". For when a booking hasn't picked
+     * up an amendment because a field was pinned by an app edit. No notification.
+     *
+     * @return array{status: string, action?: string}
+     */
+    public function resyncBooking(Booking $booking, int $days = 60): array
+    {
+        if (! $this->mail->configured()) {
+            return ['status' => 'not_connected'];
+        }
+
+        $target = $this->cleanReference($booking->external_reference ?: $booking->reference);
+        if (! $target) {
+            return ['status' => 'no_reference'];
+        }
+
+        // fetchRecent is newest-first, so the first reference match is the latest
+        // email for this booking — exactly what we want to apply.
+        foreach ($this->mail->fetchRecent($days) as $message) {
+            $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
+            if (! $parsed || $this->cleanReference($parsed['reference'] ?? null) !== $target) {
+                continue;
+            }
+            $result = $this->upsertFromParsed($parsed, allocateRotation: false, force: true);
+
+            return ['status' => 'resynced', 'action' => $result['action'] ?? 'updated'];
+        }
+
+        return ['status' => 'no_email'];
+    }
+
+    public function upsertFromParsed(array $parsed, bool $allocateRotation = true, bool $force = false): ?array
     {
         $reference = $parsed['reference'] ?? null;
 
@@ -217,7 +252,7 @@ class OutlookBookingService
         // the app timezone (config APP_TIMEZONE=Europe/London in production).
         $pickupAt = Carbon::parse($parsed['pickup_at']);
 
-        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus, $allocateRotation) {
+        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus, $allocateRotation, $force) {
             $customer = $this->resolveCustomer($parsed);
             $airportId = $this->detectAirport($parsed);
 
@@ -256,7 +291,16 @@ class OutlookBookingService
                 // refreshes the fields nobody has touched. Without this, the
                 // 5-minute Outlook ingest silently reverted an edited pickup time
                 // back to the email's original within minutes.
-                $fields = $existing->applyOfficeEdits($fields);
+                // Normally the office's edits win. On a FORCED resync the operator
+                // is explicitly taking ETO as the truth for this booking, so we skip
+                // the protection AND clear the edit pins below, so it tracks ETO again.
+                if (! $force) {
+                    $fields = $existing->applyOfficeEdits($fields);
+                } else {
+                    $meta = $fields['meta'] ?? ($existing->meta ?? []);
+                    unset($meta['manually_edited_at'], $meta['edited_fields'], $meta['contact_override']);
+                    $fields['meta'] = $meta;
+                }
 
                 // What is ETO actually changing on a LIVE job? Compute before the
                 // save (and after applyOfficeEdits, so an office-pinned field that

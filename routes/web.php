@@ -133,6 +133,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/postpone', [BookingController::class, 'postpone'])->middleware('throttle:30,1')->name('bookings.postpone');
         Route::post('bookings/{booking}/reschedule', [BookingController::class, 'reschedule'])->middleware('throttle:30,1')->name('bookings.reschedule');
         Route::post('bookings/{booking}/return-leg', [BookingController::class, 'createReturnLeg'])->middleware('throttle:30,1')->name('bookings.return-leg');
+        Route::post('bookings/{booking}/resync-email', [BookingController::class, 'resyncEmail'])->middleware('throttle:20,1')->name('bookings.resync-email');
         Route::delete('bookings/{booking}', [BookingController::class, 'destroy'])->middleware('throttle:30,1')->name('bookings.destroy');
         Route::post('bookings-bulk', [BookingController::class, 'bulk'])->middleware('throttle:30,1')->name('bookings.bulk');
         // Standing / recurring bookings.

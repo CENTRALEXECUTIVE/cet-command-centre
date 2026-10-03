@@ -620,6 +620,30 @@ class BookingController extends Controller
     }
 
     /**
+     * Force-resync THIS booking from its latest ETO email — the email equivalent
+     * of "Match calendar". Takes the ETO email as the truth (replacing app edits
+     * for this booking) and clears the edit pins so it tracks ETO again. For a
+     * booking that hasn't picked up an amendment because a field was pinned.
+     */
+    public function resyncEmail(Request $request, Booking $booking, \App\Services\Inbox\OutlookBookingService $outlook): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $result = $outlook->resyncBooking($booking);
+        $ref = $booking->external_reference ?: $booking->reference;
+
+        $message = match ($result['status']) {
+            'not_connected' => 'Email isn’t connected, so there’s nothing to resync from. Nothing was changed.',
+            'no_reference' => 'This booking has no ETO reference to match an email to. Nothing was changed.',
+            'no_email' => "No ETO email found for {$ref} in the last 60 days — nothing to resync. Nothing was changed.",
+            'resynced' => "Resynced {$booking->reference} from the latest ETO email and took it as the truth (your app edits for this booking were replaced). The Google Calendar isn’t changed automatically.",
+            default => 'Resync finished.',
+        };
+
+        return redirect()->route('bookings.show', $booking)->with('status', $message);
+    }
+
+    /**
      * Create the return leg of an existing one-way booking in one tap: a new
      * booking with pickup and drop-off swapped, the same customer / vehicle /
      * passengers / payment, linked to the original both ways. It's left Pending

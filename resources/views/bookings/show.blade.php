@@ -427,6 +427,13 @@
                     </form>
                 @endif
                 <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
+                @if($booking->external_reference || $booking->source_system === 'eto')
+                    <form method="POST" action="{{ route('bookings.resync-email', $booking) }}"
+                          onsubmit="return confirm('Resync this booking from its latest ETO email?\n\nThis takes the ETO email as the truth and replaces any changes you made in the app for THIS booking (time, addresses, flight, passengers, vehicle). The email and calendar are not changed.')">
+                        @csrf
+                        <button class="btn btn-dark" style="padding:9px 16px">📧 Resync from ETO email</button>
+                    </form>
+                @endif
                 @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='block';this.style.display='none'">↩ Create return leg</button>
                 @endif
