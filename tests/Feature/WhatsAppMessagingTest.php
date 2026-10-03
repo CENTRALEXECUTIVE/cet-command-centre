@@ -149,6 +149,34 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringContainsString('pay the driver in cash', $body);
     }
 
+    public function test_paired_cash_return_collects_the_full_round_trip_on_the_outbound_only(): void
+    {
+        // ETO pairs legs by reference letter: outbound …A, return …B. The driver
+        // collects the WHOLE round trip on the OUTBOUND (£125 + £135 = £260); the
+        // return leg collects nothing (taken on the outbound).
+        $outbound = Booking::factory()->create([
+            'external_reference' => 'RTRIPA', 'source_system' => 'eto',
+            'pickup_at' => now()->addDay()->setTime(9, 0),
+            'payment_method' => 'cash', 'payment_status' => 'pending', 'quoted_price' => 125,
+        ]);
+        $return = Booking::factory()->create([
+            'external_reference' => 'RTRIPB', 'source_system' => 'eto', 'is_return_leg' => true,
+            'pickup_at' => now()->addDay()->setTime(18, 0),
+            'payment_method' => 'cash', 'payment_status' => 'pending', 'quoted_price' => 135,
+        ]);
+
+        $notifier = app(\App\Services\Messaging\BookingNotifier::class);
+
+        // Outbound reminder: the FULL round-trip cash, once.
+        $out = $notifier->reminderBody($outbound->fresh());
+        $this->assertStringContainsString('£260', $out);
+        $this->assertStringContainsString('pay the driver in cash', $out);
+
+        // Return reminder: no cash line — it was collected on the outbound.
+        $ret = $notifier->reminderBody($return->fresh());
+        $this->assertStringNotContainsString('pay the driver in cash', $ret);
+    }
+
     public function test_card_or_paid_job_reminder_has_no_cash_line(): void
     {
         $booking = Booking::factory()->create([
