@@ -521,7 +521,7 @@ class DashboardController extends Controller
                 'driver' => $b->driver?->name ?? '—',
                 'status' => $b->status?->label() ?? 'Scheduled',
                 'url' => route('bookings.show', $b),
-                'title' => trim((string) ($b->calendarEvent?->title ?? ''), '*'),
+                'title' => $b->boardTitle(),
                 'location' => $b->pickup_address,
                 'description' => (string) ($b->calendarEvent?->description ?? ''),
                 'event_id' => null,

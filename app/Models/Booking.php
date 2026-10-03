@@ -4992,6 +4992,47 @@ class Booking extends Model
         return $parsed;
     }
 
+    /** The ALLOCATED driver's short callsign for the title tag, or null if none. */
+    public function allocatedDriverCallsign(): ?string
+    {
+        if (! $this->driver) {
+            return null;
+        }
+        if (filled($this->driver->driverProfile?->callsign)) {
+            return strtoupper($this->driver->driverProfile->callsign);
+        }
+        $local = \Illuminate\Support\Str::before((string) $this->driver->email, '@');
+
+        return strtoupper($local !== '' ? $local : \Illuminate\Support\Str::before($this->driver->name, ' '));
+    }
+
+    /**
+     * The calendar-style title for the office screens, but with the trailing
+     * "(TAG)" swapped to the ALLOCATED driver's callsign when a driver is on the
+     * job — so an allocated job reads "… (KASH)" instead of "… (V CLASS)".
+     * Display only: the Google Calendar title is NEVER changed. When no driver is
+     * allocated it leaves the stored tag as-is (vehicle type / COVER). Empty when
+     * there's no calendar title, so the caller can fall back to the name.
+     */
+    public function boardTitle(): string
+    {
+        $title = trim((string) ($this->calendarEvent?->title ?? ''), '* ');
+        if ($title === '') {
+            return '';
+        }
+
+        $tag = $this->allocatedDriverCallsign();
+        if ($tag === null) {
+            return $title;
+        }
+
+        if (preg_match('/\(([^)]+)\)\s*$/', $title)) {
+            return (string) preg_replace('/\(([^)]+)\)\s*$/', "({$tag})", $title);
+        }
+
+        return "{$title} ({$tag})";
+    }
+
     /**
      * If the calendar named a driver (see calendarDriverTag) and this booking has
      * no driver yet, assign that driver here — matching the calendar WITHOUT

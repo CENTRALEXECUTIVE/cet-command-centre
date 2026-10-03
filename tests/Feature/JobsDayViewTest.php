@@ -72,6 +72,32 @@ class JobsDayViewTest extends TestCase
             ->assertSee('H7424');
     }
 
+    public function test_title_shows_the_allocated_driver_not_the_vehicle_type(): void
+    {
+        $kash = User::factory()->create(['role' => 'driver', 'email' => 'kash@cet.local', 'name' => 'Kash']);
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(),
+            'customer_id' => Customer::create(['name' => 'Nigel Corfield'])->id,
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'driver_id' => $kash->id,
+            'pickup_at' => '2026-10-03 22:55', 'pickup_address' => 'Birmingham Airport',
+            'destination_address' => 'Sheffield', 'passengers' => 6,
+            'status' => 'accepted', 'payment_method' => 'card',
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id, 'title' => '*Nigel Corfield BHX Return (V CLASS)*',
+            'start_at' => $booking->pickup_at, 'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        // Allocated → tag becomes the driver's callsign; vehicle type is gone.
+        $this->assertSame('Nigel Corfield BHX Return (KASH)', $booking->boardTitle());
+
+        // Not allocated → the stored tag (vehicle type) stays.
+        $booking->update(['driver_id' => null]);
+        $this->assertSame('Nigel Corfield BHX Return (V CLASS)', $booking->fresh()->boardTitle());
+    }
+
     public function test_day_view_navigates_by_date(): void
     {
         // Pin "now" so the target date is never "today" (which renders as "Today"
