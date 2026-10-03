@@ -484,6 +484,26 @@ class DashboardController extends Controller
         $dbJobs = $this->jobsFromDatabase($day);
         $calendarJobs = $this->calendarStats->jobsOn($day) ?? [];
 
+        // The DATABASE booking is the source of truth. A calendar event is only a
+        // mirror — and a STALE one (e.g. a booking whose date was changed in the app
+        // or ETO) would otherwise show as a phantom on its OLD day, looking like a
+        // duplicate. So drop any calendar job whose reference already exists as a
+        // real booking anywhere; only genuinely calendar-only events are merged in.
+        $calRefs = collect($calendarJobs)
+            ->map(fn ($j) => strtoupper(trim((string) ($j['ref'] ?? ''))))
+            ->filter(fn ($r) => $r !== '' && $r !== '—')->unique()->values();
+        $knownRefs = $calRefs->isEmpty() ? collect() : Booking::query()
+            ->where(fn ($q) => $q->whereIn(\Illuminate\Support\Facades\DB::raw('UPPER(external_reference)'), $calRefs->all())
+                ->orWhereIn(\Illuminate\Support\Facades\DB::raw('UPPER(reference)'), $calRefs->all()))
+            ->get(['external_reference', 'reference'])
+            ->flatMap(fn ($b) => [strtoupper((string) $b->external_reference), strtoupper((string) $b->reference)])
+            ->filter()->flip();
+        $calendarJobs = collect($calendarJobs)->reject(function ($j) use ($knownRefs) {
+            $r = strtoupper(trim((string) ($j['ref'] ?? '')));
+
+            return $r !== '' && $r !== '—' && $knownRefs->has($r);
+        })->all();
+
         $seen = [];
         $merged = [];
         foreach (array_merge($dbJobs, $calendarJobs) as $job) {
@@ -506,6 +526,28 @@ class DashboardController extends Controller
         return $merged;
     }
 
+    /**
+     * The booking's confirmation block rendered LIVE from its own fields, so the
+     * Jobs view always shows the booking's true route/date — never a stale Google
+     * Calendar snapshot. Falls back to the stored calendar text only if the live
+     * render can't be built, and never lets a failure break the dashboard.
+     */
+    private function liveDetails(Booking $b): string
+    {
+        try {
+            if ($b->pickup_at) {
+                $cal = app(\App\Services\CalendarEventBuilder::class)->preview($b);
+                if (! empty($cal['description'])) {
+                    return (string) $cal['description'];
+                }
+            }
+        } catch (\Throwable) {
+            // fall through to the stored copy
+        }
+
+        return (string) ($b->calendarEvent?->description ?? '');
+    }
+
     /** Day's jobs from the database, mapped to the same detail rows. */
     private function jobsFromDatabase(Carbon $day): array
     {
@@ -523,7 +565,9 @@ class DashboardController extends Controller
                 'url' => route('bookings.show', $b),
                 'title' => $b->boardTitle(),
                 'location' => $b->pickup_address,
-                'description' => (string) ($b->calendarEvent?->description ?? ''),
+                // Live from the booking record (its real route/date), NOT the frozen
+                // calendar snapshot — so an amended booking shows its true details.
+                'description' => $this->liveDetails($b),
                 'event_id' => null,
                 'flight' => $b->flight_number,
             ])

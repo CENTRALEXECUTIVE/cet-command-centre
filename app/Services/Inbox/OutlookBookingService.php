@@ -488,12 +488,7 @@ class OutlookBookingService
     private function allocateDriver(Booking $booking, ?string $reference): void
     {
         $sibling = $this->pairedSibling($reference);
-        // Only treat an …a / …b pair as a genuine OUTBOUND/RETURN when the route is
-        // actually reversed (this leg starts where the other ends). ETO also uses
-        // the a/b suffix for two bookings on the SAME journey — e.g. two passengers
-        // on one flight going to the same place — and those must NOT be paired or
-        // labelled "Return" (that was showing a real second booking as a duplicate).
-        if (! $sibling || ! $booking->isReversedRouteWith($sibling)) {
+        if (! $sibling) {
             $this->rotation->allocate($booking); // standalone — normal rotation
 
             return;

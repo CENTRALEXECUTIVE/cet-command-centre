@@ -2137,34 +2137,9 @@ class Booking extends Model
     }
 
     /**
-     * Is this booking a genuine outbound/return of the other — i.e. is the route
-     * reversed, starting from a DIFFERENT place? A real return flips pickup and
-     * drop-off (airport → home, then home → airport). Two bookings on the SAME
-     * journey (same pickup — e.g. two passengers on one flight) are NOT a return
-     * pair and must never be labelled "Return". Comparing pickups is the reliable
-     * signal: you can't have both the outbound and the return start at the same place.
-     */
-    public function isReversedRouteWith(Booking $other): bool
-    {
-        $norm = fn (?string $s) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $s));
-        $x = $norm($this->pickup_address);
-        $y = $norm($other->pickup_address);
-        if ($x === '' || $y === '') {
-            return true; // not enough address info to tell — keep the old behaviour
-        }
-        $short = strlen($x) <= strlen($y) ? $x : $y;
-        $long = $short === $x ? $y : $x;
-        $key = substr($short, 0, max(8, (int) floor(strlen($short) * 0.6)));
-        $samePickup = $key !== '' && str_starts_with($long, $key);
-
-        return ! $samePickup; // different pickups ⇒ a genuine outbound/return
-    }
-
-    /**
-     * Undo a FALSE return pairing — two independent bookings that ETO's a/b suffix
-     * got wrongly linked as outbound/return. Clears the return flag and the link on
-     * BOTH legs and sets them back to one-way, so each shows as its own booking.
-     * Safe to call on an already-unpaired booking (no-op).
+     * Undo a return pairing — clears the return flag and the link on BOTH legs and
+     * sets them back to one-way. For the rare case where ETO's a/b suffix linked two
+     * bookings that aren't actually a return. Safe on an already-unpaired booking.
      */
     public function unlinkReturnPair(): void
     {
