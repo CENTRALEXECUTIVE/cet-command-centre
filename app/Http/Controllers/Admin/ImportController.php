@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\Import\EtoBookingImporter;
+use App\Services\Inbox\GraphMailClient;
+use App\Services\Inbox\OutlookBookingService;
 use App\Services\Marketing\AdsSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,8 @@ class ImportController extends Controller
         return view('admin.imports.index', [
             'lastAds' => Setting::get('last_ads_import_at'),
             'lastEto' => Setting::get('last_eto_import_at'),
+            'lastEmailResync' => Setting::get('last_email_resync_at'),
+            'emailConnected' => app(GraphMailClient::class)->configured(),
         ]);
     }
 
@@ -46,6 +50,29 @@ class ImportController extends Controller
         $errors = count($stats['errors']) ? ' · '.count($stats['errors']).' error(s)' : '';
 
         return back()->with('status', "ETO import: {$stats['imported']} created, {$stats['updated']} updated (financials), {$stats['skipped']} skipped{$errors}.");
+    }
+
+    /**
+     * Resync with the ETO emails on demand — runs the Outlook ingest now instead
+     * of waiting for the 2-minute schedule, so a booking that hasn't picked up its
+     * latest email can be refreshed immediately. Matches by reference, updates in
+     * place, protects office edits, fires NO notifications. No-op with a clear
+     * message when the mailbox isn't connected.
+     */
+    public function resyncEmail(Request $request, OutlookBookingService $outlook, GraphMailClient $mail): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (! $mail->configured()) {
+            return back()->with('status', 'Email isn’t connected yet — add the Microsoft/Outlook mailbox credentials on the server before a resync can read ETO emails. Nothing was changed.');
+        }
+
+        $days = (int) $request->integer('days', 30);
+        $days = max(1, min(90, $days));
+        $stats = $outlook->ingest($days);
+        Setting::set('last_email_resync_at', now()->toDateTimeString(), 'string', 'eto');
+
+        return back()->with('status', "Email resync: scanned {$stats['processed']} email(s) — {$stats['created']} created, {$stats['updated']} updated, {$stats['cancelled']} cancelled, {$stats['skipped']} unchanged/skipped. No notifications sent.");
     }
 
     private function validateCsv(Request $request): void

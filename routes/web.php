@@ -348,6 +348,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             ->middleware('throttle:20,1')->name('imports.ads');
         Route::post('imports/eto', [\App\Http\Controllers\Admin\ImportController::class, 'eto'])
             ->middleware('throttle:20,1')->name('imports.eto');
+        Route::post('imports/resync-email', [\App\Http\Controllers\Admin\ImportController::class, 'resyncEmail'])
+            ->middleware('throttle:10,1')->name('imports.resync-email');
 
         // ETO reconciliation — reconfirm bookings against the calendar, one ref at a time.
         Route::get('audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
