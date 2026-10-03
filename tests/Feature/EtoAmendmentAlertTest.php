@@ -71,6 +71,33 @@ class EtoAmendmentAlertTest extends TestCase
         $this->assertSame(0, WatchdogEvent::where('event_type', 'eto_amended')->count());
     }
 
+    public function test_an_address_change_alone_does_not_alert(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed(['pickup_address' => 'Manchester Airport (MAN), Terminal 3']));
+
+        // Addresses churn in the AI parse run to run, so an address diff never
+        // raises a push (it still updates the booking) — only time/vehicle do.
+        $svc->upsertFromParsed($this->parsed(['pickup_address' => '15 Completely Different Street, Leeds']));
+
+        $this->assertSame(0, WatchdogEvent::where('event_type', 'eto_amended')->count());
+        // …but the booking itself still took the new address.
+        $this->assertStringContainsString('Leeds', (string) Booking::where('external_reference', 'LIVE01')->first()->pickup_address);
+    }
+
+    public function test_the_same_amendment_does_not_realert_on_a_repeat_ingest(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed());
+
+        $amended = $this->parsed(['pickup_at' => now()->addDays(3)->setTime(15, 0)->format('Y-m-d H:i')]);
+        $svc->upsertFromParsed($amended); // real change → alerts once
+        $svc->upsertFromParsed($amended); // same email again → must NOT re-alert
+        $svc->upsertFromParsed($amended);
+
+        $this->assertSame(1, WatchdogEvent::where('event_type', 'eto_amended')->count());
+    }
+
     public function test_an_office_pinned_time_is_not_reported_as_an_eto_change(): void
     {
         $svc = app(OutlookBookingService::class);

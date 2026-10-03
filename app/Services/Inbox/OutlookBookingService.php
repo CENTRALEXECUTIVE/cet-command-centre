@@ -274,15 +274,22 @@ class OutlookBookingService
 
                 // Surface a real amendment to the office — a moved pickup time,
                 // changed address or vehicle on an upcoming job must never apply
-                // silently (a driver could be heading to the old time/place).
+                // silently (a driver could be heading to the old time/place). Deduped
+                // on the exact change so a routine re-ingest can't re-fire the same
+                // alert: we only alert once per distinct change.
                 if ($wasLive && $changes) {
-                    $ref = $booking->external_reference ?: $booking->reference;
                     $summary = implode('; ', $changes);
-                    \App\Models\WatchdogEvent::log('eto_amended', 'ETO amended '.$ref.' — '.$summary, 'warning', $booking);
-                    app(\App\Services\Watchdog\AdminAlerts::class)->notify('eto_amended',
-                        '✏️ ETO changed '.$ref,
-                        $summary.'. The booking and calendar were updated to match.',
-                        'warning', $booking);
+                    $sig = md5($summary);
+                    if (($booking->meta['eto_amended_sig'] ?? null) !== $sig) {
+                        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['eto_amended_sig' => $sig])])->save();
+
+                        $ref = $booking->external_reference ?: $booking->reference;
+                        \App\Models\WatchdogEvent::log('eto_amended', 'ETO amended '.$ref.' — '.$summary, 'warning', $booking);
+                        app(\App\Services\Watchdog\AdminAlerts::class)->notify('eto_amended',
+                            '✏️ ETO changed '.$ref,
+                            $summary.'. The booking and calendar were updated to match.',
+                            'warning', $booking);
+                    }
                 }
             } else {
                 $booking = Booking::create($fields + [
@@ -416,12 +423,15 @@ class OutlookBookingService
     }
 
     /**
-     * The material changes ETO is making to an existing booking, as short
-     * human-readable lines for the office alert — a moved pickup time, a changed
-     * pickup/drop-off address, or a different vehicle. Payment-status flips and
-     * placeholder-count enrichment are deliberately NOT flagged (routine, not an
-     * amendment the office must act on). $fields is post-applyOfficeEdits, so a
-     * field the office has pinned is never reported as changed.
+     * The material changes ETO is making to an existing booking, for the office
+     * alert. Deliberately only the HIGH-CONFIDENCE signals: a moved pickup TIME
+     * and a changed VEHICLE. Addresses are NOT alerted — the AI parser re-words an
+     * address slightly from run to run (punctuation, case, an added/dropped town),
+     * so an address diff is too noisy to trust as an amendment and would cry wolf;
+     * the address is still updated on the booking and shown on its page, just
+     * without a push. Payment flips and placeholder-count enrichment aren't flagged
+     * either. $fields is post-applyOfficeEdits, so a field the office has pinned is
+     * never reported as changed.
      *
      * @param  array<string, mixed>  $fields
      * @return list<string>
@@ -430,6 +440,8 @@ class OutlookBookingService
     {
         $lines = [];
 
+        // Pickup time moved — the unambiguous, high-stakes signal (a driver could be
+        // heading for the old time). Same clock = no alert.
         if (! empty($fields['pickup_at'])) {
             $old = optional($existing->pickup_at)->format('Y-m-d H:i');
             $newAt = Carbon::parse($fields['pickup_at']);
@@ -438,16 +450,7 @@ class OutlookBookingService
             }
         }
 
-        $changedAddr = fn (string $key, ?string $current) => array_key_exists($key, $fields)
-            && trim((string) $fields[$key]) !== ''
-            && trim((string) $fields[$key]) !== trim((string) $current);
-
-        if ($changedAddr('pickup_address', $existing->pickup_address)) {
-            $lines[] = 'pickup address changed';
-        }
-        if ($changedAddr('destination_address', $existing->destination_address)) {
-            $lines[] = 'drop-off changed';
-        }
+        // Vehicle changed — reliable (an id comparison, not free text) and rare.
         if (! empty($fields['vehicle_type_id']) && (int) $fields['vehicle_type_id'] !== (int) $existing->vehicle_type_id) {
             $lines[] = 'vehicle changed';
         }
