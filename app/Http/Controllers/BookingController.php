@@ -522,6 +522,104 @@ class BookingController extends Controller
     }
 
     /**
+     * Postpone a booking for a reschedule — the common "the customer's flight was
+     * cancelled, they'll rebook once they have new details" case. NOT a
+     * cancellation: the record and any payment are HELD against the booking,
+     * ready to carry over to the new date. Under the hood it parks the job in the
+     * Cancelled lifecycle state (so it drops off every live list, its reminders
+     * are cleared and the masked line is closed — the right behaviour for a job
+     * that isn't running) but flags meta['postponed'] so the office sees
+     * "Postponed — awaiting reschedule", not "Cancelled". The calendar is never
+     * touched automatically. Reschedule brings it back (see reschedule()).
+     */
+    public function postpone(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'postpone_reason' => ['nullable', 'string', 'max:500'],
+        ]);
+        $reason = ($data['postpone_reason'] ?? null) ?: 'Postponed — awaiting new details';
+
+        try {
+            $this->status->transition(
+                $booking,
+                BookingStatus::Cancelled,
+                $request->user(),
+                note: 'Postponed for reschedule: '.$reason,
+            );
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['postpone_reason' => $e->getMessage()]);
+        }
+
+        // Free the driver so it leaves their list (it re-allocates on reschedule),
+        // and flag the park so it reads as Postponed, not Cancelled. Payment and
+        // fare are left exactly as they are — the money is held, not refunded.
+        $booking->forceFill([
+            'driver_id' => null,
+            'meta' => array_merge($booking->meta ?? [], [
+                'postponed' => true,
+                'postponed_at' => now()->toDateTimeString(),
+                'postpone_reason' => $reason,
+                'postponed_from_pickup_at' => optional($booking->pickup_at)->toDateTimeString(),
+                // This is not a real cancellation — don't leave a cancel reason on it.
+                'cancellation_reason' => null,
+                'cancelled_at' => null,
+            ]),
+        ])->save();
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Booking {$booking->reference} postponed. The payment is held against it — reschedule it below once the customer has their new details. Remove the Google Calendar event by hand if it was pushed there.");
+    }
+
+    /**
+     * Reschedule a postponed (or otherwise closed) booking onto a new date/time,
+     * carrying the existing payment over — no new charge. Brings the job back into
+     * the live flow as Pending so it re-enters allocation. The calendar is never
+     * changed automatically; the operator adds the new event by hand.
+     */
+    public function reschedule(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'pickup_at' => ['required', 'date'],
+            'flight_number' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        // Pickup times are UK-local wall time (never UTC) — parse in the app tz.
+        $newPickup = Carbon::createFromFormat('Y-m-d\TH:i', $data['pickup_at'], config('app.timezone'))
+            ?: Carbon::parse($data['pickup_at'], config('app.timezone'));
+        $previous = optional($booking->pickup_at)->toDateTimeString();
+
+        $booking->forceFill([
+            'pickup_at' => $newPickup,
+            'flight_number' => $data['flight_number'] ?? $booking->flight_number,
+            'meta' => array_merge($booking->meta ?? [], [
+                'postponed' => false,
+                'postpone_reason' => null,
+                'rescheduled_at' => now()->toDateTimeString(),
+                'rescheduled_from' => $previous,
+            ]),
+        ])->save();
+
+        // Carry the money over untouched and put it back into the live flow.
+        if ($booking->status->isTerminal()) {
+            $this->status->forceTransition(
+                $booking,
+                BookingStatus::Pending,
+                $request->user(),
+                note: 'Rescheduled to '.$newPickup->format('D d M Y, H:i'),
+            );
+        }
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Booking {$booking->reference} rescheduled to {$newPickup->format('D d M, H:i')}. The payment carried over — no new charge. Add it to Google Calendar yourself; the calendar is never changed automatically.");
+    }
+
+    /**
      * Delete a booking (admin). Soft-deletes so it vanishes from every list but is
      * still recoverable, and — per the safety rules — it does NOT touch the Google
      * Calendar event (the operator removes that by hand). A return trip's linked leg

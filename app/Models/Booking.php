@@ -2116,6 +2116,32 @@ class Booking extends Model
         return $query->where('driver_id', $driverId);
     }
 
+    /**
+     * A booking the office has PARKED for a reschedule (e.g. the customer's
+     * flight was cancelled and they'll rebook once they have new details).
+     * It sits in the Cancelled lifecycle state — so it's off every live list,
+     * its reminders are dropped and its masked line is closed — but it is NOT a
+     * true cancellation: the record and any payment are held, ready to carry
+     * over to the new date via Reschedule. The flag is what tells the two apart.
+     */
+    public function isPostponed(): bool
+    {
+        return $this->status === BookingStatus::Cancelled
+            && ! empty($this->meta['postponed']);
+    }
+
+    /** Status label for the office UI — "Postponed" for a parked job, else the raw label. */
+    public function statusLabel(): string
+    {
+        return $this->isPostponed() ? 'Postponed' : $this->status->label();
+    }
+
+    /** Status key for the UI badge CSS class — "postponed" for a parked job. */
+    public function statusKey(): string
+    {
+        return $this->isPostponed() ? 'postponed' : $this->status->value;
+    }
+
     // ----- Helpers -------------------------------------------------------
 
     /**

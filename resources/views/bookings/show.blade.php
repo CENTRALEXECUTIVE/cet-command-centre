@@ -12,7 +12,7 @@
             <div>
                 <div class="bh-when">{{ $booking->pickup_at->format('D d M Y') }} · <span class="gold">{{ $booking->pickup_at->format('H:i') }}</span></div>
                 <div class="bh-who">{{ $booking->displayCustomerName() ?? 'Customer' }}
-                    <span class="badge badge-{{ $booking->status->value }}" id="hero-status">{{ $booking->status->label() }}</span>
+                    <span class="badge badge-{{ $booking->statusKey() }}" id="hero-status">{{ $booking->statusLabel() }}</span>
                 </div>
             </div>
             <div class="bh-refs">
@@ -427,6 +427,7 @@
                     </form>
                 @endif
                 <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
+                <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('postpone-box').style.display='block';this.style.display='none'">⏸ Postpone</button>
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px;color:#b32020" onclick="document.getElementById('cancel-box').style.display='block';this.style.display='none'">✕ Cancel booking</button>
             @endif
             {{-- Delete is ALWAYS available to an admin, including on terminal jobs
@@ -452,11 +453,24 @@
                     @endif
                 </p>
             @endif
+            <div id="postpone-box" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
+                <form method="POST" action="{{ route('bookings.postpone', $booking) }}">
+                    @csrf
+                    <strong>Postpone — hold for a reschedule</strong>
+                    <p class="hint" style="margin:6px 0 10px">Use this when the journey is going ahead later (e.g. the flight was cancelled) and you'll rebook once there are new details. The booking and <strong>any payment are held</strong> — nothing is refunded. It drops off dispatch and the driver's list, its reminders stop, and the masked number closes. Reschedule it from here when the new time is known.</p>
+                    <label for="postpone_reason" style="font-weight:600">Note (optional)</label>
+                    <input id="postpone_reason" name="postpone_reason" placeholder="e.g. Flight cancelled — customer rebooking, payment held" style="margin:6px 0 10px" value="{{ old('postpone_reason') }}">
+                    <button type="submit" class="btn btn-primary" style="padding:9px 16px">Postpone booking</button>
+                    <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('postpone-box').style.display='none'">Keep it live</button>
+                    <p class="hint" style="margin:8px 0 0">The Google Calendar event isn't removed automatically — take it off by hand if it was pushed there.</p>
+                </form>
+            </div>
             <div id="cancel-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.05);margin-bottom:16px">
                 <form method="POST" action="{{ route('bookings.cancel', $booking) }}">
                     @csrf
                     <label for="cancellation_reason" style="font-weight:600">Reason for cancellation <span class="req">*</span></label>
                     <input id="cancellation_reason" name="cancellation_reason" required placeholder="e.g. Customer cancelled — no charge" style="margin:6px 0 10px">
+                    <p class="hint" style="margin:0 0 10px">Cancelling calls the job off for good. If it's just moving to another day, use <strong>Postpone</strong> instead so the payment is held.</p>
                     <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Confirm cancellation</button>
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('cancel-box').style.display='none'">Keep booking</button>
                     <p class="hint" style="margin:8px 0 0">The calendar event isn't removed automatically — take it off Google Calendar yourself if it was pushed there.</p>
@@ -886,7 +900,28 @@
         </details>
     @endif
 
-    @if($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
+    @if($booking->isPostponed())
+        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
+            <strong>⏸ Postponed — awaiting reschedule.</strong>
+            <span class="muted">{{ $booking->meta['postpone_reason'] ?? 'Held for a new date' }}@if(!empty($booking->meta['postponed_at'])) · {{ \Illuminate\Support\Carbon::parse($booking->meta['postponed_at'])->format('d M Y, H:i') }}@endif</span>
+            <p class="hint" style="margin:6px 0 10px">The payment is held against this booking — nothing has been refunded. Enter the new pickup time (and flight, if any) to put it back on the board and carry the payment over. No new charge.</p>
+            <form method="POST" action="{{ route('bookings.reschedule', $booking) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+                @csrf
+                <div>
+                    <label for="reschedule_pickup_at" style="font-weight:600;display:block">New pickup <span class="req">*</span></label>
+                    <input id="reschedule_pickup_at" type="datetime-local" name="pickup_at" required style="margin-top:4px"
+                           value="{{ old('pickup_at', optional($booking->pickup_at)->format('Y-m-d\TH:i')) }}">
+                </div>
+                <div>
+                    <label for="reschedule_flight" style="font-weight:600;display:block">Flight (optional)</label>
+                    <input id="reschedule_flight" name="flight_number" placeholder="e.g. BA1234" style="margin-top:4px"
+                           value="{{ old('flight_number', $booking->flight_number) }}">
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding:9px 16px">Reschedule &amp; reinstate</button>
+            </form>
+            <p class="hint" style="margin:10px 0 0">Add the new event to Google Calendar yourself — the calendar is never changed automatically.</p>
+        </div>
+    @elseif($booking->status === \App\Enums\BookingStatus::Cancelled && ! empty($booking->meta['cancellation_reason']))
         <div class="alert alert-error">Cancelled — {{ $booking->meta['cancellation_reason'] }}
             @if(!empty($booking->meta['cancelled_at'])) <span class="muted">({{ \Illuminate\Support\Carbon::parse($booking->meta['cancelled_at'])->format('d M Y, H:i') }})</span>@endif
         </div>

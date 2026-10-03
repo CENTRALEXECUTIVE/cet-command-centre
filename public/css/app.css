@@ -186,6 +186,7 @@ tr:last-child td { border-bottom: none; }
 .badge-collected { background: #e7e0ff; color: #5b2bc7; }
 .badge-complete { background: #d9f3e2; color: #1f7a44; }
 .badge-cancelled, .badge-no_show { background: #fbe0e0; color: #b32020; }
+.badge-postponed { background: #fff0cc; color: #8a6d00; border: 1px solid #FBBA2A; }
 
 /* ----- Auth ----- */
 .auth-wrap { position: relative; overflow: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center;

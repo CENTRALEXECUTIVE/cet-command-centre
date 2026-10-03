@@ -172,7 +172,7 @@
                             </div>
 
                             <div class="bk-side">
-                                <span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span>
+                                <span class="badge badge-{{ $b->statusKey() }}">{{ $b->statusLabel() }}</span>
                                 @if($b->driverSettledByCustomer() && $b->driverPay() !== null)
                                     <span class="badge" style="background:#1f7a44;color:#fff" title="Cash job — the driver collected the cash from the customer, so the business owes nothing. Nothing to pay.">💷 Cash — settled with driver</span>
                                 @elseif($b->driverFullyPaid())
