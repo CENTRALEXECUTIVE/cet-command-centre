@@ -195,8 +195,40 @@ class EtoBookingImporter
             }
         }
 
-        // THE OFFICE IS THE BOSS: never let a CSV re-import overwrite a luggage /
-        // seat / detail value the office has edited in the app.
+        // ETO is now also the authoritative DETAIL source (the office has moved off
+        // the Google Calendar), so a re-import refreshes the journey — date/time,
+        // addresses, flight, passengers, luggage, vehicle — not just the money. Each
+        // value is written ONLY when the export actually carries it, so an empty CSV
+        // cell never blanks good data; and applyOfficeEdits below still protects any
+        // field the office has edited in the app. This is what lets a re-import pull
+        // through a pickup-time or address change made in ETO.
+        if ($pickupAt = $this->parseDate($data['Journey date'] ?? '')) {
+            $fields['pickup_at'] = $pickupAt;
+        }
+        if (($pickup = $this->decode($data['Pickup'] ?? '')) !== '') {
+            $fields['pickup_address'] = $pickup;
+        }
+        if (($dropoff = $this->decode($data['Dropoff'] ?? '')) !== '') {
+            $fields['destination_address'] = $dropoff;
+        }
+        if (($flight = $this->clean($data['Arrival flight number'] ?? '') ?: $this->clean($data['Departure flight number'] ?? '')) !== '') {
+            $fields['flight_number'] = $flight;
+        }
+        if (($paxRaw = $this->clean($data['Passengers'] ?? '')) !== '' && (int) $paxRaw > 0) {
+            $fields['passengers'] = (int) $paxRaw;
+        }
+        if (array_key_exists('Suitcases', $data) || array_key_exists('Hand luggage', $data)) {
+            $fields['luggage'] = (int) $this->clean($data['Suitcases'] ?? '0') + (int) $this->clean($data['Hand luggage'] ?? '0');
+        }
+        if (($vehName = $this->clean($data['Vehicle type'] ?? '')) !== '') {
+            $fields['vehicle_type_id'] = $this->resolveVehicleType($vehName)->id;
+        }
+        if ($airportId = $this->detectAirport($data)) {
+            $fields['airport_id'] = $airportId;
+        }
+
+        // THE OFFICE IS THE BOSS: never let a CSV re-import overwrite a time /
+        // address / luggage / seat / detail value the office has edited in the app.
         $fields = $booking->applyOfficeEdits($fields);
 
         $booking->forceFill($fields);

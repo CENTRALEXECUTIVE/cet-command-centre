@@ -245,4 +245,57 @@ class EtoBookingImportTest extends TestCase
         $this->assertEquals(3, $booking->luggage); // combined total kept in sync
         $this->assertEquals('2 suitcases · 1 hand luggage', $booking->luggageBreakdown());
     }
+
+    public function test_a_reimport_updates_a_changed_pickup_date_and_route(): void
+    {
+        $importer = app(EtoBookingImporter::class);
+
+        // First import — original date/route.
+        $importer->import($this->csv([[
+            'Journey date' => '02/06/2026 11:00', 'Passenger name' => 'Geoff Bowen',
+            'Reference number' => 'CHG1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 140', 'Total' => '140.00', 'Phone number' => '07700900007',
+            'Pickup' => '14 Kings Road, Doncaster', 'Dropoff' => 'Manchester Airport (MAN)',
+        ]]));
+        $booking = Booking::where('external_reference', 'CHG1')->first();
+        $this->assertSame('02/06/2026', $booking->pickup_at->format('d/m/Y'));
+
+        // ETO changed the date; a re-import must pull it through (not just money).
+        $importer->import($this->csv([[
+            'Journey date' => '24/06/2026 11:00', 'Passenger name' => 'Geoff Bowen',
+            'Reference number' => 'CHG1', 'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 140', 'Total' => '140.00', 'Phone number' => '07700900007',
+            'Pickup' => '14 Kings Road, Doncaster', 'Dropoff' => 'Manchester Airport (MAN)',
+        ]]));
+
+        $this->assertSame('24/06/2026', $booking->fresh()->pickup_at->format('d/m/Y'));
+    }
+
+    public function test_a_reimport_does_not_overwrite_an_office_edited_date(): void
+    {
+        $importer = app(EtoBookingImporter::class);
+        $importer->import($this->csv([[
+            'Journey date' => '02/06/2026 11:00', 'Reference number' => 'CHG2',
+            'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 140', 'Total' => '140.00', 'Phone number' => '07700900008',
+            'Pickup' => 'A', 'Dropoff' => 'B',
+        ]]));
+
+        // Office pins the time in the app.
+        $booking = Booking::where('external_reference', 'CHG2')->first();
+        $booking->forceFill([
+            'pickup_at' => \Illuminate\Support\Carbon::parse('2026-06-10 15:30'),
+            'meta' => array_merge($booking->meta ?? [], ['edited_fields' => ['pickup_at']]),
+        ])->save();
+
+        // Re-import with a different ETO date — the office edit must win.
+        $importer->import($this->csv([[
+            'Journey date' => '24/06/2026 11:00', 'Reference number' => 'CHG2',
+            'Vehicle type' => 'Executive', 'Status' => 'Confirmed',
+            'Payments' => 'Paid, Card, 140', 'Total' => '140.00', 'Phone number' => '07700900008',
+            'Pickup' => 'A', 'Dropoff' => 'B',
+        ]]));
+
+        $this->assertSame('2026-06-10 15:30', $booking->fresh()->pickup_at->format('Y-m-d H:i'));
+    }
 }

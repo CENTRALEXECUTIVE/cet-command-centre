@@ -168,42 +168,7 @@ class OutlookBookingService
      *   leaves the rotation pointer untouched — those jobs are assigned manually.
      * @return array{booking: Booking, action: 'created'|'updated'|'cancelled'}|null
      */
-    /**
-     * Force-resync ONE booking from its latest ETO email: find the most recent
-     * email whose reference matches this booking and apply it as the TRUTH
-     * (office-edit pins ignored and cleared, so the booking tracks ETO again) —
-     * the email equivalent of "Match calendar". For when a booking hasn't picked
-     * up an amendment because a field was pinned by an app edit. No notification.
-     *
-     * @return array{status: string, action?: string}
-     */
-    public function resyncBooking(Booking $booking, int $days = 60): array
-    {
-        if (! $this->mail->configured()) {
-            return ['status' => 'not_connected'];
-        }
-
-        $target = $this->cleanReference($booking->external_reference ?: $booking->reference);
-        if (! $target) {
-            return ['status' => 'no_reference'];
-        }
-
-        // fetchRecent is newest-first, so the first reference match is the latest
-        // email for this booking — exactly what we want to apply.
-        foreach ($this->mail->fetchRecent($days) as $message) {
-            $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
-            if (! $parsed || $this->cleanReference($parsed['reference'] ?? null) !== $target) {
-                continue;
-            }
-            $result = $this->upsertFromParsed($parsed, allocateRotation: false, force: true);
-
-            return ['status' => 'resynced', 'action' => $result['action'] ?? 'updated'];
-        }
-
-        return ['status' => 'no_email'];
-    }
-
-    public function upsertFromParsed(array $parsed, bool $allocateRotation = true, bool $force = false): ?array
+    public function upsertFromParsed(array $parsed, bool $allocateRotation = true): ?array
     {
         $reference = $parsed['reference'] ?? null;
 
@@ -252,7 +217,7 @@ class OutlookBookingService
         // the app timezone (config APP_TIMEZONE=Europe/London in production).
         $pickupAt = Carbon::parse($parsed['pickup_at']);
 
-        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus, $allocateRotation, $force) {
+        return DB::transaction(function () use ($parsed, $reference, $existing, $vehicleType, $pickupAt, $paymentStatus, $allocateRotation) {
             $customer = $this->resolveCustomer($parsed);
             $airportId = $this->detectAirport($parsed);
 
@@ -291,16 +256,7 @@ class OutlookBookingService
                 // refreshes the fields nobody has touched. Without this, the
                 // 5-minute Outlook ingest silently reverted an edited pickup time
                 // back to the email's original within minutes.
-                // Normally the office's edits win. On a FORCED resync the operator
-                // is explicitly taking ETO as the truth for this booking, so we skip
-                // the protection AND clear the edit pins below, so it tracks ETO again.
-                if (! $force) {
-                    $fields = $existing->applyOfficeEdits($fields);
-                } else {
-                    $meta = $fields['meta'] ?? ($existing->meta ?? []);
-                    unset($meta['manually_edited_at'], $meta['edited_fields'], $meta['contact_override']);
-                    $fields['meta'] = $meta;
-                }
+                $fields = $existing->applyOfficeEdits($fields);
 
                 // What is ETO actually changing on a LIVE job? Compute before the
                 // save (and after applyOfficeEdits, so an office-pinned field that
@@ -532,7 +488,12 @@ class OutlookBookingService
     private function allocateDriver(Booking $booking, ?string $reference): void
     {
         $sibling = $this->pairedSibling($reference);
-        if (! $sibling) {
+        // Only treat an …a / …b pair as a genuine OUTBOUND/RETURN when the route is
+        // actually reversed (this leg starts where the other ends). ETO also uses
+        // the a/b suffix for two bookings on the SAME journey — e.g. two passengers
+        // on one flight going to the same place — and those must NOT be paired or
+        // labelled "Return" (that was showing a real second booking as a duplicate).
+        if (! $sibling || ! $this->isReversedRoute($booking, $sibling)) {
             $this->rotation->allocate($booking); // standalone — normal rotation
 
             return;
@@ -569,6 +530,33 @@ class OutlookBookingService
         }
 
         $sibling->forceFill(['linked_booking_id' => $booking->id, 'journey_type' => 'return'])->save();
+    }
+
+    /**
+     * Are these two legs a genuine outbound/return? A real return reverses the
+     * route, so the two legs start from DIFFERENT places (airport → home one way,
+     * home → airport the other). Two bookings on the SAME journey — e.g. two
+     * passengers on one flight to the same address — share the SAME pickup, and
+     * those must never be paired or labelled "Return" (that showed a real second
+     * booking as a duplicate). Comparing the pickups is the reliable signal: you
+     * can't have both the outbound and the return starting at the same place.
+     */
+    private function isReversedRoute(Booking $a, Booking $b): bool
+    {
+        $norm = fn (?string $s) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $s));
+        $x = $norm($a->pickup_address);
+        $y = $norm($b->pickup_address);
+        if ($x === '' || $y === '') {
+            return true; // not enough address info to tell — keep the old behaviour
+        }
+        // "Same place" tolerant of terminal/formatting differences at an airport:
+        // the shorter normalised pickup is a prefix (first 8+ chars) of the longer.
+        $short = strlen($x) <= strlen($y) ? $x : $y;
+        $long = $short === $x ? $y : $x;
+        $key = substr($short, 0, max(8, (int) floor(strlen($short) * 0.6)));
+        $samePickup = $key !== '' && str_starts_with($long, $key);
+
+        return ! $samePickup; // different pickups ⇒ a genuine outbound/return
     }
 
     /** The other leg of a paired ETO booking (…a ↔ …b), if it exists. */

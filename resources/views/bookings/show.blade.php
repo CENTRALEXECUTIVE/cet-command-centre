@@ -427,13 +427,6 @@
                     </form>
                 @endif
                 <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
-                @if($booking->external_reference || $booking->source_system === 'eto')
-                    <form method="POST" action="{{ route('bookings.resync-email', $booking) }}"
-                          onsubmit="return confirm('Resync this booking from its latest ETO email?\n\nThis takes the ETO email as the truth and replaces any changes you made in the app for THIS booking (time, addresses, flight, passengers, vehicle). The email and calendar are not changed.')">
-                        @csrf
-                        <button class="btn btn-dark" style="padding:9px 16px">📧 Resync from ETO email</button>
-                    </form>
-                @endif
                 @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='block';this.style.display='none'">↩ Create return leg</button>
                 @endif
@@ -959,22 +952,25 @@
     @endif
 
     {{-- The booking in full, in the confirmation format we read — title + the
-         Booking Confirmation block (notes and all). This is CET's OWN rendering
-         (CalendarEventBuilder), the exact text that goes onto Google Calendar, so
-         it's shown from the stored event when there is one, and built live from the
-         booking when there isn't — the format is always here, nothing missing. --}}
+         Booking Confirmation block (notes and all). The BOOKING RECORD is the
+         source of truth: this is rendered LIVE from the booking (CalendarEventBuilder),
+         so editing the booking updates it straight away and it can never show a
+         stale Google Calendar snapshot from a different leg/date. The stored
+         calendar text is only a fallback if the live render can't be built. --}}
     @php
         $calEvent = $booking->calendarEvent;
         $cal = null;
-        if ($calEvent && filled($calEvent->description)) {
-            $cal = ['title' => $calEvent->title, 'description' => $calEvent->description, 'location' => $calEvent->location];
-        } elseif ($booking->pickup_at) {
-            // No stored event yet (calendar off, or not synced) — render the format
-            // live so the detail block is never missing. Never let it crash the page.
+        if ($booking->pickup_at) {
+            // Live from the booking's own current fields — always matches the record.
             try { $cal = app(\App\Services\CalendarEventBuilder::class)->preview($booking); } catch (\Throwable $e) { $cal = null; }
         }
-        $calStart = $calEvent?->start_at ?? $booking->pickup_at;
-        $calEnd = $calEvent?->end_at ?? $booking->pickup_at?->copy()->addHour();
+        if ((! $cal || ! filled($cal['description'] ?? null)) && $calEvent && filled($calEvent->description)) {
+            // Only if we couldn't build it live (e.g. no pickup time yet).
+            $cal = ['title' => $calEvent->title, 'description' => $calEvent->description, 'location' => $calEvent->location];
+        }
+        // The times shown track the BOOKING, not a stale calendar start.
+        $calStart = $booking->pickup_at ?? $calEvent?->start_at;
+        $calEnd = $booking->pickup_at?->copy()->addHour() ?? $calEvent?->end_at;
     @endphp
     @if($cal && filled($cal['description'] ?? null))
         <div class="card cal-panel">
