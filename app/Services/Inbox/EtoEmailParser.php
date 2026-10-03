@@ -159,7 +159,50 @@ class EtoEmailParser
             return null;
         }
 
-        return trim(preg_replace('/\s*,?\s*UK\s*$/i', '', trim($address))) ?: $address;
+        // Tidy whitespace and drop a trailing ", UK".
+        $address = trim((string) preg_replace('/\s+/', ' ', $address));
+        $address = trim((string) preg_replace('/\s*,?\s*UK\s*$/i', '', $address));
+        if ($address === '') {
+            return null;
+        }
+
+        // ETO often concatenates a geocoded address with the raw one, repeating
+        // the area/postcode, e.g.
+        //   "Dinnington, Sheffield S25 2AW, UK, 1, Meadow Court, Dinnington S25 2AW"
+        // Drop a comma-segment ONLY when it adds nothing — an exact duplicate, or
+        // one whose words already appear as a whole phrase inside a FULLER segment.
+        // It never reorders and never drops unique detail: the match is on word
+        // boundaries, so a house number like "1" survives even though "1" sits
+        // inside "S11 7TX". Conservative on purpose — if in doubt, it keeps it.
+        $parts = array_values(array_filter(
+            array_map('trim', explode(',', $address)),
+            fn ($p) => $p !== ''
+        ));
+
+        $kept = [];
+        foreach ($parts as $i => $part) {
+            $containedInFuller = false;
+            foreach ($parts as $j => $other) {
+                if ($i === $j || mb_strlen($other) <= mb_strlen($part)) {
+                    continue; // only a strictly longer segment can absorb this one
+                }
+                if (preg_match('/(?<!\w)'.preg_quote($part, '/').'(?!\w)/iu', $other)) {
+                    $containedInFuller = true;
+                    break;
+                }
+            }
+            if ($containedInFuller) {
+                continue;
+            }
+            foreach ($kept as $k) {
+                if (mb_strtolower($k) === mb_strtolower($part)) {
+                    continue 2; // exact duplicate already kept
+                }
+            }
+            $kept[] = $part;
+        }
+
+        return implode(', ', $kept) ?: $address;
     }
 
     private function payment(array $fields): array

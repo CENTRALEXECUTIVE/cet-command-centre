@@ -357,9 +357,15 @@ class OutlookIngestionTest extends TestCase
         $this->assertStringContainsString('140', (string) $parsed['payment_text']);
         $this->assertStringContainsStringIgnoringCase('cash', (string) $parsed['payment_text']);
         $this->assertStringNotContainsString('Paid £165', (string) $parsed['payment_text']);
-        // The two-line address is stitched back together, not truncated.
-        $this->assertStringContainsString('Meadow Court', (string) $parsed['pickup_address']);
-        $this->assertStringContainsString('Dinnington S25 2AW', (string) $parsed['pickup_address']);
+        // The two-line address is stitched back together, not truncated, and the
+        // cleaner drops the redundant leading "Dinnington," (already inside
+        // "Dinnington S25 2AW") WITHOUT losing any unique part — house number,
+        // street, town and postcode all survive.
+        $pickup = (string) $parsed['pickup_address'];
+        $this->assertStringContainsString('1, Meadow Court', $pickup);
+        $this->assertStringContainsString('Sheffield S25 2AW', $pickup);
+        $this->assertStringContainsString('Dinnington S25 2AW', $pickup);
+        $this->assertStringNotContainsString('Dinnington, Sheffield', $pickup); // the duplicate head is gone
     }
 
     public function test_child_and_infant_seats_are_counted_not_the_passenger_number(): void
