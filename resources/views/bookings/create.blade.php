@@ -166,7 +166,11 @@
                     <select id="vehicle_type_id" name="vehicle_type_id" required>
                         <option value="">— Select —</option>
                         @foreach($vehicleTypes as $vt)
-                            <option value="{{ $vt->id }}" @selected(old('vehicle_type_id', $pf['vehicle_type_id'] ?? $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id)==$vt->id)>
+                            <option value="{{ $vt->id }}"
+                                data-cap-pax="{{ $vt->passenger_capacity }}"
+                                data-cap-lug="{{ $vt->luggage_capacity }}"
+                                data-cap-hand="{{ $vt->handLuggageCapacity() }}"
+                                @selected(old('vehicle_type_id', $pf['vehicle_type_id'] ?? $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id)==$vt->id)>
                                 {{ $vt->name }} (up to {{ $vt->passenger_capacity }})
                             </option>
                         @endforeach
@@ -350,6 +354,13 @@
     </form>
     </div>{{-- /.smart-form --}}
 
+    <style>
+        /* A vehicle too small for the passengers/luggage entered — greyed, like
+           the customer booking page, so the agent sees what actually fits. */
+        .veh-prices .vp.unfit { opacity: .4; }
+        .veh-prices .vp.unfit .n::after { content: ' ⚠'; }
+    </style>
+
     <script>
         window.CET_MAPS_KEY = "{{ \App\Models\Setting::mapsKey() }}";
         window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";
@@ -357,6 +368,7 @@
         window.CET_RESOLVE_URL = "{{ route('places.resolve') }}";
         window.CET_ESTIMATE_URL = "{{ route('pricing.estimate') }}";
         window.CET_PRICES_URL = "{{ route('widget.prices') }}";
+        window.CET_STRIP_URL = "{{ route('pricing.strip') }}";
     </script>
     <script src="{{ asset('js/cet-forms.js') }}?v=35"></script>
     @verbatim
@@ -473,21 +485,64 @@
                 h.addEventListener('click', function () { h.parentNode.classList.toggle('closed'); });
             });
 
-            // Live prices for EVERY vehicle as the agent types the journey — tap a
-            // chip to pick that vehicle and drop its fare in. Fast phone quoting.
+            // Live FULL prices for EVERY vehicle (incl. via-stop fee + ticked
+            // extras) as the agent types the journey — tap a chip to pick that
+            // vehicle and drop its fare in. Also greys out vehicles too small for
+            // the passengers/luggage entered (like the customer booking page).
             (function () {
                 var strip = document.getElementById('veh-prices');
                 var pickup = document.getElementById('pickup_address');
                 var dest = document.getElementById('destination_address');
                 var vehSel = document.getElementById('vehicle_type_id');
                 var priceEl = document.getElementById('quoted_price');
-                if (!strip || !pickup || !dest || !vehSel || !window.CET_PRICES_URL) return;
+                var url = window.CET_STRIP_URL || window.CET_PRICES_URL;
+                if (!strip || !pickup || !dest || !vehSel || !url) return;
                 var tokenEl = document.querySelector('meta[name="csrf-token"]');
                 var token = tokenEl ? tokenEl.getAttribute('content') : '';
-                // id -> name, from the select options.
-                var names = {};
-                Array.prototype.forEach.call(vehSel.options, function (o) { if (o.value) names[o.value] = o.textContent.trim(); });
+                var whenEl = document.getElementById('pickup_at');
+                var paxEl = document.getElementById('passengers');
+                var suitEl = document.getElementById('suitcases');
+                var handEl = document.getElementById('hand_luggage');
+
+                // id -> name + capacities, from the select options.
+                var names = {}, caps = {};
+                Array.prototype.forEach.call(vehSel.options, function (o) {
+                    if (!o.value) return;
+                    names[o.value] = o.textContent.trim();
+                    caps[o.value] = {
+                        pax: parseInt(o.getAttribute('data-cap-pax'), 10) || 0,
+                        lug: parseInt(o.getAttribute('data-cap-lug'), 10) || 0,
+                        hand: parseInt(o.getAttribute('data-cap-hand'), 10) || 0
+                    };
+                });
                 var timer = null, lastKey = '';
+
+                function num(el) { var n = parseInt(el && el.value, 10); return isNaN(n) ? 0 : n; }
+
+                // Count via stops with an address + read the ticked priced extras.
+                function extras() {
+                    var stops = 0;
+                    document.querySelectorAll('input[name="via_stops[]"]').forEach(function (s) { if (s.value.trim()) stops++; });
+                    return {
+                        stops: stops,
+                        meet_greet: (document.getElementById('meet_greet') || {}).checked ? 1 : 0,
+                        child_seats: num(document.getElementById('child_seats')),
+                        booster_seats: num(document.getElementById('booster_seats')),
+                        infant_seats: num(document.getElementById('infant_seats')),
+                        ribbons: (document.getElementById('ribbon') || {}).checked ? 1 : 0
+                    };
+                }
+
+                // Grey out the chips for vehicles too small for the party entered.
+                function applyFit() {
+                    var pax = num(paxEl), suit = num(suitEl), hand = num(handEl);
+                    strip.querySelectorAll('.vp').forEach(function (chip) {
+                        var c = caps[chip.dataset.id];
+                        var fits = !c || (pax <= c.pax && suit <= c.lug && hand <= c.hand);
+                        chip.classList.toggle('unfit', !fits);
+                        chip.title = fits ? '' : 'Too small for ' + pax + ' passengers / ' + (suit + hand) + ' bags';
+                    });
+                }
 
                 function render(options) {
                     strip.innerHTML = '';
@@ -506,25 +561,35 @@
                         strip.appendChild(chip);
                     });
                     strip.hidden = options.length === 0;
+                    applyFit();
                 }
 
-                var whenEl = document.getElementById('pickup_at');
                 function refresh() {
                     var p = pickup.value.trim(), d = dest.value.trim();
                     if (p.length < 4 || d.length < 4) { strip.hidden = true; return; }
                     var when = whenEl ? (whenEl.value || '') : '';
-                    var key = p + '||' + d + '||' + when; // time can change night/holiday pricing
+                    var ex = extras();
+                    // Re-quote when the journey, time, stops or priced extras change.
+                    var key = [p, d, when, ex.stops, ex.meet_greet, ex.child_seats, ex.booster_seats, ex.infant_seats, ex.ribbons].join('||');
                     if (key === lastKey) return;
                     lastKey = key;
-                    fetch(window.CET_PRICES_URL, {
+                    var body = { pickup: p, destination: d, pickup_at: when };
+                    for (var k in ex) { body[k] = ex[k]; }
+                    fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-                        body: JSON.stringify({ pickup: p, destination: d, pickup_at: when })
+                        body: JSON.stringify(body)
                     }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
                       .then(function (d) { if (d && d.options) render(d.options); })
                       .catch(function () {});
                 }
-                [pickup, dest, whenEl].forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
+
+                // Journey / time / stops / extras change the PRICE → re-quote.
+                var priceInputs = [pickup, dest, whenEl];
+                document.querySelectorAll('input[name="via_stops[]"], #meet_greet, #child_seats, #booster_seats, #infant_seats, #ribbon').forEach(function (el) { priceInputs.push(el); });
+                priceInputs.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
+                // Passengers / luggage change only the FIT, not the price.
+                [paxEl, suitEl, handEl, vehSel].forEach(function (el) { if (el) el.addEventListener('change', applyFit); });
             })();
 
             // Mirror the quoted price into the total bar.

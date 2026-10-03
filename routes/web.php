@@ -115,6 +115,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Live fare estimate (fixed airport price / free-roam distance).
         Route::get('pricing/estimate', [\App\Http\Controllers\PricingController::class, 'estimate'])
             ->middleware('throttle:120,1')->name('pricing.estimate');
+        // Full per-vehicle fare strip for the admin form — includes via-stop fee + extras.
+        Route::post('pricing/strip', [\App\Http\Controllers\PricingController::class, 'strip'])
+            ->middleware('throttle:120,1')->name('pricing.strip');
     });
 
     Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');

@@ -27,7 +27,10 @@ class BookingFormRendersTest extends TestCase
             ->assertSee('data-places', false)          // address autocomplete hooks
             ->assertSee('js/cet-forms.js', false)       // shared helper loaded
             ->assertSee('id="quote-note"', false)       // live quote display
-            ->assertSee(route('pricing.estimate'), false);
+            ->assertSee(route('pricing.estimate'), false)
+            ->assertSee(route('pricing.strip'), false)  // full-fare strip (stops + extras)
+            ->assertSee('data-cap-pax', false)          // vehicle capacity for fit-filtering
+            ->assertSee('data-cap-lug', false);
     }
 
     public function test_an_email_enquiry_prefills_the_booking_form(): void
