@@ -191,8 +191,21 @@ class OutlookBookingService
 
                 return null;
             }
+            $wasLive = $existing->status !== BookingStatus::Cancelled
+                && $existing->pickup_at && $existing->pickup_at->gte(now());
             $existing->forceFill(['status' => BookingStatus::Cancelled->value])->save();
             $this->pushCalendar($existing);
+
+            // Tell the office ETO pulled a live job, so a driver isn't left heading
+            // to a cancelled booking. (The office-overrode case is handled above.)
+            if ($wasLive) {
+                $ref = $existing->external_reference ?: $existing->reference;
+                \App\Models\WatchdogEvent::log('eto_amended', 'ETO cancelled '.$ref.' ('.$existing->pickup_at->format('D d M, H:i').')', 'warning', $existing);
+                app(\App\Services\Watchdog\AdminAlerts::class)->notify('no_show_cancel',
+                    '❌ ETO cancelled '.$ref,
+                    'ETO cancelled the '.$existing->pickup_at->format('D d M, H:i').' job. It\'s cancelled here and the calendar updated. Remove the Google Calendar event by hand if needed.',
+                    'warning', $existing);
+            }
 
             return ['booking' => $existing, 'action' => 'cancelled'];
         }
@@ -249,9 +262,28 @@ class OutlookBookingService
                 // back to the email's original within minutes.
                 $fields = $existing->applyOfficeEdits($fields);
 
+                // What is ETO actually changing on a LIVE job? Compute before the
+                // save (and after applyOfficeEdits, so an office-pinned field that
+                // won't move is never falsely reported).
+                $changes = $this->materialChanges($existing, $fields);
+                $wasLive = $existing->pickup_at && $existing->pickup_at->gte(now()) && ! $existing->status->isTerminal();
+
                 $existing->forceFill($fields)->save();
                 $booking = $existing;
                 $action = 'updated';
+
+                // Surface a real amendment to the office — a moved pickup time,
+                // changed address or vehicle on an upcoming job must never apply
+                // silently (a driver could be heading to the old time/place).
+                if ($wasLive && $changes) {
+                    $ref = $booking->external_reference ?: $booking->reference;
+                    $summary = implode('; ', $changes);
+                    \App\Models\WatchdogEvent::log('eto_amended', 'ETO amended '.$ref.' — '.$summary, 'warning', $booking);
+                    app(\App\Services\Watchdog\AdminAlerts::class)->notify('eto_amended',
+                        '✏️ ETO changed '.$ref,
+                        $summary.'. The booking and calendar were updated to match.',
+                        'warning', $booking);
+                }
             } else {
                 $booking = Booking::create($fields + [
                     'reference' => Booking::generateReference(),
@@ -381,6 +413,46 @@ class OutlookBookingService
             '⚠️ ETO cancelled a job you changed',
             $ref.' — ETO says cancelled, but you set it to '.$booking->status->label().'. It was left as you set it; cancel it here if ETO is right.',
             'warning', $booking);
+    }
+
+    /**
+     * The material changes ETO is making to an existing booking, as short
+     * human-readable lines for the office alert — a moved pickup time, a changed
+     * pickup/drop-off address, or a different vehicle. Payment-status flips and
+     * placeholder-count enrichment are deliberately NOT flagged (routine, not an
+     * amendment the office must act on). $fields is post-applyOfficeEdits, so a
+     * field the office has pinned is never reported as changed.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return list<string>
+     */
+    private function materialChanges(Booking $existing, array $fields): array
+    {
+        $lines = [];
+
+        if (! empty($fields['pickup_at'])) {
+            $old = optional($existing->pickup_at)->format('Y-m-d H:i');
+            $newAt = Carbon::parse($fields['pickup_at']);
+            if ($old !== $newAt->format('Y-m-d H:i')) {
+                $lines[] = 'pickup '.(optional($existing->pickup_at)->format('D d M, H:i') ?: '—').' → '.$newAt->format('D d M, H:i');
+            }
+        }
+
+        $changedAddr = fn (string $key, ?string $current) => array_key_exists($key, $fields)
+            && trim((string) $fields[$key]) !== ''
+            && trim((string) $fields[$key]) !== trim((string) $current);
+
+        if ($changedAddr('pickup_address', $existing->pickup_address)) {
+            $lines[] = 'pickup address changed';
+        }
+        if ($changedAddr('destination_address', $existing->destination_address)) {
+            $lines[] = 'drop-off changed';
+        }
+        if (! empty($fields['vehicle_type_id']) && (int) $fields['vehicle_type_id'] !== (int) $existing->vehicle_type_id) {
+            $lines[] = 'vehicle changed';
+        }
+
+        return $lines;
     }
 
     /**
