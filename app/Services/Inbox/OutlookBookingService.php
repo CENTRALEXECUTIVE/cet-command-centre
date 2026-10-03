@@ -196,15 +196,11 @@ class OutlookBookingService
             $existing->forceFill(['status' => BookingStatus::Cancelled->value])->save();
             $this->pushCalendar($existing);
 
-            // Tell the office ETO pulled a live job, so a driver isn't left heading
-            // to a cancelled booking. (The office-overrode case is handled above.)
+            // Record an ETO cancellation of a live job quietly in the feed — no
+            // push (notifications were pulled after a re-ingest alert storm).
             if ($wasLive) {
                 $ref = $existing->external_reference ?: $existing->reference;
-                \App\Models\WatchdogEvent::log('eto_amended', 'ETO cancelled '.$ref.' ('.$existing->pickup_at->format('D d M, H:i').')', 'warning', $existing);
-                app(\App\Services\Watchdog\AdminAlerts::class)->notify('no_show_cancel',
-                    '❌ ETO cancelled '.$ref,
-                    'ETO cancelled the '.$existing->pickup_at->format('D d M, H:i').' job. It\'s cancelled here and the calendar updated. Remove the Google Calendar event by hand if needed.',
-                    'warning', $existing);
+                \App\Models\WatchdogEvent::log('eto_amended', 'ETO cancelled '.$ref.' ('.$existing->pickup_at->format('D d M, H:i').')', 'info', $existing);
             }
 
             return ['booking' => $existing, 'action' => 'cancelled'];
@@ -272,23 +268,17 @@ class OutlookBookingService
                 $booking = $existing;
                 $action = 'updated';
 
-                // Surface a real amendment to the office — a moved pickup time,
-                // changed address or vehicle on an upcoming job must never apply
-                // silently (a driver could be heading to the old time/place). Deduped
-                // on the exact change so a routine re-ingest can't re-fire the same
-                // alert: we only alert once per distinct change.
+                // ETO amendments NEVER push a notification — they only drop a quiet
+                // entry in the alerts feed (deduped on the exact change), so a real
+                // moved-time/vehicle change is on record without buzzing anyone. The
+                // push was pulled after a re-ingest produced a storm of alerts.
                 if ($wasLive && $changes) {
                     $summary = implode('; ', $changes);
                     $sig = md5($summary);
                     if (($booking->meta['eto_amended_sig'] ?? null) !== $sig) {
                         $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['eto_amended_sig' => $sig])])->save();
-
                         $ref = $booking->external_reference ?: $booking->reference;
-                        \App\Models\WatchdogEvent::log('eto_amended', 'ETO amended '.$ref.' — '.$summary, 'warning', $booking);
-                        app(\App\Services\Watchdog\AdminAlerts::class)->notify('eto_amended',
-                            '✏️ ETO changed '.$ref,
-                            $summary.'. The booking and calendar were updated to match.',
-                            'warning', $booking);
+                        \App\Models\WatchdogEvent::log('eto_amended', 'ETO amended '.$ref.' — '.$summary, 'info', $booking);
                     }
                 }
             } else {
