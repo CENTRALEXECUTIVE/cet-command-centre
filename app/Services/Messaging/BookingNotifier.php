@@ -178,6 +178,15 @@ class BookingNotifier
             $lines[] = $block;
         }
 
+        // Cash jobs: tell the customer exactly how much to hand the driver — the
+        // BALANCE owed (cashToCollectDisplay nets off any deposit and applies the
+        // return-leg/pairing rules), and nothing is shown when there's no cash to
+        // collect (card/account/prepaid jobs).
+        if ($cash = $booking->cashToCollectDisplay()) {
+            $lines[] = '';
+            $lines[] = '💷 *Payment:* please have *'.$cash.'* ready to pay the driver in cash.';
+        }
+
         // Complimentary upgrade: the customer booked a class other than a V Class
         // but we've put them in one — tell them it's a free upgrade.
         if ($booking->isComplimentaryVClassUpgrade()) {

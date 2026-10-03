@@ -134,6 +134,36 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertStringNotContainsString('7588804226', $reminder->whatsAppLink());
     }
 
+    public function test_cash_job_reminder_tells_the_customer_the_amount_to_pay_the_driver(): void
+    {
+        $booking = Booking::factory()->create([
+            'pickup_at' => now()->addDay()->setTime(15, 0),
+            'payment_method' => 'cash',
+            'payment_status' => 'pending',
+            'quoted_price' => 140,
+        ]);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+
+        $this->assertStringContainsString('£140', $body);
+        $this->assertStringContainsString('pay the driver in cash', $body);
+    }
+
+    public function test_card_or_paid_job_reminder_has_no_cash_line(): void
+    {
+        $booking = Booking::factory()->create([
+            'pickup_at' => now()->addDay()->setTime(15, 0),
+            'payment_method' => 'card',
+            'payment_status' => 'paid',
+            'quoted_price' => 140,
+            'final_price' => 140,
+        ]);
+
+        $body = app(\App\Services\Messaging\BookingNotifier::class)->reminderBody($booking->fresh());
+
+        $this->assertStringNotContainsString('pay the driver in cash', $body);
+    }
+
     public function test_send_link_uses_the_bookings_current_number_even_if_the_message_was_queued_earlier(): void
     {
         // A reminder was queued to an old/wrong number (before the contact was
