@@ -38,6 +38,7 @@
                 @endif
                 @if($u->isAdmin())
                     <a href="{{ route('despatch.board') }}" class="{{ request()->routeIs('despatch.*') ? 'active' : '' }}">🚦 Dispatch board</a>
+                    <a href="{{ route('calendar.index') }}" class="{{ request()->routeIs('calendar.*') ? 'active' : '' }}">📅 Calendar</a>
                     <a href="{{ route('fleet.map') }}" class="{{ request()->routeIs('fleet.*') ? 'active' : '' }}">🗺 Live map</a>
                 @endif
                 @if($u->isAdmin() || $u->isCorporateClient())
