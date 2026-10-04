@@ -411,6 +411,16 @@ class BookingController extends Controller
      */
     private function autoFollowCalendar(Booking $booking): void
     {
+        // OFF by default: the office runs the Command Centre as the source of truth,
+        // so a booking's displayed data must NEVER be silently rewritten from the
+        // Google Calendar on view — that caused "wrong data appears then corrects".
+        // The manual "Match calendar" button still pulls from the calendar on demand.
+        // Re-enable with the `calendar_autofollow` setting only if the calendar is
+        // the source of truth again.
+        if (! \App\Models\Setting::get('calendar_autofollow', false)) {
+            return;
+        }
+
         // THE OFFICE IS THE BOSS: the moment a booking is edited in the app, its
         // stored copy becomes the truth and the calendar auto-follow NEVER touches
         // it again — no field can be silently pulled back. The office re-syncs on

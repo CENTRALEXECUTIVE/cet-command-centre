@@ -55,4 +55,21 @@ class BookingDetailsLiveRenderTest extends TestCase
         $this->assertStringContainsString('14 Kings Road, Doncaster', $html);
         $this->assertStringNotContainsString('STALECALENDARMARKER', $html);
     }
+
+    public function test_viewing_a_booking_never_silently_changes_its_data(): void
+    {
+        // The flash-then-correct bug: viewing a booking must NOT rewrite its stored
+        // data from the calendar on the fly. Auto-follow is off by default now.
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'external_reference' => 'STAY01',
+            'pickup_at' => Carbon::parse('2026-06-24 11:00'),
+        ]);
+
+        $before = $booking->pickup_at->format('Y-m-d H:i');
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+
+        $this->assertSame($before, $booking->fresh()->pickup_at->format('Y-m-d H:i'), 'the booking is unchanged by viewing it');
+    }
 }
