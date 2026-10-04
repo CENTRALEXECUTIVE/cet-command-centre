@@ -90,4 +90,55 @@
         'rows' => $orderRows,
         'drivers' => $orderDrivers,
     ])
+
+    {{-- Rotation history: the running record — each job, whose turn it was, who
+         did it, and why. Stored in rotation_logs on every allocation. --}}
+    @php
+        $reasonLabel = [
+            'advance' => 'Normal turn — advanced',
+            'paired_return_no_advance' => 'Return leg — same driver',
+            'paired_same_driver' => 'Return leg — same driver',
+            'same_customer_continuity' => 'Same customer — kept driver',
+            'substitution_no_advance' => 'Substitute — no advance',
+            'manual_override' => 'Office set next',
+        ];
+        $callsign = fn ($u) => $u?->driverProfile?->callsign ?: $u?->name;
+    @endphp
+    <div class="card" style="margin-top:16px">
+        <h2 style="margin-top:0">🗂 Rotation history</h2>
+        <p class="hint" style="margin:-2px 0 12px">Every executive job in order — whose turn it was, who actually did it, and why. Newest first.</p>
+        @if(($rotationHistory ?? collect())->isEmpty())
+            <p class="muted mb-0">No rotation history yet. It fills in as executive airport jobs are allocated.</p>
+        @else
+            <div style="overflow-x:auto">
+                <table style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>When</th><th>Job</th><th>Airport · Vehicle</th>
+                            <th>Whose turn</th><th>Did it</th><th>Why</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($rotationHistory as $log)
+                            <tr>
+                                <td class="muted" style="white-space:nowrap">{{ $log->created_at?->format('D d M, H:i') }}</td>
+                                <td style="white-space:nowrap">
+                                    @if($log->booking)
+                                        <a href="{{ route('bookings.show', $log->booking) }}" class="mono">{{ $log->booking->external_reference ?: $log->booking->reference }}</a>
+                                        @if($log->booking->customer) <span class="muted" style="font-size:12px;display:block">{{ $log->booking->customer->name }}</span>@endif
+                                    @else
+                                        <span class="muted">—</span>
+                                    @endif
+                                </td>
+                                <td style="font-size:13px">{{ $log->airport?->code ?: $log->airport?->name ?: '—' }} · {{ $log->vehicleType?->name ?: '—' }}</td>
+                                <td>{{ $callsign($log->fromDriver) ?: '—' }}</td>
+                                <td><strong>{{ $callsign($log->toDriver) ?: '—' }}</strong></td>
+                                <td class="muted" style="font-size:12px">{{ $reasonLabel[$log->reason] ?? $log->reason }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
 @endsection

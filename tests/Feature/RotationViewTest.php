@@ -119,6 +119,33 @@ class RotationViewTest extends TestCase
             ->assertSee(route('rotation.set-next'), false);
     }
 
+    public function test_the_history_log_shows_past_jobs_and_who_did_them(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $airport = \App\Models\Airport::where('code', 'LHR')->first();
+
+        // Two allocations build the rotation history (one each to Abdi then Maj).
+        foreach (['Alpha Passenger', 'Bravo Passenger'] as $name) {
+            $booking = Booking::create([
+                'reference' => Booking::generateReference(),
+                'customer_id' => Customer::create(['name' => $name])->id,
+                'vehicle_type_id' => $executive->id, 'airport_id' => $airport?->id,
+                'pickup_at' => now()->addDay(), 'pickup_address' => 'Pickup',
+                'destination_address' => 'Destination', 'passengers' => 1,
+                'status' => 'pending', 'payment_method' => 'card',
+            ]);
+            app(RotationService::class)->allocate($booking);
+        }
+
+        $this->actingAs($admin)->get(route('rotation.index'))
+            ->assertOk()
+            ->assertSee('Rotation history')
+            ->assertSee('Whose turn', false)   // the column header
+            ->assertSee('Alpha Passenger')      // a past job is listed
+            ->assertSee('Bravo Passenger');
+    }
+
     public function test_non_admin_cannot_view_rotation(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

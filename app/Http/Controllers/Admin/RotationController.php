@@ -29,9 +29,18 @@ class RotationController extends Controller
         // so the running order is visible at a glance above the job list.
         $overview = $rotation->overview();
 
+        // The rotation history: every allocation in order — whose turn it was, who
+        // actually did it, for which job, and why (normal turn / paired return /
+        // substitute / manual override). The running record of the Abdi↔Maj order.
+        $history = \App\Models\RotationLog::with(['airport', 'vehicleType', 'fromDriver', 'toDriver', 'booking.customer'])
+            ->latest('id')
+            ->limit(60)
+            ->get();
+
         return view('admin.rotation.index', [
             'rotationDrivers' => $overview['drivers'],
             'rotationRows' => $overview['rows'],
+            'rotationHistory' => $history,
             'orderScope' => $order['scope'],
             'orderTabs' => $order['tabs'],
             'orderSelected' => $order['selected'],
