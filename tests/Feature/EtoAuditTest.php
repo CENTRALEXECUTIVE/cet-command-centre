@@ -186,7 +186,7 @@ class EtoAuditTest extends TestCase
             'google_event_id' => 'evt_3',
             'title' => '*Jo Manchester Airport (EXEC)*',
             'location' => 'Manchester Airport',
-            'description' => '📑 Booking Confirmation',
+            'description' => "📑 Booking Confirmation\nBooking Reference: TIMEXX",
             'start_at' => '2025-03-24 22:05:00', // the calendar's time
             'end_at' => '2025-03-24 23:05:00',
             'sync_status' => 'synced',

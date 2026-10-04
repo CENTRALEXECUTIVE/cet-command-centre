@@ -19,6 +19,28 @@ class CalendarTimeSync
 
     public function __construct(private readonly GoogleCalendarService $google) {}
 
+    /**
+     * FAILSAFE: does this calendar event PROVABLY belong to this booking — i.e.
+     * does it carry the booking's EXACT reference (whole token, not a substring)?
+     * Anchored so a paired leg can never satisfy its sibling's reference:
+     * "9Y5MDRA" never matches inside "9Y5MDRB", and the base "9Y5MDR" never matches
+     * inside "9Y5MDRA". This is what stops one booking's date being written from
+     * another leg's event. A booking with no reference can never be auto-matched.
+     */
+    private function eventCarriesReference(Booking $booking, ?string $title, ?string $description): bool
+    {
+        $ref = trim((string) ($booking->external_reference ?: $booking->reference));
+        if ($ref === '') {
+            return false;
+        }
+        $hay = mb_strtoupper(trim(($description ?? '').' '.($title ?? '')));
+
+        return $hay !== '' && (bool) preg_match(
+            '/(?<![A-Z0-9])'.preg_quote(mb_strtoupper($ref), '/').'(?![A-Z0-9])/',
+            $hay
+        );
+    }
+
     /** The calendar the events live on (Setting override, else the CET default). */
     private function calendarId(): string
     {
@@ -94,6 +116,11 @@ class CalendarTimeSync
     {
         $event = $booking->calendarEvent;
         if (! $event) {
+            return false;
+        }
+        // FAILSAFE: never align from an event that doesn't carry THIS booking's
+        // reference — that is exactly how a paired leg's date got written here.
+        if (! $this->eventCarriesReference($booking, $event->title, $event->description)) {
             return false;
         }
         $target = $event->calendarPickupAt();
@@ -180,11 +207,9 @@ class CalendarTimeSync
         // must NEVER rewrite the booking's time/title/details — that is exactly how
         // two different customers' jobs got mixed together. When neither holds,
         // leave the booking untouched and flag it for a human to check.
-        $reference = trim((string) ($booking->external_reference ?: $booking->reference));
-        $matchedByReference = $reference !== '' && str_contains(
-            mb_strtoupper(($live['description'] ?? '').' '.($live['title'] ?? '')),
-            mb_strtoupper($reference)
-        );
+        // EXACT, whole-token reference match (not str_contains) so an a/b suffix can
+        // never let a sibling's event bind to this booking.
+        $matchedByReference = $this->eventCarriesReference($booking, $live['title'] ?? null, $live['description'] ?? null);
         $ownEventId = $booking->calendarEvent?->google_event_id;
         $isOwnLinkedEvent = filled($ownEventId) && ($live['id'] ?? null) === $ownEventId;
 
@@ -316,6 +341,12 @@ class CalendarTimeSync
 
         $live = $this->google->readEvent($event);
         if (! $live) {
+            return ['status' => 'unavailable', 'old' => null, 'new' => null];
+        }
+
+        // FAILSAFE: the live event must carry THIS booking's exact reference before
+        // its time can overwrite the booking's — never a paired leg's event.
+        if (! $this->eventCarriesReference($booking, $live['title'] ?? null, $live['description'] ?? null)) {
             return ['status' => 'unavailable', 'old' => null, 'new' => null];
         }
 

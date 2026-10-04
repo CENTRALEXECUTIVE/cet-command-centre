@@ -156,7 +156,7 @@ class CalendarTimeSyncTest extends TestCase
         $booking = $this->bookingWithEvent('2026-07-15 07:45:00'); // wrong (an hour late)
         $calendarTime = Carbon::parse('2026-07-15 06:45:00'); // the correct time on the calendar
 
-        $result = $this->syncWithLiveEvent(['start' => $calendarTime, 'description' => null])->pullTime($booking);
+        $result = $this->syncWithLiveEvent(['start' => $calendarTime, 'description' => 'Booking Reference: '.$booking->reference])->pullTime($booking);
 
         $this->assertEquals('updated', $result['status']);
         $this->assertEquals('06:45', $booking->fresh()->pickup_at->format('H:i'));
@@ -170,7 +170,7 @@ class CalendarTimeSyncTest extends TestCase
         $booking = $this->bookingWithEvent('2026-07-15 06:45:00');
         $calendarTime = Carbon::parse('2026-07-15 06:45:00');
 
-        $result = $this->syncWithLiveEvent(['start' => $calendarTime, 'description' => null])->pullTime($booking);
+        $result = $this->syncWithLiveEvent(['start' => $calendarTime, 'description' => 'Booking Reference: '.$booking->reference])->pullTime($booking);
 
         $this->assertEquals('matches', $result['status']);
         $this->assertEquals('06:45', $booking->fresh()->pickup_at->format('H:i'));

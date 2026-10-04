@@ -43,7 +43,9 @@ class PickupTimeConsistencyTest extends TestCase
             'google_event_id' => 'evt_x',
             'title' => '*Test MAN (ABDI)*',
             'location' => 'Manchester Airport',
-            'description' => "📑 *Booking Confirmation – Departure*\n• *Date & Time:* {$descTime}\n• *Pickup Location:* Somewhere",
+            // Production CET events always carry the booking reference — the sync
+            // failsafe requires it so a sibling's event can never write this booking.
+            'description' => "📑 *Booking Confirmation – Departure*\n• *Date & Time:* {$descTime}\n• *Pickup Location:* Somewhere\n• *Booking Reference:* {$booking->reference}",
             'start_at' => $start,
             'end_at' => Carbon::parse($start)->addHour(),
             'sync_status' => 'synced',
