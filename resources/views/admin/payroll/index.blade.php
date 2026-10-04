@@ -16,19 +16,20 @@
             @endif
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-            <form method="GET" action="{{ route('payroll.index') }}">
-                <input type="month" name="month" value="{{ $month->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
-            </form>
-            <form method="GET" action="{{ route('payroll.index') }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-                <span class="hint">or range:</span>
-                <input type="date" name="from" value="{{ $periodParam['from'] ?? '' }}" style="width:auto" aria-label="From date">
-                <input type="date" name="to" value="{{ $periodParam['to'] ?? '' }}" style="width:auto" aria-label="To date">
-                <button class="btn btn-light" style="padding:6px 12px;font-size:13px">Apply</button>
+            <form method="GET" action="{{ route('payroll.index') }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end">
+                <div>
+                    <label class="hint" style="display:block">From</label>
+                    <input type="date" name="from" value="{{ $periodParam['from'] ?? '' }}" style="width:auto" aria-label="From date">
+                </div>
+                <div>
+                    <label class="hint" style="display:block">To</label>
+                    <input type="date" name="to" value="{{ $periodParam['to'] ?? '' }}" style="width:auto" aria-label="To date">
+                </div>
+                <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">Apply</button>
             </form>
         </div>
     </div>
 
-    @php $m = $month->format('Y-m'); @endphp
     <div class="deck" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px">
         <a href="{{ route('payroll.index', $periodParam + ['filter' => 'all']) }}" class="kpi" style="text-decoration:none;color:inherit;{{ $filter === 'all' ? 'outline:2px solid var(--accent,#FBBA2A);outline-offset:2px' : '' }}"><div class="kpi-ico">💷</div><div class="kpi-n">£{{ number_format($totals['pay'], 2) }}</div><div class="kpi-l">Total driver pay</div></a>
         <a href="{{ route('payroll.index', $periodParam + ['filter' => 'paid']) }}" class="kpi ok" style="text-decoration:none;color:inherit;{{ $filter === 'paid' ? 'outline:2px solid #1f7a44;outline-offset:2px' : '' }}"><div class="kpi-ico">✅</div><div class="kpi-n">£{{ number_format($totals['paid'], 2) }}</div><div class="kpi-l">Paid out</div></a>
@@ -76,7 +77,6 @@
                             @csrf
                             <input type="hidden" name="action" value="set">
                             <input type="hidden" name="from" value="payroll">
-                            <input type="hidden" name="month" value="{{ $m }}">
                             <input type="hidden" name="range_from" value="{{ $periodParam['from'] ?? '' }}">
                             <input type="hidden" name="range_to" value="{{ $periodParam['to'] ?? '' }}">
                             <span class="muted">£</span>
@@ -239,7 +239,7 @@
             @endif
         </div>
     @empty
-        <div class="card"><p class="muted mb-0">No driver pay recorded for {{ $month->format('F Y') }} yet — set "Job pays the driver" on any booking and it appears here.</p></div>
+        <div class="card"><p class="muted mb-0">No driver pay recorded for {{ $rangeLabel }} yet — set "Job pays the driver" on any booking and it appears here.</p></div>
     @endforelse
 
     {{-- Anywhere on a job row opens that booking (name, reference, date, any

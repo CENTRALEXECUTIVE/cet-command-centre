@@ -59,16 +59,22 @@
                     @endforeach
                 </select>
             </form>
-            {{-- Month view: pick a month to see every booking in it (for payroll). --}}
-            <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
+            {{-- Date range: see every booking between two dates (for payroll / checks). --}}
+            <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap">
                 @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
                 @if(!empty($statusFilter))<input type="hidden" name="status" value="{{ $statusFilter }}">@endif
-                <label for="bk-month" class="muted" style="font-size:13px">Month</label>
-                <input id="bk-month" type="month" name="month"
-                       value="{{ $month?->format('Y-m') }}" onchange="this.form.submit()" style="width:auto">
+                <div>
+                    <label for="bk-from" class="muted" style="font-size:13px;display:block">From</label>
+                    <input id="bk-from" type="date" name="from" value="{{ request('from') }}" style="width:auto">
+                </div>
+                <div>
+                    <label for="bk-to" class="muted" style="font-size:13px;display:block">To</label>
+                    <input id="bk-to" type="date" name="to" value="{{ request('to') }}" style="width:auto">
+                </div>
+                <button class="btn btn-primary" style="padding:7px 12px;font-size:13px">Apply</button>
             </form>
             @if(auth()->user()->isAdmin())
-                @php $exportParams = array_filter(['month' => $month?->format('Y-m'), 'filter' => empty($month) ? ($filter ?? null) : null, 'status' => $statusFilter ?: null, 'q' => $q ?: null]); @endphp
+                @php $exportParams = array_filter(['from' => request('from'), 'to' => request('to'), 'month' => $month?->format('Y-m'), 'filter' => (empty($month) && ! request()->hasAny(['from', 'to'])) ? ($filter ?? null) : null, 'status' => $statusFilter ?: null, 'q' => $q ?: null]); @endphp
                 <a href="{{ route('bookings.export', $exportParams) }}" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;white-space:nowrap" title="Download this view as CSV">⬇ Export</a>
             @endif
         </div>
@@ -80,7 +86,7 @@
             $lens = $byCreated ? 'booked (came in)' : (request()->boolean('ran') ? 'completed' : 'with pickup');
             $payTag = request('payment') === 'paid' ? ' · paid' : (request('payment') === 'unpaid' ? ' · owing' : '');
         @endphp
-        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} <strong>{{ $lens }}</strong> between <strong>{{ \Illuminate\Support\Carbon::parse($rf ?: $rt)->format('D d M Y') }}</strong> and <strong>{{ \Illuminate\Support\Carbon::parse($rt ?: $rf)->format('D d M Y') }}</strong>{{ $payTag }} — <a href="{{ route('review.index') }}">← back to Review</a></p>
+        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} <strong>{{ $lens }}</strong> between <strong>{{ \Illuminate\Support\Carbon::parse($rf ?: $rt)->format('D d M Y') }}</strong> and <strong>{{ \Illuminate\Support\Carbon::parse($rt ?: $rf)->format('D d M Y') }}</strong>{{ $payTag }} — <a href="{{ route('bookings.index') }}">clear range</a></p>
     @elseif(!empty($month))
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} in <strong>{{ $month->format('F Y') }}</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
     @elseif(($filter ?? '') === 'booked-today')

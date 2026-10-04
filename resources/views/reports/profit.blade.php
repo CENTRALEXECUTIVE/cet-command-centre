@@ -2,12 +2,9 @@
 @section('title', 'Profit')
 
 @php
-    $m = $month->format('Y-m');
-    $start = ($rangeStart ?? $month)->format('Y-m-d');
-    $end = ($rangeEnd ?? $month->copy()->endOfMonth())->format('Y-m-d');
-    $periodLabel = ($isRange ?? false)
-        ? \Illuminate\Support\Carbon::parse($start)->format('D d M Y').' – '.\Illuminate\Support\Carbon::parse($end)->format('D d M Y')
-        : $month->format('F Y');
+    $start = $rangeStart->format('Y-m-d');
+    $end = $rangeEnd->format('Y-m-d');
+    $periodLabel = $rangeStart->format('D d M Y').' – '.$rangeEnd->format('D d M Y');
 @endphp
 
 @section('content')
@@ -18,20 +15,16 @@
         </div>
     </div>
 
-    {{-- Pick a whole month, OR a custom date range to see profit for any period. --}}
-    <div class="card" style="margin:10px 0;padding:12px 16px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end">
-        <form method="GET" action="{{ route('reports.profit') }}">
-            <label class="muted" style="font-size:12px;display:block;margin-bottom:3px">Whole month</label>
-            <input type="month" name="month" value="{{ $m }}" onchange="this.form.submit()" style="width:auto">
-        </form>
+    {{-- Pick any date range to see profit for that period. --}}
+    <div class="card" style="margin:10px 0;padding:12px 16px">
         <form method="GET" action="{{ route('reports.profit') }}" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
             <div>
                 <label class="muted" style="font-size:12px;display:block;margin-bottom:3px">From</label>
-                <input type="date" name="start" value="{{ ($isRange ?? false) ? $start : '' }}" style="width:auto">
+                <input type="date" name="start" value="{{ $start }}" style="width:auto">
             </div>
             <div>
                 <label class="muted" style="font-size:12px;display:block;margin-bottom:3px">To</label>
-                <input type="date" name="end" value="{{ ($isRange ?? false) ? $end : '' }}" style="width:auto">
+                <input type="date" name="end" value="{{ $end }}" style="width:auto">
             </div>
             <button type="submit" class="btn btn-primary" style="padding:8px 16px">Show range</button>
         </form>
@@ -44,7 +37,7 @@
             <span>Turnover <span class="muted" style="font-size:12px">· {{ $data['jobs'] }} job{{ $data['jobs'] === 1 ? '' : 's' }}</span></span>
             <span style="{{ $money }}">£{{ number_format($data['revenue'], 0) }}</span>
         </a>
-        <a href="{{ route('payroll.index', ['month' => $m]) }}" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:13px 0;border-bottom:1px solid rgba(128,128,128,.14);text-decoration:none;color:inherit">
+        <a href="{{ route('payroll.index', ['from' => $start, 'to' => $end]) }}" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:13px 0;border-bottom:1px solid rgba(128,128,128,.14);text-decoration:none;color:inherit">
             <span>Driver cost</span>
             <span style="{{ $money }};color:#b8860b">−£{{ number_format($data['driver_cost'], 0) }}</span>
         </a>
@@ -69,10 +62,10 @@
     <div id="per-driver" class="card" style="scroll-margin-top:16px">
         <h2 style="margin:0 0 4px">Commission per driver</h2>
         @if($data['per_driver']->isEmpty())
-            <p class="muted mb-0">No jobs with a fare this month. Set driver pay in <a href="{{ route('payroll.index', ['month' => $m]) }}">Payroll</a> and it appears here.</p>
+            <p class="muted mb-0">No jobs with a fare this month. Set driver pay in <a href="{{ route('payroll.index', ['from' => $start, 'to' => $end]) }}">Payroll</a> and it appears here.</p>
         @else
             @foreach($data['per_driver'] as $d)
-                @include('reports.partials.commission-row', ['r' => $d, 'href' => route('bookings.index', ['driver' => $d['name'], 'month' => $m])])
+                @include('reports.partials.commission-row', ['r' => $d, 'href' => route('bookings.index', ['driver' => $d['name'], 'from' => $start, 'to' => $end])])
             @endforeach
         @endif
     </div>
@@ -92,7 +85,7 @@
             <strong>Commission</strong> = turnover − driver cost (the margin the business makes on each job).
             <strong>Net profit</strong> = commission − ad spend.
             Driver cost = pay handed out on card/account jobs plus the cash a driver keeps on a cash job.
-            Set pay on each booking or in <a href="{{ route('payroll.index', ['month' => $m]) }}">Payroll</a>; ad spend comes from the <a href="{{ route('reports.ads', ['start' => $start, 'end' => $end]) }}">Google Ads</a> import.
+            Set pay on each booking or in <a href="{{ route('payroll.index', ['from' => $start, 'to' => $end]) }}">Payroll</a>; ad spend comes from the <a href="{{ route('reports.ads', ['start' => $start, 'end' => $end]) }}">Google Ads</a> import.
         </p>
     </details>
 

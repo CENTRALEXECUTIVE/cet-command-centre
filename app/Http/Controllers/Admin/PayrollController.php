@@ -81,16 +81,20 @@ class PayrollController extends Controller
     }
 
     /**
-     * Resolve the payroll period from the request: a custom range (from+to) wins,
-     * otherwise a whole month, otherwise this month.
+     * Resolve the payroll period as a DATE RANGE. A from+to range wins; a legacy
+     * ?month= is accepted and converted to that month's range; otherwise it defaults
+     * to the current month shown as a from/to range. Always returns a range — the
+     * payroll view only offers a date range, never a bare month.
      *
-     * @return array{0: Carbon, 1: Carbon, 2: array<string,string>}
+     * @return array{0: Carbon, 1: Carbon, 2: array<string,string>, 3: string}
      */
     private function resolvePeriod(Request $request): array
     {
         $tz = config('app.timezone');
         $from = $request->input('from');
         $to = $request->input('to');
+        $month = $request->input('month');
+
         if ($from && $to) {
             try {
                 $start = Carbon::createFromFormat('Y-m-d', $from, $tz)->startOfDay();
@@ -99,16 +103,20 @@ class PayrollController extends Controller
                 $start = now($tz)->startOfMonth();
                 $end = $start->copy()->endOfMonth();
             }
-            if ($end->lt($start)) {
-                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
-            }
-
-            return [$start, $end, ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')]];
+        } else {
+            // Legacy ?month=, or the default — expressed as that month's range.
+            $start = ($month ? rescue(fn () => Carbon::createFromFormat('Y-m', $month, $tz), now($tz)) : now($tz))->startOfMonth();
+            $end = $start->copy()->endOfMonth();
         }
-        $month = $request->input('month');
-        $start = ($month ? Carbon::createFromFormat('Y-m', $month, $tz) : now())->startOfMonth();
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
 
-        return [$start, $start->copy()->endOfMonth(), ['month' => $start->format('Y-m')]];
+        return [
+            $start, $end,
+            ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')],
+            $start->format('d M Y').' – '.$end->format('d M Y'),
+        ];
     }
 
     /**
@@ -151,30 +159,8 @@ class PayrollController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        // A custom date range (from+to) wins; otherwise a whole month (default).
-        $tz = config('app.timezone');
-        $from = $request->query('from');
-        $to = $request->query('to');
-        if ($from && $to) {
-            try {
-                $start = Carbon::createFromFormat('Y-m-d', $from, $tz)->startOfDay();
-                $end = Carbon::createFromFormat('Y-m-d', $to, $tz)->endOfDay();
-            } catch (\Throwable) {
-                $start = now($tz)->startOfMonth();
-                $end = $start->copy()->endOfMonth();
-            }
-            if ($end->lt($start)) {
-                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
-            }
-            $rangeLabel = $start->format('d M Y').' – '.$end->format('d M Y');
-            $periodParam = ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')];
-        } else {
-            $month = $request->query('month');
-            $start = ($month ? Carbon::createFromFormat('Y-m', $month, $tz) : now())->startOfMonth();
-            $end = $start->copy()->endOfMonth();
-            $rangeLabel = $start->format('F Y');
-            $periodParam = ['month' => $start->format('Y-m')];
-        }
+        // Always a DATE RANGE — the payroll view no longer offers a bare month.
+        [$start, $end, $periodParam, $rangeLabel] = $this->resolvePeriod($request);
 
         $bookings = Booking::with(['driver.driverProfile.defaultVehicle', 'customer', 'airport'])
             ->whereBetween('pickup_at', [$start, $end])

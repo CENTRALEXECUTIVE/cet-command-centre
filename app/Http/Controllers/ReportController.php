@@ -35,30 +35,28 @@ class ReportController extends Controller
 
     public function profit(Request $request): View
     {
-        // A custom date RANGE wins (so you can see profit for any period), else a
-        // whole month, else the current month. Range is clamped start ≤ end.
-        $month = $request->query('month');
+        // Always a DATE RANGE. A from/to range is used as given; a legacy ?month= is
+        // converted to that month's range; otherwise it defaults to the current
+        // month shown as a range. No bare-month view.
+        $tz = config('app.timezone');
         $startQ = $request->date('start');
         $endQ = $request->date('end');
+        $month = $request->query('month');
 
         if ($startQ || $endQ) {
             $start = ($startQ ?? $endQ)->copy()->startOfDay();
             $end = ($endQ ?? $startQ)->copy()->endOfDay();
-            if ($end->lt($start)) {
-                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
-            }
-            $isRange = true;
         } else {
-            $start = ($month ? Carbon::createFromFormat('Y-m', $month, config('app.timezone')) : now())->startOfMonth();
+            $start = ($month ? rescue(fn () => Carbon::createFromFormat('Y-m', $month, $tz), now($tz)) : now($tz))->startOfMonth();
             $end = $start->copy()->endOfMonth();
-            $isRange = false;
+        }
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
         }
 
         return view('reports.profit', [
-            'month' => $start,
             'rangeStart' => $start,
             'rangeEnd' => $end,
-            'isRange' => $isRange,
             'data' => $this->reports->profit($start, $end),
             'trend' => $this->reports->profitTrend(12),
         ]);
