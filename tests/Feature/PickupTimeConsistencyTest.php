@@ -21,6 +21,10 @@ class PickupTimeConsistencyTest extends TestCase
         // so they always count as UPCOMING (the audit only corrects jobs still to
         // run) regardless of the real date the suite happens to run on.
         Carbon::setTestNow('2026-07-15 05:00:00');
+        // This class tests calendar-time reconciliation, which the audit only does
+        // when calendar checks are enabled (off by default now the office is off
+        // the calendar).
+        \App\Models\Setting::set('audit_check_calendar', true);
     }
 
     protected function tearDown(): void

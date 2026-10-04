@@ -26,6 +26,10 @@ class EtoAuditTest extends TestCase
         // Push the "old" cutoff well back so the 2025 fixtures are still audited;
         // the cutoff behaviour has its own dedicated test.
         config(['cet.audit_cutoff' => '2020-01-01']);
+        // Calendar-quality checks are OFF by default now the office is off the
+        // calendar; this class tests that behaviour, so opt in. The default-off
+        // behaviour has its own dedicated test below.
+        \App\Models\Setting::set('audit_check_calendar', true);
     }
 
     protected function tearDown(): void
@@ -350,5 +354,44 @@ class EtoAuditTest extends TestCase
         file_put_contents($path, $header.$rows);
 
         return $path;
+    }
+
+    public function test_calendar_checks_are_off_by_default(): void
+    {
+        // The office has moved off the calendar — "Not on the calendar" (and the
+        // other calendar-quality flags) must NOT fire by default.
+        \App\Models\Setting::set('audit_check_calendar', false);
+
+        $booking = Booking::factory()->create([
+            'external_reference' => 'NOCAL1', 'pickup_at' => '2025-03-24 22:05:00',
+            'final_price' => 200, 'pickup_address' => '1 Real Road', 'destination_address' => 'MAN',
+        ]);
+        // No calendar event at all.
+
+        app(EtoAuditService::class)->audit(
+            $this->csvPath("24/03/2025 22:05;NOCAL1;Jo;Completed;200.00;\"Paid\"\n")
+        );
+
+        $this->assertEmpty($booking->fresh()->meta['audit_issues'] ?? []);
+    }
+
+    public function test_admin_can_clear_an_audit_flag(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create([
+            'meta' => ['audit_issues' => ['Pickup date differs — ETO 24/06 vs system 02/06']],
+        ]);
+
+        $this->actingAs($admin)->post(route('bookings.clear-audit', $booking))
+            ->assertRedirect(route('bookings.show', $booking));
+
+        $this->assertEmpty($booking->fresh()->meta['audit_issues']);
+    }
+
+    public function test_clearing_an_audit_flag_is_admin_only(): void
+    {
+        $driver = User::factory()->create(['role' => 'driver']);
+        $booking = Booking::factory()->create(['meta' => ['audit_issues' => ['x']]]);
+        $this->actingAs($driver)->post(route('bookings.clear-audit', $booking))->assertForbidden();
     }
 }

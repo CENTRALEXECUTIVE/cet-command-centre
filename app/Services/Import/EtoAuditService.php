@@ -138,11 +138,14 @@ class EtoAuditService
         // Cancelled / no-show jobs are legitimately off the calendar — don't flag those.
         $liveJob = $booking->status?->isActive() ?? true;
 
-        // Calendar-quality checks only matter for jobs that are STILL TO RUN.
-        // A past / completed / cancelled job's sync status is history — flagging
-        // it just floods the audit with noise the office can't (and needn't)
-        // action. Only upcoming, non-terminal jobs get the calendar checks.
-        $checkCalendar = $booking->pickup_at
+        // Calendar-quality checks only matter for jobs that are STILL TO RUN, and
+        // ONLY when the office is actually using the Google Calendar. The company
+        // has moved to the Command Centre as the source of truth, so these checks
+        // (incl. "Not on the calendar") are OFF by default — they were flagging
+        // every booking as a problem for a calendar no longer in use. Re-enable with
+        // the `audit_check_calendar` setting if the calendar is ever the source again.
+        $checkCalendar = \App\Models\Setting::get('audit_check_calendar', false)
+            && $booking->pickup_at
             && $booking->pickup_at->gte(today())
             && ! ($booking->status?->isTerminal() ?? false);
 

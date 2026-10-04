@@ -620,6 +620,26 @@ class BookingController extends Controller
     }
 
     /**
+     * Clear a booking's ETO-audit flag — the office has checked it and it's fine
+     * (or already dealt with). Removes meta['audit_issues'] so it drops off the
+     * booking and the Needs-attention list. The office can do anything here.
+     */
+    public function clearAudit(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $booking->forceFill([
+            'meta' => array_merge($booking->meta ?? [], [
+                'audit_issues' => [],
+                'audit_cleared_at' => now()->toDateTimeString(),
+            ]),
+        ])->save();
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('status', "Audit flag cleared on {$booking->reference}.");
+    }
+
+    /**
      * "This isn't a return" — unlink two bookings ETO's a/b suffix wrongly paired
      * as outbound/return (two independent bookings on the same journey). Clears the
      * false "Return" label and the link on both legs. Both bookings stay — only the

@@ -96,6 +96,12 @@ class Booking extends Model
         return $this->belongsTo(Booking::class, 'linked_booking_id');
     }
 
+    /** This booking's rotation-allocation log entries (whose turn, who did it, why). */
+    public function rotationLogs(): HasMany
+    {
+        return $this->hasMany(\App\Models\RotationLog::class)->latest('id');
+    }
+
     public function stops(): HasMany
     {
         return $this->hasMany(BookingStop::class)->orderBy('sequence');

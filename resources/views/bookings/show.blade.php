@@ -401,6 +401,11 @@
             <ul style="margin:6px 0 0;padding-left:18px">
                 @foreach($booking->meta['audit_issues'] as $issue)<li>{{ $issue }}</li>@endforeach
             </ul>
+            <form method="POST" action="{{ route('bookings.clear-audit', $booking) }}" style="margin:10px 0 0"
+                  onsubmit="return confirm('Mark this audit flag as checked and clear it? It disappears from the booking and the Needs-attention list.')">
+                @csrf
+                <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px">✓ Checked — clear this flag</button>
+            </form>
         </div>
     @endif
 
@@ -2145,6 +2150,19 @@
                         Not on the executive rotation — {{ $booking->vehicleType?->name ?? 'this vehicle' }} jobs are allocated by hand. Assign or change the driver below.
                     @endif
                 </p>
+
+                {{-- Rotation log for THIS job: whose turn it was, who did it, why. --}}
+                @php
+                    $rotLabel = [
+                        'advance' => 'normal turn', 'paired_return_no_advance' => 'return leg — same driver',
+                        'paired_same_driver' => 'return leg — same driver', 'same_customer_continuity' => 'same customer — kept driver',
+                        'substitution_no_advance' => 'substitute — no advance', 'manual_override' => 'office set next',
+                    ];
+                    $cs = fn ($u) => $u?->driverProfile?->callsign ?: $u?->name;
+                @endphp
+                @foreach($booking->rotationLogs()->with(['fromDriver.driverProfile', 'toDriver.driverProfile'])->get() as $rl)
+                    <p class="hint" style="margin:0 0 4px">🔁 {{ $rl->created_at?->format('D d M, H:i') }} · turn was <strong>{{ $cs($rl->fromDriver) ?: '—' }}</strong> → did it <strong>{{ $cs($rl->toDriver) ?: '—' }}</strong> <span class="muted">({{ $rotLabel[$rl->reason] ?? $rl->reason }})</span></p>
+                @endforeach
 
                 {{-- This job's driver — correctable on any booking. --}}
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
