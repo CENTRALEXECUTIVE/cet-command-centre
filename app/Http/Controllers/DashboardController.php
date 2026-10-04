@@ -21,7 +21,6 @@ class DashboardController extends Controller
     public function __construct(
         private readonly CalendarStats $calendarStats,
         private readonly DriverComplianceService $compliance,
-        private readonly \App\Services\Messaging\BookingNotifier $notifier,
         private readonly \App\Services\Calendar\CalendarTimeSync $timeSync,
     ) {}
 
@@ -135,11 +134,11 @@ class DashboardController extends Controller
      */
     private function remindersToSend(): array
     {
-        // Self-healing: make sure every upcoming job actually has its reminders
-        // queued, so tomorrow's always appear here even for imported bookings
-        // that never went through the booking form.
-        $this->backfillUpcomingReminders();
-
+        // Read-only. The self-healing that queues reminders for jobs which
+        // bypassed the booking form (ETO imports) runs in the scheduled
+        // `cet:prepare-reminders` command, NOT here — doing it on every dashboard
+        // load re-scanned and re-wrote across all upcoming bookings on the
+        // home page every single time, which made the whole app feel sluggish.
         return Message::query()
             ->whereIn('type', ['reminder_24h', 'reminder_2h'])
             ->where('status', 'queued')
@@ -182,11 +181,9 @@ class DashboardController extends Controller
      */
     private function reviewsToSend(): array
     {
-        // Self-healing: a completed job that never went through the live
-        // Complete-tap (ETO imports, older completions) still gets its review
-        // request prepared here, so the worklist is complete.
-        $this->backfillCompletedReviews();
-
+        // Read-only. Preparing review requests for completed jobs that bypassed
+        // the live Complete-tap runs in the scheduled `cet:prepare-reminders`
+        // command, NOT on every dashboard load (see remindersToSend()).
         return Message::query()
             ->where('type', 'review_request')
             ->where('status', 'queued')
@@ -212,24 +209,6 @@ class DashboardController extends Controller
             ])
             ->values()
             ->all();
-    }
-
-    /**
-     * Queue review requests for jobs completed in the last ~2 days that have a
-     * phone but no review request yet — so completions that bypassed the live
-     * status flow still show a review to send. Nothing is sent to a customer.
-     */
-    private function backfillCompletedReviews(): void
-    {
-        Booking::query()
-            ->where('status', BookingStatus::Complete->value)
-            ->whereBetween('pickup_at', [now()->subDays((int) config('cet.review_backfill_days', 21)), now()])
-            ->whereHas('customer', fn ($q) => $q->whereNotNull('phone'))
-            ->whereDoesntHave('messages', fn ($q) => $q->where('type', 'review_request'))
-            ->with('customer')
-            ->limit(300)
-            ->get()
-            ->each(fn (Booking $b) => $this->notifier->ensureReviewRequest($b));
     }
 
     /**
@@ -261,27 +240,6 @@ class DashboardController extends Controller
             ])
             ->values()
             ->all();
-    }
-
-    /**
-     * Queue the 24h/2h reminders for any upcoming, active booking that has a
-     * phone number but no reminder yet — so the dashboard's "to send" list is
-     * always complete, including tomorrow's jobs and imported bookings. Reminders
-     * are only QUEUED for manual sending here; nothing is sent to a customer.
-     */
-    private function backfillUpcomingReminders(): void
-    {
-        Booking::query()
-            ->whereNotIn('status', [
-                BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
-            ])
-            ->whereBetween('pickup_at', [now()->subHours(12), now()->addDays(3)])
-            ->whereHas('customer', fn ($q) => $q->whereNotNull('phone'))
-            ->whereDoesntHave('messages', fn ($q) => $q->whereIn('type', ['reminder_24h', 'reminder_2h']))
-            ->with('customer')
-            ->limit(100)
-            ->get()
-            ->each(fn (Booking $b) => $this->notifier->ensureReminders($b));
     }
 
     /**

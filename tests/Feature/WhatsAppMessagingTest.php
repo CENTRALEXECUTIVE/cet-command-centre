@@ -263,17 +263,18 @@ class WhatsAppMessagingTest extends TestCase
         $this->assertEquals($pickup->copy()->subDay()->toDateString(), $reminder->scheduled_for->toDateString());
     }
 
-    public function test_dashboard_backfills_reminders_so_tomorrows_jobs_show(): void
+    public function test_scheduled_command_backfills_reminders_so_tomorrows_jobs_show(): void
     {
-        $admin = User::factory()->admin()->create();
         // An imported-style booking (never went through the form) for tomorrow.
         $booking = Booking::factory()->create(['pickup_at' => now()->addDay()->setTime(15, 0)]);
         $booking->customer->update(['phone' => '07700900321']);
 
         $this->assertDatabaseMissing('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
 
-        // Simply opening the dashboard prepares the reminder so it appears.
-        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        // The scheduled prepare-reminders command queues it (this used to run on
+        // every dashboard load, which made the home page slow; the scheduler now
+        // owns it and runs every ten minutes).
+        $this->artisan('cet:prepare-reminders')->assertSuccessful();
 
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h']);
     }
@@ -509,13 +510,13 @@ class WhatsAppMessagingTest extends TestCase
         ]);
         $this->assertEquals(0, $booking->messages()->where('type', 'review_request')->count());
 
-        // Opening the dashboard backfills the review request.
-        $admin = User::factory()->admin()->create();
-        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        // The scheduled prepare-reminders command backfills the review request
+        // (this used to run on every dashboard load — now the scheduler owns it).
+        $this->artisan('cet:prepare-reminders')->assertSuccessful();
 
         $this->assertEquals(1, $booking->fresh()->messages()->where('type', 'review_request')->count());
 
-        // The scheduled command is idempotent — no duplicate.
+        // Idempotent — a second run makes no duplicate.
         $this->artisan('cet:prepare-reminders')->assertSuccessful();
         $this->assertEquals(1, $booking->fresh()->messages()->where('type', 'review_request')->count());
 

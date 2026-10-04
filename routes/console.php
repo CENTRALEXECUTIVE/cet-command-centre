@@ -19,9 +19,11 @@ Schedule::command('cet:send-due-messages')->everyMinute()->withoutOverlapping()
 
 // Make sure every upcoming booking (incl. ETO imports) has a reminder prepared
 // and on the "to send" list, and that any reminder queued later than the evening
-// cutoff is pulled back to it. Hourly so new imports and rule changes are tidied
-// up promptly, not just twice a day. Idempotent and cheap.
-Schedule::command('cet:prepare-reminders')->hourly()->withoutOverlapping();
+// cutoff is pulled back to it. Every ten minutes so a freshly-imported ETO job
+// surfaces on the worklist quickly — this used to be done on every dashboard
+// load, which made the home page slow; the scheduler now owns it. Idempotent
+// and cheap (idempotent ensure* skips anything already queued).
+Schedule::command('cet:prepare-reminders')->everyTenMinutes()->withoutOverlapping();
 
 // The Command Centre backs itself up: a full gzipped database snapshot every
 // hour (keeps the newest 72 ≈ 3 days), so data can never be silently lost and
