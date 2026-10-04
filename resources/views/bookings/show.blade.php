@@ -11,11 +11,8 @@
         <div class="bh-top">
             <div>
                 <div class="bh-when">{{ $booking->pickup_at->format('D d M Y') }} · <span class="gold">{{ $booking->pickup_at->format('H:i') }}</span></div>
-                <div class="bh-who">{{ $booking->displayName() ?: ($booking->displayCustomerName() ?? 'Customer') }}
+                <div class="bh-who">{{ ($booking->meta['lead_name'] ?? null) ?: ($booking->displayCustomerName() ?? 'Customer') }}
                     <span class="badge badge-{{ $booking->statusKey() }}" id="hero-status">{{ $booking->statusLabel() }}</span>
-                    @if($booking->meta['booker_name'] ?? null)
-                        <span class="muted" style="font-size:13px;font-weight:400">· booked by {{ $booking->meta['booker_name'] }}</span>
-                    @endif
                 </div>
             </div>
             <div class="bh-refs">
