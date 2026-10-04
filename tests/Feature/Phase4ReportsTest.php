@@ -215,6 +215,49 @@ class Phase4ReportsTest extends TestCase
         $this->assertEqualsWithDelta(300.0, $data['revenue'], 0.01); // only the June job
     }
 
+    public function test_profit_trend_returns_a_row_per_recent_month(): void
+    {
+        $trend = app(ReportService::class)->profitTrend(12);
+        $this->assertCount(12, $trend);
+        $this->assertSame(now()->startOfMonth()->format('Y-m'), end($trend)['month']); // newest is this month
+        $this->assertArrayHasKey('net_profit', $trend[0]);
+    }
+
+    public function test_profit_page_shows_the_trend(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('reports.profit'))
+            ->assertOk()
+            ->assertSee('Profit trend', false);
+    }
+
+    public function test_money_owed_totals_driver_pay_still_due(): void
+    {
+        $driver = User::factory()->driver()->create(['name' => 'Owed Olly']);
+        $when = now()->startOfMonth()->addDay();
+
+        // A card job with £45 pay, nothing handed over yet → £45 owed to the driver.
+        $job = $this->completedJob(100, $driver->id);
+        $job->forceFill([
+            'payment_method' => \App\Enums\PaymentMethod::Card->value, 'pickup_at' => $when,
+            'meta' => ['payroll' => ['pay' => 45, 'paid' => 0, 'history' => []]],
+        ])->save();
+
+        $data = app(ReportService::class)->moneyOwed(now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertEqualsWithDelta(45.0, $data['driver_total'], 0.01);
+        $this->assertSame('Owed Olly', $data['driver_rows']->first()['name']);
+    }
+
+    public function test_money_owed_page_renders(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('reports.owed'))
+            ->assertOk()
+            ->assertSee('Money owed')
+            ->assertSee('Owed to drivers');
+    }
+
     public function test_non_admin_cannot_view_reports(): void
     {
         $client = User::factory()->corporateClient()->create();

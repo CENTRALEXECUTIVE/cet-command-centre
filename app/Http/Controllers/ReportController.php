@@ -60,6 +60,28 @@ class ReportController extends Controller
             'rangeEnd' => $end,
             'isRange' => $isRange,
             'data' => $this->reports->profit($start, $end),
+            'trend' => $this->reports->profitTrend(12),
+        ]);
+    }
+
+    /**
+     * Money owed — what payroll still has to pay drivers and what's outstanding on
+     * corporate-account invoices, for a date range (default: this month to date).
+     */
+    public function owed(Request $request): View
+    {
+        $startQ = $request->date('start');
+        $endQ = $request->date('end');
+        $start = ($startQ ?: now()->startOfMonth())->copy()->startOfDay();
+        $end = ($endQ ?: now())->copy()->endOfDay();
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        return view('reports.owed', [
+            'rangeStart' => $start,
+            'rangeEnd' => $end,
+            'data' => $this->reports->moneyOwed($start, $end),
         ]);
     }
 

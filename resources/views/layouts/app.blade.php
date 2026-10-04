@@ -95,6 +95,7 @@
                     <a href="{{ route('marketing.keywords') }}" class="{{ request()->routeIs('marketing.keywords*') ? 'active' : '' }}">Keywords</a>
                     <a href="{{ route('marketing.seo') }}" class="{{ request()->routeIs('marketing.seo*') ? 'active' : '' }}">SEO</a>
                     <a href="{{ route('reports.profit') }}" class="{{ request()->routeIs('reports.profit') ? 'active' : '' }}">💰 Profit</a>
+                    <a href="{{ route('reports.owed') }}" class="{{ request()->routeIs('reports.owed') ? 'active' : '' }}">💷 Money owed</a>
                     <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Revenue reports</a>
                 </details>
 

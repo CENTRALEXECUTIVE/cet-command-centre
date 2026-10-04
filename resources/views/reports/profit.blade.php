@@ -95,4 +95,33 @@
             Set pay on each booking or in <a href="{{ route('payroll.index', ['month' => $m]) }}">Payroll</a>; ad spend comes from the <a href="{{ route('reports.ads', ['start' => $start, 'end' => $end]) }}">Google Ads</a> import.
         </p>
     </details>
+
+    {{-- Profit TREND — the last 12 months so the direction of the business is clear. --}}
+    @if(!empty($trend))
+        @php
+            $maxNet = max(1, collect($trend)->max('net_profit'));
+            $trendMoney = 'font-variant-numeric:tabular-nums;white-space:nowrap';
+        @endphp
+        <div class="card" style="margin-top:16px">
+            <h2 style="margin-top:0">📈 Profit trend — last 12 months</h2>
+            <p class="hint" style="margin:-2px 0 12px">Net profit per month (turnover − driver cost − ad spend). Tap a month to open it.</p>
+            <div style="overflow-x:auto">
+                <table style="width:100%">
+                    <thead><tr><th>Month</th><th style="text-align:right">Turnover</th><th style="text-align:right">Commission</th><th style="text-align:right">Net profit</th><th style="width:34%">&nbsp;</th></tr></thead>
+                    <tbody>
+                        @foreach(array_reverse($trend) as $t)
+                            @php $w = max(2, (int) round(($t['net_profit'] > 0 ? $t['net_profit'] : 0) / $maxNet * 100)); @endphp
+                            <tr>
+                                <td style="white-space:nowrap"><a href="{{ route('reports.profit', ['month' => $t['month']]) }}">{{ $t['label'] }}</a></td>
+                                <td style="text-align:right;{{ $trendMoney }}">£{{ number_format($t['revenue'], 0) }}</td>
+                                <td style="text-align:right;{{ $trendMoney }}">£{{ number_format($t['commission'], 0) }}</td>
+                                <td style="text-align:right;{{ $trendMoney }};font-weight:700;color:{{ $t['net_profit'] < 0 ? '#b32020' : '#1f7a44' }}">£{{ number_format($t['net_profit'], 0) }}</td>
+                                <td><div style="background:{{ $t['net_profit'] < 0 ? '#b32020' : '#1f7a44' }};height:12px;border-radius:6px;width:{{ $w }}%"></div></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 @endsection

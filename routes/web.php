@@ -394,6 +394,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // nav — reachable by URL or a discreet link from the Review page.
         Route::get('reviews-sent', [\App\Http\Controllers\Admin\ReviewsSentController::class, 'index'])->name('reviews-sent.index');
         Route::get('reports/profit', [ReportController::class, 'profit'])->name('reports.profit');
+        Route::get('reports/owed', [ReportController::class, 'owed'])->name('reports.owed');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
         Route::get('businesses/{account}', [ReportController::class, 'business'])->name('reports.business');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');

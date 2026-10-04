@@ -264,6 +264,83 @@ class ReportService
     }
 
     /**
+     * Outstanding money for a period — the two liabilities the office chases:
+     *  • owed TO DRIVERS: pay earned on jobs that have run but not yet handed over
+     *    (driverPayRemaining), grouped by driver — what payroll still has to pay.
+     *  • owed BY ACCOUNTS: invoiced (account) jobs that have run and aren't marked
+     *    paid, grouped by corporate account — invoices to raise/chase.
+     * Deliberately only these two, which the app already computes reliably.
+     *
+     * @return array{
+     *   driver_total: float, driver_rows: \Illuminate\Support\Collection,
+     *   account_total: float, account_rows: \Illuminate\Support\Collection
+     * }
+     */
+    public function moneyOwed(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $jobs = $this->completed($start, $end)->with(['driver', 'corporateAccount', 'customer'])->get();
+
+        // Owed to drivers.
+        $driverJobs = $jobs->filter(fn (Booking $b) => ($b->driverPayRemaining() ?? 0) > 0.01);
+        $driverRows = $driverJobs
+            ->groupBy(fn (Booking $b) => $b->payrollDriverName() ?: 'Unassigned')
+            ->map(fn (Collection $g, string $name) => [
+                'name' => $name,
+                'jobs' => $g->count(),
+                'amount' => round($g->sum(fn (Booking $b) => $b->driverPayRemaining() ?? 0), 2),
+            ])->sortByDesc('amount')->values();
+
+        // Owed by accounts (invoiced jobs not marked paid).
+        $accountJobs = $jobs->filter(fn (Booking $b) => $b->corporateAccount
+            && ($b->payment_method?->value ?? null) === \App\Enums\PaymentMethod::Account->value
+            && $b->payment_status !== 'paid');
+        $accountRows = $accountJobs
+            ->groupBy(fn (Booking $b) => $b->corporateAccount->name)
+            ->map(fn (Collection $g, string $name) => [
+                'name' => $name,
+                'jobs' => $g->count(),
+                'amount' => round($g->sum(fn (Booking $b) => $b->fareAmount() ?? 0), 2),
+            ])->sortByDesc('amount')->values();
+
+        return [
+            'driver_total' => round($driverRows->sum('amount'), 2),
+            'driver_rows' => $driverRows,
+            'account_total' => round($accountRows->sum('amount'), 2),
+            'account_rows' => $accountRows,
+        ];
+    }
+
+    /**
+     * Month-by-month turnover, commission and net profit for the last N whole
+     * months (oldest → newest), so the trend/direction of the business is visible
+     * at a glance rather than one month in isolation.
+     *
+     * @return list<array{label: string, month: string, revenue: float, commission: float, net_profit: float}>
+     */
+    public function profitTrend(int $months = 12): array
+    {
+        $months = max(1, min(24, $months));
+        $rows = [];
+        $cursor = now()->startOfMonth()->subMonths($months - 1);
+
+        for ($i = 0; $i < $months; $i++) {
+            $start = $cursor->copy()->startOfMonth();
+            $end = $cursor->copy()->endOfMonth();
+            $p = $this->profit($start, $end);
+            $rows[] = [
+                'label' => $start->format('M y'),
+                'month' => $start->format('Y-m'),
+                'revenue' => $p['revenue'],
+                'commission' => $p['commission'],
+                'net_profit' => $p['net_profit'],
+            ];
+            $cursor->addMonth();
+        }
+
+        return $rows;
+    }
+
+    /**
      * Income from bookings that CAME THROUGH in the period — keyed on when the
      * booking was created, not when the job runs. This is what to compare against
      * Google Ads spend for the same window: the ads generated the bookings that
