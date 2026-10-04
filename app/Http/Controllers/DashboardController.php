@@ -485,7 +485,14 @@ class DashboardController extends Controller
     private function dayJobs(Carbon $day): array
     {
         $dbJobs = $this->jobsFromDatabase($day);
-        $calendarJobs = $this->calendarStats->jobsOn($day) ?? [];
+
+        // The jobs view is DATABASE-ONLY by default now the office is off the Google
+        // Calendar — the booking record is the single source of truth, so the day's
+        // jobs can never be influenced by a stale calendar event again. Only merge in
+        // calendar events if the calendar is explicitly the source (setting on).
+        $calendarJobs = \App\Models\Setting::get('calendar_autofollow', false)
+            ? ($this->calendarStats->jobsOn($day) ?? [])
+            : [];
 
         // The DATABASE booking is the source of truth. A calendar event is only a
         // mirror — and a STALE one (e.g. a booking whose date was changed in the app

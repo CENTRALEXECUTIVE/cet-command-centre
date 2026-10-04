@@ -27,6 +27,9 @@ class JobsDayPhantomTest extends TestCase
     {
         parent::setUp();
         $this->seed(VehicleTypeSeeder::class);
+        // This class tests the calendar merge/dedup, which only runs when the
+        // calendar is a source (off by default now the office is off the calendar).
+        \App\Models\Setting::set('calendar_autofollow', true);
     }
 
     public function test_a_stale_calendar_phantom_for_an_existing_booking_is_hidden(): void
