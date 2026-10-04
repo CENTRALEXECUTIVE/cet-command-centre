@@ -43,6 +43,27 @@ class DashboardOverviewTest extends TestCase
             ->assertSee('↻ Refresh', false);          // interactive refresh
     }
 
+    public function test_jobs_today_count_matches_the_days_bookings(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'C', 'phone' => '07000000009']);
+
+        $make = fn (int $h) => Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_at' => today()->addHours($h),
+            'pickup_address' => 'A', 'destination_address' => 'B', 'passengers' => 1,
+            'status' => 'allocated', 'payment_method' => 'card', 'final_price' => 120,
+        ]);
+        $make(9);
+        $make(10);
+
+        // The headline count reflects the DATABASE (both jobs), not a stale calendar.
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $this->assertSame(2, $res->viewData('todayCount'));
+        $this->assertCount(2, $res->viewData('todaySchedule'));
+    }
+
     public function test_bookings_and_revenue_taken_today(): void
     {
         $admin = User::factory()->admin()->create();

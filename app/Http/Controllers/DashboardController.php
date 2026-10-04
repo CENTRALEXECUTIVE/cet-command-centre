@@ -42,16 +42,19 @@ class DashboardController extends Controller
             // Headline figures AND the upcoming list come STRAIGHT from the
             // calendar (the operator's source of truth) so they always match it;
             // fall back to the database when the calendar isn't reachable.
-            $calendar = $this->calendarStats->counts();
             $revenue = 'COALESCE(final_price, quoted_price, 0)';
 
+            // The DATABASE is the source of truth now the office is off the Google
+            // Calendar. Today's job list drives the headline count so the dashboard
+            // and the Jobs-by-day view ALWAYS agree (they used to disagree because
+            // the count read a stale calendar figure while the list read the DB).
+            $todaySchedule = $this->dayJobs(today());
+
             return view('dashboard.admin', [
-                'todayCount' => $calendar['jobsToday']
-                    ?? Booking::whereDate('pickup_at', today())->count(),
-                'pendingCount' => $calendar['awaiting']
-                    ?? Booking::where('status', BookingStatus::Pending->value)
-                        ->where('pickup_at', '>=', today())
-                        ->count(),
+                'todayCount' => count($todaySchedule),
+                'pendingCount' => Booking::where('status', BookingStatus::Pending->value)
+                    ->where('pickup_at', '>=', today())
+                    ->count(),
                 // "Active now" = a driver actually out on a job right now
                 // (set off → not yet completed). Recency-guarded so a job left
                 // stuck in a driving status days ago can't inflate the figure.
@@ -91,7 +94,7 @@ class DashboardController extends Controller
                     ->where('payment_status', '!=', 'paid')
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->sum(DB::raw($revenue)),
-                'todaySchedule' => $this->calendarStats->jobsOn(today()) ?? $this->jobsFromDatabase(today()),
+                'todaySchedule' => $todaySchedule,
                 'correctedTimes' => session('correctedTimes', []),
                 'remindersToSend' => $this->remindersToSend(),
                 'reviewsToSend' => $this->reviewsToSend(),
