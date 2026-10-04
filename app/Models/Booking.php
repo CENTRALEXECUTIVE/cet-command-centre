@@ -4178,6 +4178,59 @@ class Booking extends Model
         return round($fare * $this->driverPayPercent() / 100, 2);
     }
 
+    /**
+     * Auto-fill the driver's pay with the standard 90% share when it hasn't been
+     * set yet — so upcoming jobs already show the right "driver owed" in payroll
+     * without the office confirming each one. NEVER overwrites a pay already on the
+     * job (a minibus/V-Class cover job carries its own offered price), and leaves a
+     * discounted job blank (suggestedDriverPay returns null). The office can still
+     * change it on the booking or when offering the job. Returns true if it set one.
+     */
+    public function applyDefaultDriverPay(): bool
+    {
+        if ($this->driverPay() !== null) {
+            return false; // a price is already on the job — don't touch it
+        }
+        $pay = $this->suggestedDriverPay();
+        if ($pay === null) {
+            return false;
+        }
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], [
+            'payroll' => array_merge($this->meta['payroll'] ?? [], ['pay' => $pay]),
+        ])])->save();
+
+        return true;
+    }
+
+    /**
+     * Settle everything still owed to the driver on THIS job in one go — the job
+     * pay remaining plus any card tip owed — recorded as handed over now. Returns
+     * the amount settled (0.0 when there was nothing to pay). Used by the per-job
+     * "Mark paid" and the per-driver "Mark all paid".
+     */
+    public function settleDriverPayOwed(string $byName): float
+    {
+        $payRemaining = $this->driverPayRemaining() ?? 0.0;
+        $tipRemaining = $this->cardTipsRemaining();
+        $total = round($payRemaining + $tipRemaining, 2);
+        if ($total <= 0.001) {
+            return 0.0;
+        }
+
+        $payroll = $this->meta['payroll'] ?? ['pay' => null, 'paid' => 0, 'history' => []];
+        if ($payRemaining > 0.001) {
+            $payroll['paid'] = round(((float) ($payroll['paid'] ?? 0)) + $payRemaining, 2);
+            $payroll['history'][] = ['amount' => round($payRemaining, 2), 'at' => now()->toDateTimeString(), 'by' => $byName, 'note' => 'Marked paid in full'];
+        }
+        if ($tipRemaining > 0.001) {
+            $payroll['tips_paid'] = round(((float) ($payroll['tips_paid'] ?? 0)) + $tipRemaining, 2);
+            $payroll['history'][] = ['amount' => round($tipRemaining, 2), 'at' => now()->toDateTimeString(), 'by' => $byName, 'note' => 'Card tip paid to driver'];
+        }
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['payroll' => $payroll])])->save();
+
+        return $total;
+    }
+
     /** How much of the driver's pay has been handed over so far. */
     public function driverPaidAmount(): float
     {

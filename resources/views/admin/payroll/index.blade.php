@@ -94,7 +94,7 @@
     @endif
 
     @forelse($drivers as $d)
-        <div class="card">
+        <div class="card" id="driver-{{ \Illuminate\Support\Str::slug($d['name']) }}">
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
                 <h2 style="margin:0">
                     @if($d['driver_id'] ?? null)
@@ -104,6 +104,17 @@
                     @endif
                     @if($d['reg'] ?? null)<span class="muted" style="font-weight:500;font-size:15px">({{ $d['reg'] }})</span>@endif
                 </h2>
+                @if($d['remaining'] > 0)
+                    <form method="POST" action="{{ route('payroll.mark-driver-paid') }}"
+                          onsubmit="return confirm('Mark ALL of {{ $d['name'] }}\'s outstanding jobs in this period as paid (£{{ number_format($d['remaining'], 2) }})?')" style="margin:0">
+                        @csrf
+                        <input type="hidden" name="payee" value="{{ $d['name'] }}">
+                        <input type="hidden" name="from" value="{{ $periodParam['from'] ?? '' }}">
+                        <input type="hidden" name="to" value="{{ $periodParam['to'] ?? '' }}">
+                        <input type="hidden" name="month" value="{{ $periodParam['month'] ?? '' }}">
+                        <button type="submit" class="btn btn-primary" style="padding:7px 14px;font-size:13px">✅ Mark all paid (£{{ number_format($d['remaining'], 2) }})</button>
+                    </form>
+                @endif
                 <div style="font-size:14px">
                     £{{ number_format($d['pay'], 2) }} total
                     · <span style="color:#1f7a44">£{{ number_format($d['paid'], 2) }} paid</span>

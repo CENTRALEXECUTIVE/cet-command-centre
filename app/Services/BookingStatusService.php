@@ -335,6 +335,11 @@ class BookingStatusService
         // "Here's your driver" the moment a driver is allocated. Force-reload the
         // driver/vehicle relations so a stale (rotation-time) driver isn't used.
         if ($to === BookingStatus::Allocated && $booking->driver_id) {
+            // Auto-fill the driver's pay (90% of the fare) the moment a job is
+            // allocated, so "driver owed" is already correct in payroll without the
+            // office confirming each one. Won't overwrite a price already offered.
+            $booking->applyDefaultDriverPay();
+
             // Number masking FIRST: open the Twilio Proxy session so the
             // driver-details message below can already carry the masked line.
             if ($booking->driver) {

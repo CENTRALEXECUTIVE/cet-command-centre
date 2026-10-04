@@ -274,6 +274,13 @@ class RotationService
             'driver_id' => $driver?->id,
             'affected_rotation' => $advancedRotation,
         ])->save();
+
+        // Auto-fill the 90% driver pay on allocation so payroll shows the right
+        // "driver owed" without the office confirming each job. Never overwrites a
+        // price already offered on the job.
+        if ($driver) {
+            $booking->applyDefaultDriverPay();
+        }
     }
 
     protected function log(Booking $booking, ?User $from, ?User $to, string $reason): void

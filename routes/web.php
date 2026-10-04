@@ -180,6 +180,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/driver-link-branding', [BookingController::class, 'setDriverLinkBranding'])->middleware('throttle:30,1')->name('bookings.driver-link-branding');
         Route::post('bookings/{booking}/set-contact', [BookingController::class, 'setContact'])->middleware('throttle:30,1')->name('bookings.set-contact');
         Route::get('payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index'])->name('payroll.index');
+        Route::post('payroll/mark-driver-paid', [\App\Http\Controllers\Admin\PayrollController::class, 'markDriverPaid'])->middleware('throttle:30,1')->name('payroll.mark-driver-paid');
         Route::get('cash-summary', [\App\Http\Controllers\Admin\PayrollController::class, 'daily'])->name('payroll.daily');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('bookings/{booking}/request-review', [BookingController::class, 'requestReview'])->middleware('throttle:30,1')->name('bookings.request-review');

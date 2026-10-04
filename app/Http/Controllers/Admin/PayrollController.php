@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\BookingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -77,6 +78,73 @@ class PayrollController extends Controller
                 'card_tips' => round($drivers->sum('card_tips'), 2),
             ],
         ]);
+    }
+
+    /**
+     * Resolve the payroll period from the request: a custom range (from+to) wins,
+     * otherwise a whole month, otherwise this month.
+     *
+     * @return array{0: Carbon, 1: Carbon, 2: array<string,string>}
+     */
+    private function resolvePeriod(Request $request): array
+    {
+        $tz = config('app.timezone');
+        $from = $request->input('from');
+        $to = $request->input('to');
+        if ($from && $to) {
+            try {
+                $start = Carbon::createFromFormat('Y-m-d', $from, $tz)->startOfDay();
+                $end = Carbon::createFromFormat('Y-m-d', $to, $tz)->endOfDay();
+            } catch (\Throwable) {
+                $start = now($tz)->startOfMonth();
+                $end = $start->copy()->endOfMonth();
+            }
+            if ($end->lt($start)) {
+                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            }
+
+            return [$start, $end, ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')]];
+        }
+        $month = $request->input('month');
+        $start = ($month ? Carbon::createFromFormat('Y-m', $month, $tz) : now())->startOfMonth();
+
+        return [$start, $start->copy()->endOfMonth(), ['month' => $start->format('Y-m')]];
+    }
+
+    /**
+     * Mark EVERY job owed to one driver (payee) in the period as paid, in a single
+     * click — settles each job's pay remaining + any card tip owed. Saves the office
+     * clicking each booking individually.
+     */
+    public function markDriverPaid(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'payee' => ['required', 'string', 'max:120'],
+            'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'], 'month' => ['nullable', 'string', 'max:7'],
+        ]);
+        [$start, $end, $periodParam] = $this->resolvePeriod($request);
+
+        $jobs = Booking::whereBetween('pickup_at', [$start, $end])
+            ->where(fn ($q) => $q->whereNotIn('status', [BookingStatus::Cancelled->value])->orWhereNotNull('meta->cancellation->fee'))
+            ->get()
+            ->filter(fn (Booking $b) => $b->payrollPayeeName() === $data['payee']);
+
+        $count = 0;
+        $total = 0.0;
+        foreach ($jobs as $job) {
+            $settled = $job->settleDriverPayOwed($request->user()->name);
+            if ($settled > 0) {
+                $count++;
+                $total += $settled;
+            }
+        }
+
+        return redirect()->to(route('payroll.index', $periodParam).'#driver-'.\Illuminate\Support\Str::slug($data['payee']))
+            ->with('status', $count === 0
+                ? "Nothing outstanding for {$data['payee']} in this period."
+                : 'Marked £'.number_format($total, 2)." paid across {$count} job(s) for {$data['payee']}.");
     }
 
     public function index(Request $request): View
