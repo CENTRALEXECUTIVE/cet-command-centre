@@ -465,12 +465,9 @@ class BookingController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        if ($booking->status->isTerminal()) {
-            return redirect()
-                ->route('bookings.show', $booking)
-                ->with('status', 'This booking is '.$booking->status->label().' and can no longer be edited.');
-        }
-
+        // A completed / cancelled booking CAN still be edited — the office needs to
+        // correct wrong details (a date, a name) without reverting the status and
+        // losing the job's timeline. Editing fields never touches the status history.
         $booking->load(['customer', 'stops']);
 
         return view('bookings.edit', $this->formData($request) + ['booking' => $booking]);

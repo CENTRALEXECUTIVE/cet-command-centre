@@ -11,8 +11,11 @@
         <div class="bh-top">
             <div>
                 <div class="bh-when">{{ $booking->pickup_at->format('D d M Y') }} · <span class="gold">{{ $booking->pickup_at->format('H:i') }}</span></div>
-                <div class="bh-who">{{ $booking->displayCustomerName() ?? 'Customer' }}
+                <div class="bh-who">{{ $booking->displayName() ?: ($booking->displayCustomerName() ?? 'Customer') }}
                     <span class="badge badge-{{ $booking->statusKey() }}" id="hero-status">{{ $booking->statusLabel() }}</span>
+                    @if($booking->meta['booker_name'] ?? null)
+                        <span class="muted" style="font-size:13px;font-weight:400">· booked by {{ $booking->meta['booker_name'] }}</span>
+                    @endif
                 </div>
             </div>
             <div class="bh-refs">
@@ -423,6 +426,10 @@
 
     @if(auth()->user()->isAdmin())
         <div class="toolbar" style="margin-bottom:16px">
+            {{-- Edit is ALWAYS available (incl. completed / cancelled jobs) so the
+                 office can correct a wrong date or name WITHOUT reverting the status
+                 or losing the job's timeline. --}}
+            <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             @if(! $booking->status->isTerminal())
                 @if(!empty($canScan))
                     <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}"
@@ -431,7 +438,6 @@
                         <button class="btn btn-dark" style="padding:9px 16px">🔄 Match calendar</button>
                     </form>
                 @endif
-                <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
                 @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='block';this.style.display='none'">↩ Create return leg</button>
                 @endif
