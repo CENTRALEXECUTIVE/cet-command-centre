@@ -13,10 +13,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * When ETO amends or cancels a LIVE (upcoming) booking, the change still applies
- * — but the office must also be TOLD, so a driver isn't left heading to a time or
- * place ETO has already moved. Routine re-ingests and office-pinned fields stay
- * silent.
+ * ETO amendments and cancellations apply to the booking SILENTLY — no push and no
+ * entry in the alerts feed. The office runs the Command Centre and doesn't want
+ * routine ETO changes cluttering the alerts.
  */
 class EtoAmendmentAlertTest extends TestCase
 {
@@ -42,12 +41,11 @@ class EtoAmendmentAlertTest extends TestCase
         ], $overrides);
     }
 
-    public function test_an_amended_pickup_time_on_a_live_job_alerts_the_office(): void
+    public function test_an_amended_pickup_time_applies_but_does_not_alert(): void
     {
         $svc = app(OutlookBookingService::class);
         $svc->upsertFromParsed($this->parsed());
 
-        // ETO moves the pickup an hour later.
         $result = $svc->upsertFromParsed($this->parsed([
             'pickup_at' => now()->addDays(3)->setTime(15, 0)->format('Y-m-d H:i'),
         ]));
@@ -56,61 +54,21 @@ class EtoAmendmentAlertTest extends TestCase
         $booking = Booking::where('external_reference', 'LIVE01')->first();
         $this->assertSame('15:00', $booking->pickup_at->format('H:i'));  // applied
 
-        $event = WatchdogEvent::where('event_type', 'eto_amended')->where('booking_id', $booking->id)->first();
-        $this->assertNotNull($event, 'the office is alerted to the amendment');
-        $this->assertStringContainsString('pickup', $event->title);
-    }
-
-    public function test_a_routine_reingest_with_no_change_does_not_alert(): void
-    {
-        $svc = app(OutlookBookingService::class);
-        $svc->upsertFromParsed($this->parsed());
-        // Same details again — nothing material changed.
-        $svc->upsertFromParsed($this->parsed());
-
+        // No alerts-feed noise at all.
         $this->assertSame(0, WatchdogEvent::where('event_type', 'eto_amended')->count());
     }
 
-    public function test_an_address_change_alone_does_not_alert(): void
-    {
-        $svc = app(OutlookBookingService::class);
-        $svc->upsertFromParsed($this->parsed(['pickup_address' => 'Manchester Airport (MAN), Terminal 3']));
-
-        // Addresses churn in the AI parse run to run, so an address diff never
-        // raises a push (it still updates the booking) — only time/vehicle do.
-        $svc->upsertFromParsed($this->parsed(['pickup_address' => '15 Completely Different Street, Leeds']));
-
-        $this->assertSame(0, WatchdogEvent::where('event_type', 'eto_amended')->count());
-        // …but the booking itself still took the new address.
-        $this->assertStringContainsString('Leeds', (string) Booking::where('external_reference', 'LIVE01')->first()->pickup_address);
-    }
-
-    public function test_the_same_amendment_does_not_realert_on_a_repeat_ingest(): void
+    public function test_office_pinned_time_still_wins_over_eto(): void
     {
         $svc = app(OutlookBookingService::class);
         $svc->upsertFromParsed($this->parsed());
 
-        $amended = $this->parsed(['pickup_at' => now()->addDays(3)->setTime(15, 0)->format('Y-m-d H:i')]);
-        $svc->upsertFromParsed($amended); // real change → alerts once
-        $svc->upsertFromParsed($amended); // same email again → must NOT re-alert
-        $svc->upsertFromParsed($amended);
-
-        $this->assertSame(1, WatchdogEvent::where('event_type', 'eto_amended')->count());
-    }
-
-    public function test_an_office_pinned_time_is_not_reported_as_an_eto_change(): void
-    {
-        $svc = app(OutlookBookingService::class);
-        $svc->upsertFromParsed($this->parsed());
-
-        // The office pins the pickup time in the app.
         $booking = Booking::where('external_reference', 'LIVE01')->first();
         $booking->forceFill([
             'pickup_at' => now()->addDays(3)->setTime(18, 30),
             'meta' => array_merge($booking->meta ?? [], ['edited_fields' => ['pickup_at']]),
         ])->save();
 
-        // ETO re-sends a different time — it must be blocked AND not alerted.
         $svc->upsertFromParsed($this->parsed([
             'pickup_at' => now()->addDays(3)->setTime(16, 0)->format('Y-m-d H:i'),
         ]));
@@ -119,7 +77,7 @@ class EtoAmendmentAlertTest extends TestCase
         $this->assertSame(0, WatchdogEvent::where('event_type', 'eto_amended')->count());
     }
 
-    public function test_an_eto_cancellation_of_a_live_job_alerts_and_cancels(): void
+    public function test_an_eto_cancellation_cancels_silently(): void
     {
         $svc = app(OutlookBookingService::class);
         $svc->upsertFromParsed($this->parsed());
@@ -127,11 +85,7 @@ class EtoAmendmentAlertTest extends TestCase
         $result = $svc->upsertFromParsed(['is_booking' => true, 'cancelled' => true, 'reference' => 'LIVE01']);
 
         $this->assertSame('cancelled', $result['action']);
-        $booking = Booking::where('external_reference', 'LIVE01')->first();
-        $this->assertSame(BookingStatus::Cancelled, $booking->status);
-        $this->assertTrue(
-            WatchdogEvent::where('event_type', 'eto_amended')->where('booking_id', $booking->id)->exists(),
-            'the office is told ETO pulled the job'
-        );
+        $this->assertSame(BookingStatus::Cancelled, Booking::where('external_reference', 'LIVE01')->first()->status);
+        $this->assertSame(0, WatchdogEvent::where('event_type', 'eto_amended')->count());
     }
 }

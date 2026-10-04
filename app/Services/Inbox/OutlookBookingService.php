@@ -195,13 +195,8 @@ class OutlookBookingService
                 && $existing->pickup_at && $existing->pickup_at->gte(now());
             $existing->forceFill(['status' => BookingStatus::Cancelled->value])->save();
             $this->pushCalendar($existing);
-
-            // Record an ETO cancellation of a live job quietly in the feed — no
-            // push (notifications were pulled after a re-ingest alert storm).
-            if ($wasLive) {
-                $ref = $existing->external_reference ?: $existing->reference;
-                \App\Models\WatchdogEvent::log('eto_amended', 'ETO cancelled '.$ref.' ('.$existing->pickup_at->format('D d M, H:i').')', 'info', $existing);
-            }
+            // No feed entry and no push for an ETO cancellation — the booking is
+            // already cancelled here; the office doesn't want it cluttering alerts.
 
             return ['booking' => $existing, 'action' => 'cancelled'];
         }
@@ -258,29 +253,12 @@ class OutlookBookingService
                 // back to the email's original within minutes.
                 $fields = $existing->applyOfficeEdits($fields);
 
-                // What is ETO actually changing on a LIVE job? Compute before the
-                // save (and after applyOfficeEdits, so an office-pinned field that
-                // won't move is never falsely reported).
-                $changes = $this->materialChanges($existing, $fields);
-                $wasLive = $existing->pickup_at && $existing->pickup_at->gte(now()) && ! $existing->status->isTerminal();
-
+                // The booking is quietly brought in line with ETO — NO feed entry and
+                // NO push. The office runs the Command Centre and doesn't want routine
+                // ETO amendments cluttering the alerts; the change just applies.
                 $existing->forceFill($fields)->save();
                 $booking = $existing;
                 $action = 'updated';
-
-                // ETO amendments NEVER push a notification — they only drop a quiet
-                // entry in the alerts feed (deduped on the exact change), so a real
-                // moved-time/vehicle change is on record without buzzing anyone. The
-                // push was pulled after a re-ingest produced a storm of alerts.
-                if ($wasLive && $changes) {
-                    $summary = implode('; ', $changes);
-                    $sig = md5($summary);
-                    if (($booking->meta['eto_amended_sig'] ?? null) !== $sig) {
-                        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['eto_amended_sig' => $sig])])->save();
-                        $ref = $booking->external_reference ?: $booking->reference;
-                        \App\Models\WatchdogEvent::log('eto_amended', 'ETO amended '.$ref.' — '.$summary, 'info', $booking);
-                    }
-                }
             } else {
                 $booking = Booking::create($fields + [
                     'reference' => Booking::generateReference(),
@@ -413,41 +391,6 @@ class OutlookBookingService
     }
 
     /**
-     * The material changes ETO is making to an existing booking, for the office
-     * alert. Deliberately only the HIGH-CONFIDENCE signals: a moved pickup TIME
-     * and a changed VEHICLE. Addresses are NOT alerted — the AI parser re-words an
-     * address slightly from run to run (punctuation, case, an added/dropped town),
-     * so an address diff is too noisy to trust as an amendment and would cry wolf;
-     * the address is still updated on the booking and shown on its page, just
-     * without a push. Payment flips and placeholder-count enrichment aren't flagged
-     * either. $fields is post-applyOfficeEdits, so a field the office has pinned is
-     * never reported as changed.
-     *
-     * @param  array<string, mixed>  $fields
-     * @return list<string>
-     */
-    private function materialChanges(Booking $existing, array $fields): array
-    {
-        $lines = [];
-
-        // Pickup time moved — the unambiguous, high-stakes signal (a driver could be
-        // heading for the old time). Same clock = no alert.
-        if (! empty($fields['pickup_at'])) {
-            $old = optional($existing->pickup_at)->format('Y-m-d H:i');
-            $newAt = Carbon::parse($fields['pickup_at']);
-            if ($old !== $newAt->format('Y-m-d H:i')) {
-                $lines[] = 'pickup '.(optional($existing->pickup_at)->format('D d M, H:i') ?: '—').' → '.$newAt->format('D d M, H:i');
-            }
-        }
-
-        // Vehicle changed — reliable (an id comparison, not free text) and rare.
-        if (! empty($fields['vehicle_type_id']) && (int) $fields['vehicle_type_id'] !== (int) $existing->vehicle_type_id) {
-            $lines[] = 'vehicle changed';
-        }
-
-        return $lines;
-    }
-
     /**
      * Is this booking already correctly on the calendar for what the email says?
      * If so we skip it (no needless re-push). Returns false whenever something

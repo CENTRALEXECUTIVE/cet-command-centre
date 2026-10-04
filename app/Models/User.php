@@ -109,7 +109,6 @@ class User extends Authenticatable
         'reminder_due' => 'Pickup reminder due to send',
         'no_show_cancel' => 'No-show / cancellation',
         'calendar_import' => 'New booking from the calendar',
-        'eto_amended' => 'ETO changed a live booking',
         'flight_update' => 'Flight delay / cancellation / early landing',
         'child_seats' => 'Child seat not confirmed collected',
         'web_booking' => 'New booking request from the website',
