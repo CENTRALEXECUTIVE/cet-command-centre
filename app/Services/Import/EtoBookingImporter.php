@@ -221,7 +221,13 @@ class EtoBookingImporter
             $fields['luggage'] = (int) $this->clean($data['Suitcases'] ?? '0') + (int) $this->clean($data['Hand luggage'] ?? '0');
         }
         if (($vehName = $this->clean($data['Vehicle type'] ?? '')) !== '') {
-            $fields['vehicle_type_id'] = $this->resolveVehicleType($vehName)->id;
+            // An unrecognised vehicle label must NOT abort the row's other updates
+            // (date/address/fare) — skip just the vehicle in that case.
+            try {
+                $fields['vehicle_type_id'] = $this->resolveVehicleType($vehName)->id;
+            } catch (\Throwable) {
+                // leave the existing vehicle type as-is
+            }
         }
         if ($airportId = $this->detectAirport($data)) {
             $fields['airport_id'] = $airportId;

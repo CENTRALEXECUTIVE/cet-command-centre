@@ -347,11 +347,11 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // In-app CSV imports (Google Ads report, ETO bookings export).
         Route::get('imports', [\App\Http\Controllers\Admin\ImportController::class, 'index'])->name('imports.index');
         Route::post('imports/ads', [\App\Http\Controllers\Admin\ImportController::class, 'ads'])
-            ->middleware('throttle:20,1')->name('imports.ads');
+            ->middleware('throttle:60,1')->name('imports.ads');
         Route::post('imports/eto', [\App\Http\Controllers\Admin\ImportController::class, 'eto'])
-            ->middleware('throttle:20,1')->name('imports.eto');
+            ->middleware('throttle:60,1')->name('imports.eto');
         Route::post('imports/resync-email', [\App\Http\Controllers\Admin\ImportController::class, 'resyncEmail'])
-            ->middleware('throttle:10,1')->name('imports.resync-email');
+            ->middleware('throttle:30,1')->name('imports.resync-email');
 
         // ETO reconciliation — reconfirm bookings against the calendar, one ref at a time.
         Route::get('audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
