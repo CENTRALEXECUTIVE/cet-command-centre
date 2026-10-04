@@ -240,6 +240,11 @@ class BookingService
                     'child_seat' => ($childCap + $boosterCap + $infantCap) > 0,
                     'driver_notes' => $driverNotes,
                     'ribbon' => $ribbon,
+                    // Structured deposit: amount taken up front + whether it's paid.
+                    // Drives the balance owed / cash the driver collects (fare − deposit).
+                    'deposit' => (($dep = round((float) ($data['deposit_amount'] ?? 0), 2)) > 0)
+                        ? ['amount' => $dep, 'paid' => (bool) ($data['deposit_paid'] ?? false)]
+                        : null,
                     'waiting_time' => $waitingTime, // null when unticked
                     'wait_and_return' => $waitingTime !== null, // legacy/convenience flag
                     // Mark the booking edited, and record exactly which fields the
@@ -465,6 +470,10 @@ class BookingService
                 'child_seat' => (((int) ($data['child_seats'] ?? 0)) + ((int) ($data['booster_seats'] ?? 0)) + ((int) ($data['infant_seats'] ?? 0))) > 0 ?: null,
                 'ribbon' => ! empty($data['ribbon']) ?: null,
                 'wheelchair' => ! empty($data['wheelchair']) ?: null,
+                // Structured deposit on the OUTBOUND leg (the fare lives there).
+                'deposit' => (! $isReturn && ($dep = round((float) ($data['deposit_amount'] ?? 0), 2)) > 0)
+                    ? ['amount' => $dep, 'paid' => (bool) ($data['deposit_paid'] ?? false)]
+                    : null,
             ], fn ($v) => $v !== null && $v !== '' && $v !== false),
             'special_requests' => $data['special_requests'] ?? null,
             'status' => BookingStatus::Pending,

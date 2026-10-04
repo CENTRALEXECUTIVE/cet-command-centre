@@ -239,6 +239,15 @@
                         <label for="final_price">Final price (£) <span class="muted">if different</span></label>
                         <input id="final_price" type="number" step="0.01" min="0" name="final_price" value="{{ old('final_price', $booking->final_price) }}">
                     </div>
+                    <div class="field">
+                        <label for="deposit_amount">Deposit taken (£) <span class="muted">if any</span></label>
+                        <input id="deposit_amount" type="number" step="0.01" min="0" name="deposit_amount" value="{{ old('deposit_amount', $booking->depositAmount() ?: '') }}" placeholder="e.g. 15">
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:500">
+                            <input type="checkbox" name="deposit_paid" value="1" @checked(old('deposit_paid', $booking->depositPaidAmount() > 0)) style="width:auto">
+                            Deposit has been paid
+                        </label>
+                        <p class="hint" style="margin:4px 0 0">When set, the balance still owed (what the driver collects on a cash job) is the fare minus this deposit.</p>
+                    </div>
                 </div>
             </div>
         </div>

@@ -4532,10 +4532,40 @@ class Booking extends Model
      * gross fare of £150 but only £135 to collect. Adding the £150 fare to the
      * outbound over-charged the customer (£275 instead of £260).
      */
+    /**
+     * A deposit the office has recorded on the booking as PAID (meta['deposit']),
+     * in £. 0 when none is recorded or it isn't marked paid. This is the structured,
+     * authoritative deposit — set on the booking edit form — as opposed to a deposit
+     * merely mentioned in a payment line.
+     */
+    public function depositPaidAmount(): float
+    {
+        $d = $this->meta['deposit'] ?? null;
+        if (! is_array($d) || empty($d['paid'])) {
+            return 0.0;
+        }
+
+        return round(max(0.0, (float) ($d['amount'] ?? 0)), 2);
+    }
+
+    /** The deposit recorded on the booking (amount + paid), whether or not paid. */
+    public function depositAmount(): float
+    {
+        return round(max(0.0, (float) ($this->meta['deposit']['amount'] ?? 0)), 2);
+    }
+
     private function parseCashBalance(): float
     {
         $isCashJob = ($this->payment_method?->value ?? null) === 'cash';
         $fare = $this->final_price ?? $this->quoted_price;
+
+        // An office-recorded PAID deposit is authoritative: on a cash job the driver
+        // collects the balance (fare − deposit), overriding whatever the payment text
+        // says. A £150 fare with a £15 deposit recorded must bill £135, not £150.
+        $recordedDeposit = $this->depositPaidAmount();
+        if ($isCashJob && $fare !== null && $recordedDeposit > 0) {
+            return round(max(0.0, (float) $fare - $recordedDeposit), 2);
+        }
 
         // Parse every payment line we hold, gathering any explicit cash-to-collect
         // figures and any deposit figures.

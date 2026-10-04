@@ -76,6 +76,8 @@ class StoreBookingRequest extends FormRequest
             // Commercials
             'payment_method' => ['required', Rule::in(PaymentMethod::values())],
             'quoted_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'deposit_amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'deposit_paid' => ['nullable', 'boolean'],
             'voucher' => ['nullable', 'string', 'max:40'],
 
             // GDPR — explicit consent at the point of collection.

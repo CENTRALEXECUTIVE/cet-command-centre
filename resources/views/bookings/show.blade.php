@@ -1082,6 +1082,13 @@
                 </td></tr>
                 @if($booking->quoted_price)<tr><th>Quoted</th><td>£{{ number_format($booking->quoted_price, 2) }}</td></tr>@endif
                 @if($booking->final_price)<tr><th>Final</th><td>£{{ number_format($booking->final_price, 2) }}</td></tr>@endif
+                @if($booking->depositAmount() > 0)
+                    <tr><th>Deposit</th><td>£{{ number_format($booking->depositAmount(), 2) }} ·
+                        @if($booking->depositPaidAmount() > 0)<span style="color:#1f7a44">paid</span>@else<span style="color:#b8860b">not paid</span>@endif
+                        @php $bal = ($booking->fareAmount() ?? 0) - $booking->depositPaidAmount(); @endphp
+                        @if($booking->fareAmount() !== null)<span class="muted">· balance £{{ number_format(max(0, $bal), 2) }}</span>@endif
+                    </td></tr>
+                @endif
                 <tr><th>Passenger charge</th><td>{{ $booking->fareGross() !== null ? '£'.number_format($booking->fareGross(), 2) : '—' }}</td></tr>
                 <tr><th>Driver income</th><td>{{ $booking->driverPay() !== null ? '£'.number_format($booking->driverPay(), 2) : '—' }}</td></tr>
                 <tr id="booking-details" style="scroll-margin-top:16px"><th>Notification language</th><td>{{ $booking->notificationLanguage() }}</td></tr>

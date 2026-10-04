@@ -311,6 +311,15 @@
                         <p class="hint" style="margin:4px 0 0">A valid code comes off the customer price. Driver pay is left blank for you to set by hand on a discounted job.</p>
                         @error('voucher') <div class="error">{{ $message }}</div> @enderror
                     </div>
+                    <div class="field">
+                        <label for="deposit_amount">Deposit taken (£) <span class="muted">if any</span></label>
+                        <input id="deposit_amount" type="number" step="0.01" min="0" name="deposit_amount" value="{{ old('deposit_amount') }}" placeholder="e.g. 15">
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:500">
+                            <input type="checkbox" name="deposit_paid" value="1" @checked(old('deposit_paid')) style="width:auto">
+                            Deposit has been paid
+                        </label>
+                        <p class="hint" style="margin:4px 0 0">The balance (what a cash driver collects) is the fare minus this deposit.</p>
+                    </div>
                 </div>
             </div>
         </div>

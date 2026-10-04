@@ -63,6 +63,8 @@ class UpdateBookingRequest extends FormRequest
 
             // Commercials
             'payment_method' => ['required', Rule::in(PaymentMethod::values())],
+            'deposit_amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'deposit_paid' => ['nullable', 'boolean'],
             'payment_status' => ['nullable', Rule::in(['pending', 'paid', 'refunded'])],
             'quoted_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'final_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
