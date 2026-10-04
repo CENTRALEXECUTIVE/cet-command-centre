@@ -131,11 +131,15 @@ class OutlookBookingService
             .'Central Executive Transfers. Times are UK local time (Europe/London). Respond ONLY with JSON. '
             .'If the email is not a booking/amendment/cancellation, respond {"is_booking": false}. Otherwise: '
             .'{"is_booking": true, "reference": string|null, "cancelled": boolean, "customer_name": string, '
+            .'"lead_passenger_name": string|null, '
             .'"customer_phone": string|null, "customer_email": string|null, "pickup_address": string, '
             .'"destination_address": string, "pickup_at": "YYYY-MM-DD HH:MM", "passengers": number, '
             .'"child_seats": number, "infant_seats": number, "booster_seats": number, '
             .'"vehicle_type": string|null, "flight_number": string|null}. "reference" is the ETO booking '
-            .'reference. "cancelled" is true if the email cancels the booking. vehicle_type is one of: '
+            .'reference. "customer_name" is the account holder/booker (the "Customer" section). '
+            .'"lead_passenger_name" is who actually travels (the "Lead passenger" section) — the driver '
+            .'must see the traveller, so capture it separately when the email has it. '
+            .'"cancelled" is true if the email cancels the booking. vehicle_type is one of: '
             .'Executive, Estate, V Class, 8 Seater, 8 Seater XL, Luxury.';
 
         $data = $this->ai->completeJson("From: {$from}\nSubject: {$subject}\n\n{$body}", $system, ['max_tokens' => 800]);
@@ -350,7 +354,9 @@ class OutlookBookingService
             'suitcases' => (int) ($parsed['suitcases'] ?? 0),
             'hand_luggage' => (int) ($parsed['hand_luggage'] ?? ($parsed['luggage'] ?? 0)),
             // Always show the lead passenger, never the booker/company (rule 9).
-            'lead_name' => $parsed['customer_name'] ?? null,
+            // EtoEmailParser already puts the lead passenger in customer_name; the AI
+            // fallback gives it as lead_passenger_name, so prefer that when present.
+            'lead_name' => $parsed['lead_passenger_name'] ?? $parsed['customer_name'] ?? null,
             'meet_and_greet' => $meetGreet,
             'child_seat' => ! empty($parsed['child_seat']) || $childSeats > 0 || $infantSeats > 0 || $boosterSeats > 0,
             'child_seats' => $childSeats,

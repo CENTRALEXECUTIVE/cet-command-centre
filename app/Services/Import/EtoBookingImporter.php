@@ -120,6 +120,10 @@ class EtoBookingImporter
                 'payment_status' => $paymentStatus,
                 'source' => $this->mapSource($data['Source'] ?? ''),
                 'meta' => array_filter([
+                    // The LEAD PASSENGER is who travels and whose name the driver sees
+                    // (not the booker in the Customer column) — rule 9.
+                    'lead_name' => $this->leadName($data),
+                    'booker_name' => $this->clean($data['Customer'] ?? '') ?: null,
                     'suitcases' => (int) $this->clean($data['Suitcases'] ?? '0'),
                     'hand_luggage' => (int) $this->clean($data['Hand luggage'] ?? '0'),
                     'eto_status' => $this->clean($data['Status'] ?? ''),
@@ -176,8 +180,11 @@ class EtoBookingImporter
         $fields = [
             'payment_status' => $paymentStatus,
             'meta' => array_merge($booking->meta ?? [], array_filter([
-                // ETO is authoritative on luggage — backfill the breakdown so a
-                // re-import fills it in on bookings that came in via the calendar.
+                // ETO is authoritative — a re-import corrects the LEAD PASSENGER name
+                // (the driver must see the traveller, not the booker) and backfills
+                // the luggage breakdown on bookings that came in another way.
+                'lead_name' => $this->leadName($data),
+                'booker_name' => $this->clean($data['Customer'] ?? '') ?: null,
                 'suitcases' => (int) $this->clean($data['Suitcases'] ?? '0'),
                 'hand_luggage' => (int) $this->clean($data['Hand luggage'] ?? '0'),
                 'eto_status' => $this->clean($data['Status'] ?? ''),
@@ -267,6 +274,17 @@ class EtoBookingImporter
         $this->resolveVehicleType($data['Vehicle type'] ?? ''); // throws if unmappable
 
         return 'imported';
+    }
+
+    /**
+     * The lead passenger — who actually travels and whose name the driver sees.
+     * Never the booker in the "Customer" column. Null when ETO gives no passenger.
+     */
+    private function leadName(array $data): ?string
+    {
+        return $this->clean($data['Lead passenger name'] ?? '')
+            ?: $this->clean($data['Passenger name'] ?? '')
+            ?: null;
     }
 
     private function resolveCustomer(array $data): Customer

@@ -271,6 +271,23 @@ class EtoBookingImportTest extends TestCase
         $this->assertSame('24/06/2026', $booking->fresh()->pickup_at->format('d/m/Y'));
     }
 
+    public function test_the_lead_passenger_is_shown_not_the_booker(): void
+    {
+        // Sean Neill booked the car; Janine Neill is the lead passenger travelling.
+        // The driver/booking must show JANINE, not the booker Sean.
+        $header = "Journey date;Reference number;Lead passenger name;Status;Total;Payments;Customer\n";
+        $path = tempnam(sys_get_temp_dir(), 'eto').'.csv';
+        file_put_contents($path, $header
+            .'"04/10/2026 09:15";"9Y5MDRA";"Janine Neill";"Confirmed";"115.00";"Paid, Square, 115";"Sean Neill"'."\n");
+
+        app(EtoBookingImporter::class)->import($path);
+
+        $booking = Booking::where('external_reference', '9Y5MDRA')->first();
+        $this->assertSame('Janine Neill', $booking->meta['lead_name']);
+        $this->assertSame('Janine Neill', $booking->displayName()); // driver/board name
+        $this->assertSame('Sean Neill', $booking->meta['booker_name']); // booker kept for the office
+    }
+
     public function test_a_reimport_does_not_overwrite_an_office_edited_date(): void
     {
         $importer = app(EtoBookingImporter::class);
