@@ -385,11 +385,11 @@
         @php $contactFix = $booking->contactNumberMismatch(); @endphp
         @if($contactFix)
             <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
-                <strong>⚠ Contact number doesn’t match the calendar</strong>
-                <p class="hint" style="margin:6px 0 8px">The customer record has <strong>{{ $booking->customer?->phone }}</strong> but this booking’s calendar contact is <strong>{{ $contactFix }}</strong>. Messages already go to the calendar number — tap below to also correct the stored record.</p>
+                <strong>⚠ Contact number doesn’t match the customer record</strong>
+                <p class="hint" style="margin:6px 0 8px">This booking’s contact number is <strong>{{ $contactFix }}</strong>, but the saved customer record has <strong>{{ $booking->customer?->phone }}</strong>. Messages already go to the booking’s number — tap below to also update the stored record to match.</p>
                 <form method="POST" action="{{ route('bookings.fix-contact', $booking) }}" style="margin:0">
                     @csrf
-                    <button class="btn" style="background:#b8860b;color:#fff;padding:8px 16px">Use calendar number ({{ $contactFix }})</button>
+                    <button class="btn" style="background:#b8860b;color:#fff;padding:8px 16px">Use the booking’s number ({{ $contactFix }})</button>
                 </form>
             </div>
         @endif

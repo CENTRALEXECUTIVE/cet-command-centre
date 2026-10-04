@@ -1604,23 +1604,23 @@ class BookingController extends Controller
     }
 
     /**
-     * Correct the linked customer record's phone to this booking's calendar
-     * "Contact No" — the fix for a booking that got filed under a record holding
-     * another booker's number. Messaging already uses the calendar contact; this
-     * just tidies the stored record so it stops showing the wrong number.
+     * Correct the linked customer record's phone to THIS booking's contact number —
+     * the fix for a booking that got filed under a record holding another booker's
+     * number. Messaging already uses the booking's contact; this just tidies the
+     * stored record so it stops showing the wrong number.
      */
     public function fixContact(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $calendar = $booking->contactNumberMismatch();
-        if (! $calendar || ! $booking->customer) {
-            return back()->with('status', 'Nothing to fix — the contact number already matches the calendar.');
+        $contact = $booking->contactNumberMismatch();
+        if (! $contact || ! $booking->customer) {
+            return back()->with('status', 'Nothing to fix — the contact number already matches.');
         }
 
-        $booking->customer->forceFill(['phone' => $calendar])->save();
+        $booking->customer->forceFill(['phone' => $contact])->save();
 
-        return back()->with('status', "Customer number corrected to the calendar contact ({$calendar}).");
+        return back()->with('status', "Customer record number corrected to the booking's contact ({$contact}).");
     }
 
     public function payroll(Request $request, Booking $booking): RedirectResponse
