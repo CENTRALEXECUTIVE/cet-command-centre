@@ -187,6 +187,34 @@ class Phase4ReportsTest extends TestCase
         $this->assertEqualsWithDelta(35.0, $data['net_profit'], 0.01);      // 55 − 20
     }
 
+    public function test_profit_page_accepts_a_custom_date_range(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // The page renders for an arbitrary from/to range and labels the period.
+        $this->actingAs($admin)
+            ->get(route('reports.profit', ['start' => '2026-06-01', 'end' => '2026-06-15']))
+            ->assertOk()
+            ->assertSee('Profit')
+            ->assertSee('01 Jun 2026')
+            ->assertSee('15 Jun 2026');
+    }
+
+    public function test_profit_range_only_counts_jobs_inside_the_range(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        // Booked inside the range, and outside it.
+        Booking::factory()->forVehicleType($exec)->create(['final_price' => 300, 'pickup_at' => '2026-06-10 09:00', 'created_at' => '2026-06-10 09:00']);
+        Booking::factory()->forVehicleType($exec)->create(['final_price' => 999, 'pickup_at' => '2026-07-10 09:00', 'created_at' => '2026-07-10 09:00']);
+
+        $data = app(ReportService::class)->profit(
+            \Illuminate\Support\Carbon::parse('2026-06-01')->startOfDay(),
+            \Illuminate\Support\Carbon::parse('2026-06-30')->endOfDay(),
+        );
+
+        $this->assertEqualsWithDelta(300.0, $data['revenue'], 0.01); // only the June job
+    }
+
     public function test_non_admin_cannot_view_reports(): void
     {
         $client = User::factory()->corporateClient()->create();

@@ -276,6 +276,27 @@
         paint();
     })();
 
+    // Tapping ANYWHERE on a date / time box opens the picker — not just the tiny
+    // calendar icon. Applies to every date, datetime-local, month, week and time
+    // input across the whole Command Centre, including ones added after load.
+    (function () {
+        var SEL = 'input[type="date"],input[type="datetime-local"],input[type="month"],input[type="week"],input[type="time"]';
+        function open(el) {
+            if (!el || el.disabled || el.readOnly) return;
+            try { if (typeof el.showPicker === 'function') el.showPicker(); } catch (e) { /* user-gesture / unsupported — ignore */ }
+        }
+        // Pointer down (not click) so the native picker opens on the first tap.
+        document.addEventListener('pointerdown', function (e) {
+            var el = e.target.closest ? e.target.closest(SEL) : null;
+            if (el) open(el);
+        });
+        // Keyboard focus (tab to it) opens it too.
+        document.addEventListener('focusin', function (e) {
+            var el = e.target;
+            if (el.matches && el.matches(SEL)) open(el);
+        });
+    })();
+
     // Keep your place on the page across a form save (Mark paid, set price/waiting,
     // a sort arrow, etc.). Without this, every POST-then-redirect and every filter
     // link reloads at the very top, which is maddening mid-task. We stash the scroll

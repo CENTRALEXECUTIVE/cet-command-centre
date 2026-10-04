@@ -35,12 +35,30 @@ class ReportController extends Controller
 
     public function profit(Request $request): View
     {
+        // A custom date RANGE wins (so you can see profit for any period), else a
+        // whole month, else the current month. Range is clamped start ≤ end.
         $month = $request->query('month');
-        $start = ($month ? Carbon::createFromFormat('Y-m', $month, config('app.timezone')) : now())->startOfMonth();
-        $end = $start->copy()->endOfMonth();
+        $startQ = $request->date('start');
+        $endQ = $request->date('end');
+
+        if ($startQ || $endQ) {
+            $start = ($startQ ?? $endQ)->copy()->startOfDay();
+            $end = ($endQ ?? $startQ)->copy()->endOfDay();
+            if ($end->lt($start)) {
+                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            }
+            $isRange = true;
+        } else {
+            $start = ($month ? Carbon::createFromFormat('Y-m', $month, config('app.timezone')) : now())->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+            $isRange = false;
+        }
 
         return view('reports.profit', [
             'month' => $start,
+            'rangeStart' => $start,
+            'rangeEnd' => $end,
+            'isRange' => $isRange,
             'data' => $this->reports->profit($start, $end),
         ]);
     }

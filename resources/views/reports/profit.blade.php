@@ -3,18 +3,37 @@
 
 @php
     $m = $month->format('Y-m');
-    $start = $month->format('Y-m-d');
-    $end = $month->copy()->endOfMonth()->format('Y-m-d');
+    $start = ($rangeStart ?? $month)->format('Y-m-d');
+    $end = ($rangeEnd ?? $month->copy()->endOfMonth())->format('Y-m-d');
+    $periodLabel = ($isRange ?? false)
+        ? \Illuminate\Support\Carbon::parse($start)->format('D d M Y').' – '.\Illuminate\Support\Carbon::parse($end)->format('D d M Y')
+        : $month->format('F Y');
 @endphp
 
 @section('content')
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
         <div>
             <h1 class="page-title" style="margin-bottom:2px">Profit &amp; commission</h1>
-            <p class="page-sub">Turnover, driver cost, commission and net profit for {{ $month->format('F Y') }}. Jobs that have run (not cancelled / no-show).</p>
+            <p class="page-sub">Turnover, driver cost, commission and net profit for <strong>{{ $periodLabel }}</strong>. Jobs that have run (not cancelled / no-show).</p>
         </div>
+    </div>
+
+    {{-- Pick a whole month, OR a custom date range to see profit for any period. --}}
+    <div class="card" style="margin:10px 0;padding:12px 16px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end">
         <form method="GET" action="{{ route('reports.profit') }}">
+            <label class="muted" style="font-size:12px;display:block;margin-bottom:3px">Whole month</label>
             <input type="month" name="month" value="{{ $m }}" onchange="this.form.submit()" style="width:auto">
+        </form>
+        <form method="GET" action="{{ route('reports.profit') }}" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div>
+                <label class="muted" style="font-size:12px;display:block;margin-bottom:3px">From</label>
+                <input type="date" name="start" value="{{ ($isRange ?? false) ? $start : '' }}" style="width:auto">
+            </div>
+            <div>
+                <label class="muted" style="font-size:12px;display:block;margin-bottom:3px">To</label>
+                <input type="date" name="end" value="{{ ($isRange ?? false) ? $end : '' }}" style="width:auto">
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding:8px 16px">Show range</button>
         </form>
     </div>
 
