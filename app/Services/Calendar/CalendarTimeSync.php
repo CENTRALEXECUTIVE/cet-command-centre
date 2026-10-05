@@ -41,6 +41,36 @@ class CalendarTimeSync
         );
     }
 
+    /**
+     * The PAIRED leg's reference for an ETO …a/…b booking (swap the trailing
+     * a↔b, preserving case), or null when this isn't a suffixed pair reference.
+     */
+    private function siblingReference(Booking $booking): ?string
+    {
+        $ref = trim((string) ($booking->external_reference ?: $booking->reference));
+        if (! preg_match('/^(.*)([ab])$/i', $ref, $m)) {
+            return null;
+        }
+        $flip = mb_strtolower($m[2]) === 'a' ? 'b' : 'a';
+
+        return $m[1].(ctype_upper($m[2]) ? mb_strtoupper($flip) : $flip);
+    }
+
+    /** Does this event's text carry the PAIRED leg's exact (whole-token) reference? */
+    private function eventCarriesSiblingReference(Booking $booking, ?string $title, ?string $description): bool
+    {
+        $sib = $this->siblingReference($booking);
+        if ($sib === null) {
+            return false;
+        }
+        $hay = mb_strtoupper(trim(($description ?? '').' '.($title ?? '')));
+
+        return $hay !== '' && (bool) preg_match(
+            '/(?<![A-Z0-9])'.preg_quote(mb_strtoupper($sib), '/').'(?![A-Z0-9])/',
+            $hay
+        );
+    }
+
     /** The calendar the events live on (Setting override, else the CET default). */
     private function calendarId(): string
     {
@@ -212,6 +242,23 @@ class CalendarTimeSync
         $matchedByReference = $this->eventCarriesReference($booking, $live['title'] ?? null, $live['description'] ?? null);
         $ownEventId = $booking->calendarEvent?->google_event_id;
         $isOwnLinkedEvent = filled($ownEventId) && ($live['id'] ?? null) === $ownEventId;
+
+        // HARDENING (paired legs): if the event is NOT confirmed as this booking's
+        // by its own reference, but DOES carry the PAIRED leg's reference, then a
+        // stored google_event_id is pointing at the WRONG leg's event — exactly how
+        // one leg's pickup time got written from its sibling (…a taking …b's slot).
+        // Never trust the stored id over the text: unlink the bad event and refuse
+        // to copy anything from it, even though it is the "own linked" event.
+        if (! $matchedByReference
+            && $this->eventCarriesSiblingReference($booking, $live['title'] ?? null, $live['description'] ?? null)) {
+            if ($booking->calendarEvent && filled($booking->calendarEvent->google_event_id)) {
+                $booking->calendarEvent->forceFill(['google_event_id' => null, 'sync_status' => 'pending'])->save();
+            }
+            $this->flagUnverified($booking);
+            $this->lastDiag['matched'] = 'cross-linked to the paired leg’s event — unlinked, left untouched';
+
+            return ['status' => 'cross_linked', 'changes' => [], 'diag' => $this->lastDiag];
+        }
 
         if (! $matchedByReference && ! $isOwnLinkedEvent) {
             $this->flagUnverified($booking);

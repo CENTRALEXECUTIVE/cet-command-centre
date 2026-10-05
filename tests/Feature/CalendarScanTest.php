@@ -311,4 +311,43 @@ class CalendarScanTest extends TestCase
 
         $this->actingAs($driver)->post(route('bookings.scan-calendar', $booking))->assertForbidden();
     }
+
+    public function test_scan_unlinks_a_booking_cross_linked_to_its_paired_legs_event(): void
+    {
+        // 9Y5MDRa's stored event id points at the event that actually belongs to
+        // its return 9Y5MDRb. Even though the stored id makes it look like "the
+        // booking's own event", scan must NOT copy 9Y5MDRb's time onto 9Y5MDRa —
+        // it unlinks the bad event and leaves the booking's time alone.
+        $booking = Booking::factory()->create([
+            'external_reference' => '9Y5MDRa',
+            'pickup_at' => now()->addDays(3)->setTime(9, 15),
+            'pickup_address' => 'Terminal 2, Manchester',
+            'destination_address' => '2 Worrygoose Lane, Rotherham',
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id, 'calendar_id' => 'admin@centralexecutivetransfers.co.uk',
+            'google_event_id' => 'evt_sibling',
+            'title' => '*Janine Neill MAN (ABDI)*',
+            'description' => "📑 *Booking Confirmation*\n• *Booking Reference:* 9Y5MDRb",
+            'start_at' => $booking->pickup_at, 'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+        $booking = $booking->fresh(['calendarEvent']);
+
+        // Reading the stored id returns the SIBLING's event (carries 9Y5MDRb), at a
+        // different time; no reference match is found for 9Y5MDRa.
+        $this->mockGoogle(readEvent: [
+            'start' => Carbon::parse(now()->addDays(3)->setTime(13, 0)),
+            'end' => Carbon::parse(now()->addDays(3)->setTime(14, 0)),
+            'title' => '*Janine Neill MAN (ABDI)*',
+            'location' => '2 Worrygoose Lane',
+            'description' => "📑 *Booking Confirmation*\n• *Booking Reference:* 9Y5MDRb",
+        ]);
+
+        $result = app(\App\Services\Calendar\CalendarTimeSync::class)->scan($booking);
+
+        $this->assertSame('cross_linked', $result['status']);
+        $this->assertSame('09:15', $booking->fresh()->pickup_at->format('H:i'));          // time untouched
+        $this->assertNull($booking->fresh()->calendarEvent->google_event_id);             // bad link cleared
+    }
 }
