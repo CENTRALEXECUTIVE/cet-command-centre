@@ -519,7 +519,7 @@ class DashboardController extends Controller
     /** Day's jobs from the database, mapped to the same detail rows. */
     private function jobsFromDatabase(Carbon $day): array
     {
-        return Booking::with(['customer', 'vehicleType', 'driver', 'calendarEvent'])
+        return Booking::with(['customer', 'vehicleType', 'driver.driverProfile', 'airport', 'calendarEvent'])
             ->whereDate('pickup_at', $day)
             ->orderBy('pickup_at')
             ->get()

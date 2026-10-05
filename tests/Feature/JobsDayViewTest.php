@@ -85,20 +85,48 @@ class JobsDayViewTest extends TestCase
             'driver_id' => $kash->id,
             'pickup_at' => '2026-10-03 22:55', 'pickup_address' => 'Birmingham Airport',
             'destination_address' => 'Sheffield', 'passengers' => 6,
-            'status' => 'accepted', 'payment_method' => 'card',
+            'status' => 'accepted', 'payment_method' => 'card', 'payment_status' => 'paid',
         ]);
+        // A STALE stored event title (wrong "Return", wrong "V CLASS") must be
+        // ignored — the board title is built LIVE from the booking's own fields.
         CalendarEvent::create([
             'booking_id' => $booking->id, 'title' => '*Nigel Corfield BHX Return (V CLASS)*',
             'start_at' => $booking->pickup_at, 'end_at' => $booking->pickup_at->copy()->addHour(),
             'sync_status' => 'synced',
         ]);
 
-        // Allocated → tag becomes the driver's callsign; vehicle type is gone.
-        $this->assertSame('Nigel Corfield BHX Return (KASH)', $booking->boardTitle());
+        // Allocated → tag is the driver's callsign (live), not the stale "V CLASS".
+        $this->assertSame('Nigel Corfield BHX (KASH)', $booking->boardTitle());
 
-        // Not allocated → the stored tag (vehicle type) stays.
+        // Not allocated → the tag is the booking's real vehicle type (live).
         $booking->update(['driver_id' => null]);
-        $this->assertSame('Nigel Corfield BHX Return (V CLASS)', $booking->fresh()->boardTitle());
+        $this->assertSame('Nigel Corfield BHX (EXECUTIVE)', $booking->fresh()->boardTitle());
+    }
+
+    public function test_board_title_reflects_a_corrected_airport_over_a_stale_free_roam_title(): void
+    {
+        // The real GJDPJF case: an ETO Heathrow job first mis-read as FREE ROAM,
+        // frozen into its calendar-event title. The board title must now show the
+        // airport (LHR) live from the booking — not the stale "FREE ROAM".
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(), 'external_reference' => 'GJDPJF',
+            'customer_id' => Customer::create(['name' => 'Callum Lindsay'])->id,
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->first()->id,
+            'source_system' => 'eto',
+            'pickup_at' => '2026-10-08 16:10',
+            'pickup_address' => 'The Diamond, 32 Leavygreave Road, Broomhall, Sheffield',
+            'destination_address' => 'Terminal 5, Wallis Road, Longford, Hounslow, UK',
+            'passengers' => 1, 'status' => 'allocated', 'payment_method' => 'card', 'payment_status' => 'paid',
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id, 'title' => '*Callum Lindsay FREE ROAM (MAJID)*',
+            'start_at' => $booking->pickup_at, 'end_at' => $booking->pickup_at->copy()->addHour(),
+            'sync_status' => 'synced',
+        ]);
+
+        $this->assertStringContainsString('LHR', $booking->boardTitle());
+        $this->assertStringNotContainsString('FREE ROAM', $booking->boardTitle());
+        $this->assertSame('LHR', $booking->routeGroupKey());  // and it classifies as an airport job
     }
 
     public function test_day_view_navigates_by_date(): void

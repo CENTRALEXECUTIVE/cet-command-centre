@@ -40,6 +40,16 @@ class CalendarEventBuilder
         ];
     }
 
+    /**
+     * Just the title line, built LIVE from the booking — for the office board /
+     * jobs views, so a change to the airport/addresses/driver is reflected at
+     * once instead of showing a stale, frozen calendar-event title.
+     */
+    public function previewTitle(Booking $booking): string
+    {
+        return $this->title($booking, $this->paymentEmoji($booking));
+    }
+
     public function buildFor(Booking $booking): CalendarEvent
     {
         $moneyEmoji = $this->paymentEmoji($booking);

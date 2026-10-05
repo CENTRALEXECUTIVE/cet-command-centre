@@ -2980,19 +2980,21 @@ class Booking extends Model
             return strtoupper($this->airport->code);
         }
 
-        $blob = trim(((string) $this->pickup_address).' '.((string) $this->destination_address));
-        $lower = strtolower($blob);
-        $airports = self::knownAirports();
-
-        // 1) An explicit "(MAN)" style code, validated against the known list.
-        if (preg_match('/\(([A-Za-z]{3})\)/', $blob, $m) && isset($airports[strtoupper($m[1])])) {
-            return strtoupper($m[1]);
+        // The canonical matcher: a bracketed "(MAN)" code, an airport name or
+        // postcode area, OR a terminal next to a city/locality — e.g. the ETO
+        // Heathrow drop-off "Terminal 5, Wallis Road, Longford, Hounslow" → LHR,
+        // which the old name-only check missed (no "airport" word), leaving the
+        // job mis-classified as FREE ROAM. One matcher keeps the title, job-type,
+        // rotation grouping and this method all in agreement.
+        if ($code = \App\Support\AirportMatcher::codeFor($this->pickup_address, $this->destination_address)) {
+            return $code;
         }
 
-        // 2) The airport's NAME alongside the word "airport" (so a plain city
-        //    address like "10 Manchester Road" is NOT mistaken for the airport).
+        // Fallback: a DB airport whose NAME appears alongside the word "airport"
+        // (covers any custom airport the office added that the matcher doesn't list).
+        $lower = strtolower(trim(((string) $this->pickup_address).' '.((string) $this->destination_address)));
         if (str_contains($lower, 'airport')) {
-            foreach ($airports as $code => $name) {
+            foreach (self::knownAirports() as $code => $name) {
                 if ($name !== '' && str_contains($lower, strtolower($name))) {
                     return $code;
                 }
@@ -5191,6 +5193,21 @@ class Booking extends Model
      */
     public function boardTitle(): string
     {
+        // Built LIVE from the booking so a change to the airport, addresses or
+        // driver shows immediately. The stored calendar-event title is a FROZEN
+        // mirror from when the job first arrived — e.g. an ETO Heathrow job first
+        // mis-read as FREE ROAM kept "FREE ROAM" on its event even after the
+        // office set the airport, so editing it "did nothing" on this screen.
+        // Falls back to the stored mirror only if the live build can't run.
+        try {
+            $live = trim((string) app(\App\Services\CalendarEventBuilder::class)->previewTitle($this), '* ');
+            if ($live !== '') {
+                return $live;
+            }
+        } catch (\Throwable) {
+            // fall through to the stored copy
+        }
+
         $title = trim((string) ($this->calendarEvent?->title ?? ''), '* ');
         if ($title === '') {
             return '';

@@ -51,6 +51,15 @@ class AirportMatcher
         'edinburgh' => 'EDI',
         'glasgow' => 'GLA',
         'bristol' => 'BRS',
+        // London airports are identified by their LOCALITY, never the generic
+        // word "london" (ambiguous across LHR/LGW/STN/LTN). A terminal address in
+        // these places is unmistakably that airport — e.g. an ETO Heathrow job
+        // comes through as "Terminal 5, Wallis Road, Longford, Hounslow" with NO
+        // "(LHR)" and no "Heathrow", which used to fall through to FREE ROAM.
+        'heathrow' => 'LHR', 'longford' => 'LHR', 'hounslow' => 'LHR',
+        'gatwick' => 'LGW', 'crawley' => 'LGW', 'horley' => 'LGW',
+        'stansted' => 'STN',
+        'luton' => 'LTN',
     ];
 
     /** The IATA code for one or more address parts, or null if none looks like an airport. */

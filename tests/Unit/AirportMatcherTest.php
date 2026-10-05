@@ -39,6 +39,21 @@ class AirportMatcherTest extends TestCase
         $this->assertNull(AirportMatcher::codeFor('Terminal 3, London'));
     }
 
+    public function test_london_airports_are_recognised_by_locality_with_a_terminal(): void
+    {
+        // The real ETO Heathrow drop-off: a terminal + the LOCALITY, no "(LHR)"
+        // and no "Heathrow" — this used to fall through to FREE ROAM.
+        $this->assertSame('LHR', AirportMatcher::codeFor('Terminal 5, Wallis Road, Longford, Hounslow, UK'));
+        $this->assertSame('LHR', AirportMatcher::codeFor('Heathrow (LHR), Terminal 5, Longford, Hounslow'));
+        $this->assertSame('LGW', AirportMatcher::codeFor('North Terminal, Crawley'));
+    }
+
+    public function test_a_plain_london_locality_without_a_terminal_is_not_an_airport(): void
+    {
+        // A residential Hounslow address (no terminal token) must NOT read as LHR.
+        $this->assertNull(AirportMatcher::codeFor('14 Grove Road, Hounslow'));
+    }
+
     public function test_is_airport(): void
     {
         $this->assertTrue(AirportMatcher::isAirport('Terminal 2, Manchester'));
