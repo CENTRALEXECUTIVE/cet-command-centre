@@ -52,6 +52,44 @@ class CorrectPickupTest extends TestCase
         $this->assertSame('2026-10-04 09:15', $event->fresh()->start_at->format('Y-m-d H:i'));
     }
 
+    public function test_it_corrects_reversed_addresses_and_they_win_over_a_stale_event(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        // 9Y5MDRb (the DEPARTURE) showing its arrival sibling's date AND reversed
+        // addresses (MAN -> Worrygoose), driven by a cross-linked event whose
+        // description carries the arrival's "Pickup Location".
+        $booking = Booking::create([
+            'reference' => Booking::generateReference(), 'external_reference' => '9Y5MDRb',
+            'customer_id' => Customer::create(['name' => 'Janine Neill'])->id,
+            'vehicle_type_id' => $exec->id, 'source_system' => 'eto',
+            'pickup_at' => '2026-10-04 08:55',
+            'pickup_address' => 'Manchester Airport (MAN), Terminal 2',   // WRONG (arrival dir)
+            'destination_address' => '2 Worrygoose Lane, Rotherham',       // WRONG
+            'passengers' => 1, 'status' => 'allocated', 'payment_method' => 'card', 'payment_status' => 'paid',
+        ]);
+        CalendarEvent::create([
+            'booking_id' => $booking->id, 'title' => '*Janine Neill MAN Return (ABDI)*',
+            'description' => "📑 *Booking Confirmation*\n• *Pickup Location:* Manchester Airport (MAN), Terminal 2\n• *Drop-off Location:* 2 Worrygoose Lane, Rotherham",
+            'start_at' => '2026-10-04 08:55', 'end_at' => '2026-10-04 09:55', 'sync_status' => 'synced',
+        ]);
+
+        $code = Artisan::call('cet:correct-pickup', [
+            'reference' => '9Y5MDRb', 'datetime' => '2026-10-08 09:00',
+            '--pickup' => '2 Worrygoose Lane, Whiston, Rotherham, UK, S60 4AD',
+            '--dropoff' => 'Terminal 2, Manchester, UK',
+            '--force' => true,
+        ]);
+
+        $this->assertSame(0, $code);
+        $fresh = $booking->fresh();
+        $this->assertSame('2026-10-08 09:00', $fresh->pickup_at->format('Y-m-d H:i'));
+        $this->assertSame('2 Worrygoose Lane, Whiston, Rotherham, UK, S60 4AD', $fresh->pickup_address);
+        $this->assertSame('Terminal 2, Manchester, UK', $fresh->destination_address);
+        // The corrected columns now WIN over the stale cross-linked event text.
+        $this->assertSame('2 Worrygoose Lane, Whiston, Rotherham, UK, S60 4AD', $fresh->displayPickupAddress());
+        $this->assertSame('Terminal 2, Manchester, UK', $fresh->displayDropoffAddress());
+    }
+
     public function test_it_reports_when_the_reference_is_unknown(): void
     {
         $this->assertSame(1, Artisan::call('cet:correct-pickup', [
