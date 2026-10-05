@@ -58,7 +58,18 @@ class OutlookBookingService
         $parsedList = [];
         foreach ($this->mail->fetchRecent($days) as $message) {
             $stats['processed']++;
-            $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
+            // One unreadable email must NEVER abort the scan — otherwise every
+            // email after it (including brand-new bookings) is silently lost.
+            try {
+                $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
+            } catch (\Throwable $e) {
+                $stats['skipped']++;
+                \Illuminate\Support\Facades\Log::warning('ETO ingest could not parse one email — skipped', [
+                    'subject' => $message['subject'] ?? null, 'error' => $e->getMessage(),
+                ]);
+
+                continue;
+            }
             if ($parsed) {
                 $parsedList[] = $parsed;
             } else {
@@ -72,35 +83,40 @@ class OutlookBookingService
 
         foreach ($parsedList as $parsed) {
             $reference = $parsed['reference'] ?? null;
-            $existing = $reference
-                ? (Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
-                    ?? Booking::resolveByReference($reference))
-                : null;
-
-            // A finished job is locked — never re-write a completed/cancelled/
-            // no-show booking from a re-read email (it would only churn and risk
-            // clobbering what the office has recorded, e.g. driver pay).
-            if ($existing && $existing->status->isTerminal()) {
-                $stats['skipped']++;
-
-                continue;
-            }
-
-            // Already on the calendar and nothing changed → leave it (no re-push).
-            if ($existing && $this->alreadyCurrent($existing, $parsed)) {
-                $stats['skipped']++;
-
-                continue;
-            }
-
+            // CRITICAL: a single failing email must NEVER abort the batch. Emails
+            // are processed oldest→newest, so the NEWEST bookings are handled last
+            // — an earlier failure here used to hide a just-arrived booking on
+            // EVERY run (the "I nearly missed this booking" bug). Skip it, log it,
+            // and carry on to the rest.
             try {
+                $existing = $reference
+                    ? (Booking::where('source_system', 'eto')->where('external_reference', $reference)->first()
+                        ?? Booking::resolveByReference($reference))
+                    : null;
+
+                // A finished job is locked — never re-write a completed/cancelled/
+                // no-show booking from a re-read email (it would only churn and risk
+                // clobbering what the office has recorded, e.g. driver pay).
+                if ($existing && $existing->status->isTerminal()) {
+                    $stats['skipped']++;
+
+                    continue;
+                }
+
+                // Already on the calendar and nothing changed → leave it (no re-push).
+                if ($existing && $this->alreadyCurrent($existing, $parsed)) {
+                    $stats['skipped']++;
+
+                    continue;
+                }
+
                 $result = $this->upsertFromParsed($parsed, $allocateRotation);
                 $result ? $stats[$result['action']]++ : $stats['skipped']++;
-            } catch (\Illuminate\Database\QueryException $e) {
-                // A concurrent run already created this reference (unique index) —
-                // not a duplicate on the calendar, just skip it this pass.
+            } catch (\Throwable $e) {
+                // A concurrent run already created this reference (unique index),
+                // or any other per-email error — skip this one, keep the batch alive.
                 $stats['skipped']++;
-                \Illuminate\Support\Facades\Log::warning('Ingest upsert skipped (likely concurrent create)', [
+                \Illuminate\Support\Facades\Log::warning('ETO ingest skipped one email after an error', [
                     'reference' => $reference, 'error' => $e->getMessage(),
                 ]);
             }
