@@ -2161,17 +2161,28 @@
                     @endif
                 </p>
 
-                {{-- Rotation log for THIS job: whose turn it was, who did it, why. --}}
+                {{-- Rotation log for THIS job. IMPORTANT: for a normal 'advance',
+                     from_driver = the driver who TOOK this job and to_driver = who
+                     the pointer moved to NEXT (the OTHER driver) — NOT who did this
+                     job. So we never render to_driver as "did it"; who's on the job
+                     is always the booking's own assigned driver. --}}
                 @php
-                    $rotLabel = [
-                        'advance' => 'normal turn', 'paired_return_no_advance' => 'return leg — same driver',
-                        'paired_same_driver' => 'return leg — same driver', 'same_customer_continuity' => 'same customer — kept driver',
-                        'substitution_no_advance' => 'substitute — no advance', 'manual_override' => 'office set next',
-                    ];
                     $cs = fn ($u) => $u?->driverProfile?->callsign ?: $u?->name;
+                    // An accurate, tense-neutral phrase for one rotation-log entry.
+                    $logPhrase = function ($rl) use ($cs) {
+                        $from = $cs($rl->fromDriver); $to = $cs($rl->toDriver);
+                        return match ($rl->reason) {
+                            'advance' => ($from ?: '—').'’s turn'.($to ? ' · '.$to.' up next' : ''),
+                            'substitution_no_advance' => 'was '.($from ?: '—').'’s turn → covered by '.($to ?: '—'),
+                            'paired_return_no_advance', 'paired_same_driver' => 'same driver as the linked leg',
+                            'same_customer_continuity' => 'same customer — kept the same driver',
+                            'manual_override' => 'office set up next: '.($to ?: '—'),
+                            default => $rl->reason,
+                        };
+                    };
                 @endphp
                 @foreach($booking->rotationLogs()->with(['fromDriver.driverProfile', 'toDriver.driverProfile'])->get() as $rl)
-                    <p class="hint" style="margin:0 0 4px">🔁 {{ $rl->created_at?->format('D d M, H:i') }} · turn was <strong>{{ $cs($rl->fromDriver) ?: '—' }}</strong> → did it <strong>{{ $cs($rl->toDriver) ?: '—' }}</strong> <span class="muted">({{ $rotLabel[$rl->reason] ?? $rl->reason }})</span></p>
+                    <p class="hint" style="margin:0 0 4px">🔁 {{ $rl->created_at?->format('D d M, H:i') }} · {{ $logPhrase($rl) }}</p>
                 @endforeach
 
                 {{-- This job's driver — correctable on any booking. --}}
@@ -2196,7 +2207,7 @@
                     };
                 @endphp
                 @if($onRotation && $routeSeq->count() >= 1)
-                    <p class="hint" style="margin:0 0 10px">The running order for these executive <strong>{{ $routeLabel }}</strong> jobs — newest that came through at the top, each with whose turn it was → who did it. This job is highlighted. Change a driver here if the order's wrong.</p>
+                    <p class="hint" style="margin:0 0 10px">The running order for these executive <strong>{{ $routeLabel }}</strong> jobs — newest that came through at the top. The <strong>Driver</strong> column is who the job is allocated to; the line under it is whose turn it was on the rotation. This job is highlighted. Change a driver here if the order's wrong.</p>
                     <table class="rot-check">
                         <thead><tr><th>Came in</th><th>Job</th><th>Driver</th></tr></thead>
                         <tbody>
@@ -2210,9 +2221,11 @@
                                 </td>
                                 <td data-label="Driver">
                                     <strong>{{ $r->assignedDriverLabel() }}</strong>
-                                    @php $turn = $r->rotationLogs->sortBy('id')->first(); @endphp
+                                    {{-- The newest log reflects how the CURRENT driver got the job
+                                         (a later substitution wins over the first allocation). --}}
+                                    @php $turn = $r->rotationLogs->sortByDesc('id')->first(); @endphp
                                     @if($turn)
-                                        <div class="hint" style="font-size:11.5px;margin-top:2px">🔁 turn was <strong>{{ $cs($turn->fromDriver) ?: '—' }}</strong> → did it <strong>{{ $cs($turn->toDriver) ?: '—' }}</strong></div>
+                                        <div class="hint" style="font-size:11.5px;margin-top:2px">🔁 {{ $logPhrase($turn) }}</div>
                                     @endif
                                     @if(! $r->status->isTerminal() && $allocatableDrivers->isNotEmpty())
                                         <form method="POST" action="{{ route('despatch.reassign', $r) }}" style="margin:2px 0 0">

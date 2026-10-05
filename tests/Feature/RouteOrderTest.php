@@ -208,9 +208,11 @@ class RouteOrderTest extends TestCase
             'pickup_address' => 'Sheffield', 'destination_address' => 'Bakewell',
             'meta' => ['journey_label' => 'Free Roam'],
         ]);
+        // A normal 'advance': ABDI took this job (from_driver), the pointer then
+        // moved to MAJ (to_driver = who's UP NEXT, NOT who did this job).
         \App\Models\RotationLog::create([
-            'booking_id' => $earlier->id, 'from_driver_id' => $maj->id,
-            'to_driver_id' => $abdi->id, 'reason' => 'advance',
+            'booking_id' => $earlier->id, 'from_driver_id' => $abdi->id,
+            'to_driver_id' => $maj->id, 'reason' => 'advance',
         ]);
         $current = Booking::factory()->forVehicleType($exec)->create([
             'driver_id' => $maj->id,
@@ -222,6 +224,8 @@ class RouteOrderTest extends TestCase
         $res = $this->actingAs($admin)->get(route('bookings.show', $current))->assertOk();
         $res->assertSee('Free-roam job (distance priced)'); // classified as free-roam
         $res->assertSee('CET-ROAM1');                        // the previous free-roam job is listed
-        $res->assertSee('turn was');                         // per-row "whose turn → who did it"
+        $res->assertSee('up next');                          // "ABDI’s turn · MAJ up next"
+        // The old bug: MAJ (the next-up pointer) must NOT be shown as having "did it".
+        $res->assertDontSee('did it');
     }
 }
