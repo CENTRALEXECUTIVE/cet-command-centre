@@ -112,6 +112,33 @@ duplicated). It stores the Google event id and reads the event back to confirm.
 > (resume with `cet:calendar-resume`), or hard-killed with `CALENDAR_SYNC_ENABLED=false`.
 > Deleting a booking in CET never removes its calendar event — you do that by hand.
 
+### 4b. ETO email feed (Microsoft 365) — recommended live source
+
+Where: `.env` — `MS_GRAPH_*`. CET reads the **ETO confirmation emails** straight from
+the **admin@centralexecutivetransfers.co.uk** inbox and creates/updates bookings by
+reference (created / amended / cancelled, a/b legs paired). The emails are the
+authoritative original, so this is the most reliable source.
+
+1. **Microsoft Entra (Azure AD) → App registrations → New registration** —
+   name "CET Command Centre", single tenant. Copy **Application (client) ID** and
+   **Directory (tenant) ID**.
+2. **Certificates & secrets → New client secret** — copy the secret **Value**.
+3. **API permissions → Add → Microsoft Graph → *Application* permissions →
+   `Mail.Read`** (add `Mail.Send` only if you want enquiry auto-reply drafts) →
+   then **Grant admin consent**. (Optional hardening: an Exchange *Application
+   Access Policy* can limit the app to just the admin@ mailbox.)
+4. Set `.env` on `~/cet-staging` and `php artisan optimize:clear`:
+   ```
+   MS_GRAPH_CLIENT_ID=...
+   MS_GRAPH_CLIENT_SECRET=...
+   MS_GRAPH_TENANT_ID=...
+   MS_GRAPH_MAILBOX=admin@centralexecutivetransfers.co.uk   # default is bookings@ — MUST override
+   ```
+5. Verify: `php artisan cet:test-graph` — reports exactly where it fails.
+6. Backfill now: `php artisan cet:ingest-outlook`. After that it runs every 5 min
+   via the scheduler (step 6). Idempotent — keyed by reference, no duplicates, and
+   it never overwrites a field the office has edited.
+
 ### 5. Embed the booking widget on the website
 
 Where: **Settings → Web widgets** — copy the ready-made iframe snippets.
