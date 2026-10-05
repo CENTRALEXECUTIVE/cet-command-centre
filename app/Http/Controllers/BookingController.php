@@ -1628,7 +1628,7 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash,mark_paid,set_payee'],
+            'action' => ['required', 'in:set,record,tip,company_collected,confirm_cash,mark_paid,set_payee,undo_payment'],
             'amount' => [\Illuminate\Validation\Rule::requiredIf(
                 fn () => in_array($request->input('action'), ['set', 'record', 'tip', 'confirm_cash'], true)
             ), 'nullable', 'numeric', 'min:0', 'max:100000'],
@@ -1636,7 +1636,37 @@ class BookingController extends Controller
             'note' => ['nullable', 'string', 'max:200'],
             'payee' => ['nullable', 'string', 'max:120'],
             'collected' => ['nullable', 'boolean'],
+            'index' => ['required_if:action,undo_payment', 'nullable', 'integer', 'min:0'],
         ]);
+
+        // Undo a recorded payment (e.g. "marked paid in full" by mistake / the
+        // driver wasn't actually paid). Reverses just that entry's amount from the
+        // right bucket and removes it, so the driver is owed it again. Our records
+        // only — this never touches the customer's payment.
+        if ($data['action'] === 'undo_payment') {
+            $payroll = $booking->meta['payroll'] ?? [];
+            $history = $payroll['history'] ?? [];
+            $idx = (int) $data['index'];
+            if (! isset($history[$idx])) {
+                return $this->afterPayroll($request, $booking)
+                    ->with('status', 'That payment entry was already removed.');
+            }
+            $entry = $history[$idx];
+            $amount = round((float) ($entry['amount'] ?? 0), 2);
+            $isTip = ($entry['kind'] ?? null) === 'tip'
+                || stripos((string) ($entry['note'] ?? ''), 'tip') !== false;
+            if ($isTip) {
+                $payroll['tips_paid'] = round(max(0, ((float) ($payroll['tips_paid'] ?? 0)) - $amount), 2);
+            } else {
+                $payroll['paid'] = round(max(0, ((float) ($payroll['paid'] ?? 0)) - $amount), 2);
+            }
+            unset($history[$idx]);
+            $payroll['history'] = array_values($history);
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
+
+            return $this->afterPayroll($request, $booking)->with('status',
+                '£'.number_format($amount, 2).' payment reverted — '.$booking->payrollDriverName().' is owed it again.');
+        }
 
         // Route this job's driver fee to a PAYEE (e.g. Kash supplied the driver,
         // so we settle with Kash). Blank clears it back to paying the driver.
@@ -1680,6 +1710,7 @@ class BookingController extends Controller
                     'at' => now()->toDateTimeString(),
                     'by' => $request->user()->name,
                     'note' => 'Marked paid in full',
+                    'kind' => 'pay',
                 ];
             }
             // …and the card tip owed, so it lands in the driver's earnings for the job.
@@ -1690,6 +1721,7 @@ class BookingController extends Controller
                     'at' => now()->toDateTimeString(),
                     'by' => $request->user()->name,
                     'note' => 'Card tip paid to driver',
+                    'kind' => 'tip',
                 ];
             }
             $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payroll' => $payroll])])->save();
@@ -1753,6 +1785,7 @@ class BookingController extends Controller
                 'at' => now()->toDateTimeString(),
                 'by' => $request->user()->name,
                 'note' => $data['note'] ?? null,
+                'kind' => 'pay',
             ];
             $status = '£'.number_format($amount, 2).' recorded as paid to '.$booking->payrollDriverName().'.';
         }

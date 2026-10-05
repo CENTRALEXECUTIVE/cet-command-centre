@@ -1279,12 +1279,21 @@
             @if($booking->driverPayHistory() !== [])
                 <details style="margin-top:10px">
                     <summary class="muted" style="font-size:12px;cursor:pointer">Payment history</summary>
-                    @foreach(array_reverse($booking->driverPayHistory()) as $h)
-                        <div style="font-size:13px;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.1)">
-                            £{{ number_format($h['amount'], 2) }}
-                            <span class="muted">· {{ \Illuminate\Support\Carbon::parse($h['at'])->format('D d M Y, H:i') }}
-                            @if(!empty($h['by'])) · by {{ $h['by'] }}@endif
-                            @if(!empty($h['note'])) · {{ $h['note'] }}@endif</span>
+                    @foreach(array_reverse($booking->driverPayHistory(), true) as $i => $h)
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.1)">
+                            <span>£{{ number_format($h['amount'], 2) }}
+                                <span class="muted">· {{ \Illuminate\Support\Carbon::parse($h['at'])->format('D d M Y, H:i') }}@if(!empty($h['by'])) · by {{ $h['by'] }}@endif
+                                    @if(!empty($h['note'])) · {{ $h['note'] }}@endif</span>
+                            </span>
+                            {{-- Undo a payment recorded by mistake (driver wasn't actually paid).
+                                 Reverses just this entry; the driver is owed it again. --}}
+                            <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin:0"
+                                  onsubmit="return confirm('Revert this £{{ number_format($h['amount'], 2) }} payment? {{ $booking->payrollDriverName() }} will be owed it again.')">
+                                @csrf
+                                <input type="hidden" name="action" value="undo_payment">
+                                <input type="hidden" name="index" value="{{ $i }}">
+                                <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#b8323b;flex:none">Undo</button>
+                            </form>
                         </div>
                     @endforeach
                 </details>
