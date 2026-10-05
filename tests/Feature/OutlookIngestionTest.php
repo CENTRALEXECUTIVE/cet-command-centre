@@ -673,6 +673,44 @@ class OutlookIngestionTest extends TestCase
         $this->assertStringNotContainsString('(COVER)', $vclass->calendarEvent->title);
     }
 
+    public function test_office_edits_survive_the_five_minute_reingest(): void
+    {
+        $svc = app(OutlookBookingService::class);
+        $svc->upsertFromParsed($this->parsed([
+            'reference' => 'EDIT01', 'total_amount' => 300, 'payment_method' => 'Square',
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]));
+        $b = Booking::where('external_reference', 'EDIT01')->firstOrFail();
+
+        // The office edits airport, price, payment, notes and a special request, and
+        // (as updateFromForm does) records which fields it changed.
+        $lba = \App\Models\Airport::where('code', 'LBA')->firstOrFail();
+        $b->forceFill([
+            'airport_id' => $lba->id,
+            'payment_method' => 'cash',
+            'quoted_price' => 250, 'final_price' => 250,
+            'special_requests' => 'Ring on arrival',
+            'meta' => array_merge($b->meta ?? [], [
+                'driver_notes' => 'Gate code 1234',
+                'edited_fields' => ['airport', 'payment_method', 'price', 'special_requests', 'driver_notes'],
+                'manually_edited_at' => now()->toIso8601String(),
+            ]),
+        ])->save();
+
+        // The next 5-minute re-ingest arrives with the ORIGINAL email values.
+        $svc->upsertFromParsed($this->parsed([
+            'reference' => 'EDIT01', 'total_amount' => 300, 'payment_method' => 'Square',
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield',
+        ]));
+
+        $b->refresh();
+        $this->assertSame($lba->id, $b->airport_id, 'airport edit must survive the re-ingest');
+        $this->assertSame('cash', $b->payment_method->value, 'payment method edit must survive');
+        $this->assertEqualsWithDelta(250.0, (float) $b->fareAmount(), 0.01, 'price edit must survive');
+        $this->assertSame('Ring on arrival', $b->special_requests);
+        $this->assertSame('Gate code 1234', $b->meta['driver_notes']);
+    }
+
     public function test_remove_demo_deletes_non_eto_only(): void
     {
         $svc = app(OutlookBookingService::class);

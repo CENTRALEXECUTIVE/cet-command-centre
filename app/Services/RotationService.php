@@ -159,7 +159,11 @@ class RotationService
                 return $continuity;
             }
 
-            $airport = $booking->airport ?? $this->generalPool();
+            // Rotate on THIS job's own route. If the airport wasn't set on the
+            // booking, detect it from the addresses (e.g. "Terminal 2, Manchester")
+            // so an airport job advances ITS airport's pointer — never the Free Roam
+            // pool, which was making one route look like it moved another.
+            $airport = $booking->airport ?? $this->airportFromAddresses($booking) ?? $this->generalPool();
             $driver = $this->nextDriverFor($airport, $vehicleType);
 
             if (! $driver) {
@@ -326,5 +330,17 @@ class RotationService
     protected function generalPool(): ?Airport
     {
         return Airport::where('is_general_pool', true)->first();
+    }
+
+    /**
+     * The airport a booking touches, worked out from its addresses when the
+     * airport_id wasn't set — so a job still rotates on the correct route instead
+     * of falling into the Free Roam pool. Returns null for genuine non-airport work.
+     */
+    protected function airportFromAddresses(Booking $booking): ?Airport
+    {
+        $code = \App\Support\AirportMatcher::codeFor($booking->pickup_address, $booking->destination_address);
+
+        return $code ? Airport::where('code', $code)->where('is_active', true)->first() : null;
     }
 }

@@ -2562,6 +2562,13 @@ class Booking extends Model
         'customer_name' => ['columns' => ['customer_id']],
         'luggage' => ['columns' => ['luggage'], 'meta' => ['suitcases', 'hand_luggage', 'luggage_text']],
         'child_seats' => ['meta' => ['child_seats', 'infant_seats', 'booster_seats', 'child_seat']],
+        // Added Oct 2026 — these were reverting after an edit because no background
+        // writer was protecting them. The office is the boss: once changed, they win.
+        'airport' => ['columns' => ['airport_id']],
+        'payment_method' => ['columns' => ['payment_method']],
+        'price' => ['columns' => ['quoted_price', 'final_price']],
+        'special_requests' => ['columns' => ['special_requests']],
+        'driver_notes' => ['meta' => ['driver_notes']],
     ];
 
     /**

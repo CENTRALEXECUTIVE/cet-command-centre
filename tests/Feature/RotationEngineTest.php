@@ -79,6 +79,54 @@ class RotationEngineTest extends TestCase
         $this->assertEquals($this->maj->id, $state->next_driver_id);
     }
 
+    public function test_a_job_rotates_on_its_own_airport_detected_from_the_address(): void
+    {
+        // No airport_id set, but the pickup is clearly Manchester Airport. It must
+        // advance MAN's pointer — NOT the Free Roam pool (the old cross-route bug).
+        $man = Airport::where('code', 'MAN')->first();
+        $pool = Airport::where('is_general_pool', true)->first();
+        $poolBefore = $pool ? RotationState::where('airport_id', $pool->id)
+            ->where('vehicle_type_id', $this->executive->id)->value('next_driver_id') : null;
+
+        $booking = $this->makeBooking($this->executive, null, [
+            'pickup_address' => 'Terminal 2, Manchester',
+            'destination_address' => '2 Worrygoose Lane, Rotherham',
+        ]);
+        $driver = $this->rotation->allocate($booking);
+
+        // It allocated on MAN's rotation (seeded next = ABDI) and advanced MAN…
+        $this->assertTrue($driver->is($this->abdi));
+        $manState = RotationState::where('airport_id', $man->id)
+            ->where('vehicle_type_id', $this->executive->id)->first();
+        $this->assertNotNull($manState);
+        $this->assertSame($this->maj->id, $manState->next_driver_id);
+
+        // …and the Free Roam pool pointer did NOT move.
+        if ($pool) {
+            $poolAfter = RotationState::where('airport_id', $pool->id)
+                ->where('vehicle_type_id', $this->executive->id)->value('next_driver_id');
+            $this->assertSame($poolBefore, $poolAfter, 'a Manchester job must not move the Free Roam rotation');
+        }
+    }
+
+    public function test_one_route_does_not_move_another_routes_rotation(): void
+    {
+        $lhr = Airport::where('code', 'LHR')->first();
+        $man = Airport::where('code', 'MAN')->first();
+
+        $manBefore = RotationState::where('airport_id', $man->id)
+            ->where('vehicle_type_id', $this->executive->id)->value('next_driver_id');
+
+        // Allocate several LHR jobs.
+        $this->rotation->allocate($this->makeBooking($this->executive, 'LHR'));
+        $this->rotation->allocate($this->makeBooking($this->executive, 'LHR'));
+
+        $manAfter = RotationState::where('airport_id', $man->id)
+            ->where('vehicle_type_id', $this->executive->id)->value('next_driver_id');
+
+        $this->assertSame($manBefore, $manAfter, 'LHR allocations must not move MAN rotation');
+    }
+
     public function test_ema_is_next_for_abdi(): void
     {
         // Current state: EMA next = ABDI.

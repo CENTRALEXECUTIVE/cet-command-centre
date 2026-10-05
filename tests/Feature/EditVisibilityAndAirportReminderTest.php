@@ -436,7 +436,8 @@ class EditVisibilityAndAirportReminderTest extends TestCase
             'destination_address' => '99 Edited Street, Rotherham', // the ONLY change
             'passengers' => 7,                 // resubmitted same as calendar
             'suitcases' => 2, 'hand_luggage' => 2, // resubmitted same as calendar
-            'payment_method' => 'cash', 'journey_type' => 'one_way',
+            'payment_method' => $booking->payment_method->value, // unchanged — only the drop-off is edited
+            'journey_type' => 'one_way',
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $booking = $booking->fresh();

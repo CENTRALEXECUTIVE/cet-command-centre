@@ -27,6 +27,12 @@ class RecurringBookingTest extends TestCase
         $this->seed(VehicleTypeSeeder::class);
     }
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     private function template(array $overrides = []): RecurringBooking
     {
         $exec = VehicleType::where('slug', 'executive')->firstOrFail();
@@ -69,6 +75,9 @@ class RecurringBookingTest extends TestCase
 
     public function test_a_weekly_template_only_generates_on_its_weekday(): void
     {
+        // Freeze to a fixed Wednesday so a 7-day window holds exactly one Monday
+        // (otherwise the result depends on which weekday the suite runs on).
+        Carbon::setTestNow('2026-10-07 08:00'); // Wednesday
         // Monday-only, 7-day window → exactly one occurrence in the next week.
         $this->template(['frequency' => 'weekly', 'weekday' => Carbon::MONDAY, 'lead_days' => 7, 'pickup_time' => '23:30']);
 

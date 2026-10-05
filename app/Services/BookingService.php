@@ -198,7 +198,22 @@ class BookingService
                     ($booking->meta['child_seats'] ?? 0).'/'.($booking->meta['booster_seats'] ?? 0).'/'.($booking->meta['infant_seats'] ?? 0),
                     $childCap.'/'.$boosterCap.'/'.$infantCap,
                 ],
+                // "I'm the boss" — these were being reverted by the 5-minute re-ingest
+                // because they weren't tracked as office edits. Now they are, so a
+                // changed airport, payment method, notes or special request sticks.
+                'airport' => [optional($booking->airport)->code, optional(\App\Models\Airport::find($data['airport_id'] ?? null))->code],
+                'payment_method' => [$booking->payment_method?->value, $data['payment_method'] ?? null],
+                'special_requests' => [$booking->special_requests, $data['special_requests'] ?? null],
+                'driver_notes' => [$booking->meta['driver_notes'] ?? null, $driverNotes],
             ]);
+
+            // Price is numeric — compare as money so "115" vs "115.00" isn't a false
+            // edit, and a genuinely changed fare is pinned as the office's own.
+            $submittedPrice = $data['quoted_price'] ?? $data['final_price'] ?? null;
+            if ($submittedPrice !== null && $submittedPrice !== ''
+                && abs((float) $submittedPrice - (float) $booking->fareAmount()) > 0.001) {
+                $editedFields[] = 'price';
+            }
 
             // Via stops need their OWN check: changedFields ignores a change to an
             // empty value (so blanking a required field isn't taken as an edit), but
