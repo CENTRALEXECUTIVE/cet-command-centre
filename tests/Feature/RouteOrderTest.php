@@ -163,4 +163,65 @@ class RouteOrderTest extends TestCase
         $driver = User::factory()->create(['role' => 'driver']);
         $this->actingAs($driver)->get(route('route-order.index'))->assertForbidden();
     }
+
+    public function test_a_free_roam_booking_lists_previous_free_roam_jobs_in_its_rotation_history(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
+        $maj = User::factory()->driver()->create(['name' => 'Maj']);
+
+        // Two free-roam (non-airport) EXECUTIVE jobs. These used to show NO history
+        // at all because they carry no airport code; they must now group together
+        // on the shared general-pool rotation.
+        $earlier = Booking::factory()->forVehicleType($exec)->create([
+            'driver_id' => $abdi->id,
+            'pickup_at' => now()->addDay()->setTime(9, 0), 'created_at' => now()->subMinutes(30),
+            'pickup_address' => 'Sheffield City Centre', 'destination_address' => 'Peak District',
+            'meta' => ['journey_label' => 'Free Roam'],
+        ]);
+        $current = Booking::factory()->forVehicleType($exec)->create([
+            'driver_id' => $maj->id,
+            'pickup_at' => now()->addDay()->setTime(14, 0), 'created_at' => now()->subMinutes(5),
+            'pickup_address' => 'Rotherham', 'destination_address' => 'Chatsworth House',
+            'meta' => ['journey_label' => 'Free Roam'],
+        ]);
+
+        $this->assertSame('FREEROAM', $current->routeGroupKey());
+
+        $seq = $current->routeSequence(rotationOnly: true);
+        $this->assertTrue($seq->contains('id', $earlier->id), 'the previous free-roam job is in the rotation history');
+        $this->assertTrue($seq->contains('id', $current->id), 'this job is included in the list');
+    }
+
+    public function test_the_booking_page_shows_free_roam_rotation_history_with_turns(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $abdi = User::factory()->driver()->create(['name' => 'Abdi']);
+        $maj = User::factory()->driver()->create(['name' => 'Maj']);
+        \App\Models\DriverProfile::create(['user_id' => $abdi->id, 'callsign' => 'ABDI']);
+        \App\Models\DriverProfile::create(['user_id' => $maj->id, 'callsign' => 'MAJ']);
+
+        $earlier = Booking::factory()->forVehicleType($exec)->create([
+            'driver_id' => $abdi->id, 'reference' => 'CET-ROAM1',
+            'pickup_at' => now()->addDay()->setTime(9, 0), 'created_at' => now()->subMinutes(30),
+            'pickup_address' => 'Sheffield', 'destination_address' => 'Bakewell',
+            'meta' => ['journey_label' => 'Free Roam'],
+        ]);
+        \App\Models\RotationLog::create([
+            'booking_id' => $earlier->id, 'from_driver_id' => $maj->id,
+            'to_driver_id' => $abdi->id, 'reason' => 'advance',
+        ]);
+        $current = Booking::factory()->forVehicleType($exec)->create([
+            'driver_id' => $maj->id,
+            'pickup_at' => now()->addDay()->setTime(14, 0), 'created_at' => now()->subMinutes(5),
+            'pickup_address' => 'Rotherham', 'destination_address' => 'Chatsworth',
+            'meta' => ['journey_label' => 'Free Roam'],
+        ]);
+
+        $res = $this->actingAs($admin)->get(route('bookings.show', $current))->assertOk();
+        $res->assertSee('Free-roam job (distance priced)'); // classified as free-roam
+        $res->assertSee('CET-ROAM1');                        // the previous free-roam job is listed
+        $res->assertSee('turn was');                         // per-row "whose turn → who did it"
+    }
 }

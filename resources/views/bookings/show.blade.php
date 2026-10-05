@@ -2190,8 +2190,13 @@
                     @endif
                 </div>
 
+                @php
+                    $routeLabel = match ($booking->routeGroupKey()) {
+                        'FREEROAM' => 'free-roam', 'HOURLY' => 'hourly', default => $booking->routeGroupKey(),
+                    };
+                @endphp
                 @if($onRotation && $routeSeq->count() >= 1)
-                    <p class="hint" style="margin:0 0 10px">Executive {{ $booking->airportCode() ?: 'rotation' }} jobs — newest that came through at the top, with the driver the rotation gave each. This job is highlighted. Change a driver here if the order's wrong.</p>
+                    <p class="hint" style="margin:0 0 10px">The running order for these executive <strong>{{ $routeLabel }}</strong> jobs — newest that came through at the top, each with whose turn it was → who did it. This job is highlighted. Change a driver here if the order's wrong.</p>
                     <table class="rot-check">
                         <thead><tr><th>Came in</th><th>Job</th><th>Driver</th></tr></thead>
                         <tbody>
@@ -2205,6 +2210,10 @@
                                 </td>
                                 <td data-label="Driver">
                                     <strong>{{ $r->assignedDriverLabel() }}</strong>
+                                    @php $turn = $r->rotationLogs->sortBy('id')->first(); @endphp
+                                    @if($turn)
+                                        <div class="hint" style="font-size:11.5px;margin-top:2px">🔁 turn was <strong>{{ $cs($turn->fromDriver) ?: '—' }}</strong> → did it <strong>{{ $cs($turn->toDriver) ?: '—' }}</strong></div>
+                                    @endif
                                     @if(! $r->status->isTerminal() && $allocatableDrivers->isNotEmpty())
                                         <form method="POST" action="{{ route('despatch.reassign', $r) }}" style="margin:2px 0 0">
                                             @csrf

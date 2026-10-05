@@ -3028,28 +3028,53 @@ class Booking extends Model
     }
 
     /**
-     * Base query for OTHER jobs on the same route/airport as this one — used to
-     * show the rotation order (which job came before, and who it was assigned to).
-     * Matches the linked airport OR the "(CODE)" in either address, so calendar/
-     * pasted jobs that never set airport_id are still caught.
+     * A grouping key for "jobs of the same kind on the same route", used for the
+     * rotation-history list on the booking page. An airport job groups by its IATA
+     * code; everything else groups by how it was classified and allocated — HOURLY
+     * for an hourly hire, else FREEROAM (the distance-priced / general-pool
+     * rotation that every non-airport executive job shares). Never null, so the
+     * history list shows on EVERY booking — not only airport ones (free-roam jobs
+     * used to show nothing because they have no airport code).
+     */
+    public function routeGroupKey(): string
+    {
+        if ($code = $this->airportCode()) {
+            return $code;
+        }
+
+        return $this->isHourlyHire() ? 'HOURLY' : 'FREEROAM';
+    }
+
+    /**
+     * Base query for OTHER jobs on the same route as this one — used to show the
+     * rotation order (which job came before, and who it was assigned to). An
+     * AIRPORT route narrows cheaply in SQL (the linked airport, or the "(CODE)" in
+     * either address, so calendar/pasted jobs that never set airport_id are still
+     * caught). FREEROAM/HOURLY routes have no such column to filter on, so their
+     * candidates are narrowed in PHP by routeGroupKey() in the callers.
      */
     private function sameRouteQuery(): ?\Illuminate\Database\Eloquent\Builder
     {
-        $code = $this->airportCode();
-        if (! $code || ! $this->pickup_at) {
+        if (! $this->pickup_at) {
             return null;
         }
+        $key = $this->routeGroupKey();
 
-        return static::query()
+        $q = static::query()
             ->where('id', '!=', $this->id)
-            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
-            ->where(function ($w) use ($code) {
-                $w->where('pickup_address', 'like', '%('.$code.')%')
-                    ->orWhere('destination_address', 'like', '%('.$code.')%');
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value]);
+
+        if (preg_match('/^[A-Z]{3}$/', $key)) {
+            $q->where(function ($w) use ($key) {
+                $w->where('pickup_address', 'like', '%('.$key.')%')
+                    ->orWhere('destination_address', 'like', '%('.$key.')%');
                 if ($this->airport_id) {
                     $w->orWhere('airport_id', $this->airport_id);
                 }
             });
+        }
+
+        return $q;
     }
 
     /** A short display name for whoever this job is assigned to, or "Unassigned". */
@@ -3063,15 +3088,15 @@ class Booking extends Model
     /** The immediately previous job on the same route/airport, or null. */
     public function previousRouteJob(): ?self
     {
-        $code = $this->airportCode();
+        $key = $this->routeGroupKey();
         $q = $this->sameRouteQuery();
         if (! $q) {
             return null;
         }
 
         return $q->where('pickup_at', '<', $this->pickup_at)
-            ->orderByDesc('pickup_at')->with('driver')->limit(12)->get()
-            ->first(fn (self $b) => $b->airportCode() === $code);
+            ->orderByDesc('pickup_at')->with('driver')->limit(50)->get()
+            ->first(fn (self $b) => $b->routeGroupKey() === $key);
     }
 
     /**
@@ -3092,17 +3117,21 @@ class Booking extends Model
      */
     public function routeSequence(int $limit = 12, bool $rotationOnly = false): \Illuminate\Support\Collection
     {
-        $code = $this->airportCode();
+        $key = $this->routeGroupKey();
         $q = $this->sameRouteQuery();
         if (! $q) {
             return collect();
         }
 
-        $keep = fn (self $b) => $b->airportCode() === $code
+        $keep = fn (self $b) => $b->routeGroupKey() === $key
             && (! $rotationOnly || (bool) $b->vehicleType?->affects_rotation);
 
+        // Eager-load each row's rotation log (and both drivers) so the list can
+        // show "whose turn it was → who did it" per booking without an N+1.
         $others = (clone $q)
-            ->orderByDesc('created_at')->with(['driver', 'vehicleType'])->limit($limit * 3 + 10)->get()
+            ->orderByDesc('created_at')
+            ->with(['driver', 'vehicleType', 'rotationLogs.fromDriver.driverProfile', 'rotationLogs.toDriver.driverProfile'])
+            ->limit($limit * 3 + 10)->get()
             ->filter($keep)->take($limit);
 
         return $others->push($this)->unique('id')->sortByDesc('created_at')->values();
