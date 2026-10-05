@@ -144,12 +144,15 @@
     // critical + warning events. Info pings (set off, arrived…) stay in the log.
     function renderToasts(data) {
         if (!toasts) return;
-        toasts.innerHTML = '';
+        // Rebuild only the STICKY (critical/warning) toasts; the transient info
+        // flashes (driver updates) live in the same container and must survive a
+        // 30s re-poll, so we never wipe the whole container here.
+        toasts.querySelectorAll('.alert-toast.sticky').forEach(function (el) { el.remove(); });
         data.events.forEach(function (e) {
             if (e.acknowledged) return;
             if (e.severity !== 'critical' && e.severity !== 'warning') return;
             var t = document.createElement('div');
-            t.className = 'alert-toast sev-' + e.severity;
+            t.className = 'alert-toast sticky sev-' + e.severity;
             t.dataset.alertId = e.id;
             t.innerHTML =
                 '<span class="at-ico">' + (ICONS[e.severity] || '·') + '</span>'
@@ -161,6 +164,40 @@
             var b = t.querySelector('.at-done');
             if (b) b.addEventListener('click', function () { ack(e.id); });
             toasts.appendChild(t);
+        });
+    }
+
+    // Transient snackbars for NEW info pings — the driver-progress updates
+    // (set off / arrived / passenger on board / completed). They pop on WHATEVER
+    // admin page you're on and auto-fade after ~9s, so you still see the driver
+    // moving through the job while working in the app: browsers suppress Web Push
+    // while the tab is focused, and info never enters the critical siren path, so
+    // without this the office saw nothing on-screen. Not acknowledged
+    // server-side — info events age off the feed on their own.
+    function flashInfo(events) {
+        if (!toasts) return;
+        events.forEach(function (e) {
+            var t = document.createElement('div');
+            t.className = 'alert-toast flash sev-' + e.severity;
+            t.dataset.alertId = e.id;
+            t.innerHTML =
+                '<span class="at-ico">' + (ICONS[e.severity] || '✓') + '</span>'
+                + '<div class="at-body">'
+                + '<div class="at-title">' + (e.url ? '<a href="' + e.url + '">' + esc(e.title) + '</a>' : esc(e.title)) + '</div>'
+                + '<div class="at-time mono">' + esc(e.time) + '</div>'
+                + '</div>'
+                + '<button type="button" class="at-dismiss" aria-label="Dismiss">&times;</button>';
+            var gone = false;
+            var dismiss = function () {
+                if (gone) return;
+                gone = true;
+                t.classList.add('leaving');
+                setTimeout(function () { t.remove(); }, 320);
+            };
+            var b = t.querySelector('.at-dismiss');
+            if (b) b.addEventListener('click', dismiss);
+            toasts.appendChild(t);
+            setTimeout(dismiss, 9000); // auto-expire so updates don't pile up
         });
     }
 
@@ -182,11 +219,13 @@
 
         if (list) list.innerHTML = '';
         var hasLiveCritical = false;
+        var newInfo = [];
         data.events.forEach(function (e) {
             seen[e.id] = true;
             var isNew = !isFirst && !known[e.id];
             if (e.severity === 'critical' && !e.acknowledged) hasLiveCritical = true;
             if (isNew && e.severity === 'critical' && !e.acknowledged) hadNewCritical = true;
+            if (isNew && e.severity === 'info' && !e.acknowledged) newInfo.push(e);
 
             if (!list) return; // toasts-only page — no scrolling log to build
             var row = document.createElement('div');
@@ -210,6 +249,14 @@
         // alerts): the feed still updates and popups still show — it just stays
         // silent so a phone never disturbs a driver mid-journey.
         var muted = !!data.mute_sound;
+        // NEW driver-progress updates → gentle foreground snackbars on whatever
+        // admin page you're on, plus a soft chime so you hear the driver moving
+        // through the job while working in the app. Stays silent while you're out
+        // on a job (mute_sound). This is independent of the critical siren.
+        if (newInfo.length) {
+            flashInfo(newInfo);
+            if (!muted && !(hadNewCritical && chimeOn)) chime();
+        }
         if (hadNewCritical) { silenced = false; }        // a new critical re-arms the alarm
         if (hadNewCritical && chimeOn && !muted) chime();
         if (alarmOn && hasLiveCritical && !muted) { startAlarm(); } else { stopAlarm(true); }

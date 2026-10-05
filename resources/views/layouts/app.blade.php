@@ -244,6 +244,16 @@
         .alert-toast .at-done:hover{background:#000}
         .alert-toast.sev-warning{border-left-color:#e0a400}
         .alert-toast.sev-critical{border-left-color:#e5484d;animation:toastPulse 1.3s ease-in-out infinite}
+        /* Driver-progress snackbars (set off / arrived / on board / completed):
+           calm green, slide in, auto-fade — informs without the siren. */
+        .alert-toast.sev-info{border-left-color:#1f9d57}
+        .alert-toast.sev-info .at-ico{color:#1f9d57}
+        .alert-toast.flash{animation:toastIn .28s ease-out}
+        .alert-toast .at-dismiss{flex:none;background:transparent;color:inherit;opacity:.45;border:0;font-size:22px;line-height:1;padding:0 6px;cursor:pointer}
+        .alert-toast .at-dismiss:hover{opacity:1}
+        .alert-toast.leaving{opacity:0;transform:translateX(14px);transition:opacity .3s ease,transform .3s ease}
+        @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+        @media (prefers-reduced-motion: reduce){.alert-toast.flash{animation:none}.alert-toast.leaving{transition:none}}
         html[data-theme="dark"] .alert-toast{background:#161c2e;color:#f4f6fb;border-color:rgba(255,255,255,.10);box-shadow:0 12px 34px rgba(0,0,0,.42)}
         html[data-theme="dark"] .alert-toast .at-done{background:#fff;color:#111}
         html[data-theme="dark"] .alert-toast .at-done:hover{background:#eee}
@@ -258,7 +268,7 @@
     <div id="alerts-toasts" aria-live="assertive" aria-label="Live alerts"
          data-feed="{{ route('alerts.feed') }}"
          data-chime="{{ $u->alertPreferences()['chime'] ? '1' : '0' }}"></div>
-    <script src="{{ asset('js/cet-alerts.js') }}?v=9" defer></script>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=10" defer></script>
 @endif
 
 @include('partials.cookie-consent')
