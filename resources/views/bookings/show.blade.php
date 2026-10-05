@@ -2168,21 +2168,30 @@
                      is always the booking's own assigned driver. --}}
                 @php
                     $cs = fn ($u) => $u?->driverProfile?->callsign ?: $u?->name;
-                    // An accurate, tense-neutral phrase for one rotation-log entry.
-                    $logPhrase = function ($rl) use ($cs) {
-                        $from = $cs($rl->fromDriver); $to = $cs($rl->toDriver);
+                    // Accurate, tense-neutral phrase for one rotation-log entry.
+                    // ANCHOR on who the job is ACTUALLY allocated to ($assigned) — that
+                    // is the reliable truth and, for a normal turn, whose turn it was.
+                    // "Up next" is simply the OTHER logged driver, so the order is right
+                    // regardless of how from/to happen to be stored on old logs.
+                    $logPhrase = function ($rl, $assigned) use ($cs) {
+                        $me = $cs($assigned);
+                        $other = null;
+                        foreach ([$rl->fromDriver, $rl->toDriver] as $d) {
+                            $n = $cs($d);
+                            if ($n && $n !== $me) { $other = $n; break; }
+                        }
                         return match ($rl->reason) {
-                            'advance' => ($from ?: '—').'’s turn'.($to ? ' · '.$to.' up next' : ''),
-                            'substitution_no_advance' => 'was '.($from ?: '—').'’s turn → covered by '.($to ?: '—'),
+                            'advance' => ($me ?: '—').'’s turn'.($other ? ' · '.$other.' up next' : ''),
+                            'substitution_no_advance' => 'covered by '.($me ?: '—').($other ? ' (was '.$other.'’s turn)' : ''),
                             'paired_return_no_advance', 'paired_same_driver' => 'same driver as the linked leg',
                             'same_customer_continuity' => 'same customer — kept the same driver',
-                            'manual_override' => 'office set up next: '.($to ?: '—'),
+                            'manual_override' => 'driver set by the office',
                             default => $rl->reason,
                         };
                     };
                 @endphp
                 @foreach($booking->rotationLogs()->with(['fromDriver.driverProfile', 'toDriver.driverProfile'])->get() as $rl)
-                    <p class="hint" style="margin:0 0 4px">🔁 {{ $rl->created_at?->format('D d M, H:i') }} · {{ $logPhrase($rl) }}</p>
+                    <p class="hint" style="margin:0 0 4px">🔁 {{ $rl->created_at?->format('D d M, H:i') }} · {{ $logPhrase($rl, $booking->driver) }}</p>
                 @endforeach
 
                 {{-- This job's driver — correctable on any booking. --}}
@@ -2225,7 +2234,7 @@
                                          (a later substitution wins over the first allocation). --}}
                                     @php $turn = $r->rotationLogs->sortByDesc('id')->first(); @endphp
                                     @if($turn)
-                                        <div class="hint" style="font-size:11.5px;margin-top:2px">🔁 {{ $logPhrase($turn) }}</div>
+                                        <div class="hint" style="font-size:11.5px;margin-top:2px">🔁 {{ $logPhrase($turn, $r->driver) }}</div>
                                     @endif
                                     @if(! $r->status->isTerminal() && $allocatableDrivers->isNotEmpty())
                                         <form method="POST" action="{{ route('despatch.reassign', $r) }}" style="margin:2px 0 0">

@@ -3128,11 +3128,11 @@ class Booking extends Model
         $keep = fn (self $b) => $b->routeGroupKey() === $key
             && (! $rotationOnly || (bool) $b->vehicleType?->affects_rotation);
 
-        // Eager-load each row's rotation log (and both drivers) so the list can
-        // show "whose turn it was → who did it" per booking without an N+1.
+        // Eager-load each row's driver (with callsign) and its rotation log + both
+        // logged drivers, so the list can show whose turn it was without an N+1.
         $others = (clone $q)
             ->orderByDesc('created_at')
-            ->with(['driver', 'vehicleType', 'rotationLogs.fromDriver.driverProfile', 'rotationLogs.toDriver.driverProfile'])
+            ->with(['driver.driverProfile', 'vehicleType', 'rotationLogs.fromDriver.driverProfile', 'rotationLogs.toDriver.driverProfile'])
             ->limit($limit * 3 + 10)->get()
             ->filter($keep)->take($limit);
 
