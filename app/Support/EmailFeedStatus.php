@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Setting;
-use App\Services\Ai\AnthropicService;
 use App\Services\Inbox\GraphMailClient;
 use Illuminate\Support\Carbon;
 
@@ -47,14 +46,6 @@ class EmailFeedStatus
                 'detail' => $mailboxOk
                     ? 'Reading '.$mailbox.'.'
                     : 'Set MS_GRAPH_MAILBOX to admin@centralexecutivetransfers.co.uk'.($mailbox ? ' (currently '.$mailbox.').' : '.'),
-            ],
-            [
-                'key' => 'parser',
-                'label' => 'Email reader (AI parser)',
-                'ok' => $this->aiConfigured(),
-                'detail' => $this->aiConfigured()
-                    ? 'The parser that reads each email is connected.'
-                    : 'Add the Anthropic API key so emails can be read into bookings.',
             ],
             [
                 'key' => 'scheduler',
@@ -131,15 +122,6 @@ class EmailFeedStatus
     {
         try {
             return app(GraphMailClient::class)->configured();
-        } catch (\Throwable $e) {
-            return false;
-        }
-    }
-
-    private function aiConfigured(): bool
-    {
-        try {
-            return app(AnthropicService::class)->configured();
         } catch (\Throwable $e) {
             return false;
         }
