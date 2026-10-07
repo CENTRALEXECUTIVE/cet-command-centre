@@ -105,6 +105,7 @@ class InvoicePdf
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.receipt', [
             'booking' => $booking,
+            'logo' => $this->logoDataUri(),
             'isCover' => (bool) $cover,
             'isVat' => $isVat,
             'ratePercent' => (int) round($rate * 100),
@@ -123,6 +124,21 @@ class InvoicePdf
         $dompdf->render();
 
         return $dompdf->output();
+    }
+
+    /** The CET logo as a base64 data URI for the PDF (embedded, no remote fetch). */
+    private function logoDataUri(): ?string
+    {
+        foreach (['images/cet-logo.jpg', 'images/cet-logo.png'] as $rel) {
+            $path = public_path($rel);
+            if (is_file($path) && ($data = @file_get_contents($path)) !== false) {
+                $mime = str_ends_with($rel, '.png') ? 'image/png' : 'image/jpeg';
+
+                return 'data:'.$mime.';base64,'.base64_encode($data);
+            }
+        }
+
+        return null;
     }
 
     /** One journey's detail line for the invoice table. */
