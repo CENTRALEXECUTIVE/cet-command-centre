@@ -2227,15 +2227,26 @@
                 @if($onRotation && $routeSeq->count() >= 1)
                     <p class="hint" style="margin:0 0 10px">The running order for these executive <strong>{{ $routeLabel }}</strong> jobs — newest that came through at the top. The <strong>Driver</strong> column is who the job is allocated to; the line under it is whose turn it was on the rotation. This job is highlighted. Change a driver here if the order's wrong.</p>
                     <table class="rot-check">
-                        <thead><tr><th>Came in</th><th>Job</th><th>Driver</th></tr></thead>
+                        <thead><tr><th>Came in</th><th>Job</th><th>Turn → did it</th><th>Driver</th></tr></thead>
                         <tbody>
                         @foreach($routeSeq as $r)
-                            @php $isThis = $r->id === $booking->id; @endphp
+                            @php
+                                $isThis = $r->id === $booking->id;
+                                $rLog = $r->rotationLogs->firstWhere('reason', 'advance') ?? $r->rotationLogs->first();
+                            @endphp
                             <tr @if($isThis) style="background:rgba(251,186,42,.14);font-weight:700" @endif>
                                 <td data-label="Came in" style="white-space:nowrap;font-size:13px">{{ $r->created_at?->format('D d M, H:i') }}</td>
                                 <td data-label="Job" style="font-size:13px">
                                     @if($isThis)➡ {{ $r->reference }}@else<a href="{{ route('bookings.show', $r) }}" class="mono">{{ $r->reference }}</a>@endif
                                     <span class="muted">· {{ \Illuminate\Support\Str::limit($r->displayName(), 16) }}</span>
+                                </td>
+                                <td data-label="Turn → did it" style="font-size:13px">
+                                    @if($rLog)
+                                        🔁 <strong>{{ $cs($rLog->fromDriver) ?: '—' }}</strong> → <strong>{{ $cs($rLog->toDriver) ?: '—' }}</strong>
+                                        <span class="muted">({{ $rotLabel[$rLog->reason] ?? $rLog->reason }})</span>
+                                    @else
+                                        <span class="muted">—</span>
+                                    @endif
                                 </td>
                                 <td data-label="Driver">
                                     <strong>{{ $r->assignedDriverLabel() }}</strong>

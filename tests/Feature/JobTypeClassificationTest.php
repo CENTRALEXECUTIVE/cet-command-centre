@@ -68,4 +68,40 @@ class JobTypeClassificationTest extends TestCase
             ->assertSee('Job type &amp; driver', false)
             ->assertSee('Recognised as:', false);
     }
+
+    public function test_free_roam_executive_jobs_share_a_route_sequence(): void
+    {
+        // Two free-roam (no-airport) executive jobs must group together so the
+        // "previous bookings — whose turn / who did it" list shows on free-roam too.
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $older = Booking::factory()->forVehicleType($exec)->create([
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds LS1 1AA',
+            'created_at' => now()->subHour(),
+        ]);
+        $newer = Booking::factory()->forVehicleType($exec)->create([
+            'pickup_address' => 'Rotherham S60 1AA', 'destination_address' => 'Doncaster DN1 1AA',
+            'created_at' => now(),
+        ]);
+
+        $seq = $newer->routeSequence(rotationOnly: true);
+        $this->assertTrue($seq->contains('id', $older->id), 'free-roam jobs should list previous free-roam jobs');
+        $this->assertTrue($seq->contains('id', $newer->id));
+    }
+
+    public function test_the_previous_bookings_list_shows_turn_and_who_did_it_on_a_free_roam_job(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        Booking::factory()->forVehicleType($exec)->create([
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds LS1 1AA',
+            'created_at' => now()->subHour(),
+        ]);
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'pickup_address' => 'Rotherham S60 1AA', 'destination_address' => 'Doncaster DN1 1AA',
+        ]);
+
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('running order', false)
+            ->assertSee('Turn → did it', false);
+    }
 }
