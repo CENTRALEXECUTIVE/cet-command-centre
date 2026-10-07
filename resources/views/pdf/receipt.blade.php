@@ -5,64 +5,51 @@
 @verbatim
 <style>
   * { font-family: DejaVu Sans, sans-serif; }
-  body { color:#141414; font-size:12px; margin:0; }
+  body { color:#1a1a1a; font-size:12px; margin:0; line-height:1.45; }
   table { border-collapse:collapse; }
-  .sheet { padding:2px 0; }
+  .sheet { padding:4px 0; }
   .top { width:100%; }
   .top td { vertical-align:top; }
-  .brand { font-size:19px; font-weight:bold; letter-spacing:.5px; }
-  .brand .gold { color:#E9A413; }
-  .from { color:#555; font-size:10.5px; line-height:1.5; margin-top:6px; }
-  .title { text-align:right; }
-  .title h1 { font-size:24px; margin:0 0 6px; letter-spacing:2px; color:#0b0b0b; }
-  .metatab { font-size:11px; }
-  .metatab td { padding:2px 0; }
-  .metatab .k { color:#666; padding-right:12px; }
-  .metatab .v { text-align:right; font-weight:bold; }
-  .rule { height:3px; background:#FBBA2A; margin:14px 0 0; }
-  .parties { width:100%; margin-top:20px; }
+  .brand { font-size:22px; font-weight:bold; letter-spacing:.5px; line-height:1.15; }
+  .doc { text-align:right; }
+  .doc .kind { font-size:15px; font-weight:bold; letter-spacing:1px; }
+  .doc .meta { font-size:11px; color:#444; margin-top:2px; }
+  .rule { height:2px; background:#111; margin:14px 0 20px; }
+  .parties { width:100%; }
   .parties td { vertical-align:top; width:50%; }
-  .lbl { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#888; margin-bottom:4px; }
-  .parties .name { font-weight:bold; font-size:13px; }
-  .muted { color:#666; font-size:10.5px; line-height:1.5; }
-  table.items { width:100%; margin-top:22px; font-size:11px; }
-  table.items th { text-align:left; background:#0b0b0b; color:#fff; padding:8px 8px; font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
-  table.items th.num, table.items td.num { text-align:right; }
-  table.items td { padding:8px 8px; border-bottom:1px solid #eee; vertical-align:top; }
-  .totals { width:270px; margin-left:auto; margin-top:14px; font-size:12px; }
-  .totals td { padding:5px 8px; }
-  .totals .k { color:#555; text-align:right; }
-  .totals .v { text-align:right; width:110px; }
-  .totals .grand td { border-top:2px solid #0b0b0b; font-weight:bold; font-size:14px; padding-top:8px; }
-  .stamp { margin-top:18px; display:inline-block; border:2px solid #1f7a44; color:#1f7a44; font-weight:bold; letter-spacing:.1em; padding:6px 14px; border-radius:6px; font-size:13px; text-transform:uppercase; }
-  .stamp.due { border-color:#b32020; color:#b32020; }
-  .note { margin-top:14px; font-size:11px; color:#333; }
-  .foot { margin-top:26px; font-size:9.5px; color:#777; border-top:1px solid #e6e6e6; padding-top:8px; line-height:1.5; }
+  .lbl { font-weight:bold; font-size:12px; margin-bottom:4px; }
+  .muted { color:#555; }
+  table.items { width:100%; margin-top:26px; font-size:11.5px; }
+  table.items th { text-align:left; background:#f2eef0; color:#222; padding:9px 10px; font-size:11px; font-weight:bold; border-bottom:1px solid #e3dce0; }
+  table.items th.num, table.items td.num { text-align:right; white-space:nowrap; }
+  table.items td { padding:11px 10px; border-bottom:1px solid #eee; vertical-align:top; }
+  table.items .title { font-weight:bold; }
+  table.items .sub { color:#666; font-size:10.5px; margin-top:3px; }
+  .totals { width:300px; margin-left:auto; margin-top:18px; font-size:12px; }
+  .totals td { padding:5px 2px; }
+  .totals .k { color:#333; text-align:left; }
+  .totals .v { text-align:right; white-space:nowrap; }
+  .totals .strong td { font-weight:bold; border-top:1px solid #ccc; padding-top:8px; }
+  .totals .due td { font-weight:bold; font-size:15px; border-top:2px solid #111; padding-top:9px; }
+  .paysum { margin-top:34px; font-size:11.5px; }
+  .paysum .h { font-weight:bold; margin-bottom:3px; }
+  .foot { margin-top:40px; font-size:11px; font-weight:bold; }
+  .foot .reg { font-weight:normal; color:#555; font-size:10px; margin-top:4px; }
 </style>
 @endverbatim
 </head>
 <body>
 <div class="sheet">
+  @php
+    $kind = ($isCover ?? false) ? 'INVOICE' : (($isVat ?? false) ? 'VAT INVOICE' : 'RECEIPT');
+  @endphp
   <table class="top">
     <tr>
-      <td>
-        <div class="brand">CENTRAL <span class="gold">EXECUTIVE</span> TRANSFERS</div>
-        <div class="from">
-          {{ $company['name'] }}@if($company['number']) · Company No. {{ $company['number'] }}@endif<br>
-          @if($company['address']){!! nl2br(e($company['address'])) !!}<br>@endif
-          @if($company['vat_number'])VAT Reg: {{ $company['vat_number'] }}@endif
-          @if($company['operator_licence']) · Operator Licence {{ $company['operator_licence'] }}@endif<br>
-          @php $contact = trim(implode(' · ', array_filter([$company['phone'] ?? '', $company['email'] ?? '']))); @endphp
-          {{ $contact }}
-        </div>
-      </td>
-      <td class="title">
-        <h1>{{ ($isCover ?? false) ? 'INVOICE' : ($isVat ? 'VAT INVOICE' : 'RECEIPT') }}</h1>
-        <table class="metatab" style="margin-left:auto">
-          <tr><td class="k">Reference</td><td class="v">{{ $booking->reference }}</td></tr>
-          <tr><td class="k">Date issued</td><td class="v">{{ now()->format('d M Y') }}</td></tr>
-          <tr><td class="k">Journey date</td><td class="v">{{ $booking->pickup_at?->format('d M Y') ?? '—' }}</td></tr>
-        </table>
+      <td><div class="brand">{{ \Illuminate\Support\Str::upper($company['name'] ?: 'Central Executive Transfers') }}</div></td>
+      <td class="doc">
+        <div class="kind">{{ $kind }}</div>
+        <div class="meta">Invoice date: {{ now()->format('d/m/Y') }}</div>
+        <div class="meta">Reference: {{ $booking->external_reference ?: $booking->reference }}</div>
       </td>
     </tr>
   </table>
@@ -71,60 +58,76 @@
   <table class="parties">
     <tr>
       <td>
-        <div class="lbl">Billed to</div>
-        <div class="name">{{ $billedTo ?? $booking->displayName() }}</div>
-        @if($customerEmail)<div class="muted">{{ $customerEmail }}</div>@endif
-        @if($isCover ?? false)<div class="muted">Cover journey carried out by Central Executive Transfers for {{ $booking->displayName() }}.</div>@endif
+        <div class="lbl">Bill from</div>
+        <div>{{ $company['name'] ?: 'Central Executive Transfers Ltd' }}</div>
+        @if($company['vat_number'])<div class="muted">VAT Registration No: {{ $company['vat_number'] }}</div>@endif
+        @if($company['address'])<div class="muted">{!! nl2br(e($company['address'])) !!}</div>@endif
       </td>
       <td>
-        <div class="lbl">Vehicle</div>
-        <div class="muted">{{ $booking->vehicleType?->name ?? '—' }}</div>
-        <div class="lbl" style="margin-top:10px">Payment method</div>
-        <div class="muted">{{ ucfirst($booking->payment_method?->value ?? 'n/a') }}</div>
+        <div class="lbl">Bill to</div>
+        <div>{{ $billedTo }}</div>
+        @if(($attn ?? null) && $attn !== $billedTo)<div class="muted">Attn: {{ $attn }}</div>@endif
+        @if($customerEmail)<div class="muted">{{ $customerEmail }}</div>@endif
       </td>
     </tr>
   </table>
 
   <table class="items">
     <thead>
-      <tr><th style="width:18%">Date</th><th>Journey</th><th class="num" style="width:16%">Amount</th></tr>
+      <tr>
+        <th>Description</th>
+        <th class="num">Net</th>
+        <th class="num">VAT</th>
+        <th class="num">Total</th>
+      </tr>
     </thead>
     <tbody>
-      <tr>
-        <td>{{ $booking->pickup_at?->format('d/m/Y H:i') ?? '—' }}</td>
-        <td>
-          <strong>{{ $booking->pickup_address }}</strong><br>
-          <span class="muted">to {{ $booking->destination_address }}</span>
-        </td>
-        <td class="num">£{{ number_format((float) ($breakdown['gross'] ?? $gross), 2) }}</td>
-      </tr>
+      @foreach($lines as $line)
+        <tr>
+          <td>
+            <div class="title">{{ $line['title'] }}</div>
+            <div class="sub">{!! nl2br(e($line['detail'])) !!}</div>
+          </td>
+          <td class="num">£{{ number_format($line['net'], 2) }}</td>
+          <td class="num">£{{ number_format($line['vat'], 2) }}</td>
+          <td class="num">£{{ number_format($line['total'], 2) }}</td>
+        </tr>
+      @endforeach
     </tbody>
   </table>
 
   <table class="totals">
-    @if($isVat && $breakdown)
-      <tr><td class="k">Net</td><td class="v">£{{ number_format($breakdown['net'], 2) }}</td></tr>
-      <tr><td class="k">VAT ({{ (int) round(($breakdown['rate'] ?? 0) * 100) }}%)</td><td class="v">£{{ number_format($breakdown['vat'], 2) }}</td></tr>
-      <tr class="grand"><td class="k">Total</td><td class="v">£{{ number_format($breakdown['gross'], 2) }}</td></tr>
-    @else
-      <tr class="grand"><td class="k">Total</td><td class="v">£{{ number_format((float) $gross, 2) }}</td></tr>
+    <tr><td class="k">Subtotal (net)</td><td class="v">£{{ number_format($netTotal, 2) }}</td></tr>
+    @if($isVat ?? false)
+      <tr><td class="k">VAT ({{ $ratePercent }}%)</td><td class="v">£{{ number_format($vatTotal, 2) }}</td></tr>
     @endif
+    <tr class="strong"><td class="k">Total{{ ($isVat ?? false) ? ' including VAT' : '' }}</td><td class="v">£{{ number_format($grossTotal, 2) }}</td></tr>
+    @if($paymentsReceived > 0)
+      <tr><td class="k">Payments received</td><td class="v">£{{ number_format($paymentsReceived, 2) }}</td></tr>
+    @endif
+    <tr class="due"><td class="k">{{ $balanceDue > 0 ? 'BALANCE DUE' : 'PAID IN FULL' }}</td><td class="v">£{{ number_format(max(0, $balanceDue), 2) }}</td></tr>
   </table>
 
-  @if($paid)
-    <div class="stamp">Paid — thank you</div>
-  @else
-    <div class="stamp due">Balance due</div>
+  @if($paymentsReceived > 0 && $balanceDue > 0)
+    <div class="paysum">
+      <div class="h">Payment summary</div>
+      <div>Payments received to date: £{{ number_format($paymentsReceived, 2) }}.
+        @if(($isVat ?? false)) Additional VAT due: £{{ number_format($balanceDue, 2) }}.@else Balance outstanding: £{{ number_format($balanceDue, 2) }}.@endif
+      </div>
+    </div>
   @endif
 
-  @if($footerNote)<div class="note">{!! nl2br(e($footerNote)) !!}</div>@endif
+  @if($footerNote)<div class="paysum">{!! nl2br(e($footerNote)) !!}</div>@endif
 
   <div class="foot">
-    {{ $company['name'] }}@if($company['number']) · Company No. {{ $company['number'] }}@endif
-    @if($company['vat_number']) · VAT {{ $company['vat_number'] }}@endif
-    @if($company['operator_licence']) · Operator Licence {{ $company['operator_licence'] }}@endif
-    @if(config('cet.ico_registration_number')) · ICO {{ config('cet.ico_registration_number') }}@endif
-    · {{ $company['website'] }}
+    {{ $company['name'] ?: 'Central Executive Transfers Ltd' }}
+    <div class="reg">
+      @if($company['number'])Company No. {{ $company['number'] }}@endif
+      @if($company['vat_number']) · VAT {{ $company['vat_number'] }}@endif
+      @if($company['operator_licence']) · Operator Licence {{ $company['operator_licence'] }}@endif
+      @if($company['phone']) · {{ $company['phone'] }}@endif
+      @if($company['email']) · {{ $company['email'] }}@endif
+    </div>
   </div>
 </div>
 </body>
