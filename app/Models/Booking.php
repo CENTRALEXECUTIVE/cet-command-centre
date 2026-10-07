@@ -999,7 +999,10 @@ class Booking extends Model
         }
         $vat = app(\App\Services\Payments\VatService::class);
 
-        return ($this->payment_method?->value ?? null) === \App\Enums\PaymentMethod::Account->value
+        // Prices are stored EX-VAT (the standard price). When a VAT invoice is
+        // requested — account jobs, or a private customer who asked — VAT is added
+        // ON TOP of that net price (net + 20% = gross). Everything else has no VAT.
+        return $this->vatInvoiceRequested()
             ? $vat->fromNet($fare)
             : $vat->fromGross($fare);
     }
@@ -1014,6 +1017,34 @@ class Booking extends Model
     {
         return (bool) ($this->meta['vat_invoice_requested'] ?? false)
             || ($this->payment_method?->value ?? null) === \App\Enums\PaymentMethod::Account->value;
+    }
+
+    /** Turn the VAT-invoice flag on or off for this booking (office control). */
+    public function setVatInvoiceRequested(bool $on): void
+    {
+        $meta = $this->meta ?? [];
+        if ($on) {
+            $meta['vat_invoice_requested'] = true;
+        } else {
+            unset($meta['vat_invoice_requested']);
+        }
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /**
+     * The amount actually PAYABLE for this booking: the VAT-inclusive gross when a
+     * VAT invoice is requested (net + 20%), otherwise the plain fare. Null when
+     * there's no price yet.
+     */
+    public function amountPayable(): ?float
+    {
+        if ($this->fareGross() === null) {
+            return null;
+        }
+
+        return $this->vatInvoiceRequested()
+            ? ($this->fareVatBreakdown()['gross'] ?? $this->fareGross())
+            : $this->fareGross();
     }
 
     /** True when the driver collects the fare in cash on the day (no card/account). */

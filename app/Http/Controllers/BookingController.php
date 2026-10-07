@@ -1321,6 +1321,21 @@ class BookingController extends Controller
             : 'Cover-job details cleared — this is back to a normal customer booking.');
     }
 
+    /** Turn a VAT invoice on/off for this booking — VAT (20%) is then added on top. */
+    public function setVatInvoice(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $on = $request->boolean('vat');
+        $booking->setVatInvoiceRequested($on);
+
+        $gross = $booking->amountPayable();
+
+        return back()->with('status', $on
+            ? 'VAT invoice on — total with 20% VAT is £'.number_format((float) $gross, 2).'. Charge that and send the VAT invoice.'
+            : 'VAT invoice off — back to the standard price.');
+    }
+
     public function setPrice(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);

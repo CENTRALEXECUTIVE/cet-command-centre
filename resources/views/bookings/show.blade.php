@@ -494,6 +494,31 @@
             @else
                 <p class="hint" style="margin:0 0 10px">Total <strong>£{{ number_format((float) $booking->fareGross(), 2) }}</strong>{{ $booking->fareIsPaid() ? ' · marked paid' : ' · balance due' }}. To amend any detail, use <strong>Edit booking</strong> above, then reopen the PDF.</p>
             @endif
+
+            {{-- VAT invoice toggle — adds 20% on top of the standard (ex-VAT) price,
+                 for a customer who's asked to be invoiced with VAT. --}}
+            @unless($cover)
+                @php $vb = $booking->fareVatBreakdown(); @endphp
+                <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(0,0,0,.02)">
+                    <form method="POST" action="{{ route('bookings.vat-invoice', $booking) }}" style="margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        @csrf
+                        <input type="hidden" name="vat" value="{{ $booking->vatInvoiceRequested() ? '0' : '1' }}">
+                        <label class="checkbox-row" style="margin:0;font-weight:600">
+                            <input type="checkbox" onchange="this.form.submit()" @checked($booking->vatInvoiceRequested())>
+                            Charge VAT (customer wants a VAT invoice)
+                        </label>
+                        @if($booking->vatInvoiceRequested() && $vb)
+                            <span class="muted" style="font-size:13px">
+                                Net £{{ number_format($vb['net'], 2) }} + VAT £{{ number_format($vb['vat'], 2) }} =
+                                <strong style="color:var(--accent,#b8860b)">£{{ number_format($vb['gross'], 2) }} to charge</strong>
+                            </span>
+                        @endif
+                    </form>
+                    @if($booking->vatInvoiceRequested())
+                        <p class="hint" style="margin:8px 0 0">Charge the <strong>£{{ number_format((float) $booking->amountPayable(), 2) }}</strong> (incl. VAT) via a payment link below, then View/Email the VAT invoice — it shows the net, VAT and total and your VAT number.</p>
+                    @endif
+                </div>
+            @endunless
             <div class="toolbar" style="margin:0">
                 <a href="{{ route('bookings.receipt', $booking) }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 14px">👁 View PDF</a>
                 <a href="{{ route('bookings.receipt', ['booking' => $booking, 'download' => 1]) }}" class="btn btn-ghost" style="padding:8px 14px">⬇ Download</a>
