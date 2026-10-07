@@ -22,6 +22,20 @@
         </div>
     </div>
 
+    {{-- ETO email feed light — only shown when it's NOT pulling bookings in, so the
+         office sees immediately why new bookings aren't auto-adding. --}}
+    @php $feed = new \App\Support\EmailFeedStatus; @endphp
+    @if(! $feed->connected())
+        <div class="alert" role="alert" style="display:flex;gap:12px;align-items:flex-start;border-left:4px solid #e9a413;background:rgba(233,164,19,.10);border-radius:12px;padding:12px 14px;margin-bottom:16px">
+            <span style="font-size:18px;line-height:1">📥</span>
+            <span style="font-size:14px">
+                <strong>ETO email feed is off — new bookings aren't auto-adding.</strong>
+                They must be entered by hand until it's connected ({{ strtolower((string) $feed->firstProblem()) }} still needed).
+                <a href="{{ route('health.index') }}">See what's needed →</a>
+            </span>
+        </div>
+    @endif
+
     {{-- KPI command deck --}}
     <div class="deck">
         <a class="kpi" href="{{ route('jobs.day') }}">

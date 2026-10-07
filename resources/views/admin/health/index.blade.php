@@ -61,6 +61,46 @@
 @endforeach
 
 <div class="hgroup">
+    <h2>ETO email feed — why bookings do (or don't) auto-add</h2>
+    @php $feedOk = $emailFeed->connected(); $stats = $emailFeed->lastStats(); $lastRun = $emailFeed->lastRun(); @endphp
+    <div class="card" style="border-left:4px solid {{ $feedOk ? '#1c935c' : '#9aa2ad' }}">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="health-pill {{ $feedOk ? 'ok' : 'off' }}">{{ $feedOk ? '● Live' : '○ Not connected' }}</span>
+            <span style="font-size:14px">
+                @if($feedOk)
+                    New ETO bookings add themselves. {{ $lastRun ? 'Last pulled '.$lastRun->diffForHumans().'.' : 'Waiting for the first run.' }}
+                @else
+                    New ETO bookings must be added by hand until the items below are set up.
+                @endif
+            </span>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-top:12px">
+            <tbody>
+                @foreach($emailFeed->requirements() as $r)
+                    <tr style="border-bottom:1px solid var(--line)">
+                        <td style="padding:8px 8px;width:28px;font-size:16px">{{ $r['ok'] ? '✅' : '⬜' }}</td>
+                        <td style="padding:8px 8px;font-weight:600;white-space:nowrap">{{ $r['label'] }}</td>
+                        <td style="padding:8px 8px;font-size:13px;color:var(--muted)">{{ $r['detail'] }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        @if($lastRun)
+            <p class="hint" style="margin:10px 0 0">
+                Last run {{ $lastRun->diffForHumans() }} —
+                processed {{ $stats['processed'] ?? 0 }},
+                <strong>created {{ $stats['created'] ?? 0 }}</strong>,
+                updated {{ $stats['updated'] ?? 0 }},
+                skipped {{ $stats['skipped'] ?? 0 }}.
+            </p>
+        @endif
+        <p class="hint" style="margin:10px 0 0">Diagnose the connection on the server with <code>php artisan cet:test-graph</code>, or pull now with <code>php artisan cet:ingest-outlook</code>.</p>
+    </div>
+</div>
+
+<div class="hgroup">
     <h2>Background jobs — last run</h2>
     <div class="card jobs">
         <p style="margin:0 0 2px">When each key scheduled job last ran. If the scheduler is healthy these stay recent; blanks mean it hasn't run since the last deploy.</p>

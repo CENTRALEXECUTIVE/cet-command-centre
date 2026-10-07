@@ -40,7 +40,28 @@ class SystemHealth
                 'Distance pricing, fleet map and geocoding.', 'Add the Maps key in Settings to switch on.'),
             $this->connectivity('telephony', 'Number masking (Twilio)', fn () => filled(config('services.twilio.proxy_service_sid')),
                 'Masked calls/texts between driver and customer.', 'Optional — set the Twilio keys to switch on.'),
+            $this->emailFeed(),
         ];
+    }
+
+    /** The ETO email feed — whether new bookings auto-add from the inbox. */
+    private function emailFeed(): array
+    {
+        try {
+            $feed = new \App\Support\EmailFeedStatus;
+            if ($feed->connected()) {
+                $last = $feed->lastRun();
+                $when = $last ? 'last pulled '.$last->diffForHumans() : 'waiting for the first run';
+
+                return $this->row('email_feed', 'ETO email feed', 'ok', 'Connections',
+                    'Live — new ETO bookings add themselves ('.$when.').');
+            }
+
+            return $this->row('email_feed', 'ETO email feed', 'off', 'Connections',
+                'Not connected — new ETO bookings must be added by hand. Missing: '.strtolower((string) $feed->firstProblem()).'.');
+        } catch (\Throwable $e) {
+            return $this->row('email_feed', 'ETO email feed', 'off', 'Connections', 'Not connected.');
+        }
     }
 
     /** The worst status present, for the banner / badge. */

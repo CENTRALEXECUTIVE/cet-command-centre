@@ -26,6 +26,7 @@ class HealthController extends Controller
         return view('admin.health.index', [
             'groups' => $groups,
             'worst' => $health->worst(),
+            'emailFeed' => new \App\Support\EmailFeedStatus,
             'schedulerLast' => Heartbeat::last('scheduler'),
             'jobs' => [
                 'auto-deploy' => Heartbeat::last('auto-deploy'),
