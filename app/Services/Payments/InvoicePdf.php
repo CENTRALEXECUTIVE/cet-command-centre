@@ -39,6 +39,60 @@ class InvoicePdf
      * jobs) to a PDF. Reuses the company/bank profile so it matches the corporate
      * invoices. Returns the raw PDF bytes.
      */
+    /**
+     * One combined invoice to an operator for SEVERAL cover jobs — a line per
+     * booking with its own amount, then a grand total. Used when we've covered
+     * multiple jobs for another company and bill them all on one invoice.
+     *
+     * @param  \Illuminate\Support\Collection<int, Booking>  $bookings
+     */
+    public function renderCombinedCoverInvoice($bookings): string
+    {
+        $bookings = $bookings->values();
+        $first = $bookings->first();
+        $operator = $first?->coverFor();
+
+        $lines = $bookings->map(function (Booking $b) {
+            $b->loadMissing('vehicleType');
+            $amount = (float) ($b->coverForAmount() ?? 0);
+
+            return ['title' => 'Cover transfer', 'detail' => $this->legDetail($b),
+                'net' => $amount, 'vat' => 0.0, 'total' => $amount, 'paid' => false];
+        })->all();
+
+        $total = round(collect($lines)->sum('total'), 2);
+
+        $options = new Options;
+        $options->set('isRemoteEnabled', false);
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4');
+        $dompdf->loadHtml(View::make('pdf.receipt', [
+            'booking' => $first,
+            'logo' => $this->logoDataUri(),
+            'isCover' => true,
+            'isVat' => false,
+            'ratePercent' => 0,
+            'lines' => $lines,
+            'netTotal' => $total,
+            'vatTotal' => 0.0,
+            'grossTotal' => $total,
+            'paymentsReceived' => 0.0,
+            'balanceDue' => $total,
+            'attn' => null,
+            'billedTo' => $operator['name'] ?? 'Operator',
+            'customerEmail' => $operator['email'] ?? null,
+            'customerPhone' => $operator['phone'] ?? null,
+            'invoiceNumber' => 'CVR-'.now()->format('ymd-Hi'),
+            'issueDate' => now(),
+            'paymentDue' => now()->addDays(14),
+            'company' => \App\Support\InvoiceProfile::company(),
+            'footerNote' => \App\Support\InvoiceProfile::footerNote(),
+        ])->render());
+        $dompdf->render();
+
+        return $dompdf->output();
+    }
+
     public function renderReceipt(Booking $booking): string
     {
         $booking->loadMissing(['customer', 'vehicleType']);

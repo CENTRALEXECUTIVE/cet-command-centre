@@ -62,7 +62,8 @@
             @if($u->isCorporateClient())
                 <div class="nav-group">
                     <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
-                    <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.*') ? 'active' : '' }}">Invoices</a>
+                    <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.index') || request()->routeIs('invoices.show') || request()->routeIs('invoices.pdf') ? 'active' : '' }}">Invoices</a>
+                    <a href="{{ route('cover-invoices.index') }}" class="{{ request()->routeIs('cover-invoices.*') ? 'active' : '' }}">Cover invoices</a>
                     <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">My account</a>
                 </div>
             @endif
