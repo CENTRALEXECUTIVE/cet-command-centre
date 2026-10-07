@@ -137,13 +137,39 @@ class BookingService
             // this so a genuinely changed number sticks — see the override below.
             $priorContact = $booking->customerContactNumber();
 
-            // Keep the customer's contact details current.
+            // Keep the customer's contact details current — but NEVER corrupt a
+            // record that OTHER bookings share. If the office changes the name or
+            // number to a different person and this customer is used elsewhere,
+            // re-file THIS booking under the right customer (matched by number, or
+            // created) instead of overwriting the shared record. (This is the
+            // "why does it say Neil?" case: a booking filed under an existing
+            // customer whose record must stay intact for their own jobs.)
             if ($customer = $booking->customer) {
-                $customer->fill(array_filter([
-                    'name' => $data['customer_name'] ?? null,
-                    'phone' => $data['customer_phone'] ?? null,
-                    'email' => $data['customer_email'] ?? null,
-                ], fn ($v) => $v !== null && $v !== ''))->save();
+                $newName = trim((string) ($data['customer_name'] ?? ''));
+                $newPhone = trim((string) ($data['customer_phone'] ?? ''));
+                $newEmail = trim((string) ($data['customer_email'] ?? ''));
+                $digits = fn ($v) => substr(preg_replace('/\D/', '', (string) $v), -9);
+                $identityChanged = ($newName !== '' && $newName !== (string) $customer->name)
+                    || ($newPhone !== '' && $digits($newPhone) !== $digits($customer->phone));
+                $sharedByOthers = Customer::query()->whereKey($customer->id)->exists()
+                    && Booking::where('customer_id', $customer->id)->where('id', '!=', $booking->id)->exists();
+
+                if ($identityChanged && $sharedByOthers) {
+                    $target = ($newPhone !== '' ? Customer::where('phone', $newPhone)->first() : null)
+                        ?? Customer::create(array_filter([
+                            'name' => $newName ?: $customer->name,
+                            'phone' => $newPhone ?: null,
+                            'email' => $newEmail ?: null,
+                        ], fn ($v) => $v !== null && $v !== ''));
+                    $booking->customer_id = $target->id;
+                    $booking->setRelation('customer', $target);
+                } else {
+                    $customer->fill(array_filter([
+                        'name' => $data['customer_name'] ?? null,
+                        'phone' => $data['customer_phone'] ?? null,
+                        'email' => $data['customer_email'] ?? null,
+                    ], fn ($v) => $v !== null && $v !== ''))->save();
+                }
             }
 
             // "I'm the boss — listen to what I input." When the office edits the

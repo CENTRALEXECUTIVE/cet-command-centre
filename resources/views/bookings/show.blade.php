@@ -384,12 +384,19 @@
     @if(auth()->user()->isAdmin())
         @php $contactFix = $booking->contactNumberMismatch(); @endphp
         @if($contactFix)
+            @php $recordShared = $booking->customer_id && \App\Models\Booking::where('customer_id', $booking->customer_id)->where('id', '!=', $booking->id)->exists(); @endphp
             <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
                 <strong>⚠ Contact number doesn’t match the customer record</strong>
-                <p class="hint" style="margin:6px 0 8px">This booking’s contact number is <strong>{{ $contactFix }}</strong>, but the saved customer record has <strong>{{ $booking->customer?->phone }}</strong>. Messages already go to the booking’s number — tap below to also update the stored record to match.</p>
+                <p class="hint" style="margin:6px 0 8px">This booking’s contact number is <strong>{{ $contactFix }}</strong>, but it’s filed under <strong>{{ $booking->customer?->name }}</strong> whose saved number is <strong>{{ $booking->customer?->phone }}</strong>. Messages already go to the booking’s number.
+                    @if($recordShared)
+                        <br><strong style="color:#8a6d00">{{ $booking->customer?->name }} has other bookings</strong>, so tapping below re-files <em>this</em> booking under its own customer (named from the booking) and leaves {{ $booking->customer?->name }}’s record untouched — it will not change {{ $booking->customer?->name }}’s number.
+                    @else
+                        Tap below to correct the stored record to match.
+                    @endif
+                </p>
                 <form method="POST" action="{{ route('bookings.fix-contact', $booking) }}" style="margin:0">
                     @csrf
-                    <button class="btn" style="background:#b8860b;color:#fff;padding:8px 16px">Use the booking’s number ({{ $contactFix }})</button>
+                    <button class="btn" style="background:#b8860b;color:#fff;padding:8px 16px">{{ $recordShared ? 'Re-file this booking under its own customer' : 'Use the booking’s number ('.$contactFix.')' }}</button>
                 </form>
             </div>
         @endif

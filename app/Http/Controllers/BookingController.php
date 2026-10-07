@@ -1645,7 +1645,29 @@ class BookingController extends Controller
             return back()->with('status', 'Nothing to fix — the contact number already matches.');
         }
 
-        $booking->customer->forceFill(['phone' => $contact])->save();
+        $customer = $booking->customer;
+
+        // Never overwrite a record that OTHER bookings share — that would change
+        // the wrong person's number (e.g. this booking is filed under a different
+        // customer). Re-file THIS booking under a record that owns the booking's
+        // number instead (matched, or created from the booking's own name), and
+        // leave the shared record untouched.
+        $sharedByOthers = \App\Models\Booking::where('customer_id', $customer->id)
+            ->where('id', '!=', $booking->id)->exists();
+
+        if ($sharedByOthers) {
+            $target = \App\Models\Customer::where('phone', $contact)->first()
+                ?? \App\Models\Customer::create(array_filter([
+                    'name' => $booking->displayName(),
+                    'phone' => $contact,
+                    'email' => null,
+                ], fn ($v) => $v !== null && $v !== ''));
+            $booking->forceFill(['customer_id' => $target->id])->save();
+
+            return back()->with('status', "This booking was filed under {$customer->name}, who has other bookings — re-filed it under {$target->name} ({$contact}) and left {$customer->name}'s record untouched.");
+        }
+
+        $customer->forceFill(['phone' => $contact])->save();
 
         return back()->with('status', "Customer record number corrected to the booking's contact ({$contact}).");
     }

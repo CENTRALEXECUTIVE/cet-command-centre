@@ -69,6 +69,62 @@ class ContactNumberIntegrityTest extends TestCase
         $this->assertNull($booking->fresh(['customer', 'calendarEvent'])->contactNumberMismatch());
     }
 
+    public function test_fix_contact_re_files_under_a_new_customer_when_the_record_is_shared(): void
+    {
+        // The "why does it say Neil?" case: this booking (lead passenger Huzayfa)
+        // is filed under an existing customer (Neil) who has OTHER bookings. The
+        // fix must NOT overwrite Neil's number — it must re-file this booking under
+        // its own customer and leave Neil's record intact.
+        $admin = User::factory()->admin()->create();
+        $booking = $this->bookingWithCalendarContact('+447535823380', '+447379921855');
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['lead_name' => 'Huzayfa'])])->save();
+        $neil = $booking->customer;
+        $neil->update(['name' => 'Neil Simmonds']);
+        // Neil owns another, unrelated booking.
+        $other = Booking::factory()->create(['customer_id' => $neil->id]);
+
+        $this->actingAs($admin)->post(route('bookings.fix-contact', $booking))->assertRedirect();
+
+        // Neil's record is untouched — same number, still on his other booking.
+        $this->assertSame('+447535823380', $neil->fresh()->phone);
+        $this->assertSame($neil->id, $other->fresh()->customer_id);
+        // This booking moved to a NEW customer named from the booking, with the
+        // booking's own contact number.
+        $moved = $booking->fresh('customer');
+        $this->assertNotSame($neil->id, $moved->customer_id);
+        $this->assertSame('Huzayfa', $moved->customer->name);
+        $this->assertSame('+447379921855', $moved->customer->phone);
+    }
+
+    public function test_editing_a_shared_customer_booking_re_links_instead_of_corrupting(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = Booking::factory()->create();
+        $neil = $booking->customer;
+        $neil->update(['name' => 'Neil Simmonds', 'phone' => '+447535823380']);
+        Booking::factory()->create(['customer_id' => $neil->id]); // Neil has another job
+        $vt = \App\Models\VehicleType::query()->firstOrFail();
+
+        $this->actingAs($admin)->put(route('bookings.update', $booking), [
+            'customer_name' => 'Huzayfa',
+            'customer_phone' => '07379921855',
+            'vehicle_type_id' => $vt->id,
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'pickup_address' => '1 Test St, Sheffield',
+            'destination_address' => 'Manchester Airport',
+            'passengers' => 2,
+            'luggage' => 1,
+            'payment_method' => 'card',
+        ])->assertRedirect();
+
+        // Neil is untouched; this booking is now under a different customer.
+        $neil->refresh();
+        $this->assertSame('Neil Simmonds', $neil->name);
+        $this->assertSame('+447535823380', $neil->phone);
+        $this->assertNotSame($neil->id, $booking->fresh()->customer_id);
+        $this->assertSame('Huzayfa', $booking->fresh('customer')->customer->name);
+    }
+
     public function test_the_command_reports_and_can_fix_mismatches(): void
     {
         $this->bookingWithCalendarContact('07588804226', '+447971871155');
