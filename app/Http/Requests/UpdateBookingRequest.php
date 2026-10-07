@@ -27,8 +27,10 @@ class UpdateBookingRequest extends FormRequest
         return [
             // Customer contact (updates the linked customer record).
             'customer_name' => ['required', 'string', 'max:120'],
-            'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
-            'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
+            // Contact is OPTIONAL — a 3rd-party / cover job from another operator
+            // often has no customer phone or email, but we still add it to fulfil it.
+            'customer_phone' => ['nullable', 'string', 'max:32'],
+            'customer_email' => ['nullable', 'email', 'max:160'],
 
             // Service
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],

@@ -43,6 +43,22 @@ class BookingTest extends TestCase
         ], $overrides);
     }
 
+    public function test_a_cover_job_saves_without_customer_contact(): void
+    {
+        // A 3rd-party / cover job from another operator often has no phone or email
+        // — it must still save so we can fulfil it.
+        $admin = User::factory()->admin()->create();
+
+        $payload = $this->validPayload();
+        unset($payload['customer_phone']);
+
+        $this->actingAs($admin)->post(route('bookings.store'), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('bookings', ['destination_address' => 'Manchester Airport']);
+    }
+
     public function test_admin_create_captures_extras(): void
     {
         $admin = User::factory()->admin()->create();
