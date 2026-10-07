@@ -77,6 +77,11 @@ Schedule::command('cet:ingest-enquiries')->everyTenMinutes()->withoutOverlapping
 // Safety net: re-confirm every upcoming booking is on the calendar, hourly.
 Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping();
 
+// Self-heal wrongly-linked bookings (a booking stapled to a different person's
+// shared customer record) — re-file each under its own customer, hourly. Precise
+// (name AND number differ, non-corporate) and capped, so it's safe to run alone.
+Schedule::command('cet:check-customer-links --fix')->hourly()->withoutOverlapping();
+
 // Status watchdog: nudge drivers who haven't set off / tapped the next status,
 // detect arrivals/POB/complete from GPS, and feed the dashboard alerts log.
 Schedule::command('cet:status-watchdog')->everyMinute()->withoutOverlapping()

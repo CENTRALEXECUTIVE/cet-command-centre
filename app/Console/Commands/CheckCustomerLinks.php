@@ -20,7 +20,7 @@ use Illuminate\Console\Command;
  */
 class CheckCustomerLinks extends Command
 {
-    protected $signature = 'cet:check-customer-links {--fix : re-file suspect bookings under their own customer}';
+    protected $signature = 'cet:check-customer-links {--fix : re-file suspect bookings under their own customer} {--max=100 : safety cap — with --fix, refuse to auto-change more than this many at once}';
 
     protected $description = 'Find (and optionally fix) bookings filed under the wrong customer record';
 
@@ -66,6 +66,15 @@ class CheckCustomerLinks extends Command
             $this->info('Run again with --fix to re-file each under its own customer (the shared records are left untouched).');
 
             return self::SUCCESS;
+        }
+
+        // Safety cap: never auto-change a huge number in one go (a runaway would
+        // signal a detection problem, not a real backlog). Report and bail instead.
+        $max = (int) $this->option('max');
+        if (count($suspects) > $max) {
+            $this->error('Refusing to auto-fix '.count($suspects)." bookings at once (cap {$max}). This is unusually high — review the list above and raise --max deliberately if it's genuinely correct.");
+
+            return self::FAILURE;
         }
 
         $moved = 0;
