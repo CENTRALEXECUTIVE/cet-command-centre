@@ -93,4 +93,28 @@ class PaymentInvoiceTest extends TestCase
         $this->assertEquals('invoiced', $booking->fresh()->payment_status);
         $this->assertDatabaseHas('invoice_items', ['invoice_id' => $invoice->id, 'cost_code' => 'CC-100']);
     }
+
+    public function test_admin_can_generate_a_months_invoices_from_the_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $account = CorporateAccount::create([
+            'name' => 'LB Foster', 'slug' => 'lb-foster', 'account_code' => 'LBF', 'is_active' => true,
+        ]);
+        $booking = $this->book(['payment_method' => 'account', 'corporate_account_id' => $account->id]);
+        $booking->update(['status' => BookingStatus::Complete->value, 'pickup_at' => now()->subMonthNoOverflow()->startOfMonth()->addDays(2)]);
+
+        $month = now()->subMonthNoOverflow()->format('Y-m');
+        $this->actingAs($admin)->post(route('invoices.generate'), ['month' => $month])
+            ->assertRedirect()->assertSessionHas('status');
+
+        $this->assertSame(1, Invoice::where('corporate_account_id', $account->id)->count());
+    }
+
+    public function test_generating_a_quiet_month_reports_nothing_rather_than_erroring(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('invoices.generate'), ['month' => now()->subMonthNoOverflow()->format('Y-m')])
+            ->assertRedirect()->assertSessionHas('status');
+        $this->assertSame(0, Invoice::count());
+    }
 }

@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Services\Payments\InvoicePdf;
+use App\Services\Payments\InvoiceService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -25,6 +28,23 @@ class InvoiceController extends Controller
         }
 
         return view('invoices.index', ['invoices' => $query->paginate(20)]);
+    }
+
+    /** Generate the monthly corporate VAT invoices for a chosen month, on demand. */
+    public function generate(Request $request, InvoiceService $service): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $month = ! empty($data['month'])
+            ? Carbon::createFromFormat('Y-m', $data['month'])->startOfMonth()
+            : now()->subMonthNoOverflow()->startOfMonth();
+
+        $generated = $service->generateForPeriod($month->copy()->startOfMonth(), $month->copy()->endOfMonth());
+
+        return back()->with('status', $generated->count() > 0
+            ? 'Generated '.$generated->count().' invoice(s) for '.$month->format('F Y').'.'
+            : 'No corporate-account bookings to invoice for '.$month->format('F Y').' — nothing generated.');
     }
 
     public function show(Request $request, Invoice $invoice): View
