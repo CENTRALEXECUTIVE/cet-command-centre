@@ -57,6 +57,19 @@
                            style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
                 </label>
             </div>
+            <div class="grid grid-2" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+                <label>Out-of-area free radius (miles)
+                    <input type="number" step="0.1" min="0" name="deadmile_radius" required
+                           value="{{ old('deadmile_radius', number_format((float) $deadMileRadius, 1, '.', '')) }}"
+                           style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+                </label>
+                <label>Dead-mileage rate (£ per empty mile)
+                    <input type="number" step="0.01" min="0" name="deadmile_rate" required
+                           value="{{ old('deadmile_rate', number_format((float) $deadMileRate, 2, '.', '')) }}"
+                           style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+                </label>
+            </div>
+            <p class="hint" style="margin:10px 0 0">Pickups within the free radius of base pay no dead mileage. Beyond it, the <strong>whole</strong> base→pickup distance is charged at the rate on top of the journey fare — e.g. a pickup 40 miles out at £1/mile adds £40. Airport fixed prices are unaffected.</p>
         </div>
 
         <button class="btn btn-primary" style="padding:9px 20px">Save rates</button>

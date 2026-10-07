@@ -44,6 +44,8 @@ class FreeRoamRateController extends Controller
             'rows' => $rows,
             'vatUplift' => $pricer->vatUplift(),
             'estateUplift' => $pricer->estateUplift(),
+            'deadMileRate' => $pricer->deadMileageRate(),
+            'deadMileRadius' => $pricer->deadMileageFreeRadius(),
             'samplePrices' => $this->samples($pricer),
         ]);
     }
@@ -59,6 +61,8 @@ class FreeRoamRateController extends Controller
             'rates.*.tier2' => ['required', 'numeric', 'min:0', 'max:1000'],
             'vat_uplift' => ['required', 'numeric', 'min:0', 'max:1000'],
             'estate_uplift' => ['required', 'numeric', 'min:0', 'max:1000'],
+            'deadmile_rate' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'deadmile_radius' => ['nullable', 'numeric', 'min:0', 'max:1000'],
         ]);
 
         $rates = [];
@@ -76,6 +80,12 @@ class FreeRoamRateController extends Controller
         Setting::set('freeroam_rates', $rates, 'json', 'pricing');
         Setting::set('freeroam_vat_uplift', (string) round((float) $data['vat_uplift'], 2), 'string', 'pricing');
         Setting::set('freeroam_estate_uplift', (string) round((float) $data['estate_uplift'], 2), 'string', 'pricing');
+        if (isset($data['deadmile_rate'])) {
+            Setting::set('deadmile_rate', (string) round((float) $data['deadmile_rate'], 2), 'string', 'pricing');
+        }
+        if (isset($data['deadmile_radius'])) {
+            Setting::set('deadmile_radius', (string) round((float) $data['deadmile_radius'], 2), 'string', 'pricing');
+        }
 
         return back()->with('status', 'Free-roam rates saved.');
     }

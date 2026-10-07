@@ -67,6 +67,37 @@ class FreeRoamPricer
         return $v === null ? (float) config('cet.estate_over_executive', 10) : (float) $v;
     }
 
+    /** The out-of-area dead-mileage rate per empty mile (office-editable). */
+    public function deadMileageRate(): float
+    {
+        $v = Setting::get('deadmile_rate');
+
+        return $v === null ? (float) config('cet.dead_mileage.rate_per_mile', 1.00) : (float) $v;
+    }
+
+    /** Pickups within this many miles of base pay NO dead mileage (office-editable). */
+    public function deadMileageFreeRadius(): float
+    {
+        $v = Setting::get('deadmile_radius');
+
+        return $v === null ? (float) config('cet.dead_mileage.free_radius_miles', 15.0) : (float) $v;
+    }
+
+    /**
+     * The dead-mileage charge for an empty run of $baseToPickupMiles out to the
+     * pickup. Nothing inside the free radius; beyond it, the WHOLE distance is
+     * billed at the per-mile rate (so a 40-mile-out job charges 40 × rate), then
+     * rounded to a clean £5. Returns 0.0 when it doesn't apply.
+     */
+    public function deadMileageCharge(?float $baseToPickupMiles): float
+    {
+        if ($baseToPickupMiles === null || $baseToPickupMiles <= $this->deadMileageFreeRadius()) {
+            return 0.0;
+        }
+
+        return $this->roundToFive($baseToPickupMiles * $this->deadMileageRate());
+    }
+
     /**
      * The fare for a vehicle over a distance, VAT-inclusive and rounded to a clean
      * £5, or null when there's no rate (Rolls Royce = POA).

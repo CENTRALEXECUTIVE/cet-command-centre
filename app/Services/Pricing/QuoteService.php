@@ -166,7 +166,7 @@ class QuoteService
     ];
 
     /**
-     * @return array{price: float|null, basis: string, miles: float|null, fixed: bool, surcharge?: float, surcharge_label?: string|null}
+     * @return array{price: float|null, basis: string, miles: float|null, fixed: bool, dead_mileage?: float, dead_mileage_miles?: float|null, surcharge?: float, surcharge_label?: string|null}
      */
     public function quote(string $pickup, string $destination, VehicleType $vehicleType, ?\Illuminate\Support\Carbon $pickupAt = null): array
     {
@@ -191,11 +191,35 @@ class QuoteService
         $d = $this->distance->resolve($pickup, $destination);
         $price = $this->freeRoam->price($slug, $d['miles']);
 
+        // Out-of-area dead mileage: the empty run from base out to a far pickup is
+        // added on top of the booked journey. Only when we can price the journey
+        // and have a base address to measure from.
+        $dead = 0.0;
+        $deadMiles = null;
+        if ($price !== null && filled($base = (string) config('cet.base.address'))) {
+            // Base is fixed, so cache base→pickup per pickup to avoid a second
+            // Google call on every quote (the instant-quote widget re-quotes often).
+            $deadMiles = \Illuminate\Support\Facades\Cache::remember(
+                'deadmiles:'.md5(strtolower(trim($pickup))),
+                now()->addDay(),
+                fn () => $this->distance->resolve($base, $pickup)['miles'] ?? null,
+            );
+            $dead = $this->freeRoam->deadMileageCharge($deadMiles);
+            $price += $dead;
+        }
+
+        $basis = $d['miles'].' miles'.($d['source'] === 'estimate' ? ' (est.)' : '');
+        if ($dead > 0) {
+            $basis .= ' + '.rtrim(rtrim(number_format((float) $deadMiles, 1), '0'), '.').'mi out-of-area';
+        }
+
         return $this->withTimeSurcharge([
             'price' => $price,
             // Customer-facing label — no internal "free roam" jargon; just the distance.
-            'basis' => $d['miles'].' miles'.($d['source'] === 'estimate' ? ' (est.)' : ''),
+            'basis' => $basis,
             'miles' => $d['miles'],
+            'dead_mileage' => $dead,
+            'dead_mileage_miles' => $dead > 0 ? $deadMiles : null,
             'fixed' => false,
         ], $pickupAt);
     }

@@ -316,5 +316,19 @@ return [
         'lat' => (float) env('CET_BASE_LAT', 53.3811),   // Sheffield city centre
         'lng' => (float) env('CET_BASE_LNG', -1.4701),
         'buffer_minutes' => (int) env('CET_BASE_BUFFER', 10), // "Sheffield + 10 mins"
+        // A text address for the base, used to price the empty "dead mileage" run
+        // out to a far pickup (Google needs text, not just coords). Env-overridable.
+        'address' => (string) env('CET_BASE_ADDRESS', 'Sheffield, UK'),
+    ],
+
+    // Out-of-area "dead mileage": when a pickup is a long empty run from base, we
+    // charge for getting the car there as well as the booked journey. The office
+    // can change both figures from Settings → Free-roam rates; these are the
+    // fallback defaults. free_radius_miles = our normal coverage (no dead mileage
+    // charged inside it); rate_per_mile = the empty-run rate beyond it, applied to
+    // the WHOLE base→pickup distance (so a 40-mile-out job bills 40 × rate).
+    'dead_mileage' => [
+        'rate_per_mile' => (float) env('CET_DEADMILE_RATE', 1.00),
+        'free_radius_miles' => (float) env('CET_DEADMILE_RADIUS', 15.0),
     ],
 ];
