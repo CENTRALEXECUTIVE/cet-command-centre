@@ -688,8 +688,12 @@ class BookingController extends Controller
             ?: Carbon::parse($data['return_pickup_at'], config('app.timezone'));
 
         $return = \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $when, $data) {
-            $leg = $booking->replicate(['reference', 'status', 'driver_id', 'linked_booking_id', 'quoted_price', 'final_price']);
+            $leg = $booking->replicate(['reference', 'external_reference', 'status', 'driver_id', 'linked_booking_id', 'quoted_price', 'final_price']);
             $leg->reference = Booking::generateReference();
+            // The return leg is operator-created — it must NOT reuse the outbound's
+            // external reference (that pair is unique per source_system and would
+            // throw a duplicate-key error, and confuse the ETO re-ingest).
+            $leg->external_reference = null;
             $leg->status = BookingStatus::Pending;
             $leg->driver_id = null;
             $leg->is_return_leg = true;

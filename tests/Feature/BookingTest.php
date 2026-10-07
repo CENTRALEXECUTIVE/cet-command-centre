@@ -119,6 +119,31 @@ class BookingTest extends TestCase
             ->assertSee('id="flight_landing_at"', false);   // landing-time field
     }
 
+    public function test_create_return_leg_works_for_an_eto_booking(): void
+    {
+        // Regression: the return leg copied the outbound's external_reference, which
+        // hit the unique (source_system, external_reference) index → 500.
+        $admin = User::factory()->admin()->create();
+        $out = Booking::factory()->create([
+            'source_system' => 'eto', 'external_reference' => 'DFGXUG',
+            'pickup_address' => '1 Meadow Court, Dinnington S25 2AW',
+            'destination_address' => 'Manchester Airport (MAN)',
+            'pickup_at' => now()->addDay(),
+        ]);
+
+        $this->actingAs($admin)->post(route('bookings.return-leg', $out), [
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+        ])->assertRedirect();
+
+        $leg = Booking::where('is_return_leg', true)->latest('id')->first();
+        $this->assertNotNull($leg);
+        $this->assertNull($leg->external_reference, 'return leg must not reuse the ETO reference');
+        $this->assertStringContainsString('Manchester', $leg->pickup_address); // ends swapped
+        $this->assertStringContainsString('Meadow Court', $leg->destination_address);
+        $this->assertSame($out->id, $leg->linked_booking_id);
+        $this->assertSame($leg->id, $out->fresh()->linked_booking_id);
+    }
+
     public function test_bookings_list_can_be_searched(): void
     {
         $admin = User::factory()->admin()->create();

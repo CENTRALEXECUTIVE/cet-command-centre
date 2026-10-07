@@ -74,8 +74,14 @@ class BookingIntakeController extends Controller
 
         $booking = $intake->create($fields, $request->user());
 
-        return redirect()->route('bookings.show', $booking)
-            ->with('status', 'Booking added to the Command Centre.');
+        // Be explicit about what happened so a confirm never looks like it "did
+        // nothing": a matching reference returns the existing booking instead of a
+        // duplicate — say so, and still open it.
+        $message = $booking->wasRecentlyCreated
+            ? 'Booking added to the Command Centre.'
+            : 'That booking is already in the Command Centre (matched by reference '.($booking->external_reference ?: $booking->reference).') — opened it instead of adding a duplicate.';
+
+        return redirect()->route('bookings.show', $booking)->with('status', $message);
     }
 
     /** @return \Illuminate\Support\Collection<int, VehicleType> */

@@ -142,7 +142,10 @@
                     <div class="field"><label>Suitcases</label><input type="number" min="0" max="30" name="fields[suitcases]" value="{{ $fields['suitcases'] }}"></div>
                     <div class="field"><label>Hand luggage</label><input type="number" min="0" max="30" name="fields[hand_luggage]" value="{{ $fields['hand_luggage'] }}"></div>
                 </div>
-                <div class="grid grid-2" style="margin-top:4px">
+                <div class="grid grid-3" style="margin-top:4px">
+                    <div class="field"><label>Price / fare (£)</label>
+                        <input type="number" step="0.01" min="0" name="fields[price]" value="{{ $fields['price'] ?? '' }}" placeholder="e.g. 115">
+                    </div>
                     <div class="field"><label>Payment</label>
                         <select name="fields[payment]">
                             <option value="cash" @selected($fields['payment']==='cash')>Cash</option>

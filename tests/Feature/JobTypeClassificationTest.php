@@ -102,6 +102,6 @@ class JobTypeClassificationTest extends TestCase
 
         $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
             ->assertSee('running order', false)
-            ->assertSee('Turn → did it', false);
+            ->assertSee('whose turn', false);
     }
 }
