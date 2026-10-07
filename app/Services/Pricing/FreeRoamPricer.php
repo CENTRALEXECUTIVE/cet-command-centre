@@ -10,15 +10,17 @@ use App\Models\Setting;
  *   - 11–100 miles: flat + (miles − 10) × tier-1 rate.
  *   - 100+ miles:   flat + 90 × tier-1 + (miles − 100) × tier-2 rate.
  *
- * The rate structure below is VAT-EXCLUSIVE (the raw Price Guide). After VAT
- * registration a flat £10 uplift is added to every quote to cover the VAT, and
- * the result is rounded to the nearest £5 so customers only ever see clean
- * figures (…£0 / …£5). One-way. Airport transfers use the fixed-price matrix
- * instead (QuoteService). Estate is always Executive + £10. Rolls Royce is POA.
+ * The rate structure below, and every price this returns, is VAT-EXCLUSIVE —
+ * the standard price the customer pays. VAT (20%) is NOT baked in; it is only
+ * ever added on top when a VAT invoice is requested, and the office is shown both
+ * figures (QuoteService returns the ex-VAT price and the with-VAT price). Prices
+ * are rounded to the nearest £5 so they're always clean (…£0 / …£5). One-way.
+ * Airport transfers use the fixed-price matrix instead (QuoteService). Estate is
+ * always Executive + £10. Rolls Royce is POA.
  *
- * Rates, the VAT uplift and the estate uplift are all office-editable from the
- * Free-roam rates admin (stored in Settings), falling back to these defaults so
- * pricing never breaks if nothing has been saved.
+ * Rates and the estate uplift are office-editable from the Free-roam rates admin
+ * (stored in Settings), falling back to these defaults so pricing never breaks if
+ * nothing has been saved.
  */
 class FreeRoamPricer
 {
@@ -49,14 +51,6 @@ class FreeRoamPricer
         }
 
         return $rates;
-    }
-
-    /** The £ VAT uplift added to every free-roam quote (office-editable). */
-    public function vatUplift(): float
-    {
-        $v = Setting::get('freeroam_vat_uplift');
-
-        return $v === null ? (float) config('cet.freeroam_vat_uplift', 10) : (float) $v;
     }
 
     /** How much more an Estate is than an Executive (office-editable). */
@@ -99,8 +93,9 @@ class FreeRoamPricer
     }
 
     /**
-     * The fare for a vehicle over a distance, VAT-inclusive and rounded to a clean
-     * £5, or null when there's no rate (Rolls Royce = POA).
+     * The STANDARD (VAT-EXCLUSIVE) fare for a vehicle over a distance, rounded to a
+     * clean £5, or null when there's no rate (Rolls Royce = POA). VAT is added
+     * separately only when requested — see QuoteService / priceWithVat().
      */
     public function price(string $vehicleSlug, float $miles): ?float
     {
@@ -125,8 +120,20 @@ class FreeRoamPricer
             $raw = $flat + 90 * $tier1 + ($miles - 100) * $tier2;
         }
 
-        // Add the flat VAT uplift, then round to the nearest £5 for a clean price.
-        return $this->roundToFive($raw + $this->vatUplift());
+        // Round to the nearest £5 for a clean ex-VAT price.
+        return $this->roundToFive($raw);
+    }
+
+    /**
+     * The same fare WITH VAT added on top (for when a VAT invoice is requested).
+     * Uses the single VAT service so it agrees with receipts/invoices. Null when
+     * there's no automatic rate.
+     */
+    public function priceWithVat(string $vehicleSlug, float $miles): ?float
+    {
+        $net = $this->price($vehicleSlug, $miles);
+
+        return $net === null ? null : app(\App\Services\Payments\VatService::class)->fromNet($net)['gross'];
     }
 
     /** Round to the nearest £5 so a fare always ends in £0 or £5 (never pennies). */

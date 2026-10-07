@@ -75,10 +75,11 @@ class DeadMileagePricingTest extends TestCase
         $exec = VehicleType::where('slug', 'executive')->first();
         $quote = app(QuoteService::class)->quote('Goole DN14', 'Leeds LS1', $exec);
 
-        // Journey (20mi exec = 50 + 10×2 + 10 VAT = 80 → £80) + £40 dead mileage.
+        // Journey (20mi exec, ex-VAT = 50 + 10×2 = £70) + £40 dead mileage = £110.
         $this->assertSame(40.0, $quote['dead_mileage']);
         $this->assertSame(40.0, $quote['dead_mileage_miles']);
-        $this->assertSame(120.0, $quote['price']);
+        $this->assertSame(110.0, $quote['price']);
+        $this->assertSame(132.0, $quote['price_with_vat']); // £110 + 20% VAT
         $this->assertStringContainsString('out-of-area', $quote['basis']);
     }
 

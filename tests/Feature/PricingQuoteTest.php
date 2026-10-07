@@ -24,18 +24,23 @@ class PricingQuoteTest extends TestCase
     {
         $p = app(FreeRoamPricer::class);
 
-        // Price Guide rates + £10 VAT uplift, rounded to the nearest £5:
-        $this->assertEquals(60.00, $p->price('executive', 3));    // 50 min +10 = 60
-        $this->assertEquals(65.00, $p->price('executive', 12));   // 54 +10 = 64 → 65
-        $this->assertEquals(110.00, $p->price('executive', 36));  // 102 +10 = 112 → 110
-        $this->assertEquals(275.00, $p->price('executive', 120)); // 264.60 +10 = 274.60 → 275
-        $this->assertEquals(450.00, $p->price('executive', 220)); // 437.60 +10 = 447.60 → 450
-        $this->assertEquals(140.00, $p->price('minibus-8', 36));  // 127.98 +10 = 137.98 → 140
-        $this->assertEquals(180.00, $p->price('v-class', 36));    // 170.98 +10 = 180.98 → 180
-        $this->assertEquals(120.00, $p->price('estate', 36));     // executive 110 + £10
+        // Price Guide rates, ex-VAT, rounded to the nearest £5 (VAT added only when requested):
+        $this->assertEquals(50.00, $p->price('executive', 3));    // 50 min
+        $this->assertEquals(55.00, $p->price('executive', 12));   // 54 → 55
+        $this->assertEquals(100.00, $p->price('executive', 36));  // 102 → 100
+        $this->assertEquals(265.00, $p->price('executive', 120)); // 264.60 → 265
+        $this->assertEquals(440.00, $p->price('executive', 220)); // 437.60 → 440
+        $this->assertEquals(130.00, $p->price('minibus-8', 36));  // 127.98 → 130
+        $this->assertEquals(170.00, $p->price('v-class', 36));    // 170.98 → 170
+        $this->assertEquals(110.00, $p->price('estate', 36));     // executive 100 + £10
+
+        // The same with VAT on top, for when a VAT invoice is requested (20%).
+        $this->assertEquals(60.00, $p->priceWithVat('executive', 3));   // 50 + 20%
+        $this->assertEquals(204.00, $p->priceWithVat('v-class', 36));   // 170 + 20%
 
         // Rolls Royce has no automatic rate.
         $this->assertNull($p->price('rolls-royce-ghost', 40));
+        $this->assertNull($p->priceWithVat('rolls-royce-ghost', 40));
     }
 
     public function test_airport_run_uses_the_fixed_price_both_ways(): void
@@ -122,7 +127,8 @@ class PricingQuoteTest extends TestCase
 
         $q = $quotes->quote('Sheffield S1', 'Rotherham S60', $exec);
         $this->assertFalse($q['fixed']);
-        $this->assertEquals(60.0, $q['price']); // 10mi estimate = min fare £50 + £10
+        $this->assertEquals(50.0, $q['price']);          // 10mi estimate = min fare £50 ex-VAT
+        $this->assertEquals(60.0, $q['price_with_vat']); // £50 + 20% VAT
         // Customer-facing basis shows the distance, never the internal "free roam" term.
         $this->assertStringNotContainsStringIgnoringCase('free roam', $q['basis']);
         $this->assertStringContainsString('miles', $q['basis']);

@@ -166,7 +166,7 @@ class QuoteService
     ];
 
     /**
-     * @return array{price: float|null, basis: string, miles: float|null, fixed: bool, dead_mileage?: float, dead_mileage_miles?: float|null, surcharge?: float, surcharge_label?: string|null}
+     * @return array{price: float|null, price_with_vat?: float|null, basis: string, miles: float|null, fixed: bool, dead_mileage?: float, dead_mileage_miles?: float|null, surcharge?: float, surcharge_label?: string|null}
      */
     public function quote(string $pickup, string $destination, VehicleType $vehicleType, ?\Illuminate\Support\Carbon $pickupAt = null): array
     {
@@ -186,7 +186,7 @@ class QuoteService
 
         // Free roam → distance-based.
         if (! $this->freeRoam->hasRate($slug)) {
-            return ['price' => null, 'basis' => 'Price on request', 'miles' => null, 'fixed' => false];
+            return ['price' => null, 'price_with_vat' => null, 'basis' => 'Price on request', 'miles' => null, 'fixed' => false];
         }
         $d = $this->distance->resolve($pickup, $destination);
         $price = $this->freeRoam->price($slug, $d['miles']);
@@ -233,6 +233,13 @@ class QuoteService
         if ($surcharge > 0 && $quote['price'] !== null) {
             $quote['price'] = round((float) $quote['price'] + $surcharge, 2);
         }
+
+        // Show BOTH prices: the standard price is VAT-EXCLUSIVE, and price_with_vat
+        // is the same figure with VAT on top for when a VAT invoice is requested.
+        // VAT is never baked into the headline price.
+        $quote['price_with_vat'] = $quote['price'] === null
+            ? null
+            : app(\App\Services\Payments\VatService::class)->fromNet((float) $quote['price'])['gross'];
 
         return $quote;
     }

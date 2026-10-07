@@ -9,9 +9,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Office "super control" of the distance-based fares. Rates, the VAT uplift and
- * the estate uplift live in Settings and flow straight into FreeRoamPricer, so a
- * saved change reprices customer quotes with no code deploy.
+ * Office "super control" of the distance-based fares. Rates and the estate uplift
+ * live in Settings and flow straight into FreeRoamPricer, so a saved change
+ * reprices customer quotes with no code deploy. Prices are ex-VAT.
  */
 class FreeRoamRateAdminTest extends TestCase
 {
@@ -26,8 +26,9 @@ class FreeRoamRateAdminTest extends TestCase
     public function test_defaults_apply_when_nothing_is_saved(): void
     {
         $pricer = app(FreeRoamPricer::class);
-        // Executive 25 miles: 50 + 15*2.00 = 80, +10 VAT = 90, rounds to 90.
-        $this->assertSame(90.0, $pricer->price('executive', 25));
+        // Executive 25 miles, ex-VAT: 50 + 15*2.00 = 80, rounds to 80. VAT is added
+        // separately only when requested.
+        $this->assertSame(80.0, $pricer->price('executive', 25));
     }
 
     public function test_admin_can_change_a_rate_and_it_reprices(): void
@@ -43,15 +44,14 @@ class FreeRoamRateAdminTest extends TestCase
                 'minibus-8-xl' => ['flat' => 90, 'tier1' => 2.23, 'tier2' => 2.15],
                 'v-class' => ['flat' => 100, 'tier1' => 2.73, 'tier2' => 2.65],
             ],
-            'vat_uplift' => 10,
             'estate_uplift' => 15,
         ])->assertRedirect();
 
         $pricer = app(FreeRoamPricer::class);
-        // Executive 25 mi now: 60 + 15*2.50 = 97.5, +10 = 107.5, rounds to 110 (nearest £5).
-        $this->assertSame(110.0, $pricer->price('executive', 25));
+        // Executive 25 mi now, ex-VAT: 60 + 15*2.50 = 97.5, rounds to 100 (nearest £5).
+        $this->assertSame(100.0, $pricer->price('executive', 25));
         // Estate follows Executive + its (edited) uplift.
-        $this->assertSame(125.0, $pricer->price('estate', 25));
+        $this->assertSame(115.0, $pricer->price('estate', 25));
     }
 
     public function test_a_partial_save_leaves_other_vehicles_on_their_defaults(): void
@@ -67,13 +67,12 @@ class FreeRoamRateAdminTest extends TestCase
                 'minibus-8-xl' => ['flat' => 90, 'tier1' => 2.23, 'tier2' => 2.15],
                 'v-class' => ['flat' => 100, 'tier1' => 2.73, 'tier2' => 2.65],
             ],
-            'vat_uplift' => 10,
             'estate_uplift' => 10,
         ])->assertRedirect();
 
         $pricer = app(FreeRoamPricer::class);
-        // v-class unchanged from default: 5mi = flat 100 + 10 = 110.
-        $this->assertSame(110.0, $pricer->price('v-class', 5));
+        // v-class unchanged from default: 5mi = flat 100 ex-VAT.
+        $this->assertSame(100.0, $pricer->price('v-class', 5));
     }
 
     public function test_a_non_admin_cannot_manage_free_roam_rates(): void
@@ -82,10 +81,10 @@ class FreeRoamRateAdminTest extends TestCase
         $this->actingAs($client)->get(route('free-roam.index'))->assertForbidden();
         $this->actingAs($client)->put(route('free-roam.update'), [
             'rates' => ['executive' => ['flat' => 1, 'tier1' => 1, 'tier2' => 1]],
-            'vat_uplift' => 0, 'estate_uplift' => 0,
+            'estate_uplift' => 0,
         ])->assertForbidden();
 
-        // Untouched — still the default.
-        $this->assertSame(90.0, app(FreeRoamPricer::class)->price('executive', 25));
+        // Untouched — still the default (ex-VAT).
+        $this->assertSame(80.0, app(FreeRoamPricer::class)->price('executive', 25));
     }
 }

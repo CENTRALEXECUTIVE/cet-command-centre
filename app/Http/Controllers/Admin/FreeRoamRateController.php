@@ -42,10 +42,10 @@ class FreeRoamRateController extends Controller
 
         return view('admin.free-roam.index', [
             'rows' => $rows,
-            'vatUplift' => $pricer->vatUplift(),
             'estateUplift' => $pricer->estateUplift(),
             'deadMileRate' => $pricer->deadMileageRate(),
             'deadMileRadius' => $pricer->deadMileageFreeRadius(),
+            'vatPercent' => app(\App\Services\Payments\VatService::class)->ratePercent(),
             'samplePrices' => $this->samples($pricer),
         ]);
     }
@@ -59,7 +59,6 @@ class FreeRoamRateController extends Controller
             'rates.*.flat' => ['required', 'numeric', 'min:0', 'max:100000'],
             'rates.*.tier1' => ['required', 'numeric', 'min:0', 'max:1000'],
             'rates.*.tier2' => ['required', 'numeric', 'min:0', 'max:1000'],
-            'vat_uplift' => ['required', 'numeric', 'min:0', 'max:1000'],
             'estate_uplift' => ['required', 'numeric', 'min:0', 'max:1000'],
             'deadmile_rate' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'deadmile_radius' => ['nullable', 'numeric', 'min:0', 'max:1000'],
@@ -78,7 +77,6 @@ class FreeRoamRateController extends Controller
         }
 
         Setting::set('freeroam_rates', $rates, 'json', 'pricing');
-        Setting::set('freeroam_vat_uplift', (string) round((float) $data['vat_uplift'], 2), 'string', 'pricing');
         Setting::set('freeroam_estate_uplift', (string) round((float) $data['estate_uplift'], 2), 'string', 'pricing');
         if (isset($data['deadmile_rate'])) {
             Setting::set('deadmile_rate', (string) round((float) $data['deadmile_rate'], 2), 'string', 'pricing');
@@ -92,9 +90,9 @@ class FreeRoamRateController extends Controller
 
     /**
      * A few worked example fares so the office can sanity-check a change before it
-     * goes live to customers.
+     * goes live. Each is the STANDARD (ex-VAT) price and the with-VAT price.
      *
-     * @return array<int, array{miles: int, prices: array<string, ?float>}>
+     * @return array<int, array{miles: int, prices: array<string, array{net: ?float, gross: ?float}>}>
      */
     private function samples(FreeRoamPricer $pricer): array
     {
@@ -102,7 +100,10 @@ class FreeRoamRateController extends Controller
         foreach ([5, 25, 60, 120] as $miles) {
             $prices = [];
             foreach (['executive', 'estate', 'v-class'] as $slug) {
-                $prices[$slug] = $pricer->price($slug, (float) $miles);
+                $prices[$slug] = [
+                    'net' => $pricer->price($slug, (float) $miles),
+                    'gross' => $pricer->priceWithVat($slug, (float) $miles),
+                ];
             }
             $out[] = ['miles' => $miles, 'prices' => $prices];
         }
