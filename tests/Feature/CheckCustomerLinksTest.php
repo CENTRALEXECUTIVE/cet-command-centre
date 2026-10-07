@@ -57,6 +57,40 @@ class CheckCustomerLinksTest extends TestCase
         $this->assertSame('Huzayfa', $huz->customer->name);
     }
 
+    public function test_a_nickname_on_the_same_number_is_not_flagged(): void
+    {
+        // Same number → same person under a nickname ("Abdi" vs "Abdirazak"); must
+        // NOT be split, even though the record is shared and the names differ.
+        $rec = Customer::factory()->create(['name' => 'Abdirazak Hassan', 'phone' => '+447700900111']);
+        Booking::factory()->create(['customer_id' => $rec->id]); // shared
+        Booking::factory()->create([
+            'customer_id' => $rec->id,
+            'meta' => ['lead_name' => 'Abdi', 'contact_override' => '+447700900111'], // same number
+        ]);
+
+        $this->artisan('cet:check-customer-links')
+            ->expectsOutputToContain('No wrongly-linked bookings found')
+            ->assertSuccessful();
+    }
+
+    public function test_a_corporate_account_is_never_flagged(): void
+    {
+        // Corporate accounts legitimately carry many passengers on one record.
+        $account = \App\Models\CorporateAccount::create(['name' => 'JELD-WEN', 'slug' => 'jeld-wen', 'account_code' => 'JW01']);
+        $rec = Customer::factory()->create([
+            'name' => 'JELD-WEN', 'phone' => '+447700900222', 'corporate_account_id' => $account->id,
+        ]);
+        Booking::factory()->create(['customer_id' => $rec->id]);
+        Booking::factory()->create([
+            'customer_id' => $rec->id,
+            'meta' => ['lead_name' => 'Some Passenger', 'contact_override' => '+447711900333'],
+        ]);
+
+        $this->artisan('cet:check-customer-links')
+            ->expectsOutputToContain('No wrongly-linked bookings found')
+            ->assertSuccessful();
+    }
+
     public function test_a_solo_booker_vs_passenger_booking_is_not_flagged(): void
     {
         // A company/booker record used by only ONE booking, with a different lead

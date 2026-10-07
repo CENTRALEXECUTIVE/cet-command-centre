@@ -37,16 +37,7 @@ class CheckCustomerLinks extends Command
         $suspects = [];
         Booking::with('customer')->whereNotNull('customer_id')->chunkById(200, function ($bookings) use (&$suspects, $counts) {
             foreach ($bookings as $b) {
-                $record = trim((string) ($b->customer?->name ?? ''));
-                $passenger = trim((string) ($b->displayName() ?? ''));
-                if ($record === '' || $passenger === '' || strcasecmp($passenger, 'Customer') === 0) {
-                    continue;
-                }
-                // Only suspicious when the record is SHARED by other bookings AND the
-                // passenger isn't that record's person. (A solo record whose name
-                // differs is just a booker-vs-passenger booking — that's fine.)
-                $shared = (int) ($counts[$b->customer_id] ?? 0) > 1;
-                if ($shared && $this->normalise($record) !== $this->normalise($passenger)) {
+                if ($this->isWrongLink($b, $counts)) {
                     $suspects[] = $b;
                 }
             }
@@ -81,15 +72,55 @@ class CheckCustomerLinks extends Command
         foreach ($suspects as $b) {
             $target = $this->ownCustomerFor($b);
             if ($target && $target->id !== $b->customer_id) {
+                $fromId = $b->customer_id;
+                $fromName = $b->customer?->name;
                 $b->forceFill(['customer_id' => $target->id])->save();
                 $moved++;
                 $this->line("  • {$b->reference}: re-filed under {$target->name}".($target->phone ? " ({$target->phone})" : '').'.');
+                \Illuminate\Support\Facades\Log::info('cet:check-customer-links re-filed a wrongly-linked booking', [
+                    'booking' => $b->reference,
+                    'passenger' => $b->displayName(),
+                    'from_customer_id' => $fromId,
+                    'from_customer_name' => $fromName,
+                    'to_customer_id' => $target->id,
+                ]);
             }
         }
 
         $this->info("Re-filed {$moved} booking(s). The shared customer records were not changed.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A booking is wrongly linked when its shared customer record is clearly a
+     * DIFFERENT person: shared by other bookings, a different passenger name, AND a
+     * different contact number. Requiring BOTH name and number to differ avoids
+     * splitting nicknames ("Abdi" vs "Abdirazak", same number) and the number test
+     * pins it to a genuinely different person. Corporate accounts are never flagged
+     * — they legitimately carry many passengers on one record.
+     *
+     * @param  \Illuminate\Support\Collection<int,int>  $counts
+     */
+    private function isWrongLink(Booking $b, $counts): bool
+    {
+        $customer = $b->customer;
+        if (! $customer || $customer->corporate_account_id) {
+            return false; // corporate records are shared by design
+        }
+
+        $record = trim((string) ($customer->name ?? ''));
+        $passenger = trim((string) ($b->displayName() ?? ''));
+        if ($record === '' || $passenger === '' || strcasecmp($passenger, 'Customer') === 0) {
+            return false;
+        }
+
+        $shared = (int) ($counts[$b->customer_id] ?? 0) > 1;
+        $nameMismatch = $this->normalise($record) !== $this->normalise($passenger);
+        // The booking's own number exists AND differs from the record's.
+        $numberMismatch = $this->bookingOwnNumber($b) !== null && filled($customer->phone);
+
+        return $shared && $nameMismatch && $numberMismatch;
     }
 
     /** Find or create the booking's OWN customer (by its own number, else by name). */
