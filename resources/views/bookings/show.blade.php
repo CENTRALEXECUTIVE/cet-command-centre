@@ -2083,7 +2083,7 @@
 
             <form method="POST" action="{{ route('bookings.message', $booking) }}" style="margin-top:14px">
                 @csrf
-                <label for="body" style="font-weight:600">Send a message to {{ $booking->customer?->name ?? 'the customer' }}</label>
+                <label for="body" style="font-weight:600">Send a message to {{ $booking->displayName() ?: 'the customer' }}</label>
                 <textarea id="body" name="body" required placeholder="Type a message…" style="margin:6px 0 8px;min-height:70px">{{ old('body') }}</textarea>
                 <button type="submit" class="btn btn-dark" style="padding:8px 16px">Send</button>
                 <span class="hint">Goes to {{ $booking->customerContactNumber() ?? $booking->customer?->email ?? 'no contact on file' }}.</span>

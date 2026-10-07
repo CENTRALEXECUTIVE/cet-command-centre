@@ -125,6 +125,24 @@ class ContactNumberIntegrityTest extends TestCase
         $this->assertSame('Huzayfa', $booking->fresh('customer')->customer->name);
     }
 
+    public function test_the_booking_shows_its_own_passenger_not_a_wrongly_linked_customer(): void
+    {
+        // The Neil/Huzayfa case: this booking's lead passenger is Huzayfa, but it's
+        // filed under customer "Neil Simmonds". Every name shown must be the
+        // booking's own passenger — Neil must never leak onto Huzayfa's job.
+        $booking = Booking::factory()->create();
+        $booking->customer->update(['name' => 'Neil Simmonds']);
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['lead_name' => 'Huzayfa'])])->save();
+        $booking = $booking->fresh('customer');
+
+        $this->assertSame('Huzayfa', $booking->displayName());
+        $this->assertSame('Huzayfa', $booking->displayCustomerName());
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('Huzayfa');
+    }
+
     public function test_the_command_reports_and_can_fix_mismatches(): void
     {
         $this->bookingWithCalendarContact('07588804226', '+447971871155');

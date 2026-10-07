@@ -2711,10 +2711,22 @@ class Booking extends Model
         return $this->editable($this->calendarField('Vehicle Type'), $this->vehicleType?->name, 'vehicle_type');
     }
 
-    /** Customer/lead name — a manual edit wins, else the calendar, else our own. */
+    /**
+     * The name to show for this booking — the booking's OWN lead passenger first,
+     * so a booking that happens to be filed under a shared/wrong customer record
+     * never shows that record's name (e.g. "Neil" leaking onto Huzayfa's job). An
+     * explicit office edit to the name still wins. Falls back to the calendar's
+     * Customer Name, then the linked record. Mirrors displayName() so every screen
+     * agrees. Null only when nothing is known.
+     */
     public function displayCustomerName(): ?string
     {
-        return $this->editable($this->calendarField('Customer Name'), $this->customer?->name, 'customer_name');
+        if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
+            return $this->customer->name;
+        }
+
+        return ($this->meta['lead_name'] ?? null)
+            ?: $this->editable($this->calendarField('Customer Name'), $this->customer?->name, 'customer_name');
     }
 
     /** Contact number — the calendar's "Contact No" wins, else the customer's. */
