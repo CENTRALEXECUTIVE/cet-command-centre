@@ -193,8 +193,22 @@ class BookingIntakeService
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($f, $creator) {
             $ref = $f['reference'] ?: null;
-            if ($ref && $existing = Booking::where('external_reference', $ref)->first()) {
-                return $existing; // already in the Command Centre — don't duplicate
+            if ($ref) {
+                // Match the DB unique key (source_system, external_reference) and
+                // INCLUDE soft-deleted rows — a trashed booking still holds the key,
+                // so skipping it caused a duplicate-key 500 on insert. If one exists,
+                // reuse it (restoring a trashed one) instead of inserting a clash.
+                $existing = Booking::withTrashed()
+                    ->where('source_system', 'intake')
+                    ->where('external_reference', $ref)
+                    ->first();
+                if ($existing) {
+                    if (method_exists($existing, 'trashed') && $existing->trashed()) {
+                        $existing->restore();
+                    }
+
+                    return $existing;
+                }
             }
 
             $phone = $f['contact_no'] ?: null;
@@ -207,7 +221,7 @@ class BookingIntakeService
 
             $vehicleType = $this->resolveVehicleType($f['vehicle']);
 
-            $booking = Booking::create([
+            $attributes = [
                 'reference' => Booking::generateReference(),
                 'external_reference' => $ref,
                 'source_system' => 'intake',
@@ -238,7 +252,17 @@ class BookingIntakeService
                     'hand_luggage' => (int) ($f['hand_luggage'] ?? 0),
                     'driver_tag' => $f['driver_tag'] ?: null,
                 ]),
-            ]);
+            ];
+
+            // Create the booking. A paste must NEVER 500 on a duplicate reference —
+            // if the key still clashes (e.g. a residual row), drop the reference and
+            // save it as a fresh booking rather than erroring out.
+            try {
+                $booking = Booking::create($attributes);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                $attributes['external_reference'] = null;
+                $booking = Booking::create($attributes);
+            }
 
             // A named driver in the title tag → assign them; otherwise leave it
             // unallocated for the office to hand to whoever's covering.

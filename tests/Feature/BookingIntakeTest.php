@@ -147,6 +147,24 @@ class BookingIntakeTest extends TestCase
         $this->assertSame(1, Booking::where('external_reference', 'Ryanhn')->count());
     }
 
+    public function test_add_to_command_centre_reuses_a_soft_deleted_reference_without_erroring(): void
+    {
+        // A trashed booking still holds the (source_system, external_reference) key.
+        // Adding the same reference again must NOT 500 — it restores/returns it.
+        $admin = User::factory()->admin()->create();
+        $payload = ['fields' => $this->fields(['reference' => 'XCS'])];
+
+        $this->actingAs($admin)->post(route('intake.store'), $payload);
+        $booking = Booking::where('external_reference', 'XCS')->firstOrFail();
+        $booking->delete(); // soft delete
+
+        // Re-adding the same reference restores it instead of a duplicate-key 500.
+        $this->actingAs($admin)->post(route('intake.store'), $payload)->assertRedirect();
+
+        $this->assertSame(1, Booking::withTrashed()->where('external_reference', 'XCS')->count());
+        $this->assertFalse(Booking::withTrashed()->where('external_reference', 'XCS')->first()->trashed());
+    }
+
     public function test_non_admin_cannot_use_intake(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);

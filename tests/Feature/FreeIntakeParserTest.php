@@ -173,6 +173,9 @@ TXT;
         $this->assertSame(140.0, $f['price']);
         $this->assertTrue($f['paid']);
         $this->assertStringContainsString('York Racecourse', $f['notes']);
+        // The date must NOT be mis-read: no "OCT2026" flight, no "2026" passengers.
+        $this->assertSame('', $f['flight_number']);
+        $this->assertSame(1, $f['passengers']);
     }
 
     public function test_a_v_class_transfer_block_resolves_to_v_class(): void

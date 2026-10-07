@@ -78,6 +78,10 @@ class FreeIntakeParser
         $payment = $this->payment($get('payment', 'payments', 'payment method'), $text);
 
         $passengers = (int) preg_replace('/\D/', '', (string) ($get('passengers', 'pax', 'number of passengers') ?? '')) ?: 0;
+        // A real passenger count is 1–16 — never a year (2026) scraped from a date.
+        if ($passengers < 1 || $passengers > 16) {
+            $passengers = 0;
+        }
         if ($passengers === 0) {
             $passengers = $this->passengersFromText($text);
         }
@@ -141,8 +145,13 @@ class FreeIntakeParser
     /** "2 Customers" / "3 passengers" / "4 pax" anywhere in the text. */
     private function passengersFromText(string $text): int
     {
-        if (preg_match('/(\d+)\s*(?:customers?|passengers?|people|adults?|pax|persons?|guests?)\b/i', $text, $m)) {
-            return max(1, (int) $m[1]);
+        // 1–2 digits, on the SAME line as the keyword (no newline between) — so a
+        // year at the end of a line can't pair with a "Passenger:" label below it.
+        if (preg_match('/(\d{1,2})[ \t]*(?:customers?|passengers?|people|adults?|pax|persons?|guests?)\b/i', $text, $m)) {
+            $n = (int) $m[1];
+            if ($n >= 1 && $n <= 16) {
+                return $n;
+            }
         }
 
         return 1;
@@ -435,19 +444,34 @@ class FreeIntakeParser
 
     private function flight(?string $value, string $text): string
     {
-        foreach (array_filter([$value, $text]) as $source) {
-            if (preg_match('/\b([A-Z]{2,3}\s?\d{2,4})\b/', strtoupper($source), $m)) {
-                $code = str_replace(' ', '', $m[1]);
-                // Avoid mistaking a postcode for a flight number.
-                if (! preg_match('/^[A-Z]{1,2}\d{1,2}[A-Z]?\d[A-Z]{2}$/', $code)) {
-                    return $code;
-                }
-            }
-            if ($value) {
-                break; // a labelled value that didn't match shouldn't scan the whole text
+        // A labelled "Flight Number" wins outright.
+        if ($value && strcasecmp(trim($value), 'N/A') !== 0) {
+            $code = str_replace(' ', '', strtoupper(trim($value)));
+            if ($code !== '' && ! $this->looksLikeDateToken($code)) {
+                return $code;
             }
         }
 
-        return $value && strcasecmp(trim($value), 'N/A') !== 0 ? strtoupper(trim($value)) : '';
+        // Only hunt for a loose flight code when a flight is actually MENTIONED —
+        // otherwise postcodes ("DN14") and dates ("OCT2026") get mistaken for one.
+        if (! preg_match('/\bflights?\b/i', $text)) {
+            return '';
+        }
+
+        if (preg_match('/\b([A-Z]{2,3}\s?\d{2,4})\b/', strtoupper($text), $m)) {
+            $code = str_replace(' ', '', $m[1]);
+            $isPostcode = preg_match('/^[A-Z]{1,2}\d{1,2}[A-Z]?\d[A-Z]{2}$/', $code);
+            if (! $isPostcode && ! $this->looksLikeDateToken($code)) {
+                return $code;
+            }
+        }
+
+        return '';
+    }
+
+    /** "OCT2026" / "SEP2026" — a month abbreviation + year, not a flight number. */
+    private function looksLikeDateToken(string $code): bool
+    {
+        return (bool) preg_match('/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\d{4}$/i', $code);
     }
 }
