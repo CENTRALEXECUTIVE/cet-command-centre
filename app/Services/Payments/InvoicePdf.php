@@ -118,6 +118,10 @@ class InvoicePdf
             'attn' => $cover ? null : $booking->displayName(),
             'billedTo' => $billedTo,
             'customerEmail' => $billedEmail,
+            'customerPhone' => $cover ? ($cover['phone'] ?? null) : $booking->customerContactNumber(),
+            'invoiceNumber' => $booking->external_reference ?: $booking->reference,
+            'issueDate' => now(),
+            'paymentDue' => now()->addDays(14),
             'company' => \App\Support\InvoiceProfile::company(),
             'footerNote' => \App\Support\InvoiceProfile::footerNote(),
         ])->render());
@@ -141,18 +145,28 @@ class InvoicePdf
         return null;
     }
 
-    /** One journey's detail line for the invoice table. */
+    /**
+     * One journey's full detail block for the invoice line — itemised like the ETO
+     * invoice (reference, date, pickup, drop-off, vehicle, passengers, flight,
+     * meet & greet), each on its own line. Returns "Label: value" lines.
+     */
     private function legDetail(Booking $b): string
     {
-        $when = $b->pickup_at?->format('d/m/Y H:i');
-        $route = trim((string) $b->displayPickupAddress()).' to '.trim((string) $b->displayDropoffAddress());
-        $extras = array_filter([
-            $b->vehicleType?->name ? $b->vehicleType->name.' vehicle' : null,
-            $b->displayFlightNumber() ? 'Flight '.$b->displayFlightNumber() : null,
-            $b->external_reference ? 'Ref '.$b->external_reference : ($b->reference ? 'Ref '.$b->reference : null),
-        ]);
+        $rows = [
+            'Reference' => $b->external_reference ?: $b->reference,
+            'Date & time' => $b->pickup_at?->format('d/m/Y H:i'),
+            'Pickup' => trim((string) $b->displayPickupAddress()),
+            'Drop-off' => trim((string) $b->displayDropoffAddress()),
+            'Vehicle' => $b->vehicleType?->name,
+            'Passengers' => $b->passengerCount(),
+            'Flight' => $b->displayFlightNumber() ?: null,
+            'Meet & Greet' => $b->displayMeetAndGreet() ?: null,
+        ];
 
-        return trim(($when ? $when.' - ' : '').$route)."\n".implode(' | ', $extras);
+        return collect($rows)
+            ->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v, $k) => $k.': '.$v)
+            ->implode("\n");
     }
 
     /** Render and store the PDF, returning the storage-relative path. */
