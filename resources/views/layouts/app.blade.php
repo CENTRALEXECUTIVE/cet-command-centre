@@ -177,9 +177,8 @@
                     </form>
                 </div>
             @endif
-            @if($u->isAdmin())
-                @include('partials.sync-health')
-            @endif
+            {{-- Health warnings (scheduler / calendar) live on the System Health page
+                 only — kept off every screen so they never nag. --}}
             @if(session('status'))
                 <div class="alert alert-success">{{ session('status') }}</div>
             @endif

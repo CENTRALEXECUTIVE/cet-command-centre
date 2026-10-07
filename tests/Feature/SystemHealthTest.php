@@ -55,20 +55,23 @@ class SystemHealthTest extends TestCase
         $this->actingAs($driver)->get(route('health.index'))->assertForbidden();
     }
 
-    public function test_the_down_banner_shows_on_admin_pages_when_the_scheduler_is_dead(): void
+    public function test_the_scheduler_down_state_shows_on_the_health_page(): void
     {
         $admin = User::factory()->admin()->create();
         Setting::set('heartbeat.scheduler', now()->subMinutes(10)->toIso8601String(), 'string', 'system');
 
-        $this->actingAs($admin)->get(route('dashboard'))->assertOk()
-            ->assertSee('Background jobs have stopped');
+        // The warning lives on System Health (admin-only diagnostics), not nagging
+        // every page.
+        $this->actingAs($admin)->get(route('health.index'))->assertOk()
+            ->assertSee('cron is NOT running', false);
     }
 
-    public function test_the_down_banner_is_absent_when_healthy(): void
+    public function test_the_dashboard_never_shows_the_down_banner(): void
     {
         $admin = User::factory()->admin()->create();
-        Heartbeat::stamp('scheduler'); // just now
+        Setting::set('heartbeat.scheduler', now()->subMinutes(10)->toIso8601String(), 'string', 'system');
 
+        // Even when the scheduler is dead, the dashboard stays clean.
         $this->actingAs($admin)->get(route('dashboard'))->assertOk()
             ->assertDontSee('Background jobs have stopped');
     }

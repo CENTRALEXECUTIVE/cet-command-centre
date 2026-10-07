@@ -36,23 +36,16 @@ class CalendarSyncHealthTest extends TestCase
         $this->assertNotNull($this->health()->ageForHumans());
     }
 
-    public function test_admin_sees_the_stale_warning_banner(): void
+    public function test_the_dashboard_never_nags_about_calendar_sync(): void
     {
+        // Health warnings live on the System Health page only — the dashboard stays
+        // clean even when the mirror is stale.
         Setting::set('calendar_last_sync_ok', now()->subHours(3)->toIso8601String());
 
         $this->actingAs(User::factory()->admin()->create())
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Google Calendar mirror is behind');
-    }
-
-    public function test_no_banner_when_sync_is_fresh(): void
-    {
-        Setting::set('calendar_last_sync_ok', now()->subMinutes(2)->toIso8601String());
-
-        $this->actingAs(User::factory()->admin()->create())
-            ->get(route('dashboard'))
-            ->assertOk()
-            ->assertDontSee('Calendar sync is behind');
+            ->assertDontSee('mirror is behind')
+            ->assertDontSee('Background jobs have stopped');
     }
 }

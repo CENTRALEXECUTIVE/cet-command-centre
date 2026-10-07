@@ -74,13 +74,14 @@ class EmailFeedStatusTest extends TestCase
         $this->assertSame(2, $feed->lastStats()['created']);
     }
 
-    public function test_the_dashboard_warns_when_the_feed_is_off(): void
+    public function test_the_dashboard_does_not_nag_about_the_feed(): void
     {
+        // The feed status lives on System Health only — the dashboard stays clean.
         config(['services.microsoft_graph.client_id' => null]);
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->get(route('dashboard'))->assertOk()
-            ->assertSee("ETO email feed is off", false);
+            ->assertDontSee('ETO email feed is off', false);
     }
 
     public function test_the_health_page_shows_the_feed_panel(): void
