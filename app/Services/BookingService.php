@@ -67,6 +67,16 @@ class BookingService
 
             $this->calendar->buildFor($outbound->refresh());
 
+            // Set driver pay to the standard 90% of fare straight away, so a brand
+            // new job already shows the right "driver owed" with no Confirm click.
+            // Allocation also does this; calling it here covers a pending job that
+            // isn't auto-allocated (e.g. a minibus/V-Class cover job). Never
+            // overwrites an offered price; skips discounted jobs.
+            $outbound->applyDefaultDriverPay();
+            if (isset($return)) {
+                $return->applyDefaultDriverPay();
+            }
+
             // Payment: Tide link for card, cash flagged, account left to invoice.
             $this->payments->createForBooking($outbound);
 

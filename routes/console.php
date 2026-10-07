@@ -87,6 +87,13 @@ Schedule::command('cet:ingest-enquiries')->everyTenMinutes()->withoutOverlapping
 // Safety net: re-confirm every upcoming booking is on the calendar, hourly.
 Schedule::command('cet:verify-calendar')->hourly()->withoutOverlapping(30);
 
+// Set driver pay to the standard 90% of fare on every not-yet-done booking,
+// automatically — no "Confirm pay" click. Every ten minutes so a freshly
+// imported/pasted job (and any job that only gets a fare later) has its pay set
+// hands-off. Never overwrites a pay already on the job; leaves discounted jobs
+// for the office. Allocation already sets it instantly; this is the net.
+Schedule::command('cet:apply-default-pay')->everyTenMinutes()->withoutOverlapping(10);
+
 // Self-heal wrongly-linked bookings (a booking stapled to a different person's
 // shared customer record) — re-file each under its own customer, hourly. Precise
 // (name AND number differ, non-corporate) and capped, so it's safe to run alone.
