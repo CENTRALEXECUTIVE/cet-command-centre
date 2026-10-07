@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Models\Booking;
 use App\Models\Invoice;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -26,6 +27,35 @@ class InvoicePdf
             'invoice' => $invoice,
             'company' => \App\Support\InvoiceProfile::company(),
             'bank' => \App\Support\InvoiceProfile::bank(),
+            'footerNote' => \App\Support\InvoiceProfile::footerNote(),
+        ])->render());
+        $dompdf->render();
+
+        return $dompdf->output();
+    }
+
+    /**
+     * Render a single-booking receipt (or VAT invoice, for account / VAT-invoice
+     * jobs) to a PDF. Reuses the company/bank profile so it matches the corporate
+     * invoices. Returns the raw PDF bytes.
+     */
+    public function renderReceipt(Booking $booking): string
+    {
+        $booking->loadMissing(['customer', 'vehicleType']);
+        $breakdown = $booking->fareVatBreakdown();
+
+        $options = new Options;
+        $options->set('isRemoteEnabled', false);
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper('A4');
+        $dompdf->loadHtml(View::make('pdf.receipt', [
+            'booking' => $booking,
+            'isVat' => $booking->vatInvoiceRequested(),
+            'breakdown' => $breakdown,
+            'gross' => $booking->fareGross() ?? 0.0,
+            'paid' => $booking->fareIsPaid(),
+            'customerEmail' => $booking->customer?->email,
+            'company' => \App\Support\InvoiceProfile::company(),
             'footerNote' => \App\Support\InvoiceProfile::footerNote(),
         ])->render());
         $dompdf->render();

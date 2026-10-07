@@ -174,6 +174,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Admin-only "Notes for the driver" — free-text brief shown on the driver's job screen.
         Route::post('bookings/{booking}/driver-notes', [BookingController::class, 'driverNotes'])->middleware('throttle:30,1')->name('bookings.driver-notes');
         Route::post('bookings/{booking}/lead-time', [BookingController::class, 'leadTime'])->middleware('throttle:30,1')->name('bookings.lead-time');
+        // Per-booking receipt / VAT invoice: view/download the PDF, or email it.
+        Route::get('bookings/{booking}/receipt', [\App\Http\Controllers\BookingReceiptController::class, 'show'])->name('bookings.receipt');
+        Route::post('bookings/{booking}/receipt/email', [\App\Http\Controllers\BookingReceiptController::class, 'email'])->middleware('throttle:10,1')->name('bookings.receipt.email');
         // Quick edits from the booking page: the job price, and the waiting minutes.
         Route::post('bookings/{booking}/price', [BookingController::class, 'setPrice'])->middleware('throttle:30,1')->name('bookings.price');
         Route::post('bookings/{booking}/waiting', [BookingController::class, 'setWaiting'])->middleware('throttle:30,1')->name('bookings.waiting');

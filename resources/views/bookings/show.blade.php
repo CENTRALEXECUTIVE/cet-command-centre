@@ -462,6 +462,30 @@
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('delete-box').style.display='none'">Keep it</button>
             </form>
         </div>
+
+        {{-- Per-booking receipt / VAT invoice: view the PDF, download it, or email
+             it to the customer. Account / VAT-invoice jobs render as a VAT invoice
+             with the net/VAT breakdown; everyone else gets a plain receipt. --}}
+        <div class="card" style="margin-bottom:16px">
+            <h2 style="margin:0 0 6px;font-size:16px">📄 {{ $booking->vatInvoiceRequested() ? 'VAT invoice' : 'Receipt' }}</h2>
+            @if($booking->fareGross() === null)
+                <p class="hint" style="margin:0 0 10px">No price on this job yet — set the fare above and the receipt will show it. You can still open a blank {{ $booking->vatInvoiceRequested() ? 'invoice' : 'receipt' }}.</p>
+            @else
+                <p class="hint" style="margin:0 0 10px">Total <strong>£{{ number_format((float) $booking->fareGross(), 2) }}</strong>{{ $booking->fareIsPaid() ? ' · marked paid' : ' · balance due' }}. To amend any detail, use <strong>Edit booking</strong> above, then reopen the PDF.</p>
+            @endif
+            <div class="toolbar" style="margin:0">
+                <a href="{{ route('bookings.receipt', $booking) }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 14px">👁 View PDF</a>
+                <a href="{{ route('bookings.receipt', ['booking' => $booking, 'download' => 1]) }}" class="btn btn-ghost" style="padding:8px 14px">⬇ Download</a>
+                <form method="POST" action="{{ route('bookings.receipt.email', $booking) }}" style="margin:0"
+                      onsubmit="return confirm('Email the {{ $booking->vatInvoiceRequested() ? 'VAT invoice' : 'receipt' }} to {{ $booking->customer?->email ?: 'the customer' }}?')">
+                    @csrf
+                    <button type="submit" class="btn btn-dark" style="padding:8px 14px" @disabled(! $booking->customer?->email)>✉ Email to customer</button>
+                </form>
+            </div>
+            @unless($booking->customer?->email)
+                <p class="hint" style="margin:8px 0 0;color:#8a6d00">No customer email on file — add one via Edit booking to enable emailing.</p>
+            @endunless
+        </div>
         @if(! $booking->status->isTerminal())
             @if(!empty($canScan))
                 <p class="hint" style="margin:-8px 0 16px">
