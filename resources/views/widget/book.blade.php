@@ -1556,5 +1556,6 @@
             });
         })();
     </script>
+@include('partials.picker-js')
 </body>
 </html>
