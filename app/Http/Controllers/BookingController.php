@@ -1298,6 +1298,29 @@ class BookingController extends Controller
      * corrected without opening the full edit form. Writes final_price (the figure
      * fareAmount() uses); blank clears it back to the quote.
      */
+    /**
+     * Mark (or clear) this booking as a cover job we did for another operator, so
+     * we can invoice THEM. Stores their name + contact + the agreed amount; a
+     * blank name clears it back to a normal customer-billed job.
+     */
+    public function setCoverFor(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:160'],
+            'email' => ['nullable', 'email', 'max:160'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+        ]);
+
+        $booking->setCoverFor(filled($data['name'] ?? null) ? $data : null);
+
+        return back()->with('status', filled($data['name'] ?? null)
+            ? 'Cover job saved — you can now invoice '.$data['name'].'.'
+            : 'Cover-job details cleared — this is back to a normal customer booking.');
+    }
+
     public function setPrice(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);

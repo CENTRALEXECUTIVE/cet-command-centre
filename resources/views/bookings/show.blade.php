@@ -464,12 +464,26 @@
         </div>
 
         {{-- Per-booking receipt / VAT invoice: view the PDF, download it, or email
-             it to the customer. Account / VAT-invoice jobs render as a VAT invoice
-             with the net/VAT breakdown; everyone else gets a plain receipt. --}}
+             it. A COVER JOB (we covered the job for another operator) becomes an
+             INVOICE to that operator, who pays us; otherwise it's a customer
+             receipt / VAT invoice. --}}
+        @php
+            $cover = $booking->coverFor();
+            $recName = $cover ? $cover['name'] : $booking->displayName();
+            $recEmail = $cover ? $cover['email'] : $booking->customer?->email;
+            $docWord = $cover ? 'invoice' : ($booking->vatInvoiceRequested() ? 'VAT invoice' : 'receipt');
+            $docTotal = $cover ? $booking->coverForAmount() : $booking->fareGross();
+            $waDigits = $cover ? \App\Support\Phone::wa($cover['phone']) : null;
+            $waText = $cover
+                ? rawurlencode('Hi '.$cover['name'].', please find our invoice for job '.$booking->reference.' ('.$booking->pickup_at?->format('d M Y').')'.($docTotal !== null ? ' — £'.number_format((float) $docTotal, 2) : '').'. Central Executive Transfers.')
+                : null;
+        @endphp
         <div class="card" style="margin-bottom:16px">
-            <h2 style="margin:0 0 6px;font-size:16px">📄 {{ $booking->vatInvoiceRequested() ? 'VAT invoice' : 'Receipt' }}</h2>
-            @if($booking->fareGross() === null)
-                <p class="hint" style="margin:0 0 10px">No price on this job yet — set the fare above and the receipt will show it. You can still open a blank {{ $booking->vatInvoiceRequested() ? 'invoice' : 'receipt' }}.</p>
+            <h2 style="margin:0 0 6px;font-size:16px">📄 {{ $cover ? 'Cover-job invoice' : ($booking->vatInvoiceRequested() ? 'VAT invoice' : 'Receipt') }}</h2>
+            @if($cover)
+                <p class="hint" style="margin:0 0 10px">Invoicing <strong>{{ $cover['name'] }}</strong>{{ $docTotal !== null ? ' for £'.number_format((float) $docTotal, 2) : '' }} — a job we covered for them. Edit the details below; the PDF is addressed to them.</p>
+            @elseif($booking->fareGross() === null)
+                <p class="hint" style="margin:0 0 10px">No price on this job yet — set the fare above and the receipt will show it. You can still open a blank {{ $docWord }}.</p>
             @else
                 <p class="hint" style="margin:0 0 10px">Total <strong>£{{ number_format((float) $booking->fareGross(), 2) }}</strong>{{ $booking->fareIsPaid() ? ' · marked paid' : ' · balance due' }}. To amend any detail, use <strong>Edit booking</strong> above, then reopen the PDF.</p>
             @endif
@@ -477,14 +491,48 @@
                 <a href="{{ route('bookings.receipt', $booking) }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 14px">👁 View PDF</a>
                 <a href="{{ route('bookings.receipt', ['booking' => $booking, 'download' => 1]) }}" class="btn btn-ghost" style="padding:8px 14px">⬇ Download</a>
                 <form method="POST" action="{{ route('bookings.receipt.email', $booking) }}" style="margin:0"
-                      onsubmit="return confirm('Email the {{ $booking->vatInvoiceRequested() ? 'VAT invoice' : 'receipt' }} to {{ $booking->customer?->email ?: 'the customer' }}?')">
+                      onsubmit="return confirm('Email the {{ $docWord }} to {{ $recEmail ?: ($cover ? $cover['name'] : 'the customer') }}?')">
                     @csrf
-                    <button type="submit" class="btn btn-dark" style="padding:8px 14px" @disabled(! $booking->customer?->email)>✉ Email to customer</button>
+                    <button type="submit" class="btn btn-dark" style="padding:8px 14px" @disabled(! $recEmail)>✉ Email {{ $cover ? 'to operator' : 'to customer' }}</button>
                 </form>
+                @if($cover && $waDigits)
+                    <a href="https://wa.me/{{ $waDigits }}?text={{ $waText }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:8px 14px;border-color:#25D366;color:#128C4A">🟢 WhatsApp</a>
+                @endif
             </div>
-            @unless($booking->customer?->email)
+            @if($cover)
+                <p class="hint" style="margin:8px 0 0">WhatsApp opens a ready-typed message to {{ $cover['name'] }}@if($cover['phone']) ({{ $cover['phone'] }})@endif — attach the downloaded PDF in WhatsApp (wa.me can't carry the file itself).@unless($recEmail) No email saved for them — add one below to email the invoice.@endunless</p>
+            @elseif(! $recEmail)
                 <p class="hint" style="margin:8px 0 0;color:#8a6d00">No customer email on file — add one via Edit booking to enable emailing.</p>
-            @endunless
+            @endif
+
+            {{-- Cover-job details: who we covered the job for, so we invoice them. --}}
+            <details class="card" style="margin:12px 0 0;background:rgba(0,0,0,.02)" @if($cover) open @endif>
+                <summary style="cursor:pointer;font-weight:600;font-size:13px">🤝 {{ $cover ? 'Edit cover-job details' : 'This was a cover job for another operator — invoice them' }}</summary>
+                <form method="POST" action="{{ route('bookings.cover-for', $booking) }}" style="margin-top:10px">
+                    @csrf
+                    <div class="grid grid-2" style="gap:10px">
+                        <label style="font-size:12px">Operator / company name
+                            <input name="name" value="{{ $cover['name'] ?? '' }}" placeholder="e.g. A1 Cars Ltd" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                        </label>
+                        <label style="font-size:12px">Amount to invoice (£)
+                            <input type="number" step="0.01" min="0" name="amount" value="{{ $cover['amount'] ?? '' }}" placeholder="defaults to the fare" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                        </label>
+                        <label style="font-size:12px">Their email <span class="muted">— for emailing the invoice</span>
+                            <input type="email" name="email" value="{{ $cover['email'] ?? '' }}" placeholder="accounts@operator.co.uk" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                        </label>
+                        <label style="font-size:12px">Their WhatsApp / phone
+                            <input type="tel" name="phone" value="{{ $cover['phone'] ?? '' }}" placeholder="07…" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                        </label>
+                    </div>
+                    <div style="margin-top:10px">
+                        <button type="submit" class="btn btn-primary" style="padding:7px 14px">{{ $cover ? 'Save cover-job details' : 'Mark as cover job' }}</button>
+                        @if($cover)
+                            <button type="submit" class="btn btn-ghost" style="padding:7px 14px;color:#b32020"
+                                    onclick="this.form.name.value='';return confirm('Clear the cover-job details? This goes back to a normal customer booking.')">Clear — not a cover job</button>
+                        @endif
+                    </div>
+                </form>
+            </details>
         </div>
         @if(! $booking->status->isTerminal())
             @if(!empty($canScan))

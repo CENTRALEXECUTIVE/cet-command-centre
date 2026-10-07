@@ -135,9 +135,25 @@ authoritative original, so this is the most reliable source.
    MS_GRAPH_MAILBOX=admin@centralexecutivetransfers.co.uk   # default is bookings@ — MUST override
    ```
 5. Verify: `php artisan cet:test-graph` — reports exactly where it fails.
-6. Backfill now: `php artisan cet:ingest-outlook`. After that it runs every 5 min
+6. Backfill now: `php artisan cet:ingest-outlook`. After that it runs every 2 min
    via the scheduler (step 6). Idempotent — keyed by reference, no duplicates, and
    it never overwrites a field the office has edited.
+
+> **If new bookings STOP auto-adding to CET (you're adding them by hand), this
+> is almost always why — it is a connection, not a code fault.** The reader does
+> *nothing at all* until all of the following are true, so check them in order:
+>
+> 1. `MS_GRAPH_CLIENT_ID`, `MS_GRAPH_CLIENT_SECRET`, `MS_GRAPH_TENANT_ID` are all
+>    set on `~/cet-staging`'s `.env` (any one missing ⇒ silent no-op).
+> 2. `MS_GRAPH_MAILBOX=admin@centralexecutivetransfers.co.uk` — **the default is
+>    `bookings@`, which is the wrong inbox**, so ETO emails would never be read.
+> 3. The `Mail.Read` *application* permission has **admin consent granted**.
+> 4. The scheduler cron is actually running (step 6) — without it nothing fires.
+>
+> Diagnose with `php artisan cet:test-graph` (connection + mailbox) and
+> `php artisan cet:ingest-outlook` (one manual run, prints created/updated/
+> skipped). The same feed also drives **amendments** — if "booking updated"
+> isn't happening either, it's the same missing connection, not two faults.
 
 ### 5. Embed the booking widget on the website
 

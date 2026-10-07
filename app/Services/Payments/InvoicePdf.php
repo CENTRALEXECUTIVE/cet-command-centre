@@ -42,7 +42,25 @@ class InvoicePdf
     public function renderReceipt(Booking $booking): string
     {
         $booking->loadMissing(['customer', 'vehicleType']);
-        $breakdown = $booking->fareVatBreakdown();
+        $cover = $booking->coverFor();
+
+        // A cover job is an INVOICE to the operator we covered for (they owe CET);
+        // a normal job is a receipt/VAT invoice to the customer.
+        if ($cover) {
+            $gross = $booking->coverForAmount() ?? 0.0;
+            $isVat = false;      // simple operator invoice, no VAT split
+            $breakdown = null;
+            $billedTo = $cover['name'];
+            $billedEmail = $cover['email'];
+            $paid = false;       // the whole point is that they still owe us
+        } else {
+            $breakdown = $booking->fareVatBreakdown();
+            $gross = $booking->fareGross() ?? 0.0;
+            $isVat = $booking->vatInvoiceRequested();
+            $billedTo = $booking->displayName();
+            $billedEmail = $booking->customer?->email;
+            $paid = $booking->fareIsPaid();
+        }
 
         $options = new Options;
         $options->set('isRemoteEnabled', false);
@@ -50,11 +68,13 @@ class InvoicePdf
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.receipt', [
             'booking' => $booking,
-            'isVat' => $booking->vatInvoiceRequested(),
+            'isCover' => (bool) $cover,
+            'isVat' => $isVat,
             'breakdown' => $breakdown,
-            'gross' => $booking->fareGross() ?? 0.0,
-            'paid' => $booking->fareIsPaid(),
-            'customerEmail' => $booking->customer?->email,
+            'gross' => $gross,
+            'paid' => $paid,
+            'billedTo' => $billedTo,
+            'customerEmail' => $billedEmail,
             'company' => \App\Support\InvoiceProfile::company(),
             'footerNote' => \App\Support\InvoiceProfile::footerNote(),
         ])->render());

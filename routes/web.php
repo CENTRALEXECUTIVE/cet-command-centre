@@ -177,6 +177,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Per-booking receipt / VAT invoice: view/download the PDF, or email it.
         Route::get('bookings/{booking}/receipt', [\App\Http\Controllers\BookingReceiptController::class, 'show'])->name('bookings.receipt');
         Route::post('bookings/{booking}/receipt/email', [\App\Http\Controllers\BookingReceiptController::class, 'email'])->middleware('throttle:10,1')->name('bookings.receipt.email');
+        // Cover job — mark that we covered this for another operator, so we invoice them.
+        Route::post('bookings/{booking}/cover-for', [BookingController::class, 'setCoverFor'])->middleware('throttle:30,1')->name('bookings.cover-for');
         // Quick edits from the booking page: the job price, and the waiting minutes.
         Route::post('bookings/{booking}/price', [BookingController::class, 'setPrice'])->middleware('throttle:30,1')->name('bookings.price');
         Route::post('bookings/{booking}/waiting', [BookingController::class, 'setWaiting'])->middleware('throttle:30,1')->name('bookings.waiting');

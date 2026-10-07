@@ -1022,6 +1022,69 @@ class Booking extends Model
         return ($this->payment_method?->value ?? null) === 'cash';
     }
 
+    /* ── Cover job (we covered this job for another operator — invoice THEM) ──── */
+
+    /**
+     * When this job was covered for another operator/company who pays CET, the
+     * party we invoice: ['name', 'email', 'phone', 'amount']. Null when it's a
+     * normal job (invoiced to the customer, not a third party).
+     *
+     * @return array{name: string, email: ?string, phone: ?string, amount: ?string}|null
+     */
+    public function coverFor(): ?array
+    {
+        $c = $this->meta['cover_for'] ?? null;
+        if (! is_array($c) || ! filled($c['name'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'name' => (string) $c['name'],
+            'email' => $c['email'] ?? null,
+            'phone' => $c['phone'] ?? null,
+            'amount' => $c['amount'] ?? null,
+        ];
+    }
+
+    /** True when this is a cover job we invoice another operator for. */
+    public function isCoverJob(): bool
+    {
+        return $this->coverFor() !== null;
+    }
+
+    /**
+     * The amount to invoice the operator we covered for — their agreed figure
+     * when set, otherwise the job's own fare. Null only when neither exists.
+     */
+    public function coverForAmount(): ?float
+    {
+        $amt = $this->meta['cover_for']['amount'] ?? null;
+
+        return ($amt !== null && $amt !== '') ? (float) $amt : $this->fareGross();
+    }
+
+    /**
+     * Set (or clear, with null) who we covered this job for. Pass the operator's
+     * name + optional email/phone/amount; name blank clears the whole thing.
+     *
+     * @param  array{name?: ?string, email?: ?string, phone?: ?string, amount?: ?string|float}|null  $data
+     */
+    public function setCoverFor(?array $data): void
+    {
+        $meta = $this->meta ?? [];
+        if ($data === null || ! filled($data['name'] ?? null)) {
+            unset($meta['cover_for']);
+        } else {
+            $meta['cover_for'] = [
+                'name' => trim((string) $data['name']),
+                'email' => filled($data['email'] ?? null) ? trim((string) $data['email']) : null,
+                'phone' => filled($data['phone'] ?? null) ? trim((string) $data['phone']) : null,
+                'amount' => ($data['amount'] ?? null) === null || $data['amount'] === '' ? null : (string) $data['amount'],
+            ];
+        }
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
     /**
      * The booking's calendar event. There is no unique constraint on
      * calendar_events.booking_id and several code paths can create a row, so a

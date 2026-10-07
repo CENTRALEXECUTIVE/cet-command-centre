@@ -32,18 +32,24 @@ class BookingReceiptController extends Controller
         ]);
     }
 
-    /** Email the receipt PDF to the customer (manual, office-initiated). */
+    /**
+     * Email the PDF — to the operator we covered for on a cover job (they pay us),
+     * otherwise to the customer. Manual, office-initiated only.
+     */
     public function email(Request $request, Booking $booking, InvoicePdf $pdf): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $to = $booking->customer?->email;
+        $cover = $booking->coverFor();
+        $to = $cover ? $cover['email'] : $booking->customer?->email;
         if (! $to) {
-            return back()->with('error', 'This customer has no email address on file — add one first, then resend.');
+            return back()->with('error', $cover
+                ? 'No email for '.$cover['name'].' — add one in the cover-job details, then resend.'
+                : 'This customer has no email address on file — add one first, then resend.');
         }
 
         Mail::to($to)->send(new BookingReceiptMail($booking, $pdf->renderReceipt($booking)));
 
-        return back()->with('status', 'Receipt emailed to '.$to.'.');
+        return back()->with('status', ($cover ? 'Invoice' : 'Receipt').' emailed to '.$to.'.');
     }
 }

@@ -57,7 +57,7 @@
         </div>
       </td>
       <td class="title">
-        <h1>{{ $isVat ? 'VAT INVOICE' : 'RECEIPT' }}</h1>
+        <h1>{{ ($isCover ?? false) ? 'INVOICE' : ($isVat ? 'VAT INVOICE' : 'RECEIPT') }}</h1>
         <table class="metatab" style="margin-left:auto">
           <tr><td class="k">Reference</td><td class="v">{{ $booking->reference }}</td></tr>
           <tr><td class="k">Date issued</td><td class="v">{{ now()->format('d M Y') }}</td></tr>
@@ -72,8 +72,9 @@
     <tr>
       <td>
         <div class="lbl">Billed to</div>
-        <div class="name">{{ $booking->displayName() }}</div>
+        <div class="name">{{ $billedTo ?? $booking->displayName() }}</div>
         @if($customerEmail)<div class="muted">{{ $customerEmail }}</div>@endif
+        @if($isCover ?? false)<div class="muted">Cover journey carried out by Central Executive Transfers for {{ $booking->displayName() }}.</div>@endif
       </td>
       <td>
         <div class="lbl">Vehicle</div>
