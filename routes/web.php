@@ -159,6 +159,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/payroll', [BookingController::class, 'payroll'])->middleware('throttle:30,1')->name('bookings.payroll');
         Route::post('bookings/{booking}/cancellation-charge', [BookingController::class, 'setCancellationCharge'])->middleware('throttle:30,1')->name('bookings.cancellation-charge');
         Route::post('bookings/{booking}/scan-calendar', [BookingController::class, 'scanCalendar'])->middleware('throttle:30,1')->name('bookings.scan-calendar');
+        // Command Centre → Google: push this booking's details to the calendar (the inverse of match).
+        Route::post('bookings/{booking}/push-calendar', [BookingController::class, 'pushCalendar'])->middleware('throttle:30,1')->name('bookings.push-calendar');
         // Ask the driver to share their location now + poll their latest ping.
         Route::post('bookings/{booking}/request-location', [BookingController::class, 'requestLocation'])->middleware('throttle:20,1')->name('bookings.request-location');
         Route::get('bookings/{booking}/location', [BookingController::class, 'locationData'])->name('bookings.location');

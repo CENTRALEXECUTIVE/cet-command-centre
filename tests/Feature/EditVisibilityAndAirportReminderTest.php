@@ -111,13 +111,14 @@ class EditVisibilityAndAirportReminderTest extends TestCase
             ->assertSee('name="via_stops[]" value="Botanical Gardens, Clarkehouse Road, Broomhall, Sheffield"', false);
     }
 
-    public function test_without_an_edit_the_calendar_value_is_shown(): void
+    public function test_the_command_centre_value_wins_over_the_calendar(): void
     {
         $booking = $this->calendarBooking();
-        $booking->forceFill(['destination_address' => 'CHANGED IN DB ONLY'])->save();
+        $booking->forceFill(['destination_address' => 'Command Centre address'])->save();
 
-        // No manual-edit marker → the calendar wins (source of truth).
-        $this->assertSame('22 Broad Elms Lane, Sheffield', $booking->fresh()->displayDropoffAddress());
+        // The Command Centre is the source of truth now: its own value wins even
+        // without a manual-edit marker. The calendar is only a fallback for a blank.
+        $this->assertSame('Command Centre address', $booking->fresh()->displayDropoffAddress());
     }
 
     public function test_a_manual_edit_wins_over_the_calendar(): void
@@ -405,20 +406,21 @@ class EditVisibilityAndAirportReminderTest extends TestCase
 
     public function test_editing_one_field_leaves_every_other_field_matching_the_calendar(): void
     {
-        // The calendar carries passengers 7, a Minibus, and 2+2 luggage. The
-        // office edits ONLY the drop-off. Every OTHER field must keep mirroring
-        // the calendar — not fall back to a stored default/blank.
+        // The office edits ONLY the drop-off. Fields the Command Centre doesn't
+        // hold itself (passengers default 1, 0/0 luggage) still fall back to the
+        // calendar; a field it DOES hold (pickup, vehicle) keeps its own value.
         $admin = User::factory()->admin()->create();
         $pickupAt = now()->addDay()->setTime(11, 50)->setSeconds(0);
+        $vt = VehicleType::where('name', 'V Class')->first(); // capacity 7, exact name
         $booking = Booking::factory()->create([
             'status' => BookingStatus::Accepted,
             'pickup_at' => $pickupAt,
+            'vehicle_type_id' => $vt->id,
             'pickup_address' => 'Manchester Airport M90 1QX',
             'destination_address' => '22 Broad Elms Lane, Sheffield',
             'passengers' => 1, 'luggage' => 0,
             'meta' => ['suitcases' => 0, 'hand_luggage' => 0],
         ]);
-        $vt = VehicleType::where('name', 'V Class')->first(); // capacity 7, exact name
         $booking->calendarEvents()->create([
             'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
             'description' => "• Customer Name: Claire\n• Passengers: 7\n"

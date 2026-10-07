@@ -2669,16 +2669,19 @@ class Booking extends Model
     }
 
     /**
-     * Choose which source to display for one field. When the office actually
-     * changed that field, its value wins (calendar fills a blank); otherwise the
-     * calendar wins (own value fills a blank). Empty strings count as blank.
+     * Choose which source to display for one field. THE COMMAND CENTRE IS THE
+     * SOURCE OF TRUTH: the booking's own value always wins, and the calendar is
+     * only a fallback that fills a genuine blank. (It used to be the other way
+     * round — the calendar won unless a field had been explicitly edited — but the
+     * Command Centre is now the control tower, so the app leads and the calendar
+     * merely mirrors it.) Empty strings and the "Unknown" placeholder count as
+     * blank, so a calendar value still fills in where the app truly has nothing.
      */
     private function editable(?string $calendar, ?string $own, ?string $field = null): ?string
     {
-        $calendar = ($calendar !== null && trim($calendar) !== '') ? $calendar : null;
-        $own = ($own !== null && trim((string) $own) !== '') ? $own : null;
+        $blank = fn ($v) => $v === null || trim((string) $v) === '' || strcasecmp(trim((string) $v), 'Unknown') === 0;
 
-        return $this->fieldEdited($field) ? ($own ?? $calendar) : ($calendar ?? $own);
+        return $blank($own) ? ($blank($calendar) ? null : $calendar) : $own;
     }
 
     /** Pickup address — a manual edit wins, else the calendar, else our own. */

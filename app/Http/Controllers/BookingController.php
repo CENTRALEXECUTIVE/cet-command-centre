@@ -1881,6 +1881,26 @@ class BookingController extends Controller
      * pickup location, slot and the whole details block — exactly into line.
      * Read-only on Google. Reports precisely what was corrected.
      */
+    /**
+     * COMMAND CENTRE TAKES OVER: push this booking's details FROM the Command
+     * Centre TO Google Calendar (the inverse of the old "match calendar"). The
+     * app is the source of truth; this rebuilds the event from the booking and
+     * sends it to Google, so the calendar mirrors the Command Centre — never the
+     * other way round.
+     */
+    public function pushCalendar(Request $request, Booking $booking, \App\Services\CalendarEventBuilder $builder, \App\Services\Calendar\GoogleCalendarService $google): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $event = $builder->buildFor($booking);
+
+        if ($google->configured() && $google->active() && $google->push($event)) {
+            return back()->with('status', 'Pushed this booking to Google Calendar from the Command Centre.');
+        }
+
+        return back()->with('status', 'Rebuilt the calendar entry from the Command Centre — it will appear on Google on the next sync.');
+    }
+
     public function scanCalendar(Request $request, Booking $booking, \App\Services\Calendar\CalendarTimeSync $sync, \App\Services\Calendar\GoogleCalendarService $google): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);

@@ -138,13 +138,20 @@ class PickupTimeConsistencyTest extends TestCase
         $this->assertSame(3, $booking->passengerCount());
     }
 
-    public function test_every_field_is_mirrored_from_the_calendar(): void
+    public function test_the_command_centre_fields_win_and_the_calendar_fills_the_rest(): void
     {
+        // COMMAND CENTRE IS THE SOURCE OF TRUTH: the fields the app holds itself
+        // (name, pickup, drop-off, flight, vehicle) come straight from its own
+        // columns; the calendar only supplies the fields the app doesn't store as
+        // its own (contact, passengers default, luggage, meet & greet, payment).
         $admin = User::factory()->admin()->create();
         $booking = Booking::factory()->create([
-            'pickup_address' => 'OLD PICKUP', 'destination_address' => 'OLD DROPOFF',
-            'flight_number' => 'XX0000', 'passengers' => 1,
+            'pickup_address' => 'Manchester Airport (MAN), Terminal 2',
+            'destination_address' => '5 Moorbridge Crescent, Barnsley S73 0YA',
+            'flight_number' => 'VS0074', 'passengers' => 1,
         ]);
+        $ownVehicle = $booking->vehicleType?->name;
+        $booking->customer->update(['name' => 'Emma Cusworth']);
         CalendarEvent::create([
             'booking_id' => $booking->id,
             'google_event_id' => 'evt_all',
@@ -153,15 +160,15 @@ class PickupTimeConsistencyTest extends TestCase
             'description' => implode("\n", [
                 '📑 *Booking Confirmation – Arrival*',
                 '• *Date & Time:* 24/11/2026 – 07:30',
-                '• *Customer Name:* Emma Cusworth',
+                '• *Customer Name:* Someone Else',
                 '• *Contact No:* +447501028381',
                 '• *Passengers:* 5',
                 '• *Luggage:* 8 Suitcases + 4 Hand Luggage',
-                '• *Pickup Location:* Manchester Airport (MAN), Terminal 2',
-                '• *Flight Number:* VS0074',
+                '• *Pickup Location:* STALE CALENDAR PICKUP',
+                '• *Flight Number:* ZZ9999',
                 '• *Meet & Greet:* Yes',
-                '• *Drop-off Location:* 5 Moorbridge Crescent, Barnsley S73 0YA',
-                '• *Vehicle Type:* Minibus',
+                '• *Drop-off Location:* STALE CALENDAR DROPOFF',
+                '• *Vehicle Type:* Executive',
                 '• *Payment:* Paid £350 (Stripe)',
                 '• *Booking Reference:* DBJ6TRb',
             ]),
@@ -169,28 +176,27 @@ class PickupTimeConsistencyTest extends TestCase
             'end_at' => $booking->pickup_at->copy()->addHour(),
             'sync_status' => 'synced',
         ]);
-        $booking = $booking->fresh(['calendarEvent']);
+        $booking = $booking->fresh(['calendarEvent', 'customer']);
 
-        // The model mirrors every calendar line, not the stale booking columns.
+        // The Command Centre's own columns win over the calendar for the fields it holds.
         $this->assertSame('Emma Cusworth', $booking->displayCustomerName());
+        $this->assertSame('Manchester Airport (MAN), Terminal 2', $booking->displayPickupAddress());
+        $this->assertSame('VS0074', $booking->displayFlightNumber());
+        $this->assertSame('5 Moorbridge Crescent, Barnsley S73 0YA', $booking->displayDropoffAddress());
+        $this->assertSame($ownVehicle, $booking->displayVehicleType());
+
+        // The calendar still fills the fields the app doesn't carry as its own.
         $this->assertSame('+447501028381', $booking->displayContact());
         $this->assertSame(5, $booking->passengerCount());
         $this->assertSame('8 Suitcases + 4 Hand Luggage', $booking->luggageBreakdown());
-        $this->assertSame('Manchester Airport (MAN), Terminal 2', $booking->displayPickupAddress());
-        $this->assertSame('VS0074', $booking->displayFlightNumber());
         $this->assertSame('Yes', $booking->displayMeetAndGreet());
-        $this->assertSame('5 Moorbridge Crescent, Barnsley S73 0YA', $booking->displayDropoffAddress());
-        $this->assertSame('Minibus', $booking->displayVehicleType());
         $this->assertSame('Paid £350 (Stripe)', $booking->displayPayment());
 
-        // And the booking page renders the calendar's values, not the old ones.
+        // The booking page shows the Command Centre's values, never the stale calendar ones.
         $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
-            ->assertSee('Emma Cusworth')
             ->assertSee('Manchester Airport (MAN), Terminal 2')
-            ->assertSee('Minibus')
-            ->assertSee('Paid £350 (Stripe)')
-            ->assertDontSee('OLD PICKUP')
-            ->assertDontSee('OLD DROPOFF');
+            ->assertDontSee('STALE CALENDAR PICKUP')
+            ->assertDontSee('STALE CALENDAR DROPOFF');
     }
 
     public function test_display_fields_fall_back_to_the_booking_without_a_calendar(): void

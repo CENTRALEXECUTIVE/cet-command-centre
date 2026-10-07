@@ -23,10 +23,9 @@
     <div class="alert alert-error" role="alert" style="display:flex;gap:10px;align-items:flex-start;border-left:4px solid #c0392b">
         <span style="font-size:18px;line-height:1">⚠️</span>
         <span>
-            <strong>Calendar sync is behind — details may be out of date.</strong>
+            <strong>Google Calendar mirror is behind.</strong>
             Last successful sync <strong>{{ $calHealth->ageForHumans() }} ago</strong>.
-            Booking times, addresses and <strong>payment/cash figures may not match the calendar</strong> right now —
-            check the calendar before relying on money. The office should confirm outbound internet / DNS on the server.
+            The Command Centre is the source of truth, so bookings here are current — but anything still drawn from the calendar mirror (the <strong>payment line</strong>) may lag until it catches up. The office should confirm outbound internet / DNS on the server.
         </span>
     </div>
 @endif

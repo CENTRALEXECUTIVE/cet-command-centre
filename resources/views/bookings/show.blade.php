@@ -436,10 +436,10 @@
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             @if(! $booking->status->isTerminal())
                 @if(!empty($canScan))
-                    <form method="POST" action="{{ route('bookings.scan-calendar', $booking) }}"
-                          onsubmit="return confirm('Match this booking to the Google Calendar?\n\nThis discards any changes you made in the app and takes the calendar as the truth — time, addresses, via stops and details. The calendar itself is not changed.')">
+                    <form method="POST" action="{{ route('bookings.push-calendar', $booking) }}"
+                          onsubmit="return confirm('Push this booking to Google Calendar?\n\nThe Command Centre is the source of truth — this sends its details (time, addresses, driver, details block) to Google so the calendar matches the app. Your data in the app is not changed.')">
                         @csrf
-                        <button class="btn btn-dark" style="padding:9px 16px">🔄 Match calendar</button>
+                        <button class="btn btn-dark" style="padding:9px 16px">📤 Push to Google Calendar</button>
                     </form>
                 @endif
                 @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
@@ -544,10 +544,7 @@
         @if(! $booking->status->isTerminal())
             @if(!empty($canScan))
                 <p class="hint" style="margin:-8px 0 16px">
-                    <strong>Match calendar</strong> finds this booking on your live Google Calendar (by its reference) and makes the app match it exactly — time, addresses, via stops and the full details block. Your own edits in the app always stick until you press this — pressing it discards them and takes the calendar as the truth. Never changes the calendar.
-                    @if(!empty($booking->meta['calendar_scanned_at']))
-                        · Last scanned {{ \Illuminate\Support\Carbon::parse($booking->meta['calendar_scanned_at'])->format('D d M, H:i') }}
-                    @endif
+                    <strong>Push to Google Calendar</strong> sends this booking's details from the Command Centre to Google so the calendar entry matches the app. The <strong>Command Centre is the source of truth</strong> — Google is only a mirror of it; your data here is never overwritten by the calendar.
                 </p>
             @endif
             @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
@@ -595,12 +592,6 @@
                 </form>
             </div>
         @endif
-    @endif
-
-    @if(auth()->user()->isAdmin() && !empty($booking->meta['calendar_unverified']))
-        <div class="alert alert-error" style="margin-bottom:16px">
-            ⚠ <strong>Not verified against the live calendar.</strong> The time and details below are from our stored copy and <strong>may be out of date</strong> if the event was changed on Google Calendar. Tap <strong>🔍 Scan calendar</strong> above to pull the live version.
-        </div>
     @endif
 
     @if(auth()->user()->isAdmin())

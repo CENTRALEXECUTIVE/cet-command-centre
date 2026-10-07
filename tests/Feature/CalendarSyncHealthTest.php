@@ -43,7 +43,7 @@ class CalendarSyncHealthTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Calendar sync is behind');
+            ->assertSee('Google Calendar mirror is behind');
     }
 
     public function test_no_banner_when_sync_is_fresh(): void
