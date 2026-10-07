@@ -84,14 +84,14 @@ class FreeIntakeParser
 
         // Gather EVERY note-like line so nothing (e.g. "Additional: wheelchair",
         // accessibility, meet & greet) is silently dropped.
-        $notes = collect(['notes', 'comments', 'special requests', 'special request',
+        $notes = collect(['notes', 'driver notes', 'driver note', 'comments', 'special requests', 'special request',
             'meet & greet note', 'additional', 'additional info', 'additional information',
             'accessibility', 'requirements', 'extra', 'extras', 'instructions'])
             ->map(fn ($k) => $labels[$k] ?? null)
             ->filter()->unique()->implode(' · ');
 
         return [
-            'lead_name' => $get('customer name', 'lead passenger', 'passenger name', 'lead name', 'name', 'customer') ?: $this->guessName($text),
+            'lead_name' => $get('customer name', 'lead passenger', 'passenger name', 'passenger', 'lead name', 'name', 'customer') ?: $this->guessName($text),
             'contact_no' => $this->phone($get('contact no', 'contact number', 'phone number', 'contact', 'phone', 'mobile', 'tel'), $text),
             'email' => $get('email', 'e-mail') ?? $this->email($text),
             'pickup_at' => $this->dateTime($get('date & time', 'date and time', 'pickup time', 'pickup date', 'date & time of pickup', 'when', 'date'), $text),
@@ -279,10 +279,15 @@ class FreeIntakeParser
     private function dateOnly(string $text): ?string
     {
         if (preg_match('/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\s+(\d{4})/u', $text, $m)) {
-            try {
-                return Carbon::createFromFormat('j F Y', $m[1].' '.$m[2].' '.$m[3], config('app.timezone'))->format('Y-m-d');
-            } catch (\Throwable) {
-                return null;
+            // Try abbreviated ("09 Oct 2026") then full ("09 October 2026") month names.
+            foreach (['j M Y', 'j F Y'] as $fmt) {
+                try {
+                    if ($c = Carbon::createFromFormat($fmt, $m[1].' '.$m[2].' '.$m[3], config('app.timezone'))) {
+                        return $c->format('Y-m-d');
+                    }
+                } catch (\Throwable) {
+                    // try the next format
+                }
             }
         }
         if (preg_match('#(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})#', $text, $m)) {

@@ -151,4 +151,48 @@ TXT);
         $this->assertSame('cash', $f['payment']);
         $this->assertSame('07700900123', $f['contact_no']);
     }
+
+    public function test_it_parses_the_office_transfer_block(): void
+    {
+        $block = <<<'TXT'
+Job Type: Transfer
+Date & Time: 10:35 – Fri, 09 Oct 2026
+Passenger: Naomi Beckett
+Pickup: 15 Manor Fields, Goole, DN14 8TL
+Drop-off: Bicycle Parking Area, York, YO23 1EX
+Vehicle: Executive
+Price: £140 – PAID
+Driver Notes: York Racecourse
+TXT;
+        $f = app(FreeIntakeParser::class)->parse($block);
+
+        $this->assertSame('Naomi Beckett', $f['lead_name']);
+        $this->assertSame('2026-10-09 10:35', $f['pickup_at']);
+        $this->assertStringContainsString('Goole', $f['pickup_address']);
+        $this->assertStringContainsString('York', $f['destination_address']);
+        $this->assertSame(140.0, $f['price']);
+        $this->assertTrue($f['paid']);
+        $this->assertStringContainsString('York Racecourse', $f['notes']);
+    }
+
+    public function test_a_v_class_transfer_block_resolves_to_v_class(): void
+    {
+        $block = <<<'TXT'
+Date & Time: 09:50 – Fri, 09 Oct 2026
+Passenger: Mark Haran
+Pickup: 4 Spring Gardens, Barnsley, S74 9QW
+Drop-off: Bicycle Parking Area, York, YO23 1EX
+Vehicle: V-Class
+Price: £170 – PAID
+Driver Notes: York Racecourse
+TXT;
+        $f = app(FreeIntakeParser::class)->parse($block);
+        $this->assertSame('Mark Haran', $f['lead_name']);
+        $this->assertSame('2026-10-09 09:50', $f['pickup_at']);
+        $this->assertSame(170.0, $f['price']);
+
+        // The vehicle label resolves to the V Class type when the booking is created.
+        $booking = app(BookingIntakeService::class)->create($f, null);
+        $this->assertSame('v-class', $booking->vehicleType->slug);
+    }
 }

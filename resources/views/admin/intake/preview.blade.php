@@ -124,9 +124,10 @@
                         <span class="hint">Airport code or destination word shown in the calendar title.</span>
                     </div>
                     <div class="field"><label>Vehicle</label>
+                        @php $vehNorm = fn ($s) => \Illuminate\Support\Str::lower(preg_replace('/[^a-z0-9]/i', '', (string) $s)); @endphp
                         <select name="fields[vehicle]">
                             @foreach($vehicleTypes as $vt)
-                                <option value="{{ $vt }}" @selected($fields['vehicle'] === $vt)>{{ $vt }}</option>
+                                <option value="{{ $vt }}" @selected($vehNorm($fields['vehicle'] ?? '') === $vehNorm($vt))>{{ $vt }}</option>
                             @endforeach
                         </select>
                     </div>
