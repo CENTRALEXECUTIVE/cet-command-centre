@@ -537,6 +537,36 @@
                 <p class="hint" style="margin:8px 0 0;color:#8a6d00">No customer email on file — add one via Edit booking to enable emailing.</p>
             @endif
 
+            {{-- Combine several bookings onto one invoice (e.g. an outbound + return
+                 that came in as separate jobs, or a batch for one client). --}}
+            @unless($cover)
+                @php $invoiceGroup = $booking->invoiceGroupBookings()->reject(fn ($b) => $b->is($booking))->values(); @endphp
+                <details class="card" style="margin:12px 0 0;background:rgba(0,0,0,.02)" @if($invoiceGroup->isNotEmpty()) open @endif>
+                    <summary style="cursor:pointer;font-weight:600;font-size:13px">🧾 Bill more than one booking on this invoice</summary>
+                    @if($invoiceGroup->isNotEmpty())
+                        <p class="hint" style="margin:10px 0 6px">This invoice also includes:</p>
+                        <ul style="margin:0 0 10px;padding-left:18px">
+                            @foreach($invoiceGroup as $g)
+                                <li style="font-size:13px;margin-bottom:4px">
+                                    <strong>{{ $g->reference }}</strong> — {{ $g->pickup_at?->format('D d M, H:i') }}, {{ $g->pickup_address }} → {{ $g->destination_address }}
+                                    @if($g->fareGross() !== null) · £{{ number_format((float) $g->fareGross(), 2) }}@endif
+                                    <form method="POST" action="{{ route('bookings.invoice.uncombine', ['booking' => $booking, 'other' => $g]) }}" style="display:inline;margin:0">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-ghost" style="padding:2px 8px;font-size:12px">Remove</button>
+                                    </form>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    <form method="POST" action="{{ route('bookings.invoice.combine', $booking) }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+                        @csrf
+                        <input type="text" name="reference" placeholder="Other booking reference (e.g. FLCCGSb)" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+                        <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">Add to this invoice</button>
+                    </form>
+                    <p class="hint" style="margin:8px 0 0">The View/Download/Email invoice above will list every journey and total them. Invoice-only — it doesn't change rotation, the calendar or payments.</p>
+                </details>
+            @endunless
+
             {{-- Cover-job details: who we covered the job for, so we invoice them. --}}
             <details class="card" style="margin:12px 0 0;background:rgba(0,0,0,.02)" @if($cover) open @endif>
                 <summary style="cursor:pointer;font-weight:600;font-size:13px">🤝 {{ $cover ? 'Edit cover-job details' : 'This was a cover job for another operator — invoice them' }}</summary>

@@ -60,4 +60,38 @@ class BookingReceiptController extends Controller
 
         return back()->with('status', 'Invoice emailed to '.$to.'.');
     }
+
+    /** Combine another booking onto this one's invoice (by reference). */
+    public function combine(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['reference' => ['required', 'string', 'max:64']]);
+        $ref = trim($data['reference']);
+
+        $other = Booking::where('reference', $ref)
+            ->orWhere('external_reference', $ref)
+            ->first();
+
+        if (! $other) {
+            return back()->with('error', "No booking found with reference “{$ref}”.");
+        }
+        if ($other->is($booking)) {
+            return back()->with('error', "That's this same booking — pick a different one.");
+        }
+
+        $booking->addToInvoiceGroup($other);
+
+        return back()->with('status', "Booking {$other->reference} added to this invoice.");
+    }
+
+    /** Remove a booking from this one's combined invoice. */
+    public function uncombine(Request $request, Booking $booking, Booking $other): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $booking->removeFromInvoiceGroup($other);
+
+        return back()->with('status', "Booking {$other->reference} removed from this invoice.");
+    }
 }

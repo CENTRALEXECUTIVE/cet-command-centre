@@ -125,14 +125,13 @@ class InvoicePdf
         $isVat = ! $cover && $booking->vatInvoiceRequested();
         $rate = $isVat ? $vat->rate() : 0.0;
 
-        // Which journeys this invoice covers — the booking plus its paired return
-        // leg (so a return trip reads as two lines, like the office's own invoices).
-        $legs = collect([$booking]);
-        if ($booking->linked_booking_id && ($partner = Booking::find($booking->linked_booking_id))) {
-            $partner->loadMissing(['customer', 'vehicleType']);
-            $legs->push($partner);
+        // Which journeys this invoice covers — the booking, its paired return leg,
+        // and any bookings manually combined onto one invoice (addToInvoiceGroup),
+        // so a return trip or a batch of jobs for one client reads as several lines.
+        $legs = $booking->invoiceGroupBookings();
+        if ($legs->isEmpty()) {
+            $legs = collect([$booking]);
         }
-        $legs = $legs->unique('id')->sortBy('pickup_at')->values();
 
         // Build a net/VAT/total line for each journey.
         $lines = $legs->map(function (Booking $b) use ($legs, $rate) {

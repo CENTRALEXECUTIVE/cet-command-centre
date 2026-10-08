@@ -2468,6 +2468,80 @@ class Booking extends Model
     }
 
     /**
+     * Bill two (or more) separate bookings on ONE invoice — e.g. an outbound and a
+     * return that came in as separate jobs, or several jobs for the same client.
+     * Stored reciprocally in meta['invoice_with'] so viewing either one shows the
+     * combined invoice. This is invoice-only: it does NOT touch rotation, the
+     * return-leg logic or the calendar (unlike linked_booking_id).
+     */
+    public function addToInvoiceGroup(self $other): void
+    {
+        if ($other->id === $this->id) {
+            return;
+        }
+        $this->setInvoiceWith(collect($this->invoiceWithIds())->push($other->id));
+        $other->setInvoiceWith(collect($other->invoiceWithIds())->push($this->id));
+    }
+
+    /** Remove a booking from this one's combined invoice (both directions). */
+    public function removeFromInvoiceGroup(self $other): void
+    {
+        $this->setInvoiceWith(collect($this->invoiceWithIds())->reject(fn ($id) => $id === $other->id));
+        $other->setInvoiceWith(collect($other->invoiceWithIds())->reject(fn ($id) => $id === $this->id));
+    }
+
+    /** @return array<int, int> */
+    private function invoiceWithIds(): array
+    {
+        return collect((array) ($this->meta['invoice_with'] ?? []))
+            ->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
+    }
+
+    private function setInvoiceWith(\Illuminate\Support\Collection $ids): void
+    {
+        $clean = $ids->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
+        $meta = $this->meta ?? [];
+        if ($clean === []) {
+            unset($meta['invoice_with']);
+        } else {
+            $meta['invoice_with'] = $clean;
+        }
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /**
+     * Every booking that belongs on this one's invoice, pickup order: this booking,
+     * its linked return leg, and any bookings manually combined with it (and theirs),
+     * de-duplicated. One level of expansion is enough because the grouping is stored
+     * reciprocally.
+     *
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public function invoiceGroupBookings(): \Illuminate\Support\Collection
+    {
+        $ids = collect([$this->id]);
+        if ($this->linked_booking_id) {
+            $ids->push($this->linked_booking_id);
+        }
+        $ids = $ids->merge($this->invoiceWithIds());
+
+        // Expand once via the members we found, so grouping reaches across the set.
+        $members = self::whereIn('id', $ids->unique()->all())->get();
+        foreach ($members as $b) {
+            if ($b->linked_booking_id) {
+                $ids->push($b->linked_booking_id);
+            }
+            $ids = $ids->merge($b->invoiceWithIds());
+        }
+
+        return self::whereIn('id', $ids->unique()->values()->all())
+            ->with(['customer', 'vehicleType'])
+            ->get()
+            ->sortBy(fn (self $b) => $b->pickup_at?->getTimestamp() ?? 0)
+            ->values();
+    }
+
+    /**
      * Suitcase + hand-luggage counts, resolved from the most reliable source in
      * turn: the discrete meta counts (new bookings + the form), then the
      * descriptive "N Suitcases + N Hand Luggage" text that built the calendar

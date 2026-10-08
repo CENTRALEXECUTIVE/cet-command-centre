@@ -179,6 +179,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Per-booking receipt / VAT invoice: view/download the PDF, or email it.
         Route::get('bookings/{booking}/receipt', [\App\Http\Controllers\BookingReceiptController::class, 'show'])->name('bookings.receipt');
         Route::post('bookings/{booking}/receipt/email', [\App\Http\Controllers\BookingReceiptController::class, 'email'])->middleware('throttle:10,1')->name('bookings.receipt.email');
+        // Combine another booking onto this one's invoice (e.g. outbound + return that came in separately).
+        Route::post('bookings/{booking}/invoice/combine', [\App\Http\Controllers\BookingReceiptController::class, 'combine'])->name('bookings.invoice.combine');
+        Route::delete('bookings/{booking}/invoice/combine/{other}', [\App\Http\Controllers\BookingReceiptController::class, 'uncombine'])->name('bookings.invoice.uncombine');
         // Cover job — mark that we covered this for another operator, so we invoice them.
         Route::post('bookings/{booking}/cover-for', [BookingController::class, 'setCoverFor'])->middleware('throttle:30,1')->name('bookings.cover-for');
         // VAT invoice toggle — add 20% VAT on top of the standard price for this booking.
