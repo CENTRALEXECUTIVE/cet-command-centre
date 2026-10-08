@@ -35,7 +35,7 @@ class QuoteMail extends Mailable
         $vat = app(VatService::class);
         $applyVat = $this->withVat && $vat->registered();
 
-        return new Content(markdown: 'emails.quote', with: [
+        return new Content(view: 'emails.quote', with: [
             'quote' => $this->quote,
             'toName' => $this->toName,
             'applyVat' => $applyVat,
