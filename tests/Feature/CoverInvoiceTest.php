@@ -43,6 +43,19 @@ class CoverInvoiceTest extends TestCase
             ->assertSee('B2 Travel', false);
     }
 
+    public function test_the_page_has_a_search_box_and_shows_the_passenger(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = \App\Models\Customer::factory()->create(['name' => 'Harriet Webb']);
+        $b = \App\Models\Booking::factory()->create(['customer_id' => $customer->id, 'quoted_price' => 60, 'reference' => 'CET-ZZ1']);
+        $b->setCoverFor(['name' => 'A1 Cars', 'email' => null, 'amount' => 60]);
+
+        $this->actingAs($admin)->get(route('cover-invoices.index'))->assertOk()
+            ->assertSee('cover-search', false)          // the search input
+            ->assertSee('Harriet Webb', false)          // passenger name shown
+            ->assertSee('data-search', false);          // rows are searchable
+    }
+
     public function test_a_combined_invoice_pdf_totals_the_selected_jobs(): void
     {
         $admin = User::factory()->admin()->create();
