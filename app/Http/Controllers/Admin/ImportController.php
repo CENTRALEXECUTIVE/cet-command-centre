@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\Import\CustomerImporter;
 use App\Services\Import\EtoBookingImporter;
 use App\Services\Inbox\GraphMailClient;
 use App\Services\Inbox\OutlookBookingService;
@@ -25,6 +26,7 @@ class ImportController extends Controller
         return view('admin.imports.index', [
             'lastAds' => Setting::get('last_ads_import_at'),
             'lastEto' => Setting::get('last_eto_import_at'),
+            'lastCustomers' => Setting::get('last_customers_import_at'),
             'lastEmailResync' => Setting::get('last_email_resync_at'),
             'emailConnected' => app(GraphMailClient::class)->configured(),
         ]);
@@ -50,6 +52,21 @@ class ImportController extends Controller
         $errors = count($stats['errors']) ? ' · '.count($stats['errors']).' error(s)' : '';
 
         return back()->with('status', "ETO import: {$stats['imported']} created, {$stats['updated']} updated (financials), {$stats['skipped']} skipped{$errors}.");
+    }
+
+    /** Import the ETO customers export: customers + corporate accounts. */
+    public function customers(Request $request, CustomerImporter $importer): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $this->validateCsv($request);
+
+        $s = $importer->import($request->file('file')->getRealPath());
+        Setting::set('last_customers_import_at', now()->toDateTimeString(), 'string', 'customers');
+
+        $errors = count($s['errors']) ? ' · '.count($s['errors']).' error(s)' : '';
+
+        return back()->with('status', "Customers import: {$s['customers_created']} created, {$s['customers_updated']} updated; "
+            ."{$s['accounts_created']} corporate account(s) created, {$s['accounts_linked']} customer(s) linked to accounts; {$s['skipped']} skipped{$errors}.");
     }
 
     /**

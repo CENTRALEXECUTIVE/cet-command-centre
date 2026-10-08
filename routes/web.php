@@ -363,6 +363,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             ->middleware('throttle:60,1')->name('imports.ads');
         Route::post('imports/eto', [\App\Http\Controllers\Admin\ImportController::class, 'eto'])
             ->middleware('throttle:60,1')->name('imports.eto');
+        Route::post('imports/customers', [\App\Http\Controllers\Admin\ImportController::class, 'customers'])
+            ->middleware('throttle:60,1')->name('imports.customers');
         Route::post('imports/resync-email', [\App\Http\Controllers\Admin\ImportController::class, 'resyncEmail'])
             ->middleware('throttle:30,1')->name('imports.resync-email');
 

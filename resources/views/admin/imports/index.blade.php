@@ -41,6 +41,20 @@
             </p>
         </div>
 
+        {{-- ETO customers + accounts --}}
+        <div class="card">
+            <h2>👥 ETO customers &amp; accounts</h2>
+            <p class="muted" style="margin-top:0">Export your <strong>customers</strong> from EasyTaxiOffice, then drop the .csv here. Adds every customer to the Command Centre and sets up a <strong>corporate account</strong> for each "Account payment = Yes" company (JELD-WEN, Forged Solutions, Vulcan, …), linking the customer to it. Keyed by email / company — no duplicates, safe to re-run.</p>
+            <form method="POST" action="{{ route('imports.customers') }}" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:10px">
+                @csrf
+                <input type="file" name="file" required>
+                <button type="submit" class="btn btn-primary" style="align-self:flex-start">Import customers &amp; accounts</button>
+            </form>
+            <p class="muted" style="font-size:12px;margin-bottom:0">
+                @if($lastCustomers) Last imported: {{ \Illuminate\Support\Carbon::parse($lastCustomers)->diffForHumans() }} @else Not imported yet. @endif
+            </p>
+        </div>
+
         {{-- Resync with ETO emails on demand --}}
         <div class="card">
             <h2>📧 Resync with ETO emails</h2>
