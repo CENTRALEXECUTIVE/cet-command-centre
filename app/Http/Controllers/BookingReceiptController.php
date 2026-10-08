@@ -23,7 +23,7 @@ class BookingReceiptController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $kind = $booking->vatInvoiceRequested() ? 'Invoice' : 'Receipt';
+        $kind = 'Invoice';
         $disposition = $request->boolean('download') ? 'attachment' : 'inline';
 
         return response($pdf->renderReceipt($booking), 200, [
@@ -58,6 +58,6 @@ class BookingReceiptController extends Controller
 
         Mail::to($to)->send(new BookingReceiptMail($booking, $pdf->renderReceipt($booking)));
 
-        return back()->with('status', ($cover ? 'Invoice' : 'Receipt').' emailed to '.$to.'.');
+        return back()->with('status', 'Invoice emailed to '.$to.'.');
     }
 }

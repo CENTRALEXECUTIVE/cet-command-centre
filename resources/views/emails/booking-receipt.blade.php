@@ -1,9 +1,9 @@
 @php
     $isCover = $isCover ?? false;
     $cover = $booking->coverFor();
-    $billedTo = $isCover && $cover ? $cover['name'] : $booking->displayName();
+    $billedTo = $isCover && $cover ? $cover['name'] : $booking->bookerName();
     $total = $isCover ? $booking->coverForAmount() : $booking->fareGross();
-    $kind = $isCover ? 'invoice' : ($isVat ? 'VAT invoice' : 'receipt');
+    $kind = $isVat ? 'VAT invoice' : 'invoice';
 @endphp
 <x-mail::message>
 # {{ ucfirst($kind) }} — {{ $booking->reference }}

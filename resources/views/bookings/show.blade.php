@@ -476,9 +476,9 @@
              receipt / VAT invoice. --}}
         @php
             $cover = $booking->coverFor();
-            $recName = $cover ? $cover['name'] : $booking->displayName();
-            $recEmail = $cover ? $cover['email'] : $booking->customer?->email;
-            $docWord = $cover ? 'invoice' : ($booking->vatInvoiceRequested() ? 'VAT invoice' : 'receipt');
+            $recName = $cover ? $cover['name'] : $booking->bookerName();
+            $recEmail = $cover ? $cover['email'] : ($booking->bookerEmail() ?: $booking->customer?->email);
+            $docWord = $cover ? 'invoice' : ($booking->vatInvoiceRequested() ? 'VAT invoice' : 'invoice');
             $docTotal = $cover ? $booking->coverForAmount() : $booking->fareGross();
             $waDigits = $cover ? \App\Support\Phone::wa($cover['phone']) : null;
             $waText = $cover
@@ -486,11 +486,11 @@
                 : null;
         @endphp
         <div class="card" style="margin-bottom:16px">
-            <h2 style="margin:0 0 6px;font-size:16px">📄 {{ $cover ? 'Cover-job invoice' : ($booking->vatInvoiceRequested() ? 'VAT invoice' : 'Receipt') }}</h2>
+            <h2 style="margin:0 0 6px;font-size:16px">📄 {{ $cover ? 'Cover-job invoice' : ($booking->vatInvoiceRequested() ? 'VAT invoice' : 'Invoice') }}</h2>
             @if($cover)
                 <p class="hint" style="margin:0 0 10px">Invoicing <strong>{{ $cover['name'] }}</strong>{{ $docTotal !== null ? ' for £'.number_format((float) $docTotal, 2) : '' }} — a job we covered for them. Edit the details below; the PDF is addressed to them.</p>
             @elseif($booking->fareGross() === null)
-                <p class="hint" style="margin:0 0 10px">No price on this job yet — set the fare above and the receipt will show it. You can still open a blank {{ $docWord }}.</p>
+                <p class="hint" style="margin:0 0 10px">No price on this job yet — set the fare above and the invoice will show it. You can still open a blank {{ $docWord }}.</p>
             @else
                 <p class="hint" style="margin:0 0 10px">Total <strong>£{{ number_format((float) $booking->fareGross(), 2) }}</strong>{{ $booking->fareIsPaid() ? ' · marked paid' : ' · balance due' }}. To amend any detail, use <strong>Edit booking</strong> above, then reopen the PDF.</p>
             @endif

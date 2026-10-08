@@ -4,85 +4,99 @@
 <meta charset="utf-8">
 @verbatim
 <style>
-  @page { margin: 40px 44px; }
-  * { font-family: DejaVu Sans, sans-serif; }
-  body { color:#000; font-size:11px; margin:0; line-height:1.5; }
+  /* Professional invoice. Uses the PDF core fonts dompdf always has — Helvetica
+     for the body (clean, corporate) and Times for the masthead/headings (a
+     letterhead gravitas) — so nothing depends on an embedded font that could
+     silently fall back. All text is near-black for readability; no bright accent
+     bars — restraint reads as premium. */
+  @page { margin: 46px 48px; }
+  * { font-family: Helvetica, Arial, sans-serif; }
+  body { color:#111; font-size:10.5px; margin:0; line-height:1.55; }
   table { border-collapse:collapse; }
+  .serif { font-family: "Times New Roman", Times, serif; }
+
   .top { width:100%; }
   .top td { vertical-align:top; }
-  .logo { width:76px; height:76px; }
-  .company { margin-top:8px; font-size:13px; font-weight:bold; letter-spacing:.3px; color:#000; }
-  .company .reg { font-size:10px; font-weight:normal; color:#000; margin-top:2px; }
+  .logo { width:70px; height:70px; }
+  .company { margin-top:10px; font-size:15px; font-weight:bold; color:#111; letter-spacing:.2px; }
+  .company .reg { font-family:Helvetica, Arial, sans-serif; font-size:9px; font-weight:normal; color:#444; margin-top:3px; letter-spacing:.2px; }
+
   .doc { text-align:right; }
-  .doc .kind { font-size:17px; font-weight:bold; letter-spacing:3px; color:#000; }
-  .metatab { font-size:10.5px; margin-top:10px; margin-left:auto; }
-  .metatab td { padding:2px 0; color:#000; }
-  .metatab .k { text-align:right; padding-right:12px; color:#000; }
-  .metatab .v { text-align:right; font-weight:bold; color:#000; }
-  .accent { height:3px; background:#FBBA2A; margin:16px 0 0; }
-  .hair { height:1px; background:#bbb; margin:0 0 22px; }
+  .doc .kind { font-size:30px; font-weight:normal; letter-spacing:7px; color:#111; }
+  .metatab { font-size:10px; margin-top:14px; margin-left:auto; }
+  .metatab td { padding:2px 0; color:#111; }
+  .metatab .k { text-align:right; padding-right:14px; color:#555; text-transform:uppercase; font-size:8.5px; letter-spacing:.1em; }
+  .metatab .v { text-align:right; font-weight:bold; }
+
+  .rule { border-bottom:2px solid #111; margin:18px 0 2px; }
+  .rule2 { border-bottom:1px solid #111; margin:0 0 24px; }
+
   .parties { width:100%; }
-  .parties td { vertical-align:top; width:50%; padding-right:18px; }
-  .plabel { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#000; font-weight:bold; margin-bottom:5px; }
-  .pname { font-weight:bold; font-size:12px; color:#000; }
-  .parties div { color:#000; }
-  table.items { width:100%; margin-top:28px; font-size:10.5px; }
-  table.items th { text-align:left; padding:0 9px 8px; font-size:9px; text-transform:uppercase; letter-spacing:.1em; color:#000; border-bottom:2px solid #000; font-weight:bold; }
+  .parties td { vertical-align:top; width:50%; padding-right:20px; }
+  .plabel { font-size:8.5px; text-transform:uppercase; letter-spacing:.16em; color:#555; font-weight:bold; margin-bottom:6px; }
+  .pname { font-weight:bold; font-size:12.5px; color:#111; margin-bottom:1px; }
+  .parties div { color:#111; }
+
+  table.items { width:100%; margin-top:30px; font-size:10.5px; }
+  table.items th { text-align:left; padding:0 10px 9px; font-size:8.5px; text-transform:uppercase; letter-spacing:.12em; color:#555; border-bottom:1.5px solid #111; font-weight:bold; }
   table.items th.num, table.items td.num { text-align:right; white-space:nowrap; }
-  table.items td { padding:12px 9px; border-bottom:1px solid #ddd; vertical-align:top; color:#000; }
-  table.items .title { font-weight:bold; font-size:11.5px; color:#000; margin-bottom:5px; }
-  table.items .det { color:#000; font-size:10px; line-height:1.6; }
-  .summary { width:100%; margin-top:20px; }
+  table.items td { padding:13px 10px; border-bottom:1px solid #e3e3e3; vertical-align:top; color:#111; }
+  table.items .title { font-weight:bold; font-size:11.5px; color:#111; margin-bottom:5px; }
+  table.items .det { color:#333; font-size:9.5px; line-height:1.7; }
+
+  .summary { width:100%; margin-top:22px; }
   .summary td { vertical-align:top; }
-  table.vatsum { font-size:10px; border:1px solid #ccc; }
-  table.vatsum th, table.vatsum td { padding:5px 10px; border-bottom:1px solid #eee; text-align:right; color:#000; }
-  table.vatsum th { background:#f4f4f4; font-weight:bold; text-transform:uppercase; font-size:8.5px; letter-spacing:.08em; }
+  table.vatsum { font-size:9.5px; border:1px solid #d7d7d7; }
+  table.vatsum th, table.vatsum td { padding:6px 11px; border-bottom:1px solid #ececec; text-align:right; color:#111; }
+  table.vatsum th { background:#f6f6f4; font-weight:bold; text-transform:uppercase; font-size:8px; letter-spacing:.09em; color:#555; }
   table.vatsum th:first-child, table.vatsum td:first-child { text-align:left; }
-  .totals { width:260px; margin-left:auto; font-size:11.5px; }
-  .totals td { padding:5px 2px; color:#000; }
-  .totals .k { text-align:left; }
+
+  .totals { width:270px; margin-left:auto; font-size:11px; }
+  .totals td { padding:6px 2px; color:#111; }
+  .totals .k { text-align:left; color:#444; }
   .totals .v { text-align:right; white-space:nowrap; font-weight:bold; }
-  .totals .strong td { border-top:1px solid #999; padding-top:8px; }
-  .totals .due td { font-weight:bold; font-size:15px; border-top:3px solid #FBBA2A; padding-top:10px; }
-  .paysum { margin-top:30px; font-size:10.5px; color:#000; border-top:1px solid #ddd; padding-top:12px; }
-  .paysum .h { font-weight:bold; margin-bottom:3px; }
-  .foot { margin-top:26px; font-size:9.5px; color:#000; border-top:1px solid #ddd; padding-top:10px; }
-  .foot b { font-weight:bold; }
+  .totals .strong td { border-top:1px solid #cfcfcf; padding-top:9px; }
+  .totals .due td { font-weight:bold; font-size:14px; border-top:2px solid #111; padding-top:11px; }
+
+  .paysum { margin-top:30px; font-size:10px; color:#111; border-top:1px solid #e3e3e3; padding-top:13px; }
+  .paysum .h { font-weight:bold; margin-bottom:3px; letter-spacing:.3px; }
+  .foot { margin-top:30px; font-size:9px; color:#555; border-top:1px solid #e3e3e3; padding-top:11px; letter-spacing:.2px; }
+  .foot b { font-weight:bold; color:#111; }
 </style>
 @endverbatim
 </head>
 <body>
-  @php $kind = ($isCover ?? false) ? 'INVOICE' : (($isVat ?? false) ? 'VAT INVOICE' : 'RECEIPT'); @endphp
+  @php $kind = ($isVat ?? false) ? 'VAT INVOICE' : 'INVOICE'; @endphp
   <table class="top">
     <tr>
       <td>
         @if($logo ?? null)<img src="{{ $logo }}" class="logo" alt="">@endif
-        <div class="company">{{ $company['name'] ?: 'Central Executive Transfers Ltd' }}
+        <div class="company serif">{{ $company['name'] ?: 'Central Executive Transfers Ltd' }}
           <div class="reg">
             @if($company['number'])Company No. {{ $company['number'] }}@endif
-            @if($company['vat_number']) · VAT {{ $company['vat_number'] }}@endif
+            @if($company['vat_number']) &nbsp;·&nbsp; VAT {{ $company['vat_number'] }}@endif
           </div>
         </div>
       </td>
       <td class="doc">
-        <div class="kind">{{ $kind }}</div>
+        <div class="kind serif">{{ $kind }}</div>
         <table class="metatab">
-          <tr><td class="k">Invoice number</td><td class="v">{{ $invoiceNumber }}</td></tr>
+          <tr><td class="k">Invoice No.</td><td class="v">{{ $invoiceNumber }}</td></tr>
           <tr><td class="k">Issue date</td><td class="v">{{ $issueDate->format('d/m/Y') }}</td></tr>
           @if($balanceDue > 0)<tr><td class="k">Payment due</td><td class="v">{{ $paymentDue->format('d/m/Y') }}</td></tr>@endif
         </table>
       </td>
     </tr>
   </table>
-  <div class="accent"></div>
-  <div class="hair"></div>
+  <div class="rule"></div>
+  <div class="rule2"></div>
 
   <table class="parties">
     <tr>
       <td>
-        <div class="plabel">Bill from</div>
+        <div class="plabel">From</div>
         <div class="pname">{{ $company['name'] ?: 'Central Executive Transfers Ltd' }}</div>
-        @if($company['vat_number'])<div>VAT Registration No: {{ $company['vat_number'] }}</div>@endif
+        @if($company['vat_number'])<div>VAT Reg. No. {{ $company['vat_number'] }}</div>@endif
         @if($company['address'])<div>{!! nl2br(e($company['address'])) !!}</div>@endif
         @php $contact = trim(implode(' · ', array_filter([$company['phone'] ?? '', $company['email'] ?? '']))); @endphp
         @if($contact)<div>{{ $contact }}</div>@endif

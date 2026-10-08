@@ -27,8 +27,7 @@ class BookingReceiptMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $kind = $this->booking->isCoverJob() ? 'Invoice'
-            : ($this->booking->vatInvoiceRequested() ? 'VAT Invoice' : 'Receipt');
+        $kind = $this->booking->vatInvoiceRequested() ? 'VAT Invoice' : 'Invoice';
 
         return new Envelope(
             subject: "Central Executive Transfers — {$kind} {$this->booking->reference}",
@@ -47,7 +46,7 @@ class BookingReceiptMail extends Mailable
     /** @return array<int, Attachment> */
     public function attachments(): array
     {
-        $kind = ($this->booking->isCoverJob() || $this->booking->vatInvoiceRequested()) ? 'Invoice' : 'Receipt';
+        $kind = 'Invoice';
 
         return [
             Attachment::fromData(fn () => $this->pdf, "{$kind}-{$this->booking->reference}.pdf")
