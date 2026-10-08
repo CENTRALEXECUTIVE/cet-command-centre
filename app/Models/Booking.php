@@ -2407,20 +2407,64 @@ class Booking extends Model
     /**
      * The BOOKER — the person who placed the booking and pays, as opposed to the
      * lead passenger who travels. Used for invoice "Bill to" (whoever paid gets
-     * billed). Prefers an explicit meta['booked_by'] (set when a booking is made
-     * for someone else, incl. the paste/ETO import where the customer record is
-     * the passenger), else the customer on the booking (who IS the booker on a
+     * billed). Prefers an explicit stored booker — meta['booked_by'] (widget, when
+     * a booking is made for someone else) or meta['booker_name'] (the ETO email
+     * ingest, which puts the lead passenger on the customer record and keeps the
+     * booker here) — else the customer on the booking (who IS the booker on a
      * normal booking). The lead passenger still shows as "Attn:" on the invoice
      * when they differ.
      */
     public function bookerName(): string
     {
-        $bookedBy = trim((string) ($this->meta['booked_by'] ?? ''));
-        if ($bookedBy !== '') {
-            return $bookedBy;
+        $booker = $this->storedBookerName();
+        if ($booker !== '') {
+            return $booker;
         }
 
         return $this->customer?->name ?? 'Customer';
+    }
+
+    /** The explicitly stored booker name (widget or ETO ingest), or '' if none. */
+    private function storedBookerName(): string
+    {
+        return trim((string) ($this->meta['booked_by'] ?? $this->meta['booker_name'] ?? ''));
+    }
+
+    /** True when the booker is a DIFFERENT person from the booking's customer record. */
+    public function hasDistinctBooker(): bool
+    {
+        $booker = $this->storedBookerName();
+
+        return $booker !== '' && strcasecmp($booker, (string) ($this->customer?->name ?? '')) !== 0;
+    }
+
+    /**
+     * The booker's email for the invoice. When the booker is a distinct person
+     * (e.g. an ETO "Customer" who booked for a different passenger) we use the
+     * booker's own email where captured, and never fall back to the passenger's.
+     * On a normal booking the customer IS the booker, so their email is used.
+     */
+    public function bookerEmail(): ?string
+    {
+        if ($this->hasDistinctBooker()) {
+            $e = trim((string) ($this->meta['booker_email'] ?? ''));
+
+            return $e !== '' ? $e : null;
+        }
+
+        return $this->customer?->email;
+    }
+
+    /** The booker's phone for the invoice — see bookerEmail() for the distinct-booker rule. */
+    public function bookerPhone(): ?string
+    {
+        if ($this->hasDistinctBooker()) {
+            $p = trim((string) ($this->meta['booker_phone'] ?? ''));
+
+            return $p !== '' ? $p : null;
+        }
+
+        return $this->customerContactNumber();
     }
 
     /**

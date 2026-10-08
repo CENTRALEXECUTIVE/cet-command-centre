@@ -45,6 +45,39 @@ class InvoiceBillToBookerTest extends TestCase
         $this->assertSame('Tom Passenger', $booking->displayName());
     }
 
+    public function test_booker_name_uses_eto_booker_name_and_contacts(): void
+    {
+        // ETO email ingest: customer record is the LEAD passenger, booker is kept in
+        // meta['booker_name'] with their own phone/email.
+        $passenger = Customer::factory()->create(['name' => 'Elysia Bennett-Saxton', 'email' => 'elysia@vulcanseals.com', 'phone' => '07563248885']);
+        $booking = Booking::factory()->create([
+            'customer_id' => $passenger->id,
+            'meta' => [
+                'lead_name' => 'Elysia Bennett-Saxton',
+                'booker_name' => 'Jane McGuinness',
+                'booker_email' => 'jane.mcguinness@vulcanseals.com',
+                'booker_phone' => '07906854877',
+            ],
+        ]);
+
+        $this->assertSame('Jane McGuinness', $booking->bookerName());
+        $this->assertTrue($booking->hasDistinctBooker());
+        // Invoice contacts are the booker's, never the passenger's.
+        $this->assertSame('jane.mcguinness@vulcanseals.com', $booking->bookerEmail());
+        $this->assertSame('07906854877', $booking->bookerPhone());
+        // The passenger still shows for dispatch.
+        $this->assertSame('Elysia Bennett-Saxton', $booking->displayName());
+    }
+
+    public function test_normal_booking_booker_is_the_customer_with_their_contacts(): void
+    {
+        $customer = Customer::factory()->create(['name' => 'Jane Booker', 'email' => 'jane@example.com']);
+        $booking = Booking::factory()->create(['customer_id' => $customer->id]);
+
+        $this->assertFalse($booking->hasDistinctBooker());
+        $this->assertSame('jane@example.com', $booking->bookerEmail());
+    }
+
     public function test_receipt_bills_the_booker_and_notes_the_passenger(): void
     {
         $html = View::make('pdf.receipt', $this->baseData([

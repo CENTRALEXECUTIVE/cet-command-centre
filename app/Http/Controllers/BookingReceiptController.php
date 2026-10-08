@@ -47,7 +47,9 @@ class BookingReceiptController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $cover = $booking->coverFor();
-        $to = $cover ? $cover['email'] : $booking->customer?->email;
+        // Email the invoice to the BOOKER (who pays) when we have their address,
+        // falling back to the booking's customer. Cover jobs go to the operator.
+        $to = $cover ? $cover['email'] : ($booking->bookerEmail() ?: $booking->customer?->email);
         if (! $to) {
             return back()->with('error', $cover
                 ? 'No email for '.$cover['name'].' — add one in the cover-job details, then resend.'

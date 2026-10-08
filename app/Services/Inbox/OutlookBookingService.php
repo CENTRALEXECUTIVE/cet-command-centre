@@ -383,6 +383,8 @@ class OutlookBookingService
             'payment_method_label' => $parsed['payment_method'] ?? null,
             'total_amount' => $parsed['total_amount'] ?? null,
             'booker_name' => $parsed['booker_name'] ?? null,
+            'booker_phone' => $parsed['booker_phone'] ?? null,
+            'booker_email' => $parsed['booker_email'] ?? null,
             'contact_no' => $parsed['customer_phone'] ?? null,
         ], fn ($v) => $v !== null && $v !== []);
     }

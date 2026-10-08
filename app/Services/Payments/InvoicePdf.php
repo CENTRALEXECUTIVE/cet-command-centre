@@ -151,9 +151,10 @@ class InvoicePdf
         } else {
             // Bill the BOOKER (who paid), not the lead passenger. A corporate
             // account is still billed to the company. The lead passenger, when
-            // different, appears as "Attn:" via $attn below.
+            // different, appears as "Attn:" via $attn below. Contact details are the
+            // booker's too (not the passenger's) so the invoice reaches who pays.
             $billedTo = $booking->customer?->corporateAccount?->name ?: $booking->bookerName();
-            $billedEmail = $booking->customer?->email;
+            $billedEmail = $booking->bookerEmail();
         }
 
         $options = new Options;
@@ -175,7 +176,7 @@ class InvoicePdf
             'attn' => $cover ? null : $booking->displayName(),
             'billedTo' => $billedTo,
             'customerEmail' => $billedEmail,
-            'customerPhone' => $cover ? ($cover['phone'] ?? null) : $booking->customerContactNumber(),
+            'customerPhone' => $cover ? ($cover['phone'] ?? null) : $booking->bookerPhone(),
             'invoiceNumber' => $booking->external_reference ?: $booking->reference,
             'issueDate' => now(),
             'paymentDue' => now()->addDays(14),

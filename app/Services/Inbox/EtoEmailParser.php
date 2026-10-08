@@ -115,7 +115,11 @@ class EtoEmailParser
             'customer_name' => $name ?? 'ETO customer',
             'customer_phone' => $phone,
             'customer_email' => $email,
+            // The BOOKER (ETO "Customer" section) — who placed the booking and pays,
+            // kept alongside the lead passenger so the invoice can bill the booker.
             'booker_name' => $this->get($fields, 'customer', 'name'),
+            'booker_phone' => $this->get($fields, 'customer', 'phone number'),
+            'booker_email' => $this->get($fields, 'customer', 'email'),
             'pickup_address' => $pickup,
             'destination_address' => $dropoff,
             'pickup_at' => $pickupAt,
