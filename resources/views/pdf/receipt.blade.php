@@ -2,76 +2,78 @@
 <html>
 <head>
 <meta charset="utf-8">
-@verbatim
+@php $fontDir = $fontDir ?? base_path('resources/fonts'); @endphp
 <style>
-  /* Professional invoice. Uses the PDF core fonts dompdf always has — Helvetica
-     for the body (clean, corporate) and Times for the masthead/headings (a
-     letterhead gravitas) — so nothing depends on an embedded font that could
-     silently fall back. All text is near-black for readability; no bright accent
-     bars — restraint reads as premium. */
-  @page { margin: 46px 48px; }
-  * { font-family: Helvetica, Arial, sans-serif; }
-  body { color:#111; font-size:10.5px; margin:0; line-height:1.55; }
+  /* Inter (the brand font), embedded as TTF so the PDF looks the same everywhere.
+     Modern, clean, lots of air — a light-weight wordmark, tight uppercase micro-
+     labels, hairline dividers and a soft grey totals panel. No bright accent bars.
+     Primary text stays near-black for readability. */
+  @font-face { font-family:'Inter'; font-weight:300; font-style:normal; src:url('{{ $fontDir }}/Inter-Light.ttf') format('truetype'); }
+  @font-face { font-family:'Inter'; font-weight:400; font-style:normal; src:url('{{ $fontDir }}/Inter-Regular.ttf') format('truetype'); }
+  @font-face { font-family:'Inter'; font-weight:600; font-style:normal; src:url('{{ $fontDir }}/Inter-SemiBold.ttf') format('truetype'); }
+  @font-face { font-family:'Inter'; font-weight:700; font-style:normal; src:url('{{ $fontDir }}/Inter-Bold.ttf') format('truetype'); }
+  @page { margin: 48px 50px; }
+  * { font-family:'Inter', Helvetica, Arial, sans-serif; }
+  body { color:#161616; font-size:10px; margin:0; line-height:1.6; font-weight:400; }
   table { border-collapse:collapse; }
-  .serif { font-family: "Times New Roman", Times, serif; }
 
   .top { width:100%; }
   .top td { vertical-align:top; }
-  .logo { width:70px; height:70px; }
-  .company { margin-top:10px; font-size:15px; font-weight:bold; color:#111; letter-spacing:.2px; }
-  .company .reg { font-family:Helvetica, Arial, sans-serif; font-size:9px; font-weight:normal; color:#444; margin-top:3px; letter-spacing:.2px; }
+  .logo { width:66px; height:66px; }
+  .company { margin-top:12px; font-size:14px; font-weight:700; color:#111; letter-spacing:-.1px; }
+  .company .reg { font-size:8.5px; font-weight:400; color:#707070; margin-top:4px; letter-spacing:.2px; }
 
   .doc { text-align:right; }
-  .doc .kind { font-size:30px; font-weight:normal; letter-spacing:7px; color:#111; }
-  .metatab { font-size:10px; margin-top:14px; margin-left:auto; }
-  .metatab td { padding:2px 0; color:#111; }
-  .metatab .k { text-align:right; padding-right:14px; color:#555; text-transform:uppercase; font-size:8.5px; letter-spacing:.1em; }
-  .metatab .v { text-align:right; font-weight:bold; }
+  .doc .kind { font-size:34px; font-weight:300; letter-spacing:8px; color:#111; text-transform:uppercase; }
+  .metatab { font-size:9.5px; margin-top:16px; margin-left:auto; }
+  .metatab td { padding:2.5px 0; }
+  .metatab .k { text-align:right; padding-right:16px; color:#8a8a8a; text-transform:uppercase; font-size:7.5px; font-weight:600; letter-spacing:.12em; }
+  .metatab .v { text-align:right; font-weight:600; color:#161616; }
 
-  .rule { border-bottom:2px solid #111; margin:18px 0 2px; }
-  .rule2 { border-bottom:1px solid #111; margin:0 0 24px; }
+  .hr { border-bottom:1px solid #e6e6e6; margin:22px 0 26px; }
 
   .parties { width:100%; }
-  .parties td { vertical-align:top; width:50%; padding-right:20px; }
-  .plabel { font-size:8.5px; text-transform:uppercase; letter-spacing:.16em; color:#555; font-weight:bold; margin-bottom:6px; }
-  .pname { font-weight:bold; font-size:12.5px; color:#111; margin-bottom:1px; }
-  .parties div { color:#111; }
+  .parties td { vertical-align:top; width:50%; padding-right:22px; }
+  .plabel { font-size:7.5px; text-transform:uppercase; letter-spacing:.16em; color:#9a9a9a; font-weight:600; margin-bottom:7px; }
+  .pname { font-weight:600; font-size:12px; color:#111; margin-bottom:2px; }
+  .parties div { color:#333; }
 
-  table.items { width:100%; margin-top:30px; font-size:10.5px; }
-  table.items th { text-align:left; padding:0 10px 9px; font-size:8.5px; text-transform:uppercase; letter-spacing:.12em; color:#555; border-bottom:1.5px solid #111; font-weight:bold; }
+  table.items { width:100%; margin-top:34px; font-size:10px; }
+  table.items th { text-align:left; padding:0 11px 10px; font-size:7.5px; text-transform:uppercase; letter-spacing:.14em; color:#9a9a9a; border-bottom:1px solid #161616; font-weight:600; }
   table.items th.num, table.items td.num { text-align:right; white-space:nowrap; }
-  table.items td { padding:13px 10px; border-bottom:1px solid #e3e3e3; vertical-align:top; color:#111; }
-  table.items .title { font-weight:bold; font-size:11.5px; color:#111; margin-bottom:5px; }
-  table.items .det { color:#333; font-size:9.5px; line-height:1.7; }
+  table.items td { padding:14px 11px; border-bottom:1px solid #eeeeee; vertical-align:top; color:#333; }
+  table.items .title { font-weight:600; font-size:11px; color:#111; margin-bottom:5px; }
+  table.items .det { color:#555; font-size:9px; line-height:1.75; }
+  table.items .num { color:#161616; font-weight:400; }
 
-  .summary { width:100%; margin-top:22px; }
+  .summary { width:100%; margin-top:24px; }
   .summary td { vertical-align:top; }
-  table.vatsum { font-size:9.5px; border:1px solid #d7d7d7; }
-  table.vatsum th, table.vatsum td { padding:6px 11px; border-bottom:1px solid #ececec; text-align:right; color:#111; }
-  table.vatsum th { background:#f6f6f4; font-weight:bold; text-transform:uppercase; font-size:8px; letter-spacing:.09em; color:#555; }
+  table.vatsum { font-size:9px; width:100%; }
+  table.vatsum th, table.vatsum td { padding:6px 0; border-bottom:1px solid #f0f0f0; text-align:right; color:#333; }
+  table.vatsum th { color:#9a9a9a; font-weight:600; text-transform:uppercase; font-size:7px; letter-spacing:.1em; border-bottom:1px solid #d9d9d9; }
   table.vatsum th:first-child, table.vatsum td:first-child { text-align:left; }
 
-  .totals { width:270px; margin-left:auto; font-size:11px; }
-  .totals td { padding:6px 2px; color:#111; }
-  .totals .k { text-align:left; color:#444; }
-  .totals .v { text-align:right; white-space:nowrap; font-weight:bold; }
-  .totals .strong td { border-top:1px solid #cfcfcf; padding-top:9px; }
-  .totals .due td { font-weight:bold; font-size:14px; border-top:2px solid #111; padding-top:11px; }
+  .totalbox { background:#f6f6f4; border-radius:8px; padding:16px 18px; }
+  .totals { width:100%; font-size:10.5px; }
+  .totals td { padding:5px 0; }
+  .totals .k { text-align:left; color:#6a6a6a; }
+  .totals .v { text-align:right; white-space:nowrap; font-weight:600; color:#161616; }
+  .totals .due td { font-size:13px; font-weight:700; color:#111; border-top:1px solid #dcdcd7; padding-top:11px; }
+  .totals .due .k { color:#111; font-weight:700; }
 
-  .paysum { margin-top:30px; font-size:10px; color:#111; border-top:1px solid #e3e3e3; padding-top:13px; }
-  .paysum .h { font-weight:bold; margin-bottom:3px; letter-spacing:.3px; }
-  .foot { margin-top:30px; font-size:9px; color:#555; border-top:1px solid #e3e3e3; padding-top:11px; letter-spacing:.2px; }
-  .foot b { font-weight:bold; color:#111; }
+  .paysum { margin-top:30px; font-size:9.5px; color:#333; border-top:1px solid #eee; padding-top:14px; }
+  .paysum .h { font-weight:600; color:#111; margin-bottom:3px; letter-spacing:.2px; }
+  .foot { margin-top:30px; font-size:8px; color:#8a8a8a; border-top:1px solid #eee; padding-top:12px; letter-spacing:.3px; }
+  .foot b { font-weight:600; color:#555; }
 </style>
-@endverbatim
 </head>
 <body>
-  @php $kind = ($isVat ?? false) ? 'VAT INVOICE' : 'INVOICE'; @endphp
+  @php $kind = ($isVat ?? false) ? 'VAT Invoice' : 'Invoice'; @endphp
   <table class="top">
     <tr>
       <td>
         @if($logo ?? null)<img src="{{ $logo }}" class="logo" alt="">@endif
-        <div class="company serif">{{ $company['name'] ?: 'Central Executive Transfers Ltd' }}
+        <div class="company">{{ $company['name'] ?: 'Central Executive Transfers Ltd' }}
           <div class="reg">
             @if($company['number'])Company No. {{ $company['number'] }}@endif
             @if($company['vat_number']) &nbsp;·&nbsp; VAT {{ $company['vat_number'] }}@endif
@@ -79,17 +81,16 @@
         </div>
       </td>
       <td class="doc">
-        <div class="kind serif">{{ $kind }}</div>
+        <div class="kind">{{ $kind }}</div>
         <table class="metatab">
           <tr><td class="k">Invoice No.</td><td class="v">{{ $invoiceNumber }}</td></tr>
-          <tr><td class="k">Issue date</td><td class="v">{{ $issueDate->format('d/m/Y') }}</td></tr>
-          @if($balanceDue > 0)<tr><td class="k">Payment due</td><td class="v">{{ $paymentDue->format('d/m/Y') }}</td></tr>@endif
+          <tr><td class="k">Issue date</td><td class="v">{{ $issueDate->format('d M Y') }}</td></tr>
+          @if($balanceDue > 0)<tr><td class="k">Payment due</td><td class="v">{{ $paymentDue->format('d M Y') }}</td></tr>@endif
         </table>
       </td>
     </tr>
   </table>
-  <div class="rule"></div>
-  <div class="rule2"></div>
+  <div class="hr"></div>
 
   <table class="parties">
     <tr>
@@ -137,7 +138,7 @@
 
   <table class="summary">
     <tr>
-      <td style="width:52%">
+      <td style="width:50%;padding-right:26px">
         @if($isVat ?? false)
           <table class="vatsum">
             <thead><tr><th>VAT rate</th><th>Net</th><th>VAT</th><th>Gross</th></tr></thead>
@@ -147,14 +148,16 @@
           </table>
         @endif
       </td>
-      <td>
-        <table class="totals">
-          <tr><td class="k">Subtotal (net)</td><td class="v">£{{ number_format($netTotal, 2) }}</td></tr>
-          @if($isVat ?? false)<tr><td class="k">VAT ({{ $ratePercent }}%)</td><td class="v">£{{ number_format($vatTotal, 2) }}</td></tr>@endif
-          <tr class="strong"><td class="k">Total{{ ($isVat ?? false) ? ' incl. VAT' : '' }}</td><td class="v">£{{ number_format($grossTotal, 2) }}</td></tr>
-          @if($paymentsReceived > 0)<tr><td class="k">Paid</td><td class="v">−£{{ number_format($paymentsReceived, 2) }}</td></tr>@endif
-          <tr class="due"><td class="k">{{ $balanceDue > 0 ? 'Amount due' : 'Paid in full' }}</td><td class="v">£{{ number_format(max(0, $balanceDue), 2) }}</td></tr>
-        </table>
+      <td style="width:50%">
+        <div class="totalbox">
+          <table class="totals">
+            <tr><td class="k">Subtotal (net)</td><td class="v">£{{ number_format($netTotal, 2) }}</td></tr>
+            @if($isVat ?? false)<tr><td class="k">VAT ({{ $ratePercent }}%)</td><td class="v">£{{ number_format($vatTotal, 2) }}</td></tr>@endif
+            <tr><td class="k">Total{{ ($isVat ?? false) ? ' incl. VAT' : '' }}</td><td class="v">£{{ number_format($grossTotal, 2) }}</td></tr>
+            @if($paymentsReceived > 0)<tr><td class="k">Paid</td><td class="v">−£{{ number_format($paymentsReceived, 2) }}</td></tr>@endif
+            <tr class="due"><td class="k">{{ $balanceDue > 0 ? 'Amount due' : 'Paid in full' }}</td><td class="v">£{{ number_format(max(0, $balanceDue), 2) }}</td></tr>
+          </table>
+        </div>
       </td>
     </tr>
   </table>

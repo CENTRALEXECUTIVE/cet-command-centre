@@ -15,13 +15,38 @@ use Illuminate\Support\Facades\View;
  */
 class InvoicePdf
 {
+    /** Absolute path to the bundled Inter TTFs used by the invoice template. */
+    private function fontPath(): string
+    {
+        return base_path('resources/fonts');
+    }
+
+    /**
+     * A dompdf configured to embed our bundled Inter font: a writable cache dir
+     * under storage (shared hosting's vendor dir isn't writable) and a chroot that
+     * lets it read the TTFs from resources/fonts.
+     */
+    private function makeDompdf(): Dompdf
+    {
+        $cache = storage_path('app/dompdf-fonts');
+        if (! is_dir($cache)) {
+            @mkdir($cache, 0775, true);
+        }
+
+        $options = new Options;
+        $options->set('isRemoteEnabled', false);
+        $options->setChroot([base_path(), sys_get_temp_dir(), $cache]);
+        $options->set('fontDir', $cache);
+        $options->set('fontCache', $cache);
+
+        return new Dompdf($options);
+    }
+
     public function render(Invoice $invoice): string
     {
         $invoice->loadMissing(['corporateAccount', 'items']);
 
-        $options = new Options;
-        $options->set('isRemoteEnabled', false);
-        $dompdf = new Dompdf($options);
+        $dompdf = $this->makeDompdf();
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.invoice', [
             'invoice' => $invoice,
@@ -62,13 +87,12 @@ class InvoicePdf
 
         $total = round(collect($lines)->sum('total'), 2);
 
-        $options = new Options;
-        $options->set('isRemoteEnabled', false);
-        $dompdf = new Dompdf($options);
+        $dompdf = $this->makeDompdf();
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.receipt', [
             'booking' => $first,
             'logo' => $this->logoDataUri(),
+            'fontDir' => $this->fontPath(),
             'isCover' => true,
             'isVat' => false,
             'ratePercent' => 0,
@@ -157,13 +181,12 @@ class InvoicePdf
             $billedEmail = $booking->bookerEmail();
         }
 
-        $options = new Options;
-        $options->set('isRemoteEnabled', false);
-        $dompdf = new Dompdf($options);
+        $dompdf = $this->makeDompdf();
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.receipt', [
             'booking' => $booking,
             'logo' => $this->logoDataUri(),
+            'fontDir' => $this->fontPath(),
             'isCover' => (bool) $cover,
             'isVat' => $isVat,
             'ratePercent' => (int) round($rate * 100),
