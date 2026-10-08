@@ -326,7 +326,7 @@
         <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
         @if($booking->displayFlightNumber())
             <tr><th>Flight</th><td>
-                <span class="mono">{{ $booking->displayFlightNumber() }}</span>
+                <span class="mono">{{ $booking->flightDisplayCode() }}</span>
                 <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:4px 12px;font-size:13px;margin-left:6px">✈ Track flight</a>
                 {{-- Google flight status — always resolves, even the regional /
                      codeshare numbers Flightradar24 sometimes can't find. --}}

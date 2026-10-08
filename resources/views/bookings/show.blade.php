@@ -32,7 +32,7 @@
             @else
                 <span class="bh-chip warn">💳 {{ ucfirst($booking->payment_status ?? 'pending') }}</span>
             @endif
-            @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->displayFlightNumber() }}</span>@endif
+            @if($booking->displayFlightNumber())<span class="bh-chip">🛬 {{ $booking->flightDisplayCode() }}</span>@endif
             @if($booking->waitingTimeLabel())<span class="bh-chip" title="Waiting time booked on this job — the driver waits and it's paid for">⏳ Waiting {{ $booking->waitingTimeLabel() }}</span>@endif
             @php
                 $waited = $booking->recordedWaitingMinutes() ?? ($booking->status === \App\Enums\BookingStatus::Arrived ? $booking->waitingBillableMinutes() : null);
@@ -442,7 +442,7 @@
                         '📍 '.$booking->displayPickupAddress(),
                         '🏁 '.$booking->displayDropoffAddress(),
                         trim(($booking->vehicleType?->name ?? '').' · '.$booking->passengerCount().' pax'),
-                        $booking->displayFlightNumber() ? '✈ '.$booking->displayFlightNumber() : null,
+                        $booking->displayFlightNumber() ? '✈ '.$booking->flightDisplayCode() : null,
                         'Ref '.$booking->reference.($booking->fareGross() !== null ? ' · £'.number_format((float) $booking->fareGross(), 2) : ''),
                     ]));
                 @endphp
@@ -1182,7 +1182,7 @@
                 @if($booking->airport)<tr><th>Airport</th><td>{{ $booking->airport->code }} — {{ $booking->airport->name }}</td></tr>@endif
                 @if($booking->displayFlightNumber())
                     <tr><th>Flight</th><td>
-                        <span class="mono">{{ $booking->displayFlightNumber() }}</span>
+                        <span class="mono">{{ $booking->flightDisplayCode() }}</span>
                         <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">✈ Flightradar24</a>
                         <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                     </td></tr>

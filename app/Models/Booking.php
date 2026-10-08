@@ -2428,22 +2428,40 @@ class Booking extends Model
 
     /**
      * Flightradar24's /data/flights/ URL wants a clean airline code + number with
-     * no leading zeros. It can't parse a 2-char IATA code that contains a DIGIT
-     * (easyJet U2, Wizz W6) — for those we use the airline's all-letter ICAO
-     * CALLSIGN (EZY, WZZ), which is what FR24 tracks the flight under. Plain
-     * letter IATA codes (BA, VS) already load, so they're left as-is.
+     * no leading zeros. FR24 indexes every flight under its IATA code — easyJet
+     * is "u2542", NOT the ICAO callsign "ezy542" (which returns "No flights
+     * found"). So we ALWAYS use the IATA form here, even for carriers whose IATA
+     * code carries a digit (easyJet U2, Wizz W6). ETO stores the ICAO form
+     * ("EZY542"); parseFlight() maps it back to IATA so the link resolves.
      */
     public static function normaliseFlightNumberForFr24(?string $flightNumber): string
     {
         $p = self::parseFlight($flightNumber);
         if ($p) {
-            $code = (preg_match('/\d/', $p['iata']) && $p['icao']) ? $p['icao'] : $p['iata'];
-
-            return strtolower($code.$p['number'].$p['suffix']);
+            return strtolower($p['iata'].$p['number'].$p['suffix']);
         }
 
         // Unrecognised format → a clean slug of whatever we were given.
         return strtolower(preg_replace('/[^A-Za-z0-9]/', '', (string) $flightNumber));
+    }
+
+    /**
+     * The flight code to SHOW the driver/office — the clean IATA form ("U2542"),
+     * which is exactly what the Flightradar24 and Google links resolve to. ETO
+     * feeds us the ICAO callsign ("EZY542"); showing that while the tracker needs
+     * "U2542" was the source of endless confusion, so we display the IATA code to
+     * match the link. Falls back to the raw stored value if we can't parse it.
+     */
+    public function flightDisplayCode(): ?string
+    {
+        $raw = $this->displayFlightNumber();
+        if ($raw === null) {
+            return null;
+        }
+
+        $clean = self::cleanFlightCode($raw);
+
+        return $clean !== '' ? $clean : $raw;
     }
 
     /** Google live flight-status search (shows the status card) for a flight number. */
