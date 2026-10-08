@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Mail\BookingReceiptMail;
 use App\Models\Booking;
 use App\Services\Payments\InvoicePdf;
+use App\Enums\BookingStatus;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -75,6 +77,54 @@ class BookingReceiptController extends Controller
     }
 
     /** Combine another booking onto this one's invoice (by reference). */
+    /**
+     * Live search for the "bill more than one booking on this invoice" picker —
+     * find a booking by reference, passenger name, operator or address so the
+     * office can match jobs up without typing an exact reference. Returns JSON.
+     */
+    public function search(Request $request, Booking $booking): JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
+
+        // Bookings already on this invoice (and this booking itself) are excluded
+        // so the picker only offers jobs you can still add.
+        $exclude = $booking->invoiceGroupBookings()->pluck('id')->push($booking->id)->unique()->all();
+
+        $matches = Booking::query()
+            ->whereNotIn('id', $exclude)
+            ->where('status', '!=', BookingStatus::Cancelled->value)
+            ->where(function ($query) use ($like) {
+                $query->where('reference', 'like', $like)
+                    ->orWhere('external_reference', 'like', $like)
+                    ->orWhere('pickup_address', 'like', $like)
+                    ->orWhere('destination_address', 'like', $like)
+                    ->orWhere('meta', 'like', $like) // cover operator lives in meta JSON
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $like));
+            })
+            ->with(['customer', 'vehicleType'])
+            ->orderByDesc('pickup_at')
+            ->limit(20)
+            ->get();
+
+        $results = $matches->map(fn (Booking $b) => [
+            'reference' => $b->reference,
+            'name' => $b->displayName(),
+            'when' => $b->pickup_at?->format('D d M Y, H:i'),
+            'journey' => trim(($b->displayPickupAddress() ?? '').' → '.($b->displayDropoffAddress() ?? ''), ' →'),
+            'operator' => $b->coverFor()['name'] ?? null,
+            'fare' => $b->fareGross() !== null ? '£'.number_format((float) $b->fareGross(), 2) : null,
+        ])->values();
+
+        return response()->json(['results' => $results]);
+    }
+
     public function combine(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);

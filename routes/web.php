@@ -182,6 +182,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/receipt/email', [\App\Http\Controllers\BookingReceiptController::class, 'email'])->middleware('throttle:10,1')->name('bookings.receipt.email');
         // Combine another booking onto this one's invoice (e.g. outbound + return that came in separately).
         Route::post('bookings/{booking}/invoice/vat-received', [\App\Http\Controllers\BookingReceiptController::class, 'vatReceived'])->name('bookings.invoice.vat-received');
+        Route::get('bookings/{booking}/invoice/search', [\App\Http\Controllers\BookingReceiptController::class, 'search'])->middleware('throttle:60,1')->name('bookings.invoice.search');
         Route::post('bookings/{booking}/invoice/combine', [\App\Http\Controllers\BookingReceiptController::class, 'combine'])->name('bookings.invoice.combine');
         Route::delete('bookings/{booking}/invoice/combine/{other}', [\App\Http\Controllers\BookingReceiptController::class, 'uncombine'])->name('bookings.invoice.uncombine');
         // Cover job — mark that we covered this for another operator, so we invoice them.
