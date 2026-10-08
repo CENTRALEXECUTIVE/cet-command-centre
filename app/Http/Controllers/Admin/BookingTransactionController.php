@@ -189,7 +189,7 @@ class BookingTransactionController extends Controller
     private function createLink(Booking $booking, Payment $payment, float $amount): ?string
     {
         $link = $this->square->enabled($booking->billingEntity())
-            ? $this->square->createCheckoutUrl($booking, $amount, route('payments.index'))
+            ? $this->square->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name())
             : null;
 
         if ($link) {

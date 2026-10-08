@@ -82,8 +82,12 @@ class SquareBookingPaymentService
             ->timeout(15);
     }
 
-    /** A Square-hosted checkout URL to pay this booking's fare, or null if unavailable. */
-    public function createCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null): ?string
+    /**
+     * A Square-hosted checkout URL to pay this booking's fare, or null if
+     * unavailable. $label sets the line-item name shown on the checkout (e.g.
+     * "VAT balance payment"); defaults to the journey fare.
+     */
+    public function createCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null, ?string $label = null): ?string
     {
         // Route the payment to the right company's Square account (VAT-invoice
         // customers → transfers; everyone else → the sister company chauffeurs).
@@ -99,7 +103,7 @@ class SquareBookingPaymentService
                     'location_id' => $this->account($entity)['location_id'],
                     'reference_id' => self::FARE_PREFIX.$this->reference($booking),
                     'line_items' => [[
-                        'name' => 'Journey fare — Central Executive Transfers ('.$booking->reference.')',
+                        'name' => ($label ? trim($label) : 'Journey fare').' — Central Executive Transfers ('.$booking->reference.')',
                         'quantity' => '1',
                         'base_price_money' => ['amount' => (int) round($amount * 100), 'currency' => 'GBP'],
                     ]],

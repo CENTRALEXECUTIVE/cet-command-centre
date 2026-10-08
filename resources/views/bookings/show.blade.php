@@ -828,18 +828,6 @@
                 </label>
             </form>
         </div>
-        <script>
-            (function () {
-                document.querySelectorAll('.copy-link').forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        var done = btn.parentElement.querySelector('.copy-link-done');
-                        var finish = function () { if (done) done.textContent = '✓ Copied — paste it to the driver'; };
-                        if (navigator.clipboard) { navigator.clipboard.writeText(btn.dataset.link).then(finish).catch(finish); }
-                        else { finish(); }
-                    });
-                });
-            })();
-        </script>
     @endif
 
     {{-- All cars at a glance on a multi-car job: the lead PLUS every extra car,
@@ -2412,14 +2400,38 @@
                     var menu = btn.closest('details'); if (menu) menu.open = false;
                 });
             });
-            // Copy a payment link to the clipboard.
-            document.querySelectorAll('.copy-pay-link').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    navigator.clipboard.writeText(btn.dataset.link || '').then(function () {
-                        var old = btn.textContent; btn.textContent = '✓ Copied';
-                        setTimeout(function () { btn.textContent = old; }, 1500);
-                    });
-                });
+            // Copy a link to the clipboard — robust across browsers. Uses the async
+            // Clipboard API where allowed, falls back to a hidden textarea + execCommand
+            // (older/mobile or non-secure contexts), and as a last resort shows the link
+            // to copy by hand. Covers the payment-link box and any other copy buttons.
+            function cetCopyLink(btn) {
+                var text = btn.dataset.link || '';
+                var done = btn.parentElement ? btn.parentElement.querySelector('.copy-link-done') : null;
+                var ok = function () {
+                    if (done) { done.textContent = '✓ Copied'; }
+                    var old = btn.getAttribute('data-label') || btn.textContent;
+                    btn.setAttribute('data-label', old);
+                    btn.textContent = '✓ Copied';
+                    setTimeout(function () { btn.textContent = old; }, 1500);
+                };
+                var fallback = function () {
+                    try {
+                        var ta = document.createElement('textarea');
+                        ta.value = text; ta.setAttribute('readonly', '');
+                        ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.opacity = '0';
+                        document.body.appendChild(ta); ta.focus(); ta.select();
+                        ta.setSelectionRange(0, text.length);
+                        var copied = document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        if (copied) { ok(); } else { window.prompt('Copy this link:', text); }
+                    } catch (e) { window.prompt('Copy this link:', text); }
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(ok).catch(fallback);
+                } else { fallback(); }
+            }
+            document.querySelectorAll('.copy-pay-link, .copy-link').forEach(function (btn) {
+                btn.addEventListener('click', function (e) { e.preventDefault(); cetCopyLink(btn); });
             });
             // Land back on the section a redirect pointed at (flash 'scroll' or #hash).
             var target = @json(session('scroll')) ;
