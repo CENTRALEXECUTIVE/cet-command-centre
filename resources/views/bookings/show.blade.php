@@ -639,6 +639,16 @@
                             <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='none'">Cancel</button>
                         </div>
                     </form>
+
+                    <div style="border-top:1px solid var(--line);margin:14px 0 0;padding-top:12px">
+                        <strong>…or match an existing return booking</strong>
+                        <p class="hint" style="margin:6px 0 10px">If the return is already in the system as its own booking, enter its reference to pair them. The cash then combines on the outbound (earlier) leg — the outbound driver collects both legs' cash, the return reads "collect nothing".</p>
+                        <form method="POST" action="{{ route('bookings.match-return', $booking) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                            @csrf
+                            <input type="text" name="reference" placeholder="Other leg's reference (e.g. CET-XXXX)" required style="padding:9px 12px;border:1px solid var(--line);border-radius:8px">
+                            <button type="submit" class="btn btn-dark" style="padding:9px 16px">🔗 Match as return pair</button>
+                        </form>
+                    </div>
                 </div>
             @endif
             <div id="postpone-box" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">

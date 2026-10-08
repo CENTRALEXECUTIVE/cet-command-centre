@@ -663,6 +663,39 @@ class BookingController extends Controller
     }
 
     /**
+     * Match this booking to an EXISTING booking as an outbound + return pair (by
+     * reference), so the cash combines on the outbound leg. For when the two legs
+     * came in as separate bookings.
+     */
+    public function matchReturn(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if ($booking->linked_booking_id) {
+            return back()->with('error', 'This booking is already part of a return pair — unlink it first.');
+        }
+
+        $data = $request->validate(['reference' => ['required', 'string', 'max:64']]);
+        $ref = trim($data['reference']);
+
+        $other = Booking::where('reference', $ref)->orWhere('external_reference', $ref)->first();
+        if (! $other) {
+            return back()->with('error', "No booking found with reference “{$ref}”.");
+        }
+        if ($other->is($booking)) {
+            return back()->with('error', "That's this same booking — enter the OTHER leg's reference.");
+        }
+        if ($other->linked_booking_id) {
+            return back()->with('error', "{$other->reference} is already part of a return pair — unlink it first.");
+        }
+
+        $booking->linkAsReturnPair($other);
+
+        return redirect()->route('bookings.show', $booking)
+            ->with('status', "Matched {$booking->reference} and {$other->reference} as an outbound + return pair — the cash now combines on the outbound leg.");
+    }
+
+    /**
      * Create the return leg of an existing one-way booking in one tap: a new
      * booking with pickup and drop-off swapped, the same customer / vehicle /
      * passengers / payment, linked to the original both ways. It's left Pending

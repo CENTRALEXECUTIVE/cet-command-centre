@@ -134,6 +134,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/reschedule', [BookingController::class, 'reschedule'])->middleware('throttle:30,1')->name('bookings.reschedule');
         Route::post('bookings/{booking}/return-leg', [BookingController::class, 'createReturnLeg'])->middleware('throttle:30,1')->name('bookings.return-leg');
         Route::post('bookings/{booking}/unlink-return', [BookingController::class, 'unlinkReturn'])->middleware('throttle:30,1')->name('bookings.unlink-return');
+        Route::post('bookings/{booking}/match-return', [BookingController::class, 'matchReturn'])->middleware('throttle:30,1')->name('bookings.match-return');
         Route::post('bookings/{booking}/clear-audit', [BookingController::class, 'clearAudit'])->middleware('throttle:60,1')->name('bookings.clear-audit');
         Route::delete('bookings/{booking}', [BookingController::class, 'destroy'])->middleware('throttle:30,1')->name('bookings.destroy');
         Route::post('bookings-bulk', [BookingController::class, 'bulk'])->middleware('throttle:30,1')->name('bookings.bulk');

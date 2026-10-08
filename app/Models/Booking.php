@@ -2286,12 +2286,45 @@ class Booking extends Model
     {
         $sibling = $this->linkedBooking;
         foreach (array_filter([$this, $sibling]) as $leg) {
+            $meta = $leg->meta ?? [];
+            unset($meta['collect_on_outbound']); // stop combining cash on the outbound
             $leg->forceFill([
                 'is_return_leg' => false,
                 'linked_booking_id' => null,
                 'journey_type' => 'one_way',
+                'meta' => $meta ?: null,
             ])->save();
         }
+    }
+
+    /**
+     * Match TWO existing separate bookings as an outbound + return pair, so the
+     * cash combines on the outbound (the outbound driver collects both legs' cash;
+     * the return reads "collect nothing"). The EARLIER pickup is the outbound, the
+     * later is the return leg.
+     */
+    public function linkAsReturnPair(self $other): void
+    {
+        if ($other->id === $this->id) {
+            return;
+        }
+
+        $thisFirst = $this->pickup_at && $other->pickup_at && $this->pickup_at->lte($other->pickup_at);
+        $outbound = $thisFirst ? $this : $other;
+        $return = $thisFirst ? $other : $this;
+
+        $outbound->forceFill(['linked_booking_id' => $return->id, 'journey_type' => 'return', 'is_return_leg' => false])->save();
+
+        // Flag the return so the cash COMBINES on the outbound (driver collects both
+        // legs' cash on the outbound; the return reads "collect nothing"). This flag
+        // is what distinguishes an office-matched pair from a "Create return leg"
+        // (which stays priced/collected separately).
+        $return->forceFill([
+            'linked_booking_id' => $outbound->id,
+            'journey_type' => 'return',
+            'is_return_leg' => true,
+            'meta' => array_merge($return->meta ?? [], ['collect_on_outbound' => true]),
+        ])->save();
     }
 
     /** Status key for the UI badge CSS class — "postponed" for a parked job. */
@@ -4767,6 +4800,15 @@ class Booking extends Model
     {
         if ($this->isEtoReturnOutbound()) {
             return $this->etoSibling();
+        }
+        // Office-matched pair: this is the outbound of a manual return link whose
+        // return is flagged to collect on the outbound. (A plain "Create return
+        // leg" has no flag and stays separate, so it isn't combined here.)
+        if ($this->linked_booking_id && ! $this->is_return_leg) {
+            $linked = $this->linkedBooking;
+            if ($linked && ! empty($linked->meta['collect_on_outbound'])) {
+                return $linked;
+            }
         }
         // Only heuristic-pair when this booking isn't itself an ETO return leg.
         return $this->etoReturnLeg() === null ? $this->pairedAirportReturn() : null;
