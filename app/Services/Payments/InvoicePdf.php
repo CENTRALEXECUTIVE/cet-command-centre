@@ -226,27 +226,30 @@ class InvoicePdf
     }
 
     /**
-     * One journey's full detail block for the invoice line — itemised like the ETO
-     * invoice (reference, date, pickup, drop-off, vehicle, passengers, flight,
-     * meet & greet), each on its own line. Returns "Label: value" lines.
+     * One journey's detail for the invoice line — compact (3 short lines) so a
+     * return trip or a batch still fits on one page: reference + date, the route,
+     * then vehicle / passengers / flight / meet & greet on one line.
      */
     private function legDetail(Booking $b): string
     {
-        $rows = [
-            'Reference' => $b->external_reference ?: $b->reference,
-            'Date & time' => $b->pickup_at?->format('d/m/Y H:i'),
-            'Pickup' => trim((string) $b->displayPickupAddress()),
-            'Drop-off' => trim((string) $b->displayDropoffAddress()),
-            'Vehicle' => $b->vehicleType?->name,
-            'Passengers' => $b->passengerCount(),
-            'Flight' => $b->displayFlightNumber() ?: null,
-            'Meet & Greet' => $b->displayMeetAndGreet() ?: null,
-        ];
+        $ref = $b->external_reference ?: $b->reference;
+        $date = $b->pickup_at?->format('d/m/Y H:i');
+        $pickup = trim((string) $b->displayPickupAddress());
+        $dropoff = trim((string) $b->displayDropoffAddress());
 
-        return collect($rows)
-            ->filter(fn ($v) => $v !== null && $v !== '')
-            ->map(fn ($v, $k) => $k.': '.$v)
-            ->implode("\n");
+        $pax = (int) $b->passengerCount();
+        $extras = collect([
+            $b->vehicleType?->name,
+            $pax > 0 ? $pax.' '.($pax === 1 ? 'passenger' : 'passengers') : null,
+            $b->displayFlightNumber() ? 'Flight '.$b->displayFlightNumber() : null,
+            $b->displayMeetAndGreet() ? 'Meet & greet' : null,
+        ])->filter()->implode(' · ');
+
+        return collect([
+            'Ref '.$ref.($date ? '  ·  '.$date : ''),
+            ($pickup || $dropoff) ? $pickup.'  →  '.$dropoff : null,
+            $extras ?: null,
+        ])->filter()->implode("\n");
     }
 
     /** Render and store the PDF, returning the storage-relative path. */

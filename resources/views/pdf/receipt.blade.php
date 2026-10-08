@@ -12,15 +12,15 @@
   @font-face { font-family:'Inter'; font-weight:400; font-style:normal; src:url('{{ $fontDir }}/Inter-Regular.ttf') format('truetype'); }
   @font-face { font-family:'Inter'; font-weight:600; font-style:normal; src:url('{{ $fontDir }}/Inter-SemiBold.ttf') format('truetype'); }
   @font-face { font-family:'Inter'; font-weight:700; font-style:normal; src:url('{{ $fontDir }}/Inter-Bold.ttf') format('truetype'); }
-  @page { margin: 48px 50px; }
+  @page { margin: 40px 46px; }
   * { font-family:'Inter', Helvetica, Arial, sans-serif; }
-  body { color:#161616; font-size:10px; margin:0; line-height:1.6; font-weight:400; }
+  body { color:#161616; font-size:10px; margin:0; line-height:1.55; font-weight:400; }
   table { border-collapse:collapse; }
 
   .top { width:100%; }
   .top td { vertical-align:top; }
-  .logo { width:66px; height:66px; }
-  .company { margin-top:12px; font-size:14px; font-weight:700; color:#111; letter-spacing:-.1px; }
+  .logo { width:60px; height:60px; }
+  .company { margin-top:9px; font-size:14px; font-weight:700; color:#111; letter-spacing:-.1px; }
   .company .reg { font-size:8.5px; font-weight:400; color:#707070; margin-top:4px; letter-spacing:.2px; }
 
   .doc { text-align:right; }
@@ -30,7 +30,7 @@
   .metatab .k { text-align:right; padding-right:16px; color:#8a8a8a; text-transform:uppercase; font-size:7.5px; font-weight:600; letter-spacing:.12em; }
   .metatab .v { text-align:right; font-weight:600; color:#161616; }
 
-  .hr { border-bottom:1px solid #e6e6e6; margin:22px 0 26px; }
+  .hr { border-bottom:1px solid #e6e6e6; margin:16px 0 18px; }
 
   .parties { width:100%; }
   .parties td { vertical-align:top; width:50%; padding-right:22px; }
@@ -38,15 +38,15 @@
   .pname { font-weight:600; font-size:12px; color:#111; margin-bottom:2px; }
   .parties div { color:#333; }
 
-  table.items { width:100%; margin-top:34px; font-size:10px; }
-  table.items th { text-align:left; padding:0 11px 10px; font-size:7.5px; text-transform:uppercase; letter-spacing:.14em; color:#9a9a9a; border-bottom:1px solid #161616; font-weight:600; }
+  table.items { width:100%; margin-top:22px; font-size:10px; }
+  table.items th { text-align:left; padding:0 11px 9px; font-size:7.5px; text-transform:uppercase; letter-spacing:.14em; color:#9a9a9a; border-bottom:1px solid #161616; font-weight:600; }
   table.items th.num, table.items td.num { text-align:right; white-space:nowrap; }
-  table.items td { padding:14px 11px; border-bottom:1px solid #eeeeee; vertical-align:top; color:#333; }
-  table.items .title { font-weight:600; font-size:11px; color:#111; margin-bottom:5px; }
-  table.items .det { color:#555; font-size:9px; line-height:1.75; }
+  table.items td { padding:10px 11px; border-bottom:1px solid #eeeeee; vertical-align:top; color:#333; }
+  table.items .title { font-weight:600; font-size:11px; color:#111; margin-bottom:4px; }
+  table.items .det { color:#555; font-size:9px; line-height:1.6; }
   table.items .num { color:#161616; font-weight:400; }
 
-  .summary { width:100%; margin-top:24px; }
+  .summary { width:100%; margin-top:18px; }
   .summary td { vertical-align:top; }
   table.vatsum { font-size:9px; width:100%; }
   table.vatsum th, table.vatsum td { padding:6px 0; border-bottom:1px solid #f0f0f0; text-align:right; color:#333; }
@@ -61,9 +61,9 @@
   .totals .due td { font-size:13px; font-weight:700; color:#111; border-top:1px solid #dcdcd7; padding-top:11px; }
   .totals .due .k { color:#111; font-weight:700; }
 
-  .paysum { margin-top:30px; font-size:9.5px; color:#333; border-top:1px solid #eee; padding-top:14px; }
+  .paysum { margin-top:22px; font-size:9.5px; color:#333; border-top:1px solid #eee; padding-top:12px; }
   .paysum .h { font-weight:600; color:#111; margin-bottom:3px; letter-spacing:.2px; }
-  .foot { margin-top:30px; font-size:8px; color:#8a8a8a; border-top:1px solid #eee; padding-top:12px; letter-spacing:.3px; }
+  .foot { margin-top:22px; font-size:8px; color:#8a8a8a; border-top:1px solid #eee; padding-top:11px; letter-spacing:.3px; }
   .foot b { font-weight:600; color:#555; }
 </style>
 </head>
@@ -85,7 +85,7 @@
         <table class="metatab">
           <tr><td class="k">Invoice No.</td><td class="v">{{ $invoiceNumber }}</td></tr>
           <tr><td class="k">Issue date</td><td class="v">{{ $issueDate->format('d M Y') }}</td></tr>
-          @if($balanceDue > 0)<tr><td class="k">Payment due</td><td class="v">{{ $paymentDue->format('d M Y') }}</td></tr>@endif
+          @if($balanceDue > 0)<tr><td class="k">Payment due</td><td class="v">On receipt</td></tr>@endif
         </table>
       </td>
     </tr>
