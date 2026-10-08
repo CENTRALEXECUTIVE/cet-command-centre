@@ -516,6 +516,20 @@
                     </form>
                     @if($booking->vatInvoiceRequested())
                         <p class="hint" style="margin:8px 0 0">Charge the <strong>£{{ number_format((float) $booking->amountPayable(), 2) }}</strong> (incl. VAT) via a payment link below, then View/Email the VAT invoice — it shows the net, VAT and total and your VAT number.</p>
+                        {{-- VAT received: auto-ticks when the customer pays the VAT via the Square
+                             link; here to set it by hand if paid another way. When ticked the
+                             invoice reads paid in full. --}}
+                        <form method="POST" action="{{ route('bookings.invoice.vat-received', $booking) }}" style="margin:10px 0 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            @csrf
+                            <input type="hidden" name="received" value="{{ $booking->vatSettled() ? '0' : '1' }}">
+                            @if($booking->vatSettled())
+                                <span class="badge" style="background:#1f7a44;color:#fff">✓ VAT received</span>
+                                <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px">Mark outstanding</button>
+                            @else
+                                <button class="btn btn-primary" style="padding:6px 12px;font-size:13px">✓ Mark VAT received (£{{ number_format($booking->vatOnTopAmount(), 2) }})</button>
+                                <span class="muted" style="font-size:12px">Ticks automatically when the VAT link is paid.</span>
+                            @endif
+                        </form>
                     @endif
                 </div>
             @endunless

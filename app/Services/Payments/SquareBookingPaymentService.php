@@ -165,7 +165,18 @@ class SquareBookingPaymentService
             return null;
         }
 
-        return $booking->markFarePaid($paymentId, $amount / 100, $entity) ? $booking : null;
+        if (! $booking->markFarePaid($paymentId, $amount / 100, $entity)) {
+            return null;
+        }
+
+        // If this is the VAT top-up on a VAT invoice (the payment covers the VAT
+        // added on top), mark the VAT received so the invoice reads paid in full.
+        $vatOnTop = $booking->vatOnTopAmount();
+        if ($vatOnTop > 0 && ($amount / 100) + 0.01 >= $vatOnTop) {
+            $booking->markVatReceived(true);
+        }
+
+        return $booking;
     }
 
     private function retrieveOrderReference(string $orderId, string $entity = 'transfers'): ?string

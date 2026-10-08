@@ -1047,6 +1047,41 @@ class Booking extends Model
             : $this->fareGross();
     }
 
+    /** The VAT added ON TOP of the net fare (gross − net); 0 when no VAT invoice. */
+    public function vatOnTopAmount(): float
+    {
+        if (! $this->vatInvoiceRequested()) {
+            return 0.0;
+        }
+
+        return round((float) ($this->amountPayable() ?? 0) - (float) ($this->fareGross() ?? 0), 2);
+    }
+
+    /** Has the VAT portion of a VAT invoice actually been received? */
+    public function vatSettled(): bool
+    {
+        return $this->vatInvoiceRequested() && ! empty($this->meta['vat_paid']);
+    }
+
+    /**
+     * Mark (or unmark) the VAT as received — on this booking and every booking on
+     * the same invoice, so a combined invoice settles together. Set by the Square
+     * webhook when the VAT top-up is paid, or by the office "VAT received" button.
+     */
+    public function markVatReceived(bool $on = true): void
+    {
+        foreach ($this->invoiceGroupBookings() as $b) {
+            $meta = $b->meta ?? [];
+            if ($on) {
+                $meta['vat_paid'] = true;
+            } else {
+                unset($meta['vat_paid']);
+            }
+            $b->forceFill(['meta' => $meta])->save();
+        }
+        $this->refresh();
+    }
+
     /** True when the driver collects the fare in cash on the day (no card/account). */
     public function isCashCollectJob(): bool
     {
@@ -1185,7 +1220,11 @@ class Booking extends Model
             return null;
         }
 
-        return max(0.0, round($payable - $this->transactionsPaidTotal(), 2));
+        // Count the VAT as received once it's been settled (webhook / office), so a
+        // fully-paid VAT invoice reads £0 due.
+        $paid = $this->transactionsPaidTotal() + ($this->vatSettled() ? $this->vatOnTopAmount() : 0.0);
+
+        return max(0.0, round($payable - min($payable, $paid), 2));
     }
 
     /**

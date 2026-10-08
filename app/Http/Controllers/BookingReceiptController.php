@@ -61,6 +61,19 @@ class BookingReceiptController extends Controller
         return back()->with('status', 'Invoice emailed to '.$to.'.');
     }
 
+    /** Toggle whether the VAT on a VAT invoice has been received (office confirm). */
+    public function vatReceived(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $on = $request->boolean('received');
+        $booking->markVatReceived($on);
+
+        return back()->with('status', $on
+            ? 'VAT marked as received — the invoice now reads paid in full.'
+            : 'VAT marked as outstanding again.');
+    }
+
     /** Combine another booking onto this one's invoice (by reference). */
     public function combine(Request $request, Booking $booking): RedirectResponse
     {

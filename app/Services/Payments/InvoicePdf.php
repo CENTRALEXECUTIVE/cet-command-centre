@@ -154,8 +154,14 @@ class InvoicePdf
         $vatTotal = round(collect($lines)->sum('vat'), 2);
         $grossTotal = round($netTotal + $vatTotal, 2);
         // Paid legs are counted as having paid their NET (the standard price); the
-        // VAT is then the outstanding balance on a VAT invoice.
+        // VAT is then the outstanding balance on a VAT invoice — until the VAT is
+        // settled (webhook / office), when it's counted as received too and the
+        // invoice reads paid in full.
         $paymentsReceived = round(collect($lines)->filter(fn ($l) => $l['paid'])->sum('net'), 2);
+        if ($isVat && $booking->vatSettled()) {
+            $paymentsReceived = round($paymentsReceived + $vatTotal, 2);
+        }
+        $paymentsReceived = min($paymentsReceived, $grossTotal);
 
         if ($cover) {
             // A cover job is a simple invoice to the operator for the agreed amount.
