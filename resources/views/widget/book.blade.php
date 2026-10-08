@@ -136,6 +136,9 @@
         .cet-stop-x { flex:0 0 auto; width:40px; height:44px; border:1px solid var(--line); border-radius:11px; background:#fff; color:var(--err,#c02626); font-size:16px; font-weight:800; cursor:pointer; }
         .cet-addstop { border:1px dashed var(--line); background:var(--cream,#fbfaf6); border-radius:11px; padding:10px 14px; font-weight:700; font-size:13px; cursor:pointer; color:var(--ink,#111); }
         .cet-addstop:disabled { opacity:.5; cursor:default; }
+        .cet-swap { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 13px; font-weight:700; font-size:12.5px; cursor:pointer; color:var(--ink,#111); display:inline-flex; align-items:center; gap:6px; }
+        .cet-swap:hover { background:var(--cream,#fbfaf6); border-color:var(--gold,#FBBA2A); color:var(--gold-deep,#9a7400); }
+        .cet-swap:active { transform:translateY(1px); }
         .cet-acctbar { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; background:var(--cream,#fbfaf6); }
         .cet-linkbtn { background:none; border:0; padding:0; color:var(--gold-deep,#E9A413); font-weight:700; font-size:13.5px; cursor:pointer; text-decoration:underline; }
         #b-loggedin { font-size:14px; color:#1f7a44; font-weight:600; }
@@ -412,6 +415,7 @@
                             <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode</label>
                                 <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         </div>
+                        <div id="b-swap-row" style="margin:-4px 0 12px"><button type="button" id="b-swap" class="cet-swap" title="Swap pickup and drop-off">⇅ Swap pickup &amp; drop-off</button></div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-when">Date &amp; time</label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
@@ -884,6 +888,31 @@
                     sync(); addr.focus();
                 });
             });
+
+            // Swap pickup <-> drop-off — for when they've been typed into the wrong
+            // boxes. Swaps the address, its postcode, and the places-resolved flags
+            // (residential/postcode) so zone pricing and the "need a postcode" check
+            // still apply to the right end. Fires change/input so the ✕ buttons and
+            // any listeners update; prices recompute on the next step as usual.
+            (function () {
+                var swap = document.getElementById('b-swap');
+                if (!swap) return;
+                function swapVal(a, b) { var t = a.value; a.value = b.value; b.value = t; }
+                function swapData(a, b, key) { var t = a.dataset[key]; if (b.dataset[key] === undefined) delete a.dataset[key]; else a.dataset[key] = b.dataset[key]; if (t === undefined) delete b.dataset[key]; else b.dataset[key] = t; }
+                swap.addEventListener('click', function () {
+                    var pu = document.getElementById('b-pickup'), dp = document.getElementById('b-dropoff');
+                    var puPc = document.getElementById('b-pickup-pc'), dpPc = document.getElementById('b-dropoff-pc');
+                    if (!pu || !dp) return;
+                    swapVal(pu, dp);
+                    if (puPc && dpPc) swapVal(puPc, dpPc);
+                    ['residential', 'postcode', 'lat', 'lng'].forEach(function (k) { swapData(pu, dp, k); });
+                    [pu, dp, puPc, dpPc].forEach(function (el) {
+                        if (!el) return;
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    });
+                });
+            })();
 
             function validateStep(n) {
                 showErr(n, '');

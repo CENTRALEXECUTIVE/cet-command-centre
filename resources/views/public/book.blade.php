@@ -161,6 +161,7 @@
             <div><label class="f">Drop-off postcode</label>
                 <input name="destination_postcode" id="destination_postcode" value="{{ old('destination_postcode') }}" placeholder="If known" style="text-transform:uppercase" autocomplete="postal-code"></div>
         </div>
+        <div style="margin-top:10px"><button type="button" id="swap-addr" title="Swap pickup and drop-off" style="border:1px solid var(--line,#ddd);background:#fff;border-radius:999px;padding:6px 13px;font-weight:700;font-size:12.5px;cursor:pointer">⇅ Swap pickup &amp; drop-off</button></div>
         <div class="grid three" style="margin-top:14px">
             <div><label class="f">Date &amp; time <span class="req">*</span></label>
                 <input type="datetime-local" name="pickup_at" id="pickup_at" value="{{ old('pickup_at') }}" required>
@@ -350,6 +351,18 @@
         payBtn.disabled=false;payBtn.textContent=payEnabled?('Pay '+money(total)+' & confirm'):'Send booking request';
     }
     refreshTotal();
+})();
+</script>
+<script>
+// Swap pickup <-> drop-off when they've been typed into the wrong boxes.
+(function () {
+    var btn = document.getElementById('swap-addr');
+    if (!btn) return;
+    function sv(a, b) { if (!a || !b) return; var t = a.value; a.value = b.value; b.value = t; a.dispatchEvent(new Event('change')); b.dispatchEvent(new Event('change')); }
+    btn.addEventListener('click', function () {
+        sv(document.getElementById('pickup'), document.getElementById('destination'));
+        sv(document.getElementById('pickup_postcode'), document.getElementById('destination_postcode'));
+    });
 })();
 </script>
 @include('partials.picker-js')
