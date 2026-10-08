@@ -568,7 +568,7 @@
                         <ul style="margin:0 0 10px;padding-left:18px">
                             @foreach($invoiceGroup as $g)
                                 <li style="font-size:13px;margin-bottom:4px">
-                                    <strong>{{ $g->reference }}</strong> — {{ $g->pickup_at?->format('D d M, H:i') }}, {{ $g->pickup_address }} → {{ $g->destination_address }}
+                                    <a href="{{ route('bookings.show', $g) }}" style="font-weight:700">{{ $g->reference }}</a> — {{ $g->pickup_at?->format('D d M, H:i') }}, {{ $g->pickup_address }} → {{ $g->destination_address }}
                                     @if($g->fareGross() !== null) · £{{ number_format((float) $g->fareGross(), 2) }}@endif
                                     <form method="POST" action="{{ route('bookings.invoice.uncombine', ['booking' => $booking, 'other' => $g]) }}" style="display:inline;margin:0">
                                         @csrf @method('DELETE')
