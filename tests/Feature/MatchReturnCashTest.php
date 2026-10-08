@@ -9,10 +9,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Matching two existing bookings as a return pair. Cash is DRIVER-AWARE:
- *  - same driver on both legs → combined on the outbound (one hand-over);
- *  - different drivers → each driver collects their own leg's cash.
- * Driver PAY is per-leg and never changed by matching.
+ * Matching two existing bookings as a return pair. The OUTBOUND collects the
+ * whole round trip's cash (one payment from the customer), whoever drives the
+ * return. Driver PAY is per-leg and never changed by matching.
  */
 class MatchReturnCashTest extends TestCase
 {
@@ -40,9 +39,10 @@ class MatchReturnCashTest extends TestCase
         return $b->fresh();
     }
 
-    public function test_different_drivers_each_collect_their_own_leg(): void
+    public function test_outbound_collects_the_whole_round_trip_even_with_different_drivers(): void
     {
-        // Emma's real case: outbound £170 (−£50 deposit = £120), return £180, DIFFERENT drivers.
+        // Emma's real case: outbound £170 (−£50 deposit = £120) + return £180 = £300,
+        // collected ALL on the outbound, even though a different driver does the return.
         $alice = User::factory()->create();
         $bob = User::factory()->create();
         $out = $this->cashJob('CET-OUT', '2026-10-09 10:00', 170, 50, $alice);
@@ -50,21 +50,9 @@ class MatchReturnCashTest extends TestCase
 
         $out->linkAsReturnPair($ret);
 
-        // Each driver collects their own leg — NOT combined.
-        $this->assertEqualsWithDelta(120.0, $out->fresh()->cashDueToDriver(), 0.01);
-        $this->assertEqualsWithDelta(180.0, $ret->fresh()->cashDueToDriver(), 0.01);
-    }
-
-    public function test_same_driver_collects_both_legs_on_the_outbound(): void
-    {
-        $kash = User::factory()->create();
-        $out = $this->cashJob('CET-OUT', '2026-10-09 10:00', 170, 50, $kash);
-        $ret = $this->cashJob('CET-RET', '2026-10-12 16:00', 180, 0, $kash);
-
-        $out->linkAsReturnPair($ret);
-
         $this->assertEqualsWithDelta(300.0, $out->fresh()->cashDueToDriver(), 0.01); // 120 + 180
-        $this->assertNull($ret->fresh()->cashDueToDriver()); // collected on the outbound
+        $this->assertNull($ret->fresh()->cashDueToDriver());                          // return collects nothing
+        $this->assertTrue($ret->fresh()->returnLegCollectedOnOutbound());
     }
 
     public function test_driver_pay_is_unchanged_per_leg(): void

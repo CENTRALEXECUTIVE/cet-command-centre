@@ -2334,14 +2334,6 @@ class Booking extends Model
         return $this->is_return_leg && ! empty($this->meta['matched_return']);
     }
 
-    /** One driver does BOTH legs of a matched pair → cash collects together on the outbound. */
-    private function matchedPairIsOneDriver(): bool
-    {
-        $other = $this->linkedBooking;
-
-        return $other !== null && $this->driver_id !== null && $this->driver_id === $other->driver_id;
-    }
-
     /** Status key for the UI badge CSS class — "postponed" for a parked job. */
     public function statusKey(): string
     {
@@ -4818,13 +4810,12 @@ class Booking extends Model
         if ($this->isEtoReturnOutbound()) {
             return $this->etoSibling();
         }
-        // Office-matched pair: combine the return's cash onto this outbound ONLY
-        // when the SAME driver does both legs. With different drivers each driver
-        // collects their own leg, so we don't combine here.
+        // Office-matched pair: the OUTBOUND collects the whole round trip's cash
+        // (one payment from the customer on the day), so combine the return's cash
+        // here. Driver PAY is separate and per-leg — see driverPay().
         if ($this->linked_booking_id && ! $this->is_return_leg) {
             $linked = $this->linkedBooking;
-            if ($linked && ! empty($linked->meta['matched_return'])
-                && $this->driver_id !== null && $this->driver_id === $linked->driver_id) {
+            if ($linked && ! empty($linked->meta['matched_return'])) {
                 return $linked;
             }
         }
@@ -4900,13 +4891,12 @@ class Booking extends Model
             return null;
         }
 
-        // A RETURN leg normally collects nothing: the whole fare is taken once, on
-        // the outbound leg (that's why the calendar shows no money emoji on a
-        // return). EXCEPTION: an office-matched return run by a DIFFERENT driver
-        // from the outbound — that driver collects HIS OWN leg's balance, so we fall
-        // through to parse it. (Only the office override above can put cash on a
-        // same-driver / ETO return.)
-        if ($this->is_return_leg && ! ($this->isMatchedReturnLeg() && ! $this->matchedPairIsOneDriver())) {
+        // A RETURN leg collects nothing: the whole round trip's cash is taken once,
+        // on the outbound leg — whoever drives the return, the customer has already
+        // paid it all to the outbound driver. (That's why the calendar shows no
+        // money emoji on a return.) Only the office override above can put cash on a
+        // return (the rare collect-on-the-return case).
+        if ($this->is_return_leg) {
             return null;
         }
 
