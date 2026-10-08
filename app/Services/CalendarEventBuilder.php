@@ -103,14 +103,9 @@ class CalendarEventBuilder
      */
     private function tag(Booking $booking): string
     {
-        // An explicit driver tag set by the operator/import wins (ABDI/MAJ/KASH…),
-        // but the old "COVER" placeholder is superseded by the vehicle type below.
-        $explicit = $booking->meta['driver_tag'] ?? null;
-        if (filled($explicit) && Str::upper(trim($explicit)) !== 'COVER') {
-            return Str::upper($explicit);
-        }
-
-        // Allocated → the driver's callsign: the operator-set callsign, else the
+        // ALLOCATED DRIVER WINS — the moment a driver is on the job the tag is their
+        // callsign/name, overriding any stale import/earlier tag (e.g. an imported
+        // "MAJID" on a job now driven by Kash). Operator-set callsign first, else the
         // email local-part (abdi@… → ABDI), else their first name.
         if ($booking->driver) {
             if (filled($booking->driver->driverProfile?->callsign)) {
@@ -120,6 +115,14 @@ class CalendarEventBuilder
             $callsign = Str::before((string) $booking->driver->email, '@');
 
             return Str::upper($callsign !== '' ? $callsign : Str::before($booking->driver->name, ' '));
+        }
+
+        // No linked driver, but an explicit named driver set by the operator/import
+        // (a cover driver's callsign); the old "COVER" placeholder is superseded by
+        // the vehicle type below.
+        $explicit = $booking->meta['driver_tag'] ?? null;
+        if (filled($explicit) && Str::upper(trim($explicit)) !== 'COVER') {
+            return Str::upper($explicit);
         }
 
         // Not allocated yet → show the vehicle type so dispatch knows what to send;
