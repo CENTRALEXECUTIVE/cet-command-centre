@@ -2287,7 +2287,7 @@ class Booking extends Model
         $sibling = $this->linkedBooking;
         foreach (array_filter([$this, $sibling]) as $leg) {
             $meta = $leg->meta ?? [];
-            unset($meta['collect_on_outbound']); // stop combining cash on the outbound
+            unset($meta['matched_return']); // stop combining cash on the outbound
             $leg->forceFill([
                 'is_return_leg' => false,
                 'linked_booking_id' => null,
@@ -2315,16 +2315,31 @@ class Booking extends Model
 
         $outbound->forceFill(['linked_booking_id' => $return->id, 'journey_type' => 'return', 'is_return_leg' => false])->save();
 
-        // Flag the return so the cash COMBINES on the outbound (driver collects both
-        // legs' cash on the outbound; the return reads "collect nothing"). This flag
-        // is what distinguishes an office-matched pair from a "Create return leg"
-        // (which stays priced/collected separately).
+        // Flag the return as part of an OFFICE-MATCHED pair. The cash only combines
+        // on the outbound when the SAME driver does both legs (one hand-over); with
+        // DIFFERENT drivers each driver collects their own leg. Driver PAY is always
+        // per-leg and untouched either way. (Distinct from "Create return leg", which
+        // stays priced/collected separately.)
         $return->forceFill([
             'linked_booking_id' => $outbound->id,
             'journey_type' => 'return',
             'is_return_leg' => true,
-            'meta' => array_merge($return->meta ?? [], ['collect_on_outbound' => true]),
+            'meta' => array_merge($return->meta ?? [], ['matched_return' => true]),
         ])->save();
+    }
+
+    /** True when this is the return leg of an OFFICE-MATCHED pair. */
+    public function isMatchedReturnLeg(): bool
+    {
+        return $this->is_return_leg && ! empty($this->meta['matched_return']);
+    }
+
+    /** One driver does BOTH legs of a matched pair → cash collects together on the outbound. */
+    private function matchedPairIsOneDriver(): bool
+    {
+        $other = $this->linkedBooking;
+
+        return $other !== null && $this->driver_id !== null && $this->driver_id === $other->driver_id;
     }
 
     /** Status key for the UI badge CSS class — "postponed" for a parked job. */
@@ -4188,8 +4203,10 @@ class Booking extends Model
                 return '£'.$amount.' to collect (cash) — outbound £'.$own.' + return £'.$fmt($ret).', collect it all now';
             }
 
-            // A single-booking cash return (outbound leg carries the total).
-            if ($this->isOutboundOfCashReturn()) {
+            // A cash return where THIS outbound carries the whole fare (a form-created
+            // round trip, return leg unpriced). NOT an office-matched pair of two
+            // separately-priced bookings — there the amount shown is just this leg's.
+            if ($this->isOutboundOfCashReturn() && ! ($this->linkedBooking?->isMatchedReturnLeg() ?? false)) {
                 return '£'.$amount.' to collect (cash) — the FULL return fare, collect it all now';
             }
 
@@ -4801,12 +4818,13 @@ class Booking extends Model
         if ($this->isEtoReturnOutbound()) {
             return $this->etoSibling();
         }
-        // Office-matched pair: this is the outbound of a manual return link whose
-        // return is flagged to collect on the outbound. (A plain "Create return
-        // leg" has no flag and stays separate, so it isn't combined here.)
+        // Office-matched pair: combine the return's cash onto this outbound ONLY
+        // when the SAME driver does both legs. With different drivers each driver
+        // collects their own leg, so we don't combine here.
         if ($this->linked_booking_id && ! $this->is_return_leg) {
             $linked = $this->linkedBooking;
-            if ($linked && ! empty($linked->meta['collect_on_outbound'])) {
+            if ($linked && ! empty($linked->meta['matched_return'])
+                && $this->driver_id !== null && $this->driver_id === $linked->driver_id) {
                 return $linked;
             }
         }
@@ -4882,13 +4900,13 @@ class Booking extends Model
             return null;
         }
 
-        // A RETURN leg never collects cash: the whole fare is taken once, on the
-        // outbound leg (that's why the calendar shows no money emoji on a return —
-        // see CalendarEventBuilder::paymentEmoji). Without this a return whose
-        // calendar Payment line reads "…covers both legs" would wrongly tell the
-        // driver to collect the fare a second time. Only the office override above
-        // can ever put cash on a return.
-        if ($this->is_return_leg) {
+        // A RETURN leg normally collects nothing: the whole fare is taken once, on
+        // the outbound leg (that's why the calendar shows no money emoji on a
+        // return). EXCEPTION: an office-matched return run by a DIFFERENT driver
+        // from the outbound — that driver collects HIS OWN leg's balance, so we fall
+        // through to parse it. (Only the office override above can put cash on a
+        // same-driver / ETO return.)
+        if ($this->is_return_leg && ! ($this->isMatchedReturnLeg() && ! $this->matchedPairIsOneDriver())) {
             return null;
         }
 
