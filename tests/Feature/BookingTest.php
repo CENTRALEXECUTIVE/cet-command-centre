@@ -483,9 +483,9 @@ class BookingTest extends TestCase
         $outbound = Booking::where('is_return_leg', false)->first();
         $return = Booking::where('is_return_leg', true)->first();
 
-        // Outbound (airport departure): driver collects the WHOLE return fare.
+        // Outbound (airport departure): driver collects the WHOLE return fare —
+        // shown as a single total, no split.
         $this->assertStringContainsString('£290 to collect (cash)', $outbound->driverCollectLine());
-        $this->assertStringContainsString('FULL return fare', $outbound->driverCollectLine());
 
         // Return (airport pickup): already paid on the outbound — collect nothing.
         $this->assertFalse($return->hasCashToCollect());
@@ -520,7 +520,7 @@ class BookingTest extends TestCase
         $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
         $line = $outbound->fresh()->driverCollectLine();
         $this->assertStringContainsString('£260 to collect', $line);
-        $this->assertStringContainsString('outbound £125 + return £135', $line);
+        $this->assertStringNotContainsString('outbound', $line); // one total, no split
 
         // The airport arrival is prepaid — collect nothing.
         $this->assertFalse($return->hasCashToCollect());
@@ -544,7 +544,7 @@ class BookingTest extends TestCase
         // Outbound (A) collects the whole trip.
         $this->assertTrue($outbound->isEtoReturnOutbound());
         $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
-        $this->assertStringContainsString('outbound £125 + return £135', $outbound->fresh()->driverCollectLine());
+        $this->assertStringNotContainsString('outbound', $outbound->fresh()->driverCollectLine()); // one total, no split
 
         // Return (B) collects nothing. The DRIVER just sees "Paid" — the
         // "collected on the outbound" detail is office-only.
@@ -681,7 +681,7 @@ class BookingTest extends TestCase
 
         $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
         $line = $outbound->fresh()->driverCollectLine();
-        $this->assertStringContainsString('outbound £125 + return £135', $line);
+        $this->assertStringNotContainsString('outbound', $line); // one total, no split
         $this->assertStringNotContainsString('275', $line);
         $this->assertStringNotContainsString('150', $line);
     }
@@ -779,7 +779,7 @@ class BookingTest extends TestCase
         ]);
 
         $this->assertSame(260.0, $outbound->fresh()->cashDueToDriver());
-        $this->assertStringContainsString('outbound £125 + return £135', $outbound->fresh()->driverCollectLine());
+        $this->assertStringNotContainsString('outbound', $outbound->fresh()->driverCollectLine()); // one total, no split
     }
 
     public function test_notes_with_a_number_are_flagged_and_the_contact_can_be_set(): void

@@ -53,6 +53,12 @@ class MatchReturnCashTest extends TestCase
         $this->assertEqualsWithDelta(300.0, $out->fresh()->cashDueToDriver(), 0.01); // 120 + 180
         $this->assertNull($ret->fresh()->cashDueToDriver());                          // return collects nothing
         $this->assertTrue($ret->fresh()->returnLegCollectedOnOutbound());
+
+        // The driver sees just the one total — no outbound/return split.
+        $line = $out->fresh()->driverCollectLine();
+        $this->assertStringContainsString('£300 to collect (cash)', $line);
+        $this->assertStringNotContainsString('outbound', $line);
+        $this->assertStringNotContainsString('return', $line);
     }
 
     public function test_driver_pay_is_unchanged_per_leg(): void

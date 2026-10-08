@@ -4188,18 +4188,11 @@ class Booking extends Model
             $fmt = fn (float $n) => rtrim(rtrim(number_format($n, 2), '0'), '.');
             $amount = $fmt($cash);
 
-            // Separately-booked return paired in: show the breakdown so the driver
-            // knows the total is the outbound + the return, collected all at once.
-            if (($ret = $this->pairedReturnFare()) > 0) {
-                $own = $fmt((float) ($this->ownCashDueToDriver() ?? 0));
-                return '£'.$amount.' to collect (cash) — outbound £'.$own.' + return £'.$fmt($ret).', collect it all now';
-            }
-
-            // A cash return where THIS outbound carries the whole fare (a form-created
-            // round trip, return leg unpriced). NOT an office-matched pair of two
-            // separately-priced bookings — there the amount shown is just this leg's.
-            if ($this->isOutboundOfCashReturn() && ! ($this->linkedBooking?->isMatchedReturnLeg() ?? false)) {
-                return '£'.$amount.' to collect (cash) — the FULL return fare, collect it all now';
+            // A cash return (matched pair or a single round-trip booking) where the
+            // outbound collects the whole trip: just show the one total — the driver
+            // doesn't need the outbound/return split.
+            if ($this->pairedReturnFare() > 0 || $this->isOutboundOfCashReturn()) {
+                return '£'.$amount.' to collect (cash)';
             }
 
             return '£'.$amount.' to collect (cash)';
