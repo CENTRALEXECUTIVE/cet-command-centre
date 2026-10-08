@@ -1178,12 +1178,14 @@ class Booking extends Model
      */
     public function transactionsAmountDue(): ?float
     {
-        $fare = $this->fareGross();
-        if ($fare === null) {
+        // The full amount the customer owes — VAT-inclusive when a VAT invoice is
+        // requested (net + 20%), so the VAT shows as outstanding until it's paid.
+        $payable = $this->amountPayable();
+        if ($payable === null) {
             return null;
         }
 
-        return max(0.0, round($fare - $this->transactionsPaidTotal(), 2));
+        return max(0.0, round($payable - $this->transactionsPaidTotal(), 2));
     }
 
     /**

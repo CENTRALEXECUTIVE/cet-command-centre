@@ -1526,6 +1526,8 @@
         @php
             $txns = $booking->payments->sortByDesc('id');
             $fareGross = $booking->fareGross();
+            $payableTotal = $booking->amountPayable();
+            $vatOnTop = $booking->vatInvoiceRequested() ? round(($payableTotal ?? 0) - ($fareGross ?? 0), 2) : 0.0;
             $paidTotal = $booking->transactionsPaidTotal();
             $amountDue = $booking->transactionsAmountDue();
             $txStatuses = ['pending' => 'Pending', 'link_sent' => 'Link sent', 'paid' => 'Paid', 'balance_remaining' => 'Balance remaining', 'failed' => 'Failed', 'refunded' => 'Refunded'];
@@ -1552,9 +1554,13 @@
                 </div>
             @endif
 
-            {{-- Totals (ETO-style). --}}
+            {{-- Totals (ETO-style). Total is VAT-inclusive when a VAT invoice is on. --}}
             <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px">
-                <div><div class="muted" style="font-size:12px">Total</div><div style="font-weight:800;font-size:18px">£{{ number_format($fareGross ?? 0, 2) }}</div></div>
+                <div>
+                    <div class="muted" style="font-size:12px">Total{{ $vatOnTop > 0 ? ' (incl. VAT)' : '' }}</div>
+                    <div style="font-weight:800;font-size:18px">£{{ number_format($payableTotal ?? 0, 2) }}</div>
+                    @if($vatOnTop > 0)<div class="muted" style="font-size:11px">£{{ number_format($fareGross ?? 0, 2) }} + £{{ number_format($vatOnTop, 2) }} VAT</div>@endif
+                </div>
                 <div><div class="muted" style="font-size:12px">Paid</div><div style="font-weight:800;font-size:18px;color:#1f7a44">£{{ number_format($paidTotal, 2) }}</div></div>
                 <div><div class="muted" style="font-size:12px">Amount due</div><div style="font-weight:800;font-size:18px;{{ ($amountDue ?? 0) > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($amountDue ?? 0, 2) }}</div></div>
             </div>
