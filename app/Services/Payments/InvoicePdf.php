@@ -149,7 +149,10 @@ class InvoicePdf
             $billedTo = $cover['name'];
             $billedEmail = $cover['email'];
         } else {
-            $billedTo = $booking->customer?->corporateAccount?->name ?: $booking->displayName();
+            // Bill the BOOKER (who paid), not the lead passenger. A corporate
+            // account is still billed to the company. The lead passenger, when
+            // different, appears as "Attn:" via $attn below.
+            $billedTo = $booking->customer?->corporateAccount?->name ?: $booking->bookerName();
             $billedEmail = $booking->customer?->email;
         }
 

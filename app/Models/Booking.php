@@ -2405,6 +2405,25 @@ class Booking extends Model
     }
 
     /**
+     * The BOOKER — the person who placed the booking and pays, as opposed to the
+     * lead passenger who travels. Used for invoice "Bill to" (whoever paid gets
+     * billed). Prefers an explicit meta['booked_by'] (set when a booking is made
+     * for someone else, incl. the paste/ETO import where the customer record is
+     * the passenger), else the customer on the booking (who IS the booker on a
+     * normal booking). The lead passenger still shows as "Attn:" on the invoice
+     * when they differ.
+     */
+    public function bookerName(): string
+    {
+        $bookedBy = trim((string) ($this->meta['booked_by'] ?? ''));
+        if ($bookedBy !== '') {
+            return $bookedBy;
+        }
+
+        return $this->customer?->name ?? 'Customer';
+    }
+
+    /**
      * Suitcase + hand-luggage counts, resolved from the most reliable source in
      * turn: the discrete meta counts (new bookings + the form), then the
      * descriptive "N Suitcases + N Hand Luggage" text that built the calendar
