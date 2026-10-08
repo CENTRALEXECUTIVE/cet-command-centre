@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 /**
  * The invoice "Bill to" is the BOOKER (who paid), not the lead passenger — the
- * lead passenger shows as "Attn:" when they differ.
+ * lead passenger shows as "Passenger:" when they differ.
  */
 class InvoiceBillToBookerTest extends TestCase
 {
@@ -87,7 +87,7 @@ class InvoiceBillToBookerTest extends TestCase
 
         $this->assertStringContainsString('Bill to', $html);
         $this->assertStringContainsString('Acme Office', $html);
-        $this->assertStringContainsString('Attn: Tom Passenger', $html);
+        $this->assertStringContainsString('Passenger: Tom Passenger', $html);
     }
 
     public function test_receipt_hides_attn_when_booker_is_the_passenger(): void
@@ -98,7 +98,7 @@ class InvoiceBillToBookerTest extends TestCase
         ]))->render();
 
         $this->assertStringContainsString('Jane Booker', $html);
-        $this->assertStringNotContainsString('Attn:', $html);
+        $this->assertStringNotContainsString('Passenger:', $html);
     }
 
     /** @param array<string,mixed> $overrides */
