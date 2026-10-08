@@ -50,9 +50,22 @@ class QuoteController extends Controller
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:8'],
             'stopover_addresses' => ['nullable', 'string', 'max:1000'],
+            // Optional: email the quote to the customer.
+            'customer_name' => ['nullable', 'string', 'max:120'],
+            'customer_email' => ['nullable', 'email', 'max:160'],
+            'apply_vat' => ['nullable', 'boolean'],
         ]);
 
         $quote = $this->engine->quote($data);
+
+        if (! empty($data['customer_email'])) {
+            \Illuminate\Support\Facades\Mail::to($data['customer_email'])->send(
+                new \App\Mail\QuoteMail($quote, (bool) ($data['apply_vat'] ?? false), $data['customer_name'] ?? null)
+            );
+
+            return redirect()->route('quotes.show', $quote)
+                ->with('status', 'Quote emailed to '.$data['customer_email'].'.');
+        }
 
         return redirect()->route('quotes.show', $quote);
     }
