@@ -84,6 +84,7 @@ class CheckCustomerLinks extends Command
                 $fromId = $b->customer_id;
                 $fromName = $b->customer?->name;
                 $b->forceFill(['customer_id' => $target->id])->save();
+                $b->markFieldEdited('customer_name'); // the re-file is final — ingest must not revert it
                 $moved++;
                 $this->line("  • {$b->reference}: re-filed under {$target->name}".($target->phone ? " ({$target->phone})" : '').'.');
                 \Illuminate\Support\Facades\Log::info('cet:check-customer-links re-filed a wrongly-linked booking', [

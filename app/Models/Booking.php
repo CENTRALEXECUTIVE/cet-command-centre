@@ -2853,6 +2853,20 @@ class Booking extends Model
      * @param  array<string, mixed>  $fields
      * @return array<string, mixed>
      */
+    /**
+     * Mark a field as office-owned so a background ETO re-ingest never overwrites
+     * it (see applyOfficeEdits / OFFICE_OWNED_FIELDS). Used when the office re-files
+     * a booking under the right customer, so the fix sticks.
+     */
+    public function markFieldEdited(string $field): void
+    {
+        $meta = $this->meta ?? [];
+        $edited = array_values(array_unique(array_merge((array) ($meta['edited_fields'] ?? []), [$field])));
+        $meta['edited_fields'] = $edited;
+        $meta['manually_edited_at'] = now()->toDateTimeString();
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
     public function applyOfficeEdits(array $fields): array
     {
         $existingMeta = $this->meta ?? [];

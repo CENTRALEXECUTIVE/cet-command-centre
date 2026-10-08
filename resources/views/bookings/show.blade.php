@@ -435,13 +435,19 @@
                  or losing the job's timeline. --}}
             <a href="{{ route('bookings.edit', $booking) }}" class="btn btn-primary" style="padding:9px 16px">✏️ Edit booking</a>
             @if(! $booking->status->isTerminal())
-                @if(!empty($canScan))
-                    <form method="POST" action="{{ route('bookings.push-calendar', $booking) }}"
-                          onsubmit="return confirm('Push this booking to Google Calendar?\n\nThe Command Centre is the source of truth — this sends its details (time, addresses, driver, details block) to Google so the calendar matches the app. Your data in the app is not changed.')">
-                        @csrf
-                        <button class="btn btn-dark" style="padding:9px 16px">📤 Push to Google Calendar</button>
-                    </form>
-                @endif
+                @php
+                    $copySummary = implode("\n", array_filter([
+                        $booking->pickup_at?->format('D d M Y').' · '.$booking->pickup_at?->format('H:i'),
+                        $booking->displayName(),
+                        '📍 '.$booking->displayPickupAddress(),
+                        '🏁 '.$booking->displayDropoffAddress(),
+                        trim(($booking->vehicleType?->name ?? '').' · '.$booking->passengerCount().' pax'),
+                        $booking->displayFlightNumber() ? '✈ '.$booking->displayFlightNumber() : null,
+                        'Ref '.$booking->reference.($booking->fareGross() !== null ? ' · £'.number_format((float) $booking->fareGross(), 2) : ''),
+                    ]));
+                @endphp
+                <button type="button" class="btn btn-dark copy-pay-link" data-link="{{ $copySummary }}" style="padding:9px 16px">📋 Copy summary</button>
+                <span class="copy-link-done hint" style="color:#1f8b4c;align-self:center"></span>
                 @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('return-box').style.display='block';this.style.display='none'">↩ Create return leg</button>
                 @endif
@@ -611,11 +617,9 @@
             </details>
         </div>
         @if(! $booking->status->isTerminal())
-            @if(!empty($canScan))
-                <p class="hint" style="margin:-8px 0 16px">
-                    <strong>Push to Google Calendar</strong> sends this booking's details from the Command Centre to Google so the calendar entry matches the app. The <strong>Command Centre is the source of truth</strong> — Google is only a mirror of it; your data here is never overwritten by the calendar.
-                </p>
-            @endif
+            <p class="hint" style="margin:-8px 0 16px">
+                <strong>Copy summary</strong> puts this booking's key details (time, name, route, vehicle, flight, ref and price) on your clipboard — ready to paste into WhatsApp or an email in one tap.
+            </p>
             @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                 <div id="return-box" class="card" style="display:none;border-left:4px solid #111;margin-bottom:16px">
                     <form method="POST" action="{{ route('bookings.return-leg', $booking) }}">

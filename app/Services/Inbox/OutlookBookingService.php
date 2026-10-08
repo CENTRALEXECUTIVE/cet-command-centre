@@ -258,6 +258,15 @@ class OutlookBookingService
             ];
 
             if ($existing) {
+                // NEVER move an existing booking to a different customer on a routine
+                // re-ingest. The customer is set once, at creation; the office owns it
+                // thereafter (incl. a manual "re-file under its own customer"). Without
+                // this, every 2-minute ingest re-ran the resolver and reverted a
+                // re-file straight back to the wrong shared record.
+                if ($existing->customer_id) {
+                    unset($fields['customer_id']);
+                }
+
                 // Preserve app-added meta (driver PAYROLL, link tokens, audit
                 // flags) — the email only owns the booking-detail fields, never
                 // the money and tokens we've recorded. Replacing meta wholesale
@@ -517,19 +526,54 @@ class OutlookBookingService
 
     private function resolveCustomer(array $parsed): Customer
     {
-        $phone = $parsed['customer_phone'] ?? null;
-        $email = $parsed['customer_email'] ?? null;
+        $phone = trim((string) ($parsed['customer_phone'] ?? '')) ?: null;
+        $email = $this->personalEmail($parsed['customer_email'] ?? null);
 
-        $customer = Customer::query()
-            ->when($phone, fn ($q) => $q->orWhere('phone', $phone))
-            ->when($email, fn ($q) => $q->orWhere('email', $email))
-            ->first();
+        // Match ONLY on a real identifier — phone first, then a personal email.
+        // CRITICAL: never fall through to "the first customer in the table" (the old
+        // `->when()->when()->first()` did exactly that when both were blank, stapling
+        // every anonymous ETO booking onto one random person), and never key on a
+        // shared/system address like the ETO sender (which collapsed many different
+        // customers onto one record). No match → a NEW customer, never a wrong one.
+        $customer = null;
+        if ($phone) {
+            $customer = Customer::where('phone', $phone)->first();
+        }
+        if (! $customer && $email) {
+            $customer = Customer::where('email', $email)->first();
+        }
 
-        return $customer ?? Customer::create([
+        return $customer ?? Customer::create(array_filter([
             'name' => $parsed['customer_name'] ?? 'Email customer',
             'phone' => $phone,
             'email' => $email,
-        ]);
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
+    /**
+     * A REAL customer email we can safely match/store on — never a system or shared
+     * address (the ETO notification sender, no-reply boxes, our own mailbox). Keying
+     * a customer on one of these would merge unrelated people onto one record.
+     */
+    private function personalEmail(?string $email): ?string
+    {
+        $email = trim((string) $email);
+        if ($email === '' || ! str_contains($email, '@')) {
+            return null;
+        }
+        $lower = strtolower($email);
+        foreach (['eto.taxi', 'notifications@', 'no-reply@', 'noreply@', 'donotreply@', 'do-not-reply@', 'mailer-daemon@', 'postmaster@'] as $bad) {
+            if (str_contains($lower, $bad)) {
+                return null;
+            }
+        }
+        // Our own office mailbox is never a customer.
+        $mailbox = strtolower(trim((string) (config('services.graph.mailbox') ?? env('MS_GRAPH_MAILBOX', ''))));
+        if ($mailbox !== '' && $lower === $mailbox) {
+            return null;
+        }
+
+        return $email;
     }
 
     private function resolveVehicleType(?string $label): VehicleType

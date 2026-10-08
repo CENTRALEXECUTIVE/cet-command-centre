@@ -1678,6 +1678,7 @@ class BookingController extends Controller
                     'email' => null,
                 ], fn ($v) => $v !== null && $v !== ''));
             $booking->forceFill(['customer_id' => $target->id])->save();
+            $booking->markFieldEdited('customer_name'); // the office owns it now — ingest must not revert
 
             return back()->with('status', "This booking was filed under {$customer->name}, who has other bookings — re-filed it under {$target->name} ({$contact}) and left {$customer->name}'s record untouched.");
         }
