@@ -87,11 +87,6 @@ class BookingReceiptController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $q = trim((string) $request->query('q', ''));
-        if (mb_strlen($q) < 2) {
-            return response()->json(['results' => []]);
-        }
-
-        $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
 
         // Bookings already on this invoice (and this booking itself) are excluded
         // so the picker only offers jobs you can still add.
@@ -100,13 +95,18 @@ class BookingReceiptController extends Controller
         $matches = Booking::query()
             ->whereNotIn('id', $exclude)
             ->where('status', '!=', BookingStatus::Cancelled->value)
-            ->where(function ($query) use ($like) {
-                $query->where('reference', 'like', $like)
-                    ->orWhere('external_reference', 'like', $like)
-                    ->orWhere('pickup_address', 'like', $like)
-                    ->orWhere('destination_address', 'like', $like)
-                    ->orWhere('meta', 'like', $like) // cover operator lives in meta JSON
-                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $like));
+            // No query yet → just list the most recent bookings so the operator can
+            // browse and click without typing. Typing narrows it.
+            ->when(mb_strlen($q) >= 2, function ($query) use ($q) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
+                $query->where(function ($inner) use ($like) {
+                    $inner->where('reference', 'like', $like)
+                        ->orWhere('external_reference', 'like', $like)
+                        ->orWhere('pickup_address', 'like', $like)
+                        ->orWhere('destination_address', 'like', $like)
+                        ->orWhere('meta', 'like', $like) // cover operator lives in meta JSON
+                        ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $like));
+                });
             })
             ->with(['customer', 'vehicleType'])
             ->orderByDesc('pickup_at')

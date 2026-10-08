@@ -74,14 +74,20 @@ class InvoiceCombineSearchTest extends TestCase
         $this->assertNotContains('CET-BASE2', $refs);
     }
 
-    public function test_short_queries_return_nothing(): void
+    public function test_empty_query_lists_recent_bookings_to_browse(): void
     {
+        // With no (or too-short) query the picker lists recent bookings so the
+        // operator can tap one without typing.
         $base = Booking::factory()->create(['reference' => 'CET-BASE']);
+        Booking::factory()->create(['reference' => 'CET-RECENT', 'pickup_at' => now()->addDay()]);
 
         $res = $this->actingAs($this->admin())
-            ->getJson(route('bookings.invoice.search', $base).'?q=a');
+            ->getJson(route('bookings.invoice.search', $base));
 
-        $res->assertOk()->assertJson(['results' => []]);
+        $res->assertOk();
+        $refs = collect($res->json('results'))->pluck('reference')->all();
+        $this->assertContains('CET-RECENT', $refs);
+        $this->assertNotContains('CET-BASE', $refs); // never offers this booking itself
     }
 
     public function test_non_admins_are_forbidden(): void
