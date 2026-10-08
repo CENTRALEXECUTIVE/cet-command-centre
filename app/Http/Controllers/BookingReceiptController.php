@@ -29,6 +29,12 @@ class BookingReceiptController extends Controller
         return response($pdf->renderReceipt($booking), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => "{$disposition}; filename={$kind}-{$booking->reference}.pdf",
+            // Never let the browser serve a stale copy — the receipt is regenerated
+            // every time so a price/layout change always shows at once (re-opening
+            // the same URL otherwise shows the previously cached PDF).
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
         ]);
     }
 
