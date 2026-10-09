@@ -274,6 +274,17 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   metadata only). Purged on the 90-day GPS schedule. WhatsApp masking is out
   of scope. The legacy single-number bridge (`MaskingService`, `/webhooks/voice`)
   still works as a fallback.
+- **Read-only masked-line transcript** (`Telephony\TwilioMessageLog`, booking page
+  → 💬 *Messages on the masked line*, route `bookings.messages`): pulls the SMS on
+  a booking's masked line LIVE from Twilio's Messaging API for dispute/safeguarding
+  review. **Super-admins (the two directors) only** — it exposes private driver↔
+  customer message content, which `proxy_events` deliberately does NOT store, so
+  nothing is persisted here either; it's a live read, lazy-loaded when the fold is
+  opened. A text TO the driver's masked line is labelled from the driver, TO the
+  customer's line from the customer — so no real phone number is ever shown. Silent
+  no-op (empty) when Twilio isn't configured. Tell customers/drivers the masked
+  line may be reviewed (privacy-notice point); do not re-enable body storage in the
+  webhook without that.
 - **WhatsApp masking — DEFERRED (decided Sep 2026), do not build.** Calls and
   texts (SMS) are already masked both ways via Twilio Proxy + the switchboard, so
   customers can already reach the driver with no real numbers exposed — WhatsApp

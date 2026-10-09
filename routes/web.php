@@ -178,6 +178,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Admin-only "Notes for the driver" — free-text brief shown on the driver's job screen.
         Route::post('bookings/{booking}/driver-notes', [BookingController::class, 'driverNotes'])->middleware('throttle:30,1')->name('bookings.driver-notes');
         Route::post('bookings/{booking}/lead-time', [BookingController::class, 'leadTime'])->middleware('throttle:30,1')->name('bookings.lead-time');
+        // Read-only Twilio message transcript for a booking (super-admin only, lazy-loaded).
+        Route::get('bookings/{booking}/messages', [BookingController::class, 'messages'])->middleware('throttle:30,1')->name('bookings.messages');
         // Per-booking receipt / VAT invoice: view/download the PDF, or email it.
         Route::get('bookings/{booking}/receipt', [\App\Http\Controllers\BookingReceiptController::class, 'show'])->name('bookings.receipt');
         Route::post('bookings/{booking}/receipt/email', [\App\Http\Controllers\BookingReceiptController::class, 'email'])->middleware('throttle:10,1')->name('bookings.receipt.email');

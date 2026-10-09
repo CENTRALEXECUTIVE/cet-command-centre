@@ -894,6 +894,42 @@
             $linkRecipient = $booking->driverContactLabel();
             $linkMsg = $booking->driverLinkMessage();
         @endphp
+        @if(auth()->user()?->isSuperAdmin())
+            <details class="card" id="masked-messages" data-url="{{ route('bookings.messages', $booking) }}">
+                <summary style="cursor:pointer;font-weight:700;font-size:16px">💬 Messages on the masked line</summary>
+                <p class="hint" style="margin:8px 0 10px">What the driver and customer said to each other on the masked number — pulled live from Twilio, read-only. Directors only.</p>
+                <div id="masked-messages-body" style="font-size:13px;color:var(--muted,#777)">Open to load the conversation…</div>
+            </details>
+            <script>
+            (function () {
+                var box = document.getElementById('masked-messages');
+                var body = document.getElementById('masked-messages-body');
+                if (!box || !body) return;
+                var loaded = false;
+                function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+                box.addEventListener('toggle', function () {
+                    if (!box.open || loaded) return;
+                    loaded = true;
+                    body.textContent = 'Loading…';
+                    fetch(box.dataset.url, { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            if (!d.configured) { body.textContent = 'Number masking isn’t live yet — no messages to show.'; return; }
+                            if (!d.messages || !d.messages.length) { body.textContent = 'No texts on the masked line for this booking.'; return; }
+                            body.innerHTML = d.messages.map(function (m) {
+                                var mine = m.sender === 'Driver';
+                                return '<div style="display:flex;justify-content:' + (mine ? 'flex-start' : 'flex-end') + ';margin:6px 0">'
+                                    + '<div style="max-width:80%;background:' + (mine ? '#eef2f7' : '#FFF4D6') + ';color:#111;border:1px solid #e3e3e3;border-radius:12px;padding:8px 11px">'
+                                    + '<div style="font-size:11px;color:#777;margin-bottom:2px">' + esc(m.sender) + (m.at ? ' · ' + esc(m.at) : '') + '</div>'
+                                    + '<div style="font-size:14px;white-space:pre-wrap">' + esc(m.body || '(no text)') + '</div>'
+                                    + '</div></div>';
+                            }).join('');
+                        })
+                        .catch(function () { loaded = false; body.textContent = 'Couldn’t load the messages — try again.'; });
+                });
+            })();
+            </script>
+        @endif
         <div class="card">
             <h2 style="margin:0 0 4px">🔗 Driver link — no login @if($booking->hasExtraDrivers())<span class="muted" style="font-weight:400;font-size:13px">· Car 1 of {{ $booking->carCount() }}</span>@endif</h2>
             <p class="hint" style="margin:0 0 12px">Send this to the driver. It opens their full job sheet — details, cash to collect, the contact number, navigation and the status buttons — with live tracking, no account needed.</p>
@@ -2558,6 +2594,74 @@
             if (el) {
                 if (el.tagName === 'DETAILS') { el.open = true; }
                 el.scrollIntoView({ block: 'start' });
+            }
+        });
+    </script>
+    {{-- Make each booking section foldable so the page isn't one long wall. Each
+         card with its own <h2> heading gets a tap-to-collapse header; the choice
+         is remembered per section (localStorage). A handful of secondary sections
+         start collapsed to cut the clutter. Progressive enhancement — with JS off
+         everything simply shows, as before. --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Sections that start collapsed (match on heading text).
+            var closedByDefault = [
+                'Job timeline', 'All cars', 'Driver payroll', 'Payment history',
+                'Additional files', 'Status History', 'Send a notification',
+                'Customer Comms', 'Driver brief', 'Cancellation outcome'
+            ];
+            var hash = window.location.hash || '';
+
+            document.querySelectorAll('.card').forEach(function (card) {
+                // Only cards whose own first element is an <h2> (skip <details> cards).
+                var h2 = card.querySelector(':scope > h2');
+                if (!h2) return;
+
+                // Move everything after the heading into a collapsible body.
+                var body = document.createElement('div');
+                body.className = 'cet-fold-body';
+                var n = h2.nextSibling;
+                while (n) { var nx = n.nextSibling; body.appendChild(n); n = nx; }
+                card.appendChild(body);
+
+                var caret = document.createElement('span');
+                caret.style.cssText = 'float:right;color:#999;font-size:13px;transition:transform .15s';
+                h2.appendChild(caret);
+                h2.style.cursor = 'pointer';
+                h2.style.userSelect = 'none';
+
+                var label = (h2.textContent || '').trim().slice(0, 48);
+                var key = 'cetfold:' + location.pathname.replace(/\/\d+/, '/:id') + ':' + label;
+
+                function apply(open) {
+                    body.style.display = open ? '' : 'none';
+                    caret.textContent = open ? '▾' : '▸';
+                    try { localStorage.setItem(key, open ? '1' : '0'); } catch (e) {}
+                }
+
+                // A section holding the scroll target always opens.
+                var holdsTarget = hash && body.querySelector(hash.replace(/[^#\w-]/g, ''));
+                var saved = null;
+                try { saved = localStorage.getItem(key); } catch (e) {}
+                var startOpen = holdsTarget ? true
+                    : (saved !== null ? saved === '1'
+                        : !closedByDefault.some(function (t) { return label.indexOf(t) !== -1; }));
+                apply(startOpen);
+
+                h2.addEventListener('click', function (e) {
+                    if (e.target.closest('a, button, input, select, textarea, form, label')) return;
+                    apply(body.style.display === 'none');
+                });
+            });
+
+            // If the page was told to scroll to a section, make sure it's open.
+            if (hash) {
+                var el = document.querySelector(hash.replace(/[^#\w-]/g, ''));
+                if (el) {
+                    var fold = el.closest('.cet-fold-body');
+                    if (fold && fold.style.display === 'none') fold.style.display = '';
+                    el.scrollIntoView({ block: 'start' });
+                }
             }
         });
     </script>

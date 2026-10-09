@@ -374,6 +374,30 @@ class BookingController extends Controller
             ->with('status', "Booking {$booking->reference} created successfully.");
     }
 
+    /**
+     * Read-only transcript of the texts on this booking's masked line, pulled
+     * live from Twilio (nothing stored). Super-admins only — it shows the content
+     * of private driver↔customer messages, so it's kept to the directors. Returns
+     * JSON for the lazy-loaded panel on the booking page.
+     */
+    public function messages(Request $request, Booking $booking, \App\Services\Telephony\TwilioMessageLog $log): JsonResponse
+    {
+        abort_unless($request->user()->isSuperAdmin(), 403);
+
+        if (! $log->configured()) {
+            return response()->json(['configured' => false, 'messages' => []]);
+        }
+
+        $messages = collect($log->forBooking($booking))->map(fn ($m) => [
+            'sender' => $m['sender'],
+            'body' => $m['body'],
+            'at' => $m['sent_at']?->copy()->timezone(config('app.timezone'))->format('D d M, H:i'),
+            'status' => $m['status'],
+        ])->values();
+
+        return response()->json(['configured' => true, 'messages' => $messages]);
+    }
+
     public function show(Request $request, Booking $booking): View|RedirectResponse
     {
         // Drivers never see the full booking (prices, payment, comms) — they get
