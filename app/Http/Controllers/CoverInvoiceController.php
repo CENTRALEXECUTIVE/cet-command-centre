@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\BookingReceiptMail;
 use App\Models\Booking;
 use App\Services\Payments\InvoicePdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -33,6 +34,38 @@ class CoverInvoiceController extends Controller
             ->sortKeys();
 
         return view('invoices.cover', ['groups' => $groups]);
+    }
+
+    /**
+     * The operators we've covered for before, with their saved email/phone — so
+     * the "cover job" form can offer them as a pick list instead of retyping the
+     * same operator on every job. The most recent non-empty contact details win.
+     */
+    public function operators(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $operators = [];
+        Booking::query()
+            ->whereNotNull('meta->cover_for')
+            ->orderBy('pickup_at') // oldest first so newer details overwrite
+            ->get()
+            ->each(function (Booking $b) use (&$operators) {
+                $c = $b->coverFor();
+                $name = trim($c['name'] ?? '');
+                if ($name === '') {
+                    return;
+                }
+                $key = mb_strtolower($name);
+                $operators[$key] = [
+                    'name' => $name,
+                    // Keep the last known non-empty contact detail for this operator.
+                    'email' => filled($c['email'] ?? null) ? $c['email'] : ($operators[$key]['email'] ?? null),
+                    'phone' => filled($c['phone'] ?? null) ? $c['phone'] : ($operators[$key]['phone'] ?? null),
+                ];
+            });
+
+        return response()->json(['operators' => array_values(collect($operators)->sortBy('name')->all())]);
     }
 
     /** Combined invoice PDF for the chosen cover jobs (download/view). */

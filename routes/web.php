@@ -471,6 +471,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
     Route::post('invoices/generate', [InvoiceController::class, 'generate'])->middleware('throttle:10,1')->name('invoices.generate');
     // Combined cover-job invoices (one invoice, many jobs, per operator).
     Route::get('invoices/cover', [\App\Http\Controllers\CoverInvoiceController::class, 'index'])->name('cover-invoices.index');
+    Route::get('invoices/cover/operators', [\App\Http\Controllers\CoverInvoiceController::class, 'operators'])->middleware('throttle:60,1')->name('cover-invoices.operators');
     Route::post('invoices/cover/pdf', [\App\Http\Controllers\CoverInvoiceController::class, 'pdf'])->name('cover-invoices.pdf');
     Route::post('invoices/cover/email', [\App\Http\Controllers\CoverInvoiceController::class, 'email'])->middleware('throttle:10,1')->name('cover-invoices.email');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');

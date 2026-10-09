@@ -596,16 +596,23 @@
                     @csrf
                     <div class="grid grid-2" style="gap:10px">
                         <label style="font-size:12px">Operator / company name
-                            <input name="name" value="{{ $cover['name'] ?? '' }}" placeholder="e.g. A1 Cars Ltd" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                            <span style="position:relative;display:block">
+                                <input name="name" id="cover-operator-name" autocomplete="off" value="{{ $cover['name'] ?? '' }}" placeholder="Pick an existing operator, or type a new one…"
+                                       data-operators-url="{{ route('cover-invoices.operators') }}"
+                                       style="width:100%;padding:7px 28px 7px 9px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box">
+                                <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:#888;font-size:11px">▼</span>
+                                <div id="cover-operator-results" role="listbox"
+                                     style="display:none;position:absolute;z-index:50;left:0;right:0;top:calc(100% + 4px);background:#ffffff;color:#111;border:1px solid #d9d9d9;border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.28);max-height:280px;overflow-y:auto"></div>
+                            </span>
                         </label>
                         <label style="font-size:12px">Amount to invoice (£)
                             <input type="number" step="0.01" min="0" name="amount" value="{{ $cover['amount'] ?? '' }}" placeholder="defaults to the fare" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
                         </label>
                         <label style="font-size:12px">Their email <span class="muted">— for emailing the invoice</span>
-                            <input type="email" name="email" value="{{ $cover['email'] ?? '' }}" placeholder="accounts@operator.co.uk" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                            <input type="email" id="cover-operator-email" name="email" value="{{ $cover['email'] ?? '' }}" placeholder="accounts@operator.co.uk" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
                         </label>
                         <label style="font-size:12px">Their WhatsApp / phone
-                            <input type="tel" name="phone" value="{{ $cover['phone'] ?? '' }}" placeholder="07…" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
+                            <input type="tel" id="cover-operator-phone" name="phone" value="{{ $cover['phone'] ?? '' }}" placeholder="07…" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px">
                         </label>
                     </div>
                     <div style="margin-top:10px">
@@ -616,6 +623,77 @@
                         @endif
                     </div>
                 </form>
+                <script>
+                (function () {
+                    var box = document.getElementById('cover-operator-name');
+                    var results = document.getElementById('cover-operator-results');
+                    var emailEl = document.getElementById('cover-operator-email');
+                    var phoneEl = document.getElementById('cover-operator-phone');
+                    if (!box || !results) return;
+                    var all = null, loading = false;
+
+                    function esc(s) {
+                        return (s == null ? '' : String(s)).replace(/[&<>"]/g, function (c) {
+                            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+                        });
+                    }
+                    function hide() { results.style.display = 'none'; }
+
+                    function render() {
+                        var q = box.value.trim().toLowerCase();
+                        var list = (all || []).filter(function (o) {
+                            return !q || o.name.toLowerCase().indexOf(q) !== -1;
+                        });
+                        if (!list.length) {
+                            results.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:#777">'
+                                + (all && all.length ? 'No match — type to add a new operator.' : 'No saved operators yet — type a new one.') + '</div>';
+                            results.style.display = 'block';
+                            return;
+                        }
+                        results.innerHTML = list.map(function (o) {
+                            var sub = [o.email, o.phone].filter(Boolean).join(' · ');
+                            return '<div class="cov-opt" tabindex="0" data-name="' + esc(o.name) + '" data-email="' + esc(o.email || '') + '" data-phone="' + esc(o.phone || '') + '"'
+                                + ' style="padding:9px 12px;border-bottom:1px solid #eee;cursor:pointer;font-size:13px;color:#111">'
+                                + '<strong>' + esc(o.name) + '</strong>'
+                                + (sub ? '<div style="color:#666;font-size:12px;margin-top:2px">' + esc(sub) + '</div>' : '')
+                                + '</div>';
+                        }).join('');
+                        results.style.display = 'block';
+                    }
+
+                    function open() {
+                        if (all) { render(); return; }
+                        if (loading) return;
+                        loading = true;
+                        results.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:#777">Loading…</div>';
+                        results.style.display = 'block';
+                        fetch(box.dataset.operatorsUrl, { headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.json(); })
+                            .then(function (d) { all = d.operators || []; loading = false; render(); })
+                            .catch(function () { loading = false; hide(); });
+                    }
+
+                    box.addEventListener('focus', open);
+                    box.addEventListener('click', open);
+                    box.addEventListener('input', function () { if (all) render(); else open(); });
+
+                    results.addEventListener('click', pick);
+                    results.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); pick(e); } });
+                    function pick(e) {
+                        var opt = e.target.closest('.cov-opt');
+                        if (!opt) return;
+                        box.value = opt.dataset.name;
+                        // Fill the operator's saved contact details so you don't retype them.
+                        if (emailEl && opt.dataset.email) emailEl.value = opt.dataset.email;
+                        if (phoneEl && opt.dataset.phone) phoneEl.value = opt.dataset.phone;
+                        hide();
+                    }
+
+                    document.addEventListener('click', function (e) {
+                        if (!results.contains(e.target) && e.target !== box) hide();
+                    });
+                })();
+                </script>
             </details>
         </div>
         @if(! $booking->status->isTerminal())
