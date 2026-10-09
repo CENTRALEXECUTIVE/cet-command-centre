@@ -56,25 +56,24 @@
                 <div class="toolbar" style="margin-top:12px">
                     <button type="submit" class="btn btn-primary" style="padding:8px 14px">👁 View combined invoice</button>
                     <button type="submit" class="btn btn-ghost" style="padding:8px 14px" formaction="{{ route('cover-invoices.pdf') }}" name="download" value="1">⬇ Download</button>
-                    <button type="submit" class="btn btn-light" style="padding:8px 14px" formtarget="_self"
-                            formaction="{{ route('cover-invoices.payment-link') }}"
-                            onclick="return confirm('Create a card payment link for the ticked jobs (£{{ number_format($total, 2) }})? It goes onto the invoice.')">💳 Create payment link</button>
+                    <button type="button" class="btn btn-light paylink-btn" style="padding:8px 14px"
+                            data-url="{{ route('cover-invoices.payment-link') }}"
+                            data-total="{{ number_format($total, 2) }}">💳 Create payment link</button>
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" formtarget="_self"
                             formaction="{{ route('cover-invoices.email') }}"
                             onclick="return confirm('Email the combined invoice to {{ $jobs->first()->coverFor()['email'] ?: $operator }}?')">✉ Email to {{ $operator }}</button>
                 </div>
                 @php $existingLink = $jobs->first()->meta['cover_payment_link'] ?? null; @endphp
-                @if(is_array($existingLink) && ($existingLink['url'] ?? null))
-                    <div style="margin-top:10px;background:#f3faf3;border:1px solid #cfe8cf;border-radius:10px;padding:10px 12px">
-                        <strong style="font-size:13px">💳 Payment link ready</strong>
-                        <span class="muted" style="font-size:12px">· {{ $existingLink['reference'] ?? '' }} · £{{ number_format((float) ($existingLink['amount'] ?? 0), 2) }}</span>
-                        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
-                            <input type="text" value="{{ $existingLink['url'] }}" readonly onclick="this.select()" style="flex:1;min-width:200px;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
-                            <a href="{{ $existingLink['url'] }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Open</a>
-                        </div>
-                        <p class="hint" style="margin:6px 0 0">It's on the View/Download/Email invoice. Re-tick and press Create again if the jobs or amount change.</p>
+                <div class="paylink-panel" style="margin-top:10px;background:#f3faf3;border:1px solid #cfe8cf;border-radius:10px;padding:10px 12px;{{ (is_array($existingLink) && ($existingLink['url'] ?? null)) ? '' : 'display:none' }}">
+                    <strong style="font-size:13px">💳 Payment link ready</strong>
+                    <span class="paylink-meta muted" style="font-size:12px">@if(is_array($existingLink) && ($existingLink['url'] ?? null))· {{ $existingLink['reference'] ?? '' }} · £{{ number_format((float) ($existingLink['amount'] ?? 0), 2) }}@endif</span>
+                    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+                        <input type="text" class="paylink-url" value="{{ (is_array($existingLink) ? ($existingLink['url'] ?? '') : '') }}" readonly onclick="this.select()" style="flex:1;min-width:200px;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+                        <a class="paylink-open btn btn-ghost" href="{{ (is_array($existingLink) ? ($existingLink['url'] ?? '#') : '#') }}" target="_blank" rel="noopener" style="padding:6px 12px;font-size:12px">Open</a>
                     </div>
-                @endif
+                    <p class="hint" style="margin:6px 0 0">It's on the View/Download/Email invoice. Re-tick and press Create again if the jobs or amount change.</p>
+                </div>
+                <p class="paylink-error" style="margin:8px 0 0;color:#b32020;font-size:13px;display:none"></p>
                 @unless($jobs->first()->coverFor()['email'] ?? null)
                     <p class="hint" style="margin:8px 0 0;color:#8a6d00">No email saved for {{ $operator }} — add one on any of their bookings to enable emailing.</p>
                 @endunless
@@ -110,6 +109,53 @@
                 if (none) none.style.display = anyShown ? 'none' : '';
             }
             box.addEventListener('input', apply);
+        })();
+        </script>
+
+        <script>
+        (function () {
+            document.querySelectorAll('.paylink-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var form = btn.closest('form');
+                    if (!form) return;
+                    var group = btn.closest('.cover-group');
+                    var panel = group.querySelector('.paylink-panel');
+                    var errEl = group.querySelector('.paylink-error');
+                    var ids = Array.prototype.map.call(
+                        form.querySelectorAll('.jobcb:checked'), function (c) { return c.value; });
+
+                    errEl.style.display = 'none';
+                    if (!ids.length) { errEl.textContent = 'Tick at least one job first.'; errEl.style.display = ''; return; }
+                    if (!confirm('Create a card payment link for the ' + ids.length + ' ticked job(s)? It goes onto the invoice.')) return;
+
+                    var original = btn.textContent;
+                    btn.disabled = true; btn.textContent = 'Creating…';
+
+                    var body = new FormData();
+                    ids.forEach(function (id) { body.append('ids[]', id); });
+                    var token = form.querySelector('[name=_token]');
+                    fetch(btn.dataset.url, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json',
+                                   'X-CSRF-TOKEN': token ? token.value : '' },
+                        body: body
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        btn.disabled = false; btn.textContent = original;
+                        if (!d || !d.ok) { errEl.textContent = (d && d.error) || 'Could not create the link.'; errEl.style.display = ''; return; }
+                        panel.querySelector('.paylink-meta').textContent = '· ' + d.reference + ' · £' + d.amount;
+                        panel.querySelector('.paylink-url').value = d.url;
+                        panel.querySelector('.paylink-open').href = d.url;
+                        panel.style.display = '';
+                        panel.scrollIntoView({ block: 'nearest' });
+                    })
+                    .catch(function () {
+                        btn.disabled = false; btn.textContent = original;
+                        errEl.textContent = 'Network error creating the link — try again.'; errEl.style.display = '';
+                    });
+                });
+            });
         })();
         </script>
         @endverbatim

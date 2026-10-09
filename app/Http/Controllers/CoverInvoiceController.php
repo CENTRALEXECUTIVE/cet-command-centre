@@ -107,9 +107,14 @@ class CoverInvoiceController extends Controller
      * the whole invoice by card. Reconciled in Square (the link is COVER-tagged so
      * it never marks an individual booking's fare paid).
      */
-    public function paymentLink(Request $request, SquareBookingPaymentService $square): RedirectResponse
+    public function paymentLink(Request $request, SquareBookingPaymentService $square): RedirectResponse|JsonResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
+
+        $wantsJson = $request->wantsJson() || $request->ajax();
+        $fail = fn (string $msg) => $wantsJson
+            ? response()->json(['ok' => false, 'error' => $msg], 200)
+            : back()->with('error', $msg);
 
         $bookings = $this->selected($request);
         $anchor = $bookings->first();
@@ -117,10 +122,10 @@ class CoverInvoiceController extends Controller
         $total = round($bookings->sum(fn (Booking $b) => (float) ($b->coverForAmount() ?? 0)), 2);
 
         if ($total <= 0) {
-            return back()->with('error', 'The selected cover jobs total £0 — set an amount on them first.');
+            return $fail('The selected cover jobs total £0 — set an amount on them first.');
         }
         if (! $square->enabled('transfers')) {
-            return back()->with('error', 'Square isn’t connected yet, so a card link can’t be created.');
+            return $fail('Square isn’t connected yet, so a card link can’t be created.');
         }
 
         // A short, stable reference the operator and Square both show.
@@ -129,7 +134,7 @@ class CoverInvoiceController extends Controller
 
         $url = $square->createCoverCheckoutUrl($total, $reference, $label);
         if (! $url) {
-            return back()->with('error', 'Couldn’t create the payment link — check the Square connection and try again.');
+            return $fail('Couldn’t create the payment link — check the Square connection and try again.');
         }
 
         $anchor->forceFill(['meta' => array_merge($anchor->meta ?? [], [
@@ -141,6 +146,15 @@ class CoverInvoiceController extends Controller
                 'created_at' => now()->toIso8601String(),
             ],
         ])])->save();
+
+        if ($wantsJson) {
+            return response()->json([
+                'ok' => true,
+                'url' => $url,
+                'reference' => $reference,
+                'amount' => number_format($total, 2),
+            ]);
+        }
 
         return back()
             ->with('status', 'Payment link created for £'.number_format($total, 2).' ('.$reference.') — it’s now on the invoice. Open View/Download/Email to send it.')

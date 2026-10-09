@@ -66,6 +66,31 @@ class CoverInvoicePaymentLinkTest extends TestCase
         Http::assertSent(fn ($req) => str_contains(json_encode($req->data()), 'COVER-CVR-'));
     }
 
+    public function test_the_ajax_path_returns_the_link_as_json(): void
+    {
+        $this->enableSquare();
+        Http::fake([
+            'connect.squareupsandbox.com/*' => Http::response(['payment_link' => ['url' => 'https://square.link/u/xyz']], 200),
+        ]);
+        $a = $this->coverJob('CET-A', 120);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('cover-invoices.payment-link'), ['ids' => [$a->id]])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'url' => 'https://square.link/u/xyz', 'amount' => '120.00']);
+    }
+
+    public function test_the_ajax_path_returns_a_clean_error_when_square_is_off(): void
+    {
+        config(['services.square.access_token' => null, 'services.square.location_id' => null]);
+        $a = $this->coverJob('CET-A', 120);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('cover-invoices.payment-link'), ['ids' => [$a->id]])
+            ->assertOk()
+            ->assertJson(['ok' => false]);
+    }
+
     public function test_it_errors_cleanly_when_square_is_off(): void
     {
         config(['services.square.access_token' => null, 'services.square.location_id' => null]);
