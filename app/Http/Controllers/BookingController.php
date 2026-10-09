@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
+use Illuminate\Http\JsonResponse;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Airport;
@@ -660,6 +661,53 @@ class BookingController extends Controller
 
         return redirect()->route('bookings.show', $booking)
             ->with('status', "Unlinked {$booking->reference} — it's no longer treated as a return. Both bookings stay as separate jobs.");
+    }
+
+    /**
+     * Live search for the "match as return pair" picker — browse/search existing
+     * bookings to pair this one with. Excludes this booking, cancelled jobs and
+     * anything already in a return pair; the same customer's other bookings are
+     * surfaced first (the usual case). Returns JSON.
+     */
+    public function matchReturnSearch(Request $request, Booking $booking): JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $q = trim((string) $request->query('q', ''));
+
+        $matches = Booking::query()
+            ->where('id', '!=', $booking->id)
+            ->where('status', '!=', BookingStatus::Cancelled->value)
+            ->whereNull('linked_booking_id')     // not already paired
+            ->where('is_return_leg', false)      // not already someone's return
+            ->when(mb_strlen($q) >= 2, function ($query) use ($q) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
+                $query->where(function ($inner) use ($like) {
+                    $inner->where('reference', 'like', $like)
+                        ->orWhere('external_reference', 'like', $like)
+                        ->orWhere('pickup_address', 'like', $like)
+                        ->orWhere('destination_address', 'like', $like)
+                        ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $like));
+                });
+            })
+            ->with(['customer', 'vehicleType'])
+            // Same customer first, then most recent — the return is almost always
+            // the same customer as the outbound.
+            ->orderByRaw('CASE WHEN customer_id = ? THEN 0 ELSE 1 END', [$booking->customer_id ?? 0])
+            ->orderByDesc('pickup_at')
+            ->limit(20)
+            ->get();
+
+        $results = $matches->map(fn (Booking $b) => [
+            'reference' => $b->reference,
+            'name' => $b->displayName(),
+            'when' => $b->pickup_at?->format('D d M Y, H:i'),
+            'journey' => trim(($b->displayPickupAddress() ?? '').' → '.($b->displayDropoffAddress() ?? ''), ' →'),
+            'operator' => ($b->customer_id && $booking->customer_id && $b->customer_id === $booking->customer_id) ? 'same customer' : null,
+            'fare' => $b->fareGross() !== null ? '£'.number_format((float) $b->fareGross(), 2) : null,
+        ])->values();
+
+        return response()->json(['results' => $results]);
     }
 
     /**
