@@ -4450,7 +4450,20 @@ class Booking extends Model
      */
     public function driverOfferMessage(): string
     {
-        $lines = ['Job Available – '.($this->pickup_at?->format('d/m/y') ?? '')];
+        $firstLine = 'Job Available – '.($this->pickup_at?->format('d/m/y') ?? '');
+        // Flag imminent jobs clearly — bold *TODAY* / *TOMORROW* (WhatsApp bold)
+        // so the driver sees the urgency at a glance. Compared on the wallclock
+        // date (no timezone conversion), matching the rest of this message and the
+        // UK-local rule in the project guide.
+        if ($this->pickup_at) {
+            $pickupDate = $this->pickup_at->format('Y-m-d');
+            if ($pickupDate === now()->format('Y-m-d')) {
+                $firstLine .= ' *(TODAY)*';
+            } elseif ($pickupDate === now()->addDay()->format('Y-m-d')) {
+                $firstLine .= ' *(TOMORROW)*';
+            }
+        }
+        $lines = [$firstLine];
         $lines[] = '';
 
         $pickup = $this->displayPickupAddress() ?: $this->pickup_address;

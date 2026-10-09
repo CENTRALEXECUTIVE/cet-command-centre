@@ -79,6 +79,24 @@ class DriverJobOfferTest extends TestCase
         $this->assertStringNotContainsString('14:30 PM', $msg);
     }
 
+    public function test_offer_flags_today_and_tomorrow_in_bold(): void
+    {
+        // Today → bold *(TODAY)* on the first line.
+        $today = $this->offerJob(['pickup_at' => now()->setTime(14, 25)]);
+        $msg = $today->fresh()->driverOfferMessage();
+        $this->assertStringContainsString('Job Available – '.now()->format('d/m/y').' *(TODAY)*', $msg);
+
+        // Tomorrow → bold *(TOMORROW)*.
+        $tomorrow = $this->offerJob(['pickup_at' => now()->addDay()->setTime(9, 0)]);
+        $this->assertStringContainsString('*(TOMORROW)*', $tomorrow->fresh()->driverOfferMessage());
+
+        // A job later in the week carries no urgency tag.
+        $later = $this->offerJob(['pickup_at' => now()->addDays(4)->setTime(9, 0)]);
+        $msg = $later->fresh()->driverOfferMessage();
+        $this->assertStringNotContainsString('TODAY', $msg);
+        $this->assertStringNotContainsString('TOMORROW', $msg);
+    }
+
     public function test_offer_flags_ribbon_and_waiting_time_and_shows_notes(): void
     {
         $booking = $this->offerJob([
