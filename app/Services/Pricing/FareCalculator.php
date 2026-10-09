@@ -71,12 +71,41 @@ class FareCalculator
      */
     public function holidayFactor(Carbon $pickupAt): ?array
     {
+        // Rules match on month-day + time of day, so the festive table recurs
+        // EVERY year with no date edits. Windows never cross a year boundary, so
+        // a zero-padded "MM-DD HH:MM" string compares chronologically.
+        $key = $pickupAt->format('m-d H:i');
+
         foreach ((array) config('cet.holiday_surcharges', []) as $rule) {
-            $from = Carbon::parse($rule['from'], config('app.timezone'));
-            $to = Carbon::parse($rule['to'], config('app.timezone'));
-            if ($pickupAt->betweenIncluded($from, $to) && (float) $rule['factor'] !== 1.0) {
+            $from = $this->monthDayKey((string) ($rule['from'] ?? ''));
+            $to = $this->monthDayKey((string) ($rule['to'] ?? ''));
+            if ($from === null || $to === null) {
+                continue;
+            }
+            if ($key >= $from && $key <= $to && (float) $rule['factor'] !== 1.0) {
                 return ['label' => (string) $rule['label'], 'factor' => (float) $rule['factor']];
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalise a surcharge-window bound to a "MM-DD HH:MM" key. Accepts the
+     * recurring "MM-DD HH:MM" / "MM-DD" form, or a full "YYYY-MM-DD HH:MM" date
+     * (the year is ignored) for backward compatibility.
+     */
+    private function monthDayKey(string $v): ?string
+    {
+        $v = trim($v);
+        if ($v === '') {
+            return null;
+        }
+        if (preg_match('/^\d{4}-/', $v)) {
+            return Carbon::parse($v, config('app.timezone'))->format('m-d H:i');
+        }
+        if (preg_match('/^(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?$/', $v, $m)) {
+            return sprintf('%s-%s %s:%s', $m[1], $m[2], $m[3] ?? '00', $m[4] ?? '00');
         }
 
         return null;

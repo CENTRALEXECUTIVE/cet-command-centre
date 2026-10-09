@@ -54,4 +54,16 @@ class FestiveSurchargeTableTest extends TestCase
         $this->assertNull($this->factorAt('2027-01-02 10:00')); // 2 Jan onwards normal
         $this->assertNull($this->factorAt('2026-11-15 10:00')); // ordinary day
     }
+
+    public function test_it_recurs_every_year_without_edits(): void
+    {
+        // Same table applies in any future year — no date edits needed.
+        foreach (['2027', '2030', '2045'] as $year) {
+            $this->assertSame(1.75, $this->factorAt("$year-12-25 12:00")['factor'], "Christmas $year");
+            $this->assertSame(1.60, $this->factorAt("$year-10-31 20:00")['factor'], "Halloween $year");
+            $this->assertSame(1.50, $this->factorAt("$year-12-31 19:00")['factor'], "NYE evening $year");
+            $this->assertSame(1.80, $this->factorAt("$year-01-01 03:00")['factor'], "NYD early $year");
+            $this->assertNull($this->factorAt("$year-07-04 12:00"), "ordinary day $year");
+        }
+    }
 }

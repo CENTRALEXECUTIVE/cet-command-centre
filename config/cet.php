@@ -274,23 +274,25 @@ return [
     // Holiday / rush-hour surcharge — mirrors ETO's date-range factor multipliers.
     // Each: label, factor (>1 raises, <1 lowers), and an inclusive date window.
     // The FIRST window that contains the pickup time applies to the base fare.
-    // Festive & special-event surcharges 2026/27. Each is a multiplier on the
-    // base fare for a pickup whose time falls in the window (first match wins;
-    // windows are non-overlapping). A "+60%" uplift is factor 1.60. Days not
-    // listed (e.g. 18–23 Dec, 27–30 Dec, 2 Jan onwards) are the normal fare.
+    // Festive & special-event surcharges — RECURRING EVERY YEAR (matched on
+    // month-day + time of day, no year). Each is a multiplier on the base fare
+    // for a pickup whose time falls in the window (first match wins; windows are
+    // non-overlapping). A "+60%" uplift is factor 1.60. Days not listed (e.g.
+    // 18–23 Dec, 27–30 Dec, 2 Jan onwards) are the normal fare. Bounds are
+    // "MM-DD HH:MM"; a window never crosses year-end.
     'holiday_surcharges' => [
         // Halloween — all day +60%.
-        ['label' => 'Halloween',         'factor' => 1.60, 'from' => '2026-10-31 00:00', 'to' => '2026-10-31 23:59'],
+        ['label' => 'Halloween',         'factor' => 1.60, 'from' => '10-31 00:00', 'to' => '10-31 23:59'],
         // Christmas period.
-        ['label' => 'Christmas Eve',     'factor' => 1.25, 'from' => '2026-12-24 00:00', 'to' => '2026-12-24 23:59'],
-        ['label' => 'Christmas Day',     'factor' => 1.75, 'from' => '2026-12-25 00:00', 'to' => '2026-12-25 23:59'],
-        ['label' => 'Boxing Day',        'factor' => 1.50, 'from' => '2026-12-26 00:00', 'to' => '2026-12-26 23:59'],
+        ['label' => 'Christmas Eve',     'factor' => 1.25, 'from' => '12-24 00:00', 'to' => '12-24 23:59'],
+        ['label' => 'Christmas Day',     'factor' => 1.75, 'from' => '12-25 00:00', 'to' => '12-25 23:59'],
+        ['label' => 'Boxing Day',        'factor' => 1.50, 'from' => '12-26 00:00', 'to' => '12-26 23:59'],
         // New Year's Eve — +25% before 6pm, +50% from 6pm to midnight.
-        ["label" => "New Year's Eve",     'factor' => 1.25, 'from' => '2026-12-31 00:00', 'to' => '2026-12-31 17:59'],
-        ["label" => "New Year's Eve (evening)", 'factor' => 1.50, 'from' => '2026-12-31 18:00', 'to' => '2026-12-31 23:59'],
+        ["label" => "New Year's Eve",     'factor' => 1.25, 'from' => '12-31 00:00', 'to' => '12-31 17:59'],
+        ["label" => "New Year's Eve (evening)", 'factor' => 1.50, 'from' => '12-31 18:00', 'to' => '12-31 23:59'],
         // New Year's Day — +80% midnight to 6am, +50% from 6am onwards.
-        ["label" => "New Year's Day (early hours)", 'factor' => 1.80, 'from' => '2027-01-01 00:00', 'to' => '2027-01-01 05:59'],
-        ["label" => "New Year's Day",     'factor' => 1.50, 'from' => '2027-01-01 06:00', 'to' => '2027-01-01 23:59'],
+        ["label" => "New Year's Day (early hours)", 'factor' => 1.80, 'from' => '01-01 00:00', 'to' => '01-01 05:59'],
+        ["label" => "New Year's Day",     'factor' => 1.50, 'from' => '01-01 06:00', 'to' => '01-01 23:59'],
     ],
 
     // Estate is always priced at the Executive fare PLUS this uplift (default
