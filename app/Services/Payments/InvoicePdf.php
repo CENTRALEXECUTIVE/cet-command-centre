@@ -87,6 +87,12 @@ class InvoicePdf
 
         $total = round(collect($lines)->sum('total'), 2);
 
+        // A card payment link created for this cover invoice (stored on the anchor
+        // booking), so the operator can pay the whole invoice online.
+        $link = $first?->meta['cover_payment_link'] ?? null;
+        $payLink = (is_array($link) && ($link['url'] ?? null)) ? $link['url'] : null;
+        $invoiceNumber = (is_array($link) && ($link['reference'] ?? null)) ? $link['reference'] : 'CVR-'.now()->format('ymd-Hi');
+
         $dompdf = $this->makeDompdf();
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.receipt', [
@@ -102,11 +108,12 @@ class InvoicePdf
             'grossTotal' => $total,
             'paymentsReceived' => 0.0,
             'balanceDue' => $total,
+            'payLink' => $payLink,
             'attn' => null,
             'billedTo' => $operator['name'] ?? 'Operator',
             'customerEmail' => $operator['email'] ?? null,
             'customerPhone' => $operator['phone'] ?? null,
-            'invoiceNumber' => 'CVR-'.now()->format('ymd-Hi'),
+            'invoiceNumber' => $invoiceNumber,
             'issueDate' => now(),
             'paymentDue' => now()->addDays(14),
             'company' => \App\Support\InvoiceProfile::company(),

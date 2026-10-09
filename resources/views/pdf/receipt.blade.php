@@ -170,6 +170,13 @@
     </div>
   @endif
 
+  @if(($payLink ?? null) && $balanceDue > 0)
+    <div class="paysum">
+      <div class="h">Pay online</div>
+      Pay this invoice securely by card: <a href="{{ $payLink }}" style="color:#000;text-decoration:underline;word-break:break-all">{{ $payLink }}</a>
+    </div>
+  @endif
+
   @if($footerNote)<div class="paysum">{!! nl2br(e($footerNote)) !!}</div>@endif
 
   <div class="foot">

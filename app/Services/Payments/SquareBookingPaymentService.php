@@ -23,6 +23,9 @@ class SquareBookingPaymentService
     /** Prefix stamped on a fare order's reference_id (vs TIP- for gratuities). */
     public const FARE_PREFIX = 'FARE-';
 
+    /** Prefix for a combined cover-invoice payment link (operator pays CET). */
+    public const COVER_PREFIX = 'COVER-';
+
     /**
      * The Square credentials for a billing entity: 'transfers' (main, VAT) or
      * 'chauffeurs' (sister company, no-VAT). The sister account falls back to the
@@ -87,6 +90,51 @@ class SquareBookingPaymentService
      * unavailable. $label sets the line-item name shown on the checkout (e.g.
      * "VAT balance payment"); defaults to the journey fare.
      */
+    /**
+     * A Square-hosted checkout URL to pay a COMBINED COVER INVOICE — one operator,
+     * several jobs, one total. Not tied to a booking's fare: the reference carries
+     * the COVER- prefix, so the fare webhook deliberately ignores it and never
+     * marks a booking paid off this link (the office reconciles cover payments in
+     * Square). Billed to the main 'transfers' Square account. Null if unavailable.
+     */
+    public function createCoverCheckoutUrl(float $amount, string $reference, string $label, ?string $redirectUrl = null, string $entity = 'transfers'): ?string
+    {
+        if (! $this->enabled($entity) || $amount <= 0) {
+            return null;
+        }
+
+        try {
+            $res = $this->http($entity)->post($this->baseUrl($entity).'/v2/online-checkout/payment-links', [
+                'idempotency_key' => (string) Str::uuid(),
+                'order' => [
+                    'location_id' => $this->account($entity)['location_id'],
+                    'reference_id' => self::COVER_PREFIX.$reference,
+                    'line_items' => [[
+                        'name' => trim($label).' — Central Executive Transfers ('.$reference.')',
+                        'quantity' => '1',
+                        'base_price_money' => ['amount' => (int) round($amount * 100), 'currency' => 'GBP'],
+                    ]],
+                ],
+                'checkout_options' => array_filter([
+                    'redirect_url' => $redirectUrl,
+                    'ask_for_shipping_address' => false,
+                ]),
+            ]);
+
+            if ($res->failed()) {
+                Log::warning('[Square] cover link failed', ['status' => $res->status(), 'body' => $res->body()]);
+
+                return null;
+            }
+
+            return $res->json('payment_link.url');
+        } catch (\Throwable $e) {
+            Log::warning('[Square] cover link error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
     public function createCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null, ?string $label = null): ?string
     {
         // Route the payment to the right company's Square account (VAT-invoice

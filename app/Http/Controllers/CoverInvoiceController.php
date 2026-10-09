@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\BookingReceiptMail;
 use App\Models\Booking;
 use App\Services\Payments\InvoicePdf;
+use App\Services\Payments\SquareBookingPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -97,6 +98,53 @@ class CoverInvoiceController extends Controller
         );
 
         return back()->with('status', 'Combined invoice ('.$bookings->count().' jobs) emailed to '.$operator['email'].'.');
+    }
+
+    /**
+     * Create a Square card-payment link for the combined cover total and stash it
+     * on the anchor booking, so the View/Download/Email invoice all carry a
+     * "Pay online" link with the amount and reference. The operator can then pay
+     * the whole invoice by card. Reconciled in Square (the link is COVER-tagged so
+     * it never marks an individual booking's fare paid).
+     */
+    public function paymentLink(Request $request, SquareBookingPaymentService $square): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $bookings = $this->selected($request);
+        $anchor = $bookings->first();
+        $operator = $anchor->coverFor();
+        $total = round($bookings->sum(fn (Booking $b) => (float) ($b->coverForAmount() ?? 0)), 2);
+
+        if ($total <= 0) {
+            return back()->with('error', 'The selected cover jobs total £0 — set an amount on them first.');
+        }
+        if (! $square->enabled('transfers')) {
+            return back()->with('error', 'Square isn’t connected yet, so a card link can’t be created.');
+        }
+
+        // A short, stable reference the operator and Square both show.
+        $reference = 'CVR-'.strtoupper(\Illuminate\Support\Str::slug($operator['name'] ?? 'operator', '')).'-'.now()->format('ymdHi');
+        $label = 'Cover transfers ('.$bookings->count().') for '.($operator['name'] ?? 'operator');
+
+        $url = $square->createCoverCheckoutUrl($total, $reference, $label);
+        if (! $url) {
+            return back()->with('error', 'Couldn’t create the payment link — check the Square connection and try again.');
+        }
+
+        $anchor->forceFill(['meta' => array_merge($anchor->meta ?? [], [
+            'cover_payment_link' => [
+                'url' => $url,
+                'reference' => $reference,
+                'amount' => $total,
+                'ids' => $bookings->pluck('id')->all(),
+                'created_at' => now()->toIso8601String(),
+            ],
+        ])])->save();
+
+        return back()
+            ->with('status', 'Payment link created for £'.number_format($total, 2).' ('.$reference.') — it’s now on the invoice. Open View/Download/Email to send it.')
+            ->with('cover_payment_link', $url);
     }
 
     /** The chosen cover-job bookings, all for the SAME operator. */

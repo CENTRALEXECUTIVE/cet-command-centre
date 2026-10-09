@@ -56,10 +56,25 @@
                 <div class="toolbar" style="margin-top:12px">
                     <button type="submit" class="btn btn-primary" style="padding:8px 14px">👁 View combined invoice</button>
                     <button type="submit" class="btn btn-ghost" style="padding:8px 14px" formaction="{{ route('cover-invoices.pdf') }}" name="download" value="1">⬇ Download</button>
-                    <button type="submit" class="btn btn-dark" style="padding:8px 14px" target="_self"
+                    <button type="submit" class="btn btn-light" style="padding:8px 14px" formtarget="_self"
+                            formaction="{{ route('cover-invoices.payment-link') }}"
+                            onclick="return confirm('Create a card payment link for the ticked jobs (£{{ number_format($total, 2) }})? It goes onto the invoice.')">💳 Create payment link</button>
+                    <button type="submit" class="btn btn-dark" style="padding:8px 14px" formtarget="_self"
                             formaction="{{ route('cover-invoices.email') }}"
                             onclick="return confirm('Email the combined invoice to {{ $jobs->first()->coverFor()['email'] ?: $operator }}?')">✉ Email to {{ $operator }}</button>
                 </div>
+                @php $existingLink = $jobs->first()->meta['cover_payment_link'] ?? null; @endphp
+                @if(is_array($existingLink) && ($existingLink['url'] ?? null))
+                    <div style="margin-top:10px;background:#f3faf3;border:1px solid #cfe8cf;border-radius:10px;padding:10px 12px">
+                        <strong style="font-size:13px">💳 Payment link ready</strong>
+                        <span class="muted" style="font-size:12px">· {{ $existingLink['reference'] ?? '' }} · £{{ number_format((float) ($existingLink['amount'] ?? 0), 2) }}</span>
+                        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+                            <input type="text" value="{{ $existingLink['url'] }}" readonly onclick="this.select()" style="flex:1;min-width:200px;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+                            <a href="{{ $existingLink['url'] }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Open</a>
+                        </div>
+                        <p class="hint" style="margin:6px 0 0">It's on the View/Download/Email invoice. Re-tick and press Create again if the jobs or amount change.</p>
+                    </div>
+                @endif
                 @unless($jobs->first()->coverFor()['email'] ?? null)
                     <p class="hint" style="margin:8px 0 0;color:#8a6d00">No email saved for {{ $operator }} — add one on any of their bookings to enable emailing.</p>
                 @endunless
