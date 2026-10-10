@@ -1437,8 +1437,8 @@ class BookingController extends Controller
         $gross = $booking->amountPayable();
 
         return back()->with('status', $on
-            ? 'VAT invoice on — total with 20% VAT is £'.number_format((float) $gross, 2).'. Charge that and send the VAT invoice.'
-            : 'VAT invoice off — back to the standard price.');
+            ? 'VAT invoice on — billed by Central Executive Transfers Ltd (card via Square). Total with 20% VAT is £'.number_format((float) $gross, 2).'.'
+            : 'No VAT — billed by Central Executive Transfers PVT LTD (card via Stripe), standard price.');
     }
 
     public function setPrice(Request $request, Booking $booking): RedirectResponse

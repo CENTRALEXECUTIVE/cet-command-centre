@@ -146,6 +146,33 @@ class StripeSisterPaymentTest extends TestCase
         $this->assertSame('transfers', $vat->fresh()->billingEntity());
     }
 
+    public function test_toggling_vat_reroutes_the_billing_entity(): void
+    {
+        $this->enableStripe();
+        // Stamped as the sister at creation (a no-VAT web booking).
+        $booking = Booking::factory()->create();
+        $booking->forceFill(['meta' => ['billing_entity' => 'chauffeurs']])->save();
+
+        // Office clicks "VAT invoice" → must move to the Ltd / Square entity.
+        $booking->setVatInvoiceRequested(true);
+        $this->assertSame('transfers', $booking->fresh()->billingEntity());
+
+        // Office clicks "No VAT" → back to the sister (Stripe is configured).
+        $booking->fresh()->setVatInvoiceRequested(false);
+        $this->assertSame('chauffeurs', $booking->fresh()->billingEntity());
+    }
+
+    public function test_no_vat_falls_back_to_the_ltd_when_no_sister_provider(): void
+    {
+        config(['services.stripe.secret_key' => null, 'services.square_chauffeurs.access_token' => null]);
+        $booking = Booking::factory()->create();
+
+        $booking->setVatInvoiceRequested(false);
+        // No sister provider configured → stays on the VAT company so a link can
+        // still be made via Square.
+        $this->assertSame('transfers', $booking->fresh()->billingEntity());
+    }
+
     public function test_novat_invoice_profile_is_pvt_ltd_without_vat(): void
     {
         $vat = InvoiceProfile::companyFor(true);

@@ -1019,14 +1019,26 @@ class Booking extends Model
             || ($this->payment_method?->value ?? null) === \App\Enums\PaymentMethod::Account->value;
     }
 
-    /** Turn the VAT-invoice flag on or off for this booking (office control). */
+    /**
+     * Turn the VAT-invoice flag on or off for this booking (office control). This
+     * also RE-ROUTES the billing entity so the toggle switches the invoicing
+     * company AND the card provider: VAT → Central Executive Transfers Ltd (Square);
+     * No VAT → the sister company PVT LTD (Stripe) when its provider is configured,
+     * else back to the Ltd. Re-stamping here means the office choice wins even on a
+     * booking whose entity was stamped at creation.
+     */
     public function setVatInvoiceRequested(bool $on): void
     {
         $meta = $this->meta ?? [];
         if ($on) {
             $meta['vat_invoice_requested'] = true;
+            $meta['billing_entity'] = 'transfers';
         } else {
             unset($meta['vat_invoice_requested']);
+            $stripeReady = filled(\App\Models\Setting::get('stripe_secret_key') ?: config('services.stripe.secret_key'));
+            $squareSisterReady = filled(config('services.square_chauffeurs.access_token'))
+                && filled(config('services.square_chauffeurs.location_id'));
+            $meta['billing_entity'] = ($stripeReady || $squareSisterReady) ? 'chauffeurs' : 'transfers';
         }
         $this->forceFill(['meta' => $meta])->save();
     }

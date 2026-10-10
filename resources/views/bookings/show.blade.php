@@ -506,20 +506,32 @@
             @unless($cover)
                 @php $vb = $booking->fareVatBreakdown(); @endphp
                 <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:rgba(0,0,0,.02)">
-                    <form method="POST" action="{{ route('bookings.vat-invoice', $booking) }}" style="margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                        @csrf
-                        <input type="hidden" name="vat" value="{{ $booking->vatInvoiceRequested() ? '0' : '1' }}">
-                        <label class="checkbox-row" style="margin:0;font-weight:600">
-                            <input type="checkbox" onchange="this.form.submit()" @checked($booking->vatInvoiceRequested())>
-                            Charge VAT (customer wants a VAT invoice)
-                        </label>
-                        @if($booking->vatInvoiceRequested() && $vb)
-                            <span class="muted" style="font-size:13px">
-                                Net £{{ number_format($vb['net'], 2) }} + VAT £{{ number_format($vb['vat'], 2) }} =
-                                <strong style="color:var(--accent,#b8860b)">£{{ number_format($vb['gross'], 2) }} to charge</strong>
-                            </span>
+                    @php $isVatReq = $booking->vatInvoiceRequested(); @endphp
+                    <div style="font-weight:600;margin-bottom:6px">Invoice type</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <form method="POST" action="{{ route('bookings.vat-invoice', $booking) }}" style="margin:0">
+                            @csrf
+                            <input type="hidden" name="vat" value="1">
+                            <button type="submit" class="btn {{ $isVatReq ? 'btn-primary' : 'btn-ghost' }}" style="padding:8px 14px;font-size:13px">
+                                {{ $isVatReq ? '✓ ' : '' }}VAT invoice
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('bookings.vat-invoice', $booking) }}" style="margin:0">
+                            @csrf
+                            <input type="hidden" name="vat" value="0">
+                            <button type="submit" class="btn {{ ! $isVatReq ? 'btn-primary' : 'btn-ghost' }}" style="padding:8px 14px;font-size:13px">
+                                {{ ! $isVatReq ? '✓ ' : '' }}No VAT
+                            </button>
+                        </form>
+                    </div>
+                    <p class="hint" style="margin:6px 0 0">
+                        @if($isVatReq)
+                            Billed by <strong>Central Executive Transfers Ltd</strong> (VAT) · card via <strong>Square</strong>.
+                            @if($vb)<br>Net £{{ number_format($vb['net'], 2) }} + VAT £{{ number_format($vb['vat'], 2) }} = <strong style="color:var(--accent,#b8860b)">£{{ number_format($vb['gross'], 2) }} to charge</strong>.@endif
+                        @else
+                            Billed by <strong>Central Executive Transfers PVT LTD</strong> (no VAT) · card via <strong>Stripe</strong>.
                         @endif
-                    </form>
+                    </p>
                     @if($booking->vatInvoiceRequested())
                         <p class="hint" style="margin:8px 0 0">Charge the <strong>£{{ number_format((float) $booking->amountPayable(), 2) }}</strong> (incl. VAT) via a payment link below, then View/Email the VAT invoice — it shows the net, VAT and total and your VAT number.</p>
                         {{-- VAT received: auto-ticks when the customer pays the VAT via the Square

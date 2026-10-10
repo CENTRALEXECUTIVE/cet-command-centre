@@ -60,7 +60,7 @@ class VatInvoiceChargeTest extends TestCase
         $booking->setVatInvoiceRequested(true);
 
         $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
-            ->assertSee('Charge VAT', false)
+            ->assertSee('VAT invoice', false)
             ->assertSee('120.00', false);
     }
 }
