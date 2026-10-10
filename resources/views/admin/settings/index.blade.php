@@ -213,6 +213,23 @@
         <button type="submit" class="btn btn-primary">Save</button>
     </form>
 
+    <div id="mail" class="card" style="scroll-margin-top:16px">
+        <h2>📧 Email (booking confirmations &amp; invoices)</h2>
+        @if(($mailer ?? 'log') === 'log')
+            <div class="alert alert-danger" style="margin:0 0 10px">
+                <strong>Emails are NOT being sent.</strong> Mail is set to <code>log</code>, so confirmations are written to a log file instead of emailed. Set <code>MAIL_MAILER=smtp</code> (plus host, username, password and <code>MAIL_FROM_ADDRESS</code>) in the server <code>.env</code>, then <code>php artisan optimize:clear</code>.
+            </div>
+        @else
+            <p class="muted" style="margin-top:0">Mailer: <strong>{{ $mailer }}</strong> · From: <strong>{{ $mailFrom ?: 'not set' }}</strong> · Office copy goes to: <strong>{{ $opsEmail }}</strong>.</p>
+        @endif
+        <form method="POST" action="{{ route('settings.test-email') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0">
+            @csrf
+            <input type="email" name="to" placeholder="send a test to… (default: your email)" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+            <button type="submit" class="btn btn-dark" style="padding:8px 14px">Send test email</button>
+        </form>
+        <p class="hint" style="margin:8px 0 0">Sends a plain test message so you can confirm email works before a real booking. If it's set to <code>log</code> or the SMTP details are wrong, it'll tell you here.</p>
+    </div>
+
     <script>window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";</script>
     <script>
         document.getElementById('test-places').addEventListener('click', function () {

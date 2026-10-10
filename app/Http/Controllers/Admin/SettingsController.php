@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 /**
@@ -21,6 +22,9 @@ class SettingsController extends Controller
         $suffix = $secret !== '' ? '?secret='.$secret : '?secret=YOUR_CET_WEBHOOK_SECRET';
 
         return view('admin.settings.index', [
+            'mailer' => (string) config('mail.default'),
+            'mailFrom' => (string) config('mail.from.address'),
+            'opsEmail' => (string) config('cet.ops_email'),
             'mapsKey' => Setting::get('google_maps_key'),
             'getAddressKey' => Setting::get('getaddress_key'),
             'customerLine' => Setting::get('twilio_customer_line') ?: config('services.twilio_masking.customer_line'),
@@ -61,6 +65,38 @@ class SettingsController extends Controller
                 'novat_company_address' => Setting::get('invoice_novat_company_address') ?: config('cet.company_novat.address'),
             ],
         ]);
+    }
+
+    /**
+     * Send a plain test email to confirm the mail setup (SMTP) actually works,
+     * before relying on it for booking confirmations. Goes to a given address or
+     * the signed-in admin. Reports the live mailer so "log" (nothing sent) is
+     * obvious.
+     */
+    public function sendTestEmail(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['to' => ['nullable', 'email']]);
+        $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
+        $mailer = (string) config('mail.default');
+
+        if ($mailer === 'log') {
+            return back()->with('error', 'Mail is set to "log" — emails are written to the log file, NOT sent. Set MAIL_MAILER=smtp (and the host/username/password) in the server .env, then try again.')->with('scroll', 'mail');
+        }
+
+        try {
+            Mail::raw(
+                "This is a test email from the CET Command Centre.\n\nIf you can read this, outgoing email is working — booking confirmations and invoices will send.\n\nSent ".now()->format('D d M Y, H:i').'.',
+                function ($m) use ($to) {
+                    $m->to($to)->subject('CET Command Centre — test email');
+                }
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Test email failed: '.$e->getMessage().' — check the SMTP settings in .env.')->with('scroll', 'mail');
+        }
+
+        return back()->with('status', 'Test email sent to '.$to.' via "'.$mailer.'". Check the inbox (and spam). If it doesn’t arrive, the SMTP details are wrong.')->with('scroll', 'mail');
     }
 
     public function update(Request $request): RedirectResponse

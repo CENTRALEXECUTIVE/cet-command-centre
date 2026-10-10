@@ -335,6 +335,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Settings — paste integration keys in-app (Google Maps, …).
         Route::get('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
+        Route::post('settings/test-email', [\App\Http\Controllers\Admin\SettingsController::class, 'sendTestEmail'])->middleware('throttle:10,1')->name('settings.test-email');
 
         // Control-tower alerts feed + per-admin notification preferences.
         Route::get('alerts/feed', [\App\Http\Controllers\AlertsController::class, 'feed'])->name('alerts.feed');
