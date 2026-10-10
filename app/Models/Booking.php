@@ -5310,10 +5310,14 @@ class Booking extends Model
         }
 
         $noVat = ! (bool) ($this->meta['vat_invoice_requested'] ?? false);
-        $sisterReady = filled(config('services.square_chauffeurs.access_token'))
+        // The sister entity (Central Executive Transfers PVT LTD) is ready once its
+        // payment provider is configured: Stripe (the current provider) or the
+        // legacy Square sister account. Falls back to the VAT company otherwise.
+        $stripeReady = filled(\App\Models\Setting::get('stripe_secret_key') ?: config('services.stripe.secret_key'));
+        $squareSisterReady = filled(config('services.square_chauffeurs.access_token'))
             && filled(config('services.square_chauffeurs.location_id'));
 
-        return ($noVat && $sisterReady) ? 'chauffeurs' : 'transfers';
+        return ($noVat && ($stripeReady || $squareSisterReady)) ? 'chauffeurs' : 'transfers';
     }
 
     public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool

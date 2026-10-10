@@ -183,14 +183,24 @@ class BookingTransactionController extends Controller
     }
 
     /**
-     * Create the Square checkout link for a transaction's amount and store it on the
-     * transaction. Returns the URL, or null if card payments aren't configured.
+     * Create the hosted checkout link for a transaction's amount and store it on
+     * the transaction. The PROVIDER follows the billing entity: the non-VAT sister
+     * company (Central Executive Transfers PVT LTD) is taken via Stripe; the
+     * VAT-registered company via Square. Returns the URL, or null if neither is
+     * configured for this entity.
      */
     private function createLink(Booking $booking, Payment $payment, float $amount): ?string
     {
-        $link = $this->square->enabled($booking->billingEntity())
-            ? $this->square->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name())
-            : null;
+        $entity = $booking->billingEntity();
+        $stripe = app(\App\Services\Payments\StripePaymentService::class);
+
+        if ($entity === 'chauffeurs' && $stripe->enabled()) {
+            $link = $stripe->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name());
+        } elseif ($this->square->enabled($entity)) {
+            $link = $this->square->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name());
+        } else {
+            $link = null;
+        }
 
         if ($link) {
             $payment->forceFill([

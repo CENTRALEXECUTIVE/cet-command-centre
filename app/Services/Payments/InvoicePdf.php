@@ -215,7 +215,12 @@ class InvoicePdf
             'invoiceNumber' => $booking->external_reference ?: $booking->reference,
             'issueDate' => now(),
             'paymentDue' => now()->addDays(14),
-            'company' => \App\Support\InvoiceProfile::company(),
+            // A VAT invoice is issued by the VAT-registered Ltd; a non-VAT customer
+            // invoice is issued by the sister company (PVT LTD). Cover invoices to
+            // operators stay on the main company.
+            'company' => $cover
+                ? \App\Support\InvoiceProfile::company()
+                : \App\Support\InvoiceProfile::companyFor($isVat),
             'footerNote' => \App\Support\InvoiceProfile::footerNote(),
         ])->render());
         $dompdf->render();

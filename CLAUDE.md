@@ -297,6 +297,30 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   customer's WhatsApp can't vanish unanswered — hand customers the call/text
   masked line only. Revisit only with real post-go-live demand.
 
+## Card payments — two entities, two providers
+
+- **Billing entity follows VAT** (`Booking::billingEntity()`): a customer who
+  asked for a **VAT invoice** → **Central Executive Transfers Ltd** (VAT reg),
+  paid by **Square**; **everyone else (no VAT)** → the sister company **Central
+  Executive Transfers PVT LTD**, paid by **Stripe**. The entity is stamped at
+  creation (`meta['billing_entity']`) so it never changes under a booking; it
+  only resolves to `chauffeurs` when that provider is configured, else falls back
+  to `transfers`.
+- **Providers (raw HTTP, no SDK — deploys need no composer step):**
+  `SquareBookingPaymentService` (VAT/transfers) and `StripePaymentService`
+  (no-VAT/PVT LTD, Stripe Checkout). The per-booking card link
+  (`BookingTransactionController::createLink`) picks the provider by entity.
+  Silent no-op until each provider's keys are set in **Settings → payments** (DB
+  wins over `.env`).
+- **Webhooks:** `/webhooks/square`, `/webhooks/square-chauffeurs` (legacy Square
+  sister) and `/webhooks/stripe` (event `checkout.session.completed`, HMAC-verified
+  with the Stripe signing secret over the raw body). All mark the fare paid and
+  confirm the booking.
+- **Invoices are entity-aware** (`InvoiceProfile::companyFor($vat)`): a VAT
+  invoice is issued by Ltd (VAT number shown); a non-VAT customer invoice by **PVT
+  LTD** (no VAT number). Cover invoices to operators stay on the main company/Square.
+- Cover-invoice payment links use the **main Square** account (`COVER-` reference).
+
 ## Status watchdog & alerts (ops room)
 
 - **`cet:status-watchdog`** runs every minute: driver push nudges (set off at

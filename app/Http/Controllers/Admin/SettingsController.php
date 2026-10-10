@@ -51,6 +51,15 @@ class SettingsController extends Controller
                 'webhook_url' => $base.'/webhooks/square',
                 'chauffeurs_webhook_url' => $base.'/webhooks/square-chauffeurs',
             ],
+            'stripe' => [
+                'secret_key' => Setting::get('stripe_secret_key') ?: config('services.stripe.secret_key'),
+                'publishable_key' => Setting::get('stripe_publishable_key') ?: config('services.stripe.publishable_key'),
+                'webhook_secret' => Setting::get('stripe_webhook_secret') ?: config('services.stripe.webhook_secret'),
+                'webhook_url' => $base.'/webhooks/stripe',
+                'novat_company_name' => Setting::get('invoice_novat_company_name') ?: config('cet.company_novat.name'),
+                'novat_company_number' => Setting::get('invoice_novat_company_number') ?: config('cet.company_novat.number'),
+                'novat_company_address' => Setting::get('invoice_novat_company_address') ?: config('cet.company_novat.address'),
+            ],
         ]);
     }
 
@@ -78,6 +87,12 @@ class SettingsController extends Controller
             'square_chauffeurs_access_token' => ['nullable', 'string', 'max:255'],
             'square_chauffeurs_location_id' => ['nullable', 'string', 'max:120'],
             'square_chauffeurs_webhook_signature_key' => ['nullable', 'string', 'max:255'],
+            'stripe_secret_key' => ['nullable', 'string', 'max:255'],
+            'stripe_publishable_key' => ['nullable', 'string', 'max:255'],
+            'stripe_webhook_secret' => ['nullable', 'string', 'max:255'],
+            'invoice_novat_company_name' => ['nullable', 'string', 'max:160'],
+            'invoice_novat_company_number' => ['nullable', 'string', 'max:40'],
+            'invoice_novat_company_address' => ['nullable', 'string', 'max:500'],
         ]);
 
         Setting::set('google_maps_key', trim((string) ($data['google_maps_key'] ?? '')), 'string', 'integrations');
@@ -89,6 +104,7 @@ class SettingsController extends Controller
         foreach ([
             'invoice_company_address', 'invoice_vat_number', 'invoice_phone', 'invoice_email',
             'invoice_bank_name', 'invoice_bank_sort', 'invoice_bank_account', 'invoice_footer_note',
+            'invoice_novat_company_name', 'invoice_novat_company_number', 'invoice_novat_company_address',
         ] as $key) {
             Setting::set($key, trim((string) ($data[$key] ?? '')), 'string', 'invoicing');
         }
@@ -99,6 +115,7 @@ class SettingsController extends Controller
             'square_environment', 'square_app_id', 'square_access_token', 'square_location_id',
             'square_webhook_signature_key', 'square_chauffeurs_access_token',
             'square_chauffeurs_location_id', 'square_chauffeurs_webhook_signature_key',
+            'stripe_secret_key', 'stripe_publishable_key', 'stripe_webhook_secret',
         ] as $key) {
             if (array_key_exists($key, $data) && trim((string) ($data[$key] ?? '')) !== '') {
                 Setting::set($key, trim((string) $data[$key]), 'string', 'payments');

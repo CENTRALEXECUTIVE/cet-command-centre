@@ -23,6 +23,17 @@ return [
         'email' => env('CET_COMPANY_EMAIL', 'admin@centralexecutivetransfers.co.uk'),
     ],
 
+    // The SISTER company used for NON-VAT invoices: Central Executive Transfers
+    // PVT LTD (payments taken via Stripe). Shown on a non-VAT customer's invoice
+    // in place of the VAT-registered Ltd. Number/address best set in Settings →
+    // Company & invoice details (they override these). No VAT number (not VAT
+    // registered).
+    'company_novat' => [
+        'name' => env('CET_NOVAT_COMPANY_NAME', 'Central Executive Transfers PVT LTD'),
+        'number' => env('CET_NOVAT_COMPANY_NUMBER', ''),
+        'address' => env('CET_NOVAT_COMPANY_ADDRESS', ''),
+    ],
+
     // Bank details printed on account (BACS) invoices. Set in Settings → Company
     // & invoice details, or via .env. Shown only when a sort code + account are set.
     'bank' => [

@@ -155,6 +155,29 @@ class WebhookController extends Controller
     }
 
     /**
+     * Stripe webhook for the sister company (Central Executive Transfers PVT LTD):
+     * a completed Checkout Session marks the booking's fare paid. Verified with the
+     * Stripe signing secret over the RAW request body.
+     */
+    public function stripe(Request $request): JsonResponse
+    {
+        $stripe = app(\App\Services\Payments\StripePaymentService::class);
+        if (! $stripe->enabled()) {
+            return response()->json(['error' => 'not configured'], 403);
+        }
+        if (! $stripe->verifyWebhook($request->getContent(), $request->header('Stripe-Signature'))) {
+            return response()->json(['error' => 'bad signature'], 403);
+        }
+
+        $fareBooking = $stripe->recordFareFromWebhook($request->json()->all());
+        if ($fareBooking) {
+            app(\App\Services\BookingStatusService::class)->confirmPaidWebBooking($fareBooking->fresh());
+        }
+
+        return response()->json(['recorded' => (bool) $fareBooking]);
+    }
+
+    /**
      * A keypress on the emergency "job at risk" auto-call. Acknowledges the job so
      * the watchdog stops ringing the office. Signed URL (the call TwiML carried
      * the signature); returns TwiML so Twilio speaks the confirmation.

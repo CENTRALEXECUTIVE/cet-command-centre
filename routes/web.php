@@ -508,6 +508,11 @@ Route::post('webhooks/square', [WebhookController::class, 'square'])
 Route::post('webhooks/square-chauffeurs', [WebhookController::class, 'squareChauffeurs'])
     ->middleware('throttle:120,1')
     ->name('webhooks.square-chauffeurs');
+// Stripe webhook for the sister company (Central Executive Transfers PVT LTD) —
+// no-VAT fare payments. Verified with the Stripe signing secret.
+Route::post('webhooks/stripe', [WebhookController::class, 'stripe'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.stripe');
 // Twilio "at risk" auto-call — a keypress here acknowledges and stops the calls.
 Route::match(['get', 'post'], 'webhooks/alert-ack/{booking}', [WebhookController::class, 'alertAck'])
     ->middleware('throttle:120,1')

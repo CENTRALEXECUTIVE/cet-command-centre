@@ -175,6 +175,41 @@
             </details>
         </div>
 
+        <div class="card">
+            <h2>💠 Stripe — Central Executive Transfers PVT LTD (no-VAT)</h2>
+            <p class="muted" style="margin-top:0">Non-VAT fares are taken by the sister company <strong>Central Executive Transfers PVT LTD</strong> through Stripe. Paste the keys from your Stripe dashboard (Developers → API keys). Leave a secret blank to keep the saved one. Once set, add the webhook below in Stripe so paid bookings confirm automatically.</p>
+            <div class="grid grid-2" style="gap:12px">
+                <label>Secret key
+                    <input type="text" name="stripe_secret_key" value="" placeholder="{{ $stripe['secret_key'] ? '•••• saved — leave blank to keep' : 'sk_live_…' }}" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Publishable key <span class="muted">(optional)</span>
+                    <input type="text" name="stripe_publishable_key" value="{{ $stripe['publishable_key'] }}" placeholder="pk_live_…" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Webhook signing secret
+                    <input type="text" name="stripe_webhook_secret" value="" placeholder="{{ $stripe['webhook_secret'] ? '•••• saved — leave blank to keep' : 'whsec_…' }}" autocomplete="off" spellcheck="false">
+                </label>
+            </div>
+            <div class="card" style="margin-top:12px;border-left:4px solid #635BFF;background:rgba(99,91,255,.08)">
+                <strong>Webhook URL for Stripe</strong>
+                <p class="muted" style="margin:4px 0 0;font-size:13px">Add this in Stripe → Developers → Webhooks (event <code>checkout.session.completed</code>):</p>
+                <div class="mono" style="font-size:13px;word-break:break-all;margin-top:4px">{{ $stripe['webhook_url'] }}</div>
+            </div>
+
+            <h3 style="margin:16px 0 4px;font-size:15px">PVT LTD invoice details (non-VAT invoices)</h3>
+            <p class="muted" style="font-size:13px;margin-top:0">Shown as the issuing company on non-VAT customer invoices. No VAT number (not VAT registered).</p>
+            <div class="grid grid-2" style="gap:12px">
+                <label>Company name
+                    <input type="text" name="invoice_novat_company_name" value="{{ $stripe['novat_company_name'] }}" placeholder="Central Executive Transfers PVT LTD" autocomplete="off">
+                </label>
+                <label>Company number
+                    <input type="text" name="invoice_novat_company_number" value="{{ $stripe['novat_company_number'] }}" placeholder="e.g. 12345678" autocomplete="off">
+                </label>
+                <label style="grid-column:1/-1">Registered address <span class="muted">(blank = use the main company address)</span>
+                    <input type="text" name="invoice_novat_company_address" value="{{ $stripe['novat_company_address'] }}" placeholder="Registered office address" autocomplete="off">
+                </label>
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-primary">Save</button>
     </form>
 

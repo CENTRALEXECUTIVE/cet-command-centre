@@ -82,6 +82,19 @@ return [
         'webhook_signature_key' => env('SQUARE_CHAUFFEURS_WEBHOOK_SIGNATURE_KEY'),
     ],
 
+    // Stripe — the SISTER company, Central Executive Transfers PVT LTD (NO VAT).
+    // A customer who does NOT ask for a VAT invoice is taken by PVT LTD, and that
+    // fare is charged through Stripe (Checkout), so the money lands in the PVT LTD
+    // Stripe account. VAT customers go to Central Executive Transfers Ltd via
+    // Square instead. Silent no-op until the secret key is set. Keys are best set
+    // in Settings (DB) which override these .env defaults. NO SDK — raw HTTP, so a
+    // deploy needs no composer step.
+    'stripe' => [
+        'secret_key' => env('STRIPE_SECRET_KEY'),
+        'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
     // Anthropic Claude — powers the AI pricing engine and other AI features.
     // The model is pinned to claude-opus-4-8 via config/cet.php (ai_model).
     'anthropic' => [

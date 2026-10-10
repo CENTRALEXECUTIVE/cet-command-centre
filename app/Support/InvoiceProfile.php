@@ -27,6 +27,30 @@ class InvoiceProfile
         ];
     }
 
+    /**
+     * The invoicing company for a given invoice: the VAT-registered Central
+     * Executive Transfers Ltd for a VAT invoice, or the non-VAT sister company
+     * Central Executive Transfers PVT LTD otherwise. The PVT LTD profile carries
+     * NO VAT number (it isn't VAT registered). Operator licence, website, phone
+     * and email are shared (same operation), address/number are its own when set.
+     *
+     * @return array<string, string>
+     */
+    public static function companyFor(bool $vat): array
+    {
+        $base = self::company();
+        if ($vat) {
+            return $base;
+        }
+
+        return array_merge($base, [
+            'name' => trim((string) (Setting::get('invoice_novat_company_name') ?: config('cet.company_novat.name'))),
+            'number' => trim((string) (Setting::get('invoice_novat_company_number') ?: config('cet.company_novat.number'))),
+            'address' => trim((string) (Setting::get('invoice_novat_company_address') ?: config('cet.company_novat.address') ?: $base['address'])),
+            'vat_number' => '', // PVT LTD is not VAT registered
+        ]);
+    }
+
     /** Bank (BACS) details, only when a sort code AND account number are set. */
     public static function bank(): array
     {
