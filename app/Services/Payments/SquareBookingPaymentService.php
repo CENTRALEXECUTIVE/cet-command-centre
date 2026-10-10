@@ -135,6 +135,41 @@ class SquareBookingPaymentService
         }
     }
 
+    /**
+     * A throwaway £-value test checkout to prove the card flow works end to end,
+     * WITHOUT touching any booking: the reference carries a TEST- prefix, so the
+     * fare webhook ignores it and no booking is ever marked paid. The office can
+     * refund the charge in Square. Null if unavailable.
+     */
+    public function createTestCheckoutUrl(string $entity, float $amount, ?string $redirectUrl = null): ?string
+    {
+        if (! $this->enabled($entity) || $amount <= 0) {
+            return null;
+        }
+
+        try {
+            $res = $this->http($entity)->post($this->baseUrl($entity).'/v2/online-checkout/payment-links', [
+                'idempotency_key' => (string) Str::uuid(),
+                'order' => [
+                    'location_id' => $this->account($entity)['location_id'],
+                    'reference_id' => 'TEST-'.strtoupper(Str::random(8)),
+                    'line_items' => [[
+                        'name' => 'TEST PAYMENT — Central Executive Transfers (safe to refund)',
+                        'quantity' => '1',
+                        'base_price_money' => ['amount' => (int) round($amount * 100), 'currency' => 'GBP'],
+                    ]],
+                ],
+                'checkout_options' => array_filter(['redirect_url' => $redirectUrl, 'ask_for_shipping_address' => false]),
+            ]);
+
+            return $res->failed() ? null : $res->json('payment_link.url');
+        } catch (\Throwable $e) {
+            Log::warning('[Square] test link error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
     public function createCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null, ?string $label = null): ?string
     {
         // Route the payment to the right company's Square account (VAT-invoice

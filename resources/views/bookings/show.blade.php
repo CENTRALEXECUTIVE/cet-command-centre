@@ -1696,6 +1696,14 @@
             <h2 style="margin:0 0 4px">💳 Payment history</h2>
             <p class="hint" style="margin:0 0 12px">Every payment on this booking. Add a deposit or balance, send a card payment link, or mark a transaction paid.</p>
 
+            {{-- One-tap £1 TEST charge to prove the live card flow. It charges for
+                 real via this booking's provider but never marks the booking paid. --}}
+            <form method="POST" action="{{ route('bookings.transactions.test-link', $booking) }}" style="margin:0 0 12px"
+                  onsubmit="return confirm('Create a £1 TEST card link? It charges £1 for real (refund it in {{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square' }}) and will NOT mark this booking paid.')">
+                @csrf
+                <button class="btn btn-ghost" style="padding:7px 12px;font-size:12px;border:1px dashed var(--line)">🧪 £1 test card link ({{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe · PVT LTD' : 'Square' }})</button>
+            </form>
+
             @if(session('copy_link'))
                 <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin:0 0 12px;padding:10px 14px">
                     <div style="font-weight:700;margin-bottom:6px">💳 Square payment link ready</div>

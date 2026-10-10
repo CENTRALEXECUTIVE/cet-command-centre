@@ -183,6 +183,42 @@ class BookingTransactionController extends Controller
     }
 
     /**
+     * Create a £1 (or small) TEST card link to prove the live card flow works end
+     * to end — admin only. It charges for real through the booking's provider
+     * (Stripe for the non-VAT sister, else Square) but uses a TEST- reference, so
+     * paying it NEVER marks this or any booking paid — nothing to clean up in the
+     * app; just refund the charge in Square/Stripe.
+     */
+    public function testLink(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $amount = (float) ($request->input('amount', 1));
+        $amount = max(0.5, min($amount, 5)); // keep the test tiny (£0.50–£5)
+        $entity = $booking->billingEntity();
+        $stripe = app(\App\Services\Payments\StripePaymentService::class);
+
+        if ($entity === 'chauffeurs' && $stripe->enabled()) {
+            $link = $stripe->createTestCheckoutUrl($amount, route('payments.index'));
+            $provider = 'Stripe (PVT LTD)';
+        } elseif ($this->square->enabled($entity)) {
+            $link = $this->square->createTestCheckoutUrl($entity, $amount, route('payments.index'));
+            $provider = 'Square';
+        } else {
+            return back()->with('error', 'No card provider is connected for this booking yet — add the keys in Settings first.')->with('scroll', 'transactions');
+        }
+
+        if (! $link) {
+            return back()->with('error', 'Couldn’t create the test link — check the payment keys and try again.')->with('scroll', 'transactions');
+        }
+
+        return back()
+            ->with('status', '£'.number_format($amount, 2).' TEST link created via '.$provider.' — open it, pay with a real card, then refund it in '.$provider.'. It will NOT mark this booking paid.')
+            ->with('copy_link', $link)
+            ->with('scroll', 'transactions');
+    }
+
+    /**
      * Create the hosted checkout link for a transaction's amount and store it on
      * the transaction. The PROVIDER follows the billing entity: the non-VAT sister
      * company (Central Executive Transfers PVT LTD) is taken via Stripe; the

@@ -228,6 +228,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/transactions/{payment}/duplicate', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'duplicate'])->middleware('throttle:60,1')->name('bookings.transactions.duplicate');
         Route::post('bookings/{booking}/transactions/{payment}/send-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'sendLink'])->middleware('throttle:30,1')->name('bookings.transactions.send-link');
         Route::delete('bookings/{booking}/transactions/{payment}', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'destroy'])->middleware('throttle:60,1')->name('bookings.transactions.destroy');
+        // £1 test card link — proves the live card flow without marking any booking paid.
+        Route::post('bookings/{booking}/transactions/test-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'testLink'])->middleware('throttle:30,1')->name('bookings.transactions.test-link');
 
         // ETO-style "Send a notification": templated customer/driver messages.
         Route::post('bookings/{booking}/notify', [\App\Http\Controllers\Admin\BookingNotificationController::class, 'send'])->middleware('throttle:60,1')->name('bookings.notify');

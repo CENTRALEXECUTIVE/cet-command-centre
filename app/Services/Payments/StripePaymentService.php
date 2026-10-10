@@ -90,6 +90,38 @@ class StripePaymentService
     }
 
     /**
+     * A throwaway test Checkout to prove the Stripe flow works end to end, WITHOUT
+     * touching any booking: the client_reference_id carries a TEST- prefix and no
+     * fare metadata, so the webhook ignores it and nothing is marked paid. Refund
+     * the charge in Stripe. Null if unavailable.
+     */
+    public function createTestCheckoutUrl(float $amount, ?string $redirectUrl = null): ?string
+    {
+        if (! $this->enabled() || $amount <= 0) {
+            return null;
+        }
+
+        try {
+            $res = $this->http()->post(self::API.'/checkout/sessions', array_filter([
+                'mode' => 'payment',
+                'success_url' => $redirectUrl ?: config('app.url'),
+                'cancel_url' => $redirectUrl ?: config('app.url'),
+                'client_reference_id' => 'TEST-'.strtoupper(Str::random(8)),
+                'line_items[0][quantity]' => '1',
+                'line_items[0][price_data][currency]' => 'gbp',
+                'line_items[0][price_data][unit_amount]' => (string) ((int) round($amount * 100)),
+                'line_items[0][price_data][product_data][name]' => 'TEST PAYMENT — Central Executive Transfers (safe to refund)',
+            ], fn ($v) => $v !== null && $v !== ''));
+
+            return $res->failed() ? null : $res->json('url');
+        } catch (\Throwable $e) {
+            Log::warning('[Stripe] test link error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
      * Mark a booking's fare paid from a Stripe webhook. Handles the
      * checkout.session.completed event: reads our reference off the session and
      * records the payment. Returns the booking, or null if it's not one of ours.
