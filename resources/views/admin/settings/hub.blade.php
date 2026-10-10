@@ -32,6 +32,7 @@
             ],
             'Integrations' => [
                 ['Keys &amp; phone lines', 'Google Maps key and number-masking phone lines.', 'settings.index', '🔑'],
+                ['Email', 'Turn on booking-confirmation &amp; invoice emails (SMTP) and send a test.', 'settings.index', '📧', false, '#mail'],
                 ['Card payments (Square)', 'Paste your Square keys to take card payments.', 'settings.index', '💳'],
             ],
             'People' => [
@@ -55,8 +56,8 @@
         <h2 style="margin:22px 0 10px;font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#888)">{{ $heading }}</h2>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
             @foreach($cards as $c)
-                @php [$title, $desc, $route, $icon] = [$c[0], $c[1], $c[2], $c[3]]; $external = $c[4] ?? false; @endphp
-                <a href="{{ route($route) }}" @if($external) target="_blank" rel="noopener" @endif
+                @php [$title, $desc, $route, $icon] = [$c[0], $c[1], $c[2], $c[3]]; $external = $c[4] ?? false; $anchor = $c[5] ?? ''; @endphp
+                <a href="{{ route($route) }}{{ $anchor }}" @if($external) target="_blank" rel="noopener" @endif
                    class="card" style="text-decoration:none;color:inherit;display:block;transition:transform .08s,box-shadow .08s"
                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,.10)'"
                    onmouseout="this.style.transform='';this.style.boxShadow=''">
