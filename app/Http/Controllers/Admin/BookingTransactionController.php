@@ -183,6 +183,25 @@ class BookingTransactionController extends Controller
     }
 
     /**
+     * Reset a booking's payment status back to unpaid and clear the "paid"
+     * markers — for undoing a full test payment. Admin only. Does NOT refund: if
+     * real money was taken, refund it in Square/Stripe. Individual transaction
+     * rows are left as they are (manage them in the list).
+     */
+    public function resetPayment(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $meta = $booking->meta ?? [];
+        unset($meta['square_payment'], $meta['confirmed_paid_at'], $meta['vat_paid']);
+        $booking->forceFill(['payment_status' => 'pending', 'meta' => $meta])->save();
+
+        return back()
+            ->with('status', 'Payment status reset to unpaid and the paid markers cleared. If real money was taken, refund it in Square/Stripe.')
+            ->with('scroll', 'transactions');
+    }
+
+    /**
      * Create a £1 (or small) TEST card link to prove the live card flow works end
      * to end — admin only. It charges for real through the booking's provider
      * (Stripe for the non-VAT sister, else Square) but uses a TEST- reference, so
@@ -227,16 +246,8 @@ class BookingTransactionController extends Controller
      */
     private function createLink(Booking $booking, Payment $payment, float $amount): ?string
     {
-        $entity = $booking->billingEntity();
-        $stripe = app(\App\Services\Payments\StripePaymentService::class);
-
-        if ($entity === 'chauffeurs' && $stripe->enabled()) {
-            $link = $stripe->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name());
-        } elseif ($this->square->enabled($entity)) {
-            $link = $this->square->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name());
-        } else {
-            $link = null;
-        }
+        $link = app(\App\Services\Payments\PaymentGateway::class)
+            ->createCheckoutUrl($booking, $amount, route('payments.index'), $payment->name());
 
         if ($link) {
             $payment->forceFill([

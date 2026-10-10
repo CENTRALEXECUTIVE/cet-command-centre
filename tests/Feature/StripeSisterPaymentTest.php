@@ -182,4 +182,40 @@ class StripeSisterPaymentTest extends TestCase
         $this->assertSame('Central Executive Transfers PVT LTD', $novat['name']);
         $this->assertSame('', $novat['vat_number']); // PVT LTD is not VAT registered
     }
+
+    public function test_the_gateway_routes_each_entity_to_its_provider(): void
+    {
+        config([
+            'services.stripe.secret_key' => 'sk_test',
+            'services.square.access_token' => 'sq_tok', 'services.square.location_id' => 'LOC',
+            'services.square.environment' => 'sandbox',
+        ]);
+        Http::fake([
+            'api.stripe.com/*' => Http::response(['url' => 'https://checkout.stripe.com/x'], 200),
+            'connect.squareupsandbox.com/*' => Http::response(['payment_link' => ['url' => 'https://square.link/x']], 200),
+        ]);
+        $gw = app(\App\Services\Payments\PaymentGateway::class);
+
+        $novat = Booking::factory()->create(['reference' => 'N']);
+        $novat->forceFill(['meta' => ['vat_invoice_requested' => false, 'billing_entity' => 'chauffeurs']])->save();
+        $vat = Booking::factory()->create(['reference' => 'V']);
+        $vat->forceFill(['meta' => ['vat_invoice_requested' => true, 'billing_entity' => 'transfers']])->save();
+
+        $this->assertStringContainsString('checkout.stripe.com', $gw->createCheckoutUrl($novat->fresh(), 50, 'https://r'));
+        $this->assertStringContainsString('square.link', $gw->createCheckoutUrl($vat->fresh(), 50, 'https://r'));
+    }
+
+    public function test_admin_can_reset_a_paid_booking_to_unpaid(): void
+    {
+        $booking = Booking::factory()->create(['payment_status' => 'paid']);
+        $booking->forceFill(['meta' => ['square_payment' => ['id' => 'p1'], 'confirmed_paid_at' => now()->toIso8601String()]])->save();
+
+        $this->actingAs(\App\Models\User::factory()->admin()->create())
+            ->post(route('bookings.transactions.reset-payment', $booking))
+            ->assertRedirect();
+
+        $fresh = $booking->fresh();
+        $this->assertSame('pending', $fresh->payment_status);
+        $this->assertArrayNotHasKey('square_payment', $fresh->meta ?? []);
+    }
 }

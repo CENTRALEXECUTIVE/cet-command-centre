@@ -1698,11 +1698,20 @@
 
             {{-- One-tap £1 TEST charge to prove the live card flow. It charges for
                  real via this booking's provider but never marks the booking paid. --}}
-            <form method="POST" action="{{ route('bookings.transactions.test-link', $booking) }}" style="margin:0 0 12px"
-                  onsubmit="return confirm('Create a £1 TEST card link? It charges £1 for real (refund it in {{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square' }}) and will NOT mark this booking paid.')">
-                @csrf
-                <button class="btn btn-ghost" style="padding:7px 12px;font-size:12px;border:1px dashed var(--line)">🧪 £1 test card link ({{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe · PVT LTD' : 'Square' }})</button>
-            </form>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
+                <form method="POST" action="{{ route('bookings.transactions.test-link', $booking) }}" style="margin:0"
+                      onsubmit="return confirm('Create a £1 TEST card link? It charges £1 for real (refund it in {{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square' }}) and will NOT mark this booking paid.')">
+                    @csrf
+                    <button class="btn btn-ghost" style="padding:7px 12px;font-size:12px;border:1px dashed var(--line)">🧪 £1 test card link ({{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe · PVT LTD' : 'Square' }})</button>
+                </form>
+                @if(($booking->payment_status ?? null) === 'paid')
+                    <form method="POST" action="{{ route('bookings.transactions.reset-payment', $booking) }}" style="margin:0"
+                          onsubmit="return confirm('Reset this booking to UNPAID and clear the paid markers? (Refund any real charge in Square/Stripe separately.)')">
+                        @csrf
+                        <button class="btn btn-ghost" style="padding:7px 12px;font-size:12px;border:1px dashed #b32020;color:#b32020">↺ Reset payment to unpaid</button>
+                    </form>
+                @endif
+            </div>
 
             @if(session('copy_link'))
                 <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin:0 0 12px;padding:10px 14px">

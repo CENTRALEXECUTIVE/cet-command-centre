@@ -8,7 +8,7 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\VehicleType;
 use App\Models\Voucher;
-use App\Services\Payments\SquareBookingPaymentService;
+use App\Services\Payments\PaymentGateway;
 use App\Services\Payments\VatService;
 use App\Services\Pricing\FareCalculator;
 use App\Services\Pricing\QuoteService;
@@ -38,7 +38,7 @@ class PublicBookingController extends Controller
     public function __construct(
         private readonly QuoteService $quotes,
         private readonly FareCalculator $fares,
-        private readonly SquareBookingPaymentService $payments,
+        private readonly PaymentGateway $payments,
         private readonly VatService $vat,
         private readonly AdminAlerts $adminAlerts,
     ) {}

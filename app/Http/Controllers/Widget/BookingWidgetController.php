@@ -9,7 +9,7 @@ use App\Models\CorporateAccount;
 use App\Models\CorporateContact;
 use App\Models\Customer;
 use App\Models\VehicleType;
-use App\Services\Payments\SquareBookingPaymentService;
+use App\Services\Payments\PaymentGateway;
 use App\Services\Pricing\QuoteService;
 use App\Services\Watchdog\AdminAlerts;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +30,7 @@ class BookingWidgetController extends Controller
     public function __construct(
         private readonly QuoteService $quotes,
         private readonly AdminAlerts $adminAlerts,
-        private readonly SquareBookingPaymentService $payments,
+        private readonly PaymentGateway $payments,
     ) {}
 
     /** Domains allowed to embed the widget in an iframe. */
