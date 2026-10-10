@@ -217,17 +217,53 @@
         <h2>📧 Email (booking confirmations &amp; invoices)</h2>
         @if(($mailer ?? 'log') === 'log')
             <div class="alert alert-danger" style="margin:0 0 10px">
-                <strong>Emails are NOT being sent.</strong> Mail is set to <code>log</code>, so confirmations are written to a log file instead of emailed. Set <code>MAIL_MAILER=smtp</code> (plus host, username, password and <code>MAIL_FROM_ADDRESS</code>) in the server <code>.env</code>, then <code>php artisan optimize:clear</code>.
+                <strong>Emails are NOT being sent yet.</strong> Enter your mailbox's SMTP details below and Save — then send a test. No server or <code>.env</code> editing needed (these are stored securely like the Square/Stripe keys).
             </div>
         @else
             <p class="muted" style="margin-top:0">Mailer: <strong>{{ $mailer }}</strong> · From: <strong>{{ $mailFrom ?: 'not set' }}</strong> · Office copy goes to: <strong>{{ $opsEmail }}</strong>.</p>
         @endif
+
+        {{-- In-app SMTP — stored in the DB (MailSettings), merged over config at boot,
+             so email is switched on from here, never the server .env. --}}
+        <form method="POST" action="{{ route('settings.update') }}" style="margin:0 0 14px">
+            @csrf
+            @method('PUT')
+            <div class="grid grid-2" style="gap:12px">
+                <label>SMTP host
+                    <input type="text" name="mail_host" value="{{ $mail['host'] }}" placeholder="mail.centralexecutivetransfers.co.uk" autocomplete="off">
+                </label>
+                <label>Port
+                    <input type="number" name="mail_port" value="{{ $mail['port'] ?: '465' }}" placeholder="465" autocomplete="off">
+                </label>
+                <label>Security
+                    <select name="mail_scheme">
+                        <option value="smtps" @selected(($mail['scheme'] ?: 'smtps') === 'smtps')>SSL/TLS — port 465</option>
+                        <option value="smtp" @selected($mail['scheme'] === 'smtp')>STARTTLS — port 587</option>
+                    </select>
+                </label>
+                <label>Username <span class="muted">(the full email address)</span>
+                    <input type="text" name="mail_username" value="{{ $mail['username'] }}" placeholder="admin@centralexecutivetransfers.co.uk" autocomplete="off">
+                </label>
+                <label>Mailbox password
+                    <input type="password" name="mail_password" placeholder="{{ $mail['has_password'] ? '•••••••• (saved — blank keeps it)' : 'your mailbox password' }}" autocomplete="new-password">
+                </label>
+                <label>Send from <span class="muted">(address)</span>
+                    <input type="email" name="mail_from_address" value="{{ $mail['from_address'] }}" placeholder="admin@centralexecutivetransfers.co.uk" autocomplete="off">
+                </label>
+                <label style="grid-column:1/-1">Send from <span class="muted">(name shown to customers)</span>
+                    <input type="text" name="mail_from_name" value="{{ $mail['from_name'] }}" placeholder="Central Executive Transfers" autocomplete="off">
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:10px">Save email settings</button>
+            <span class="hint" style="margin-left:8px">The password is stored securely and never shown back. After saving, send a test below.</span>
+        </form>
+
         <form method="POST" action="{{ route('settings.test-email') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0">
             @csrf
             <input type="email" name="to" placeholder="send a test to… (default: your email)" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
             <button type="submit" class="btn btn-dark" style="padding:8px 14px">Send test email</button>
         </form>
-        <p class="hint" style="margin:8px 0 0">Sends a plain test message so you can confirm email works before a real booking. If it's set to <code>log</code> or the SMTP details are wrong, it'll tell you here.</p>
+        <p class="hint" style="margin:8px 0 0">Sends a plain test message so you can confirm email works before a real booking. If the SMTP details are wrong, the exact error shows here.</p>
     </div>
 
     <script>window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";</script>

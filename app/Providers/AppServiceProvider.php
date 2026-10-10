@@ -35,5 +35,13 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             // Settings table not ready / unreachable — fall back to config defaults.
         }
+
+        // In-app SMTP (Settings → Email) merged over config('mail.*'), so email can
+        // be switched on without touching the server .env. Guarded like above.
+        try {
+            \App\Support\MailSettings::apply();
+        } catch (\Throwable $e) {
+            // Settings table not ready — keep the .env/config mailer.
+        }
     }
 }

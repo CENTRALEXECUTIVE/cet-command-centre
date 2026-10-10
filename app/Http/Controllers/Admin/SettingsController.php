@@ -25,6 +25,7 @@ class SettingsController extends Controller
             'mailer' => (string) config('mail.default'),
             'mailFrom' => (string) config('mail.from.address'),
             'opsEmail' => (string) config('cet.ops_email'),
+            'mail' => \App\Support\MailSettings::current(),
             'mapsKey' => Setting::get('google_maps_key'),
             'getAddressKey' => Setting::get('getaddress_key'),
             'customerLine' => Setting::get('twilio_customer_line') ?: config('services.twilio_masking.customer_line'),
@@ -129,20 +130,49 @@ class SettingsController extends Controller
             'invoice_novat_company_name' => ['nullable', 'string', 'max:160'],
             'invoice_novat_company_number' => ['nullable', 'string', 'max:40'],
             'invoice_novat_company_address' => ['nullable', 'string', 'max:500'],
+            'mail_host' => ['nullable', 'string', 'max:160'],
+            'mail_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'mail_scheme' => ['nullable', 'in:smtp,smtps'],
+            'mail_username' => ['nullable', 'string', 'max:160'],
+            'mail_password' => ['nullable', 'string', 'max:255'],
+            'mail_from_address' => ['nullable', 'email', 'max:160'],
+            'mail_from_name' => ['nullable', 'string', 'max:120'],
         ]);
 
-        Setting::set('google_maps_key', trim((string) ($data['google_maps_key'] ?? '')), 'string', 'integrations');
-        Setting::set('getaddress_key', trim((string) ($data['getaddress_key'] ?? '')), 'string', 'integrations');
-        Setting::set('twilio_customer_line', trim((string) ($data['twilio_customer_line'] ?? '')), 'string', 'telephony');
-        Setting::set('twilio_driver_line', trim((string) ($data['twilio_driver_line'] ?? '')), 'string', 'telephony');
-        Setting::set('unbranded_link_base', trim((string) ($data['unbranded_link_base'] ?? '')), 'string', 'integrations');
+        // Only save a field when the submitting form actually included it, so a
+        // single-section form (e.g. the Email panel) never wipes settings owned by
+        // another form on the page.
+        $save = function (string $key, string $group) use ($data) {
+            if (array_key_exists($key, $data)) {
+                Setting::set($key, trim((string) ($data[$key] ?? '')), 'string', $group);
+            }
+        };
+
+        $save('google_maps_key', 'integrations');
+        $save('getaddress_key', 'integrations');
+        $save('twilio_customer_line', 'telephony');
+        $save('twilio_driver_line', 'telephony');
+        $save('unbranded_link_base', 'integrations');
 
         foreach ([
             'invoice_company_address', 'invoice_vat_number', 'invoice_phone', 'invoice_email',
             'invoice_bank_name', 'invoice_bank_sort', 'invoice_bank_account', 'invoice_footer_note',
             'invoice_novat_company_name', 'invoice_novat_company_number', 'invoice_novat_company_address',
         ] as $key) {
-            Setting::set($key, trim((string) ($data[$key] ?? '')), 'string', 'invoicing');
+            $save($key, 'invoicing');
+        }
+
+        // In-app SMTP (Settings → Email): switch email on without the server .env.
+        // Non-secret fields save as submitted (blank clears, disabling in-app SMTP);
+        // the password is write-only so a blank submit never wipes a saved password.
+        foreach (['mail_host', 'mail_scheme', 'mail_username', 'mail_from_address', 'mail_from_name'] as $key) {
+            $save($key, 'mail');
+        }
+        if (array_key_exists('mail_port', $data)) {
+            Setting::set('mail_port', trim((string) ($data['mail_port'] ?? '')), 'string', 'mail');
+        }
+        if (array_key_exists('mail_password', $data) && trim((string) ($data['mail_password'] ?? '')) !== '') {
+            Setting::set('mail_password', trim((string) $data['mail_password']), 'string', 'mail');
         }
 
         // Square payment keys (in-app wins over .env). Only overwrite when a value was
