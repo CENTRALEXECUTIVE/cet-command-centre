@@ -81,7 +81,11 @@ class SettingsController extends Controller
         $data = $request->validate(['to' => ['nullable', 'email'], 'via' => ['nullable', 'in:pvt']]);
         $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
         $pvt = ($data['via'] ?? null) === 'pvt';
-        $mailer = $pvt ? 'pvt' : (string) config('mail.default');
+        // PVT test sends from the PVT address: via its own SMTP mailer if one is
+        // set, otherwise through the default sender (e.g. Microsoft 365) — which
+        // sends from the PVT mailbox when PVT is hosted there.
+        $pvtHasSmtp = $pvt && filled(config('mail.mailers.pvt.host'));
+        $mailer = $pvtHasSmtp ? 'pvt' : (string) config('mail.default');
         $json = $request->expectsJson();
 
         $respond = function (bool $ok, string $message) use ($json) {
@@ -90,11 +94,8 @@ class SettingsController extends Controller
                 : back()->with($ok ? 'status' : 'error', $message)->with('scroll', 'mail');
         };
 
-        if (! $pvt && $mailer === 'log') {
-            return $respond(false, 'Mail is still set to "log" — nothing is sent. Enter your SMTP details above and press "Save email settings" first, then try the test.');
-        }
-        if ($pvt && blank(config('mail.mailers.pvt.host'))) {
-            return $respond(false, 'The PVT LTD mail host isn\'t set yet — fill in the PVT fields and Save first.');
+        if ($mailer === 'log') {
+            return $respond(false, 'Mail is still set to "log" — nothing is sent. Set up a sender above and press "Save email settings" first, then try the test.');
         }
 
         try {
@@ -112,7 +113,7 @@ class SettingsController extends Controller
             return $respond(false, 'Test email FAILED: '.$e->getMessage());
         }
 
-        return $respond(true, 'Test email sent to '.$to.($pvt ? ' via the PVT LTD mailbox' : '').'. Check the inbox and spam — if it doesn\'t arrive within a minute, the host, username or password is wrong.');
+        return $respond(true, 'Test email sent to '.$to.($pvt ? ' from the PVT LTD address' : '').'. Check the inbox and spam — if it doesn\'t arrive within a minute, the details are wrong.');
     }
 
     public function update(Request $request): RedirectResponse
