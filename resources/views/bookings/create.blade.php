@@ -214,12 +214,12 @@
 
                 <div class="grid grid-2" id="flight-fields" style="border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
                     <div class="field" style="margin-bottom:0">
-                        <label for="flight_number">Flight number <span class="muted" id="flight-hint">(if airport)</span></label>
+                        <label for="flight_number"><span id="flight-label-text">Flight number</span> <span class="muted" id="flight-hint">(if airport)</span></label>
                         <input id="flight_number" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1234" style="text-transform:uppercase">
                         @error('flight_number') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field" id="flight-landing-field" style="margin-bottom:0" hidden>
-                        <label for="flight_landing_at">Flight landing time <span class="muted">(so we can track it)</span></label>
+                        <label for="flight_landing_at"><span id="flight-time-label">Flight landing time</span> <span class="muted">(so we can track it)</span></label>
                         <input id="flight_landing_at" type="datetime-local" name="flight_landing_at" value="{{ old('flight_landing_at') }}">
                     </div>
                 </div>
@@ -462,6 +462,8 @@
                 var noteText = document.getElementById('airport-note-text');
                 var flightIn = document.getElementById('flight_number');
                 var flightHint = document.getElementById('flight-hint');
+                var flightLabel = document.getElementById('flight-label-text');
+                var flightTimeLabel = document.getElementById('flight-time-label');
                 var landingField = document.getElementById('flight-landing-field');
                 var meet = document.getElementById('meet_greet');
                 if (!flightIn) return;
@@ -480,6 +482,12 @@
                     // Flight number becomes required on any airport job.
                     flightIn.required = any;
                     if (flightHint) flightHint.textContent = any ? '— required for airport jobs' : '(if airport)';
+                    // Arrival vs departure: picking up FROM an airport tracks the arriving
+                    // flight; dropping off TO an airport is a departure flight.
+                    if (flightLabel) flightLabel.textContent = !any
+                        ? 'Flight number'
+                        : (arrival ? 'Arrival flight number' : 'Departure flight number');
+                    if (flightTimeLabel) flightTimeLabel.textContent = arrival ? 'Flight landing time' : 'Flight departure time';
                     if (noteText) noteText.textContent = arrival
                         ? 'Add the flight number and landing time below so the office can track the flight — meet & greet has been ticked for the arrivals pickup.'
                         : 'Add the flight number and landing time below so the office can track the flight.';
@@ -532,6 +540,8 @@
                 var tokenEl = document.querySelector('meta[name="csrf-token"]');
                 var token = tokenEl ? tokenEl.getAttribute('content') : '';
                 var whenEl = document.getElementById('pickup_at');
+                var journeyEl = document.getElementById('journey_type');
+                var returnEl = document.getElementById('return_pickup_at');
                 var paxEl = document.getElementById('passengers');
                 var suitEl = document.getElementById('suitcases');
                 var handEl = document.getElementById('hand_luggage');
@@ -644,12 +654,15 @@
                     var p = pickup.value.trim(), d = dest.value.trim();
                     if (p.length < 4 || d.length < 4) { strip.hidden = true; return; }
                     var when = whenEl ? (whenEl.value || '') : '';
+                    var journey = journeyEl ? (journeyEl.value || 'one_way') : 'one_way';
+                    var returnAt = (journey === 'return' && returnEl) ? (returnEl.value || '') : '';
                     var ex = extras();
-                    // Re-quote when the journey, time, stops or priced extras change.
-                    var key = [p, d, when, ex.stops, ex.meet_greet, ex.child_seats, ex.booster_seats, ex.infant_seats, ex.ribbons].join('||');
+                    // Re-quote when the journey, time, stops or priced extras change —
+                    // including switching to a return, so the price covers both legs.
+                    var key = [p, d, when, journey, returnAt, ex.stops, ex.meet_greet, ex.child_seats, ex.booster_seats, ex.infant_seats, ex.ribbons].join('||');
                     if (key === lastKey) return;
                     lastKey = key;
-                    var body = { pickup: p, destination: d, pickup_at: when };
+                    var body = { pickup: p, destination: d, pickup_at: when, journey_type: journey, return_pickup_at: returnAt };
                     for (var k in ex) { body[k] = ex[k]; }
                     fetch(url, {
                         method: 'POST',
@@ -661,7 +674,9 @@
                 }
 
                 // Journey / time / stops / extras change the PRICE → re-quote.
-                var priceInputs = [pickup, dest, whenEl];
+                // The journey-type select and return time matter too: switching to a
+                // return must re-price for both legs.
+                var priceInputs = [pickup, dest, whenEl, journeyEl, returnEl];
                 document.querySelectorAll('input[name="via_stops[]"], #meet_greet, #child_seats, #booster_seats, #infant_seats, #ribbon').forEach(function (el) { priceInputs.push(el); });
                 priceInputs.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
                 // Exposed so a dynamically-added via stop can trigger a re-quote too.

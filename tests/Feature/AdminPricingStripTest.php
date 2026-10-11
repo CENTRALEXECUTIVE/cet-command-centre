@@ -91,6 +91,30 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta($execOpt['price'], $sum, 0.001);
     }
 
+    public function test_strip_prices_a_return_as_both_legs(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        $oneWay = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+        ])->assertOk()->json('options');
+        $this->assertEqualsWithDelta(105.0, $this->execPrice($oneWay), 0.001);
+
+        $return = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+            'journey_type' => 'return',
+        ])->assertOk()->json('options');
+
+        // A return is both legs: 105 out + 105 back = £210, not the one-way £105.
+        $this->assertEqualsWithDelta(210.0, $this->execPrice($return), 0.001);
+
+        // And the breakdown names the two legs so the double price is obvious.
+        $labels = array_column(collect($return)->firstWhere('id', $exec->id)['breakdown'], 'label');
+        $this->assertContains('Outbound leg', $labels);
+        $this->assertContains('Return leg', $labels);
+    }
+
     public function test_strip_is_admin_only(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
