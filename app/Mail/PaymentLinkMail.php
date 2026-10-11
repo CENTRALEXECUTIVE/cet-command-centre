@@ -28,7 +28,10 @@ class PaymentLinkMail extends Mailable
     {
         $ref = $this->booking->external_reference ?: $this->booking->reference;
 
-        return new Envelope(subject: 'Central Executive Transfers — payment for booking '.$ref);
+        return new Envelope(
+            from: new \Illuminate\Mail\Mailables\Address($this->booking->senderAddress(), $this->booking->senderName()),
+            subject: 'Central Executive Transfers — payment for booking '.$ref,
+        );
     }
 
     public function content(): Content

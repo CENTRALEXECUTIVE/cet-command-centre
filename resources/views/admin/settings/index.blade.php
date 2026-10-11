@@ -281,6 +281,25 @@
                 </label>
             </div>
             </div>{{-- /#smtp-fields --}}
+
+            {{-- Non-VAT sister company (PVT LTD) — kept SEPARATE. When enabled, its
+                 bookings' emails send from its OWN address. Only turn this on once
+                 that mailbox can actually send (verified + test passes), or those
+                 emails will fail. --}}
+            <div style="margin:14px 0 0;border-top:1px solid var(--line);padding-top:12px">
+                <input type="hidden" name="mail_pvt_enabled" value="0">
+                <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+                    <input type="checkbox" name="mail_pvt_enabled" value="1" @checked($mail['pvt_enabled'] ?? false)>
+                    <span>
+                        <strong>Send PVT LTD (non-VAT) emails from their own address</strong>
+                        <span class="hint" style="display:block">Keeps the two companies separate: non-VAT / Stripe bookings send from the PVT address below. Turn on only once that mailbox is set up and a test passes.</span>
+                    </span>
+                </label>
+                <label style="display:block;margin-top:8px;max-width:420px">PVT LTD send-from address
+                    <input type="email" name="mail_pvt_from_address" value="{{ $mail['pvt_from_address'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
+                </label>
+            </div>
+
             <button type="submit" class="btn btn-primary" style="margin-top:10px">Save email settings</button>
             <span class="hint" style="margin-left:8px">The password is stored securely and never shown back. After saving, send a test below.</span>
         </form>

@@ -115,7 +115,7 @@ class GraphMailClient
      * @param  array<int,string>  $cc
      * @param  array<int,array{name:string,contentType:string,contentBytes:string}>  $attachments
      */
-    public function sendMail(array $to, string $subject, string $html, array $cc = [], ?string $replyTo = null, array $attachments = []): bool
+    public function sendMail(array $to, string $subject, string $html, array $cc = [], ?string $replyTo = null, array $attachments = [], ?string $fromMailbox = null): bool
     {
         if (! $this->configured()) {
             return false;
@@ -125,7 +125,11 @@ class GraphMailClient
             if (! $token) {
                 return false;
             }
-            $mailbox = rawurlencode((string) config('services.microsoft_graph.mailbox'));
+            // Send FROM the given mailbox (so each company sends from its own
+            // address), falling back to the configured mailbox. App-only Mail.Send
+            // can send as any mailbox in the tenant.
+            $sender = filled($fromMailbox) ? $fromMailbox : (string) config('services.microsoft_graph.mailbox');
+            $mailbox = rawurlencode($sender);
 
             $recipients = fn (array $addrs) => array_values(array_filter(array_map(
                 fn ($a) => filled($a) ? ['emailAddress' => ['address' => $a]] : null,
@@ -136,6 +140,7 @@ class GraphMailClient
                 'subject' => $subject,
                 'body' => ['contentType' => 'HTML', 'content' => $html],
                 'toRecipients' => $recipients($to),
+                'from' => ['emailAddress' => ['address' => $sender]],
             ];
             if ($cc !== []) {
                 $message['ccRecipients'] = $recipients($cc);

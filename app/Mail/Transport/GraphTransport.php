@@ -28,6 +28,9 @@ class GraphTransport extends AbstractTransport
         $cc = array_map(fn ($a) => $a->getAddress(), $email->getCc());
         $replyTo = $email->getReplyTo();
         $replyToAddr = $replyTo !== [] ? $replyTo[0]->getAddress() : null;
+        // The message's own From drives which company mailbox it's sent from.
+        $from = $email->getFrom();
+        $fromMailbox = $from !== [] ? $from[0]->getAddress() : null;
 
         // Prefer the HTML body; fall back to the text body (e.g. the plain test
         // email) rendered as simple HTML.
@@ -53,6 +56,7 @@ class GraphTransport extends AbstractTransport
             cc: $cc,
             replyTo: $replyToAddr,
             attachments: $attachments,
+            fromMailbox: $fromMailbox,
         );
 
         if (! $ok) {

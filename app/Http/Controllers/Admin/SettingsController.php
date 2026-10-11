@@ -139,6 +139,8 @@ class SettingsController extends Controller
             'invoice_novat_company_address' => ['nullable', 'string', 'max:500'],
             'mail_host' => ['nullable', 'string', 'max:160'],
             'mail_transport' => ['nullable', 'in:smtp,graph'],
+            'mail_pvt_enabled' => ['nullable', 'boolean'],
+            'mail_pvt_from_address' => ['nullable', 'email', 'max:160'],
             'mail_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'mail_scheme' => ['nullable', 'in:smtp,smtps'],
             'mail_username' => ['nullable', 'string', 'max:160'],
@@ -179,6 +181,11 @@ class SettingsController extends Controller
         if (array_key_exists('mail_transport', $data)) {
             Setting::set('mail_transport', in_array($data['mail_transport'] ?? null, ['smtp', 'graph'], true) ? $data['mail_transport'] : 'smtp', 'string', 'mail');
         }
+        // PVT LTD (non-VAT) sender — kept separate from the VAT company.
+        if (array_key_exists('mail_pvt_enabled', $data)) {
+            Setting::set('mail_pvt_enabled', $request->boolean('mail_pvt_enabled') ? '1' : '', 'string', 'mail');
+        }
+        $save('mail_pvt_from_address', 'mail');
         if (array_key_exists('mail_port', $data)) {
             Setting::set('mail_port', trim((string) ($data['mail_port'] ?? '')), 'string', 'mail');
         }

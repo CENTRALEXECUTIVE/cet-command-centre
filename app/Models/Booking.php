@@ -5332,6 +5332,33 @@ class Booking extends Model
         return ($noVat && ($stripeReady || $squareSisterReady)) ? 'chauffeurs' : 'transfers';
     }
 
+    /**
+     * The email address this booking's confirmations/links/invoices send FROM —
+     * kept SEPARATE per company. The VAT company (transfers) sends from its own
+     * address; the non-VAT sister (chauffeurs / PVT LTD) sends from the PVT
+     * address, but ONLY once PVT sending has been set up and enabled in Settings
+     * (so nothing breaks before the PVT mailbox exists). Otherwise it falls back
+     * to the main address.
+     */
+    public function senderAddress(): string
+    {
+        $main = (string) (config('cet.company.email') ?: config('mail.from.address'));
+
+        if ($this->billingEntity() === 'chauffeurs' && \App\Models\Setting::get('mail_pvt_enabled', false)) {
+            $pvt = (string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'));
+
+            return $pvt !== '' ? $pvt : $main;
+        }
+
+        return $main;
+    }
+
+    /** The display name shown to customers on emails (the brand, for both companies). */
+    public function senderName(): string
+    {
+        return (string) (config('mail.from.name') ?: config('cet.company.name', 'Central Executive Transfers'));
+    }
+
     public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool
     {
         $meta = $this->meta ?? [];

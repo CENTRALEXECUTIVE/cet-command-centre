@@ -33,6 +33,7 @@ class BookingConfirmationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: new \Illuminate\Mail\Mailables\Address($this->booking->senderAddress(), $this->booking->senderName()),
             subject: 'Central Executive Transfers booking confirmation '.($this->booking->external_reference ?: $this->booking->reference),
         );
     }

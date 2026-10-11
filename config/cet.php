@@ -32,6 +32,9 @@ return [
         'name' => env('CET_NOVAT_COMPANY_NAME', 'Central Executive Transfers PVT LTD'),
         'number' => env('CET_NOVAT_COMPANY_NUMBER', ''),
         'address' => env('CET_NOVAT_COMPANY_ADDRESS', ''),
+        // The PVT LTD company's own sending address (kept SEPARATE from the VAT
+        // company). Non-VAT emails send from here when PVT sending is enabled.
+        'email' => env('CET_NOVAT_COMPANY_EMAIL', 'admin@centralexecutivetransferspvt.co.uk'),
     ],
 
     // Bank details printed on account (BACS) invoices. Set in Settings → Company

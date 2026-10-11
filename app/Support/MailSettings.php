@@ -76,6 +76,8 @@ class MailSettings
             'transport' => (string) (Setting::get('mail_transport', '') ?: 'smtp'),
             'graph_configured' => app(\App\Services\Inbox\GraphMailClient::class)->configured(),
             'graph_mailbox' => (string) config('services.microsoft_graph.mailbox'),
+            'pvt_enabled' => (bool) Setting::get('mail_pvt_enabled', false),
+            'pvt_from_address' => (string) (Setting::get('mail_pvt_from_address', '') ?: config('cet.company_novat.email')),
             'host' => (string) Setting::get('mail_host', ''),
             'port' => (string) Setting::get('mail_port', ''),
             'scheme' => (string) Setting::get('mail_scheme', ''),
