@@ -279,7 +279,7 @@ class BookingTransactionController extends Controller
             try {
                 Mail::to($email)->send(new \App\Mail\PaymentLinkMail($booking, $amount, $link));
             } catch (\Throwable $e) {
-                Log::warning('[transactions] payment link email failed: '.$e->getMessage());
+                \App\Support\MailFailure::report('payment link email', $e, $booking);
 
                 return $redirect->with('error', 'Could not email the link — it’s created, copy it to send another way.');
             }

@@ -144,7 +144,7 @@ class BookingStatusService
                     ])])->save();
                     $fresh = $fresh->fresh();
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('[web] paid confirmation email failed: '.$e->getMessage());
+                    \App\Support\MailFailure::report('paid booking confirmation', $e, $fresh);
                 }
             }
 

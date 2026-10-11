@@ -57,7 +57,7 @@ class CustomerBookingMailer
         try {
             Mail::to($email)->send(new BookingConfirmationMail($booking));
         } catch (\Throwable $e) {
-            Log::warning('[widget] customer confirmation email failed: '.$e->getMessage());
+            \App\Support\MailFailure::report('customer booking confirmation', $e, $booking);
 
             return false;
         }
