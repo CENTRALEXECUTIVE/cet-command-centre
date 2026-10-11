@@ -192,7 +192,7 @@ class CalendarEventBuilder
     private function journeyLabel(Booking $booking): string
     {
         $label = $booking->meta['journey_label'] ?? 'Transfer';
-        if (! empty($booking->meta['meet_and_greet']) && stripos($label, 'meet') === false) {
+        if ($booking->isMeetGreet() && stripos($label, 'meet') === false) {
             $label .= ' (Meet & Greet)';
         }
 
@@ -234,8 +234,8 @@ class CalendarEventBuilder
             $add('Booster Seats', (string) $meta['booster_seats']);
         }
         $add('Flight Number', $booking->flight_number);
-        if (! empty($meta['meet_and_greet'])) {
-            $add('Meet & Greet', 'Required');
+        if ($booking->isMeetGreet()) {
+            $add('Meet & Greet', $booking->meetGreetLabel());
         }
         // Use the authoritative (display) values and the full stop list so an
         // edit made in the Command Centre — new addresses, an added stop — is
@@ -292,8 +292,8 @@ class CalendarEventBuilder
             $add('Booster Seats', (string) $meta['booster_seats']);
         }
         $add('Flight Number', $booking->displayFlightNumber() ?: $booking->flight_number);
-        if (! empty($meta['meet_and_greet'])) {
-            $add('Meet & Greet', 'Required');
+        if ($booking->isMeetGreet()) {
+            $add('Meet & Greet', $booking->meetGreetLabel());
         }
         $add('Pickup Location', $booking->displayPickupAddress());
         // All via stops, wherever they came from (booking form, intake, ETO) —

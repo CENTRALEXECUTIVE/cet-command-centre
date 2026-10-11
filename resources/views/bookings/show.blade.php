@@ -1336,6 +1336,7 @@
                 @if($booking->displayContact())<tr><th>Contact</th><td>{{ $booking->displayContact() }}</td></tr>@endif
                 <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
                 <tr><th>Driver</th><td>{{ ($booking->driver || !empty($booking->meta['driver_details']['name'])) ? $booking->driverLabel() : 'Awaiting allocation' }}</td></tr>
+                @if($booking->enquirySourceLabel())<tr><th>Source</th><td>{{ $booking->enquirySourceLabel() }}</td></tr>@endif
                 @if($booking->corporateAccount)
                     <tr><th>Account</th><td>{{ $booking->corporateAccount->name }}</td></tr>
                     @if($booking->cost_code)<tr><th>Cost code</th><td>{{ $booking->cost_code }}</td></tr>@endif

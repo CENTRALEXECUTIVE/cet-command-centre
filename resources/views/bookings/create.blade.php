@@ -234,6 +234,20 @@
                     <input id="meet_greet" type="checkbox" name="meet_greet" value="1" {{ old('meet_greet') ? 'checked' : '' }}>
                     <label for="meet_greet">Meet &amp; greet <span class="muted">(driver waits in arrivals with a name board)</span></label>
                 </div>
+                {{-- ETO-style meeting details — the name the driver holds up and where
+                     to meet. Revealed when meet & greet is ticked. --}}
+                <div id="meeting-details" class="grid grid-2" style="margin-bottom:12px" {{ old('meet_greet') ? '' : 'hidden' }}>
+                    <div class="field" style="margin-bottom:0">
+                        <label for="meeting_board">Name board <span class="muted">(held up in arrivals)</span></label>
+                        <input id="meeting_board" name="meeting_board" value="{{ old('meeting_board') }}" placeholder="e.g. Mr J Smith" maxlength="160">
+                        @error('meeting_board') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="field" style="margin-bottom:0">
+                        <label for="meeting_point">Meeting point <span class="muted">(where to wait)</span></label>
+                        <input id="meeting_point" name="meeting_point" value="{{ old('meeting_point') }}" placeholder="e.g. Costa, arrivals hall" maxlength="300">
+                        @error('meeting_point') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+                </div>
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
                     <span class="lbl">Child seats<span class="sub">Ages ~4–7</span></span>
                     <div class="stepper" data-stepper><button type="button" data-dec>−</button>
@@ -328,6 +342,16 @@
         <div class="eto-section collapsible closed" data-collapsible>
             <div class="head"><span class="ico">⚙️</span> Advanced <span class="grow"></span> <span class="chev">▾</span></div>
             <div class="body">
+                <div class="field">
+                    <label for="booking_source">How did this booking come in? <span class="muted">(for the office)</span></label>
+                    <select id="booking_source" name="booking_source">
+                        <option value="">— Not recorded —</option>
+                        @foreach(['phone' => 'By phone', 'whatsapp' => 'WhatsApp', 'email' => 'Email', 'website' => 'Website', 'repeat' => 'Repeat / direct', 'other' => 'Other'] as $val => $label)
+                            <option value="{{ $val }}" @selected(old('booking_source')===$val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('booking_source') <div class="error">{{ $message }}</div> @enderror
+                </div>
                 <div class="field">
                     <label for="special_requests">Special requests</label>
                     <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests', $pf['special_requests'] ?? null) }}</textarea>
@@ -466,8 +490,15 @@
                 var flightTimeLabel = document.getElementById('flight-time-label');
                 var landingField = document.getElementById('flight-landing-field');
                 var meet = document.getElementById('meet_greet');
+                var meetingDetails = document.getElementById('meeting-details');
                 if (!flightIn) return;
                 var mgAuto = false; // only auto-manage the tick we set ourselves
+
+                // The meet & greet name board / meeting point only matter when meet
+                // & greet is on — reveal them with the tick.
+                function syncMeetingDetails() {
+                    if (meetingDetails && meet) meetingDetails.hidden = !meet.checked;
+                }
 
                 var rx = /\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bman\b|manchester airport|east midlands|\bema\b|\blba\b|leeds bradford|doncaster|\bt[1-5]\b/i;
                 function looksAirport(v) { return rx.test(String(v || '')); }
@@ -497,8 +528,9 @@
                         if (arrival && !meet.checked) { meet.checked = true; mgAuto = true; }
                         else if (!arrival && mgAuto && meet.checked) { meet.checked = false; mgAuto = false; }
                     }
+                    syncMeetingDetails();
                 }
-                if (meet) meet.addEventListener('change', function () { mgAuto = false; });
+                if (meet) meet.addEventListener('change', function () { mgAuto = false; syncMeetingDetails(); });
                 [airportSel, pickup, dest].forEach(function (el) {
                     if (!el) return;
                     el.addEventListener('change', apply);

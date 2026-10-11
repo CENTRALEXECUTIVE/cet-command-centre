@@ -506,6 +506,12 @@ class BookingService
                 'hand_luggage' => $handLuggage,
                 'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,
                 'hourly_hours' => $hourlyHours,
+                // Meet & greet detail (ETO parity): the name board the driver holds
+                // up and where to wait. Carried onto both legs of a return.
+                'meeting_board' => trim((string) ($data['meeting_board'] ?? '')) ?: null,
+                'meeting_point' => trim((string) ($data['meeting_point'] ?? '')) ?: null,
+                // How the booking came in (phone / WhatsApp / email / …) — office record.
+                'enquiry_source' => $data['booking_source'] ?? null,
                 // Extras — same set the customer widget captures (child-seat counts are
                 // capped at the passenger count), so the calendar marks and the driver
                 // sheet show them.

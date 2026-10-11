@@ -3295,7 +3295,10 @@ class Booking extends Model
     /** Meet & greet note as printed on the calendar, if present. */
     public function displayMeetAndGreet(): ?string
     {
-        return $this->calendarField('Meet & Greet');
+        // Prefer the synced calendar line (the operator's source of truth); fall
+        // back to the live flag + board/point so a just-created admin booking
+        // still shows meet & greet before any calendar event exists.
+        return $this->calendarField('Meet & Greet') ?: $this->meetGreetLabel();
     }
 
     /**
@@ -3755,6 +3758,75 @@ class Booking extends Model
     public function isRibbonJob(): bool
     {
         return ! empty($this->meta['ribbon']) || str_contains($this->notesBlob(), 'ribbon');
+    }
+
+    /**
+     * Whether meet & greet applies. The flag has been stored under two keys over
+     * the life of the app: ETO imports use meta['meet_and_greet'], the booking
+     * form / widget use meta['meet_greet']. Read both so a meet & greet ticked on
+     * the admin form reaches the driver sheet and the calendar title, not just
+     * ETO-imported jobs.
+     */
+    public function isMeetGreet(): bool
+    {
+        return ! empty($this->meta['meet_and_greet']) || ! empty($this->meta['meet_greet']);
+    }
+
+    /**
+     * The name the driver holds up in arrivals (meet & greet), and where to wait.
+     * Office-entered on the booking form; null when not set.
+     */
+    public function meetingBoardName(): ?string
+    {
+        $board = trim((string) ($this->meta['meeting_board'] ?? ''));
+
+        return $board !== '' ? $board : null;
+    }
+
+    public function meetingPoint(): ?string
+    {
+        $point = trim((string) ($this->meta['meeting_point'] ?? ''));
+
+        return $point !== '' ? $point : null;
+    }
+
+    /**
+     * How the booking came in (phone / WhatsApp / email / …), as the office chose
+     * on the form — a readable label, or null when not recorded.
+     */
+    public function enquirySourceLabel(): ?string
+    {
+        return match ($this->meta['enquiry_source'] ?? null) {
+            'phone' => 'By phone',
+            'whatsapp' => 'WhatsApp',
+            'email' => 'Email',
+            'website' => 'Website',
+            'repeat' => 'Repeat / direct',
+            'other' => 'Other',
+            default => null,
+        };
+    }
+
+    /**
+     * The meet & greet line, ready to show: "Required", plus the name board and
+     * meeting point when set. Null when the job isn't meet & greet. The single
+     * source of truth for both the calendar event and the booking page.
+     */
+    public function meetGreetLabel(): ?string
+    {
+        if (! $this->isMeetGreet()) {
+            return null;
+        }
+
+        $detail = [];
+        if ($board = $this->meetingBoardName()) {
+            $detail[] = 'board “'.$board.'”';
+        }
+        if ($point = $this->meetingPoint()) {
+            $detail[] = 'meet at '.$point;
+        }
+
+        return $detail === [] ? 'Required' : 'Required — '.implode(', ', $detail);
     }
 
     /**

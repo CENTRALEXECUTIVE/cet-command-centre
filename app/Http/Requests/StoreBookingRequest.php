@@ -59,6 +59,15 @@ class StoreBookingRequest extends FormRequest
             'special_requests' => ['nullable', 'string', 'max:1000'],
             'driver_notes' => ['nullable', 'string', 'max:2000'],
 
+            // Meet & greet detail (ETO parity): the name the driver holds up and
+            // where to wait.
+            'meeting_board' => ['nullable', 'string', 'max:160'],
+            'meeting_point' => ['nullable', 'string', 'max:300'],
+
+            // How the booking reached the office (phone / WhatsApp / email / …),
+            // recorded for the office. Free-ish but constrained to the known set.
+            'booking_source' => ['nullable', Rule::in(['phone', 'whatsapp', 'email', 'website', 'repeat', 'other'])],
+
             // Extras (same set the customer widget offers).
             'meet_greet' => ['nullable', 'boolean'],
             'child_seats' => ['nullable', 'integer', 'min:0', 'max:8'],
