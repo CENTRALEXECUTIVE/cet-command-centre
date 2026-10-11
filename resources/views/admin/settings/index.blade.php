@@ -258,12 +258,43 @@
             <span class="hint" style="margin-left:8px">The password is stored securely and never shown back. After saving, send a test below.</span>
         </form>
 
-        <form method="POST" action="{{ route('settings.test-email') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0">
+        <form id="test-email-form" method="POST" action="{{ route('settings.test-email') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0">
             @csrf
-            <input type="email" name="to" placeholder="send a test to… (default: your email)" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+            <input type="email" name="to" id="test-email-to" placeholder="send a test to… (default: your email)" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
             <button type="submit" class="btn btn-dark" style="padding:8px 14px">Send test email</button>
         </form>
-        <p class="hint" style="margin:8px 0 0">Sends a plain test message so you can confirm email works before a real booking. If the SMTP details are wrong, the exact error shows here.</p>
+        <p id="test-email-result" style="margin:8px 0 0;font-size:14px;font-weight:600"></p>
+        <p class="hint" style="margin:8px 0 0">Sends a plain test message so you can confirm email works before a real booking. The result (✓ sent or the exact ✗ error) shows right here.</p>
+        <script>
+            (function () {
+                var form = document.getElementById('test-email-form');
+                if (!form) return;
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    var out = document.getElementById('test-email-result');
+                    var to = (document.getElementById('test-email-to').value || '').trim();
+                    var btn = form.querySelector('button[type=submit]');
+                    out.style.color = ''; out.textContent = 'Sending…'; if (btn) btn.disabled = true;
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(to ? { to: to } : {})
+                    })
+                    .then(function (r) { return r.json().catch(function () { return { ok: false, message: 'Unexpected response (' + r.status + ').' }; }); })
+                    .then(function (d) {
+                        var msg = d.message || (d.errors ? Object.values(d.errors)[0][0] : 'Something went wrong.');
+                        out.style.color = d.ok ? '#1f7a44' : '#b8323b';
+                        out.textContent = (d.ok ? '✓ ' : '✗ ') + msg;
+                    })
+                    .catch(function () { out.style.color = '#b8323b'; out.textContent = '✗ Could not reach the server — try again.'; })
+                    .finally(function () { if (btn) btn.disabled = false; });
+                });
+            })();
+        </script>
     </div>
 
     <script>window.CET_PLACES_URL = "{{ route('places.autocomplete') }}";</script>

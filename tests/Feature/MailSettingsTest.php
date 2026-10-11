@@ -75,4 +75,25 @@ class MailSettingsTest extends TestCase
         MailSettings::apply(); // nothing saved
         $this->assertSame('log', config('mail.default'));
     }
+
+    public function test_test_email_returns_a_clear_json_result_when_still_on_log(): void
+    {
+        config(['mail.default' => 'log']);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('settings.test-email'), ['to' => 'me@example.com'])
+            ->assertOk()
+            ->assertJson(['ok' => false]);
+    }
+
+    public function test_test_email_reports_success_as_json(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        config(['mail.default' => 'smtp']);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('settings.test-email'), ['to' => 'me@example.com'])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+    }
 }

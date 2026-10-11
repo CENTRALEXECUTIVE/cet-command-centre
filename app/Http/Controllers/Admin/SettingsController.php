@@ -74,16 +74,23 @@ class SettingsController extends Controller
      * the signed-in admin. Reports the live mailer so "log" (nothing sent) is
      * obvious.
      */
-    public function sendTestEmail(Request $request): RedirectResponse
+    public function sendTestEmail(Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate(['to' => ['nullable', 'email']]);
         $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
         $mailer = (string) config('mail.default');
+        $json = $request->expectsJson();
+
+        $respond = function (bool $ok, string $message) use ($json) {
+            return $json
+                ? response()->json(['ok' => $ok, 'message' => $message])
+                : back()->with($ok ? 'status' : 'error', $message)->with('scroll', 'mail');
+        };
 
         if ($mailer === 'log') {
-            return back()->with('error', 'Mail is set to "log" — emails are written to the log file, NOT sent. Set MAIL_MAILER=smtp (and the host/username/password) in the server .env, then try again.')->with('scroll', 'mail');
+            return $respond(false, 'Mail is still set to "log" — nothing is sent. Enter your SMTP details above and press "Save email settings" first, then try the test.');
         }
 
         try {
@@ -94,10 +101,10 @@ class SettingsController extends Controller
                 }
             );
         } catch (\Throwable $e) {
-            return back()->with('error', 'Test email failed: '.$e->getMessage().' — check the SMTP settings in .env.')->with('scroll', 'mail');
+            return $respond(false, 'Test email FAILED: '.$e->getMessage());
         }
 
-        return back()->with('status', 'Test email sent to '.$to.' via "'.$mailer.'". Check the inbox (and spam). If it doesn’t arrive, the SMTP details are wrong.')->with('scroll', 'mail');
+        return $respond(true, 'Test email sent to '.$to.'. Check the inbox and spam — if it doesn\'t arrive within a minute, the host, username or password is wrong.');
     }
 
     public function update(Request $request): RedirectResponse
