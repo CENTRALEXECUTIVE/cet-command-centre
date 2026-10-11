@@ -315,11 +315,11 @@
                     <label>Username <span class="muted">(the PVT email)</span>
                         <input type="text" name="mail_pvt_username" value="{{ $mail['pvt_username'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
                     </label>
-                    <label style="grid-column:1/-1">App password <span class="muted">(Google "App password", not the login)</span>
-                        <input type="password" name="mail_pvt_password" placeholder="{{ $mail['pvt_has_password'] ? '•••••••• (saved — blank keeps it)' : '16-character Google app password' }}" autocomplete="new-password">
+                    <label style="grid-column:1/-1">Password <span class="muted">(the sending service's SMTP password / app password)</span>
+                        <input type="password" name="mail_pvt_password" placeholder="{{ $mail['pvt_has_password'] ? '•••••••• (saved — blank keeps it)' : 'SMTP password' }}" autocomplete="new-password">
                     </label>
                 </div>
-                <p class="hint" style="margin:6px 0 0">Google Workspace: generate an <strong>App password</strong> in the PVT Google account (Security → 2-Step Verification → App passwords) and paste it above. Save, then send a PVT test.</p>
+                <p class="hint" style="margin:6px 0 0">Use the SMTP <strong>username + password</strong> from the PVT company's sending service — e.g. an <strong>SMTP2GO</strong> SMTP user, or a <strong>Google app password</strong> for Workspace. Save, then send a PVT test.</p>
                 <div style="margin-top:10px">
                     <button type="button" id="pvt-test-btn" class="btn btn-dark" style="padding:7px 12px;font-size:13px">Send PVT test email</button>
                     <span id="pvt-test-result" style="margin-left:8px;font-size:13px;font-weight:600"></span>
