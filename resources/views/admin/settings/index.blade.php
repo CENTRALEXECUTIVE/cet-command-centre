@@ -228,6 +228,31 @@
         <form method="POST" action="{{ route('settings.update') }}" style="margin:0 0 14px">
             @csrf
             @method('PUT')
+
+            {{-- How to send: Microsoft 365 (recommended — your own mailbox, no
+                 branding) or a plain SMTP server. --}}
+            <div style="margin:0 0 12px">
+                <strong>How to send</strong>
+                <label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;cursor:pointer">
+                    <input type="radio" name="mail_transport" value="graph" @checked(($mail['transport'] ?? 'smtp') === 'graph') onchange="document.getElementById('smtp-fields').style.display='none'">
+                    <span>
+                        <strong>Microsoft 365</strong> — send as your own mailbox
+                        <span class="mono">{{ $mail['graph_mailbox'] ?: 'your M365 mailbox' }}</span>, no third-party branding.
+                        @if($mail['graph_configured'])
+                            <span style="color:#1f7a44">· connected</span>
+                        @else
+                            <span style="color:#b8323b">· mailbox not connected yet</span>
+                        @endif
+                        <span class="hint" style="display:block">Reliable, free, and uses the same connection that reads your ETO emails. Needs the Microsoft app's <strong>Mail.Send</strong> permission.</span>
+                    </span>
+                </label>
+                <label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;cursor:pointer">
+                    <input type="radio" name="mail_transport" value="smtp" @checked(($mail['transport'] ?? 'smtp') !== 'graph') onchange="document.getElementById('smtp-fields').style.display=''">
+                    <span><strong>SMTP server</strong> — a mail host with a username &amp; password (Brevo, cPanel, etc.).</span>
+                </label>
+            </div>
+
+            <div id="smtp-fields" style="{{ ($mail['transport'] ?? 'smtp') === 'graph' ? 'display:none' : '' }}">
             <div class="grid grid-2" style="gap:12px">
                 <label>SMTP host
                     <input type="text" name="mail_host" value="{{ $mail['host'] }}" placeholder="localhost" autocomplete="off">
@@ -255,6 +280,7 @@
                     <input type="text" name="mail_from_name" value="{{ $mail['from_name'] }}" placeholder="Central Executive Transfers" autocomplete="off">
                 </label>
             </div>
+            </div>{{-- /#smtp-fields --}}
             <button type="submit" class="btn btn-primary" style="margin-top:10px">Save email settings</button>
             <span class="hint" style="margin-left:8px">The password is stored securely and never shown back. After saving, send a test below.</span>
         </form>

@@ -16,6 +16,25 @@ class MailSettings
     /** Merge stored SMTP settings over config('mail.*'). Safe to call every request. */
     public static function apply(): void
     {
+        // Microsoft 365 (Graph): send through the connected mailbox — your own
+        // domain, no branding. The GraphTransport is registered in AppServiceProvider.
+        if (Setting::get('mail_transport', null) === 'graph') {
+            config([
+                'mail.default' => 'graph',
+                'mail.mailers.graph' => ['transport' => 'graph'],
+            ]);
+            // The message is sent AS the Graph mailbox, so show that as the From.
+            $from = Setting::get('mail_from_address', null) ?: config('services.microsoft_graph.mailbox');
+            if (filled($from)) {
+                config(['mail.from.address' => (string) $from]);
+            }
+            if ($fromName = Setting::get('mail_from_name', null)) {
+                config(['mail.from.name' => (string) $fromName]);
+            }
+
+            return;
+        }
+
         $host = Setting::get('mail_host', null);
         if ($host === null || trim((string) $host) === '') {
             return; // no in-app SMTP configured — keep .env/config as-is
@@ -54,6 +73,9 @@ class MailSettings
     public static function current(): array
     {
         return [
+            'transport' => (string) (Setting::get('mail_transport', '') ?: 'smtp'),
+            'graph_configured' => app(\App\Services\Inbox\GraphMailClient::class)->configured(),
+            'graph_mailbox' => (string) config('services.microsoft_graph.mailbox'),
             'host' => (string) Setting::get('mail_host', ''),
             'port' => (string) Setting::get('mail_port', ''),
             'scheme' => (string) Setting::get('mail_scheme', ''),

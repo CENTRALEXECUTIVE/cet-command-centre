@@ -36,6 +36,16 @@ class AppServiceProvider extends ServiceProvider
             // Settings table not ready / unreachable — fall back to config defaults.
         }
 
+        // Register the Microsoft 365 (Graph) mail transport, so email can be sent
+        // through the same mailbox that reads ETO — reliable, unbranded, HTTPS.
+        try {
+            \Illuminate\Support\Facades\Mail::extend('graph', fn (array $config = []) => new \App\Mail\Transport\GraphTransport(
+                app(\App\Services\Inbox\GraphMailClient::class)
+            ));
+        } catch (\Throwable $e) {
+            // Never let transport registration take the app down.
+        }
+
         // In-app SMTP (Settings → Email) merged over config('mail.*'), so email can
         // be switched on without touching the server .env. Guarded like above.
         try {

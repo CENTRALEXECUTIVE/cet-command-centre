@@ -106,6 +106,70 @@ class GraphMailClient
     }
 
     /**
+     * Send a brand-new email via Graph (needs Mail.Send). It goes out FROM the
+     * configured M365 mailbox — your own account, as your own domain, with proper
+     * SPF/DKIM and NO third-party branding. Returns false when unconfigured or the
+     * send fails, so the mail transport can surface it like any other failure.
+     *
+     * @param  array<int,string>  $to
+     * @param  array<int,string>  $cc
+     * @param  array<int,array{name:string,contentType:string,contentBytes:string}>  $attachments
+     */
+    public function sendMail(array $to, string $subject, string $html, array $cc = [], ?string $replyTo = null, array $attachments = []): bool
+    {
+        if (! $this->configured()) {
+            return false;
+        }
+        try {
+            $token = $this->accessToken();
+            if (! $token) {
+                return false;
+            }
+            $mailbox = rawurlencode((string) config('services.microsoft_graph.mailbox'));
+
+            $recipients = fn (array $addrs) => array_values(array_filter(array_map(
+                fn ($a) => filled($a) ? ['emailAddress' => ['address' => $a]] : null,
+                $addrs
+            )));
+
+            $message = [
+                'subject' => $subject,
+                'body' => ['contentType' => 'HTML', 'content' => $html],
+                'toRecipients' => $recipients($to),
+            ];
+            if ($cc !== []) {
+                $message['ccRecipients'] = $recipients($cc);
+            }
+            if (filled($replyTo)) {
+                $message['replyTo'] = $recipients([$replyTo]);
+            }
+            foreach ($attachments as $a) {
+                $message['attachments'][] = [
+                    '@odata.type' => '#microsoft.graph.fileAttachment',
+                    'name' => $a['name'],
+                    'contentType' => $a['contentType'],
+                    'contentBytes' => $a['contentBytes'],
+                ];
+            }
+
+            $response = Http::withToken($token)->post(
+                "https://graph.microsoft.com/v1.0/users/{$mailbox}/sendMail",
+                ['message' => $message, 'saveToSentItems' => true]
+            );
+
+            if (! $response->successful()) {
+                Log::warning('Graph sendMail HTTP error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 400)]);
+            }
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning('Graph sendMail failed', ['error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
      * @return array<int, array{id:string, subject:string, body:string, from:?string}>
      */
     public function fetchUnread(int $limit = 25): array

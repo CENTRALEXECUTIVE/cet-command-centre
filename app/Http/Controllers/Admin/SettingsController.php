@@ -138,6 +138,7 @@ class SettingsController extends Controller
             'invoice_novat_company_number' => ['nullable', 'string', 'max:40'],
             'invoice_novat_company_address' => ['nullable', 'string', 'max:500'],
             'mail_host' => ['nullable', 'string', 'max:160'],
+            'mail_transport' => ['nullable', 'in:smtp,graph'],
             'mail_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'mail_scheme' => ['nullable', 'in:smtp,smtps'],
             'mail_username' => ['nullable', 'string', 'max:160'],
@@ -174,6 +175,9 @@ class SettingsController extends Controller
         // the password is write-only so a blank submit never wipes a saved password.
         foreach (['mail_host', 'mail_scheme', 'mail_username', 'mail_from_address', 'mail_from_name'] as $key) {
             $save($key, 'mail');
+        }
+        if (array_key_exists('mail_transport', $data)) {
+            Setting::set('mail_transport', in_array($data['mail_transport'] ?? null, ['smtp', 'graph'], true) ? $data['mail_transport'] : 'smtp', 'string', 'mail');
         }
         if (array_key_exists('mail_port', $data)) {
             Setting::set('mail_port', trim((string) ($data['mail_port'] ?? '')), 'string', 'mail');
