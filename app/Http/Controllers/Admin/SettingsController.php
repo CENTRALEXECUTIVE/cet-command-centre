@@ -78,9 +78,10 @@ class SettingsController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $data = $request->validate(['to' => ['nullable', 'email']]);
+        $data = $request->validate(['to' => ['nullable', 'email'], 'via' => ['nullable', 'in:pvt']]);
         $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
-        $mailer = (string) config('mail.default');
+        $pvt = ($data['via'] ?? null) === 'pvt';
+        $mailer = $pvt ? 'pvt' : (string) config('mail.default');
         $json = $request->expectsJson();
 
         $respond = function (bool $ok, string $message) use ($json) {
@@ -89,22 +90,29 @@ class SettingsController extends Controller
                 : back()->with($ok ? 'status' : 'error', $message)->with('scroll', 'mail');
         };
 
-        if ($mailer === 'log') {
+        if (! $pvt && $mailer === 'log') {
             return $respond(false, 'Mail is still set to "log" — nothing is sent. Enter your SMTP details above and press "Save email settings" first, then try the test.');
+        }
+        if ($pvt && blank(config('mail.mailers.pvt.host'))) {
+            return $respond(false, 'The PVT LTD mail host isn\'t set yet — fill in the PVT fields and Save first.');
         }
 
         try {
-            Mail::raw(
-                "This is a test email from the CET Command Centre.\n\nIf you can read this, outgoing email is working — booking confirmations and invoices will send.\n\nSent ".now()->format('D d M Y, H:i').'.',
-                function ($m) use ($to) {
+            $fromAddr = $pvt ? (string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email')) : null;
+            Mail::mailer($mailer)->raw(
+                "This is a test email from the CET Command Centre".($pvt ? ' (PVT LTD company)' : '').".\n\nIf you can read this, outgoing email is working — booking confirmations and invoices will send.\n\nSent ".now()->format('D d M Y, H:i').'.',
+                function ($m) use ($to, $fromAddr) {
                     $m->to($to)->subject('CET Command Centre — test email');
+                    if ($fromAddr) {
+                        $m->from($fromAddr);
+                    }
                 }
             );
         } catch (\Throwable $e) {
             return $respond(false, 'Test email FAILED: '.$e->getMessage());
         }
 
-        return $respond(true, 'Test email sent to '.$to.'. Check the inbox and spam — if it doesn\'t arrive within a minute, the host, username or password is wrong.');
+        return $respond(true, 'Test email sent to '.$to.($pvt ? ' via the PVT LTD mailbox' : '').'. Check the inbox and spam — if it doesn\'t arrive within a minute, the host, username or password is wrong.');
     }
 
     public function update(Request $request): RedirectResponse
@@ -141,6 +149,11 @@ class SettingsController extends Controller
             'mail_transport' => ['nullable', 'in:smtp,graph'],
             'mail_pvt_enabled' => ['nullable', 'boolean'],
             'mail_pvt_from_address' => ['nullable', 'email', 'max:160'],
+            'mail_pvt_host' => ['nullable', 'string', 'max:160'],
+            'mail_pvt_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'mail_pvt_scheme' => ['nullable', 'in:smtp,smtps'],
+            'mail_pvt_username' => ['nullable', 'string', 'max:160'],
+            'mail_pvt_password' => ['nullable', 'string', 'max:255'],
             'mail_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'mail_scheme' => ['nullable', 'in:smtp,smtps'],
             'mail_username' => ['nullable', 'string', 'max:160'],
@@ -186,6 +199,15 @@ class SettingsController extends Controller
             Setting::set('mail_pvt_enabled', $request->boolean('mail_pvt_enabled') ? '1' : '', 'string', 'mail');
         }
         $save('mail_pvt_from_address', 'mail');
+        foreach (['mail_pvt_host', 'mail_pvt_scheme', 'mail_pvt_username'] as $key) {
+            $save($key, 'mail');
+        }
+        if (array_key_exists('mail_pvt_port', $data)) {
+            Setting::set('mail_pvt_port', trim((string) ($data['mail_pvt_port'] ?? '')), 'string', 'mail');
+        }
+        if (array_key_exists('mail_pvt_password', $data) && trim((string) ($data['mail_pvt_password'] ?? '')) !== '') {
+            Setting::set('mail_pvt_password', trim((string) $data['mail_pvt_password']), 'string', 'mail');
+        }
         if (array_key_exists('mail_port', $data)) {
             Setting::set('mail_port', trim((string) ($data['mail_port'] ?? '')), 'string', 'mail');
         }

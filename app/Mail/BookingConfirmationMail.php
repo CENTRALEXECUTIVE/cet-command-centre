@@ -28,7 +28,12 @@ class BookingConfirmationMail extends Mailable
         public Booking $booking,
         public bool $paid = false,
         public ?string $payUrl = null,
-    ) {}
+    ) {
+        // The PVT LTD company sends through its own mailer, kept separate.
+        if ($booking->usesPvtMailer()) {
+            $this->mailer('pvt');
+        }
+    }
 
     public function envelope(): Envelope
     {

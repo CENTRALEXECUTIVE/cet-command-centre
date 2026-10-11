@@ -16,6 +16,22 @@ class MailSettings
     /** Merge stored SMTP settings over config('mail.*'). Safe to call every request. */
     public static function apply(): void
     {
+        // The non-VAT sister company (PVT LTD) sends through its OWN mailer —
+        // e.g. Google Workspace SMTP — kept completely separate from the VAT
+        // company's sender. Configured here as a named 'pvt' mailer; the Mailables
+        // pick it for chauffeurs bookings.
+        $pvtHost = Setting::get('mail_pvt_host', null);
+        if (filled($pvtHost)) {
+            config(['mail.mailers.pvt' => array_filter([
+                'transport' => 'smtp',
+                'host' => (string) $pvtHost,
+                'port' => (int) (Setting::get('mail_pvt_port', 587) ?: 587),
+                'username' => (string) Setting::get('mail_pvt_username', ''),
+                'password' => (string) Setting::get('mail_pvt_password', ''),
+                'scheme' => Setting::get('mail_pvt_scheme', null) ?: null,
+            ], fn ($v) => $v !== null)]);
+        }
+
         // Microsoft 365 (Graph): send through the connected mailbox — your own
         // domain, no branding. The GraphTransport is registered in AppServiceProvider.
         if (Setting::get('mail_transport', null) === 'graph') {
@@ -78,6 +94,11 @@ class MailSettings
             'graph_mailbox' => (string) config('services.microsoft_graph.mailbox'),
             'pvt_enabled' => (bool) Setting::get('mail_pvt_enabled', false),
             'pvt_from_address' => (string) (Setting::get('mail_pvt_from_address', '') ?: config('cet.company_novat.email')),
+            'pvt_host' => (string) Setting::get('mail_pvt_host', ''),
+            'pvt_port' => (string) Setting::get('mail_pvt_port', ''),
+            'pvt_scheme' => (string) Setting::get('mail_pvt_scheme', ''),
+            'pvt_username' => (string) Setting::get('mail_pvt_username', ''),
+            'pvt_has_password' => filled(Setting::get('mail_pvt_password', '')),
             'host' => (string) Setting::get('mail_host', ''),
             'port' => (string) Setting::get('mail_port', ''),
             'scheme' => (string) Setting::get('mail_scheme', ''),

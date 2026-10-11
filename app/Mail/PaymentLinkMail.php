@@ -22,7 +22,12 @@ class PaymentLinkMail extends Mailable
         public Booking $booking,
         public float $amount,
         public string $payUrl,
-    ) {}
+    ) {
+        // The PVT LTD company sends through its own mailer, kept separate.
+        if ($booking->usesPvtMailer()) {
+            $this->mailer('pvt');
+        }
+    }
 
     public function envelope(): Envelope
     {

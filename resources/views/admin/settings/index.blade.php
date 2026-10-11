@@ -298,6 +298,54 @@
                 <label style="display:block;margin-top:8px;max-width:420px">PVT LTD send-from address
                     <input type="email" name="mail_pvt_from_address" value="{{ $mail['pvt_from_address'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
                 </label>
+
+                <div class="grid grid-2" style="gap:12px;margin-top:10px">
+                    <label>PVT mail host <span class="muted">(Google Workspace)</span>
+                        <input type="text" name="mail_pvt_host" value="{{ $mail['pvt_host'] }}" placeholder="smtp.gmail.com" autocomplete="off">
+                    </label>
+                    <label>Port
+                        <input type="number" name="mail_pvt_port" value="{{ $mail['pvt_port'] ?: '587' }}" placeholder="587" autocomplete="off">
+                    </label>
+                    <label>Security
+                        <select name="mail_pvt_scheme">
+                            <option value="smtp" @selected(($mail['pvt_scheme'] ?: 'smtp') === 'smtp')>STARTTLS — port 587</option>
+                            <option value="smtps" @selected($mail['pvt_scheme'] === 'smtps')>SSL/TLS — port 465</option>
+                        </select>
+                    </label>
+                    <label>Username <span class="muted">(the PVT email)</span>
+                        <input type="text" name="mail_pvt_username" value="{{ $mail['pvt_username'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
+                    </label>
+                    <label style="grid-column:1/-1">App password <span class="muted">(Google "App password", not the login)</span>
+                        <input type="password" name="mail_pvt_password" placeholder="{{ $mail['pvt_has_password'] ? '•••••••• (saved — blank keeps it)' : '16-character Google app password' }}" autocomplete="new-password">
+                    </label>
+                </div>
+                <p class="hint" style="margin:6px 0 0">Google Workspace: generate an <strong>App password</strong> in the PVT Google account (Security → 2-Step Verification → App passwords) and paste it above. Save, then send a PVT test.</p>
+                <div style="margin-top:10px">
+                    <button type="button" id="pvt-test-btn" class="btn btn-dark" style="padding:7px 12px;font-size:13px">Send PVT test email</button>
+                    <span id="pvt-test-result" style="margin-left:8px;font-size:13px;font-weight:600"></span>
+                </div>
+                <script>
+                    (function () {
+                        var btn = document.getElementById('pvt-test-btn');
+                        if (!btn) return;
+                        btn.addEventListener('click', function () {
+                            var out = document.getElementById('pvt-test-result');
+                            out.style.color = ''; out.textContent = 'Sending…'; btn.disabled = true;
+                            fetch('{{ route('settings.test-email') }}', {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ via: 'pvt' })
+                            })
+                            .then(function (r) { return r.json().catch(function () { return { ok: false, message: 'Unexpected response (' + r.status + ').' }; }); })
+                            .then(function (d) {
+                                out.style.color = d.ok ? '#1f7a44' : '#b8323b';
+                                out.textContent = (d.ok ? '✓ ' : '✗ ') + (d.message || (d.errors ? Object.values(d.errors)[0][0] : 'Error'));
+                            })
+                            .catch(function () { out.style.color = '#b8323b'; out.textContent = '✗ Could not reach the server.'; })
+                            .finally(function () { btn.disabled = false; });
+                        });
+                    })();
+                </script>
             </div>
 
             <button type="submit" class="btn btn-primary" style="margin-top:10px">Save email settings</button>

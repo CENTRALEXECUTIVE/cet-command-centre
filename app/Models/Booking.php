@@ -5359,6 +5359,19 @@ class Booking extends Model
         return (string) (config('mail.from.name') ?: config('cet.company.name', 'Central Executive Transfers'));
     }
 
+    /**
+     * True when this booking's emails should go through the PVT LTD company's OWN
+     * mailer (e.g. its Google Workspace) rather than the VAT company's sender — so
+     * the two companies' email stays fully separate. Only once PVT sending is
+     * enabled and its mailer is configured.
+     */
+    public function usesPvtMailer(): bool
+    {
+        return $this->billingEntity() === 'chauffeurs'
+            && (bool) \App\Models\Setting::get('mail_pvt_enabled', false)
+            && filled(\App\Models\Setting::get('mail_pvt_host'));
+    }
+
     public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool
     {
         $meta = $this->meta ?? [];
