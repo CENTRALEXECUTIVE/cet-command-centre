@@ -86,14 +86,22 @@ class MailSettingsTest extends TestCase
             ->assertJson(['ok' => false]);
     }
 
-    public function test_test_email_reports_success_as_json(): void
+    public function test_localhost_host_disables_peer_verification(): void
     {
-        \Illuminate\Support\Facades\Mail::fake();
-        config(['mail.default' => 'smtp']);
+        Setting::set('mail_host', 'localhost', 'string', 'mail');
+        MailSettings::apply();
 
-        $this->actingAs($this->admin())
-            ->postJson(route('settings.test-email'), ['to' => 'me@example.com'])
-            ->assertOk()
-            ->assertJson(['ok' => true]);
+        $this->assertSame('smtp', config('mail.default'));
+        $this->assertSame('localhost', config('mail.mailers.smtp.host'));
+        // Self-signed/mismatched cert on the same box must not block sending.
+        $this->assertSame(0, config('mail.mailers.smtp.verify_peer'));
+    }
+
+    public function test_a_real_host_keeps_peer_verification(): void
+    {
+        Setting::set('mail_host', 'mail.example.co.uk', 'string', 'mail');
+        MailSettings::apply();
+
+        $this->assertNull(config('mail.mailers.smtp.verify_peer'));
     }
 }

@@ -29,6 +29,14 @@ class MailSettings
             'mail.mailers.smtp.password' => (string) Setting::get('mail_password', ''),
         ]);
 
+        // Same-server cPanel sending: the local mail server's TLS certificate is
+        // for the box's real hostname, not "localhost", so verifying the peer cert
+        // would fail. The traffic never leaves the machine, so it's safe not to
+        // verify when sending via localhost.
+        if (in_array(strtolower(trim((string) $host)), ['localhost', '127.0.0.1', '::1'], true)) {
+            config(['mail.mailers.smtp.verify_peer' => 0]);
+        }
+
         // Scheme: smtps for 465 (implicit TLS), smtp for 587 (STARTTLS). Blank lets
         // Symfony auto-detect from the port.
         if ($scheme = Setting::get('mail_scheme', null)) {

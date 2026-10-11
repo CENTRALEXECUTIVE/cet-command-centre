@@ -230,7 +230,8 @@
             @method('PUT')
             <div class="grid grid-2" style="gap:12px">
                 <label>SMTP host
-                    <input type="text" name="mail_host" value="{{ $mail['host'] }}" placeholder="mail.centralexecutivetransfers.co.uk" autocomplete="off">
+                    <input type="text" name="mail_host" value="{{ $mail['host'] }}" placeholder="localhost" autocomplete="off">
+                    <span class="hint" style="display:block;margin-top:2px">On this server the mail server is local — use <strong>localhost</strong> if your mail domain (e.g. mail.yourdomain) doesn't connect.</span>
                 </label>
                 <label>Port
                     <input type="number" name="mail_port" value="{{ $mail['port'] ?: '465' }}" placeholder="465" autocomplete="off">
