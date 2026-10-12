@@ -131,9 +131,14 @@ class CoverInvoicePaymentLinkTest extends TestCase
             ->assertJson(['ok' => true, 'url' => 'https://checkout.stripe.com/pay/cs_test_123', 'amount' => '310.00']);
 
         // The Stripe session carried the COVER- prefix (so the fare webhook ignores it),
-        // and the stored link records the Stripe provider.
-        Http::assertSent(fn ($req) => str_contains($req->url(), 'api.stripe.com')
-            && str_contains(urldecode(http_build_query($req->data())), 'COVER-CVR-'));
+        // billed under the PVT LTD name (non-VAT), and the stored link records Stripe.
+        Http::assertSent(function ($req) {
+            $body = urldecode(http_build_query($req->data()));
+
+            return str_contains($req->url(), 'api.stripe.com')
+                && str_contains($body, 'COVER-CVR-')
+                && str_contains($body, 'Central Executive Transfers PVT LTD');
+        });
 
         $anchor = Booking::whereIn('id', [$a->id, $b->id])->orderBy('pickup_at')->first();
         $this->assertSame('stripe', $anchor->fresh()->meta['cover_payment_link']['provider']);

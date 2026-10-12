@@ -62,7 +62,8 @@ class StripePaymentService
         }
 
         $reference = (string) ($booking->external_reference ?: $booking->reference);
-        $name = ($label ? trim($label) : 'Journey fare').' — Central Executive Transfers ('.$booking->reference.')';
+        // Stripe is the NON-VAT provider → bill under the sister company, PVT LTD.
+        $name = ($label ? trim($label) : 'Journey fare').' — '.config('cet.company_novat.name', 'Central Executive Transfers PVT LTD').' ('.$booking->reference.')';
 
         try {
             $res = $this->http()->post(self::API.'/checkout/sessions', array_filter([
@@ -116,7 +117,9 @@ class StripePaymentService
                 'line_items[0][quantity]' => '1',
                 'line_items[0][price_data][currency]' => 'gbp',
                 'line_items[0][price_data][unit_amount]' => (string) ((int) round($amount * 100)),
-                'line_items[0][price_data][product_data][name]' => trim($label).' — Central Executive Transfers ('.$reference.')',
+                // Stripe is the NON-VAT provider → bill under the sister company,
+                // Central Executive Transfers PVT LTD, not the VAT company.
+                'line_items[0][price_data][product_data][name]' => trim($label).' — '.config('cet.company_novat.name', 'Central Executive Transfers PVT LTD').' ('.$reference.')',
             ], fn ($v) => $v !== null && $v !== ''));
 
             if ($res->failed()) {
