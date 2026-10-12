@@ -26,6 +26,9 @@ class StripePaymentService
     /** reference_id prefix on a fare Checkout Session (vs COVER-/others). */
     public const FARE_PREFIX = 'FARE-';
 
+    /** reference_id prefix on a combined COVER-invoice session (ignored by the fare webhook). */
+    public const COVER_PREFIX = 'COVER-';
+
     private function secretKey(): ?string
     {
         return Setting::get('stripe_secret_key') ?: config('services.stripe.secret_key');
@@ -84,6 +87,47 @@ class StripePaymentService
             return $res->json('url');
         } catch (\Throwable $e) {
             Log::warning('[Stripe] checkout link error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * A Stripe-hosted Checkout URL to pay a COMBINED COVER INVOICE — one operator,
+     * several jobs, one total — billed by the non-VAT sister company (PVT LTD).
+     * NOT tied to any booking's fare: the client_reference_id carries the COVER-
+     * prefix and no fare metadata, so recordFareFromWebhook() deliberately ignores
+     * it and never marks a booking paid (the office reconciles cover payments in
+     * Stripe). Null if Stripe isn't connected. Mirrors the Square cover link so a
+     * non-VAT cover invoice can be paid the same way, through Stripe.
+     */
+    public function createCoverCheckoutUrl(float $amount, string $reference, string $label, ?string $redirectUrl = null): ?string
+    {
+        if (! $this->enabled() || $amount <= 0) {
+            return null;
+        }
+
+        try {
+            $res = $this->http()->post(self::API.'/checkout/sessions', array_filter([
+                'mode' => 'payment',
+                'success_url' => $redirectUrl ?: config('app.url'),
+                'cancel_url' => $redirectUrl ?: config('app.url'),
+                'client_reference_id' => self::COVER_PREFIX.$reference,
+                'line_items[0][quantity]' => '1',
+                'line_items[0][price_data][currency]' => 'gbp',
+                'line_items[0][price_data][unit_amount]' => (string) ((int) round($amount * 100)),
+                'line_items[0][price_data][product_data][name]' => trim($label).' — Central Executive Transfers ('.$reference.')',
+            ], fn ($v) => $v !== null && $v !== ''));
+
+            if ($res->failed()) {
+                Log::warning('[Stripe] cover link failed', ['status' => $res->status(), 'body' => $res->body()]);
+
+                return null;
+            }
+
+            return $res->json('url');
+        } catch (\Throwable $e) {
+            Log::warning('[Stripe] cover link error: '.$e->getMessage());
 
             return null;
         }

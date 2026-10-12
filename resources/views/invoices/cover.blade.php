@@ -58,7 +58,12 @@
                     <button type="submit" class="btn btn-ghost" style="padding:8px 14px" formaction="{{ route('cover-invoices.pdf') }}" name="download" value="1">⬇ Download</button>
                     <button type="button" class="btn btn-light paylink-btn" style="padding:8px 14px"
                             data-url="{{ route('cover-invoices.payment-link') }}"
-                            data-total="{{ number_format($total, 2) }}">💳 Create payment link</button>
+                            data-provider="square"
+                            data-total="{{ number_format($total, 2) }}">💳 Square link (VAT)</button>
+                    <button type="button" class="btn btn-light paylink-btn" style="padding:8px 14px"
+                            data-url="{{ route('cover-invoices.payment-link') }}"
+                            data-provider="stripe"
+                            data-total="{{ number_format($total, 2) }}">💳 Stripe link (non-VAT)</button>
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" formtarget="_self"
                             formaction="{{ route('cover-invoices.email') }}"
                             onclick="return confirm('Email the combined invoice to {{ $jobs->first()->coverFor()['email'] ?: $operator }}?')">✉ Email to {{ $operator }}</button>
@@ -126,13 +131,16 @@
 
                     errEl.style.display = 'none';
                     if (!ids.length) { errEl.textContent = 'Tick at least one job first.'; errEl.style.display = ''; return; }
-                    if (!confirm('Create a card payment link for the ' + ids.length + ' ticked job(s)? It goes onto the invoice.')) return;
+                    var provider = btn.dataset.provider || 'square';
+                    var providerName = provider === 'stripe' ? 'Stripe (non-VAT / PVT LTD)' : 'Square (VAT)';
+                    if (!confirm('Create a ' + providerName + ' payment link for the ' + ids.length + ' ticked job(s)? It goes onto the invoice.')) return;
 
                     var original = btn.textContent;
                     btn.disabled = true; btn.textContent = 'Creating…';
 
                     var body = new FormData();
                     ids.forEach(function (id) { body.append('ids[]', id); });
+                    body.append('provider', provider);
                     var token = form.querySelector('[name=_token]');
                     fetch(btn.dataset.url, {
                         method: 'POST',

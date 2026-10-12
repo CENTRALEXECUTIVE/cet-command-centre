@@ -113,6 +113,43 @@ class CoverInvoicePaymentLinkTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    public function test_a_non_vat_cover_invoice_uses_a_stripe_link(): void
+    {
+        // Stripe is the non-VAT (PVT LTD) provider. A cover invoice sent with
+        // provider=stripe must bill through Stripe, COVER-tagged so no fare is paid.
+        config(['services.stripe.secret_key' => 'sk_test_123']);
+        Http::fake([
+            'api.stripe.com/*' => Http::response(['url' => 'https://checkout.stripe.com/pay/cs_test_123'], 200),
+        ]);
+
+        $a = $this->coverJob('CET-A', 140, 'Xclusive Chauffeur Services');
+        $b = $this->coverJob('CET-B', 170, 'Xclusive Chauffeur Services');
+
+        $this->actingAs($this->admin())
+            ->postJson(route('cover-invoices.payment-link'), ['ids' => [$a->id, $b->id], 'provider' => 'stripe'])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'url' => 'https://checkout.stripe.com/pay/cs_test_123', 'amount' => '310.00']);
+
+        // The Stripe session carried the COVER- prefix (so the fare webhook ignores it),
+        // and the stored link records the Stripe provider.
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'api.stripe.com')
+            && str_contains(urldecode(http_build_query($req->data())), 'COVER-CVR-'));
+
+        $anchor = Booking::whereIn('id', [$a->id, $b->id])->orderBy('pickup_at')->first();
+        $this->assertSame('stripe', $anchor->fresh()->meta['cover_payment_link']['provider']);
+    }
+
+    public function test_stripe_cover_link_errors_cleanly_when_stripe_is_off(): void
+    {
+        config(['services.stripe.secret_key' => null]);
+        $a = $this->coverJob('CET-A', 140);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('cover-invoices.payment-link'), ['ids' => [$a->id], 'provider' => 'stripe'])
+            ->assertOk()
+            ->assertJson(['ok' => false]);
+    }
+
     public function test_non_admins_are_forbidden(): void
     {
         $a = $this->coverJob('CET-A', 90);

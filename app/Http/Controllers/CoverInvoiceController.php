@@ -6,6 +6,7 @@ use App\Mail\BookingReceiptMail;
 use App\Models\Booking;
 use App\Services\Payments\InvoicePdf;
 use App\Services\Payments\SquareBookingPaymentService;
+use App\Services\Payments\StripePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,13 +102,19 @@ class CoverInvoiceController extends Controller
     }
 
     /**
-     * Create a Square card-payment link for the combined cover total and stash it
-     * on the anchor booking, so the View/Download/Email invoice all carry a
-     * "Pay online" link with the amount and reference. The operator can then pay
-     * the whole invoice by card. Reconciled in Square (the link is COVER-tagged so
-     * it never marks an individual booking's fare paid).
+     * Create a card-payment link for the combined cover total and stash it on the
+     * anchor booking, so the View/Download/Email invoice all carry a "Pay online"
+     * link with the amount and reference. The operator can then pay the whole
+     * invoice by card.
+     *
+     * Provider follows VAT status, the same split as every other CET card payment:
+     * a VAT cover invoice is billed by Central Executive Transfers Ltd via SQUARE
+     * (the default); a non-VAT cover invoice is billed by the sister company PVT
+     * LTD via STRIPE (`provider=stripe`). Either way the link is COVER-tagged so
+     * it never marks an individual booking's fare paid — the office reconciles
+     * cover payments in the provider.
      */
-    public function paymentLink(Request $request, SquareBookingPaymentService $square): RedirectResponse|JsonResponse
+    public function paymentLink(Request $request, SquareBookingPaymentService $square, StripePaymentService $stripe): RedirectResponse|JsonResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
 
@@ -115,6 +122,8 @@ class CoverInvoiceController extends Controller
         $fail = fn (string $msg) => $wantsJson
             ? response()->json(['ok' => false, 'error' => $msg], 200)
             : back()->with('error', $msg);
+
+        $provider = $request->input('provider') === 'stripe' ? 'stripe' : 'square';
 
         $bookings = $this->selected($request);
         $anchor = $bookings->first();
@@ -124,22 +133,33 @@ class CoverInvoiceController extends Controller
         if ($total <= 0) {
             return $fail('The selected cover jobs total £0 — set an amount on them first.');
         }
-        if (! $square->enabled('transfers')) {
-            return $fail('Square isn’t connected yet, so a card link can’t be created.');
-        }
 
-        // A short, stable reference the operator and Square both show.
+        // A short, stable reference the operator and the provider both show.
         $reference = 'CVR-'.strtoupper(\Illuminate\Support\Str::slug($operator['name'] ?? 'operator', '')).'-'.now()->format('ymdHi');
         $label = 'Cover transfers ('.$bookings->count().') for '.($operator['name'] ?? 'operator');
 
-        $url = $square->createCoverCheckoutUrl($total, $reference, $label);
-        if (! $url) {
-            return $fail('Couldn’t create the payment link — check the Square connection and try again.');
+        if ($provider === 'stripe') {
+            if (! $stripe->enabled()) {
+                return $fail('Stripe isn’t connected yet, so a non-VAT (PVT LTD) card link can’t be created. Add the Stripe keys in Settings → payments.');
+            }
+            $url = $stripe->createCoverCheckoutUrl($total, $reference, $label);
+            if (! $url) {
+                return $fail('Couldn’t create the Stripe payment link — check the Stripe connection and try again.');
+            }
+        } else {
+            if (! $square->enabled('transfers')) {
+                return $fail('Square isn’t connected yet, so a card link can’t be created.');
+            }
+            $url = $square->createCoverCheckoutUrl($total, $reference, $label);
+            if (! $url) {
+                return $fail('Couldn’t create the payment link — check the Square connection and try again.');
+            }
         }
 
         $anchor->forceFill(['meta' => array_merge($anchor->meta ?? [], [
             'cover_payment_link' => [
                 'url' => $url,
+                'provider' => $provider,
                 'reference' => $reference,
                 'amount' => $total,
                 'ids' => $bookings->pluck('id')->all(),
