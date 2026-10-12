@@ -53,17 +53,32 @@
                     </tbody>
                 </table>
 
+                @php
+                    $anchorLink = $jobs->first()->meta['cover_payment_link'] ?? null;
+                    $defaultProvider = (is_array($anchorLink) && ($anchorLink['provider'] ?? null) === 'stripe') ? 'stripe' : 'square';
+                @endphp
+                {{-- Which company bills this invoice — drives the business name on the
+                     invoice AND which card provider the payment link uses. VAT →
+                     Central Executive Transfers Ltd (Square); non-VAT → the sister
+                     company PVT LTD (Stripe). --}}
+                <div style="margin-top:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel,#f7f7f7);border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+                    <span class="muted" style="font-size:13px;font-weight:600">Bill this invoice as:</span>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+                        <input type="radio" name="provider" value="square" @checked($defaultProvider==='square')>
+                        Central Executive Transfers Ltd <span class="muted">(VAT · Square)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+                        <input type="radio" name="provider" value="stripe" @checked($defaultProvider==='stripe')>
+                        Central Executive Transfers PVT LTD <span class="muted">(non-VAT · Stripe)</span>
+                    </label>
+                </div>
+
                 <div class="toolbar" style="margin-top:12px">
                     <button type="submit" class="btn btn-primary" style="padding:8px 14px">👁 View combined invoice</button>
                     <button type="submit" class="btn btn-ghost" style="padding:8px 14px" formaction="{{ route('cover-invoices.pdf') }}" name="download" value="1">⬇ Download</button>
                     <button type="button" class="btn btn-light paylink-btn" style="padding:8px 14px"
                             data-url="{{ route('cover-invoices.payment-link') }}"
-                            data-provider="square"
-                            data-total="{{ number_format($total, 2) }}">💳 Square link (VAT)</button>
-                    <button type="button" class="btn btn-light paylink-btn" style="padding:8px 14px"
-                            data-url="{{ route('cover-invoices.payment-link') }}"
-                            data-provider="stripe"
-                            data-total="{{ number_format($total, 2) }}">💳 Stripe link (non-VAT)</button>
+                            data-total="{{ number_format($total, 2) }}">💳 Create payment link</button>
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" formtarget="_self"
                             formaction="{{ route('cover-invoices.email') }}"
                             onclick="return confirm('Email the combined invoice to {{ $jobs->first()->coverFor()['email'] ?: $operator }}?')">✉ Email to {{ $operator }}</button>
@@ -131,7 +146,8 @@
 
                     errEl.style.display = 'none';
                     if (!ids.length) { errEl.textContent = 'Tick at least one job first.'; errEl.style.display = ''; return; }
-                    var provider = btn.dataset.provider || 'square';
+                    var providerEl = form.querySelector('input[name=provider]:checked');
+                    var provider = providerEl ? providerEl.value : 'square';
                     var providerName = provider === 'stripe' ? 'Stripe (non-VAT / PVT LTD)' : 'Square (VAT)';
                     if (!confirm('Create a ' + providerName + ' payment link for the ' + ids.length + ' ticked job(s)? It goes onto the invoice.')) return;
 
