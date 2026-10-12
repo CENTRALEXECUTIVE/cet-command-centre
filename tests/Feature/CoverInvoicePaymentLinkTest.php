@@ -144,6 +144,29 @@ class CoverInvoicePaymentLinkTest extends TestCase
         $this->assertSame('stripe', $anchor->fresh()->meta['cover_payment_link']['provider']);
     }
 
+    public function test_a_stripe_cover_invoice_is_billed_under_the_pvt_company(): void
+    {
+        $pdf = app(\App\Services\Payments\InvoicePdf::class);
+
+        // A cover invoice whose payment link was created via Stripe is non-VAT →
+        // the invoice must carry the PVT LTD business name, no VAT number.
+        $stripeJob = $this->coverJob('CET-S', 140, 'Xclusive Chauffeur Services');
+        $stripeJob->forceFill(['meta' => array_merge($stripeJob->meta ?? [], [
+            'cover_payment_link' => ['provider' => 'stripe', 'url' => 'https://x', 'reference' => 'CVR-X'],
+        ])])->save();
+
+        $company = $pdf->coverInvoiceCompany($stripeJob->fresh());
+        $this->assertSame('Central Executive Transfers PVT LTD', $company['name']);
+        $this->assertSame('', $company['vat_number']);
+
+        // A Square (or link-less) cover invoice stays on the VAT company (Ltd).
+        $squareJob = $this->coverJob('CET-Q', 140, 'A1 Cars Ltd');
+        $this->assertSame('Central Executive Transfers Ltd', $pdf->coverInvoiceCompany($squareJob->fresh())['name']);
+
+        // The PDF still renders for the non-VAT case.
+        $this->assertStringStartsWith('%PDF', $pdf->renderCombinedCoverInvoice(collect([$stripeJob->fresh()])));
+    }
+
     public function test_stripe_cover_link_errors_cleanly_when_stripe_is_off(): void
     {
         config(['services.stripe.secret_key' => null]);

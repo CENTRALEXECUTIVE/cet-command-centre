@@ -71,11 +71,38 @@ class InvoicePdf
      *
      * @param  \Illuminate\Support\Collection<int, Booking>  $bookings
      */
-    public function renderCombinedCoverInvoice($bookings): string
+    /**
+     * The invoicing company for a combined cover invoice. A non-VAT cover invoice
+     * is billed by the sister company Central Executive Transfers PVT LTD; a VAT
+     * one by Central Executive Transfers Ltd. When $pvt is null it's derived from
+     * the payment link already created for this invoice (a Stripe link => PVT LTD),
+     * so the invoice's business name matches how the operator is being charged.
+     *
+     * @return array<string, string>
+     */
+    public function coverInvoiceCompany(?Booking $anchor, ?bool $pvt = null): array
+    {
+        $pvt ??= (($anchor?->meta['cover_payment_link']['provider'] ?? null) === 'stripe');
+
+        return $pvt
+            ? \App\Support\InvoiceProfile::companyFor(false) // PVT LTD, non-VAT
+            : \App\Support\InvoiceProfile::company();         // Central Executive Transfers Ltd
+    }
+
+    /**
+     * @param  bool|null  $pvt  Whether this is a NON-VAT cover invoice, billed by
+     *   the sister company Central Executive Transfers PVT LTD. Null (default) =>
+     *   derive it from the payment link the office created for this invoice: a
+     *   Stripe link means non-VAT/PVT, anything else means the VAT company (Ltd).
+     */
+    public function renderCombinedCoverInvoice($bookings, ?bool $pvt = null): string
     {
         $bookings = $bookings->values();
         $first = $bookings->first();
         $operator = $first?->coverFor();
+
+        // Match the invoice's business name to how it's being billed.
+        $company = $this->coverInvoiceCompany($first, $pvt);
 
         $lines = $bookings->map(function (Booking $b) {
             $b->loadMissing('vehicleType');
@@ -116,7 +143,7 @@ class InvoicePdf
             'invoiceNumber' => $invoiceNumber,
             'issueDate' => now(),
             'paymentDue' => now()->addDays(14),
-            'company' => \App\Support\InvoiceProfile::company(),
+            'company' => $company,
             'footerNote' => \App\Support\InvoiceProfile::footerNote(),
         ])->render());
         $dompdf->render();

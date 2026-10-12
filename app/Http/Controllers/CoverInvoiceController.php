@@ -76,7 +76,7 @@ class CoverInvoiceController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
         $bookings = $this->selected($request);
 
-        return response($pdf->renderCombinedCoverInvoice($bookings), 200, [
+        return response($pdf->renderCombinedCoverInvoice($bookings, $this->coverIsPvt($request)), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline')
                 .'; filename=Cover-Invoice-'.now()->format('Ymd').'.pdf',
@@ -95,7 +95,7 @@ class CoverInvoiceController extends Controller
         }
 
         Mail::to($operator['email'])->send(
-            new BookingReceiptMail($bookings->first(), $pdf->renderCombinedCoverInvoice($bookings))
+            new BookingReceiptMail($bookings->first(), $pdf->renderCombinedCoverInvoice($bookings, $this->coverIsPvt($request)))
         );
 
         return back()->with('status', 'Combined invoice ('.$bookings->count().' jobs) emailed to '.$operator['email'].'.');
@@ -179,6 +179,21 @@ class CoverInvoiceController extends Controller
         return back()
             ->with('status', 'Payment link created for £'.number_format($total, 2).' ('.$reference.') — it’s now on the invoice. Open View/Download/Email to send it.')
             ->with('cover_payment_link', $url);
+    }
+
+    /**
+     * Whether the cover invoice should be billed by the non-VAT sister company
+     * (PVT LTD): true/false when the page says so explicitly (provider=stripe /
+     * square), or null to let the PDF follow the payment link already created for
+     * this invoice (a Stripe link => PVT LTD).
+     */
+    private function coverIsPvt(Request $request): ?bool
+    {
+        if (! $request->has('provider')) {
+            return null;
+        }
+
+        return $request->input('provider') === 'stripe';
     }
 
     /** The chosen cover-job bookings, all for the SAME operator. */
