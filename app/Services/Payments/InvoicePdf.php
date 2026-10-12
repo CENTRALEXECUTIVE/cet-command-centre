@@ -108,7 +108,11 @@ class InvoicePdf
             $b->loadMissing('vehicleType');
             $amount = (float) ($b->coverForAmount() ?? 0);
 
-            return ['title' => 'Cover transfer', 'detail' => $this->legDetail($b),
+            // Head each line with the PASSENGER name so the operator we're billing
+            // can see exactly which of their jobs we covered.
+            $title = 'Cover transfer — '.($b->displayName() ?: 'passenger');
+
+            return ['title' => $title, 'detail' => $this->legDetail($b),
                 'net' => $amount, 'vat' => 0.0, 'total' => $amount, 'paid' => false];
         })->all();
 

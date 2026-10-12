@@ -76,10 +76,17 @@ class CoverInvoiceController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
         $bookings = $this->selected($request);
 
+        // A distinct, human-readable filename per operator (and its invoice number
+        // if a link's been created), so downloads don't all land as the same name.
+        $anchor = $bookings->first();
+        $operatorName = $anchor->coverFor()['name'] ?? 'Operator';
+        $ref = $anchor->meta['cover_payment_link']['reference'] ?? ('CVR-'.now()->format('ymdHi'));
+        $filename = 'Cover-Invoice-'.\Illuminate\Support\Str::slug($operatorName).'-'.$ref.'.pdf';
+
         return response($pdf->renderCombinedCoverInvoice($bookings, $this->coverIsPvt($request)), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline')
-                .'; filename=Cover-Invoice-'.now()->format('Ymd').'.pdf',
+                .'; filename='.$filename,
         ]);
     }
 

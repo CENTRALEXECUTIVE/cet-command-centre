@@ -68,6 +68,18 @@ class CoverInvoiceTest extends TestCase
         $this->assertStringStartsWith('%PDF', $res->getContent());
     }
 
+    public function test_the_download_filename_is_distinct_per_operator(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $j1 = $this->coverJob('Silverline Cars', 50);
+        $j2 = $this->coverJob('Silverline Cars', 70);
+
+        $res = $this->actingAs($admin)->post(route('cover-invoices.pdf'), ['ids' => [$j1->id, $j2->id], 'download' => 1]);
+        $res->assertOk();
+        // Carries the operator name so one day's downloads don't collide.
+        $this->assertStringContainsString('Cover-Invoice-silverline-cars', $res->headers->get('Content-Disposition'));
+    }
+
     public function test_emailing_the_combined_invoice_goes_to_the_operator(): void
     {
         Mail::fake();
