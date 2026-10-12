@@ -47,6 +47,9 @@ class InvoiceProfile
             'name' => trim((string) (Setting::get('invoice_novat_company_name') ?: config('cet.company_novat.name'))),
             'number' => trim((string) (Setting::get('invoice_novat_company_number') ?: config('cet.company_novat.number'))),
             'address' => trim((string) (Setting::get('invoice_novat_company_address') ?: config('cet.company_novat.address') ?: $base['address'])),
+            // The PVT company shows its OWN email so customers reply to the right
+            // company (admin@centralexecutivetransferspvt.co.uk), not the Ltd inbox.
+            'email' => trim((string) (Setting::get('invoice_novat_email') ?: config('cet.company_novat.email') ?: $base['email'])),
             'vat_number' => '', // PVT LTD is not VAT registered
         ]);
     }

@@ -158,6 +158,8 @@ class CoverInvoicePaymentLinkTest extends TestCase
         $company = $pdf->coverInvoiceCompany($stripeJob->fresh());
         $this->assertSame('Central Executive Transfers PVT LTD', $company['name']);
         $this->assertSame('', $company['vat_number']);
+        // The PVT invoice shows the PVT company's own email, not the Ltd inbox.
+        $this->assertSame('admin@centralexecutivetransferspvt.co.uk', $company['email']);
 
         // A Square (or link-less) cover invoice stays on the VAT company (Ltd).
         $squareJob = $this->coverJob('CET-Q', 140, 'A1 Cars Ltd');

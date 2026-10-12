@@ -65,9 +65,21 @@
   .paysum .h { font-weight:600; color:#111; margin-bottom:3px; letter-spacing:.2px; }
   .foot { margin-top:22px; font-size:8px; color:#8a8a8a; border-top:1px solid #eee; padding-top:11px; letter-spacing:.3px; }
   .foot b { font-weight:600; color:#555; }
+
+  /* Compact mode for a combined cover invoice (several jobs) — tightens the
+     vertical rhythm so a multi-line-item invoice stays on a single page. */
+  body.cover .hr { margin:11px 0 12px; }
+  body.cover table.items { margin-top:14px; }
+  body.cover table.items th { padding-bottom:7px; }
+  body.cover table.items td { padding:6px 11px; }
+  body.cover table.items .title { font-size:10px; margin-bottom:2px; }
+  body.cover table.items .det { font-size:8.5px; line-height:1.45; }
+  body.cover .summary { margin-top:12px; }
+  body.cover .paysum { margin-top:13px; padding-top:9px; }
+  body.cover .foot { margin-top:14px; padding-top:9px; }
 </style>
 </head>
-<body>
+<body class="{{ ($isCover ?? false) ? 'cover' : '' }}">
   @php $kind = ($isVat ?? false) ? 'VAT Invoice' : 'Invoice'; @endphp
   <table class="top">
     <tr>

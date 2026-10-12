@@ -282,12 +282,13 @@ class InvoicePdf
         $pickup = trim((string) $b->displayPickupAddress());
         $dropoff = trim((string) $b->displayDropoffAddress());
 
+        // Keep the operator invoice line tight so a multi-job invoice fits one
+        // page: reference + time, the route, and the vehicle only (flight / meet &
+        // greet detail isn't needed to bill another operator).
         $pax = (int) $b->passengerCount();
         $extras = collect([
             $b->vehicleType?->name,
             $pax > 0 ? $pax.' '.($pax === 1 ? 'passenger' : 'passengers') : null,
-            $b->displayFlightNumber() ? 'Flight '.$b->displayFlightNumber() : null,
-            $b->displayMeetAndGreet() ? 'Meet & greet' : null,
         ])->filter()->implode(' · ');
 
         return collect([
