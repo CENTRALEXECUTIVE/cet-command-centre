@@ -2,6 +2,21 @@
 @section('title', 'Cover invoices')
 
 @section('content')
+    <style>
+        .bill-as { margin: 14px 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+        .bill-as-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+        .bill-opts { display: flex; flex-direction: column; gap: 8px; }
+        .bill-opt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 14px; }
+        .bill-opt input { width: auto; margin: 0; flex: none; }
+        .bill-opt-main { font-weight: 600; }
+        .bill-opt-tag { font-size: 12px; color: var(--muted); margin-left: auto; }
+        .bill-opt:has(input:checked) { border-color: var(--gold); background: rgba(251,186,42,.10); }
+        html[data-theme="dark"] .bill-as { border-color: rgba(255,255,255,.10); }
+        html[data-theme="dark"] .bill-opt { border-color: rgba(255,255,255,.12); }
+        html[data-theme="dark"] .bill-opt-main { color: #f2f5fa; }
+        html[data-theme="dark"] .bill-as-label, html[data-theme="dark"] .bill-opt-tag { color: #9aa3b2; }
+        html[data-theme="dark"] .bill-opt:has(input:checked) { background: rgba(251,186,42,.14); }
+    </style>
     <h1 class="page-title">Cover-job invoices</h1>
     <p class="page-sub">Jobs you've covered for other operators, grouped by company. <strong>Search</strong> by reference, passenger or operator, <strong>tick</strong> the ones to bill, and send a <strong>single combined invoice</strong> with one total — no need for one invoice per job.</p>
 
@@ -61,16 +76,20 @@
                      invoice AND which card provider the payment link uses. VAT →
                      Central Executive Transfers Ltd (Square); non-VAT → the sister
                      company PVT LTD (Stripe). --}}
-                <div style="margin-top:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel,#f7f7f7);border:1px solid var(--line);border-radius:10px;padding:8px 12px">
-                    <span class="muted" style="font-size:13px;font-weight:600">Bill this invoice as:</span>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-                        <input type="radio" name="provider" value="square" @checked($defaultProvider==='square')>
-                        Central Executive Transfers Ltd <span class="muted">(VAT · Square)</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-                        <input type="radio" name="provider" value="stripe" @checked($defaultProvider==='stripe')>
-                        Central Executive Transfers PVT LTD <span class="muted">(non-VAT · Stripe)</span>
-                    </label>
+                <div class="bill-as">
+                    <span class="bill-as-label">Bill this invoice as</span>
+                    <div class="bill-opts">
+                        <label class="bill-opt">
+                            <input type="radio" name="provider" value="square" @checked($defaultProvider==='square')>
+                            <span class="bill-opt-main">Central Executive Transfers Ltd</span>
+                            <span class="bill-opt-tag">VAT · Square</span>
+                        </label>
+                        <label class="bill-opt">
+                            <input type="radio" name="provider" value="stripe" @checked($defaultProvider==='stripe')>
+                            <span class="bill-opt-main">Central Executive Transfers PVT LTD</span>
+                            <span class="bill-opt-tag">non-VAT · Stripe</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="toolbar" style="margin-top:12px">
