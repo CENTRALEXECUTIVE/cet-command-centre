@@ -94,8 +94,14 @@ class CoverInvoiceController extends Controller
             return back()->with('error', 'No email saved for '.$operator['name'].' — add one on a booking first.');
         }
 
+        // The PVT decision for BOTH the invoice (company name) and the sender: an
+        // explicit provider on the request, else the stored payment-link provider
+        // (a Stripe link => non-VAT / PVT LTD).
+        $pvt = $this->coverIsPvt($request)
+            ?? (($bookings->first()->meta['cover_payment_link']['provider'] ?? null) === 'stripe');
+
         Mail::to($operator['email'])->send(
-            new BookingReceiptMail($bookings->first(), $pdf->renderCombinedCoverInvoice($bookings, $this->coverIsPvt($request)))
+            new BookingReceiptMail($bookings->first(), $pdf->renderCombinedCoverInvoice($bookings, $pvt), $pvt)
         );
 
         return back()->with('status', 'Combined invoice ('.$bookings->count().' jobs) emailed to '.$operator['email'].'.');

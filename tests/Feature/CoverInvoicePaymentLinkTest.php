@@ -167,6 +167,36 @@ class CoverInvoicePaymentLinkTest extends TestCase
         $this->assertStringStartsWith('%PDF', $pdf->renderCombinedCoverInvoice(collect([$stripeJob->fresh()])));
     }
 
+    public function test_a_pvt_cover_invoice_email_sends_from_the_pvt_address_and_mailer(): void
+    {
+        // PVT sending set up (separate mailbox) + a Stripe (non-VAT) cover link.
+        \App\Models\Setting::set('mail_pvt_enabled', '1', 'string', 'mail');
+        \App\Models\Setting::set('mail_pvt_host', 'smtp.pvt.example', 'string', 'mail');
+        \App\Models\Setting::set('mail_pvt_from_address', 'admin@centralexecutivetransferspvt.co.uk', 'string', 'mail');
+
+        $job = $this->coverJob('CET-P', 140, 'Xclusive Chauffeur Services');
+        $job->forceFill(['meta' => array_merge($job->meta ?? [], [
+            'cover_payment_link' => ['provider' => 'stripe', 'url' => 'https://x', 'reference' => 'CVR-X'],
+        ])])->save();
+
+        $mail = new \App\Mail\BookingReceiptMail($job->fresh(), '%PDF-fake', true);
+        $this->assertSame('pvt', $mail->mailer);
+        $this->assertSame('admin@centralexecutivetransferspvt.co.uk', $mail->envelope()->from->address);
+    }
+
+    public function test_a_vat_cover_invoice_email_stays_on_the_main_address(): void
+    {
+        config(['cet.company.email' => 'admin@centralexecutivetransfers.co.uk']);
+        \App\Models\Setting::set('mail_pvt_enabled', '1', 'string', 'mail');
+        \App\Models\Setting::set('mail_pvt_host', 'smtp.pvt.example', 'string', 'mail');
+
+        $job = $this->coverJob('CET-V', 140, 'A1 Cars Ltd'); // no stripe link => VAT/Ltd
+
+        $mail = new \App\Mail\BookingReceiptMail($job->fresh(), '%PDF-fake', false);
+        $this->assertNull($mail->mailer);
+        $this->assertSame('admin@centralexecutivetransfers.co.uk', $mail->envelope()->from->address);
+    }
+
     public function test_stripe_cover_link_errors_cleanly_when_stripe_is_off(): void
     {
         config(['services.stripe.secret_key' => null]);

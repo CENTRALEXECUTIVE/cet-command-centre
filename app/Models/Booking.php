@@ -5414,12 +5414,24 @@ class Booking extends Model
      */
     public function senderAddress(): string
     {
+        return $this->senderAddressFor($this->billingEntity() === 'chauffeurs');
+    }
+
+    /**
+     * The from-address for an email, given whether it's billed by the NON-VAT
+     * sister company (PVT LTD): its own address once PVT sending is enabled, else
+     * the main company address. Takes the PVT decision explicitly so a cover
+     * invoice (whose PVT status comes from its payment provider, not the booking's
+     * billing entity) can route the same way.
+     */
+    public function senderAddressFor(bool $pvt): string
+    {
         $main = (string) (config('cet.company.email') ?: config('mail.from.address'));
 
-        if ($this->billingEntity() === 'chauffeurs' && \App\Models\Setting::get('mail_pvt_enabled', false)) {
-            $pvt = (string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'));
+        if ($pvt && \App\Models\Setting::get('mail_pvt_enabled', false)) {
+            $address = (string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'));
 
-            return $pvt !== '' ? $pvt : $main;
+            return $address !== '' ? $address : $main;
         }
 
         return $main;
@@ -5439,7 +5451,18 @@ class Booking extends Model
      */
     public function usesPvtMailer(): bool
     {
-        return $this->billingEntity() === 'chauffeurs'
+        return $this->usesPvtMailerFor($this->billingEntity() === 'chauffeurs');
+    }
+
+    /**
+     * Whether to send through the PVT LTD company's OWN mailer for a given PVT
+     * decision — true only once PVT sending is enabled and its mailer is set up,
+     * so nothing breaks before that. Takes the decision explicitly for cover
+     * invoices (PVT status from the payment provider, not the billing entity).
+     */
+    public function usesPvtMailerFor(bool $pvt): bool
+    {
+        return $pvt
             && (bool) \App\Models\Setting::get('mail_pvt_enabled', false)
             && filled(\App\Models\Setting::get('mail_pvt_host'));
     }
