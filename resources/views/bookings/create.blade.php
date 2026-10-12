@@ -161,24 +161,56 @@
         <div class="eto-section">
             <div class="head"><span class="ico">🧳</span> Passengers &amp; Vehicle</div>
             <div class="body">
+                @php
+                    $saloonSvg = '<svg viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg"><path fill="#0b0b0c" d="M8 44c-3 0-5-2-5-5v-4c0-2 1-3 3-4l10-3 12-11c3-3 7-4 11-4h28c5 0 9 2 13 5l10 9 14 3c4 1 6 3 6 7v3c0 3-2 5-5 5h-6a10 10 0 01-20 0H34a10 10 0 01-20 0H8zm16-6a6 6 0 100 12 6 6 0 000-12zm64 0a6 6 0 100 12 6 6 0 000-12zM40 20l-9 9h26V20H40zm22 0v9h24l-8-7c-2-1-4-2-7-2H62z"/></svg>';
+                    $vanSvg = '<svg viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg"><path fill="#0b0b0c" d="M6 46c-2 0-4-2-4-4V22c0-4 3-7 7-7h58c4 0 8 2 11 5l16 15 10 3c4 1 7 4 7 8v0c0 2-2 4-4 4h-7a10 10 0 01-20 0H33a10 10 0 01-20 0H6zm17-7a6 6 0 100 13 6 6 0 000-13zm64 0a6 6 0 100 13 6 6 0 000-13zM14 22v11h20V22H14zm28 0v11h20V22H42zm28 1v10h20l-12-8c-2-1-5-2-8-2z"/></svg>';
+                    $selVeh = old('vehicle_type_id', $pf['vehicle_type_id'] ?? $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id);
+                @endphp
                 <div class="field">
                     <label for="vehicle_type_id">Vehicle type <span class="req">*</span> <span id="quote-note" class="muted" style="font-weight:400"></span></label>
-                    <select id="vehicle_type_id" name="vehicle_type_id" required>
+                    {{-- The submitted value + the JS source of capacities. Visually hidden —
+                         the picture cards below drive it (like the customer booking page). --}}
+                    <select id="vehicle_type_id" name="vehicle_type_id" required class="veh-select-hidden" tabindex="-1" aria-hidden="true">
                         <option value="">— Select —</option>
                         @foreach($vehicleTypes as $vt)
                             <option value="{{ $vt->id }}"
                                 data-cap-pax="{{ $vt->passenger_capacity }}"
                                 data-cap-lug="{{ $vt->luggage_capacity }}"
                                 data-cap-hand="{{ $vt->handLuggageCapacity() }}"
-                                @selected(old('vehicle_type_id', $pf['vehicle_type_id'] ?? $quote?->vehicle_type_id ?? $customer?->preferred_vehicle_type_id)==$vt->id)>
+                                @selected((string) $selVeh === (string) $vt->id)>
                                 {{ $vt->name }} (up to {{ $vt->passenger_capacity }})
                             </option>
                         @endforeach
                     </select>
                     @error('vehicle_type_id') <div class="error">{{ $message }}</div> @enderror
-                    {{-- Live prices for every vehicle — tap one to pick it + set the fare.
-                         Fast quoting on the phone. --}}
-                    <div id="veh-prices" class="veh-prices" hidden></div>
+
+                    {{-- Picture cards with live prices — tap one to pick it + set the fare.
+                         Fast, visual quoting on the phone. --}}
+                    <div id="veh-cards" class="veh-cards">
+                        @foreach($vehicleTypes as $vt)
+                            <button type="button" class="veh-card {{ (string) $selVeh === (string) $vt->id ? 'sel' : '' }}"
+                                    data-id="{{ $vt->id }}"
+                                    data-cap-pax="{{ $vt->passenger_capacity }}"
+                                    data-cap-lug="{{ $vt->luggage_capacity }}"
+                                    data-cap-hand="{{ $vt->handLuggageCapacity() }}">
+                                <span class="veh-photo">
+                                    @if($vt->photoUrl())
+                                        <img src="{{ $vt->photoUrl() }}" alt="{{ $vt->name }}" loading="lazy">
+                                    @else
+                                        {!! $vt->isLargeVehicle() ? $vanSvg : $saloonSvg !!}
+                                    @endif
+                                </span>
+                                <span class="veh-info">
+                                    <span class="veh-name">{{ $vt->name }}</span>
+                                    @if($vt->tagline())<span class="veh-tag">{{ $vt->tagline() }}</span>@endif
+                                    <span class="veh-cap">👤 {{ $vt->passenger_capacity }} &nbsp;·&nbsp; 🧳 {{ $vt->luggage_capacity }} &nbsp;·&nbsp; 👜 {{ $vt->handLuggageCapacity() }}</span>
+                                </span>
+                                <span class="veh-price"><span class="amt" data-price>—</span></span>
+                                <span class="veh-tick">✓</span>
+                                <span class="veh-warn">Too small for this party</span>
+                            </button>
+                        @endforeach
+                    </div>
                     <div id="fare-breakdown" class="fare-breakdown" hidden></div>
                 </div>
 
@@ -396,10 +428,51 @@
     </div>{{-- /.smart-form --}}
 
     <style>
-        /* A vehicle too small for the passengers/luggage entered — greyed, like
-           the customer booking page, so the agent sees what actually fits. */
-        .veh-prices .vp.unfit { opacity: .4; }
-        .veh-prices .vp.unfit .n::after { content: ' ⚠'; }
+        /* The native select is driven by the picture cards — keep it in the DOM
+           (it submits the value and the JS reads capacities from it) but hidden. */
+        .smart-form .veh-select-hidden { position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+
+        /* Picture vehicle cards, like the customer booking page. */
+        .smart-form .veh-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 10px; margin-top: 10px; }
+        .smart-form .veh-card { position: relative; display: grid;
+            grid-template-columns: 76px 1fr auto; align-items: center; gap: 12px;
+            text-align: left; background: #fff; border: 1.5px solid var(--sf-line, #e6e6e6);
+            border-radius: 14px; padding: 10px 12px; cursor: pointer; width: 100%;
+            transition: border-color .12s, box-shadow .12s, transform .12s; }
+        .smart-form .veh-card:hover { border-color: var(--sf-gold, #FBBA2A); transform: translateY(-1px); }
+        .smart-form .veh-card.sel { border-color: var(--sf-gold, #FBBA2A);
+            box-shadow: 0 0 0 3px rgba(251,186,42,.2); }
+        .smart-form .veh-photo { width: 76px; height: 52px; display: grid; place-items: center;
+            background: #f4f4f2; border-radius: 10px; overflow: hidden; }
+        .smart-form .veh-photo img { width: 100%; height: 100%; object-fit: cover; }
+        .smart-form .veh-photo svg { width: 60px; height: 30px; opacity: .85; }
+        .smart-form .veh-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .smart-form .veh-name { font-weight: 700; font-size: 14px; color: #1a1a1a; }
+        .smart-form .veh-tag { font-size: 11.5px; color: var(--sf-muted, #777); }
+        .smart-form .veh-cap { font-size: 11.5px; color: var(--sf-muted, #777); white-space: nowrap; }
+        .smart-form .veh-price { font-weight: 800; font-size: 16px; color: #111; text-align: right;
+            white-space: nowrap; align-self: center; }
+        .smart-form .veh-price .amt.poa { font-size: 12px; font-weight: 600; color: var(--sf-muted, #777); }
+        .smart-form .veh-tick { position: absolute; top: 7px; left: 7px; width: 20px; height: 20px;
+            border-radius: 50%; background: var(--sf-gold, #FBBA2A); color: #111; font-size: 12px;
+            display: none; place-items: center; font-weight: 800; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+        .smart-form .veh-card.sel .veh-tick { display: grid; }
+        .smart-form .veh-warn { display: none; grid-column: 1 / -1; font-size: 11.5px; color: #c02626;
+            font-weight: 600; margin-top: 2px; }
+        /* A vehicle too small for the passengers/luggage entered — greyed, like the
+           customer booking page, so the agent sees what actually fits. */
+        .smart-form .veh-card.unfit { opacity: .5; }
+        .smart-form .veh-card.unfit .veh-warn { display: block; }
+        @media (max-width: 560px) {
+            .smart-form .veh-cards { grid-template-columns: 1fr; }
+        }
+        html[data-theme="dark"] .smart-form .veh-card { background: #151b2c; border-color: rgba(255,255,255,.12); }
+        html[data-theme="dark"] .smart-form .veh-name { color: #f2f5fa; }
+        html[data-theme="dark"] .smart-form .veh-price { color: #f2f5fa; }
+        html[data-theme="dark"] .smart-form .veh-photo { background: #0f1420; }
+
         /* Price-drift nudge: the typed price differs from the live full quote. */
         .price-nudge { margin-top: 6px; font-size: 13px; color: #8a6d00; background: #fff0cc;
             border: 1px solid #FBBA2A; border-radius: 6px; padding: 6px 10px; }
@@ -562,13 +635,14 @@
             // vehicle and drop its fare in. Also greys out vehicles too small for
             // the passengers/luggage entered (like the customer booking page).
             (function () {
-                var strip = document.getElementById('veh-prices');
+                var strip = document.getElementById('veh-cards');
                 var pickup = document.getElementById('pickup_address');
                 var dest = document.getElementById('destination_address');
                 var vehSel = document.getElementById('vehicle_type_id');
                 var priceEl = document.getElementById('quoted_price');
                 var url = window.CET_STRIP_URL || window.CET_PRICES_URL;
                 if (!strip || !pickup || !dest || !vehSel || !url) return;
+                var cards = Array.prototype.slice.call(strip.querySelectorAll('.veh-card'));
                 var tokenEl = document.querySelector('meta[name="csrf-token"]');
                 var token = tokenEl ? tokenEl.getAttribute('content') : '';
                 var whenEl = document.getElementById('pickup_at');
@@ -607,16 +681,39 @@
                     };
                 }
 
-                // Grey out the chips for vehicles too small for the party entered.
+                // Grey out the cards for vehicles too small for the party entered.
                 function applyFit() {
                     var pax = num(paxEl), suit = num(suitEl), hand = num(handEl);
-                    strip.querySelectorAll('.vp').forEach(function (chip) {
-                        var c = caps[chip.dataset.id];
+                    cards.forEach(function (card) {
+                        var c = caps[card.dataset.id];
                         var fits = !c || (pax <= c.pax && suit <= c.lug && hand <= c.hand);
-                        chip.classList.toggle('unfit', !fits);
-                        chip.title = fits ? '' : 'Too small for ' + pax + ' passengers / ' + (suit + hand) + ' bags';
+                        card.classList.toggle('unfit', !fits);
+                        card.title = fits ? '' : 'Too small for ' + pax + ' passengers / ' + (suit + hand) + ' bags';
                     });
                 }
+
+                // Reflect the chosen vehicle on the cards.
+                function selectCard(id) {
+                    cards.forEach(function (card) {
+                        card.classList.toggle('sel', String(card.dataset.id) === String(id));
+                    });
+                }
+
+                // Clicking a card picks that vehicle and drops its live fare into the
+                // price box (same as tapping a price chip did before).
+                cards.forEach(function (card) {
+                    card.addEventListener('click', function () {
+                        var id = card.dataset.id;
+                        vehSel.value = String(id);
+                        vehSel.dispatchEvent(new Event('change'));
+                        var p = card.dataset.price;
+                        if (priceEl && p !== '' && p != null) {
+                            priceEl.value = Number(p).toFixed(2);
+                            priceEl.dispatchEvent(new Event('input'));
+                        }
+                        selectCard(id);
+                    });
+                });
 
                 var priceNudge = document.getElementById('price-nudge');
                 var breakdownEl = document.getElementById('fare-breakdown');
@@ -659,24 +756,23 @@
                     priceNudge.hidden = false;
                 }
 
+                // Drop the live price onto each vehicle card (the cards are rendered
+                // server-side; here we just fill in / refresh their prices).
                 function render(options) {
                     lastOptions = options || [];
-                    strip.innerHTML = '';
-                    options.forEach(function (o) {
-                        var chip = document.createElement('button');
-                        chip.type = 'button'; chip.className = 'vp' + (String(vehSel.value) === String(o.id) ? ' sel' : '');
-                        chip.dataset.id = o.id; chip.dataset.price = (o.price == null ? '' : o.price);
-                        chip.innerHTML = '<span class="n"></span> <span class="p' + (o.poa ? ' poa' : '') + '"></span>';
-                        chip.querySelector('.n').textContent = (names[o.id] || 'Vehicle').replace(/\s*\(up to.*\)$/, '');
-                        chip.querySelector('.p').textContent = o.formatted;
-                        chip.addEventListener('click', function () {
-                            vehSel.value = String(o.id); vehSel.dispatchEvent(new Event('change'));
-                            if (priceEl && o.price != null) { priceEl.value = Number(o.price).toFixed(2); priceEl.dispatchEvent(new Event('input')); }
-                            strip.querySelectorAll('.vp').forEach(function (c) { c.classList.toggle('sel', c === chip); });
-                        });
-                        strip.appendChild(chip);
+                    var byId = {};
+                    lastOptions.forEach(function (o) { byId[String(o.id)] = o; });
+                    cards.forEach(function (card) {
+                        var o = byId[String(card.dataset.id)];
+                        var amt = card.querySelector('[data-price]');
+                        if (!o) { card.dataset.price = ''; if (amt) amt.textContent = '—'; return; }
+                        card.dataset.price = (o.price == null ? '' : o.price);
+                        if (amt) {
+                            amt.textContent = o.formatted;
+                            amt.classList.toggle('poa', !!o.poa);
+                        }
                     });
-                    strip.hidden = options.length === 0;
+                    selectCard(vehSel.value);
                     applyFit();
                     nudge();
                     showBreakdown();
@@ -718,6 +814,9 @@
                 // Choosing a vehicle, or editing the price, re-checks the drift nudge.
                 if (vehSel) vehSel.addEventListener('change', function () { nudge(); showBreakdown(); });
                 if (priceEl) { priceEl.addEventListener('input', nudge); priceEl.addEventListener('change', nudge); }
+                // Reflect the preselected vehicle + grey any that don't fit, on load.
+                selectCard(vehSel.value);
+                applyFit();
 
                 // Soft confirm on submit if the chosen vehicle is too small for the
                 // party entered — the office can override (it sometimes knows better),
