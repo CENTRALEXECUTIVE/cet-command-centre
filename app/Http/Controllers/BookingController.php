@@ -385,7 +385,7 @@ class BookingController extends Controller
         abort_unless($request->user()->isSuperAdmin(), 403);
 
         if (! $log->configured()) {
-            return response()->json(['configured' => false, 'messages' => []]);
+            return response()->json(['configured' => false, 'messages' => [], 'calls' => []]);
         }
 
         $messages = collect($log->forBooking($booking))->map(fn ($m) => [
@@ -395,7 +395,36 @@ class BookingController extends Controller
             'status' => $m['status'],
         ])->values();
 
-        return response()->json(['configured' => true, 'messages' => $messages]);
+        $calls = collect($log->callsForBooking($booking))->map(fn ($c) => [
+            'caller' => $c['caller'],
+            'callee' => $c['callee'],
+            'at' => $c['at']?->copy()->timezone(config('app.timezone'))->format('D d M, H:i'),
+            'duration' => $this->durationLabel((int) $c['duration'], (string) ($c['status'] ?? '')),
+            'status' => $c['status'],
+        ])->values();
+
+        return response()->json(['configured' => true, 'messages' => $messages, 'calls' => $calls]);
+    }
+
+    /** Human-readable call outcome: a duration when connected, else why it didn't. */
+    private function durationLabel(int $seconds, string $status): string
+    {
+        $status = strtolower($status);
+        if (in_array($status, ['no-answer', 'busy', 'failed', 'canceled', 'cancelled'], true)) {
+            return match ($status) {
+                'no-answer' => 'No answer',
+                'busy' => 'Busy',
+                'canceled', 'cancelled' => 'Cancelled',
+                default => 'Failed',
+            };
+        }
+        if ($seconds <= 0) {
+            return 'Not connected';
+        }
+        $m = intdiv($seconds, 60);
+        $s = $seconds % 60;
+
+        return $m > 0 ? $m.'m '.$s.'s' : $s.'s';
     }
 
     public function show(Request $request, Booking $booking): View|RedirectResponse

@@ -52,8 +52,8 @@ class MaskedMessageLogTest extends TestCase
 
     public function test_configured_but_no_sessions_returns_no_messages(): void
     {
-        // Credentials present but the booking never had a masked session → empty,
-        // no outbound Twilio call needed.
+        // Credentials present but no masked session AND no switchboard lines set →
+        // empty, no outbound Twilio call needed.
         config([
             'services.twilio.sid' => 'AC_test',
             'services.twilio.token' => 'token_test',
@@ -64,5 +64,45 @@ class MaskedMessageLogTest extends TestCase
             ->getJson(route('bookings.messages', $booking))
             ->assertOk()
             ->assertJson(['configured' => true, 'messages' => []]);
+    }
+
+    public function test_switchboard_calls_are_attributed_to_the_right_party(): void
+    {
+        config([
+            'services.twilio.sid' => 'AC_test',
+            'services.twilio.token' => 'token_test',
+            'services.twilio_masking.customer_line' => '+441140000001',
+            'services.twilio_masking.driver_line' => '+441140000002',
+        ]);
+
+        $customer = \App\Models\Customer::factory()->create(['phone' => '07700900111']);
+        $driver = User::factory()->driver()->create(['phone' => '07700900222']);
+        \App\Models\DriverProfile::create(['user_id' => $driver->id, 'is_third_party' => true]);
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id,
+            'driver_id' => $driver->id,
+            'pickup_at' => now()->addHour(),
+        ]);
+
+        // One call: the CUSTOMER rang the customer line (reaching their driver).
+        \Illuminate\Support\Facades\Http::fake(function ($request) {
+            if (str_contains($request->url(), 'Calls.json')
+                && str_contains($request->url(), 'From=%2B447700900111')) {
+                return \Illuminate\Support\Facades\Http::response(['calls' => [[
+                    'sid' => 'CA1', 'to' => '+441140000001', 'from' => '+447700900111',
+                    'direction' => 'inbound', 'start_time' => now()->toRfc2822String(),
+                    'duration' => '134', 'status' => 'completed',
+                ]]]);
+            }
+
+            return \Illuminate\Support\Facades\Http::response(['calls' => [], 'messages' => []]);
+        });
+
+        $calls = app(\App\Services\Telephony\TwilioMessageLog::class)->callsForBooking($booking->fresh());
+
+        $this->assertCount(1, $calls);
+        $this->assertSame('Customer', $calls[0]['caller']);
+        $this->assertSame('Driver', $calls[0]['callee']);
+        $this->assertSame(134, $calls[0]['duration']);
     }
 }

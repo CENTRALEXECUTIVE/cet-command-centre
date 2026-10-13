@@ -901,8 +901,8 @@
          trip can still be reviewed. Pulls live from Twilio; nothing is stored. --}}
     @if(auth()->user()?->isSuperAdmin())
         <details class="card" id="masked-messages" data-url="{{ route('bookings.messages', $booking) }}">
-            <summary style="cursor:pointer;font-weight:700;font-size:16px">💬 Messages on the masked line</summary>
-            <p class="hint" style="margin:8px 0 10px">What the driver and customer said to each other on the masked number — pulled live from Twilio, read-only. Directors only.</p>
+            <summary style="cursor:pointer;font-weight:700;font-size:16px">💬 Messages &amp; 📞 calls on the masked line</summary>
+            <p class="hint" style="margin:8px 0 10px">The texts and calls between the driver and customer on the masked number — who contacted who — pulled live from Twilio, read-only. Directors only.</p>
             <div id="masked-messages-body" style="font-size:13px;color:var(--muted,#777)">Open to load the conversation…</div>
         </details>
         <script>
@@ -919,16 +919,33 @@
                 fetch(box.dataset.url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
-                        if (!d.configured) { body.textContent = 'Number masking isn’t live yet — no messages to show.'; return; }
-                        if (!d.messages || !d.messages.length) { body.textContent = 'No texts on the masked line for this booking.'; return; }
-                        body.innerHTML = d.messages.map(function (m) {
-                            var mine = m.sender === 'Driver';
-                            return '<div style="display:flex;justify-content:' + (mine ? 'flex-start' : 'flex-end') + ';margin:6px 0">'
-                                + '<div style="max-width:80%;background:' + (mine ? '#eef2f7' : '#FFF4D6') + ';color:#111;border:1px solid #e3e3e3;border-radius:12px;padding:8px 11px">'
-                                + '<div style="font-size:11px;color:#777;margin-bottom:2px">' + esc(m.sender) + (m.at ? ' · ' + esc(m.at) : '') + '</div>'
-                                + '<div style="font-size:14px;white-space:pre-wrap">' + esc(m.body || '(no text)') + '</div>'
-                                + '</div></div>';
-                        }).join('');
+                        if (!d.configured) { body.textContent = 'Number masking isn’t live yet — nothing to show.'; return; }
+                        var calls = d.calls || [], msgs = d.messages || [];
+                        if (!calls.length && !msgs.length) { body.textContent = 'No texts or calls on the masked line for this booking.'; return; }
+                        var html = '';
+                        // Calls first — who rang who, when, and how long.
+                        if (calls.length) {
+                            html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#777;margin:2px 0 6px">📞 Calls</div>';
+                            html += calls.map(function (c) {
+                                return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:5px 2px;border-bottom:1px solid #eee">'
+                                    + '<span style="font-size:13px"><strong>' + esc(c.caller) + '</strong> → ' + esc(c.callee) + '</span>'
+                                    + '<span style="font-size:12px;color:#777;white-space:nowrap">' + (c.at ? esc(c.at) + ' · ' : '') + esc(c.duration || '') + '</span>'
+                                    + '</div>';
+                            }).join('');
+                        }
+                        // Then the texts.
+                        if (msgs.length) {
+                            html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#777;margin:14px 0 6px">💬 Texts</div>';
+                            html += msgs.map(function (m) {
+                                var mine = m.sender === 'Driver';
+                                return '<div style="display:flex;justify-content:' + (mine ? 'flex-start' : 'flex-end') + ';margin:6px 0">'
+                                    + '<div style="max-width:80%;background:' + (mine ? '#eef2f7' : '#FFF4D6') + ';color:#111;border:1px solid #e3e3e3;border-radius:12px;padding:8px 11px">'
+                                    + '<div style="font-size:11px;color:#777;margin-bottom:2px">' + esc(m.sender) + (m.at ? ' · ' + esc(m.at) : '') + '</div>'
+                                    + '<div style="font-size:14px;white-space:pre-wrap">' + esc(m.body || '(no text)') + '</div>'
+                                    + '</div></div>';
+                            }).join('');
+                        }
+                        body.innerHTML = html;
                     })
                     .catch(function () { loaded = false; body.textContent = 'Couldn’t load the messages — try again.'; });
             });
