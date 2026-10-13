@@ -342,6 +342,40 @@ class Booking extends Model
     }
 
     /**
+     * Same check for the DROP-OFF — used to stop a driver marking a job COMPLETE
+     * miles from where it actually ends (e.g. mid-route). Returns 'no_location' /
+     * 'far' / 'ok' / 'unknown' exactly like checkDriverAtPickup. Geocodes the
+     * drop-off lazily into meta['geo']['dropoff'] and adds the phone's accuracy to
+     * the radius so a poor fix can't false-block a genuine completion. Fails OPEN
+     * (allows) when we can't geocode the drop-off — never the driver's fault.
+     */
+    public function checkDriverAtDropoff(?float $lat, ?float $lng, ?float $accuracy = null): string
+    {
+        if ($lat === null || $lng === null) {
+            return 'no_location';
+        }
+
+        $coords = $this->dropoffCoords();
+        if ($coords === null) {
+            $point = app(\App\Services\GeocodingService::class)->coords(
+                $this->displayDropoffAddress() ?: $this->destination_address
+            );
+            $meta = $this->meta ?? [];
+            $meta['geo']['dropoff'] = $point; // cache (null too, so we don't retry every tap)
+            $this->forceFill(['meta' => $meta])->save();
+            $coords = $point;
+        }
+        if ($coords === null) {
+            return 'unknown'; // couldn't geocode the drop-off → can't verify → allow
+        }
+
+        $radius = (float) config('cet.arrival_radius_metres', 1609);
+        $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
+
+        return $metres <= $radius + (float) ($accuracy ?? 0) ? 'ok' : 'far';
+    }
+
+    /**
      * Tell the office (via the alerts feed) that a driver was blocked from a
      * location-gated tap — so you can see who's trying to mark a job without
      * being there / without location on. Deduped so a mashed button can't spam.

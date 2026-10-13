@@ -74,6 +74,15 @@ class LinkController extends Controller
                     ? 'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.'
                     : 'Mark “Passenger on board” at the pickup — you look too far from it. Tap it when the passenger actually gets in.');
             }
+            // COMPLETE happens at the drop-off — block it if the driver is miles away
+            // (e.g. mid-route), so a job can't be closed in the wrong place.
+            if ($target === BookingStatus::Complete
+                && $booking->checkDriverAtDropoff($lat, $lng, $data['accuracy'] ?? null) === 'far') {
+                $booking->flagLocationBlocked('Complete', 'far');
+
+                return back()->with('arriveError',
+                    'You’re not at the drop-off yet — complete the job once you’ve actually dropped the passenger off.');
+            }
         }
 
         try {

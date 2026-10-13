@@ -20,6 +20,9 @@ class ArrivalGeofenceTest extends TestCase
     /** Sheffield-ish pickup. */
     private const PICKUP = [53.4000, -1.5000];
 
+    /** A drop-off a few miles from the pickup. */
+    private const DROPOFF = [53.3800, -1.4700];
+
     private function driver(): User
     {
         return User::factory()->driver()->create();
@@ -151,6 +154,52 @@ class ArrivalGeofenceTest extends TestCase
             ->assertSessionHas('arriveError');
 
         $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
+    }
+
+    public function test_complete_is_blocked_far_from_the_dropoff(): void
+    {
+        // The real incident: a driver marked a job COMPLETE out on the A57, miles
+        // from the drop-off. Complete now has to happen at the drop-off.
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
+            'pickup_at' => now()->subMinutes(30),
+            'meta' => ['geo' => ['dropoff' => self::DROPOFF]],
+        ]);
+
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'complete', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20, // London — far
+        ])->assertRedirect()->assertSessionHas('arriveError');
+
+        $this->assertSame(BookingStatus::Collected, $b->fresh()->status); // NOT completed
+    }
+
+    public function test_complete_goes_through_at_the_dropoff(): void
+    {
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
+            'pickup_at' => now()->subMinutes(30),
+            'meta' => ['geo' => ['dropoff' => self::DROPOFF]],
+        ]);
+
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'complete', 'lat' => 53.3810, 'lng' => -1.4700, 'accuracy' => 20, // ~110 m away
+        ])->assertRedirect();
+
+        $this->assertSame(BookingStatus::Complete, $b->fresh()->status);
+    }
+
+    public function test_dropoff_check_fails_open_when_it_cannot_be_geocoded(): void
+    {
+        // We can't geocode the drop-off → we must NOT block a genuine completion.
+        $b = Booking::factory()->create([
+            'status' => BookingStatus::Collected->value,
+            'destination_address' => '', // nothing to geocode
+            'meta' => ['geo' => ['dropoff' => null]],
+        ]);
+
+        $this->assertSame('unknown', $b->checkDriverAtDropoff(51.5074, -0.1278, 20));
     }
 
     public function test_pob_is_blocked_far_from_the_pickup(): void
