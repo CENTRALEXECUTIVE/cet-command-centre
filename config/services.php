@@ -153,4 +153,14 @@ return [
         'mailbox' => env('MS_GRAPH_MAILBOX', 'bookings@centralexecutivetransfers.co.uk'),
     ],
 
+    // Gmail API send for the PVT LTD company — sends over HTTPS (not SMTP, which
+    // the host blocks). A Google service account with domain-wide delegation
+    // impersonates the PVT mailbox. Falls back to the Calendar service account's
+    // JSON so a second key usually isn't needed — it just has to be authorised in
+    // the PVT Workspace (Admin → Security → API controls → Domain-wide delegation)
+    // for the gmail.send scope, with the Gmail API enabled in its project.
+    'google_gmail' => [
+        'credentials' => env('GOOGLE_GMAIL_CREDENTIALS') ?: env('GOOGLE_CALENDAR_CREDENTIALS'),
+    ],
+
 ];

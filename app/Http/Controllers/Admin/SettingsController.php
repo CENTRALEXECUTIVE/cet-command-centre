@@ -81,11 +81,12 @@ class SettingsController extends Controller
         $data = $request->validate(['to' => ['nullable', 'email'], 'via' => ['nullable', 'in:pvt']]);
         $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
         $pvt = ($data['via'] ?? null) === 'pvt';
-        // PVT test sends from the PVT address: via its own SMTP mailer if one is
-        // set, otherwise through the default sender (e.g. Microsoft 365) — which
-        // sends from the PVT mailbox when PVT is hosted there.
+        // PVT test sends from the PVT address: via the Gmail API if that's set up
+        // (preferred — works where the host blocks SMTP), else its own SMTP mailer,
+        // else the default sender.
+        $pvtGmail = $pvt && app(\App\Services\Mail\GmailApiClient::class)->configured();
         $pvtHasSmtp = $pvt && filled(config('mail.mailers.pvt.host'));
-        $mailer = $pvtHasSmtp ? 'pvt' : (string) config('mail.default');
+        $mailer = $pvtGmail ? 'gmail' : ($pvtHasSmtp ? 'pvt' : (string) config('mail.default'));
         $json = $request->expectsJson();
 
         $respond = function (bool $ok, string $message) use ($json) {

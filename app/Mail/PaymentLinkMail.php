@@ -24,8 +24,8 @@ class PaymentLinkMail extends Mailable
         public string $payUrl,
     ) {
         // The PVT LTD company sends through its own mailer, kept separate.
-        if ($booking->usesPvtMailer()) {
-            $this->mailer('pvt');
+        if ($name = $booking->pvtMailer()) {
+            $this->mailer($name);
         }
     }
 

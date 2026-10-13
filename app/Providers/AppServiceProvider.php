@@ -42,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\Mail::extend('graph', fn (array $config = []) => new \App\Mail\Transport\GraphTransport(
                 app(\App\Services\Inbox\GraphMailClient::class)
             ));
+            // Gmail API transport — the PVT LTD company sends over HTTPS (the host
+            // blocks SMTP), mirroring the Graph transport for the main company.
+            \Illuminate\Support\Facades\Mail::extend('gmail', fn (array $config = []) => new \App\Mail\Transport\GmailApiTransport(
+                app(\App\Services\Mail\GmailApiClient::class)
+            ));
         } catch (\Throwable $e) {
             // Never let transport registration take the app down.
         }

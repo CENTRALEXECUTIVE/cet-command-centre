@@ -5494,20 +5494,45 @@ class Booking extends Model
      */
     public function usesPvtMailer(): bool
     {
-        return $this->usesPvtMailerFor($this->billingEntity() === 'chauffeurs');
+        return $this->pvtMailer() !== null;
+    }
+
+    /** The PVT mailer name for THIS booking (gmail / pvt), or null. */
+    public function pvtMailer(): ?string
+    {
+        return $this->pvtMailerFor($this->billingEntity() === 'chauffeurs');
     }
 
     /**
      * Whether to send through the PVT LTD company's OWN mailer for a given PVT
-     * decision — true only once PVT sending is enabled and its mailer is set up,
-     * so nothing breaks before that. Takes the decision explicitly for cover
-     * invoices (PVT status from the payment provider, not the billing entity).
+     * decision — true only once PVT sending is enabled and set up, so nothing
+     * breaks before that. Takes the decision explicitly for cover invoices (PVT
+     * status from the payment provider, not the billing entity).
      */
     public function usesPvtMailerFor(bool $pvt): bool
     {
-        return $pvt
-            && (bool) \App\Models\Setting::get('mail_pvt_enabled', false)
-            && filled(\App\Models\Setting::get('mail_pvt_host'));
+        return $this->pvtMailerFor($pvt) !== null;
+    }
+
+    /**
+     * Which mailer the PVT company sends through: the Gmail API ('gmail',
+     * preferred — works where the host blocks SMTP) when it's set up, else the
+     * SMTP 'pvt' mailer, else null (nothing special → the default main mailer).
+     * Only ever returns a mailer once PVT sending is switched on.
+     */
+    public function pvtMailerFor(bool $pvt): ?string
+    {
+        if (! $pvt || ! \App\Models\Setting::get('mail_pvt_enabled', false)) {
+            return null;
+        }
+        if (app(\App\Services\Mail\GmailApiClient::class)->configured()) {
+            return 'gmail';
+        }
+        if (filled(\App\Models\Setting::get('mail_pvt_host'))) {
+            return 'pvt';
+        }
+
+        return null;
     }
 
     public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool

@@ -34,8 +34,8 @@ class BookingReceiptMail extends Mailable
         // Keep the two companies' email separate: a PVT invoice sends through the
         // PVT LTD mailer when PVT sending is set up (falls back to the main mailer
         // until then, so nothing breaks before PVT email is live).
-        if ($this->booking->usesPvtMailerFor($this->isPvt())) {
-            $this->mailer('pvt');
+        if ($name = $this->booking->pvtMailerFor($this->isPvt())) {
+            $this->mailer($name);
         }
     }
 
