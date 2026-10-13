@@ -101,6 +101,8 @@ class MailSettings
             // SMTP-free route for PVT). Whether it's actually authorised in the PVT
             // Workspace only shows up when a test is sent.
             'pvt_gmail_configured' => app(\App\Services\Mail\GmailApiClient::class)->configured(),
+            'pvt_gmail_client_id' => (string) app(\App\Services\Mail\GmailApiClient::class)->clientId(),
+            'pvt_gmail_client_email' => (string) app(\App\Services\Mail\GmailApiClient::class)->clientEmail(),
             'pvt_from_address' => (string) (Setting::get('mail_pvt_from_address', '') ?: config('cet.company_novat.email')),
             'pvt_host' => (string) Setting::get('mail_pvt_host', ''),
             'pvt_port' => (string) Setting::get('mail_pvt_port', ''),

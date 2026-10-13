@@ -299,6 +299,21 @@
                     <input type="email" name="mail_pvt_from_address" value="{{ $mail['pvt_from_address'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
                 </label>
 
+                @if($mail['pvt_gmail_client_id'] ?? null)
+                    {{-- Gmail API (HTTPS) is the reliable route — the host blocks SMTP.
+                         To switch it on, authorise this service account in the PVT
+                         Workspace's domain-wide delegation. --}}
+                    <div style="margin-top:12px;border:1px solid #cfe8cf;background:#f3faf3;border-radius:10px;padding:10px 12px;max-width:560px">
+                        <strong style="font-size:13px">✅ Recommended: send via the Gmail API (no SMTP — works on this host)</strong>
+                        <p class="hint" style="margin:6px 0 8px">Your Google service account is ready. Authorise it to send in the PVT Workspace: <strong>admin.google.com → Security → Access and data control → API controls → Domain-wide delegation → Add new</strong>. Paste the Client ID below, scope <code>https://www.googleapis.com/auth/gmail.send</code>, Authorise. Then press “Send PVT test email”.</p>
+                        <label style="display:block;font-size:12px;font-weight:600">Service account Client ID <span class="muted">(paste this into the Workspace)</span>
+                            <input type="text" value="{{ $mail['pvt_gmail_client_id'] }}" readonly onclick="this.select()" style="font-family:monospace;font-size:13px">
+                        </label>
+                        <p class="hint" style="margin:6px 0 0">Service account: <span class="mono">{{ $mail['pvt_gmail_client_email'] }}</span>. Also make sure the <strong>Gmail API</strong> is enabled in that account's Google Cloud project.</p>
+                    </div>
+                @endif
+
+                <p class="hint" style="margin:12px 0 0"><strong>SMTP fallback</strong> (only if you're not using the Gmail API above — note this host blocks SMTP, so it may time out):</p>
                 <div class="grid grid-2" style="gap:12px;margin-top:10px">
                     <label>PVT mail host <span class="muted">(Google Workspace)</span>
                         <input type="text" name="mail_pvt_host" value="{{ $mail['pvt_host'] }}" placeholder="smtp.gmail.com" autocomplete="off">

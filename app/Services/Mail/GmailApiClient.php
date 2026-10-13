@@ -35,6 +35,19 @@ class GmailApiClient
         return (string) (Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'));
     }
 
+    /** The service account's numeric Client ID — paste this into the PVT Workspace
+     *  domain-wide delegation. Not a secret. */
+    public function clientId(): ?string
+    {
+        return $this->credentials()['client_id'] ?? null;
+    }
+
+    /** The service account's email (for reference). */
+    public function clientEmail(): ?string
+    {
+        return $this->credentials()['client_email'] ?? null;
+    }
+
     /**
      * Send a fully-built RFC822 message. $from must be the authorised mailbox
      * (the PVT address). Returns true on success; sets lastError on failure.
