@@ -135,6 +135,9 @@ class GraphMailClient
             // same tenant domain (e.g. bookings@ as an alias of admin@). A different
             // domain (e.g. the PVT Google address) can't be sent as here, so the
             // visible From falls back to the real mailbox rather than failing.
+            // Visible From: prefer the requested address when it's on the same tenant
+            // domain (e.g. bookings@ as an alias of admin@); otherwise send as the
+            // real mailbox.
             $domainOf = fn ($addr) => str_contains((string) $addr, '@') ? strtolower(substr(strrchr((string) $addr, '@'), 1)) : '';
             $sameTenant = filled($fromMailbox) && $domainOf($fromMailbox) === $domainOf($realMailbox);
             $sender = $sameTenant ? $fromMailbox : $realMailbox;
@@ -149,7 +152,6 @@ class GraphMailClient
                 'subject' => $subject,
                 'body' => ['contentType' => 'HTML', 'content' => $html],
                 'toRecipients' => $recipients($to),
-                'from' => ['emailAddress' => ['address' => $sender]],
             ];
             if ($cc !== []) {
                 $message['ccRecipients'] = $recipients($cc);
@@ -166,10 +168,28 @@ class GraphMailClient
                 ];
             }
 
-            $response = Http::withToken($token)->post(
-                "https://graph.microsoft.com/v1.0/users/{$mailbox}/sendMail",
-                ['message' => $message, 'saveToSentItems' => true]
-            );
+            // One POST attempt with a given visible From.
+            $attempt = function (string $senderAddr) use ($token, $mailbox, $message) {
+                $message['from'] = ['emailAddress' => ['address' => $senderAddr]];
+
+                return Http::withToken($token)->post(
+                    "https://graph.microsoft.com/v1.0/users/{$mailbox}/sendMail",
+                    ['message' => $message, 'saveToSentItems' => true]
+                );
+            };
+
+            $response = $attempt($sender);
+
+            // If Microsoft won't let us send AS the configured From (it's a separate
+            // identity without Send-As rights), fall back to sending as the real
+            // mailbox so the email STILL goes out rather than failing the booking.
+            $code = (string) data_get($response->json(), 'error.code');
+            if (! $response->successful()
+                && strcasecmp($sender, $realMailbox) !== 0
+                && stripos($code, 'SendAsDenied') !== false) {
+                $response = $attempt($realMailbox);
+                $sender = $realMailbox;
+            }
 
             if (! $response->successful()) {
                 // Pull Microsoft's own error text so the test shows WHY, not a guess.

@@ -77,6 +77,35 @@ class GraphMailTest extends TestCase
         });
     }
 
+    public function test_send_as_denied_falls_back_to_the_real_mailbox(): void
+    {
+        config([
+            'services.microsoft_graph.client_id' => 'id',
+            'services.microsoft_graph.client_secret' => 'secret',
+            'services.microsoft_graph.tenant_id' => 'tenant',
+            'services.microsoft_graph.mailbox' => 'admin@centralexecutivetransfers.co.uk',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'login.microsoftonline.com/*' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok', 'expires_in' => 3600]),
+            'graph.microsoft.com/*' => \Illuminate\Support\Facades\Http::sequence()
+                // 1st try as bookings@ → Microsoft refuses (no Send-As rights)
+                ->push(['error' => ['code' => 'ErrorSendAsDenied', 'message' => 'no right to send as']], 403)
+                // 2nd try as the real mailbox → accepted
+                ->push([], 202),
+        ]);
+
+        $ok = app(GraphMailClient::class)->sendMail(
+            to: ['customer@x.com'], subject: 'Hi', html: '<p>Body</p>',
+            fromMailbox: 'bookings@centralexecutivetransfers.co.uk',
+        );
+
+        $this->assertTrue($ok, 'the email should still go out via the real mailbox');
+        // The retry sent as the real mailbox.
+        \Illuminate\Support\Facades\Http::assertSent(fn ($request) => str_contains($request->url(), '/sendMail')
+            && data_get($request->data(), 'message.from.emailAddress.address') === 'admin@centralexecutivetransfers.co.uk');
+    }
+
     public function test_graph_transport_throws_when_the_send_fails(): void
     {
         $graph = Mockery::mock(GraphMailClient::class);
