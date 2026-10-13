@@ -269,13 +269,68 @@ class TwilioProxyService
         $sid = $payload['interactionSessionSid'] ?? $payload['sessionSid'] ?? $payload['SessionSid'] ?? null;
         $session = $sid ? ProxySession::where('twilio_session_sid', $sid)->first() : null;
 
-        return ProxyEvent::create([
+        $event = ProxyEvent::create([
             'proxy_session_id' => $session?->id,
             'booking_id' => $session?->booking_id,
             'event_type' => $payload['interactionType'] ?? $payload['CallStatus'] ?? 'callback',
             'payload' => $this->scrub($payload),
             'occurred_at' => now(),
         ]);
+
+        // Ping the directors that the driver and customer are messaging on the
+        // masked line — WITHOUT the content (bodies are never stored or sent; they
+        // open the booking's transcript to read it). Best-effort: a notification
+        // hiccup must never fail the webhook.
+        try {
+            $this->notifyMessageActivity($event, $payload);
+        } catch (\Throwable $e) {
+            Log::warning('masked-message notify failed', ['error' => $e->getMessage()]);
+        }
+
+        return $event;
+    }
+
+    /**
+     * Tell the directors a text passed over the masked line for this booking.
+     * Fires only on a message interaction tied to a booking, deduped so Twilio
+     * retries of the same callback don't double-ping. No message body is included.
+     */
+    private function notifyMessageActivity(ProxyEvent $event, array $payload): void
+    {
+        if (! $event->booking_id) {
+            return;
+        }
+
+        $type = strtolower((string) ($payload['interactionType'] ?? ''));
+        $inbound = strtolower((string) ($payload['inboundResourceType'] ?? ''));
+        $isMessage = str_contains($type, 'message') || in_array($inbound, ['sms', 'message'], true);
+        if (! $isMessage) {
+            return;
+        }
+
+        // Dedup: skip if we already pinged for this booking in the last 20s (guards
+        // Twilio re-deliveries of the same interaction).
+        $recent = \App\Models\WatchdogEvent::where('booking_id', $event->booking_id)
+            ->where('event_type', 'masked_message')
+            ->where('occurred_at', '>=', now()->subSeconds(20))
+            ->exists();
+        if ($recent) {
+            return;
+        }
+
+        $booking = $event->booking ?: Booking::find($event->booking_id);
+        if (! $booking) {
+            return;
+        }
+
+        $ref = $booking->external_reference ?: $booking->reference;
+        app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors(
+            'masked_message',
+            '💬 Message on the masked line — '.$ref,
+            'The driver and customer are texting on '.$ref.'. Open the booking to read the conversation.',
+            'info',
+            $booking,
+        );
     }
 
     /** The mask outlives the job by 4h past the expected drop-off. */

@@ -393,6 +393,55 @@ class ProxyMaskingTest extends TestCase
         $this->assertArrayNotHasKey('Body', $event->payload, 'Message bodies must not be stored');
     }
 
+    public function test_a_message_on_the_masked_line_notifies_the_directors(): void
+    {
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::Accepted, $driver);
+        $session = app(TwilioProxyService::class)->openSession($booking, $driver);
+
+        app(TwilioProxyService::class)->recordWebhookEvent([
+            'interactionSessionSid' => $session->twilio_session_sid,
+            'interactionType' => 'Message',
+            'Body' => 'private',
+        ]);
+
+        // A directors-only feed row is logged for the booking — with NO body.
+        $alert = \App\Models\WatchdogEvent::where('event_type', 'masked_message')
+            ->where('booking_id', $booking->id)->first();
+        $this->assertNotNull($alert);
+        $this->assertStringNotContainsString('private', (string) $alert->message);
+    }
+
+    public function test_a_call_on_the_masked_line_does_not_notify(): void
+    {
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::Accepted, $driver);
+        $session = app(TwilioProxyService::class)->openSession($booking, $driver);
+
+        app(TwilioProxyService::class)->recordWebhookEvent([
+            'interactionSessionSid' => $session->twilio_session_sid,
+            'interactionType' => 'Call',
+            'CallStatus' => 'completed',
+        ]);
+
+        $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'masked_message']);
+    }
+
+    public function test_repeat_message_callbacks_only_notify_once(): void
+    {
+        $driver = $this->driver();
+        $booking = $this->booking(BookingStatus::Accepted, $driver);
+        $session = app(TwilioProxyService::class)->openSession($booking, $driver);
+        $svc = app(TwilioProxyService::class);
+
+        $payload = ['interactionSessionSid' => $session->twilio_session_sid, 'interactionType' => 'Message'];
+        $svc->recordWebhookEvent($payload);
+        $svc->recordWebhookEvent($payload); // Twilio re-delivery of the same callback
+
+        $this->assertSame(1, \App\Models\WatchdogEvent::where('event_type', 'masked_message')
+            ->where('booking_id', $booking->id)->count());
+    }
+
     public function test_expired_masking_data_is_purged_on_the_gps_schedule(): void
     {
         $driver = $this->driver();

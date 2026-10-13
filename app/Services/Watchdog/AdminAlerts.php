@@ -74,6 +74,27 @@ class AdminAlerts
         $this->broadcast($prefType, $title, $body, $severity, $booking);
     }
 
+    /**
+     * Like notify(), but ONLY to the directors (super-admins) — used for things
+     * only they may see, e.g. activity on the masked line. Logs one feed row so
+     * the alert still appears in the control tower.
+     */
+    public function notifyDirectors(string $prefType, string $title, string $body, string $severity = 'info', ?Booking $booking = null): void
+    {
+        WatchdogEvent::log($prefType, $title, $severity, $booking);
+
+        $url = $booking ? route('bookings.show', $booking) : route('dashboard');
+
+        User::where('role', UserRole::Admin->value)->where('is_active', true)
+            ->where('is_super_admin', true)->get()
+            ->filter(fn (User $admin) => $admin->wantsAlert($prefType, $severity))
+            ->reject(fn (User $admin) => $admin->busyForAlerts())
+            ->each(fn (User $admin) => $this->push->sendToUser($admin, $title, $body, [
+                'url' => $url,
+                'tag' => 'alert-'.$prefType.'-'.($booking?->id ?? 'general'),
+            ]));
+    }
+
     private function broadcast(string $prefType, string $title, string $body, string $severity, ?Booking $booking): void
     {
         $url = $booking ? route('bookings.show', $booking) : route('dashboard');

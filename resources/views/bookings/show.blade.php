@@ -896,6 +896,46 @@
         </script>
     @endif
 
+    {{-- Masked-line transcript — DIRECTORS ONLY. Shown on EVERY booking incl.
+         completed/cancelled ones, so a dispute or safeguarding query after the
+         trip can still be reviewed. Pulls live from Twilio; nothing is stored. --}}
+    @if(auth()->user()?->isSuperAdmin())
+        <details class="card" id="masked-messages" data-url="{{ route('bookings.messages', $booking) }}">
+            <summary style="cursor:pointer;font-weight:700;font-size:16px">💬 Messages on the masked line</summary>
+            <p class="hint" style="margin:8px 0 10px">What the driver and customer said to each other on the masked number — pulled live from Twilio, read-only. Directors only.</p>
+            <div id="masked-messages-body" style="font-size:13px;color:var(--muted,#777)">Open to load the conversation…</div>
+        </details>
+        <script>
+        (function () {
+            var box = document.getElementById('masked-messages');
+            var body = document.getElementById('masked-messages-body');
+            if (!box || !body) return;
+            var loaded = false;
+            function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+            box.addEventListener('toggle', function () {
+                if (!box.open || loaded) return;
+                loaded = true;
+                body.textContent = 'Loading…';
+                fetch(box.dataset.url, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (!d.configured) { body.textContent = 'Number masking isn’t live yet — no messages to show.'; return; }
+                        if (!d.messages || !d.messages.length) { body.textContent = 'No texts on the masked line for this booking.'; return; }
+                        body.innerHTML = d.messages.map(function (m) {
+                            var mine = m.sender === 'Driver';
+                            return '<div style="display:flex;justify-content:' + (mine ? 'flex-start' : 'flex-end') + ';margin:6px 0">'
+                                + '<div style="max-width:80%;background:' + (mine ? '#eef2f7' : '#FFF4D6') + ';color:#111;border:1px solid #e3e3e3;border-radius:12px;padding:8px 11px">'
+                                + '<div style="font-size:11px;color:#777;margin-bottom:2px">' + esc(m.sender) + (m.at ? ' · ' + esc(m.at) : '') + '</div>'
+                                + '<div style="font-size:14px;white-space:pre-wrap">' + esc(m.body || '(no text)') + '</div>'
+                                + '</div></div>';
+                        }).join('');
+                    })
+                    .catch(function () { loaded = false; body.textContent = 'Couldn’t load the messages — try again.'; });
+            });
+        })();
+        </script>
+    @endif
+
     {{-- Shareable driver link — its own card so it's easy to find. Send it to a
          cover driver and they get the full job page (details, cash to collect,
          masked number, navigate, status, live GPS) with no login. --}}
@@ -906,42 +946,6 @@
             $linkRecipient = $booking->driverContactLabel();
             $linkMsg = $booking->driverLinkMessage();
         @endphp
-        @if(auth()->user()?->isSuperAdmin())
-            <details class="card" id="masked-messages" data-url="{{ route('bookings.messages', $booking) }}">
-                <summary style="cursor:pointer;font-weight:700;font-size:16px">💬 Messages on the masked line</summary>
-                <p class="hint" style="margin:8px 0 10px">What the driver and customer said to each other on the masked number — pulled live from Twilio, read-only. Directors only.</p>
-                <div id="masked-messages-body" style="font-size:13px;color:var(--muted,#777)">Open to load the conversation…</div>
-            </details>
-            <script>
-            (function () {
-                var box = document.getElementById('masked-messages');
-                var body = document.getElementById('masked-messages-body');
-                if (!box || !body) return;
-                var loaded = false;
-                function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
-                box.addEventListener('toggle', function () {
-                    if (!box.open || loaded) return;
-                    loaded = true;
-                    body.textContent = 'Loading…';
-                    fetch(box.dataset.url, { headers: { 'Accept': 'application/json' } })
-                        .then(function (r) { return r.json(); })
-                        .then(function (d) {
-                            if (!d.configured) { body.textContent = 'Number masking isn’t live yet — no messages to show.'; return; }
-                            if (!d.messages || !d.messages.length) { body.textContent = 'No texts on the masked line for this booking.'; return; }
-                            body.innerHTML = d.messages.map(function (m) {
-                                var mine = m.sender === 'Driver';
-                                return '<div style="display:flex;justify-content:' + (mine ? 'flex-start' : 'flex-end') + ';margin:6px 0">'
-                                    + '<div style="max-width:80%;background:' + (mine ? '#eef2f7' : '#FFF4D6') + ';color:#111;border:1px solid #e3e3e3;border-radius:12px;padding:8px 11px">'
-                                    + '<div style="font-size:11px;color:#777;margin-bottom:2px">' + esc(m.sender) + (m.at ? ' · ' + esc(m.at) : '') + '</div>'
-                                    + '<div style="font-size:14px;white-space:pre-wrap">' + esc(m.body || '(no text)') + '</div>'
-                                    + '</div></div>';
-                            }).join('');
-                        })
-                        .catch(function () { loaded = false; body.textContent = 'Couldn’t load the messages — try again.'; });
-                });
-            })();
-            </script>
-        @endif
         <div class="card">
             <h2 style="margin:0 0 4px">🔗 Driver link — no login @if($booking->hasExtraDrivers())<span class="muted" style="font-weight:400;font-size:13px">· Car 1 of {{ $booking->carCount() }}</span>@endif</h2>
             <p class="hint" style="margin:0 0 12px">Send this to the driver. It opens their full job sheet — details, cash to collect, the contact number, navigation and the status buttons — with live tracking, no account needed.</p>
