@@ -41,9 +41,12 @@ class TwilioMessageLog
             return [];
         }
 
+        // Twilio Proxy sessions when this booking used them; otherwise fall back to
+        // the SWITCHBOARD (two fixed CET lines) that this account actually runs on —
+        // without this, a switchboard-masked booking showed no messages at all.
         $sessions = $booking->proxySessions()->get();
         if ($sessions->isEmpty()) {
-            return [];
+            return $this->fromSwitchboard($booking);
         }
 
         // Map each masked line to the party who TEXTS it, and find the window the
@@ -106,6 +109,76 @@ class TwilioMessageLog
             }
         } catch (\Throwable $e) {
             Log::warning('TwilioMessageLog fetch failed', ['booking' => $booking->id, 'error' => $e->getMessage()]);
+
+            return [];
+        }
+
+        usort($rows, fn ($a, $b) => ($a['sent_at']?->timestamp ?? 0) <=> ($b['sent_at']?->timestamp ?? 0));
+
+        return $rows;
+    }
+
+    /**
+     * Switchboard transcript: the account masks with two fixed CET lines, not
+     * per-booking Proxy numbers. We attribute a message to THIS booking by the
+     * exact real numbers involved — a text TO the customer line FROM the customer's
+     * own number is the customer; TO the driver line FROM the driver's number is
+     * the driver — within the window the mask was live. No real number is shown.
+     *
+     * @return array<int, array{sender:string, body:?string, sent_at:?Carbon, status:?string}>
+     */
+    private function fromSwitchboard(Booking $booking): array
+    {
+        $masking = app(MaskingService::class);
+        $customerLine = $this->norm((string) $masking->customerLine($booking));
+        $driverLine = $this->norm((string) $masking->driverLine());
+        if ($customerLine === '' || $driverLine === '') {
+            return [];
+        }
+
+        $customerReal = $this->norm((string) $booking->customerContactNumber());
+        $driverReal = $this->norm((string) $booking->driverRealPhone());
+
+        // The window the mask was live for this booking (generous — we already
+        // pin to the exact two real numbers, so a wide window can't bleed in
+        // another job's traffic unless it's the very same driver AND customer).
+        $duration = (int) ($booking->meta['duration_minutes'] ?? 60);
+        $start = $booking->pickup_at->copy()->subHours(6);
+        $end = $booking->pickup_at->copy()->addMinutes($duration)
+            ->addMinutes((int) round($booking->maskingGraceHours() * 60))->addHours(6);
+
+        $pairs = [];
+        if ($customerReal !== '') {
+            $pairs[] = ['to' => $customerLine, 'from' => $customerReal, 'sender' => 'Customer'];
+        }
+        if ($driverReal !== '') {
+            $pairs[] = ['to' => $driverLine, 'from' => $driverReal, 'sender' => 'Driver'];
+        }
+        if (! $pairs) {
+            return [];
+        }
+
+        $rows = [];
+        try {
+            foreach ($pairs as $p) {
+                foreach ($this->fetch([
+                    'To' => $p['to'], 'From' => $p['from'], 'PageSize' => 100,
+                    'DateSent>' => $start->copy()->subDay()->format('Y-m-d'),
+                ]) as $m) {
+                    $sent = ! empty($m['date_sent']) ? Carbon::parse($m['date_sent']) : null;
+                    if ($sent && ($sent->lt($start) || $sent->gt($end))) {
+                        continue;
+                    }
+                    $rows[] = [
+                        'sender' => $p['sender'],
+                        'body' => $m['body'] ?? null,
+                        'sent_at' => $sent,
+                        'status' => $m['status'] ?? null,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('TwilioMessageLog switchboard fetch failed', ['booking' => $booking->id, 'error' => $e->getMessage()]);
 
             return [];
         }

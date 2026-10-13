@@ -295,7 +295,46 @@ class MaskingService
             return false;
         }
 
-        return $this->sendSms($resolved['caller_id'], $resolved['dial'], $body);
+        $sent = $this->sendSms($resolved['caller_id'], $resolved['dial'], $body);
+
+        // Ping the directors that the driver and customer are texting on the masked
+        // line — body-free (we never store or send the content; they open the
+        // booking's transcript to read it). Best-effort: must never block the relay.
+        if ($sent && ! empty($resolved['booking'])) {
+            try {
+                // $resolved['to'] is who the text is going TO; the SENDER is the other party.
+                $sender = ($resolved['to'] ?? '') === 'driver' ? 'customer' : 'driver';
+                $this->notifyDirectorsOfMessage($resolved['booking'], $sender);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('masked-message notify failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Tell the directors a text passed over the masked line for this booking.
+     * Body-free, deduped so a burst of texts doesn't spam (one ping per 20s).
+     */
+    private function notifyDirectorsOfMessage(Booking $booking, string $sender): void
+    {
+        $recent = \App\Models\WatchdogEvent::where('booking_id', $booking->id)
+            ->where('event_type', 'masked_message')
+            ->where('occurred_at', '>=', now()->subSeconds(20))
+            ->exists();
+        if ($recent) {
+            return;
+        }
+
+        $ref = $booking->external_reference ?: $booking->reference;
+        app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors(
+            'masked_message',
+            '💬 Message on the masked line — '.$ref,
+            'The '.$sender.' texted on '.$ref.'. Open the booking to read the conversation.',
+            'info',
+            $booking,
+        );
     }
 
     private function sendSms(?string $from, string $to, string $body): bool

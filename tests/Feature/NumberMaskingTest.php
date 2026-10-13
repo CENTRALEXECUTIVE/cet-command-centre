@@ -347,4 +347,34 @@ class NumberMaskingTest extends TestCase
 
         \Illuminate\Support\Facades\Http::assertNothingSent();
     }
+
+    public function test_a_forwarded_text_notifies_the_directors_body_free(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'api.twilio.com/*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM_x']),
+        ]);
+        $booking = $this->activeJob();
+
+        $this->post(route('webhooks.sms'), [
+            'secret' => 'test-secret', 'From' => '07700900111', 'Body' => 'my private message',
+        ])->assertOk();
+
+        // A directors-only feed row is logged for the booking — WITHOUT the body.
+        $alert = \App\Models\WatchdogEvent::where('event_type', 'masked_message')
+            ->where('booking_id', $booking->id)->first();
+        $this->assertNotNull($alert, 'a switchboard text should notify the directors');
+        $this->assertStringNotContainsString('private', (string) $alert->message);
+    }
+
+    public function test_an_unforwarded_text_does_not_notify(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+        $this->activeJob();
+
+        $this->post(route('webhooks.sms'), [
+            'secret' => 'test-secret', 'From' => '07999999999', 'Body' => 'hello',
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'masked_message']);
+    }
 }
