@@ -125,11 +125,20 @@ class GraphMailClient
             if (! $token) {
                 return false;
             }
-            // Send FROM the given mailbox (so each company sends from its own
-            // address), falling back to the configured mailbox. App-only Mail.Send
-            // can send as any mailbox in the tenant.
-            $sender = filled($fromMailbox) ? $fromMailbox : (string) config('services.microsoft_graph.mailbox');
-            $mailbox = rawurlencode($sender);
+            // The API PATH mailbox MUST be a real licensed mailbox — the account
+            // the app can actually open (the one that reads the ETO inbox). An alias
+            // like bookings@, or an address on another domain, can't be a /users/
+            // path, and THAT is what makes sendMail "refuse". So always send THROUGH
+            // the real mailbox...
+            $realMailbox = (string) config('services.microsoft_graph.mailbox');
+            // ...but keep the requested address as the visible FROM when it's in the
+            // same tenant domain (e.g. bookings@ as an alias of admin@). A different
+            // domain (e.g. the PVT Google address) can't be sent as here, so the
+            // visible From falls back to the real mailbox rather than failing.
+            $domainOf = fn ($addr) => str_contains((string) $addr, '@') ? strtolower(substr(strrchr((string) $addr, '@'), 1)) : '';
+            $sameTenant = filled($fromMailbox) && $domainOf($fromMailbox) === $domainOf($realMailbox);
+            $sender = $sameTenant ? $fromMailbox : $realMailbox;
+            $mailbox = rawurlencode($realMailbox);
 
             $recipients = fn (array $addrs) => array_values(array_filter(array_map(
                 fn ($a) => filled($a) ? ['emailAddress' => ['address' => $a]] : null,

@@ -43,6 +43,40 @@ class GraphMailTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_send_goes_through_the_real_mailbox_but_keeps_the_from(): void
+    {
+        // The real licensed mailbox that the app can open.
+        config([
+            'services.microsoft_graph.client_id' => 'id',
+            'services.microsoft_graph.client_secret' => 'secret',
+            'services.microsoft_graph.tenant_id' => 'tenant',
+            'services.microsoft_graph.mailbox' => 'admin@centralexecutivetransfers.co.uk',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'login.microsoftonline.com/*' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok', 'expires_in' => 3600]),
+            'graph.microsoft.com/*' => \Illuminate\Support\Facades\Http::response([], 202),
+        ]);
+
+        // Send "as" bookings@ (an alias on the SAME domain as the real mailbox).
+        app(GraphMailClient::class)->sendMail(
+            to: ['customer@x.com'], subject: 'Hi', html: '<p>Body</p>',
+            fromMailbox: 'bookings@centralexecutivetransfers.co.uk',
+        );
+
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/sendMail')) {
+                return false;
+            }
+            // The API path is the REAL mailbox (not the alias) — this is the fix.
+            $pathOk = str_contains(rawurldecode($request->url()), '/users/admin@centralexecutivetransfers.co.uk/sendMail');
+            // ...but the visible From is still bookings@.
+            $fromOk = data_get($request->data(), 'message.from.emailAddress.address') === 'bookings@centralexecutivetransfers.co.uk';
+
+            return $pathOk && $fromOk;
+        });
+    }
+
     public function test_graph_transport_throws_when_the_send_fails(): void
     {
         $graph = Mockery::mock(GraphMailClient::class);
