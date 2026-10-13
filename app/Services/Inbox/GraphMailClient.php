@@ -172,16 +172,24 @@ class GraphMailClient
             );
 
             if (! $response->successful()) {
+                // Pull Microsoft's own error text so the test shows WHY, not a guess.
+                $gErr = (string) (data_get($response->json(), 'error.code').': '.data_get($response->json(), 'error.message'));
+                $this->lastError = 'HTTP '.$response->status().' as '.$sender.' via '.$realMailbox
+                    .($gErr !== ': ' ? ' — '.$gErr : ' — '.substr($response->body(), 0, 200));
                 Log::warning('Graph sendMail HTTP error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 400)]);
             }
 
             return $response->successful();
         } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
             Log::warning('Graph sendMail failed', ['error' => $e->getMessage()]);
 
             return false;
         }
     }
+
+    /** The last Microsoft error from a failed send, for surfacing on the test. */
+    public ?string $lastError = null;
 
     /**
      * @return array<int, array{id:string, subject:string, body:string, from:?string}>

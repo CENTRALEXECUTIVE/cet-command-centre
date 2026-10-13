@@ -60,7 +60,8 @@ class GraphTransport extends AbstractTransport
         );
 
         if (! $ok) {
-            throw new \RuntimeException('Microsoft 365 (Graph) refused or failed to send the message — check the mailbox connection and that the app has the Mail.Send permission.');
+            $why = $this->graph->lastError ? ' ['.$this->graph->lastError.']' : '';
+            throw new \RuntimeException('Microsoft 365 (Graph) refused or failed to send the message — check the mailbox connection and that the app has the Mail.Send permission.'.$why);
         }
     }
 
