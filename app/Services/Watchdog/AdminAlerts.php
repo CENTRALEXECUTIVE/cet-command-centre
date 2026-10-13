@@ -79,11 +79,13 @@ class AdminAlerts
      * only they may see, e.g. activity on the masked line. Logs one feed row so
      * the alert still appears in the control tower.
      */
-    public function notifyDirectors(string $prefType, string $title, string $body, string $severity = 'info', ?Booking $booking = null): void
+    public function notifyDirectors(string $prefType, string $title, string $body, string $severity = 'info', ?Booking $booking = null, ?string $fragment = null): void
     {
         WatchdogEvent::log($prefType, $title, $severity, $booking);
 
-        $url = $booking ? route('bookings.show', $booking) : route('dashboard');
+        // A fragment (e.g. #masked-messages) takes the click straight to the right
+        // section of the booking page.
+        $url = $booking ? route('bookings.show', $booking).($fragment ?? '') : route('dashboard');
 
         User::where('role', UserRole::Admin->value)->where('is_active', true)
             ->where('is_super_admin', true)->get()

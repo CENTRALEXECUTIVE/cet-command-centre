@@ -932,6 +932,12 @@
                     })
                     .catch(function () { loaded = false; body.textContent = 'Couldn’t load the messages — try again.'; });
             });
+            // Arriving from the "message on the masked line" notification: open the
+            // fold (which loads the conversation) and scroll to it.
+            if (window.location.hash === '#masked-messages') {
+                box.open = true;
+                setTimeout(function () { box.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+            }
         })();
         </script>
     @endif

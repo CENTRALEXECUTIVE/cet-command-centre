@@ -327,9 +327,10 @@ class TwilioProxyService
         app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors(
             'masked_message',
             '💬 Message on the masked line — '.$ref,
-            'The driver and customer are texting on '.$ref.'. Open the booking to read the conversation.',
+            'The driver and customer are texting on '.$ref.'. Tap to read the conversation.',
             'info',
             $booking,
+            '#masked-messages',
         );
     }
 

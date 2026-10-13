@@ -331,9 +331,10 @@ class MaskingService
         app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors(
             'masked_message',
             '💬 Message on the masked line — '.$ref,
-            'The '.$sender.' texted on '.$ref.'. Open the booking to read the conversation.',
+            'The '.$sender.' texted on '.$ref.'. Tap to read the conversation.',
             'info',
             $booking,
+            '#masked-messages',
         );
     }
 
