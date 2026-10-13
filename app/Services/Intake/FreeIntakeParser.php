@@ -57,8 +57,8 @@ class FreeIntakeParser
             return null;
         };
 
-        $pickup = $get('pickup location', 'pickup address', 'pickup', 'from', 'collection', 'collect from');
-        $dropoff = $get('drop-off location', 'dropoff location', 'drop off location', 'dropoff', 'drop-off', 'drop off', 'destination', 'destination address', 'home address', 'home', 'to');
+        $pickup = $get('pickup location', 'pickup address', 'pickup', 'pick-up', 'pick up', 'pick-up location', 'pick-up address', 'pickup point', 'pick-up point', 'from', 'collection', 'collect from');
+        $dropoff = $get('drop-off location', 'dropoff location', 'drop off location', 'dropoff', 'drop-off', 'drop off', 'drop-off address', 'destination', 'destination address', 'home address', 'home', 'to');
 
         // Loose fallback: "from X to Y" on one line.
         if ((! $pickup || ! $dropoff) && preg_match('/\bfrom\s+(.{4,80}?)\s+to\s+(.{4,120}?)(?:[.\n]|$)/i', $text, $m)) {
@@ -95,7 +95,7 @@ class FreeIntakeParser
             ->filter()->unique()->implode(' · ');
 
         return [
-            'lead_name' => $get('customer name', 'lead passenger', 'passenger name', 'passenger', 'lead name', 'name', 'customer') ?: $this->guessName($text),
+            'lead_name' => $get('customer name', 'lead passenger', 'lead passengers', 'lead passenger name', 'lead passengers name', 'passenger name', 'passenger', 'lead name', 'name', 'customer') ?: $this->guessName($text),
             'contact_no' => $this->phone($get('contact no', 'contact number', 'phone number', 'contact', 'phone', 'mobile', 'tel'), $text),
             'email' => $get('email', 'e-mail') ?? $this->email($text),
             'pickup_at' => $this->dateTime($get('date & time', 'date and time', 'pickup time', 'pickup date', 'date & time of pickup', 'when', 'date'), $text),
@@ -246,9 +246,18 @@ class FreeIntakeParser
     private function dateTime(?string $value, string $text): string
     {
         foreach (array_filter([$value, $text]) as $source) {
-            // 24/11/2026 – 07:30 | 24/11/2026 07:30 | 24-11-2026 7:30
-            if (preg_match('#(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})\s*(?:[–\-—]|at)?\s*(\d{1,2})[:.](\d{2})#u', $source, $m)) {
-                return sprintf('%04d-%02d-%02d %02d:%02d', $m[3], $m[2], $m[1], $m[4], $m[5]);
+            // 24/11/2026 – 07:30 | 24/11/2026 07:30 | 24-11-2026 7:30 |
+            // 14-10-2026 … 05:40am  (tolerant of an ellipsis / dot-leader separator)
+            if (preg_match('#(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})\s*(?:[–\-—…·|]|at|\.{2,})?\s*(\d{1,2})[:.](\d{2})\s*(am|pm)?#iu', $source, $m)) {
+                $h = (int) $m[4];
+                if (! empty($m[6]) && strtolower($m[6]) === 'pm' && $h < 12) {
+                    $h += 12;
+                }
+                if (! empty($m[6]) && strtolower($m[6]) === 'am' && $h === 12) {
+                    $h = 0;
+                }
+
+                return sprintf('%04d-%02d-%02d %02d:%02d', $m[3], $m[2], $m[1], $h, $m[5]);
             }
             // 2026-11-24 07:30 (ISO-ish)
             if (preg_match('#(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2})[:.](\d{2})#', $source, $m)) {
@@ -362,6 +371,12 @@ class FreeIntakeParser
                     $found = true;
                 }
             }
+            // "… + Hand Luggage" with no number still means they HAVE hand luggage —
+            // count it as 1 rather than losing the mention.
+            if ($sumHand === 0 && preg_match('/\bhand\b|cabin|carry-?on|ruck\s?sack|back\s?pack|holdall/i', $value)) {
+                $sumHand = 1;
+                $found = true;
+            }
             if ($found) {
                 $suitcases ??= $sumSuit;
                 $hand ??= $sumHand;
@@ -444,11 +459,21 @@ class FreeIntakeParser
 
     private function flight(?string $value, string $text): string
     {
-        // A labelled "Flight Number" wins outright.
+        // A labelled flight value — pull the flight CODE out of it, because the
+        // line often carries extra words ("Virgin Atlantic VS0109 – Departure
+        // 10:40, Terminal 2"); we want VS0109, not the whole string.
         if ($value && strcasecmp(trim($value), 'N/A') !== 0) {
-            $code = str_replace(' ', '', strtoupper(trim($value)));
-            if ($code !== '' && ! $this->looksLikeDateToken($code)) {
-                return $code;
+            $clean = str_replace(' ', '', strtoupper(trim($value)));
+            // Already just a code (e.g. "VS0109", "BA1234", "U28472A")?
+            if (preg_match('/^[A-Z]{2,3}\d{1,4}[A-Z]?$/', $clean) && ! $this->looksLikeDateToken($clean)) {
+                return $clean;
+            }
+            // Otherwise extract the first airline-code + number token from the value.
+            if (preg_match('/\b([A-Z]{2,3})\s?(\d{1,4}[A-Z]?)\b/', strtoupper($value), $m)) {
+                $code = $m[1].$m[2];
+                if (! $this->looksLikeDateToken($code)) {
+                    return $code;
+                }
             }
         }
 

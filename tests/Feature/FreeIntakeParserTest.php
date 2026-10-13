@@ -71,6 +71,37 @@ TXT;
         $this->assertTrue($f['paid']);
     }
 
+    public function test_parses_an_emoji_labelled_whatsapp_booking(): void
+    {
+        $text = <<<'TXT'
+        🗓 Date: 14-10-2026 … 05:40am
+        🚗 Vehicle Type: Executive Minibus [6 Seater]
+        📍 Pick-up: 6 Petworth Drive, Sheffield, S11 9QU
+        ✈️ Flight: Virgin Atlantic VS0109 – Departure 10:40, Terminal 2
+        📍 Drop-off: Manchester Airport – Terminal 2
+        👤 Lead Passengers: John & Tracy Barber
+        📞 Contact: 07739 661013
+        👥 Passengers: 2 Adults
+        🧳 Luggage: 4 Large Suitcases + Hand Luggage
+        £130 paid
+        TXT;
+
+        $f = app(FreeIntakeParser::class)->parse($text);
+
+        $this->assertSame('John & Tracy Barber', $f['lead_name']);       // "Lead passengers" (plural) now captured
+        $this->assertSame('07739661013', $f['contact_no']);
+        $this->assertSame('2026-10-14 05:40', $f['pickup_at']);          // ellipsis separator + am handled
+        $this->assertSame('6 Petworth Drive, Sheffield, S11 9QU', $f['pickup_address']); // "Pick-up" now captured
+        $this->assertStringContainsString('Manchester Airport', $f['destination_address']);
+        $this->assertSame('MAN', $f['where']);
+        $this->assertSame('VS0109', $f['flight_number']);               // code extracted from the wordy flight line
+        $this->assertSame(2, $f['passengers']);
+        $this->assertSame(4, $f['suitcases']);
+        $this->assertSame(1, $f['hand_luggage']);                        // "Hand Luggage" with no number → 1
+        $this->assertTrue($f['paid']);
+        $this->assertEqualsWithDelta(130.0, $f['price'], 0.001);
+    }
+
     public function test_parses_an_eto_email_for_free(): void
     {
         $f = app(FreeIntakeParser::class)->parse(self::ETO_EMAIL);
