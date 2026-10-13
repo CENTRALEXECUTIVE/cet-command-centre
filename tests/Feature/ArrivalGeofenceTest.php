@@ -296,4 +296,20 @@ class ArrivalGeofenceTest extends TestCase
             'booking_id' => $b->id, 'event_type' => 'location_blocked',
         ]);
     }
+
+    public function test_a_blocked_tap_pushes_the_office(): void
+    {
+        User::factory()->admin()->create(); // someone to notify
+        $push = $this->spy(\App\Services\Push\WebPushService::class);
+
+        $driver = $this->driver();
+        $b = $this->job($driver);
+
+        $this->actingAs($driver)->post(route('driver.job.status', $b), [
+            'status' => 'arrived', 'lat' => 51.5074, 'lng' => -0.1278, // far
+        ]);
+
+        // The office is pushed in real time, not only shown on the feed.
+        $push->shouldHaveReceived('sendToUser');
+    }
 }

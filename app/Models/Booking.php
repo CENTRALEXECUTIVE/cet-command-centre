@@ -391,16 +391,25 @@ class Booking extends Model
         }
 
         $driver = $this->driver?->name ?? 'The driver';
-        $why = $reason === 'no_location' ? 'no location turned on' : 'not at the pickup';
-        \App\Models\WatchdogEvent::log(
-            'location_blocked',
-            '🚫 '.$driver.' — couldn’t mark '.$action.' ('.$why.')',
-            'warning',
-            $this,
-            body: $reason === 'no_location'
-                ? 'Their location was off, so '.$action.' was blocked. Ask them to turn it on.'
-                : 'GPS put them away from '.\Illuminate\Support\Str::limit((string) $this->pickup_address, 60, '').', so '.$action.' was blocked.',
-        );
+        // "Complete" is checked at the DROP-OFF; Arrived/POB at the pickup.
+        $atDropoff = stripos($action, 'complete') !== false;
+        $place = $atDropoff
+            ? ($this->displayDropoffAddress() ?: $this->destination_address)
+            : ($this->displayPickupAddress() ?: $this->pickup_address);
+        $why = $reason === 'no_location'
+            ? 'no location turned on'
+            : 'not at the '.($atDropoff ? 'drop-off' : 'pickup');
+
+        $title = '🚫 '.$driver.' — couldn’t mark '.$action.' ('.$why.')';
+        $body = $reason === 'no_location'
+            ? 'Their location was off, so '.$action.' was blocked. Ask them to turn it on.'
+            : 'GPS put them away from '.\Illuminate\Support\Str::limit((string) $place, 60, '').', so '.$action.' was blocked.';
+
+        // Feed row for the control tower...
+        \App\Models\WatchdogEvent::log('location_blocked', $title, 'warning', $this, body: $body);
+        // ...and push the office so a blocked driver is noticed in real time, not
+        // only if someone's watching the feed. Deduped by the guard above.
+        app(\App\Services\Watchdog\AdminAlerts::class)->notify('location_blocked', $title, $body, 'warning', $this);
     }
 
     /** Geocoded drop-off coordinates [lat, lng] from meta['geo']['dropoff'], or null. */
