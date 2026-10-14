@@ -102,12 +102,15 @@ class SettingsController extends Controller
 
         try {
             $fromAddr = $pvt ? (string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email')) : null;
+            // Show the brand as the sender name (so it reads "Central Executive
+            // Transfers", not the bare "admin" local-part) — like a real email.
+            $fromName = (string) (config('mail.from.name') ?: config('cet.company.name', 'Central Executive Transfers'));
             Mail::mailer($mailer)->raw(
                 "This is a test email from the CET Command Centre".($pvt ? ' (PVT LTD company)' : '').".\n\nIf you can read this, outgoing email is working — booking confirmations and invoices will send.\n\nSent ".now()->format('D d M Y, H:i').'.',
-                function ($m) use ($to, $fromAddr) {
+                function ($m) use ($to, $fromAddr, $fromName) {
                     $m->to($to)->subject('CET Command Centre — test email');
                     if ($fromAddr) {
-                        $m->from($fromAddr);
+                        $m->from($fromAddr, $fromName);
                     }
                 }
             );
