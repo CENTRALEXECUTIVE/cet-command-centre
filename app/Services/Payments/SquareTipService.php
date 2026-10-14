@@ -259,9 +259,25 @@ class SquareTipService
             return false;
         }
 
-        $expected = base64_encode(hash_hmac('sha256', $notificationUrl.$body, $key, true));
+        // Square signs over the EXACT notification URL it calls (always https).
+        // Behind a host proxy the app often sees the request as http, so the URL
+        // the app builds can differ only by scheme — and the HMAC then never
+        // matches, failing every webhook. Check the URL as given AND with the
+        // scheme forced to https/http so a proxy can't break verification.
+        $candidates = array_unique([
+            $notificationUrl,
+            preg_replace('#^http://#i', 'https://', $notificationUrl),
+            preg_replace('#^https://#i', 'http://', $notificationUrl),
+        ]);
 
-        return hash_equals($expected, $signature);
+        foreach ($candidates as $url) {
+            $expected = base64_encode(hash_hmac('sha256', $url.$body, $key, true));
+            if (hash_equals($expected, (string) $signature)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** GET the order and read its reference_id (the booking reference). */

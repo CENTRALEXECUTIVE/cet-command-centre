@@ -101,6 +101,23 @@ class SquareTipTest extends TestCase
         });
     }
 
+    public function test_signature_verifies_even_when_the_proxy_strips_https(): void
+    {
+        $this->configureSquare(); // webhook_signature_key = 'sig-key'
+        $body = '{"type":"payment.updated"}';
+        $httpsUrl = 'https://staging.centralexecutivetransfers.co.uk/webhooks/square';
+        // Square signs over the HTTPS url it calls.
+        $signature = base64_encode(hash_hmac('sha256', $httpsUrl.$body, 'sig-key', true));
+
+        $svc = app(SquareTipService::class);
+        // The app, behind a proxy, sees the request as http — must still verify.
+        $this->assertTrue($svc->verifySignature($signature, $body, 'http://staging.centralexecutivetransfers.co.uk/webhooks/square'));
+        // And the correct https url still verifies.
+        $this->assertTrue($svc->verifySignature($signature, $body, $httpsUrl));
+        // A wrong signature is still rejected.
+        $this->assertFalse($svc->verifySignature('deadbeef', $body, $httpsUrl));
+    }
+
     public function test_webhook_logs_a_completed_tip_onto_the_booking(): void
     {
         $this->configureSquare();

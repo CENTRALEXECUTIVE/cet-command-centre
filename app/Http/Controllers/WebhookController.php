@@ -141,8 +141,18 @@ class WebhookController extends Controller
         if (! $sisterSet || blank($key) || blank($signature)) {
             return response()->json(['error' => 'not configured'], 403);
         }
-        $expected = base64_encode(hash_hmac('sha256', $request->fullUrl().$request->getContent(), $key, true));
-        if (! hash_equals($expected, (string) $signature)) {
+        // Scheme-proof (a host proxy can make the app see http where Square signed
+        // https) — check the URL as given and with the scheme forced either way.
+        $url = $request->fullUrl();
+        $urls = array_unique([$url, preg_replace('#^http://#i', 'https://', $url), preg_replace('#^https://#i', 'http://', $url)]);
+        $matched = false;
+        foreach ($urls as $u) {
+            if (hash_equals(base64_encode(hash_hmac('sha256', $u.$request->getContent(), $key, true)), (string) $signature)) {
+                $matched = true;
+                break;
+            }
+        }
+        if (! $matched) {
             return response()->json(['error' => 'bad signature'], 403);
         }
 
