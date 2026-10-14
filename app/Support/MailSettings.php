@@ -32,9 +32,12 @@ class MailSettings
             ], fn ($v) => $v !== null)]);
         }
 
-        // PVT LTD via the Gmail API (HTTPS) — the reliable route when the host
-        // blocks SMTP. Registered as the 'gmail' mailer (transport in AppServiceProvider).
-        config(['mail.mailers.gmail' => ['transport' => 'gmail']]);
+        // PVT LTD over HTTPS when the host blocks SMTP — registered as mailers
+        // (transports in AppServiceProvider): the Gmail API, and Resend (simplest).
+        config([
+            'mail.mailers.gmail' => ['transport' => 'gmail'],
+            'mail.mailers.resend' => ['transport' => 'resend'],
+        ]);
 
         // Microsoft 365 (Graph): send through the connected mailbox — your own
         // domain, no branding. The GraphTransport is registered in AppServiceProvider.
@@ -97,6 +100,7 @@ class MailSettings
             'graph_configured' => app(\App\Services\Inbox\GraphMailClient::class)->configured(),
             'graph_mailbox' => (string) config('services.microsoft_graph.mailbox'),
             'pvt_enabled' => (bool) Setting::get('mail_pvt_enabled', false),
+            'pvt_resend_set' => filled(Setting::get('mail_pvt_resend_key', '')),
             // Gmail API ready = a Google service-account key is present (the robust,
             // SMTP-free route for PVT). Whether it's actually authorised in the PVT
             // Workspace only shows up when a test is sent.

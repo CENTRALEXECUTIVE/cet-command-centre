@@ -81,12 +81,13 @@ class SettingsController extends Controller
         $data = $request->validate(['to' => ['nullable', 'email'], 'via' => ['nullable', 'in:pvt']]);
         $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
         $pvt = ($data['via'] ?? null) === 'pvt';
-        // PVT test sends from the PVT address: via the Gmail API if that's set up
-        // (preferred — works where the host blocks SMTP), else its own SMTP mailer,
+        // PVT test sends from the PVT address over HTTPS when set up (the host
+        // blocks SMTP): Resend first (simplest), then the Gmail API, then SMTP,
         // else the default sender.
+        $pvtResend = $pvt && app(\App\Services\Mail\ResendClient::class)->configured();
         $pvtGmail = $pvt && app(\App\Services\Mail\GmailApiClient::class)->configured();
         $pvtHasSmtp = $pvt && filled(config('mail.mailers.pvt.host'));
-        $mailer = $pvtGmail ? 'gmail' : ($pvtHasSmtp ? 'pvt' : (string) config('mail.default'));
+        $mailer = $pvtResend ? 'resend' : ($pvtGmail ? 'gmail' : ($pvtHasSmtp ? 'pvt' : (string) config('mail.default')));
         $json = $request->expectsJson();
 
         $respond = function (bool $ok, string $message) use ($json) {
@@ -156,6 +157,7 @@ class SettingsController extends Controller
             'mail_pvt_scheme' => ['nullable', 'in:smtp,smtps'],
             'mail_pvt_username' => ['nullable', 'string', 'max:160'],
             'mail_pvt_password' => ['nullable', 'string', 'max:255'],
+            'mail_pvt_resend_key' => ['nullable', 'string', 'max:255'],
             'mail_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'mail_scheme' => ['nullable', 'in:smtp,smtps'],
             'mail_username' => ['nullable', 'string', 'max:160'],
@@ -209,6 +211,10 @@ class SettingsController extends Controller
         }
         if (array_key_exists('mail_pvt_password', $data) && trim((string) ($data['mail_pvt_password'] ?? '')) !== '') {
             Setting::set('mail_pvt_password', trim((string) $data['mail_pvt_password']), 'string', 'mail');
+        }
+        // Resend API key for PVT sending — only overwrite when a value is given.
+        if (array_key_exists('mail_pvt_resend_key', $data) && trim((string) ($data['mail_pvt_resend_key'] ?? '')) !== '') {
+            Setting::set('mail_pvt_resend_key', trim((string) $data['mail_pvt_resend_key']), 'string', 'mail');
         }
         if (array_key_exists('mail_port', $data)) {
             Setting::set('mail_port', trim((string) ($data['mail_port'] ?? '')), 'string', 'mail');

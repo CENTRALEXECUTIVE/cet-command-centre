@@ -299,6 +299,16 @@
                     <input type="email" name="mail_pvt_from_address" value="{{ $mail['pvt_from_address'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
                 </label>
 
+                {{-- Resend — the simplest PVT send route (HTTPS, no Google Cloud).
+                     Verify the PVT domain in Resend (Cloudflare DNS), paste the key. --}}
+                <div style="margin-top:12px;border:1px solid #cfe2f3;background:#f2f8fe;border-radius:10px;padding:10px 12px;max-width:560px">
+                    <strong style="font-size:13px">⭐ Easiest: send via Resend (HTTPS — no Google Cloud) @if($mail['pvt_resend_set'] ?? false)<span style="color:#1f7a44"> · key saved</span>@endif</strong>
+                    <p class="hint" style="margin:6px 0 8px">Sign up at <strong>resend.com</strong> (free), add the domain <strong>centralexecutivetransferspvt.co.uk</strong>, add the DNS records it shows you in Cloudflare, then paste the API key here. Sends from your PVT address; nothing touches Workspace receiving.</p>
+                    <label style="display:block;font-size:12px;font-weight:600">Resend API key
+                        <input type="password" name="mail_pvt_resend_key" placeholder="{{ ($mail['pvt_resend_set'] ?? false) ? '•••••••• (saved — blank keeps it)' : 're_...' }}" autocomplete="new-password">
+                    </label>
+                </div>
+
                 @if($mail['pvt_gmail_client_id'] ?? null)
                     {{-- Gmail API (HTTPS) is the reliable route — the host blocks SMTP.
                          To switch it on, authorise this service account in the PVT

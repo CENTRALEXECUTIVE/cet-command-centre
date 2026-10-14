@@ -5525,6 +5525,11 @@ class Booking extends Model
         if (! $pvt || ! \App\Models\Setting::get('mail_pvt_enabled', false)) {
             return null;
         }
+        // Prefer Resend (HTTPS, simplest — no Google Cloud), then the Gmail API,
+        // then SMTP, else the default main mailer.
+        if (app(\App\Services\Mail\ResendClient::class)->configured()) {
+            return 'resend';
+        }
         if (app(\App\Services\Mail\GmailApiClient::class)->configured()) {
             return 'gmail';
         }

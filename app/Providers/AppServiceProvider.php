@@ -47,6 +47,11 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\Mail::extend('gmail', fn (array $config = []) => new \App\Mail\Transport\GmailApiTransport(
                 app(\App\Services\Mail\GmailApiClient::class)
             ));
+            // Resend HTTPS API — the simplest PVT send route (no Google Cloud): just
+            // an API key + the PVT domain verified in Resend.
+            \Illuminate\Support\Facades\Mail::extend('resend', fn (array $config = []) => new \App\Mail\Transport\ResendTransport(
+                app(\App\Services\Mail\ResendClient::class)
+            ));
         } catch (\Throwable $e) {
             // Never let transport registration take the app down.
         }
