@@ -355,11 +355,15 @@
                         if (!btn) return;
                         btn.addEventListener('click', function () {
                             var out = document.getElementById('pvt-test-result');
+                            // Send the PVT test to the address in the "send a test to…"
+                            // box if one's typed, else the logged-in admin's email.
+                            var toEl = document.getElementById('test-email-to');
+                            var to = toEl && toEl.value ? toEl.value.trim() : '';
                             out.style.color = ''; out.textContent = 'Sending…'; btn.disabled = true;
                             fetch('{{ route('settings.test-email') }}', {
                                 method: 'POST',
                                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ via: 'pvt' })
+                                body: JSON.stringify(to ? { via: 'pvt', to: to } : { via: 'pvt' })
                             })
                             .then(function (r) { return r.json().catch(function () { return { ok: false, message: 'Unexpected response (' + r.status + ').' }; }); })
                             .then(function (d) {
