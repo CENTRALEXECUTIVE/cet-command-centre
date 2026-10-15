@@ -25,6 +25,14 @@
                 <p class="hint" style="margin:0">Your tip means a great deal to {{ $driverName ?: 'your driver' }}. We look forward to driving you again soon.</p>
             @endif
         </div>
+
+        @if(!empty($reviewUrl))
+            <div class="card" style="text-align:center;margin-top:16px">
+                <div style="font-size:30px">⭐️⭐️⭐️⭐️⭐️</div>
+                <p style="margin:8px 0 14px;font-size:15px">Enjoyed the journey? A quick Google review really helps {{ $driverName ?: 'your driver' }} and the team.</p>
+                <a href="{{ $reviewUrl }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:11px 20px;font-size:15px;display:inline-block">Leave a review</a>
+            </div>
+        @endif
         <p style="text-align:center;margin-top:22px;font-size:13px;color:#8a8f98">
             <strong>Central Executive Transfers</strong> — “Driven by Excellence”
         </p>

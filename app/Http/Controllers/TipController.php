@@ -81,6 +81,8 @@ class TipController extends Controller
         return view('tip.thanks', [
             'driverName' => $booking?->driverPublicName(),
             'cash' => $request->boolean('cash'),
+            // A customer who's just tipped is a happy one — invite a Google review.
+            'reviewUrl' => (string) config('cet.review_url'),
         ]);
     }
 }
