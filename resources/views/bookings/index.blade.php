@@ -160,6 +160,13 @@
                                     @if(!empty($b->meta['audit_issues']))
                                         <span title="Flagged by ETO audit — {{ implode('; ', $b->meta['audit_issues']) }}">⚠</span>
                                     @endif
+                                    @if($b->vatInvoiceRequested())
+                                        @if($b->vatSettled())
+                                            <span class="badge" style="background:#1f7a44;color:#fff;font-size:10px" title="VAT invoice — VAT received">VAT ✓</span>
+                                        @else
+                                            <span class="badge" style="background:#8a5a00;color:#fff;font-size:10px" title="VAT invoice — VAT still outstanding">VAT ⏳</span>
+                                        @endif
+                                    @endif
                                     @if($b->looksDuplicated())
                                         <span title="Possible duplicate — tap to review &amp; merge" style="color:#b32020;font-weight:700;cursor:pointer"
                                               onclick="event.preventDefault();event.stopPropagation();window.location='{{ route('bookings.show', $b) }}#duplicate'">⑂ dup?</span>

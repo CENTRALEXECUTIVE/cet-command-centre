@@ -423,6 +423,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('reports/profit', [ReportController::class, 'profit'])->name('reports.profit');
         Route::get('reports/owed', [ReportController::class, 'owed'])->name('reports.owed');
         Route::get('reports/revenue', [ReportController::class, 'revenue'])->name('reports.revenue');
+        Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat');
         Route::get('businesses/{account}', [ReportController::class, 'business'])->name('reports.business');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
 

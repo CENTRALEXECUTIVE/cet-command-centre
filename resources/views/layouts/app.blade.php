@@ -99,6 +99,7 @@
                     <a href="{{ route('reports.profit') }}" class="{{ request()->routeIs('reports.profit') ? 'active' : '' }}">💰 Profit</a>
                     <a href="{{ route('reports.owed') }}" class="{{ request()->routeIs('reports.owed') ? 'active' : '' }}">💷 Money owed</a>
                     <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Revenue reports</a>
+                    <a href="{{ route('reports.vat') }}" class="{{ request()->routeIs('reports.vat') ? 'active' : '' }}">🧾 VAT report</a>
                 </details>
 
                 <details class="nav-fold" @if($inFleet) open @endif>

@@ -770,4 +770,48 @@ class ReportService
 
         return round((($to - $from) / $from) * 100, 1);
     }
+
+    /**
+     * VAT invoices in a date range — the figures for the VAT return. Every booking
+     * billed WITH VAT (a requested VAT invoice, or an account job) in the window,
+     * with its net / VAT / gross and whether the VAT has been received. Totals and
+     * the outstanding-VAT figure are summed at the end.
+     *
+     * @return array{rows: \Illuminate\Support\Collection, net: float, vat: float, gross: float, vat_received: float, vat_outstanding: float, count: int}
+     */
+    public function vatInvoices(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $rows = Booking::query()
+            ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+            ->whereBetween('pickup_at', [$start, $end])
+            ->with(['customer.corporateAccount', 'corporateAccount'])
+            ->orderBy('pickup_at')
+            ->get()
+            ->filter(fn (Booking $b) => $b->vatInvoiceRequested() && $b->fareGross() !== null)
+            ->map(function (Booking $b) {
+                $vb = $b->fareVatBreakdown() ?? ['net' => 0.0, 'vat' => 0.0, 'gross' => 0.0];
+
+                return [
+                    'id' => $b->id,
+                    'reference' => $b->reference,
+                    'date' => $b->pickup_at,
+                    'company' => $b->customer?->corporateAccount?->name ?: $b->bookerName(),
+                    'net' => round((float) $vb['net'], 2),
+                    'vat' => round((float) $vb['vat'], 2),
+                    'gross' => round((float) $vb['gross'], 2),
+                    'paid' => $b->vatSettled(),
+                ];
+            })
+            ->values();
+
+        return [
+            'rows' => $rows,
+            'net' => round($rows->sum('net'), 2),
+            'vat' => round($rows->sum('vat'), 2),
+            'gross' => round($rows->sum('gross'), 2),
+            'vat_received' => round($rows->where('paid', true)->sum('vat'), 2),
+            'vat_outstanding' => round($rows->where('paid', false)->sum('vat'), 2),
+            'count' => $rows->count(),
+        ];
+    }
 }

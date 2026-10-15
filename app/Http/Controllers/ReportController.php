@@ -114,6 +114,40 @@ class ReportController extends Controller
     }
 
     /** @return array{0: Carbon, 1: Carbon} */
+    /**
+     * VAT report — every VAT invoice in the range with net / VAT / gross and
+     * whether the VAT has been received, plus totals for the VAT return. ?csv=1
+     * downloads it.
+     */
+    public function vat(Request $request): View|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        [$start, $end] = $this->range($request);
+        $data = $this->reports->vatInvoices($start, $end);
+
+        if ($request->boolean('csv')) {
+            $filename = 'VAT-report-'.$start->format('Y-m-d').'-to-'.$end->format('Y-m-d').'.csv';
+
+            return response()->streamDownload(function () use ($data) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['Date', 'Reference', 'Company', 'Net £', 'VAT £', 'Gross £', 'VAT status']);
+                foreach ($data['rows'] as $r) {
+                    fputcsv($out, [
+                        $r['date']?->format('Y-m-d H:i'), $r['reference'], $r['company'],
+                        number_format($r['net'], 2, '.', ''), number_format($r['vat'], 2, '.', ''),
+                        number_format($r['gross'], 2, '.', ''), $r['paid'] ? 'VAT received' : 'Outstanding',
+                    ]);
+                }
+                fputcsv($out, []);
+                fputcsv($out, ['Totals', '', '', number_format($data['net'], 2, '.', ''), number_format($data['vat'], 2, '.', ''), number_format($data['gross'], 2, '.', ''), '']);
+                fputcsv($out, ['VAT received', '', '', '', number_format($data['vat_received'], 2, '.', ''), '', '']);
+                fputcsv($out, ['VAT outstanding', '', '', '', number_format($data['vat_outstanding'], 2, '.', ''), '', '']);
+                fclose($out);
+            }, $filename, ['Content-Type' => 'text/csv']);
+        }
+
+        return view('reports.vat', ['start' => $start, 'end' => $end, 'data' => $data]);
+    }
+
     private function range(Request $request): array
     {
         $start = ($request->date('start') ?? now()->startOfMonth())->startOfDay();
