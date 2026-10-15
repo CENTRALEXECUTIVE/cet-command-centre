@@ -356,6 +356,25 @@ class BookingController extends Controller
     {
         $booking = $this->bookings->createFromForm($request->validated(), $request->user());
 
+        // VAT invoice chosen on the form (e.g. a phone booking for a company):
+        // flag it + route to the Ltd/Square entity, and keep the company details
+        // for the invoice. The company name becomes the invoice "bill to"; the
+        // lead passenger still shows as the traveller.
+        if ($request->boolean('vat_invoice')) {
+            $booking->setVatInvoiceRequested(true);
+            $meta = $booking->meta ?? [];
+            $company = trim((string) $request->input('vat_company', ''));
+            $meta['vat_details'] = array_filter([
+                'company' => $company,
+                'vat_number' => trim((string) $request->input('vat_number', '')),
+                'address' => trim((string) $request->input('vat_address', '')),
+            ], fn ($v) => $v !== '');
+            if ($company !== '') {
+                $meta['booker_name'] = $company; // invoice bills the company
+            }
+            $booking->forceFill(['meta' => $meta])->save();
+        }
+
         // Link the originating quote, if this booking came from one.
         if ($request->filled('quote_id')) {
             Quote::where('id', $request->integer('quote_id'))

@@ -68,6 +68,14 @@ class StoreBookingRequest extends FormRequest
             // recorded for the office. Free-ish but constrained to the known set.
             'booking_source' => ['nullable', Rule::in(['phone', 'whatsapp', 'email', 'website', 'repeat', 'other'])],
 
+            // VAT invoice (billed by Central Executive Transfers Ltd via Square,
+            // +20% VAT). The company details for the invoice are optional — the
+            // office captures what the customer gives on the phone.
+            'vat_invoice' => ['nullable', 'boolean'],
+            'vat_company' => ['nullable', 'string', 'max:160'],
+            'vat_number' => ['nullable', 'string', 'max:32'],
+            'vat_address' => ['nullable', 'string', 'max:500'],
+
             // Extras (same set the customer widget offers).
             'meet_greet' => ['nullable', 'boolean'],
             'child_seats' => ['nullable', 'integer', 'min:0', 'max:8'],

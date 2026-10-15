@@ -336,11 +336,38 @@
                     </div>
                 @endif
 
+                {{-- VAT invoice: for a business that wants a VAT receipt (e.g. a
+                     phone booking). Routes to Central Executive Transfers Ltd via
+                     Square and adds 20% VAT; otherwise the booking is billed by
+                     PVT LTD via Stripe. The company details go on the invoice. --}}
+                <div class="field" style="margin-top:4px">
+                    <label class="checkbox-row" style="font-weight:600">
+                        <input type="checkbox" id="vat_invoice" name="vat_invoice" value="1" {{ old('vat_invoice') ? 'checked' : '' }}
+                               onchange="document.getElementById('vat-details').hidden = !this.checked">
+                        VAT invoice — customer wants a VAT receipt
+                    </label>
+                    <div class="hint">On = billed by <strong>Central Executive Transfers Ltd</strong> (+20% VAT, card via Square). Off = <strong>PVT LTD</strong> (no VAT, card via Stripe).</div>
+                </div>
+                <div id="vat-details" class="grid grid-2" {{ old('vat_invoice') ? '' : 'hidden' }} style="margin-top:4px">
+                    <div class="field">
+                        <label for="vat_company">Company name <span class="muted">(bill to)</span></label>
+                        <input id="vat_company" name="vat_company" value="{{ old('vat_company') }}" placeholder="Who the invoice is addressed to">
+                    </div>
+                    <div class="field">
+                        <label for="vat_number">Their VAT number <span class="muted">(optional)</span></label>
+                        <input id="vat_number" name="vat_number" value="{{ old('vat_number') }}" placeholder="e.g. GB123456789">
+                    </div>
+                    <div class="field" style="grid-column:1/-1">
+                        <label for="vat_address">Billing address <span class="muted">(optional)</span></label>
+                        <input id="vat_address" name="vat_address" value="{{ old('vat_address') }}" placeholder="Company address for the invoice">
+                    </div>
+                </div>
+
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="payment_method">Payment method <span class="req">*</span></label>
                         <select id="payment_method" name="payment_method" required>
-                            <option value="card" @selected(old('payment_method','card')==='card')>Card (Tide link)</option>
+                            <option value="card" @selected(old('payment_method','card')==='card')>Card (payment link)</option>
                             <option value="cash" @selected(old('payment_method')==='cash')>Cash</option>
                             <option value="account" @selected(old('payment_method')==='account')>Account (invoiced)</option>
                         </select>
