@@ -337,8 +337,13 @@ class Booking extends Model
 
         $radius = (float) config('cet.arrival_radius_metres', 1609);
         $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
+        // Forgive a little GPS error, but CAP it at the radius so a wildly
+        // imprecise fix (IP/cell-level accuracy of tens of km — location half-off)
+        // can't make a faraway spot pass, e.g. completing at the airport when the
+        // drop-off is Sheffield. A real driver at the point has good GPS.
+        $slack = min((float) ($accuracy ?? 0), $radius);
 
-        return $metres <= $radius + (float) ($accuracy ?? 0) ? 'ok' : 'far';
+        return $metres <= $radius + $slack ? 'ok' : 'far';
     }
 
     /**
@@ -371,8 +376,13 @@ class Booking extends Model
 
         $radius = (float) config('cet.arrival_radius_metres', 1609);
         $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
+        // Forgive a little GPS error, but CAP it at the radius so a wildly
+        // imprecise fix (IP/cell-level accuracy of tens of km — location half-off)
+        // can't make a faraway spot pass, e.g. completing at the airport when the
+        // drop-off is Sheffield. A real driver at the point has good GPS.
+        $slack = min((float) ($accuracy ?? 0), $radius);
 
-        return $metres <= $radius + (float) ($accuracy ?? 0) ? 'ok' : 'far';
+        return $metres <= $radius + $slack ? 'ok' : 'far';
     }
 
     /**

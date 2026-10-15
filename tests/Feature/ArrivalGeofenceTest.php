@@ -190,6 +190,24 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::Complete, $b->fresh()->status);
     }
 
+    public function test_a_wild_gps_accuracy_cannot_defeat_the_dropoff_fence(): void
+    {
+        // The real incident: an airport ARRIVAL (drop-off in Sheffield) was marked
+        // Complete while still AT Manchester Airport (~50 km away) because the
+        // device reported a junk accuracy of tens of km, which used to be added to
+        // the radius uncapped and let everywhere pass.
+        $b = Booking::factory()->create([
+            'status' => BookingStatus::Collected->value,
+            'meta' => ['geo' => ['dropoff' => self::DROPOFF]], // Sheffield-ish
+        ]);
+
+        // At Manchester Airport, accuracy 60 km — must be rejected now.
+        $this->assertSame('far', $b->checkDriverAtDropoff(53.3650, -2.2727, 60000));
+
+        // A driver genuinely AT the drop-off still passes even with a poor fix.
+        $this->assertSame('ok', $b->checkDriverAtDropoff(self::DROPOFF[0], self::DROPOFF[1], 60000));
+    }
+
     public function test_dropoff_check_fails_open_when_it_cannot_be_geocoded(): void
     {
         // We can't geocode the drop-off → we must NOT block a genuine completion.
