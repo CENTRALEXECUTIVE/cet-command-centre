@@ -50,6 +50,44 @@ class CustomerController extends Controller
         return view('customers.index', ['customers' => $customers, 'term' => $term, 'accounts' => $accounts]);
     }
 
+    /**
+     * Live JSON lookup for the New Booking form: find existing customers by name,
+     * phone or email so the office can pick a returning client and prefill their
+     * details instead of retyping. Admin only.
+     */
+    public function search(Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
+
+        $results = Customer::query()
+            ->where(fn ($w) => $w
+                ->where('name', 'like', $like)
+                ->orWhere('phone', 'like', $like)
+                ->orWhere('email', 'like', $like))
+            ->withCount('bookings')
+            ->orderByDesc('is_vip')
+            ->orderByDesc('bookings_count')
+            ->limit(8)
+            ->get()
+            ->map(fn (Customer $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'phone' => $c->phone,
+                'email' => $c->email,
+                'vip' => (bool) $c->is_vip,
+                'bookings' => (int) $c->bookings_count,
+            ]);
+
+        return response()->json(['results' => $results]);
+    }
+
     public function show(Customer $customer, CustomerSummaryService $summaries): View
     {
         $customer->load(['addresses', 'preferredVehicleType', 'corporateAccount']);

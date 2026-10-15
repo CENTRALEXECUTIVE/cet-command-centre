@@ -43,9 +43,10 @@
             <div class="head"><span class="ico">👤</span> Customer</div>
             <div class="body">
                 <div class="grid grid-2">
-                    <div class="field">
+                    <div class="field" style="position:relative">
                         <label for="customer_name">Full name <span class="req">*</span></label>
-                        <input id="customer_name" name="customer_name" value="{{ old('customer_name', $pf['customer_name'] ?? $customer?->name) }}" required>
+                        <input id="customer_name" name="customer_name" autocomplete="off" data-customer-search="{{ route('customers.search') }}" value="{{ old('customer_name', $pf['customer_name'] ?? $customer?->name) }}" required>
+                        <div id="customer-match" role="listbox" style="display:none;position:absolute;z-index:50;left:0;right:0;top:100%;background:#fff;color:#111;border:1px solid #d9d9d9;border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.28);max-height:260px;overflow-y:auto"></div>
                         @error('customer_name') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field">
@@ -862,4 +863,68 @@
         })();
     </script>
     @endverbatim
+
+    {{-- Existing-customer lookup: as the office types a name, matching returning
+         customers drop down; picking one fills name, phone and email so a repeat
+         client is one tap, not retyped. Self-contained; reads the endpoint from
+         the field's data attribute. --}}
+    <script>
+    (function () {
+        var box = document.getElementById('customer_name');
+        var results = document.getElementById('customer-match');
+        if (!box || !results || !box.dataset.customerSearch) return;
+        var timer = null, lastQ = '';
+
+        function esc(s) {
+            return (s == null ? '' : String(s)).replace(/[&<>"]/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+            });
+        }
+        function hide() { results.style.display = 'none'; }
+
+        function render(list) {
+            if (!list.length) { hide(); return; }
+            results.innerHTML = list.map(function (r) {
+                var sub = [r.phone, r.email].filter(Boolean).join(' · ');
+                var tag = (r.vip ? '⭐ ' : '') + (r.bookings ? r.bookings + ' booking' + (r.bookings === 1 ? '' : 's') : 'new');
+                return '<div class="cm-opt" role="option" tabindex="0"'
+                    + ' data-name="' + esc(r.name) + '" data-phone="' + esc(r.phone || '') + '" data-email="' + esc(r.email || '') + '"'
+                    + ' style="padding:9px 12px;border-bottom:1px solid #eee;cursor:pointer;font-size:13px;color:#111">'
+                    + '<strong>' + esc(r.name) + '</strong> <span style="color:#888;font-size:11px">· ' + esc(tag) + '</span>'
+                    + (sub ? '<div style="color:#666;font-size:12px;margin-top:2px">' + esc(sub) + '</div>' : '')
+                    + '</div>';
+            }).join('');
+            results.style.display = 'block';
+        }
+
+        function look() {
+            var q = box.value.trim();
+            if (q === lastQ) return;
+            lastQ = q;
+            if (q.length < 2) { hide(); return; }
+            fetch(box.dataset.customerSearch + '?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (d) { if (box.value.trim() === q) render(d.results || []); })
+                .catch(hide);
+        }
+
+        box.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(look, 220); });
+        results.addEventListener('click', pick);
+        results.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); pick(e); } });
+        function pick(e) {
+            var opt = e.target.closest('.cm-opt');
+            if (!opt) return;
+            box.value = opt.dataset.name;
+            var ph = document.getElementById('customer_phone');
+            var em = document.getElementById('customer_email');
+            if (ph && opt.dataset.phone) ph.value = opt.dataset.phone;
+            if (em && opt.dataset.email) em.value = opt.dataset.email;
+            lastQ = box.value.trim();
+            hide();
+        }
+        document.addEventListener('click', function (e) {
+            if (!results.contains(e.target) && e.target !== box) hide();
+        });
+    })();
+    </script>
 @endsection
