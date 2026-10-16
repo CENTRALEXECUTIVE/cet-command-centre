@@ -94,11 +94,17 @@
                 </div>
 
                 <div class="field">
+                    <label for="pickup_postcode">Pickup postcode <span class="muted">— type it to list every address there</span></label>
+                    <input id="pickup_postcode" name="pickup_postcode" data-postcode-fill="#pickup_address" autocomplete="off"
+                           placeholder="e.g. S10 2PB" value="{{ old('pickup_postcode', $pf['pickup_postcode'] ?? '') }}" style="text-transform:uppercase">
+                    <div class="hint">Type a postcode and pick the address from the list, or just type the address below (its postcode fills in automatically).</div>
+                </div>
+                <div class="field">
                     <label for="pickup_address">Pickup address <span class="req">*</span></label>
                     <div class="loc-row">
                         <span class="pin pickup">A</span>
                         <div class="grow">
-                            <textarea id="pickup_address" name="pickup_address" data-places autocomplete="off" placeholder="Start typing an address…" required>{{ old('pickup_address', $pf['pickup_address'] ?? $quote?->pickup_address) }}</textarea>
+                            <textarea id="pickup_address" name="pickup_address" data-places data-postcode-target="#pickup_postcode" autocomplete="off" placeholder="Start typing an address…" required>{{ old('pickup_address', $pf['pickup_address'] ?? $quote?->pickup_address) }}</textarea>
                         </div>
                     </div>
                     @error('pickup_address') <div class="error">{{ $message }}</div> @enderror
@@ -119,11 +125,16 @@
                 </div>
 
                 <div class="field">
+                    <label for="destination_postcode">Destination postcode <span class="muted">— type it to list every address there</span></label>
+                    <input id="destination_postcode" name="destination_postcode" data-postcode-fill="#destination_address" autocomplete="off"
+                           placeholder="e.g. M90 1QX" value="{{ old('destination_postcode', $pf['destination_postcode'] ?? '') }}" style="text-transform:uppercase">
+                </div>
+                <div class="field">
                     <label for="destination_address">Destination address <span class="req">*</span></label>
                     <div class="loc-row">
                         <span class="pin drop">B</span>
                         <div class="grow">
-                            <textarea id="destination_address" name="destination_address" data-places autocomplete="off" placeholder="Start typing an address…" required>{{ old('destination_address', $pf['destination_address'] ?? $quote?->destination_address) }}</textarea>
+                            <textarea id="destination_address" name="destination_address" data-places data-postcode-target="#destination_postcode" autocomplete="off" placeholder="Start typing an address…" required>{{ old('destination_address', $pf['destination_address'] ?? $quote?->destination_address) }}</textarea>
                         </div>
                     </div>
                     @error('destination_address') <div class="error">{{ $message }}</div> @enderror
