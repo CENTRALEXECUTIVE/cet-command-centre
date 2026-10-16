@@ -101,7 +101,11 @@
 
   <table class="items">
     <thead>
-      <tr><th>Description</th><th class="num" style="width:12%">Net</th><th class="num" style="width:12%">VAT</th><th class="num" style="width:14%">Gross</th></tr>
+      @if($isVat ?? true)
+        <tr><th>Description</th><th class="num" style="width:12%">Net</th><th class="num" style="width:12%">VAT</th><th class="num" style="width:14%">Gross</th></tr>
+      @else
+        <tr><th>Description</th><th class="num" style="width:18%">Amount</th></tr>
+      @endif
     </thead>
     <tbody>
       @foreach($lines as $line)
@@ -112,17 +116,23 @@
               <div class="det">{{ $k }}: {{ $v }}</div>
             @endforeach
           </td>
-          <td class="num">£{{ number_format($line['net'], 2) }}</td>
-          <td class="num">£{{ number_format($line['vat'], 2) }}</td>
-          <td class="num">£{{ number_format($line['gross'], 2) }}</td>
+          @if($isVat ?? true)
+            <td class="num">£{{ number_format($line['net'], 2) }}</td>
+            <td class="num">£{{ number_format($line['vat'], 2) }}</td>
+            <td class="num">£{{ number_format($line['gross'], 2) }}</td>
+          @else
+            <td class="num">£{{ number_format($line['gross'], 2) }}</td>
+          @endif
         </tr>
       @endforeach
     </tbody>
   </table>
 
   <table class="totals">
-    <tr><td class="k">Subtotal (net)</td><td class="v">£{{ number_format($net, 2) }}</td></tr>
-    <tr><td class="k">VAT ({{ $ratePercent }}%)</td><td class="v">£{{ number_format($vatAmount, 2) }}</td></tr>
+    @if($isVat ?? true)
+      <tr><td class="k">Subtotal (net)</td><td class="v">£{{ number_format($net, 2) }}</td></tr>
+      <tr><td class="k">VAT ({{ $ratePercent }}%)</td><td class="v">£{{ number_format($vatAmount, 2) }}</td></tr>
+    @endif
     <tr class="grand"><td class="k">{{ $isAccount ? 'Total (on account)' : 'Total' }}</td><td class="v">£{{ number_format($gross, 2) }}</td></tr>
     @unless($isAccount)
       <tr><td class="k">Paid</td><td class="v">£{{ number_format($paidAmount, 2) }}</td></tr>

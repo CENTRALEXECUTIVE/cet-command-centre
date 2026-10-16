@@ -60,7 +60,7 @@ class WebBookingEmailTest extends TestCase
                 && $mail->hasTo('jane@example.com')
                 && $mail->booking->id === $booking->id;
         });
-        $this->assertNotEmpty($booking->fresh()->meta['customer_email_sent']);
+        $this->assertNotEmpty($booking->fresh()->meta['paid_email_sent']);
     }
 
     public function test_the_confirmation_is_only_emailed_once(): void
@@ -181,11 +181,15 @@ class WebBookingEmailTest extends TestCase
     public function test_the_invoice_pdf_renders_with_vat(): void
     {
         $booking = $this->paidWebBooking();
+        // VAT invoice requested: £250 net + 20% VAT = £300 gross.
+        $booking->forceFill(['quoted_price' => 250])->save();
+        $booking->setVatInvoiceRequested(true);
+        $booking = $booking->fresh();
 
         $pdf = app(BookingInvoicePdf::class)->render($booking);
         $this->assertStringStartsWith('%PDF', $pdf);
 
-        // £300 gross → net £250, VAT £50 at 20%.
+        // £250 net → VAT £50 at 20%, gross £300.
         $data = app(BookingInvoicePdf::class)->data($booking);
         $this->assertSame(250.0, $data['net']);
         $this->assertSame(50.0, $data['vatAmount']);

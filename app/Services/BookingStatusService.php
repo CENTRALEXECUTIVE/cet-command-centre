@@ -134,19 +134,9 @@ class BookingStatusService
 
             $fresh = $booking->fresh();
 
-            // Email the customer their confirmation + VAT invoice/receipt (once).
-            if ($fresh->customer?->email && empty($fresh->meta['customer_email_sent'])) {
-                try {
-                    \Illuminate\Support\Facades\Mail::to($fresh->customer->email)
-                        ->send(new \App\Mail\BookingConfirmationMail($fresh, paid: true));
-                    $fresh->forceFill(['meta' => array_merge($fresh->meta ?? [], [
-                        'customer_email_sent' => now()->toIso8601String(),
-                    ])])->save();
-                    $fresh = $fresh->fresh();
-                } catch (\Throwable $e) {
-                    \App\Support\MailFailure::report('paid booking confirmation', $e, $fresh);
-                }
-            }
+            // Email the customer the PAID confirmation + invoice (once).
+            $this->emailPaidConfirmation($fresh);
+            $fresh = $fresh->fresh();
 
             $name = $fresh->customer?->name ?? 'Web customer';
             \App\Models\WatchdogEvent::log('web_booking_paid', 'Web booking PAID — '.$name, 'info', $fresh);
@@ -159,6 +149,30 @@ class BookingStatusService
 
             return $fresh;
         });
+    }
+
+    /**
+     * Send the customer the PAID booking confirmation (with the invoice attached)
+     * once their payment lands — for ANY booking (web or office-made), with a
+     * customer email, exactly once. Uses its own `paid_email_sent` flag so it
+     * fires even when a pending confirmation was already emailed at booking time.
+     * A send failure is reported to the office, never fatal.
+     */
+    public function emailPaidConfirmation(Booking $booking): void
+    {
+        if (blank($booking->customer?->email) || ! empty($booking->meta['paid_email_sent'])) {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($booking->customer->email)
+                ->send(new \App\Mail\BookingConfirmationMail($booking, paid: true));
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                'paid_email_sent' => now()->toIso8601String(),
+            ])])->save();
+        } catch (\Throwable $e) {
+            \App\Support\MailFailure::report('paid booking confirmation', $e, $booking);
+        }
     }
 
     /**

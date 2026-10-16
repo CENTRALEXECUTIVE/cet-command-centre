@@ -35,7 +35,19 @@ class BookingInvoicePdf
     public function data(Booking $booking): array
     {
         $booking->loadMissing(['customer', 'vehicleType']);
-        $vat = $booking->fareVatBreakdown() ?? ['net' => 0.0, 'vat' => 0.0, 'gross' => 0.0, 'rate' => 0.0];
+
+        // VAT only when a VAT invoice was selected (billed by the VAT-registered
+        // Ltd). Otherwise it's the sister company, Central Executive Transfers PVT
+        // LTD, which is NOT VAT registered — so the invoice shows NO VAT at all:
+        // just the price as net=gross, no VAT line, no VAT number, PVT company.
+        $isVat = $booking->vatInvoiceRequested();
+        if ($isVat) {
+            $vat = $booking->fareVatBreakdown() ?? ['net' => 0.0, 'vat' => 0.0, 'gross' => 0.0, 'rate' => 0.0];
+        } else {
+            $price = (float) ($booking->fareGross() ?? 0);
+            $vat = ['net' => $price, 'vat' => 0.0, 'gross' => $price, 'rate' => 0.0];
+        }
+        $company = \App\Support\InvoiceProfile::companyFor($isVat);
 
         $paid = ($booking->payment_status ?? null) === 'paid';
         $paidAmount = $paid ? $vat['gross'] : (float) ($booking->meta['square_payment']['amount'] ?? 0);
@@ -43,12 +55,13 @@ class BookingInvoicePdf
         $account = $booking->corporateAccount;
 
         return [
-            'company' => \App\Support\InvoiceProfile::company(),
+            'isVat' => $isVat,
+            'company' => $company,
             'bank' => \App\Support\InvoiceProfile::bank(),
             'footerNote' => \App\Support\InvoiceProfile::footerNote(),
             'isAccount' => ($booking->payment_method?->value ?? null) === 'account',
             'account' => $account,
-            'vatNumber' => \App\Support\InvoiceProfile::company()['vat_number'],
+            'vatNumber' => $company['vat_number'],
             'reference' => $booking->external_reference ?: $booking->reference,
             'issueDate' => ($booking->created_at ?? now())->format('d/m/Y'),
             'dueDate' => ($booking->pickup_at ?? now())->format('d/m/Y'),

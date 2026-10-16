@@ -276,9 +276,14 @@
         </div>
 
         {{-- ───────────── Extras ───────────── --}}
+        @php $extrasOpen = old('meet_greet') || (int) old('child_seats', 0) || (int) old('booster_seats', 0) || (int) old('infant_seats', 0) || old('ribbon') || old('wheelchair'); @endphp
         <div class="eto-section">
-            <div class="head"><span class="ico">✨</span> Extras</div>
-            <div class="body">
+            <div class="head" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"
+                 onclick="var b=this.nextElementSibling;var show=b.hidden;b.hidden=!show;this.querySelector('.fold-caret').textContent=show?'▾':'▸'">
+                <span><span class="ico">✨</span> Extras <span class="muted" style="font-weight:400;font-size:12px">— meet &amp; greet, child seats, ribbons</span></span>
+                <span class="fold-caret" style="color:#999">{{ $extrasOpen ? '▾' : '▸' }}</span>
+            </div>
+            <div class="body" {{ $extrasOpen ? '' : 'hidden' }}>
                 <div class="checkbox-row" style="margin-bottom:12px">
                     <input id="meet_greet" type="checkbox" name="meet_greet" value="1" {{ old('meet_greet') ? 'checked' : '' }}>
                     <label for="meet_greet">Meet &amp; greet <span class="muted">(driver waits in arrivals with a name board)</span></label>

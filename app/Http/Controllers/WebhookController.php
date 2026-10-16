@@ -117,7 +117,9 @@ class WebhookController extends Controller
 
         // A fare paid online confirms the web booking: allocate + calendar + alert.
         if ($fareBooking) {
-            app(\App\Services\BookingStatusService::class)->confirmPaidWebBooking($fareBooking->fresh());
+            $svc = app(\App\Services\BookingStatusService::class);
+            $svc->confirmPaidWebBooking($fareBooking->fresh());
+            $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
         }
 
         return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking)]);
@@ -158,7 +160,9 @@ class WebhookController extends Controller
 
         $fareBooking = $fares->recordFareFromWebhook($request->json()->all(), 'chauffeurs');
         if ($fareBooking) {
-            app(\App\Services\BookingStatusService::class)->confirmPaidWebBooking($fareBooking->fresh());
+            $svc = app(\App\Services\BookingStatusService::class);
+            $svc->confirmPaidWebBooking($fareBooking->fresh());
+            $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
         }
 
         return response()->json(['recorded' => (bool) $fareBooking]);
@@ -181,7 +185,9 @@ class WebhookController extends Controller
 
         $fareBooking = $stripe->recordFareFromWebhook($request->json()->all());
         if ($fareBooking) {
-            app(\App\Services\BookingStatusService::class)->confirmPaidWebBooking($fareBooking->fresh());
+            $svc = app(\App\Services\BookingStatusService::class);
+            $svc->confirmPaidWebBooking($fareBooking->fresh());
+            $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
         }
 
         return response()->json(['recorded' => (bool) $fareBooking]);
