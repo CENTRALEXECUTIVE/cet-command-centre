@@ -383,8 +383,14 @@ class BookingController extends Controller
             && filled($booking->customer?->email)
             && empty($booking->meta['customer_email_sent'])) {
             try {
+                // For an unpaid CARD booking, include a "Pay now" link so the
+                // customer can pay the amount (incl. VAT) straight from the email —
+                // routed to the right provider (Square for VAT, Stripe otherwise).
+                // Null for cash/account/paid, or if no card provider is set up.
+                $payUrl = $this->customerPayLink($booking->fresh());
+
                 \Illuminate\Support\Facades\Mail::to($booking->customer->email)
-                    ->send(new \App\Mail\BookingConfirmationMail($booking->fresh(), paid: false));
+                    ->send(new \App\Mail\BookingConfirmationMail($booking->fresh(), paid: false, payUrl: $payUrl));
                 $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
                     'customer_email_sent' => now()->toIso8601String(),
                 ])])->save();
@@ -409,6 +415,26 @@ class BookingController extends Controller
         return redirect()
             ->route('bookings.show', $booking)
             ->with('status', "Booking {$booking->reference} created successfully.");
+    }
+
+    /**
+     * A hosted "Pay now" link for a customer's confirmation email — only for an
+     * UNPAID card booking with a positive amount and a configured provider. The
+     * amount is VAT-inclusive (amountPayable). Null otherwise (cash/account/paid,
+     * or no card provider), so the email just shows the status with no button.
+     */
+    private function customerPayLink(Booking $booking): ?string
+    {
+        if (($booking->payment_method?->value ?? null) !== 'card' || $booking->fareIsPaid()) {
+            return null;
+        }
+        $amount = $booking->amountPayable();
+        if ($amount === null || $amount <= 0) {
+            return null;
+        }
+
+        return app(\App\Services\Payments\PaymentGateway::class)
+            ->createCheckoutUrl($booking, (float) $amount, route('public.book.thanks'), 'Journey fare');
     }
 
     /**

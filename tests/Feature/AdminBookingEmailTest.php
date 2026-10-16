@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\VehicleType;
 use Database\Seeders\VehicleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -53,6 +54,31 @@ class AdminBookingEmailTest extends TestCase
 
         Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->hasTo('customer@example.com'));
         $this->assertNotEmpty(Booking::latest('id')->first()->meta['customer_email_sent'] ?? null);
+    }
+
+    public function test_the_email_carries_a_pay_now_link_for_an_unpaid_card_booking(): void
+    {
+        config(['services.square.access_token' => 'sq', 'services.square.location_id' => 'LOC', 'services.square.environment' => 'sandbox']);
+        Http::fake(['connect.squareupsandbox.com/*' => Http::response(['payment_link' => ['url' => 'https://square.link/pay']], 200)]);
+        Mail::fake();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload(['email_customer' => '1', 'payment_method' => 'card']))
+            ->assertRedirect();
+
+        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->payUrl === 'https://square.link/pay');
+    }
+
+    public function test_a_cash_booking_email_has_no_pay_link(): void
+    {
+        config(['services.square.access_token' => 'sq', 'services.square.location_id' => 'LOC']);
+        Mail::fake();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload(['email_customer' => '1', 'payment_method' => 'cash']))
+            ->assertRedirect();
+
+        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->payUrl === null);
     }
 
     public function test_it_does_not_email_when_unticked(): void
