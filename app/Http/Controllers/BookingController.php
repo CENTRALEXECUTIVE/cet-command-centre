@@ -438,8 +438,11 @@ class BookingController extends Controller
             return null;
         }
 
-        return app(\App\Services\Payments\PaymentGateway::class)
-            ->createCheckoutUrl($booking, (float) $amount, route('public.book.thanks'), 'Journey fare');
+        // A STABLE signed CET link, not a baked provider URL. The checkout is built
+        // fresh when the customer clicks (widget.pay), so if the office corrects the
+        // price the same link always charges the current figure — the old price can
+        // never resurface in an email that's already been sent.
+        return \Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $booking->id]);
     }
 
     /**
@@ -1546,11 +1549,23 @@ class BookingController extends Controller
             'final_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
 
+        $previousFare = $booking->fareAmount();
         $booking->forceFill(['final_price' => $data['final_price'] === '' ? null : $data['final_price']])->save();
 
-        return back()->with('status', $data['final_price'] === null || $data['final_price'] === ''
+        // A corrected price must cascade: recompute the AUTO driver pay (90% of the
+        // new fare) so driver income and payroll follow the new figure at once. A
+        // hand-set/cover price or a job already part-paid is left untouched.
+        $newPay = $booking->recomputeAutoDriverPay($previousFare);
+
+        $cleared = $data['final_price'] === null || $data['final_price'] === '';
+        $status = $cleared
             ? 'Price cleared — back to the quoted figure.'
-            : 'Job price set to £'.number_format((float) $data['final_price'], 2).'.');
+            : 'Job price set to £'.number_format((float) $data['final_price'], 2).'.';
+        if ($newPay !== null) {
+            $status .= ' Driver income updated to £'.number_format($newPay, 2).'.';
+        }
+
+        return back()->with('status', $status);
     }
 
     /**
@@ -2043,6 +2058,7 @@ class BookingController extends Controller
 
         if ($data['action'] === 'set') {
             $payroll['pay'] = round((float) $data['amount'], 2);
+            $payroll['pay_auto'] = false; // a hand-set figure — don't auto-recompute it later
             $status = 'Driver pay set to £'.number_format($payroll['pay'], 2).'.';
         } else {
             $amount = round((float) $data['amount'], 2);

@@ -616,7 +616,17 @@ class BookingWidgetController extends Controller
     {
         abort_unless($request->hasValidSignature(), 403);
 
-        $amount = (float) ($booking->quoted_price ?? 0);
+        // Already settled → send them to a friendly "already paid" page, never a
+        // second charge.
+        if ($booking->fareIsPaid()) {
+            return redirect()->route('widget.paid', ['already' => 1]);
+        }
+
+        // Build the checkout fresh at CLICK time from the CURRENT amount payable
+        // (final_price + VAT where it applies). This is why the emailed link is a
+        // stable CET URL, not a baked provider link: if the office corrects the
+        // price, the customer always sees the new figure, never the old one.
+        $amount = (float) ($booking->amountPayable() ?? 0);
         $url = $amount > 0
             ? $this->payments->createCheckoutUrl($booking, $amount, route('widget.paid'))
             : null;
@@ -632,7 +642,10 @@ class BookingWidgetController extends Controller
     public function paid(Request $request): \Illuminate\Http\Response
     {
         return response()
-            ->view('widget.paid', ['unavailable' => $request->boolean('unavailable')])
+            ->view('widget.paid', [
+                'unavailable' => $request->boolean('unavailable'),
+                'already' => $request->boolean('already'),
+            ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
 

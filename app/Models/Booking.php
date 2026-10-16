@@ -4738,10 +4738,42 @@ class Booking extends Model
             return false;
         }
         $this->forceFill(['meta' => array_merge($this->meta ?? [], [
-            'payroll' => array_merge($this->meta['payroll'] ?? [], ['pay' => $pay]),
+            // pay_auto marks this as the automatic 90% figure (not a hand-typed
+            // cover price), so a later price correction can safely recompute it.
+            'payroll' => array_merge($this->meta['payroll'] ?? [], ['pay' => $pay, 'pay_auto' => true]),
         ])])->save();
 
         return true;
+    }
+
+    /**
+     * Recompute the driver's pay to the standard share of the CURRENT fare — used
+     * when the office corrects a job's price so the driver income follows the new
+     * figure immediately. Only touches pay that is the AUTO figure (never a hand-
+     * typed cover price) and that nothing has been paid against yet. Returns the
+     * new pay, or null when it left the figure alone.
+     */
+    public function recomputeAutoDriverPay(?float $previousFare): ?float
+    {
+        $pay = $this->driverPay();
+        $pct = $this->driverPayPercent();
+        $flagged = ($this->meta['payroll']['pay_auto'] ?? null) === true;
+        // Treat pay as auto when flagged, OR (for older jobs with no flag) when it
+        // still equals the standard % of the fare it was set from.
+        $looksAuto = $pay !== null && $previousFare !== null && $previousFare > 0
+            && abs($pay - round($previousFare * $pct / 100, 2)) < 0.01;
+
+        if ((! $flagged && ! $looksAuto) || (float) $this->driverPaidAmount() > 0.001) {
+            return null; // a manual/cover price, or money already handed over — leave it
+        }
+
+        $newPay = $this->suggestedDriverPay();
+        $payroll = $this->meta['payroll'] ?? [];
+        $payroll['pay'] = $newPay;           // may be null (e.g. discounted job)
+        $payroll['pay_auto'] = $newPay !== null;
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['payroll' => $payroll])])->save();
+
+        return $newPay;
     }
 
     /**

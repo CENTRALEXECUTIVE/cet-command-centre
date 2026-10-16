@@ -63,6 +63,13 @@ return [
     // Where "new web booking" office emails go.
     'ops_email' => env('CET_OPS_EMAIL', 'admin@centralexecutivetransfers.co.uk'),
 
+    // Sender for the office's OWN notifications (new booking / payment received).
+    // When this differs from the ops inbox, Gmail/Outlook no longer label the
+    // office copy "Note to self". Set it to a send-enabled alias such as
+    // no-reply@ or bookings@centralexecutivetransfers.co.uk. Falls back to the
+    // global mail "from" address when left blank.
+    'office_from' => env('CET_OFFICE_FROM', ''),
+
     'brand' => [
         'gold' => '#FBBA2A',
         'black' => '#0b0b0b',

@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Booking;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -27,7 +28,14 @@ class OfficeBookingMail extends Mailable
     {
         $ref = $this->booking->external_reference ?: $this->booking->reference;
 
+        // A branded sender (and, when configured, a distinct from-address) so the
+        // office copy reads as "Central Executive Transfers", not "Note to self".
+        $fromAddress = trim((string) config('cet.office_from')) ?: config('mail.from.address');
+        $replyTo = config('cet.ops_email');
+
         return new Envelope(
+            from: new Address($fromAddress, 'Central Executive Transfers'),
+            replyTo: $replyTo ? [new Address($replyTo, 'Central Executive Transfers')] : [],
             subject: ($this->stage === 'paid' ? 'Payment received — booking ' : 'New booking ').$ref,
         );
     }

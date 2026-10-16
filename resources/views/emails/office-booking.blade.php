@@ -2,78 +2,107 @@
     $ref = $booking->external_reference ?: $booking->reference;
     $gross = $vat['gross'] ?? ($booking->fareGross() ?? 0);
     $paid = ($booking->payment_status ?? null) === 'paid';
-    $row = fn ($k, $v) => $v !== null && $v !== ''
-        ? '<tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top;white-space:nowrap">'.$k.'</td><td style="padding:4px 0;color:#111">'.e($v).'</td></tr>'
-        : '';
-    $viewUrl = url('/bookings/'.$booking->id);
     $stage = $stage ?? 'new';
     $isPaid = $stage === 'paid';
-    $headline = $isPaid ? 'Payment received '.$ref : 'New booking '.$ref;
+    $method = $booking->payment_method?->value ?? null;
+    $viewUrl = url('/bookings/'.$booking->id);
+    $logo = \Illuminate\Support\Facades\URL::to('/images/cet-logo-wide.png');
+
+    $accent = '#FBBA2A';
+    $chipText = $isPaid ? 'PAYMENT RECEIVED' : 'NEW BOOKING';
+    $chipBg = $isPaid ? '#1f7a44' : '#12558c';
     $lead = $isPaid
-        ? 'Payment has been received for booking <strong>'.e($ref).'</strong>.'
-        : 'New booking <strong>'.e($ref).'</strong> has been created.';
+        ? 'Payment has been received for this booking.'
+        : 'A new booking has been created and added to the Command Centre.';
+
+    // A clean key/value row.
+    $row = fn ($k, $v) => $v !== null && $v !== ''
+        ? '<tr><td style="padding:7px 16px 7px 0;color:#8a8a8a;vertical-align:top;white-space:nowrap;font-size:13px">'.$k.'</td>'
+          .'<td style="padding:7px 0;color:#141414;font-size:14px;font-weight:600">'.e($v).'</td></tr>'
+        : '';
 @endphp
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;background:#f2f1ee;font-family:Arial,Helvetica,sans-serif;color:#111;line-height:1.5">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:20px 0">
+<body style="margin:0;background:#eceae5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#141414;line-height:1.5">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0">
 <tr><td align="center">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 18px 50px -24px rgba(0,0,0,.4)">
 
-    <tr><td style="background:{{ $isPaid ? '#1f7a44' : '#12558c' }};color:#fff;padding:16px 26px;font-size:18px;font-weight:700">{{ $headline }}</td></tr>
-
-    <tr><td style="padding:18px 26px 6px">
-        <p style="margin:0 0 6px;font-size:15px">{!! $lead !!}</p>
+    {{-- Branded dark masthead with the real logo --}}
+    <tr><td style="background:#0d0d0d;padding:22px 28px 20px;border-bottom:3px solid {{ $accent }}">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle"><img src="{{ $logo }}" alt="Central Executive Transfers" height="26" style="height:26px;display:block"></td>
+            <td align="right" style="vertical-align:middle">
+                <span style="display:inline-block;background:{{ $chipBg }};color:#fff;font-size:11px;font-weight:700;letter-spacing:.09em;padding:5px 11px;border-radius:999px">{{ $chipText }}</span>
+            </td>
+        </tr></table>
     </td></tr>
 
-    <tr><td style="padding:8px 26px 0">
-        <h2 style="font-size:16px;margin:0 0 8px">Journey</h2>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-            {!! $row('Date &amp; time:', $booking->pickup_at?->format('d/m/Y H:i')) !!}
-            {!! $row('Time zone:', 'UTC+1 London') !!}
-            {!! $row('Pickup:', $booking->pickup_address) !!}
-            @foreach($booking->viaStops() as $stop){!! $row('Via:', $stop) !!}@endforeach
-            {!! $row('Dropoff:', $booking->destination_address) !!}
-            {!! $row('Vehicle type:', $booking->vehicleType?->name) !!}
-            {!! $row('Passengers:', $booking->passengers) !!}
-            {!! $row('Flight:', $booking->displayFlightNumber()) !!}
-        </table>
+    {{-- Reference + lead --}}
+    <tr><td style="padding:24px 28px 4px">
+        <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:{{ $accent }};font-weight:700">Booking {{ $ref }}</div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.01em;margin:4px 0 6px">{{ $isPaid ? 'Payment received' : 'New booking' }}</div>
+        <p style="margin:0;color:#6c6c6c;font-size:14px">{{ $lead }}</p>
     </td></tr>
 
-    <tr><td style="padding:16px 26px 0">
-        <h2 style="font-size:16px;margin:0 0 8px">Customer</h2>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-            {!! $row('Name:', $booking->displayName() ?: $booking->customer?->name) !!}
-            {!! $row('Phone number:', $booking->customer?->phone) !!}
-            {!! $row('Email:', $booking->customer?->email) !!}
-        </table>
-    </td></tr>
-
-    <tr><td style="padding:16px 26px 0">
-        <h2 style="font-size:16px;margin:0 0 8px">Reservation</h2>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-            {!! $row('Reference number:', $ref) !!}
-            {!! $row('Booking date:', ($booking->created_at ?? now())->format('d/m/Y H:i')) !!}
-            {!! $row('Summary:', 'Journey £'.number_format($gross, 2)) !!}
-            {!! $row('Total:', '£'.number_format($gross, 2)) !!}
-            @php $method = $booking->payment_method?->value ?? null; @endphp
-            <tr><td style="padding:4px 14px 4px 0;color:#666">Payment:</td>
-                <td style="padding:4px 0;color:#111">
+    {{-- Total band --}}
+    <tr><td style="padding:16px 28px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f6;border:1px solid #ece9e2;border-radius:12px">
+            <tr>
+                <td style="padding:14px 18px">
+                    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#9a9a9a;font-weight:700">Total fare</div>
+                    <div style="font-size:26px;font-weight:800;color:#141414;margin-top:2px">£{{ number_format($gross, 2) }}</div>
+                </td>
+                <td align="right" style="padding:14px 18px">
                     @if($method === 'account')
-                        £{{ number_format($gross, 2) }} — <strong>On account (invoiced)</strong>
+                        <span style="display:inline-block;background:#eef3f8;color:#12558c;font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">On account · invoiced</span>
                     @elseif($method === 'cash')
-                        £{{ number_format($gross, 2) }} — <strong>Cash to driver on the day</strong>
+                        <span style="display:inline-block;background:#fef3e2;color:#b9770a;font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">Cash to driver</span>
                     @else
-                        £{{ number_format($gross, 2) }} (Card) —
-                        <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Pending' }}</strong>
+                        <span style="display:inline-block;background:{{ $paid ? '#eaf6ef' : '#fef3e2' }};color:{{ $paid ? '#1f7a44' : '#b9770a' }};font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">Card · {{ $paid ? 'Paid' : 'Pending' }}</span>
                     @endif
-                </td></tr>
+                </td>
+            </tr>
         </table>
     </td></tr>
 
-    <tr><td style="padding:22px 26px">
-        <a href="{{ $viewUrl }}" style="display:block;background:#FBBA2A;color:#111;text-decoration:none;text-align:center;padding:13px;border-radius:8px;font-weight:800">View</a>
+    {{-- Journey --}}
+    <tr><td style="padding:22px 28px 0">
+        <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:6px">Journey</div>
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            {!! $row('Pick-up', $booking->pickup_at?->timezone(config('app.timezone'))->format('D d M Y · H:i')) !!}
+            {!! $row('From', $booking->pickup_address) !!}
+            @foreach($booking->viaStops() as $stop){!! $row('Via', $stop) !!}@endforeach
+            {!! $row('To', $booking->destination_address) !!}
+            {!! $row('Vehicle', $booking->vehicleType?->name) !!}
+            {!! $row('Passengers', $booking->passengers) !!}
+            {!! $row('Flight', $booking->displayFlightNumber()) !!}
+        </table>
+    </td></tr>
+
+    {{-- Customer --}}
+    <tr><td style="padding:20px 28px 0">
+        <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:6px">Customer</div>
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            {!! $row('Name', $booking->displayName() ?: $booking->customer?->name) !!}
+            {!! $row('Phone', $booking->customer?->phone) !!}
+            {!! $row('Email', $booking->customer?->email) !!}
+            {!! $row('Reference', $ref) !!}
+            {!! $row('Booked', ($booking->created_at ?? now())->timezone(config('app.timezone'))->format('d/m/Y · H:i')) !!}
+        </table>
+    </td></tr>
+
+    {{-- CTA --}}
+    <tr><td style="padding:24px 28px 10px">
+        <a href="{{ $viewUrl }}" style="display:block;background:{{ $accent }};color:#111;text-decoration:none;text-align:center;padding:14px;border-radius:10px;font-weight:800;font-size:15px">Open in Command Centre →</a>
+    </td></tr>
+
+    <tr><td style="padding:10px 28px 24px;text-align:center">
+        <div style="color:#9a9a9a;font-size:12px;line-height:1.7">
+            <strong style="color:#444">Central Executive Transfers Ltd</strong><br>
+            Operator Licence OP037 · 07405 172435
+        </div>
     </td></tr>
 
 </table>

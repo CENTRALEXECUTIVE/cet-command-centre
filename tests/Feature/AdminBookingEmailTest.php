@@ -59,14 +59,18 @@ class AdminBookingEmailTest extends TestCase
     public function test_the_email_carries_a_pay_now_link_for_an_unpaid_card_booking(): void
     {
         config(['services.square.access_token' => 'sq', 'services.square.location_id' => 'LOC', 'services.square.environment' => 'sandbox']);
-        Http::fake(['connect.squareupsandbox.com/*' => Http::response(['payment_link' => ['url' => 'https://square.link/pay']], 200)]);
         Mail::fake();
 
         $this->actingAs(User::factory()->admin()->create())
             ->post(route('bookings.store'), $this->payload(['email_customer' => '1', 'payment_method' => 'card']))
             ->assertRedirect();
 
-        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->payUrl === 'https://square.link/pay');
+        // The pay link is a STABLE signed CET route (widget.pay), not a baked
+        // provider URL — so a later price correction is always reflected when the
+        // customer clicks it.
+        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->payUrl !== null
+            && str_contains($m->payUrl, '/widget/pay/')
+            && str_contains($m->payUrl, 'signature='));
     }
 
     public function test_a_cash_booking_email_has_no_pay_link(): void

@@ -43,7 +43,11 @@
             <div class="cet-brand"><span class="cet-mark">C</span><span class="name">CENTRAL <span>EXECUTIVE</span> TRANSFERS</span></div>
         </div>
         <div class="cet-body">
-            @if($unavailable)
+            @if($already ?? false)
+                <div class="tick">✅</div>
+                <h2>Already paid</h2>
+                <p>This journey is already paid in full — there's nothing more to pay. You'll get your booking confirmation from our office. Safe travels with Central Executive Transfers.</p>
+            @elseif($unavailable)
                 <div class="tick">🕓</div>
                 <h2>We'll confirm your fare</h2>
                 <p>Online payment isn't available for this journey just yet — our office will confirm the price and how to pay. Your booking request is safe.</p>
