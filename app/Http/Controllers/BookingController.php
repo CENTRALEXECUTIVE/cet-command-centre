@@ -375,6 +375,24 @@ class BookingController extends Controller
             $booking->forceFill(['meta' => $meta])->save();
         }
 
+        // Email the customer a confirmation for this office-made booking, when the
+        // operator left the box ticked and the customer has an email. Deliberate,
+        // one booking at a time (unlike a bulk import, which never emails). Once
+        // per booking; a send failure is reported to the office, never fatal.
+        if ($request->boolean('email_customer')
+            && filled($booking->customer?->email)
+            && empty($booking->meta['customer_email_sent'])) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($booking->customer->email)
+                    ->send(new \App\Mail\BookingConfirmationMail($booking->fresh(), paid: false));
+                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                    'customer_email_sent' => now()->toIso8601String(),
+                ])])->save();
+            } catch (\Throwable $e) {
+                \App\Support\MailFailure::report('admin booking confirmation', $e, $booking);
+            }
+        }
+
         // Link the originating quote, if this booking came from one.
         if ($request->filled('quote_id')) {
             Quote::where('id', $request->integer('quote_id'))

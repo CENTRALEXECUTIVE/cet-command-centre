@@ -60,6 +60,11 @@
                     <input id="customer_email" type="email" name="customer_email" value="{{ old('customer_email', $pf['customer_email'] ?? $customer?->email) }}">
                     <div class="hint">Provide a phone number or an email so we can send confirmations.</div>
                     @error('customer_email') <div class="error">{{ $message }}</div> @enderror
+                    <label class="checkbox-row" style="margin-top:8px;font-size:13px;font-weight:600">
+                        <input type="checkbox" name="email_customer" value="1" {{ old('email_customer', '1') ? 'checked' : '' }}>
+                        Email the customer a booking confirmation
+                    </label>
+                    <div class="hint">Sent when they have an email. Untick to create the booking quietly.</div>
                 </div>
             </div>
         </div>
@@ -611,9 +616,10 @@
                     var arrival = isPickupAirport();
                     if (note) note.hidden = !any;
                     if (landingField) landingField.hidden = !any;
-                    // Flight number becomes required on any airport job.
-                    flightIn.required = any;
-                    if (flightHint) flightHint.textContent = any ? '— required for airport jobs' : '(if airport)';
+                    // RECOMMENDED on an airport job, never forced — the office (admin)
+                    // often doesn't have the flight to hand and can add it later.
+                    flightIn.required = false;
+                    if (flightHint) flightHint.textContent = any ? '— recommended for airport jobs' : '(if airport)';
                     // Arrival vs departure: picking up FROM an airport tracks the arriving
                     // flight; dropping off TO an airport is a departure flight.
                     if (flightLabel) flightLabel.textContent = !any
