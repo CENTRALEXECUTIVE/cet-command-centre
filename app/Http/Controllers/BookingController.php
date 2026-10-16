@@ -399,6 +399,11 @@ class BookingController extends Controller
             }
         }
 
+        // Always tell the OFFICE (ops inbox) a new booking has been created —
+        // for admin-made bookings too, not just the web widget. A paid one will
+        // email the office again on payment (via the webhook).
+        $this->status->emailOffice($booking->fresh(), 'new');
+
         // Link the originating quote, if this booking came from one.
         if ($request->filled('quote_id')) {
             Quote::where('id', $request->integer('quote_id'))

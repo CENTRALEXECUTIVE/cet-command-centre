@@ -81,7 +81,7 @@ class AdminBookingEmailTest extends TestCase
         Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->payUrl === null);
     }
 
-    public function test_it_does_not_email_when_unticked(): void
+    public function test_it_does_not_email_the_customer_when_unticked(): void
     {
         Mail::fake();
         // No email_customer key = unticked checkbox.
@@ -89,16 +89,19 @@ class AdminBookingEmailTest extends TestCase
             ->post(route('bookings.store'), $this->payload())
             ->assertRedirect();
 
-        Mail::assertNothingSent();
+        // The customer is NOT emailed; the office always is (new-booking notice).
+        Mail::assertNotSent(BookingConfirmationMail::class);
+        Mail::assertSent(\App\Mail\OfficeBookingMail::class);
     }
 
-    public function test_it_does_not_email_without_an_address(): void
+    public function test_it_does_not_email_the_customer_without_an_address(): void
     {
         Mail::fake();
         $this->actingAs(User::factory()->admin()->create())
             ->post(route('bookings.store'), $this->payload(['email_customer' => '1', 'customer_email' => '']))
             ->assertRedirect();
 
-        Mail::assertNothingSent();
+        // No customer email on file → no customer confirmation (office still notified).
+        Mail::assertNotSent(BookingConfirmationMail::class);
     }
 }

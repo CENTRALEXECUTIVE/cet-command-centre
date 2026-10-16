@@ -120,6 +120,7 @@ class WebhookController extends Controller
             $svc = app(\App\Services\BookingStatusService::class);
             $svc->confirmPaidWebBooking($fareBooking->fresh());
             $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
+            $svc->emailOffice($fareBooking->fresh(), 'paid'); // tell the office the fare was paid
         }
 
         return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking)]);
@@ -163,6 +164,7 @@ class WebhookController extends Controller
             $svc = app(\App\Services\BookingStatusService::class);
             $svc->confirmPaidWebBooking($fareBooking->fresh());
             $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
+            $svc->emailOffice($fareBooking->fresh(), 'paid'); // tell the office the fare was paid
         }
 
         return response()->json(['recorded' => (bool) $fareBooking]);
@@ -188,6 +190,7 @@ class WebhookController extends Controller
             $svc = app(\App\Services\BookingStatusService::class);
             $svc->confirmPaidWebBooking($fareBooking->fresh());
             $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
+            $svc->emailOffice($fareBooking->fresh(), 'paid'); // tell the office the fare was paid
         }
 
         return response()->json(['recorded' => (bool) $fareBooking]);

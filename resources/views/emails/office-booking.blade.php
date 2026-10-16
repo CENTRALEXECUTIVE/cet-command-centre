@@ -6,6 +6,12 @@
         ? '<tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top;white-space:nowrap">'.$k.'</td><td style="padding:4px 0;color:#111">'.e($v).'</td></tr>'
         : '';
     $viewUrl = url('/bookings/'.$booking->id);
+    $stage = $stage ?? 'new';
+    $isPaid = $stage === 'paid';
+    $headline = $isPaid ? 'Payment received '.$ref : 'New booking '.$ref;
+    $lead = $isPaid
+        ? 'Payment has been received for booking <strong>'.e($ref).'</strong>.'
+        : 'New booking <strong>'.e($ref).'</strong> has been created.';
 @endphp
 <!DOCTYPE html>
 <html>
@@ -15,10 +21,10 @@
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden">
 
-    <tr><td style="background:#12558c;color:#fff;padding:16px 26px;font-size:18px;font-weight:700">New booking {{ $ref }}</td></tr>
+    <tr><td style="background:{{ $isPaid ? '#1f7a44' : '#12558c' }};color:#fff;padding:16px 26px;font-size:18px;font-weight:700">{{ $headline }}</td></tr>
 
     <tr><td style="padding:18px 26px 6px">
-        <p style="margin:0 0 6px;font-size:15px">New booking <strong>{{ $ref }}</strong> has been created.</p>
+        <p style="margin:0 0 6px;font-size:15px">{!! $lead !!}</p>
     </td></tr>
 
     <tr><td style="padding:8px 26px 0">

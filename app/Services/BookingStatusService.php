@@ -176,6 +176,31 @@ class BookingStatusService
     }
 
     /**
+     * Notify the OFFICE (ops inbox) about a booking at a given stage — 'new'
+     * when a booking is created, 'paid' when its fare is paid online. Sent at
+     * most once per stage per booking (stamped in meta) so retries/webhooks
+     * don't double-send. No-op when there's no ops inbox configured.
+     */
+    public function emailOffice(Booking $booking, string $stage = 'new'): void
+    {
+        $ops = config('cet.ops_email');
+        $flag = 'office_email_'.$stage.'_sent';
+        if (blank($ops) || ! empty($booking->meta[$flag])) {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($ops)
+                ->send(new \App\Mail\OfficeBookingMail($booking->fresh(), $stage));
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+                $flag => now()->toIso8601String(),
+            ])])->save();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[office] booking email ('.$stage.') failed: '.$e->getMessage());
+        }
+    }
+
+    /**
      * Driver declines an offered (allocated) job: it returns to the pending pool
      * and the driver is cleared so the office (or rotation) can re-offer it.
      */

@@ -17,12 +17,18 @@ class OfficeBookingMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Booking $booking) {}
+    /**
+     * @param  string  $stage  'new' (a booking has just been created) or
+     *                         'paid' (its fare has just been paid online).
+     */
+    public function __construct(public Booking $booking, public string $stage = 'new') {}
 
     public function envelope(): Envelope
     {
+        $ref = $this->booking->external_reference ?: $this->booking->reference;
+
         return new Envelope(
-            subject: 'New booking '.($this->booking->external_reference ?: $this->booking->reference),
+            subject: ($this->stage === 'paid' ? 'Payment received — booking ' : 'New booking ').$ref,
         );
     }
 
@@ -31,6 +37,7 @@ class OfficeBookingMail extends Mailable
         return new Content(view: 'emails.office-booking', with: [
             'booking' => $this->booking,
             'vat' => $this->booking->fareVatBreakdown(),
+            'stage' => $this->stage,
         ]);
     }
 }
