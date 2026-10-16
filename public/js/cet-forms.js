@@ -36,6 +36,7 @@
     // types === 'address' the results are biased to precise addresses so typing a
     // house number lists the exact addresses to choose from.
     function suggest(query, types) {
+        lastSource = 'google';
         var wantAddresses = types === 'address';
         if (googleReady) {
             return google.maps.importLibrary('places').then(function (places) {
@@ -95,6 +96,10 @@
         return pc.slice(0, -3) + ' ' + pc.slice(-3);
     }
 
+    // Tracks where the open menu's suggestions came from, so the footer credits
+    // the real source (Royal Mail PAF vs Google) instead of always "Google".
+    var lastSource = 'google';
+
     // Fetch every address at a postcode (Royal Mail PAF via getAddress.io). Falls
     // back to Google's address type-ahead when PAF isn't set up or finds nothing.
     function postcodeAddresses(query) {
@@ -103,7 +108,7 @@
             return fetch(window.CET_ADDRESSES_URL + '?postcode=' + encodeURIComponent(pc), { headers: { 'Accept': 'application/json' } })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
-                    if (d && d.addresses && d.addresses.length) return d.addresses;
+                    if (d && d.addresses && d.addresses.length) { lastSource = 'paf'; return d.addresses; }
                     return suggest(query, 'address');
                 })
                 .catch(function () { return suggest(query, 'address'); });
@@ -151,7 +156,7 @@
                 menu.appendChild(opt);
             });
             var foot = document.createElement('div');
-            foot.textContent = 'powered by Google';
+            foot.textContent = lastSource === 'paf' ? 'Royal Mail addresses' : 'powered by Google';
             foot.style.cssText = 'padding:6px 12px;font-size:11px;color:#888;text-align:right';
             menu.appendChild(foot);
             place();
