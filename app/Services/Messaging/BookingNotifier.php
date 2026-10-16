@@ -511,6 +511,23 @@ class BookingNotifier
         return $this->customerAlreadyAskedForReview($booking);
     }
 
+    /**
+     * Should we invite a review for this booking RIGHT NOW (e.g. on the tip page)?
+     * No if the customer has already been asked (once per customer), and no
+     * mid-trip: a return pair gets ONE review only after BOTH legs are complete,
+     * so tipping after the outbound never triggers an early ask.
+     */
+    public function canInviteReview(Booking $booking): bool
+    {
+        if ($this->customerHasBeenAskedForReview($booking)) {
+            return false;
+        }
+
+        $sibling = $this->pairedLeg($booking);
+
+        return ! ($sibling && $sibling->status->value !== 'complete');
+    }
+
     private function customerAlreadyAskedForReview(Booking $booking): bool
     {
         $phone = \App\Support\Phone::wa($booking->customerContactNumber());

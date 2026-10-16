@@ -79,9 +79,10 @@ class TipController extends Controller
         $booking = Booking::byTipToken($token);
 
         // A customer who's just tipped is a happy one — invite a Google review,
-        // but ONLY if they haven't already been asked (once per customer, ever).
+        // but only once per customer, and never mid-trip (a return pair gets its
+        // review after BOTH legs are complete, so tipping on the outbound won't).
         $askReview = $booking
-            && ! app(\App\Services\Messaging\BookingNotifier::class)->customerHasBeenAskedForReview($booking);
+            && app(\App\Services\Messaging\BookingNotifier::class)->canInviteReview($booking);
 
         return view('tip.thanks', [
             'driverName' => $booking?->driverPublicName(),

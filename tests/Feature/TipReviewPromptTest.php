@@ -47,6 +47,36 @@ class TipReviewPromptTest extends TestCase
             ->assertDontSee('Leave a review');
     }
 
+    public function test_no_review_on_the_outbound_while_the_return_is_still_to_run(): void
+    {
+        config(['cet.review_url' => 'https://g.page/r/review-test/review']);
+        // Outbound complete, return still pending — a tip now must NOT ask for a review.
+        $return = Booking::factory()->create(['status' => \App\Enums\BookingStatus::Accepted->value]);
+        $outbound = Booking::factory()->create([
+            'status' => \App\Enums\BookingStatus::Complete->value,
+            'linked_booking_id' => $return->id,
+        ]);
+
+        $this->get(route('tip.thanks', $outbound->tipToken()))
+            ->assertOk()
+            ->assertDontSee('Leave a review');
+    }
+
+    public function test_review_is_offered_once_the_whole_trip_is_complete(): void
+    {
+        config(['cet.review_url' => 'https://g.page/r/review-test/review']);
+        $return = Booking::factory()->create(['status' => \App\Enums\BookingStatus::Complete->value]);
+        $outbound = Booking::factory()->create([
+            'status' => \App\Enums\BookingStatus::Complete->value,
+            'linked_booking_id' => $return->id,
+        ]);
+
+        // Tipping on the return (both legs done) offers the review.
+        $this->get(route('tip.thanks', $return->tipToken()))
+            ->assertOk()
+            ->assertSee('Leave a review');
+    }
+
     public function test_a_customer_already_asked_is_not_prompted_again(): void
     {
         config(['cet.review_url' => 'https://g.page/r/review-test/review']);
