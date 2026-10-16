@@ -46,4 +46,19 @@ class TipReviewPromptTest extends TestCase
             ->assertOk()
             ->assertDontSee('Leave a review');
     }
+
+    public function test_a_customer_already_asked_is_not_prompted_again(): void
+    {
+        config(['cet.review_url' => 'https://g.page/r/review-test/review']);
+        $booking = Booking::factory()->create();
+        // They were already sent/queued a review request on this booking.
+        $booking->messages()->create([
+            'channel' => 'whatsapp', 'direction' => 'out', 'type' => 'review_request',
+            'to_address' => '+447700900000', 'body' => 'How was your journey?', 'status' => 'queued',
+        ]);
+
+        $this->get(route('tip.thanks', $booking->tipToken()))
+            ->assertOk()
+            ->assertDontSee('Leave a review');
+    }
 }

@@ -497,6 +497,20 @@ class BookingNotifier
      * when the number isn't an exact match), so a customer_id-only check misses
      * them. Falls back to the stored customer_id for numbers we can't parse.
      */
+    /**
+     * True when this customer has EVER been asked for a review — on this booking
+     * or any earlier one. Used to stop asking a repeat customer again (e.g. the
+     * tip page won't re-prompt someone already asked). Once only.
+     */
+    public function customerHasBeenAskedForReview(Booking $booking): bool
+    {
+        if ($booking->messages()->where('type', 'review_request')->exists()) {
+            return true;
+        }
+
+        return $this->customerAlreadyAskedForReview($booking);
+    }
+
     private function customerAlreadyAskedForReview(Booking $booking): bool
     {
         $phone = \App\Support\Phone::wa($booking->customerContactNumber());

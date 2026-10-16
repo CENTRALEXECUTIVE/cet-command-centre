@@ -78,11 +78,15 @@ class TipController extends Controller
     {
         $booking = Booking::byTipToken($token);
 
+        // A customer who's just tipped is a happy one — invite a Google review,
+        // but ONLY if they haven't already been asked (once per customer, ever).
+        $askReview = $booking
+            && ! app(\App\Services\Messaging\BookingNotifier::class)->customerHasBeenAskedForReview($booking);
+
         return view('tip.thanks', [
             'driverName' => $booking?->driverPublicName(),
             'cash' => $request->boolean('cash'),
-            // A customer who's just tipped is a happy one — invite a Google review.
-            'reviewUrl' => (string) config('cet.review_url'),
+            'reviewUrl' => $askReview ? (string) config('cet.review_url') : null,
         ]);
     }
 }
