@@ -34,6 +34,22 @@ class BookingFormRendersTest extends TestCase
             ->assertSee('id="price-nudge"', false);      // typed-price vs live-quote nudge
     }
 
+    public function test_the_office_consent_box_is_pre_ticked_so_the_form_isnt_silently_blocked(): void
+    {
+        // The required GDPR-consent box is an office attestation (the operator took
+        // consent on the call), so it renders already checked — otherwise a booking
+        // that looks complete fails on a box buried below the fold.
+        $admin = User::factory()->admin()->create();
+
+        $html = $this->actingAs($admin)->get(route('bookings.create'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/id="privacy_consent"[^>]*\bchecked\b/',
+            $html,
+            'The admin booking consent checkbox should be pre-ticked.'
+        );
+    }
+
     public function test_an_email_enquiry_prefills_the_booking_form(): void
     {
         $admin = User::factory()->admin()->create();

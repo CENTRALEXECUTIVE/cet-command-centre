@@ -14,8 +14,13 @@
         </div>
 
     @if($errors->any())
-        <div class="alert alert-error">
-            Please correct the {{ $errors->count() }} highlighted {{ Str::plural('field', $errors->count()) }} below.
+        <div class="alert alert-error" id="error-summary" tabindex="-1">
+            <strong>Please fix the {{ $errors->count() }} highlighted {{ Str::plural('field', $errors->count()) }} below:</strong>
+            <ul style="margin:6px 0 0;padding-left:20px">
+                @foreach($errors->all() as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -451,7 +456,10 @@
             <div class="head"><span class="ico">🔒</span> Consent</div>
             <div class="body">
                 <div class="checkbox-row">
-                    <input id="privacy_consent" type="checkbox" name="privacy_consent" value="1" {{ old('privacy_consent') ? 'checked' : '' }} required>
+                    {{-- Office attestation: the operator confirms consent was taken when the
+                         booking was made (phone/WhatsApp/email), so it's pre-ticked and the
+                         office just leaves it on. Untick only if consent wasn't obtained. --}}
+                    <input id="privacy_consent" type="checkbox" name="privacy_consent" value="1" {{ old('privacy_consent', '1') ? 'checked' : '' }} required>
                     <label for="privacy_consent">
                         I confirm the passenger consents to their data being processed to fulfil this booking,
                         in line with the CET Privacy Notice (UK GDPR), and to being contacted about it via a
@@ -547,6 +555,16 @@
     <script src="{{ asset('js/cet-forms.js') }}?v=36"></script>
     @verbatim
     <script>
+        (function () {
+            // On a validation failure, jump to the summary and the first bad field
+            // so the operator can see exactly what's missing (no more "nothing's wrong").
+            var summary = document.getElementById('error-summary');
+            if (summary) {
+                summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                var firstInvalid = document.querySelector('[aria-invalid="true"]');
+                try { (firstInvalid || summary).focus({ preventScroll: true }); } catch (e) {}
+            }
+        })();
         (function () {
             // Add via-stop inputs (autocomplete attaches via the shared helper).
             var addBtn = document.getElementById('add-stop');
