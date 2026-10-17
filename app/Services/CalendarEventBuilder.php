@@ -246,7 +246,17 @@ class CalendarEventBuilder
         }
         $add('Drop-off Location', $booking->displayDropoffAddress() ?: $booking->destination_address);
         $add('Vehicle Type', $booking->vehicleType?->name);
-        $add('Payment', $meta['payment_text'] ?? $this->paymentLabel($booking));
+        // Prefer the stored payment text (it carries real detail like amounts and
+        // deposits). But if the fare is genuinely paid and that text still reads as
+        // unpaid/pending (a stale mirror), use the authoritative "Paid" label so a
+        // paid job never shows "Pending".
+        $paymentText = $meta['payment_text'] ?? null;
+        $textSaysPaid = $paymentText !== null
+            && stripos($paymentText, 'paid') !== false
+            && stripos($paymentText, 'pending') === false;
+        $add('Payment', ($booking->fareIsPaid() && ! $textSaysPaid)
+            ? $this->paymentLabel($booking)
+            : ($paymentText ?? $this->paymentLabel($booking)));
         $add('Booking Reference', $booking->external_reference ?? $booking->reference);
         // Notes carry the booker (rule 3): "Booked by X". Any free-text request
         // is appended after it.
@@ -359,7 +369,9 @@ class CalendarEventBuilder
     private function paymentLabel(Booking $booking): string
     {
         $method = $booking->payment_method?->label() ?? 'Card';
-        $status = ucfirst($booking->payment_status ?? 'pending');
+        // The real paid state wins — a recorded provider payment always reads
+        // "Paid", so the calendar/details never disagree with the header.
+        $status = $booking->fareIsPaid() ? 'Paid' : ucfirst($booking->payment_status ?? 'pending');
 
         return "{$status} ({$method})";
     }

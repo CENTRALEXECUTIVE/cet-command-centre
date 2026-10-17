@@ -1,7 +1,7 @@
 @php
     $ref = $booking->external_reference ?: $booking->reference;
     $gross = $vat['gross'] ?? ($booking->fareGross() ?? 0);
-    $paid = ($booking->payment_status ?? null) === 'paid';
+    $paid = $booking->fareIsPaid();
     $stage = $stage ?? 'new';
     $isPaid = $stage === 'paid';
     $method = $booking->payment_method?->value ?? null;

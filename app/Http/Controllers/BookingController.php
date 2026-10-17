@@ -522,6 +522,13 @@ class BookingController extends Controller
         // the page always renders.
         $this->autoFollowCalendar($booking);
 
+        // Heal a booking whose fare was really paid (a provider payment is on
+        // record) but whose status column still reads pending — so the main header
+        // always agrees with the money we actually hold.
+        if ($request->user()->isAdmin()) {
+            $booking->reconcilePaidStatus();
+        }
+
         return view('bookings.show', $this->showData($request, $booking));
     }
 

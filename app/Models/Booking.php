@@ -4200,7 +4200,35 @@ class Booking extends Model
      */
     public function displayPayment(): ?string
     {
+        // The real paid state is authoritative: once a provider payment is
+        // recorded (or the fare is marked paid), ALWAYS show "Paid" — so the main
+        // booking header can never lag behind a payment the system already holds,
+        // and never disagrees with the details block.
+        if ($this->fareIsPaid()) {
+            return 'Paid ('.($this->payment_method?->label() ?? 'Card').')';
+        }
+
         return $this->calendarField('Payment');
+    }
+
+    /**
+     * Heal a booking whose fare was really paid (a provider payment is on record)
+     * but whose payment_status column still reads pending — e.g. after an edit or
+     * a stale mirror. Makes the status column agree with the money we actually
+     * hold. Never touches a refunded booking, and never invents a payment (a reset
+     * clears square_payment, so a deliberate reset is respected). Returns true if
+     * it changed anything.
+     */
+    public function reconcilePaidStatus(): bool
+    {
+        if (filled($this->meta['square_payment'] ?? null)
+            && ! in_array($this->payment_status, ['paid', 'refunded'], true)) {
+            $this->forceFill(['payment_status' => 'paid'])->save();
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
