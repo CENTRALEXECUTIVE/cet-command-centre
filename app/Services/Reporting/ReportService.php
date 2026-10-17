@@ -635,6 +635,84 @@ class ReportService
      * Revenue and job count per calendar month across the period, in date order.
      * Grouped in PHP so it's portable across MySQL and SQLite.
      */
+    /**
+     * NEW CUSTOMERS PER MONTH — a customer counts as "new" in the month of their
+     * FIRST-EVER booking (by journey date, so imported history counts too). Split
+     * by the channel of that first booking: the WEBSITE (what Google Ads drives)
+     * vs everything else (phone/WhatsApp/repeat/etc.). Each month is lined up with
+     * that month's Google Ads spend + conversions (from imported AdMetric rows) and
+     * the cost per new web customer — the number that says whether the ads are
+     * paying for themselves. Every month in the range is returned, even ones with
+     * spend but no new customers (an overspend signal).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function newCustomersByMonth(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $startMonth = $start->copy()->startOfMonth();
+        $endMonth = $end->copy()->endOfMonth();
+
+        // Earliest booking per customer, across ALL time, with its source — so a
+        // customer whose first booking predates the range is never counted "new".
+        $firstByCustomer = Booking::query()
+            ->whereNotNull('customer_id')
+            ->whereNotNull('pickup_at')
+            ->orderBy('pickup_at')
+            ->get(['customer_id', 'pickup_at', 'source'])
+            ->groupBy('customer_id')
+            ->map(fn (Collection $g) => $g->first());
+
+        // Build the complete month series first, so gaps still show.
+        $rows = [];
+        for ($m = $startMonth->copy(); $m->lte($endMonth); $m->addMonth()) {
+            $ym = $m->format('Y-m');
+            $rows[$ym] = [
+                'month' => $ym,
+                'label' => $m->copy()->format('M Y'),
+                'new_customers' => 0,
+                'web' => 0,
+                'other' => 0,
+            ];
+        }
+
+        foreach ($firstByCustomer as $first) {
+            $d = $first->pickup_at;
+            if ($d->lt($startMonth) || $d->gt($endMonth)) {
+                continue;
+            }
+            $ym = $d->format('Y-m');
+            if (! isset($rows[$ym])) {
+                continue;
+            }
+            $rows[$ym]['new_customers']++;
+            if ($first->source === 'web') {
+                $rows[$ym]['web']++;
+            } else {
+                $rows[$ym]['other']++;
+            }
+        }
+
+        // Google Ads spend + conversions per month, from imported AdMetric rows.
+        $ads = \App\Models\AdMetric::query()
+            ->whereBetween('date', [$startMonth->copy()->startOfDay(), $endMonth->copy()->endOfDay()])
+            ->get(['date', 'spend', 'conversions'])
+            ->groupBy(fn ($a) => $a->date->format('Y-m'));
+
+        foreach ($rows as $ym => &$r) {
+            $monthAds = $ads->get($ym);
+            $spend = round((float) ($monthAds?->sum('spend') ?? 0), 2);
+            $r['ad_spend'] = $spend;
+            $r['ad_conversions'] = (int) ($monthAds?->sum('conversions') ?? 0);
+            // Cost to acquire one new WEB customer — the ads-attributable channel.
+            $r['cost_per_web'] = ($r['web'] > 0 && $spend > 0) ? round($spend / $r['web'], 2) : null;
+            // And across all new customers, for a looser all-in view.
+            $r['cost_per_new'] = ($r['new_customers'] > 0 && $spend > 0) ? round($spend / $r['new_customers'], 2) : null;
+        }
+        unset($r);
+
+        return array_values($rows);
+    }
+
     public function monthlyRevenue(CarbonInterface $start, CarbonInterface $end): Collection
     {
         $now = now();

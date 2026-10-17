@@ -113,6 +113,32 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * New customers per month vs Google Ads spend — so the office can see how many
+     * genuinely new customers each month brought and what the ads cost to win them.
+     * Defaults to the last 12 months when no range is given.
+     */
+    public function customers(Request $request): View
+    {
+        $start = ($request->date('start') ?? now()->subMonths(11)->startOfMonth())->startOfMonth();
+        $end = ($request->date('end') ?? now())->endOfMonth();
+
+        $rows = $this->reports->newCustomersByMonth($start, $end);
+
+        return view('reports.customers', [
+            'start' => $start,
+            'end' => $end,
+            'rows' => $rows,
+            'totals' => [
+                'new_customers' => array_sum(array_column($rows, 'new_customers')),
+                'web' => array_sum(array_column($rows, 'web')),
+                'other' => array_sum(array_column($rows, 'other')),
+                'ad_spend' => round(array_sum(array_column($rows, 'ad_spend')), 2),
+                'ad_conversions' => array_sum(array_column($rows, 'ad_conversions')),
+            ],
+        ]);
+    }
+
     /** @return array{0: Carbon, 1: Carbon} */
     /**
      * VAT report — every VAT invoice in the range with net / VAT / gross and
