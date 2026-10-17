@@ -117,10 +117,7 @@ class WebhookController extends Controller
 
         // A fare paid online confirms the web booking: allocate + calendar + alert.
         if ($fareBooking) {
-            $svc = app(\App\Services\BookingStatusService::class);
-            $svc->confirmPaidWebBooking($fareBooking->fresh());
-            $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
-            $svc->emailOffice($fareBooking->fresh(), 'paid'); // tell the office the fare was paid
+            app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
 
         return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking)]);
@@ -161,10 +158,7 @@ class WebhookController extends Controller
 
         $fareBooking = $fares->recordFareFromWebhook($request->json()->all(), 'chauffeurs');
         if ($fareBooking) {
-            $svc = app(\App\Services\BookingStatusService::class);
-            $svc->confirmPaidWebBooking($fareBooking->fresh());
-            $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
-            $svc->emailOffice($fareBooking->fresh(), 'paid'); // tell the office the fare was paid
+            app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
 
         return response()->json(['recorded' => (bool) $fareBooking]);
@@ -187,10 +181,7 @@ class WebhookController extends Controller
 
         $fareBooking = $stripe->recordFareFromWebhook($request->json()->all());
         if ($fareBooking) {
-            $svc = app(\App\Services\BookingStatusService::class);
-            $svc->confirmPaidWebBooking($fareBooking->fresh());
-            $svc->emailPaidConfirmation($fareBooking->fresh()); // paid email for office-made bookings too
-            $svc->emailOffice($fareBooking->fresh(), 'paid'); // tell the office the fare was paid
+            app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
 
         return response()->json(['recorded' => (bool) $fareBooking]);

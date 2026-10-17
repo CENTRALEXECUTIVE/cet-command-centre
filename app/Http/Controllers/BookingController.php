@@ -522,11 +522,15 @@ class BookingController extends Controller
         // the page always renders.
         $this->autoFollowCalendar($booking);
 
-        // Heal a booking whose fare was really paid (a provider payment is on
-        // record) but whose status column still reads pending — so the main header
-        // always agrees with the money we actually hold.
-        if ($request->user()->isAdmin()) {
-            $booking->reconcilePaidStatus();
+        // Catch-up: if the fare is really paid but the booking hasn't been fully
+        // processed (status column still pending, or a confirmation email never
+        // went out because a webhook was missed), finish the job now — heal the
+        // status and send the customer + office paid confirmations. Idempotent.
+        if ($request->user()->isAdmin() && $booking->fareIsPaid()
+            && ($booking->payment_status !== 'paid'
+                || empty($booking->meta['paid_email_sent'])
+                || empty($booking->meta['office_email_paid_sent']))) {
+            $booking = app(BookingStatusService::class)->onFarePaid($booking);
         }
 
         return view('bookings.show', $this->showData($request, $booking));

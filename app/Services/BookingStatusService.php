@@ -201,6 +201,34 @@ class BookingStatusService
     }
 
     /**
+     * A fare has just been paid — the single entry point however we learn of it
+     * (a provider webhook, or the office opening a booking the webhook was missed
+     * for). Idempotent: every step is guarded, so it's safe to call repeatedly.
+     *
+     *  1. Heal the status column to paid (a recorded payment is authoritative).
+     *  2. Web bookings: allocate + build the calendar + alert the office.
+     *  3. Email the CUSTOMER the paid confirmation + invoice (once).
+     *  4. Email the OFFICE the "payment received" confirmation (once) — so admins
+     *     always get the second email when a customer pays.
+     */
+    public function onFarePaid(Booking $booking): Booking
+    {
+        $booking->reconcilePaidStatus();
+        $fresh = $booking->fresh();
+
+        // Web bookings: allocation + calendar + web-paid alert (internally guarded
+        // to source=web, paid, still pending).
+        $this->confirmPaidWebBooking($fresh);
+        $fresh = $fresh->fresh();
+
+        // The two confirmation emails, each sent at most once.
+        $this->emailPaidConfirmation($fresh);
+        $this->emailOffice($fresh->fresh(), 'paid');
+
+        return $fresh->fresh();
+    }
+
+    /**
      * Driver declines an offered (allocated) job: it returns to the pending pool
      * and the driver is cleared so the office (or rotation) can re-offer it.
      */

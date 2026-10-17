@@ -9,11 +9,22 @@
     $logo = \Illuminate\Support\Facades\URL::to('/images/cet-logo-wide.png');
 
     $accent = '#FBBA2A';
-    $chipText = $isPaid ? 'PAYMENT RECEIVED' : 'NEW BOOKING';
-    $chipBg = $isPaid ? '#1f7a44' : '#12558c';
-    $lead = $isPaid
-        ? 'Payment has been received for this booking.'
-        : 'A new booking has been created and added to the Command Centre.';
+    // A card booking that isn't paid yet is INCOMPLETE — held but not confirmed
+    // until the customer pays (ETO-style). Cash/account jobs are confirmed on
+    // creation; a paid booking is confirmed.
+    $awaiting = ! $isPaid && $stage !== 'paid' && $method === 'card';
+
+    if ($isPaid) {
+        $chipText = 'PAYMENT RECEIVED'; $chipBg = '#1f7a44';
+        $heading = 'Payment received'; $lead = 'Payment has been received — this booking is now <strong>confirmed</strong>.';
+    } elseif ($awaiting) {
+        $chipText = 'INCOMPLETE · UNPAID'; $chipBg = '#b9770a';
+        $heading = 'Booking received — awaiting payment';
+        $lead = 'This booking is <strong>held but not yet confirmed</strong> — the customer still needs to pay. You\'ll get a second email the moment payment is made.';
+    } else {
+        $chipText = 'NEW BOOKING'; $chipBg = '#12558c';
+        $heading = 'New booking'; $lead = 'A new booking has been created and added to the Command Centre.';
+    }
 
     // A clean key/value row.
     $row = fn ($k, $v) => $v !== null && $v !== ''
@@ -42,8 +53,8 @@
     {{-- Reference + lead --}}
     <tr><td style="padding:24px 28px 4px">
         <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:{{ $accent }};font-weight:700">Booking {{ $ref }}</div>
-        <div style="font-size:22px;font-weight:800;letter-spacing:-.01em;margin:4px 0 6px">{{ $isPaid ? 'Payment received' : 'New booking' }}</div>
-        <p style="margin:0;color:#6c6c6c;font-size:14px">{{ $lead }}</p>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.01em;margin:4px 0 6px">{{ $heading }}</div>
+        <p style="margin:0;color:#6c6c6c;font-size:14px">{!! $lead !!}</p>
     </td></tr>
 
     {{-- Total band --}}

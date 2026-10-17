@@ -33,10 +33,22 @@ class OfficeBookingMail extends Mailable
         $fromAddress = trim((string) config('cet.office_from')) ?: config('mail.from.address');
         $replyTo = config('cet.ops_email');
 
+        // An unpaid card booking is INCOMPLETE until the customer pays (ETO-style);
+        // cash/account jobs are confirmed on creation.
+        $awaiting = $this->stage !== 'paid'
+            && ! $this->booking->fareIsPaid()
+            && ($this->booking->payment_method?->value ?? null) === 'card';
+
+        $subject = match (true) {
+            $this->stage === 'paid' => 'Payment received — booking '.$ref,
+            $awaiting => 'Incomplete booking (awaiting payment) — '.$ref,
+            default => 'New booking '.$ref,
+        };
+
         return new Envelope(
             from: new Address($fromAddress, 'Central Executive Transfers'),
             replyTo: $replyTo ? [new Address($replyTo, 'Central Executive Transfers')] : [],
-            subject: ($this->stage === 'paid' ? 'Payment received — booking ' : 'New booking ').$ref,
+            subject: $subject,
         );
     }
 

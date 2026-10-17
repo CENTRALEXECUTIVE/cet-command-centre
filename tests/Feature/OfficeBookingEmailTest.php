@@ -50,6 +50,43 @@ class OfficeBookingEmailTest extends TestCase
             && $m->hasTo('office@example.com'));
     }
 
+    public function test_an_unpaid_card_booking_reads_as_incomplete_awaiting_payment(): void
+    {
+        $customer = Customer::factory()->create();
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'payment_method' => 'card',
+            'payment_status' => 'pending', 'quoted_price' => 115,
+        ]);
+
+        $mail = new OfficeBookingMail($booking->fresh(), 'new');
+        $this->assertStringContainsString('Incomplete booking (awaiting payment)', $mail->envelope()->subject);
+
+        $html = $mail->render();
+        $this->assertStringContainsString('awaiting payment', $html);
+        $this->assertStringContainsString('not yet confirmed', $html);
+    }
+
+    public function test_when_a_fare_is_paid_the_office_gets_the_paid_email(): void
+    {
+        Mail::fake();
+        $customer = Customer::factory()->create(['email' => 'cust@example.com']);
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'source' => 'phone',
+            'payment_method' => 'card', 'payment_status' => 'pending', 'quoted_price' => 115,
+        ]);
+        // A real provider payment lands (webhook) — mark it and run the paid flow.
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'square_payment' => ['id' => 'pi_1', 'amount' => 115.0, 'at' => now()->toIso8601String()],
+        ])])->save();
+
+        app(BookingStatusService::class)->onFarePaid($booking->fresh());
+
+        // Office gets the "payment received" email, customer gets the paid confirmation.
+        Mail::assertSent(OfficeBookingMail::class, fn ($m) => $m->stage === 'paid');
+        Mail::assertSent(\App\Mail\BookingConfirmationMail::class, fn ($m) => $m->paid === true);
+        $this->assertSame('paid', $booking->fresh()->payment_status);
+    }
+
     public function test_each_office_stage_is_sent_once(): void
     {
         Mail::fake();
