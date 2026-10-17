@@ -522,6 +522,14 @@ class BookingController extends Controller
         // the page always renders.
         $this->autoFollowCalendar($booking);
 
+        // Recover location data: geocode the pickup/drop-off if we don't have it
+        // (e.g. created while the Maps key was down), so the timeline's distance
+        // checks and the driver geofence start working again. Cooldown-guarded.
+        if ($request->user()->isAdmin()) {
+            try { $booking->ensureEndsGeocoded(); } catch (\Throwable) {
+            }
+        }
+
         // Catch-up for a MISSED WEBHOOK on an online payment WE captured. This is
         // deliberately gated to bookings that carry a real provider payment record
         // (meta['square_payment'] — set only when our Stripe/Square webhook took the

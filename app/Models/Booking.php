@@ -323,14 +323,7 @@ class Booking extends Model
             return 'no_location'; // no fix → a driver can't prove they're here
         }
 
-        $coords = $this->pickupCoords();
-        if ($coords === null) {
-            $point = app(\App\Services\GeocodingService::class)->coords($this->pickup_address);
-            $meta = $this->meta ?? [];
-            $meta['geo']['pickup'] = $point; // cache (null too, so we don't retry every tap)
-            $this->forceFill(['meta' => $meta])->save();
-            $coords = $point;
-        }
+        $coords = $this->resolveEndCoords('pickup', $this->pickup_address);
         if ($coords === null) {
             return 'unknown'; // couldn't geocode the pickup → can't verify → allow
         }
@@ -360,16 +353,7 @@ class Booking extends Model
             return 'no_location';
         }
 
-        $coords = $this->dropoffCoords();
-        if ($coords === null) {
-            $point = app(\App\Services\GeocodingService::class)->coords(
-                $this->displayDropoffAddress() ?: $this->destination_address
-            );
-            $meta = $this->meta ?? [];
-            $meta['geo']['dropoff'] = $point; // cache (null too, so we don't retry every tap)
-            $this->forceFill(['meta' => $meta])->save();
-            $coords = $point;
-        }
+        $coords = $this->resolveEndCoords('dropoff', $this->displayDropoffAddress() ?: $this->destination_address);
         if ($coords === null) {
             return 'unknown'; // couldn't geocode the drop-off → can't verify → allow
         }
@@ -725,6 +709,60 @@ class Booking extends Model
         $geo = $this->meta['geo']['pickup'] ?? null;
 
         return isset($geo[0], $geo[1]) ? [(float) $geo[0], (float) $geo[1]] : null;
+    }
+
+    /**
+     * Geocode one end (pickup/dropoff) if we don't already have it, caching the
+     * result. CRITICAL: a FAILED geocode is NOT cached as a permanent null — it
+     * records a "tried at" timestamp and retries after a 10-minute cooldown. This
+     * is what stops a one-off failure (e.g. the Google Maps key briefly missing or
+     * over quota) from disabling a booking's location checks forever: once the key
+     * works, the next tap or page view recovers the coordinates automatically.
+     *
+     * @return array{0: float, 1: float}|null
+     */
+    private function resolveEndCoords(string $key, ?string $address): ?array
+    {
+        $geo = $this->meta['geo'] ?? [];
+        if (isset($geo[$key][0], $geo[$key][1])) {
+            return [(float) $geo[$key][0], (float) $geo[$key][1]];
+        }
+        // Respect the retry cooldown so we don't geocode on every single tap.
+        $triedAt = $geo[$key.'_tried_at'] ?? null;
+        if ($triedAt !== null && \Illuminate\Support\Carbon::parse($triedAt)->gt(now()->subMinutes(10))) {
+            return null;
+        }
+
+        $point = app(\App\Services\GeocodingService::class)->coords($address);
+        $meta = $this->meta ?? [];
+        $meta['geo'] = $meta['geo'] ?? [];
+        if ($point) {
+            $meta['geo'][$key] = $point;
+            unset($meta['geo'][$key.'_tried_at']);
+        } else {
+            $meta['geo'][$key.'_tried_at'] = now()->toIso8601String(); // retry later, don't poison
+        }
+        $this->forceFill(['meta' => $meta])->save();
+
+        return $point;
+    }
+
+    /**
+     * Make sure both ends are geocoded (within the retry cooldown) — called when
+     * the office opens a booking, so the Job timeline's distance checks and the
+     * driver geofence recover as soon as the Maps key is working, even for
+     * bookings created while it wasn't. Safe no-op when already geocoded.
+     */
+    public function ensureEndsGeocoded(): void
+    {
+        $this->resolveEndCoords('pickup', $this->pickup_address);
+        $this->resolveEndCoords('dropoff', $this->displayDropoffAddress() ?: $this->destination_address);
+    }
+
+    /** True when neither end could be geocoded — so location checks can't run. */
+    public function endsGeocoded(): bool
+    {
+        return $this->pickupCoords() !== null || $this->dropoffCoords() !== null;
     }
 
     /**

@@ -189,6 +189,11 @@
                         ⚠️ <strong>Looks batch-updated.</strong> {{ $batchFlag }}
                     </div>
                 @endif
+                @if(! $booking->endsGeocoded())
+                    <div class="alert" style="background:rgba(185,119,10,.08);border:1px solid rgba(185,119,10,.35);color:#8a5a0a;margin:0 0 10px">
+                        ⚠️ <strong>Location not verified.</strong> We couldn't map this booking's pickup/drop-off, so the driver's taps aren't distance-checked and the geofence can't block a status marked in the wrong place. Set a working <strong>Google Maps key</strong> in Settings → integrations, then reopen this booking.
+                    </div>
+                @endif
                 @php $eta = $booking->enRouteEta(); @endphp
 
                 @foreach($milestones as $key => [$icon, $label])
