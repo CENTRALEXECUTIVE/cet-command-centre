@@ -65,6 +65,28 @@ class PaymentRecognitionTest extends TestCase
         $this->assertSame('refunded', $b->fresh()->payment_status);
     }
 
+    public function test_opening_an_imported_already_paid_booking_never_emails_anyone(): void
+    {
+        // An ETO/imported booking reads "paid" (payment_status) but has NO captured
+        // online payment (no square_payment). Opening it must NEVER retroactively
+        // email the customer or the office — that money was taken elsewhere.
+        \Illuminate\Support\Facades\Mail::fake();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $customer = \App\Models\Customer::factory()->create(['email' => 'old-customer@example.com']);
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'vehicle_type_id' => $exec->id,
+            'source' => 'phone', 'payment_method' => 'card', 'payment_status' => 'paid',
+            'external_reference' => 'S94Y1Ma', 'quoted_price' => 50,
+        ]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+        $this->assertEmpty($booking->fresh()->meta['office_email_paid_sent'] ?? null);
+        $this->assertEmpty($booking->fresh()->meta['paid_email_sent'] ?? null);
+    }
+
     public function test_a_genuinely_unpaid_booking_is_not_marked_paid(): void
     {
         $exec = VehicleType::where('slug', 'executive')->firstOrFail();

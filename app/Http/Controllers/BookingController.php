@@ -522,11 +522,14 @@ class BookingController extends Controller
         // the page always renders.
         $this->autoFollowCalendar($booking);
 
-        // Catch-up: if the fare is really paid but the booking hasn't been fully
-        // processed (status column still pending, or a confirmation email never
-        // went out because a webhook was missed), finish the job now — heal the
-        // status and send the customer + office paid confirmations. Idempotent.
-        if ($request->user()->isAdmin() && $booking->fareIsPaid()
+        // Catch-up for a MISSED WEBHOOK on an online payment WE captured. This is
+        // deliberately gated to bookings that carry a real provider payment record
+        // (meta['square_payment'] — set only when our Stripe/Square webhook took the
+        // money). It must NEVER fire for an imported/ETO booking that merely reads
+        // "paid" (those have no square_payment), so we never retroactively email a
+        // customer about an old booking that was taken elsewhere. Idempotent.
+        if ($request->user()->isAdmin()
+            && filled($booking->meta['square_payment'] ?? null)
             && ($booking->payment_status !== 'paid'
                 || empty($booking->meta['paid_email_sent'])
                 || empty($booking->meta['office_email_paid_sent']))) {
