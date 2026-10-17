@@ -1252,6 +1252,43 @@ class Booking extends Model
     }
 
     /**
+     * May we send this customer an AUTOMATED confirmation / receipt email right
+     * now? A single safety gate every automated customer send must pass, so we can
+     * never email about an old, finished, cancelled or imported booking. Reasons
+     * are deliberately conservative — when in doubt, we do NOT email.
+     */
+    public function customerEmailAllowed(string &$reason = ''): bool
+    {
+        if (blank($this->customer?->email)) {
+            $reason = 'no customer email';
+
+            return false;
+        }
+        // A finished/cancelled/no-show job is never confirmed by email.
+        if ($this->status->isTerminal()) {
+            $reason = 'terminal status ('.$this->status->value.')';
+
+            return false;
+        }
+        // The pickup has already passed — the trip is old/over, so an automated
+        // "payment received / booking confirmed" would be wrong. A 2h grace covers
+        // a legitimate same-day payment taken just around pickup time.
+        if ($this->pickup_at && $this->pickup_at->clone()->addHours(2)->isPast()) {
+            $reason = 'pickup already passed';
+
+            return false;
+        }
+        // Soft-deleted / trashed bookings never email.
+        if (method_exists($this, 'trashed') && $this->trashed()) {
+            $reason = 'trashed';
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Total paid against this booking (£). Uses the transaction ledger when it has
      * rows; otherwise falls back to the booking's own paid fare (e.g. a Square
      * payment recorded on the booking, not as a ledger row) so a paid job never

@@ -160,7 +160,15 @@ class BookingStatusService
      */
     public function emailPaidConfirmation(Booking $booking): void
     {
-        if (blank($booking->customer?->email) || ! empty($booking->meta['paid_email_sent'])) {
+        if (! empty($booking->meta['paid_email_sent'])) {
+            return;
+        }
+        // Safety gate: never auto-email about an old, finished, cancelled or
+        // address-less booking.
+        $reason = '';
+        if (! $booking->customerEmailAllowed($reason)) {
+            \Illuminate\Support\Facades\Log::info('[email] paid confirmation skipped ('.$reason.') for '.$booking->reference);
+
             return;
         }
 

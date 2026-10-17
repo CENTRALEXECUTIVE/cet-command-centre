@@ -238,7 +238,7 @@ class PublicBookingController extends Controller
 
         // Enquiry (price on request, or online payment unavailable): email the
         // customer their request confirmation now.
-        if ($customer->email) {
+        if ($booking->customerEmailAllowed()) {
             try {
                 \Illuminate\Support\Facades\Mail::to($customer->email)
                     ->send(new \App\Mail\BookingConfirmationMail($booking->fresh(), paid: false));

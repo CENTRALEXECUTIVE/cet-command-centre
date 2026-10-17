@@ -380,7 +380,7 @@ class BookingController extends Controller
         // one booking at a time (unlike a bulk import, which never emails). Once
         // per booking; a send failure is reported to the office, never fatal.
         if ($request->boolean('email_customer')
-            && filled($booking->customer?->email)
+            && $booking->customerEmailAllowed()
             && empty($booking->meta['customer_email_sent'])) {
             try {
                 // For an unpaid CARD booking, include a "Pay now" link so the

@@ -53,6 +53,10 @@ class CustomerBookingMailer
         if (! empty($booking->meta['customer_email_sent'])) {
             return false;
         }
+        // Guard 4 — the shared safety gate (not terminal, pickup not in the past).
+        if (! $booking->customerEmailAllowed()) {
+            return false;
+        }
 
         try {
             Mail::to($email)->send(new BookingConfirmationMail($booking));
