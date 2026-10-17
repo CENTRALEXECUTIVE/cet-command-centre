@@ -3,59 +3,83 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Payment · Central Executive Transfers</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230b0b0c'/><text x='50' y='72' font-size='64' text-anchor='middle' fill='%23FBBA2A' font-family='Georgia,serif' font-weight='bold'>C</text></svg>">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <title>{{ ($unavailable ?? false) ? 'Payment' : 'Booking confirmed' }} · Central Executive Transfers</title>
     <style>
-        :root {
-            --gold:#FBBA2A; --gold-deep:#E9A413; --ink:#0b0b0c; --paper:#fff;
-            --line:#e9e7e0; --muted:#6a6a70; --ok:#1f8b4c;
-            --shadow:0 24px 60px -24px rgba(0,0,0,.45), 0 8px 24px -12px rgba(0,0,0,.25); --radius:16px;
+        :root{
+            --gold:#FBBA2A;--gold-deep:#e0a310;--ink:#0b0b0b;
+            --paper:#f4f2ee;--muted:#6f6b63;--line:#e7e3da;--success:#1f7a44;--success-bg:#eaf6ef;
         }
-        * { box-sizing:border-box; }
-        html, body { margin:0; }
-        body { font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:transparent; line-height:1.45; -webkit-font-smoothing:antialiased; }
-        html.standalone body {
-            background:radial-gradient(1200px 500px at 50% -10%, rgba(251,186,42,.18), transparent 60%),
-                linear-gradient(180deg, #0b0b0c 0%, #121216 55%, #0b0b0c 100%);
-            min-height:100vh; padding:32px 16px 44px;
+        *{box-sizing:border-box}html,body{margin:0}
+        body{
+            font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+            color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;background:transparent;
         }
-        .cet-widget { max-width:520px; margin:0 auto; background:var(--paper); border:1px solid var(--line);
-            border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-        .cet-hero { background:radial-gradient(600px 200px at 12% -40%, rgba(251,186,42,.30), transparent 60%),
-            linear-gradient(135deg, #17171a 0%, #0b0b0c 100%); color:#fff; padding:16px 22px; position:relative; }
-        .cet-hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3px; background:linear-gradient(90deg, var(--gold), var(--gold-deep)); }
-        .cet-brand { display:flex; align-items:center; gap:10px; }
-        .cet-mark { width:32px; height:32px; border-radius:9px; background:var(--gold); color:#0b0b0c; font-family:Georgia,serif; font-weight:800; font-size:21px; display:grid; place-items:center; }
-        .cet-brand .name { font-weight:800; letter-spacing:1.4px; font-size:14px; } .cet-brand .name span { color:var(--gold); }
-        .cet-body { padding:30px 24px 32px; text-align:center; }
-        .tick { width:72px; height:72px; border-radius:50%; margin:0 auto 14px; display:grid; place-items:center; font-size:38px;
-            background:radial-gradient(circle at 30% 25%, rgba(251,186,42,.25), transparent 70%); border:2px solid rgba(251,186,42,.5); }
-        .cet-body h2 { margin:4px 0 8px; font-size:22px; font-weight:800; }
-        .cet-body p { color:var(--muted); margin:0; font-size:14.5px; }
+        html.standalone body{
+            background:
+                radial-gradient(1200px 520px at 50% -140px, rgba(251,186,42,.16), transparent 60%),
+                var(--paper);
+            min-height:100vh;display:grid;place-items:center;padding:24px;
+        }
+        .card{
+            background:#fff;border:1px solid var(--line);border-radius:22px;
+            box-shadow:0 24px 70px -28px rgba(11,11,11,.38);
+            max-width:500px;width:100%;margin:0 auto;overflow:hidden;
+        }
+        .masthead{background:linear-gradient(160deg,#141414 0%,#000 100%);padding:28px 34px 24px;text-align:center;position:relative}
+        .masthead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+            background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
+        .logo{width:138px;height:auto;display:block;margin:0 auto;opacity:.98}
+        .tagline{margin:12px 0 0;color:#c9c6bd;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;font-weight:600}
+        .body{padding:34px 34px 30px;text-align:center}
+        .tick{
+            width:66px;height:66px;border-radius:50%;margin:0 auto 20px;display:grid;place-items:center;font-size:30px;font-weight:700;
+            background:var(--success-bg);color:var(--success);box-shadow:0 0 0 7px rgba(31,122,68,.10);
+        }
+        .tick.wait{background:#fff6e3;color:var(--gold-deep);box-shadow:0 0 0 7px rgba(251,186,42,.12)}
+        h1{font-size:27px;margin:0 0 10px;letter-spacing:-.02em;font-weight:800}
+        p{color:var(--muted);margin:0 auto 10px;font-size:15.5px;max-width:40ch}
+        p strong{color:var(--ink);font-weight:600}
+        .meta{margin:22px auto 0;max-width:360px;text-align:left;border:1px solid var(--line);border-radius:14px;padding:4px 16px;background:#fbfaf7}
+        .meta .row{display:flex;align-items:center;gap:12px;padding:11px 0;font-size:14px}
+        .meta .row+.row{border-top:1px solid var(--line)}
+        .meta .ic{width:22px;text-align:center;flex:0 0 22px;font-size:16px}
+        .meta .row b{color:var(--ink);font-weight:600}
+        .brand{margin:26px -34px -30px;padding:18px 34px;background:#faf9f6;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;line-height:1.7}
+        .brand b{color:var(--ink)}
+        @media (max-width:420px){.body{padding:28px 22px 26px}.masthead{padding:24px 22px 20px}.brand{margin:24px -22px -26px;padding:16px 22px}}
     </style>
 </head>
 <body>
-    <div class="cet-widget" id="cet-widget">
-        <div class="cet-hero">
-            <div class="cet-brand"><span class="cet-mark">C</span><span class="name">CENTRAL <span>EXECUTIVE</span> TRANSFERS</span></div>
+    <div class="card" id="cet-widget">
+        <div class="masthead">
+            <img class="logo" src="{{ asset('images/cet-logo-wide.png') }}" onerror="this.onerror=null;this.src='{{ asset('images/cet-logo.jpg') }}';this.style.width='60px';this.style.borderRadius='13px'" alt="Central Executive Transfers">
+            <p class="tagline">Executive Chauffeur Service</p>
         </div>
-        <div class="cet-body">
+        <div class="body">
             @if($already ?? false)
-                <div class="tick">✅</div>
-                <h2>Already paid</h2>
-                <p>This journey is already paid in full — there's nothing more to pay. You'll get your booking confirmation from our office. Safe travels with Central Executive Transfers.</p>
-            @elseif($unavailable)
-                <div class="tick">🕓</div>
-                <h2>We'll confirm your fare</h2>
-                <p>Online payment isn't available for this journey just yet — our office will confirm the price and how to pay. Your booking request is safe.</p>
+                <div class="tick">✓</div>
+                <h1>Already paid</h1>
+                <p>This journey is <strong>paid in full</strong> — there's nothing more to pay.</p>
+                <p>We'll send your driver's details before pick-up. Safe travels.</p>
+            @elseif($unavailable ?? false)
+                <div class="tick wait">🕓</div>
+                <h1>We'll confirm your fare</h1>
+                <p>Online payment isn't available for this journey just yet — our office will <strong>confirm the price</strong> and how to pay.</p>
+                <p>Your booking request is safe.</p>
             @else
-                <div class="tick">✅</div>
-                <h2>Thank you</h2>
-                <p>If your payment went through, it's confirmed automatically — you'll get your booking confirmation from our office. Safe travels with Central Executive Transfers.</p>
+                <div class="tick">✓</div>
+                <h1>Booking confirmed</h1>
+                <p>Thank you — your payment was successful and your <strong>chauffeur is booked</strong>.</p>
+                <div class="meta">
+                    <div class="row"><span class="ic">📧</span><span>A confirmation &amp; <b>receipt</b> are on their way to your inbox.</span></div>
+                    <div class="row"><span class="ic">🚘</span><span>We'll send your <b>driver's details</b> before pick-up.</span></div>
+                    <div class="row"><span class="ic">📞</span><span>Need us sooner? Call <b>07405 172435</b>.</span></div>
+                </div>
             @endif
+            <div class="brand">
+                <b>Central Executive Transfers Ltd</b><br>
+                Operator Licence OP037 · 07405 172435 · centralexecutivetransfers.co.uk
+            </div>
         </div>
     </div>
     <script>

@@ -77,7 +77,10 @@
             {!! $row('To', $booking->destination_address) !!}
             {!! $row('Vehicle', $booking->vehicleType?->name) !!}
             {!! $row('Passengers', $booking->passengers) !!}
+            {!! $row('Luggage', $booking->luggageBreakdown()) !!}
             {!! $row('Flight', $booking->displayFlightNumber()) !!}
+            @if($booking->isMeetGreet()){!! $row('Meet &amp; greet', $booking->meetGreetLabel() ?: 'Yes') !!}@endif
+            {!! $row('Child seats', $booking->displayChildSeats()) !!}
         </table>
     </td></tr>
 
@@ -92,6 +95,19 @@
             {!! $row('Booked', ($booking->created_at ?? now())->timezone(config('app.timezone'))->format('d/m/Y · H:i')) !!}
         </table>
     </td></tr>
+
+    {{-- Notes (office / customer / calendar) — highlighted, because they matter --}}
+    @php $notes = $booking->driverReadNotes(); @endphp
+    @if(filled($notes))
+    <tr><td style="padding:20px 28px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e8;border:1px solid #f3e4bc;border-left:4px solid {{ $accent }};border-radius:10px">
+            <tr><td style="padding:13px 16px">
+                <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#9a7a1a;font-weight:800;margin-bottom:4px">📝 Notes</div>
+                <div style="font-size:14px;color:#3d3416;white-space:pre-line">{{ $notes }}</div>
+            </td></tr>
+        </table>
+    </td></tr>
+    @endif
 
     {{-- CTA --}}
     <tr><td style="padding:24px 28px 10px">
