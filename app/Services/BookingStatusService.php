@@ -308,6 +308,36 @@ class BookingStatusService
     }
 
     /**
+     * A DRIVER closing their OWN job from the drop-off. Skips the sequential
+     * requirement (normally Complete only follows "Passenger on board"), so a
+     * driver who's actually at the destination can ALWAYS finish — even if an
+     * intermediate tap was missed on a long job. The caller (driver job screen /
+     * link) still enforces the only rule that matters: within ~1 mile of the
+     * drop-off with location on. Records the completing GPS fix, and only fires
+     * from a live, accepted state so it can't resurrect a pending/allocated job.
+     */
+    public function completeByDriver(Booking $booking, ?User $driver, ?float $lat = null, ?float $lng = null): Booking
+    {
+        $from = $booking->status;
+        if ($from === BookingStatus::Complete) {
+            return $booking;
+        }
+        // Normal sequential path still applies when it legally can (keeps POB side
+        // effects etc.); only short-circuit when the driver skipped a step.
+        if ($this->canTransition($from, BookingStatus::Complete)) {
+            return $this->apply($booking, $from, BookingStatus::Complete, $driver, $lat, $lng, null);
+        }
+        if (! in_array($from, [BookingStatus::Accepted, BookingStatus::EnRoute, BookingStatus::Arrived, BookingStatus::Collected], true)) {
+            throw new InvalidArgumentException("Can't complete a job from {$from->value}.");
+        }
+        if ($driver) {
+            $this->authorise($booking, BookingStatus::Complete, $driver);
+        }
+
+        return $this->apply($booking, $from, BookingStatus::Complete, $driver, $lat, $lng, 'completed at drop-off');
+    }
+
+    /**
      * A driver working the job through the shareable LINK (no login). The token
      * is the authentication; we still enforce a legal, driver-permitted step.
      * The change is stamped to the assigned user if there is one, else recorded

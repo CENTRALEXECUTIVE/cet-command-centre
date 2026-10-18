@@ -86,12 +86,18 @@ class LinkController extends Controller
         }
 
         try {
-            $this->status->linkTransition(
-                $booking,
-                BookingStatus::from($data['status']),
-                $data['lat'] ?? null,
-                $data['lng'] ?? null,
-            );
+            // Complete from the drop-off always works even if an intermediate tap
+            // was missed — the within-1-mile check above is the only gate.
+            if ($target === BookingStatus::Complete) {
+                $this->status->completeByDriver($booking, $booking->driver, $data['lat'] ?? null, $data['lng'] ?? null);
+            } else {
+                $this->status->linkTransition(
+                    $booking,
+                    $target,
+                    $data['lat'] ?? null,
+                    $data['lng'] ?? null,
+                );
+            }
         } catch (\InvalidArgumentException|\Illuminate\Auth\Access\AuthorizationException $e) {
             throw ValidationException::withMessages(['status' => $e->getMessage()]);
         }

@@ -106,13 +106,21 @@ class JobController extends Controller
         }
 
         try {
-            $this->status->transition(
-                $booking,
-                BookingStatus::from($data['status']),
-                $request->user(),
-                lat: $data['lat'] ?? null,
-                lng: $data['lng'] ?? null,
-            );
+            // Complete from the drop-off always works, even if an intermediate tap
+            // (e.g. "Passenger on board") was missed on a long job — the only rule
+            // is the within-1-mile-of-drop-off check above. Everything else follows
+            // the normal sequential flow.
+            if ($target === BookingStatus::Complete && $actorIsDriver) {
+                $this->status->completeByDriver($booking, $request->user(), $data['lat'] ?? null, $data['lng'] ?? null);
+            } else {
+                $this->status->transition(
+                    $booking,
+                    $target,
+                    $request->user(),
+                    lat: $data['lat'] ?? null,
+                    lng: $data['lng'] ?? null,
+                );
+            }
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['status' => $e->getMessage()]);
         }
