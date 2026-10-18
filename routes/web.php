@@ -67,6 +67,12 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
 // Set-your-own-password (forced first-login flow + voluntary change). Sits
 // OUTSIDE the password-change gate so a flagged user can actually reach it.
 Route::middleware('auth')->group(function () {
+    // Keep-alive heartbeat: an open Command Centre tab pings this so the session
+    // never idles out mid-shift, and picks up a fresh CSRF token. Tiny JSON, no
+    // DB work beyond the session touch the request already does.
+    Route::get('keep-alive', fn () => response()->json(['ok' => true, 'token' => csrf_token()]))
+        ->name('keep-alive');
+
     Route::get('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('password.change');
     Route::put('password/change', [\App\Http\Controllers\Auth\PasswordController::class, 'update'])
         ->middleware('throttle:10,1')->name('password.update');

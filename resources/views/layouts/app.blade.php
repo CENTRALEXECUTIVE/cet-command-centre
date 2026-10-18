@@ -312,6 +312,33 @@
             try { sessionStorage.setItem(key, String(window.scrollY || window.pageYOffset || 0)); } catch (e) {}
         });
     })();
+
+    // Keep-alive: while the Command Centre tab is open, ping every few minutes so
+    // the login session never idles out mid-shift, and refresh the CSRF token on
+    // the page + in every open form so a save after a long pause can't bounce you
+    // to "session expired". Pauses while the tab is hidden; catches up on return.
+    (function () {
+        var META = document.querySelector('meta[name="csrf-token"]');
+        var URL = @json(route('keep-alive'));
+        var EVERY = 5 * 60 * 1000; // 5 minutes — well inside the session lifetime
+
+        function refreshToken(token) {
+            if (!token) return;
+            if (META) META.setAttribute('content', token);
+            // Update every form's hidden _token so the next submit carries a live one.
+            document.querySelectorAll('input[name="_token"]').forEach(function (i) { i.value = token; });
+        }
+        function ping() {
+            if (document.hidden) return;
+            fetch(URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) { if (d && d.token) refreshToken(d.token); })
+                .catch(function () {});
+        }
+        setInterval(ping, EVERY);
+        // Also refresh the moment the operator comes back to a tab left open a while.
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) ping(); });
+    })();
 </script>
 @include('partials.picker-js')
 </body>
