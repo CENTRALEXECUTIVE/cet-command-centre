@@ -32,9 +32,11 @@ return [
     |
     */
 
-    // Default 8h — a full shift — so an all-day ops session doesn't idle out.
-    // The keep-alive heartbeat (app layout) keeps an open tab alive regardless.
-    'lifetime' => (int) env('SESSION_LIFETIME', 480),
+    // Default one week, so an ops session left open overnight doesn't idle out.
+    // Belt-and-braces only: the app layout refreshes the CSRF token on every
+    // submit and "remember me" re-authenticates, so a save never hits the
+    // "session expired" page regardless of this value. Override via SESSION_LIFETIME.
+    'lifetime' => (int) env('SESSION_LIFETIME', 10080),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

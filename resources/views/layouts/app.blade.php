@@ -313,31 +313,67 @@
         });
     })();
 
-    // Keep-alive: while the Command Centre tab is open, ping every few minutes so
-    // the login session never idles out mid-shift, and refresh the CSRF token on
-    // the page + in every open form so a save after a long pause can't bounce you
-    // to "session expired". Pauses while the tab is hidden; catches up on return.
+    // Never time out on a save. Three layers so a POST can't land on the "session
+    // expired" page, even after the phone's been idle/asleep for hours:
+    //   1) a heartbeat keeps the session warm while the tab is awake;
+    //   2) coming back to the tab refreshes the token;
+    //   3) CRUCIALLY, every form submit first makes sure the token is fresh — if
+    //      it's gone stale, we fetch a live one (which also silently re-logs you in
+    //      via "remember me") and THEN submit. That closes the "came back and
+    //      tapped immediately" gap that a timer-based heartbeat can't.
     (function () {
         var META = document.querySelector('meta[name="csrf-token"]');
         var URL = @json(route('keep-alive'));
-        var EVERY = 5 * 60 * 1000; // 5 minutes — well inside the session lifetime
+        var EVERY = 5 * 60 * 1000;   // heartbeat cadence
+        var MAX_AGE = 90 * 1000;     // refresh before submit if older than this
+        var lastAt = Date.now();
 
-        function refreshToken(token) {
+        function apply(token) {
             if (!token) return;
+            lastAt = Date.now();
             if (META) META.setAttribute('content', token);
-            // Update every form's hidden _token so the next submit carries a live one.
             document.querySelectorAll('input[name="_token"]').forEach(function (i) { i.value = token; });
         }
-        function ping() {
-            if (document.hidden) return;
-            fetch(URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+        function refresh() {
+            return fetch(URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
                 .then(function (r) { return r.ok ? r.json() : null; })
-                .then(function (d) { if (d && d.token) refreshToken(d.token); })
-                .catch(function () {});
+                .then(function (d) { if (d && d.token) apply(d.token); return d; })
+                .catch(function () { return null; });
         }
-        setInterval(ping, EVERY);
-        // Also refresh the moment the operator comes back to a tab left open a while.
-        document.addEventListener('visibilitychange', function () { if (!document.hidden) ping(); });
+
+        setInterval(function () { if (!document.hidden) refresh(); }, EVERY);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+
+        // Submit-time guarantee. On any POST form, if the token might be stale,
+        // hold the submit for one quick token refresh, then let it through.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+            var method = (form.getAttribute('method') || 'get').toLowerCase();
+            if (method !== 'post') return;                 // GET forms don't carry a token
+            if (form.dataset.cetTokenChecked === '1') { form.dataset.cetTokenChecked = ''; return; }
+            if (Date.now() - lastAt < MAX_AGE) return;       // token is fresh — submit normally
+
+            // Hold this submit, refresh the token, then re-fire the same submission.
+            e.preventDefault();
+            var submitter = e.submitter;
+            refresh().then(function () {
+                form.dataset.cetTokenChecked = '1';
+                if (form.requestSubmit) {
+                    // requestSubmit carries the clicked button's name/value itself.
+                    form.requestSubmit(submitter || undefined);
+                } else {
+                    // Legacy submit() drops the submitter — preserve it as a hidden field.
+                    if (submitter && submitter.name && !form.querySelector('input[data-cet-submitter]')) {
+                        var hidden = document.createElement('input');
+                        hidden.type = 'hidden'; hidden.name = submitter.name; hidden.value = submitter.value;
+                        hidden.setAttribute('data-cet-submitter', '1');
+                        form.appendChild(hidden);
+                    }
+                    form.submit();
+                }
+            });
+        }, true);
     })();
 </script>
 @include('partials.picker-js')
