@@ -1364,6 +1364,15 @@ class Booking extends Model
         // fully-paid VAT invoice reads £0 due.
         $paid = $this->transactionsPaidTotal() + ($this->vatSettled() ? $this->vatOnTopAmount() : 0.0);
 
+        // With no payment-ledger entries, honour a deposit recorded via the simple
+        // "Deposit taken (paid)" field (meta['deposit']) so the balance/pay-now link
+        // charges only the remainder, never the whole fare again. When the office
+        // manages payments in the ledger instead, that total already includes the
+        // deposit, so we don't add it twice.
+        if ($this->payments->isEmpty()) {
+            $paid += $this->depositPaidAmount();
+        }
+
         return max(0.0, round($payable - min($payable, $paid), 2));
     }
 

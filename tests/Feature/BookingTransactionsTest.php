@@ -75,6 +75,23 @@ class BookingTransactionsTest extends TestCase
         $this->assertEqualsWithDelta(80.0, $booking->transactionsAmountDue(), 0.001);
     }
 
+    public function test_a_recorded_paid_deposit_reduces_the_online_balance_to_the_remainder(): void
+    {
+        // Office books a job in and takes a £30 deposit via the simple "Deposit
+        // taken (paid)" field (no ledger rows). The pay-now / balance link must
+        // then charge only the £75 remainder, never the whole £105 again.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'quoted_price' => 105.00,
+            'payment_method' => 'card',
+            'payment_status' => 'pending',
+            'meta' => ['deposit' => ['amount' => 30, 'paid' => true]],
+        ]);
+
+        $this->assertEqualsWithDelta(105.0, $booking->amountPayable(), 0.001);
+        $this->assertEqualsWithDelta(75.0, $booking->transactionsAmountDue(), 0.001);
+    }
+
     public function test_an_admin_can_duplicate_and_delete_a_transaction(): void
     {
         $admin = User::factory()->admin()->create();
