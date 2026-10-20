@@ -73,6 +73,29 @@ class BookingWidgetController extends Controller
         ]);
     }
 
+    /**
+     * The Google Ads / analytics attribution params we carry from the landing URL
+     * through to the booking (so a booking can be traced back to the ad that won
+     * it, and an offline conversion can be imported later). Captured from the
+     * iframe's own query string — the embed snippet forwards the parent page's.
+     *
+     * @return array<string, string>
+     */
+    private function marketingParams(Request $request): array
+    {
+        $keys = ['gclid', 'gbraid', 'wbraid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+
+        $out = [];
+        foreach ($keys as $k) {
+            $v = trim((string) $request->input($k, ''));
+            if ($v !== '' && mb_strlen($v) <= 300) {
+                $out[$k] = $v;
+            }
+        }
+
+        return $out;
+    }
+
     /** The full booking widget page (embeddable): complete a booking REQUEST. */
     public function book(Request $request): \Illuminate\Http\Response
     {
@@ -99,6 +122,10 @@ class BookingWidgetController extends Controller
                 'me' => $me ? ['name' => $me->name, 'email' => $me->email, 'phone' => $me->phone] : null,
                 'meAccount' => $meAccount ? ['name' => $meAccount->name, 'code' => $meAccount->account_code] : null,
                 'passwordLogin' => Customer::passwordLoginAvailable(),
+                // Google Ads attribution from the landing URL (forwarded into the
+                // iframe by the embed) — rendered as hidden fields so the booking
+                // carries it through.
+                'marketing' => $this->marketingParams($request),
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }
@@ -274,6 +301,15 @@ class BookingWidgetController extends Controller
             // Optional "create an account" at checkout (guests can still book).
             'create_account' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],
+            // Google Ads / analytics attribution (hidden fields from the landing URL).
+            'gclid' => ['nullable', 'string', 'max:300'],
+            'gbraid' => ['nullable', 'string', 'max:300'],
+            'wbraid' => ['nullable', 'string', 'max:300'],
+            'utm_source' => ['nullable', 'string', 'max:300'],
+            'utm_medium' => ['nullable', 'string', 'max:300'],
+            'utm_campaign' => ['nullable', 'string', 'max:300'],
+            'utm_term' => ['nullable', 'string', 'max:300'],
+            'utm_content' => ['nullable', 'string', 'max:300'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
         ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
@@ -513,6 +549,9 @@ class BookingWidgetController extends Controller
                 // Flag an on-request (Rolls Royce / POA) enquiry so the office knows
                 // to email a price rather than treat it as a priced booking.
                 'quote_request' => $isQuoteRequest ?: null,
+                // Google Ads attribution (gclid/utm) — traces the booking back to the
+                // ad that won it; kept for reporting and offline conversion import.
+                'marketing' => $this->marketingParams($request) ?: null,
             ], fn ($v) => $v !== null && $v !== '' && $v !== false),
         ]);
 

@@ -369,6 +369,24 @@
                     @endif
                 </div>
             </div>
+            {{-- Tell the PARENT site a booking was placed, so its Google Ads / GA4
+                 conversion tag can fire on its own domain (where the ad's gclid
+                 cookie lives). The embed snippet listens for this message. --}}
+            <script>
+            (function () {
+                try {
+                    var msg = { cetBooking: {
+                        event: 'booking_request',
+                        ref: @json($ref ?? null),
+                        value: {{ (float) ($payAmount ?? 0) }},
+                        currency: 'GBP',
+                        quoteRequest: {{ !empty($quoteRequest) ? 'true' : 'false' }},
+                        canPay: {{ !empty($payUrl) ? 'true' : 'false' }}
+                    } };
+                    if (window.parent && window.parent !== window) { window.parent.postMessage(msg, '*'); }
+                } catch (e) {}
+            })();
+            </script>
         @else
             <div class="cet-steps" id="cet-steps">
                 <div class="st active" data-for="1"><span class="num">1</span><span class="lbl">Journey</span></div>
@@ -382,6 +400,10 @@
                 <form id="cet-book" action="{{ route('widget.book.store') }}" method="POST" autocomplete="off">
                     @csrf
                     <div class="cet-hp"><label>Company<input name="company" tabindex="-1" autocomplete="off"></label></div>
+                    {{-- Google Ads / analytics attribution carried from the landing URL. --}}
+                    @foreach(($marketing ?? []) as $mName => $mVal)
+                        <input type="hidden" name="{{ $mName }}" value="{{ $mVal }}">
+                    @endforeach
 
                     {{-- STEP 1 — Journey --}}
                     <div class="cet-step" data-step="1">

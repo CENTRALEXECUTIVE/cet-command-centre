@@ -94,6 +94,38 @@ class BookingWidgetTest extends TestCase
         ]);
     }
 
+    public function test_the_google_ads_click_id_is_captured_and_stored_on_the_booking(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        // The embed forwards ?gclid=... into the widget; the form carries it through.
+        $res = $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id,
+            'passengers' => 2,
+            'customer_name' => 'Ada Clicker', 'customer_phone' => '07700900321',
+            'gclid' => 'TeSt-GCLID-123', 'utm_source' => 'google', 'utm_campaign' => 'airports',
+        ])->assertOk();
+
+        // The parent-site conversion tag reads this postMessage.
+        $res->assertSee('cetBooking', false);
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('TeSt-GCLID-123', $booking->meta['marketing']['gclid'] ?? null);
+        $this->assertSame('google', $booking->meta['marketing']['utm_source'] ?? null);
+        $this->assertSame('airports', $booking->meta['marketing']['utm_campaign'] ?? null);
+    }
+
+    public function test_the_landing_url_ad_params_are_rendered_as_hidden_fields(): void
+    {
+        $this->get(route('widget.book', ['gclid' => 'ABC123', 'utm_source' => 'google']))
+            ->assertOk()
+            ->assertSee('name="gclid" value="ABC123"', false)
+            ->assertSee('name="utm_source" value="google"', false);
+    }
+
     public function test_via_stops_added_on_the_form_are_stored_on_the_booking(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
