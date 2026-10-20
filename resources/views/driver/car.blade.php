@@ -85,7 +85,7 @@
                 @else
                     <div class="card" style="border-left:4px solid #b8860b;background:rgba(251,186,42,.16);margin-bottom:16px">
                         <div style="font-weight:800;font-size:16px">🚼 Collect the child seat</div>
-                        <p style="margin:6px 0 10px;font-size:15px">This job needs a <strong>{{ $booking->displayChildSeats() }}</strong>. Pick it up from the office before you set off, then confirm here.</p>
+                        <p style="margin:6px 0 10px;font-size:15px">This job needs <strong>{{ $booking->displayChildSeats() }}</strong>. Pick it up from the office before you set off, then confirm here.</p>
                         <form method="POST" action="{{ route('driver.car.child-seats', $token) }}">
                             @csrf
                             <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:15px">✓ I’ve collected the child seat</button>

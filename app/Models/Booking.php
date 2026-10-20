@@ -3841,11 +3841,19 @@ class Booking extends Model
         if ($items === []) {
             return null;
         }
-        // A single seat line keeps its raw value verbatim (the calendar is the
-        // office-verified source of truth). Multiple types are combined into one
-        // readable line so nothing is dropped, e.g. "1 child seat · 1 infant seat".
+        // A single seat line: a bare number ("1") is spelled out ("1 child seat")
+        // so it reads properly everywhere ("This job needs 1 child seat", not
+        // "needs a 1"); a value that's already descriptive is kept verbatim (the
+        // calendar is the office-verified source of truth).
         if (count($items) === 1) {
-            return $items[0]['val'];
+            $it = $items[0];
+            if (preg_match('/^\d+$/', $it['val'])) {
+                $n = (int) $it['val'];
+
+                return $n.' '.$it['word'].' '.\Illuminate\Support\Str::plural('seat', $n);
+            }
+
+            return $it['val'];
         }
         $parts = [];
         foreach ($items as $it) {

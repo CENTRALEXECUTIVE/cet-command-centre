@@ -246,8 +246,10 @@ class DriverLinkTest extends TestCase
         ]);
         $booking = $booking->fresh();
 
-        $this->assertSame('3', $booking->calendarChildSeats());
-        $this->assertSame('3', $booking->displayChildSeats());
+        // A bare calendar number is spelled out so it reads properly for the driver
+        // ("3 child seats"), with the closing markdown "*" still stripped.
+        $this->assertSame('3 child seats', $booking->calendarChildSeats());
+        $this->assertSame('3 child seats', $booking->displayChildSeats());
 
         $this->get(route('driver.link', $booking->driverLinkToken()))
             ->assertOk()
