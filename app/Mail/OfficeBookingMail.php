@@ -54,10 +54,22 @@ class OfficeBookingMail extends Mailable
 
     public function content(): Content
     {
+        // A "Pay now" link for an UNPAID card booking — the office can click it to
+        // take payment over the phone, or copy the URL to send to the customer.
+        // It's the same STABLE signed link the customer gets (widget.pay), so it
+        // always charges the current price. Null for cash/account/paid.
+        $payUrl = null;
+        if (($this->booking->payment_method?->value ?? null) === 'card'
+            && ! $this->booking->fareIsPaid()
+            && (float) ($this->booking->amountPayable() ?? 0) > 0) {
+            $payUrl = \Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $this->booking->id]);
+        }
+
         return new Content(view: 'emails.office-booking', with: [
             'booking' => $this->booking,
             'vat' => $this->booking->fareVatBreakdown(),
             'stage' => $this->stage,
+            'payUrl' => $payUrl,
         ]);
     }
 }

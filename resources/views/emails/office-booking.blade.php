@@ -120,6 +120,21 @@
     </td></tr>
     @endif
 
+    {{-- Pay now — for an unpaid card booking, so the office can take payment over
+         the phone, or copy the link to send to the customer. --}}
+    @if(!empty($payUrl))
+    <tr><td style="padding:22px 28px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f7f2;border:1px solid #cfe6d8;border-radius:12px">
+            <tr><td style="padding:14px 16px 12px">
+                <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#1f7a44;font-weight:800;margin-bottom:8px">💳 Take payment · £{{ number_format((float) $booking->amountPayable(), 2) }}</div>
+                <a href="{{ $payUrl }}" style="display:block;background:#1f7a44;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:9px;font-weight:800;font-size:15px">Pay now →</a>
+                <div style="font-size:11.5px;color:#6b7a70;margin-top:9px;line-height:1.5">Click to take the card payment over the phone — or copy this link and send it to the customer:</div>
+                <div style="font-size:11px;color:#3a4a40;word-break:break-all;background:#fff;border:1px solid #d7e6dd;border-radius:7px;padding:8px 10px;margin-top:6px;font-family:monospace">{{ $payUrl }}</div>
+            </td></tr>
+        </table>
+    </td></tr>
+    @endif
+
     {{-- CTA --}}
     <tr><td style="padding:24px 28px 10px">
         <a href="{{ $viewUrl }}" style="display:block;background:{{ $accent }};color:#111;text-decoration:none;text-align:center;padding:14px;border-radius:10px;font-weight:800;font-size:15px">Open in Command Centre →</a>
