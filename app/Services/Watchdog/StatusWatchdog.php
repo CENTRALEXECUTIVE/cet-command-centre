@@ -481,10 +481,15 @@ class StatusWatchdog
      */
     public function setOffLeadMinutes(Booking $booking): int
     {
+        // The clamp ceiling must cover our LONGEST real run: Sheffield → a London
+        // airport is ~3h+, so cap at 5h (300), not 2.5h — otherwise a long airport
+        // lead would be silently truncated and the driver chased far too late.
+        $maxLead = 300;
+
         // Prefer the driver's live position (drive + 5 min buffer).
         $gpsDrive = $this->driveMinutesToPickup($booking);
         if ($gpsDrive !== null) {
-            return max(15, min(150, $gpsDrive + 5));
+            return max(15, min($maxLead, $gpsDrive + 5));
         }
 
         // No live GPS → estimate from the Sheffield base and add the base buffer
@@ -493,13 +498,13 @@ class StatusWatchdog
         // one a short one.
         $baseDrive = $this->baseToPickupMinutes($booking);
         if ($baseDrive !== null) {
-            return max(15, min(150, $baseDrive + (int) config('cet.base.buffer_minutes', 10)));
+            return max(15, min($maxLead, $baseDrive + (int) config('cet.base.buffer_minutes', 10)));
         }
 
         // No coords at all (couldn't geocode the pickup). An airport pickup still
         // needs a generous head start; anything else falls back to a flat 30.
         if ($this->isAirportPickup($booking)) {
-            return max(30, min(150, $this->estimatedDurationMinutes($booking) + 5));
+            return max(30, min($maxLead, $this->estimatedDurationMinutes($booking) + 5));
         }
 
         return 30;
@@ -518,7 +523,41 @@ class StatusWatchdog
             return null;
         }
 
+        // Prefer the REAL Google road time from the base to the pickup. Both ends
+        // are fixed, so cache it for the day — one cheap call gives an accurate lead
+        // for a long airport run (the free straight-line model assumes 28 mph and
+        // badly over-estimates a motorway run like Sheffield → a London airport).
+        // Only within the set-off window, and falls back to the estimate.
+        if ($this->withinRoadWindow($booking)) {
+            $distance = app(\App\Services\Pricing\DistanceService::class);
+            if ($distance->configured()) {
+                $road = \Illuminate\Support\Facades\Cache::remember(
+                    'base_road:'.$booking->id,
+                    now()->addHours(6),
+                    fn () => $distance->driveMinutesFromPoint($base[0], $base[1], $booking->pickup_address, $pickup[0], $pickup[1]),
+                );
+                if ($road !== null) {
+                    return $road;
+                }
+            }
+        }
+
         return Geo::estimateDriveMinutes($base[0], $base[1], $pickup[0], $pickup[1]);
+    }
+
+    /**
+     * Are we close enough to a job's set-off to spend a live Maps call on it? The
+     * anchor is the flight landing (for an airport pickup) or the booked pickup,
+     * and the window is 5h — comfortably more than our longest run (Sheffield → a
+     * London airport, ~3h+), so even a far pickup gets an accurate road time BEFORE
+     * its set-off deadline, while far-future jobs stay on the free estimate.
+     */
+    private function withinRoadWindow(Booking $booking): bool
+    {
+        $anchor = ($this->isAirportPickup($booking) ? $this->flightLandingAt($booking) : null)
+            ?? $booking->pickup_at;
+
+        return $anchor !== null && now()->gte($anchor->copy()->subMinutes(300));
     }
 
     /** @return array{0: float, 1: float}|null */
@@ -620,7 +659,7 @@ class StatusWatchdog
      */
     private function roadMinutesToPickup(Booking $booking, DriverLocation $last, ?array $pickup): ?int
     {
-        if ($booking->pickup_at === null || now()->lt($booking->pickup_at->copy()->subMinutes(180))) {
+        if (! $this->withinRoadWindow($booking)) {
             return null; // too far out to spend a Maps call; the estimate is fine
         }
 
@@ -631,7 +670,7 @@ class StatusWatchdog
 
         $key = 'setoff_road:'.$booking->id.':'.round((float) $last->latitude, 3).','.round((float) $last->longitude, 3);
 
-        return \Illuminate\Support\Facades\Cache::remember($key, now()->addMinutes(4), function () use ($distance, $last, $booking, $pickup) {
+        return \Illuminate\Support\Facades\Cache::remember($key, now()->addMinutes(10), function () use ($distance, $last, $booking, $pickup) {
             return $distance->driveMinutesFromPoint(
                 (float) $last->latitude,
                 (float) $last->longitude,

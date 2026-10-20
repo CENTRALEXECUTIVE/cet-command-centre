@@ -163,14 +163,15 @@ class StatusWatchdogTest extends TestCase
         $this->assertNudged($b, 'set_off');
     }
 
-    public function test_lead_time_is_drive_plus_five_clamped_between_15_and_150(): void
+    public function test_lead_time_is_drive_plus_five_clamped_between_15_and_300(): void
     {
         $watchdog = app(StatusWatchdog::class);
 
-        // Driver very far away (London → hours of driving) → clamped DOWN to 150.
+        // Driver hours away → clamped DOWN to the 5h (300) ceiling, NOT 2.5h — a
+        // Sheffield → London-airport run is ~3h+, so 150 would chase them too late.
         $far = $this->job(BookingStatus::Allocated, now()->addHours(6), ['pickup' => self::PICKUP]);
         $this->ping($far, 51.5074, -0.1278, now()->subMinutes(5));
-        $this->assertSame(150, $watchdog->setOffLeadMinutes($far->fresh()));
+        $this->assertSame(300, $watchdog->setOffLeadMinutes($far->fresh()));
 
         // Driver already next door (couple of streets) → clamped UP to 15.
         $near = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
@@ -305,6 +306,19 @@ class StatusWatchdogTest extends TestCase
 
         Http::assertSent(fn ($r) => str_contains($r->url(), 'computeRoutes')
             && ($r->data()['routingPreference'] ?? null) === 'TRAFFIC_AWARE');
+    }
+
+    public function test_a_long_airport_run_is_led_the_full_drive_not_a_truncated_cap(): void
+    {
+        config(['services.google_maps.key' => 'test-maps-key']);
+        // Sheffield → a London airport ≈ 3h20 of real road time.
+        Http::fake(['routes.googleapis.com/*' => Http::response(['routes' => [['duration' => '12000s']]], 200)]); // 200 min
+
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(4), ['pickup' => self::PICKUP]);
+        $this->ping($b, 53.45, -1.47, now()->subMinute());
+
+        // 200 min drive + 5 = 205 min lead — NOT clamped down to the old 150.
+        $this->assertSame(205, app(StatusWatchdog::class)->setOffLeadMinutes($b->fresh()));
     }
 
     public function test_set_off_lead_falls_back_to_the_free_estimate_without_maps(): void
