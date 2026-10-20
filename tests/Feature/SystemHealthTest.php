@@ -76,6 +76,49 @@ class SystemHealthTest extends TestCase
             ->assertDontSee('Background jobs have stopped');
     }
 
+    private function healthRow(string $key): array
+    {
+        $checks = app(\App\Services\SystemHealth::class)->checks();
+
+        return collect($checks)->firstWhere('key', $key) ?? [];
+    }
+
+    public function test_payments_are_critical_when_no_provider_is_connected(): void
+    {
+        config(['services.stripe.secret_key' => null, 'services.square.access_token' => null]);
+
+        $this->assertSame('critical', $this->healthRow('payments')['status']);
+        // Nothing to confirm yet → the webhook row is just "off", not critical.
+        $this->assertSame('off', $this->healthRow('payment_webhooks')['status']);
+    }
+
+    public function test_a_provider_with_no_webhook_secret_is_a_critical_gap(): void
+    {
+        // Stripe can take money but has no webhook secret → a paid booking would
+        // never auto-confirm. That silent gap must read CRITICAL.
+        config([
+            'services.stripe.secret_key' => 'sk_live_x',
+            'services.stripe.webhook_secret' => null,
+            'services.square.access_token' => null,
+        ]);
+
+        $this->assertSame('ok', $this->healthRow('payments')['status']);
+        $this->assertSame('critical', $this->healthRow('payment_webhooks')['status']);
+        $this->assertStringContainsString('Stripe', $this->healthRow('payment_webhooks')['detail']);
+    }
+
+    public function test_a_provider_with_its_webhook_secret_is_healthy(): void
+    {
+        config([
+            'services.stripe.secret_key' => 'sk_live_x',
+            'services.stripe.webhook_secret' => 'whsec_x',
+            'services.square.access_token' => null,
+        ]);
+
+        $this->assertSame('ok', $this->healthRow('payments')['status']);
+        $this->assertSame('ok', $this->healthRow('payment_webhooks')['status']);
+    }
+
     public function test_a_missing_page_shows_the_branded_error_page(): void
     {
         $this->get('/definitely-not-a-real-page-'.uniqid())

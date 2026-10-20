@@ -34,8 +34,8 @@ class SystemHealth
             $this->failedMessages(),
             $this->connectivity('calendar', 'Google Calendar', fn () => app(GoogleCalendarService::class)->configured(),
                 'Bookings write to the calendar.', 'Add GOOGLE_CALENDAR_CREDENTIALS to switch on.'),
-            $this->connectivity('payments', 'Card payments (Square)', fn () => filled(Setting::get('square_access_token') ?: config('services.square.access_token')),
-                'Customers can pay card links.', 'Add the Square keys in Settings to switch on.'),
+            $this->payments(),
+            $this->paymentWebhooks(),
             $this->connectivity('maps', 'Google Maps', fn () => filled(Setting::mapsKey()),
                 'Distance pricing, fleet map and geocoding.', 'Add the Maps key in Settings to switch on.'),
             $this->connectivity('telephony', 'Number masking (Twilio)', fn () => filled(config('services.twilio.proxy_service_sid')),
@@ -61,6 +61,90 @@ class SystemHealth
                 'Not connected — new ETO bookings must be added by hand. Missing: '.strtolower((string) $feed->firstProblem()).'.');
         } catch (\Throwable $e) {
             return $this->row('email_feed', 'ETO email feed', 'off', 'Connections', 'Not connected.');
+        }
+    }
+
+    /** Is Stripe (non-VAT / PVT LTD) configured to take card payments? */
+    private function stripeOn(): bool
+    {
+        return filled(Setting::get('stripe_secret_key') ?: config('services.stripe.secret_key'));
+    }
+
+    /** Is Square (VAT / Ltd) configured to take card payments? */
+    private function squareOn(): bool
+    {
+        return filled(Setting::get('square_access_token') ?: config('services.square.access_token'));
+    }
+
+    /**
+     * Card payments across BOTH providers: Stripe for the non-VAT sister company
+     * (PVT LTD), Square for the VAT-registered company. At least one must be live
+     * for customers to pay online; which one a booking uses follows its VAT choice.
+     */
+    private function payments(): array
+    {
+        try {
+            $stripe = $this->stripeOn();
+            $square = $this->squareOn();
+
+            if ($stripe && $square) {
+                return $this->row('payments', 'Card payments', 'ok', 'Connections',
+                    'Connected — Stripe (non-VAT / PVT LTD) and Square (VAT) are both live.');
+            }
+            if ($stripe) {
+                return $this->row('payments', 'Card payments', 'ok', 'Connections',
+                    'Stripe is live (non-VAT / PVT LTD jobs). Square is NOT connected, so VAT-invoice card jobs go to the office as an enquiry until it is.');
+            }
+            if ($square) {
+                return $this->row('payments', 'Card payments', 'ok', 'Connections',
+                    'Square is live (VAT jobs). Stripe is NOT connected, so non-VAT card jobs go to the office as an enquiry until it is.');
+            }
+
+            return $this->row('payments', 'Card payments', 'critical', 'Connections',
+                'No card provider is connected — customers CANNOT pay online. Add Stripe and/or Square keys in Settings → payments.');
+        } catch (\Throwable $e) {
+            return $this->row('payments', 'Card payments', 'off', 'Connections', 'Could not read the payment settings.');
+        }
+    }
+
+    /**
+     * The webhook signing secrets — the part that flips a booking to PAID and fires
+     * the confirmation emails after a customer pays. A provider that can TAKE money
+     * but has no webhook secret is the worst silent gap: the charge succeeds but the
+     * booking never confirms. So a connected provider with no secret is critical.
+     */
+    private function paymentWebhooks(): array
+    {
+        try {
+            $stripe = $this->stripeOn();
+            $square = $this->squareOn();
+            if (! $stripe && ! $square) {
+                return $this->row('payment_webhooks', 'Payment confirmation (webhooks)', 'off', 'Connections',
+                    'Set up a card provider first.');
+            }
+
+            $stripeSecret = filled(Setting::get('stripe_webhook_secret') ?: config('services.stripe.webhook_secret'));
+            $squareSecret = filled(Setting::get('square_webhook_signature_key') ?: config('services.square.webhook_signature_key'));
+
+            $missing = [];
+            if ($stripe && ! $stripeSecret) {
+                $missing[] = 'Stripe';
+            }
+            if ($square && ! $squareSecret) {
+                $missing[] = 'Square';
+            }
+
+            if ($missing) {
+                $who = implode(' and ', $missing);
+
+                return $this->row('payment_webhooks', 'Payment confirmation (webhooks)', 'critical', 'Connections',
+                    $who.' can take payments but has NO webhook signing secret — a paid booking will NOT auto-confirm and the paid emails won\'t send. Add the '.$who.' webhook + signing secret.');
+            }
+
+            return $this->row('payment_webhooks', 'Payment confirmation (webhooks)', 'ok', 'Connections',
+                'Connected — paid bookings auto-confirm and send the customer + office emails.');
+        } catch (\Throwable $e) {
+            return $this->row('payment_webhooks', 'Payment confirmation (webhooks)', 'off', 'Connections', 'Could not read the webhook settings.');
         }
     }
 
