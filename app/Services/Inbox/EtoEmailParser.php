@@ -310,7 +310,12 @@ class EtoEmailParser
      */
     private function seatCount(string $body, string $types): int
     {
-        $total = 0;
+        // The type synonyms passed together (e.g. "child|car") describe the SAME
+        // seat — a "child seat" and a "car seat" line are two names for one thing.
+        // So we take the LARGEST count any single line reports, never the SUM of
+        // them; summing is exactly what turned one child seat into "2 child seats"
+        // when a form listed both "Child seat: 1" and "Car seat: 1".
+        $max = 0;
         $found = false;
         foreach (preg_split('/\r?\n/', (string) $body) as $line) {
             // The line must name one of the types (as a whole word) AND a seat.
@@ -321,13 +326,14 @@ class EtoEmailParser
             if (preg_match('/:\s*(\d+)/', $line, $m)                              // "Child seats: 2"
                 || preg_match('/(\d+)\s*(?:x\s*)?(?:'.$types.')\b/i', $line, $m)  // "2 child seats"
                 || preg_match('/seats?\s*[:x]?\s*(\d+)/i', $line, $m)) {          // "seat x 2"
-                $total += max(0, (int) $m[1]);
+                $lineCount = max(0, (int) $m[1]);
             } else {
-                $total += 1; // named with no number → assume one
+                $lineCount = 1; // named with no number → assume one
             }
+            $max = max($max, $lineCount);
         }
 
-        return $found ? $total : 0;
+        return $found ? $max : 0;
     }
 
     private function isYes(?string $value): bool

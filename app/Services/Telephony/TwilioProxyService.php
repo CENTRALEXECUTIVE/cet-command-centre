@@ -277,14 +277,14 @@ class TwilioProxyService
             'occurred_at' => now(),
         ]);
 
-        // Ping the directors that the driver and customer are messaging on the
-        // masked line — WITHOUT the content (bodies are never stored or sent; they
-        // open the booking's transcript to read it). Best-effort: a notification
-        // hiccup must never fail the webhook.
+        // Ping the directors that the driver and customer are communicating on the
+        // masked line — a text OR a call — WITHOUT the content (bodies/recordings
+        // are never stored or sent). Best-effort: a notification hiccup must never
+        // fail the webhook.
         try {
-            $this->notifyMessageActivity($event, $payload);
+            $this->notifyCommunicationActivity($event, $payload);
         } catch (\Throwable $e) {
-            Log::warning('masked-message notify failed', ['error' => $e->getMessage()]);
+            Log::warning('masked-comms notify failed', ['error' => $e->getMessage()]);
         }
 
         return $event;
@@ -295,7 +295,7 @@ class TwilioProxyService
      * Fires only on a message interaction tied to a booking, deduped so Twilio
      * retries of the same callback don't double-ping. No message body is included.
      */
-    private function notifyMessageActivity(ProxyEvent $event, array $payload): void
+    private function notifyCommunicationActivity(ProxyEvent $event, array $payload): void
     {
         if (! $event->booking_id) {
             return;
@@ -304,14 +304,21 @@ class TwilioProxyService
         $type = strtolower((string) ($payload['interactionType'] ?? ''));
         $inbound = strtolower((string) ($payload['inboundResourceType'] ?? ''));
         $isMessage = str_contains($type, 'message') || in_array($inbound, ['sms', 'message'], true);
-        if (! $isMessage) {
+        $isCall = str_contains($type, 'voice') || str_contains($type, 'call')
+            || in_array($inbound, ['voice', 'call'], true)
+            || filled($payload['CallStatus'] ?? null);
+
+        if (! $isMessage && ! $isCall) {
             return;
         }
+        // A text takes priority if an interaction somehow flags both.
+        $kind = $isMessage ? 'message' : 'call';
 
-        // Dedup: skip if we already pinged for this booking in the last 20s (guards
-        // Twilio re-deliveries of the same interaction).
+        // Dedup per kind: skip if we already pinged for this booking+kind in the
+        // last 20s (guards Twilio re-deliveries of the same interaction).
+        $flag = 'masked_'.$kind;
         $recent = \App\Models\WatchdogEvent::where('booking_id', $event->booking_id)
-            ->where('event_type', 'masked_message')
+            ->where('event_type', $flag)
             ->where('occurred_at', '>=', now()->subSeconds(20))
             ->exists();
         if ($recent) {
@@ -324,13 +331,17 @@ class TwilioProxyService
         }
 
         $ref = $booking->external_reference ?: $booking->reference;
+        [$title, $body, $fragment] = $isMessage
+            ? ['💬 Message on the masked line — '.$ref, 'The driver and customer are texting on '.$ref.'. Tap to read the conversation.', '#masked-messages']
+            : ['📞 Call on the masked line — '.$ref, 'The driver and customer are on a call on '.$ref.'.', '#masked-messages'];
+
         app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors(
-            'masked_message',
-            '💬 Message on the masked line — '.$ref,
-            'The driver and customer are texting on '.$ref.'. Tap to read the conversation.',
+            $flag,
+            $title,
+            $body,
             'info',
             $booking,
-            '#masked-messages',
+            $fragment,
         );
     }
 

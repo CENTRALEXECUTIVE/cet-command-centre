@@ -113,6 +113,7 @@ class User extends Authenticatable
         'child_seats' => 'Child seat not confirmed collected',
         'web_booking' => 'New booking request from the website',
         'masked_message' => 'Message on the masked line (directors only)',
+        'masked_call' => 'Call on the masked line (directors only)',
         'location_blocked' => 'Driver blocked from a status (wrong place / no location)',
     ];
 

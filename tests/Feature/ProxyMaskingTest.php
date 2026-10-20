@@ -412,7 +412,7 @@ class ProxyMaskingTest extends TestCase
         $this->assertStringNotContainsString('private', (string) $alert->message);
     }
 
-    public function test_a_call_on_the_masked_line_does_not_notify(): void
+    public function test_a_call_on_the_masked_line_notifies_the_directors(): void
     {
         $driver = $this->driver();
         $booking = $this->booking(BookingStatus::Accepted, $driver);
@@ -424,7 +424,12 @@ class ProxyMaskingTest extends TestCase
             'CallStatus' => 'completed',
         ]);
 
-        $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'masked_message']);
+        // A call fires its OWN alert type (never message), body-free.
+        $alert = \App\Models\WatchdogEvent::where('event_type', 'masked_call')
+            ->where('booking_id', $booking->id)->first();
+        $this->assertNotNull($alert);
+        $this->assertStringContainsString('Call on the masked line', $alert->title);
+        $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'masked_message', 'booking_id' => $booking->id]);
     }
 
     public function test_repeat_message_callbacks_only_notify_once(): void

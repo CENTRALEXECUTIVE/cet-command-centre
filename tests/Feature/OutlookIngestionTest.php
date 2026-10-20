@@ -415,6 +415,43 @@ class OutlookIngestionTest extends TestCase
         $this->assertStringContainsString('1 infant seat', $seats);
     }
 
+    public function test_child_and_car_seat_synonyms_are_not_double_counted(): void
+    {
+        // A form that names the same seat twice — "Child seat" and "Car seat" —
+        // must count as ONE, not two. (The "it says 2 when they clicked 1" bug.)
+        $body = <<<'EML'
+        New booking 83Q5ZO has been created.
+
+        Journey
+        Date & time:	21/10/2026 03:30
+        Pickup:	2 Whitting Mews, Chesterfield S41 9HF, UK
+        Dropoff:	Manchester Airport (MAN), Manchester, UK
+        Vehicle type:	Executive
+        Passengers:	2
+        Child seat:	1
+        Car seat:	1
+        Suitcases:	1
+        Hand luggage:	2
+        Customer
+        Name:	Andrea Llamazares
+        Phone number:	+447543743270
+        Reservation
+        Reference number:	83Q5ZO
+        Total:	£115
+        Payments:	£115 (Square) - Paid
+        EML;
+
+        $svc = app(OutlookBookingService::class);
+        $parsed = $svc->parse('New booking 83Q5ZO has been created.', $body, 'noreply@easytaxioffice.co.uk');
+
+        $this->assertSame(1, (int) $parsed['child_seats']); // not 2
+
+        $svc->upsertFromParsed($parsed);
+        $booking = Booking::where('external_reference', '83Q5ZO')->first();
+        $this->assertSame(1, (int) $booking->meta['child_seats']);            // stored as one
+        $this->assertStringNotContainsString('2', (string) $booking->displayChildSeats()); // never "2 child seats"
+    }
+
     public function test_eto_email_without_iata_code_or_lead_passenger(): void
     {
         config(['services.anthropic.key' => null]);
