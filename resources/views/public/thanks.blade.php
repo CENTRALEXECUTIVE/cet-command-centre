@@ -30,7 +30,7 @@
         }
         .masthead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
             background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
-        .logo{width:248px;max-width:80%;height:auto;display:block;margin:0 auto;opacity:.98}
+        .logo{width:138px;height:auto;display:block;margin:0 auto;opacity:.98}
         .tagline{margin:12px 0 0;color:#c9c6bd;font-size:10.5px;letter-spacing:.28em;
             text-transform:uppercase;font-weight:600}
 
@@ -77,7 +77,7 @@
     <div class="card">
         <div class="masthead">
             <img class="logo" src="{{ asset('images/cet-logo-wide.png') }}" onerror="this.onerror=null;this.src='{{ asset('images/cet-logo.jpg') }}';this.style.width='64px';this.style.borderRadius='14px'" alt="Central Executive Transfers">
-            <p class="tagline">Executive Chauffeur Service</p>
+            <p class="tagline">Executive Transfers</p>
         </div>
 
         <div class="body">

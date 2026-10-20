@@ -1,7 +1,6 @@
 @php
     $ref = $booking->external_reference ?: $booking->reference;
     $gross = $vat['gross'] ?? ($booking->fareGross() ?? 0);
-    $logo = \Illuminate\Support\Facades\URL::to('/images/cet-logo-wide.png');
     $isCash = $booking->isCashCollectJob();
     $isAccount = ($booking->payment_method?->value ?? null) === 'account';
     // A card booking that isn't paid yet is ON HOLD — reserved but NOT confirmed
@@ -22,13 +21,9 @@
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden">
 
-    {{-- Brand header — the real wordmark on the dark masthead --}}
-    <tr><td style="padding:0" align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0b0b;border-bottom:3px solid #FBBA2A">
-            <tr><td align="center" style="padding:30px 26px">
-                <img src="{{ $logo }}" alt="Central Executive Transfers" height="24" style="height:24px;display:block;margin:0 auto">
-            </td></tr>
-        </table>
+    {{-- Brand header --}}
+    <tr><td style="padding:22px" align="center">
+        <div style="background:#0b0b0b;color:#fff;font-weight:700;letter-spacing:8px;font-size:26px;padding:44px 0;border-radius:8px">CENTRAL</div>
     </td></tr>
 
     {{-- On hold (unpaid card) vs confirmed (paid / cash / account) vs enquiry --}}
