@@ -291,6 +291,11 @@ class BookingWidgetController extends Controller
             'wheelchair' => ['nullable', 'boolean'],
             'ribbons' => ['nullable', 'boolean'],
             'vat_invoice' => ['nullable', 'boolean'],
+            // Business details are required when a VAT invoice is wanted (so the
+            // invoice can be made out to the business).
+            'business_name' => ['nullable', 'required_if:vat_invoice,1', 'string', 'max:160'],
+            'business_address' => ['nullable', 'required_if:vat_invoice,1', 'string', 'max:500'],
+            'business_vat_number' => ['nullable', 'required_if:vat_invoice,1', 'string', 'max:40'],
             'payment_method' => ['nullable', Rule::in(['card', 'cash', 'account'])],
             'voucher' => ['nullable', 'string', 'max:40'],
             'accept_terms' => ['nullable', 'boolean'],
@@ -539,6 +544,12 @@ class BookingWidgetController extends Controller
                 'fare_extras_total' => $extrasTotal ?: null,
                 'vat_invoice_requested' => $needsInvoice,
                 'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
+                // Business details for the VAT invoice (name / address / VAT number).
+                'vat_details' => $needsInvoice ? array_filter([
+                    'name' => trim((string) ($data['business_name'] ?? '')),
+                    'address' => trim((string) ($data['business_address'] ?? '')),
+                    'vat_number' => strtoupper(trim((string) ($data['business_vat_number'] ?? ''))),
+                ], fn ($v) => $v !== '') : null,
                 'payment_preference' => $isAccount ? 'account' : ($wantsCard ? 'card' : 'cash'),
                 'account_booking' => $isAccount ?: null,
                 'account_code' => $account?->account_code,

@@ -628,9 +628,10 @@ class BookingWidgetTest extends TestCase
             'vehicle_type_id' => $exec->id, 'passengers' => 2,
             'customer_name' => 'VAT User', 'customer_phone' => '07464905385',
         ];
+        $biz = ['business_name' => 'Acme Ltd', 'business_address' => '1 High St, Sheffield S1 1AA', 'business_vat_number' => 'GB123456789'];
 
         // Ticked → Central Executive Transfers.
-        $this->post(route('widget.book.store'), $base + ['vat_invoice' => 1])->assertOk();
+        $this->post(route('widget.book.store'), $base + ['vat_invoice' => 1] + $biz)->assertOk();
         $b = \App\Models\Booking::firstWhere('source', 'web');
         $this->assertTrue((bool) $b->meta['vat_invoice_requested']);
         $this->assertSame('transfers', $b->billingEntity());
@@ -648,6 +649,34 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('chauffeurs', $b2->billingEntity());
     }
 
+    public function test_a_vat_invoice_requires_business_details_and_stores_them(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $base = [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH', 'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 2,
+            'customer_name' => 'VAT User', 'customer_phone' => '07464905385', 'vat_invoice' => 1,
+        ];
+
+        // No business details → rejected.
+        $this->post(route('widget.book.store'), $base)
+            ->assertSessionHasErrors(['business_name', 'business_address', 'business_vat_number']);
+        $this->assertSame(0, \App\Models\Booking::count());
+
+        // With them → stored on the booking and shown on the VAT invoice.
+        $this->post(route('widget.book.store'), $base + [
+            'business_name' => 'Acme Ltd', 'business_address' => '1 High St, Sheffield S1 1AA', 'business_vat_number' => 'gb123456789',
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('Acme Ltd', $b->meta['vat_details']['name']);
+        $this->assertSame('GB123456789', $b->meta['vat_details']['vat_number']); // upper-cased
+
+        $pdf = app(\App\Services\Payments\InvoicePdf::class)->renderReceipt($b->fresh());
+        $this->assertStringContainsString('%PDF', substr($pdf, 0, 8));
+    }
+
     public function test_a_vat_invoice_booking_is_stored_as_card_not_cash(): void
     {
         // "VAT bookings are always card" — even a one-way, and even if a cash choice
@@ -660,6 +689,7 @@ class BookingWidgetTest extends TestCase
             'vehicle_type_id' => $exec->id, 'passengers' => 2,
             'customer_name' => 'VAT User', 'customer_phone' => '07464905385',
             'vat_invoice' => 1,
+            'business_name' => 'Acme Ltd', 'business_address' => '1 High St, Sheffield S1 1AA', 'business_vat_number' => 'GB123456789',
         ];
 
         // Even with an explicit cash choice, a VAT booking is stored as card.

@@ -597,6 +597,18 @@
                             </div>
                         </div>
 
+                        {{-- Business details — shown and REQUIRED only when a VAT invoice was
+                             chosen on step 1, so the invoice can be made out to the business. --}}
+                        <div id="b-vat-details" hidden>
+                            <div class="cet-mini-title">🧾 Business details <span class="opt">— for your VAT invoice</span></div>
+                            <div class="cet-field"><label for="b-biz-name">Business name</label>
+                                <input id="b-biz-name" name="business_name" autocomplete="organization" disabled></div>
+                            <div class="cet-field"><label for="b-biz-address">Business address</label>
+                                <textarea id="b-biz-address" name="business_address" rows="2" autocomplete="off" disabled placeholder="Registered / billing address"></textarea></div>
+                            <div class="cet-field"><label for="b-biz-vat">VAT number</label>
+                                <input id="b-biz-vat" name="business_vat_number" autocomplete="off" disabled placeholder="e.g. GB123456789" style="text-transform:uppercase"></div>
+                        </div>
+
                         {{-- Extras — compact. Meet & greet appears (pre-ticked) only for airport
                              journeys; child seats hide behind a tick, max 2 in total. --}}
                         <div class="cet-mini-title">Extras <span class="opt">(optional)</span></div>
@@ -1017,6 +1029,17 @@
                         if (landField) landField.classList.add('bad');
                         showErr(3, 'Please enter your flight’s landing time so we can track it.'); landIn.focus(); return false;
                     }
+                    // Business details are required when a VAT invoice was chosen.
+                    if (typeof vatOn === 'function' && vatOn()) {
+                        var biz = [['b-biz-name', 'your business name'], ['b-biz-address', 'your business address'], ['b-biz-vat', 'your VAT number']];
+                        for (var bi = 0; bi < biz.length; bi++) {
+                            var bEl = document.getElementById(biz[bi][0]);
+                            if (bEl && !nonEmpty(bEl)) {
+                                bEl.closest('.cet-field').classList.add('bad');
+                                showErr(3, 'Please enter ' + biz[bi][1] + ' for your VAT invoice.'); bEl.focus(); return false;
+                            }
+                        }
+                    }
                     // Registering — need a password of at least 8 characters.
                     var regPass = document.getElementById('b-reg-pass');
                     if (regPass && !regPass.disabled && (regPass.value || '').length < 8) {
@@ -1390,7 +1413,20 @@
                 if (yw) yw.classList.toggle('on', !!(vatYes && vatYes.checked));
                 if (nw) nw.classList.toggle('on', !!(vatNo && vatNo.checked));
                 applyReturnPaymentRule(); // VAT bookings are always card — hide cash
+                syncVatDetails();
                 renderPrices(); fillSummary();
+            }
+            // Business details (name / address / VAT no.) are shown AND required only
+            // when a VAT invoice is wanted — and disabled when hidden so they neither
+            // submit nor block a non-VAT booking.
+            function syncVatDetails() {
+                var on = vatOn();
+                var block = document.getElementById('b-vat-details');
+                if (block) block.hidden = !on;
+                ['b-biz-name', 'b-biz-address', 'b-biz-vat'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) { el.disabled = !on; if (!on) { el.value = ''; el.closest('.cet-field').classList.remove('bad'); } }
+                });
             }
             [vatYes, vatNo].forEach(function (r) { if (r) r.addEventListener('change', syncVat); });
 

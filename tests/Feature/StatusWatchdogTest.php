@@ -260,6 +260,31 @@ class StatusWatchdogTest extends TestCase
         $this->assertEqualsWithDelta($expected->timestamp, $watchdog->setOffDeadline($b->fresh())->timestamp, 2);
     }
 
+    public function test_airport_set_off_anchors_on_the_customer_entered_landing_time(): void
+    {
+        // Airport pickup, landing 15:00 entered by the customer, NO live flight API.
+        // The set-off must anchor on the landing (+15 deplaning − drive − 5), firing
+        // ahead of the flight — not at the nominal pickup/check-in time.
+        $landing = Carbon::parse('2026-07-15 15:00');
+        $b = Booking::factory()->create([
+            'driver_id' => $this->driver()->id,
+            'status' => BookingStatus::Allocated,
+            'pickup_at' => $landing->copy()->addMinutes(30),
+            'pickup_address' => 'Manchester Airport, M90 1QX',
+            'meta' => ['geo' => ['pickup' => self::PICKUP], 'flight_landing_at' => '2026-07-15 15:00'],
+        ]);
+        $this->ping($b, 53.45, -1.47, now()->subMinute());
+
+        $drive = \App\Support\Geo::estimateDriveMinutes(53.45, -1.47, self::PICKUP[0], self::PICKUP[1]);
+        $expected = $landing->copy()->addMinutes(15)->subMinutes($drive + 5);
+
+        $deadline = app(StatusWatchdog::class)->setOffDeadline($b->fresh());
+        $this->assertEqualsWithDelta($expected->timestamp, $deadline->timestamp, 2);
+        // Anchored on the flight (≈ landing +15 − drive), NOT the 15:30 nominal pickup.
+        $this->assertTrue($deadline->lt(Carbon::parse('2026-07-15 15:30')));
+        $this->assertTrue($deadline->gt(Carbon::parse('2026-07-15 14:30')));
+    }
+
     public function test_set_off_lead_uses_the_live_google_road_time_when_maps_is_on(): void
     {
         config(['services.google_maps.key' => 'test-maps-key']);

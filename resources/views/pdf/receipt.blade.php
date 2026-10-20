@@ -117,6 +117,8 @@
       <td>
         <div class="plabel">Bill to</div>
         <div class="pname">{{ $billedTo }}</div>
+        @if($billToAddress ?? null)<div>{!! nl2br(e($billToAddress)) !!}</div>@endif
+        @if($billToVat ?? null)<div>VAT Reg. No. {{ $billToVat }}</div>@endif
         @if(($attn ?? null) && $attn !== $billedTo)<div>Passenger: {{ $attn }}</div>@endif
         @if($customerPhone ?? null)<div>{{ $customerPhone }}</div>@endif
         @if($customerEmail)<div>{{ $customerEmail }}</div>@endif

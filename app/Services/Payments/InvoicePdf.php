@@ -224,6 +224,17 @@ class InvoicePdf
             $billedEmail = $booking->bookerEmail();
         }
 
+        // VAT invoice to a business → bill it to the business the customer gave on
+        // the form (name / address / VAT number), so the invoice is reclaimable.
+        $billToAddress = null;
+        $billToVat = null;
+        if (! $cover && $isVat && is_array($booking->meta['vat_details'] ?? null)) {
+            $vd = $booking->meta['vat_details'];
+            $billedTo = trim((string) ($vd['name'] ?? '')) ?: $billedTo;
+            $billToAddress = trim((string) ($vd['address'] ?? '')) ?: null;
+            $billToVat = trim((string) ($vd['vat_number'] ?? '')) ?: null;
+        }
+
         $dompdf = $this->makeDompdf();
         $dompdf->setPaper('A4');
         $dompdf->loadHtml(View::make('pdf.receipt', [
@@ -241,6 +252,8 @@ class InvoicePdf
             'balanceDue' => round($grossTotal - $paymentsReceived, 2),
             'attn' => $cover ? null : $booking->displayName(),
             'billedTo' => $billedTo,
+            'billToAddress' => $billToAddress,
+            'billToVat' => $billToVat,
             'customerEmail' => $billedEmail,
             'customerPhone' => $cover ? ($cover['phone'] ?? null) : $booking->bookerPhone(),
             'invoiceNumber' => $booking->external_reference ?: $booking->reference,

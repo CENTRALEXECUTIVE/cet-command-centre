@@ -948,18 +948,28 @@ class StatusWatchdog
         return Str::contains(Str::lower((string) $booking->pickup_address), 'airport');
     }
 
-    /** The flight's landing time from the monitor (estimated, else scheduled), or null. */
+    /**
+     * The flight's landing time: the LIVE time from the monitor (estimated, else
+     * scheduled) when the flight API is connected, otherwise the landing time the
+     * CUSTOMER entered on the booking form (meta['flight_landing_at']). This is
+     * what anchors an airport pickup's set-off — so the "set off" nudge fires
+     * ahead of the landing, not at the pickup/check-in time, even before a live
+     * flight feed is switched on. A live delay/early update then overrides it.
+     */
     private function flightLandingAt(Booking $booking): ?Carbon
     {
         $monitor = \App\Models\FlightMonitor::where('booking_id', $booking->id)->first();
-        $when = $monitor?->estimated_arrival ?? $monitor?->scheduled_arrival;
+        $when = $monitor?->estimated_arrival ?? $monitor?->scheduled_arrival
+            ?? ($booking->meta['flight_landing_at'] ?? null);
 
         if (! $when) {
             return null;
         }
 
         try {
-            return $when instanceof Carbon ? $when : Carbon::parse($when);
+            return $when instanceof Carbon
+                ? $when
+                : Carbon::parse($when, config('app.timezone'));
         } catch (\Throwable) {
             return null;
         }
