@@ -1,6 +1,15 @@
 @php
     $ref = $booking->external_reference ?: $booking->reference;
     $gross = $vat['gross'] ?? ($booking->fareGross() ?? 0);
+    $logo = \Illuminate\Support\Facades\URL::to('/images/cet-logo-wide.png');
+    $isCash = $booking->isCashCollectJob();
+    $isAccount = ($booking->payment_method?->value ?? null) === 'account';
+    // A card booking that isn't paid yet is ON HOLD — reserved but NOT confirmed
+    // until the customer pays. Cash/account jobs are confirmed on creation; a paid
+    // booking is confirmed. When there's no pay link it's a price-on-request enquiry.
+    $awaitingPayment = ! $paid && ! $isCash && ! $isAccount && ! empty($payUrl);
+    $isEnquiry = ! $paid && ! $isCash && ! $isAccount && empty($payUrl);
+    $contactEmail = $company['email'] ?? 'admin@centralexecutivetransfers.co.uk';
     $row = fn ($k, $v) => $v !== null && $v !== ''
         ? '<tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top;white-space:nowrap">'.$k.'</td><td style="padding:4px 0;color:#111">'.e($v).'</td></tr>'
         : '';
@@ -13,14 +22,34 @@
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden">
 
-    {{-- Brand header --}}
-    <tr><td style="padding:22px" align="center">
-        <div style="background:#0b0b0b;color:#fff;font-weight:700;letter-spacing:8px;font-size:26px;padding:44px 0;border-radius:8px">CENTRAL</div>
+    {{-- Brand header — the real wordmark on the dark masthead --}}
+    <tr><td style="padding:0" align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0b0b;border-bottom:3px solid #FBBA2A">
+            <tr><td align="center" style="padding:30px 26px">
+                <img src="{{ $logo }}" alt="Central Executive Transfers" height="24" style="height:24px;display:block;margin:0 auto">
+            </td></tr>
+        </table>
     </td></tr>
 
-    <tr><td style="padding:0 26px 8px">
-        <p style="margin:0 0 14px;font-size:15px"><strong>Booking Confirmation:</strong> Thank you for booking with Central Executive Transfers. Your reservation number is <strong>{{ $ref }}</strong>.</p>
-    </td></tr>
+    {{-- On hold (unpaid card) vs confirmed (paid / cash / account) vs enquiry --}}
+    @if($awaitingPayment)
+        <tr><td style="padding:22px 26px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff6e5;border:1px solid #f1d79a;border-radius:10px">
+                <tr><td style="padding:16px 18px">
+                    <div style="font-size:17px;font-weight:800;color:#8a5a00;margin-bottom:4px">⏳ Your booking is on hold</div>
+                    <div style="font-size:14px;color:#6b5420">We've reserved your journey (ref <strong>{{ $ref }}</strong>), but it is <strong>not confirmed yet</strong>. Please complete payment below to lock it in — your booking is only confirmed once payment is made.</div>
+                </td></tr>
+            </table>
+        </td></tr>
+    @elseif($isEnquiry)
+        <tr><td style="padding:22px 26px 0">
+            <p style="margin:0;font-size:15px"><strong>Request received.</strong> Thanks — we've got your journey details (ref <strong>{{ $ref }}</strong>). Our office will confirm the price and get back to you shortly to take payment and lock it in.</p>
+        </td></tr>
+    @else
+        <tr><td style="padding:22px 26px 0">
+            <p style="margin:0;font-size:15px"><strong>Booking Confirmation:</strong> Thank you for booking with Central Executive Transfers. Your reservation number is <strong>{{ $ref }}</strong>.</p>
+        </td></tr>
+    @endif
 
     {{-- Journey --}}
     <tr><td style="padding:8px 26px 0">
@@ -61,7 +90,6 @@
             @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
                 {!! $row('Includes VAT:', '£'.number_format($vat['vat'], 2).' (net £'.number_format($vat['net'], 2).')') !!}
             @endif
-            @php $isCash = $booking->isCashCollectJob(); $isAccount = ($booking->payment_method?->value ?? null) === 'account'; @endphp
             <tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top">Payment:</td>
                 <td style="padding:4px 0;color:#111">
                     @if($isAccount)
@@ -70,9 +98,9 @@
                         £{{ number_format($gross, 2) }} — <strong>Pay the driver on the day (cash)</strong>
                     @else
                         £{{ number_format($gross, 2) }} (Card) —
-                        <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Pending' }}</strong>
+                        <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Awaiting payment — booking on hold' }}</strong>
                         @if(! $paid && $payUrl)
-                            <br><a href="{{ $payUrl }}" style="display:inline-block;margin-top:8px;background:#12a1c0;color:#fff;text-decoration:none;padding:9px 18px;border-radius:6px;font-weight:700">Pay now</a>
+                            <br><a href="{{ $payUrl }}" style="display:inline-block;margin-top:8px;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment →</a>
                         @endif
                     @endif
                 </td></tr>
@@ -109,7 +137,7 @@
     {{-- Footer --}}
     <tr><td style="padding:18px 26px 26px;background:#f6f5f2;color:#555;font-size:12.5px;text-align:center">
         <strong style="color:#111">{{ $company['name'] ?? 'Central Executive Transfers' }}</strong> &nbsp;|&nbsp; Tel: +447405172435<br>
-        Email: admin@centralexecutivetransfers.co.uk &nbsp;|&nbsp; Website: https://centralexecutivetransfers.co.uk/
+        Email: {{ $contactEmail }} &nbsp;|&nbsp; Website: https://centralexecutivetransfers.co.uk/
         @if($vatNumber)<br>VAT No: {{ $vatNumber }}@endif
     </td></tr>
 

@@ -28,7 +28,7 @@
         .masthead{background:linear-gradient(160deg,#141414 0%,#000 100%);padding:28px 34px 24px;text-align:center;position:relative}
         .masthead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
             background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
-        .logo{width:138px;height:auto;display:block;margin:0 auto;opacity:.98}
+        .logo{width:248px;max-width:80%;height:auto;display:block;margin:0 auto;opacity:.98}
         .tagline{margin:12px 0 0;color:#c9c6bd;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;font-weight:600}
         .body{padding:34px 34px 30px;text-align:center}
         .tick{

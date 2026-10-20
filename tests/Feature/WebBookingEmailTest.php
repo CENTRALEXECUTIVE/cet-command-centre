@@ -150,7 +150,9 @@ class WebBookingEmailTest extends TestCase
 
         $this->assertStringContainsString('Includes VAT', $html);
         $this->assertStringContainsString('(Card)', $html);
-        $this->assertStringContainsString('Pay now', $html);
+        // Unpaid card booking is on hold until paid, with a Complete-payment link.
+        $this->assertStringContainsString('Complete payment', $html);
+        $this->assertStringContainsString('on hold', $html);
         $this->assertStringNotContainsString('Pay the driver on the day', $html);
     }
 

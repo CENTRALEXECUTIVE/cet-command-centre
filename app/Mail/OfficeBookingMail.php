@@ -3,9 +3,11 @@
 namespace App\Mail;
 
 use App\Models\Booking;
+use App\Services\Payments\InvoicePdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -58,10 +60,13 @@ class OfficeBookingMail extends Mailable
         // take payment over the phone, or copy the URL to send to the customer.
         // It's the same STABLE signed link the customer gets (widget.pay), so it
         // always charges the current price. Null for cash/account/paid.
+        // The OUTSTANDING balance (fare less any deposit/part-payment already taken),
+        // so the office link takes the remainder, never the whole fare again.
+        $outstanding = (float) ($this->booking->transactionsAmountDue() ?? $this->booking->amountPayable() ?? 0);
         $payUrl = null;
         if (($this->booking->payment_method?->value ?? null) === 'card'
             && ! $this->booking->fareIsPaid()
-            && (float) ($this->booking->amountPayable() ?? 0) > 0) {
+            && $outstanding > 0) {
             $payUrl = \Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $this->booking->id]);
         }
 
@@ -70,6 +75,33 @@ class OfficeBookingMail extends Mailable
             'vat' => $this->booking->fareVatBreakdown(),
             'stage' => $this->stage,
             'payUrl' => $payUrl,
+            'payAmount' => $outstanding,
         ]);
+    }
+
+    /**
+     * Attach the same invoice PDF the customer gets, but ONLY on the "payment
+     * received" email — so the office has the paid invoice on file the moment a
+     * customer pays. The "new/awaiting" email carries no invoice (nothing's paid
+     * yet). A PDF hiccup never blocks the notification.
+     */
+    public function attachments(): array
+    {
+        if ($this->stage !== 'paid' && ! $this->booking->fareIsPaid()) {
+            return [];
+        }
+
+        $ref = $this->booking->external_reference ?: $this->booking->reference;
+
+        try {
+            $pdf = app(InvoicePdf::class)->renderReceipt($this->booking);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        return [
+            Attachment::fromData(fn () => $pdf, 'Central Executive Transfers - Invoice '.$ref.'.pdf')
+                ->withMime('application/pdf'),
+        ];
     }
 }

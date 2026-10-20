@@ -622,11 +622,12 @@ class BookingWidgetController extends Controller
             return redirect()->route('widget.paid', ['already' => 1]);
         }
 
-        // Build the checkout fresh at CLICK time from the CURRENT amount payable
-        // (final_price + VAT where it applies). This is why the emailed link is a
-        // stable CET URL, not a baked provider link: if the office corrects the
-        // price, the customer always sees the new figure, never the old one.
-        $amount = (float) ($booking->amountPayable() ?? 0);
+        // Build the checkout fresh at CLICK time from the CURRENT amount OUTSTANDING
+        // (final_price + VAT where it applies, LESS any deposit/part-payment already
+        // taken in the ledger). This is why the emailed link is a stable CET URL,
+        // not a baked provider link: if the office corrects the price or takes a
+        // deposit, the customer always pays the right balance, never the old figure.
+        $amount = (float) ($booking->transactionsAmountDue() ?? $booking->amountPayable() ?? 0);
         $url = $amount > 0
             ? $this->payments->createCheckoutUrl($booking, $amount, route('widget.paid'))
             : null;

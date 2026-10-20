@@ -3,7 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Booking;
-use App\Services\Payments\BookingInvoicePdf;
+use App\Services\Payments\InvoicePdf;
 use App\Services\Payments\VatService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -75,8 +75,11 @@ class BookingConfirmationMail extends Mailable
 
         $ref = $this->booking->external_reference ?: $this->booking->reference;
 
+        // The premium Inter-set invoice (pdf.receipt) — the same design used for
+        // the office copy and corporate invoices, so the customer's attachment
+        // looks like a proper VAT/invoice document, not the old plain receipt.
         try {
-            $pdf = app(BookingInvoicePdf::class)->render($this->booking);
+            $pdf = app(InvoicePdf::class)->renderReceipt($this->booking);
         } catch (\Throwable) {
             return []; // never let a PDF hiccup block the confirmation email
         }

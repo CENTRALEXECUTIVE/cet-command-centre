@@ -87,6 +87,23 @@ class OfficeBookingEmailTest extends TestCase
         $this->assertSame('paid', $booking->fresh()->payment_status);
     }
 
+    public function test_the_paid_office_email_attaches_the_invoice_but_the_new_one_does_not(): void
+    {
+        $customer = Customer::factory()->create(['email' => 'cust@example.com']);
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'payment_method' => 'card',
+            'payment_status' => 'pending', 'quoted_price' => 140,
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds LS1 1AA',
+        ]);
+
+        // The "new/awaiting" email carries no invoice (nothing paid yet).
+        $this->assertCount(0, (new OfficeBookingMail($booking->fresh(), 'new'))->attachments());
+
+        // Once paid, the office copy carries the same invoice PDF the customer gets.
+        $booking->forceFill(['payment_status' => 'paid'])->save();
+        $this->assertCount(1, (new OfficeBookingMail($booking->fresh(), 'paid'))->attachments());
+    }
+
     public function test_each_office_stage_is_sent_once(): void
     {
         Mail::fake();
