@@ -470,8 +470,8 @@ class StatusWatchdog
         return $sent;
     }
 
-    /** Be at the airport this many minutes after the flight lands. */
-    private const AIRPORT_ARRIVE_AFTER_LANDING = 20;
+    /** Be at the airport this many minutes after the flight lands (deplaning buffer). */
+    private const AIRPORT_ARRIVE_AFTER_LANDING = 15;
 
     /**
      * Rule 1 lead time: drive time from the driver's last known position to the
@@ -589,11 +589,57 @@ class StatusWatchdog
                 ->latest('captured_at')->first()
             : null;
 
-        if (! $pickup || ! $last) {
+        if (! $last) {
+            return null;
+        }
+
+        // Prefer the REAL, traffic-aware road time (Google Routes API) from the
+        // driver's live position to the pickup, so "set off now" fires at the
+        // right moment on a busy road — cached briefly so the per-minute watchdog
+        // doesn't hammer the API. Falls back to the free straight-line estimate.
+        $road = $this->roadMinutesToPickup($booking, $last, $pickup);
+        if ($road !== null) {
+            return $road;
+        }
+
+        if (! $pickup) {
             return null;
         }
 
         return Geo::estimateDriveMinutes((float) $last->latitude, (float) $last->longitude, $pickup[0], $pickup[1]);
+    }
+
+    /**
+     * Live road minutes (Google Routes, traffic-aware) from the driver to the
+     * pickup — only when the job is within the set-off window (~3h) and Maps is
+     * configured, cached ~4 min per booking + rounded driver position so the
+     * every-minute watchdog spends at most a few Maps calls per job. Null => the
+     * caller uses the free straight-line estimate.
+     *
+     * @param  array{0: float, 1: float}|null  $pickup
+     */
+    private function roadMinutesToPickup(Booking $booking, DriverLocation $last, ?array $pickup): ?int
+    {
+        if ($booking->pickup_at === null || now()->lt($booking->pickup_at->copy()->subMinutes(180))) {
+            return null; // too far out to spend a Maps call; the estimate is fine
+        }
+
+        $distance = app(\App\Services\Pricing\DistanceService::class);
+        if (! $distance->configured()) {
+            return null;
+        }
+
+        $key = 'setoff_road:'.$booking->id.':'.round((float) $last->latitude, 3).','.round((float) $last->longitude, 3);
+
+        return \Illuminate\Support\Facades\Cache::remember($key, now()->addMinutes(4), function () use ($distance, $last, $booking, $pickup) {
+            return $distance->driveMinutesFromPoint(
+                (float) $last->latitude,
+                (float) $last->longitude,
+                $booking->pickup_address,
+                $pickup[0] ?? null,
+                $pickup[1] ?? null,
+            );
+        });
     }
 
     /* ── Geofence primitives ──────────────────────────────────────────────── */

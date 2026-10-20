@@ -254,10 +254,46 @@ class StatusWatchdogTest extends TestCase
         ]);
 
         $drive = \App\Support\Geo::estimateDriveMinutes(config('cet.base.lat'), config('cet.base.lng'), self::DROPOFF[0], self::DROPOFF[1]);
-        // Be at the airport by 14:20 (landing + 20); leave by that minus drive + 5.
-        $expected = Carbon::parse('2026-07-15 14:20')->subMinutes($drive + 5);
+        // Be at the airport by 14:15 (landing + 15); leave by that minus drive + 5.
+        $expected = Carbon::parse('2026-07-15 14:15')->subMinutes($drive + 5);
 
         $this->assertEqualsWithDelta($expected->timestamp, $watchdog->setOffDeadline($b->fresh())->timestamp, 2);
+    }
+
+    public function test_set_off_lead_uses_the_live_google_road_time_when_maps_is_on(): void
+    {
+        config(['services.google_maps.key' => 'test-maps-key']);
+
+        // Google Routes replies with a 1500s (25 min) traffic-aware drive.
+        Http::fake([
+            'routes.googleapis.com/*' => Http::response(['routes' => [['duration' => '1500s']]], 200),
+        ]);
+
+        // Allocated job 40 min out (inside the 3h window), with a live driver ping.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), ['pickup' => self::PICKUP]);
+        $this->ping($b, 53.45, -1.47, now()->subMinute());
+
+        $watchdog = app(StatusWatchdog::class);
+
+        // Lead = real road time (25) + 5-min arrive-early buffer = 30 min.
+        $this->assertSame(30, $watchdog->setOffLeadMinutes($b->fresh()));
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'computeRoutes')
+            && ($r->data()['routingPreference'] ?? null) === 'TRAFFIC_AWARE');
+    }
+
+    public function test_set_off_lead_falls_back_to_the_free_estimate_without_maps(): void
+    {
+        // No Maps key → never calls the API, uses the straight-line estimate.
+        config(['services.google_maps.key' => null]);
+        Http::fake(); // fail the test if any HTTP call is made
+
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(40), ['pickup' => self::PICKUP]);
+        $this->ping($b, 53.45, -1.47, now()->subMinute());
+
+        $lead = app(StatusWatchdog::class)->setOffLeadMinutes($b->fresh());
+        $this->assertGreaterThanOrEqual(15, $lead); // clamped, estimate-based
+        Http::assertNothingSent();
     }
 
     public function test_urgent_escalation_ten_minutes_before_pickup(): void

@@ -41,6 +41,59 @@ class DistanceService
     }
 
     /**
+     * Live, traffic-aware driving minutes from a POINT (e.g. the driver's GPS) to
+     * a destination — for "when must the driver set off to be on time" decisions.
+     * Unlike pricing (which bills the shortest route), this takes the FASTEST
+     * route's duration under current traffic, i.e. the real ETA. Null when there's
+     * no Maps key or the API can't answer (caller falls back to a free estimate).
+     */
+    public function driveMinutesFromPoint(float $originLat, float $originLng, ?string $destAddress = null, ?float $destLat = null, ?float $destLng = null): ?int
+    {
+        if (! $this->configured()) {
+            return null;
+        }
+
+        $destination = ($destAddress !== null && trim($destAddress) !== '')
+            ? ['address' => $destAddress]
+            : (($destLat !== null && $destLng !== null)
+                ? ['location' => ['latLng' => ['latitude' => $destLat, 'longitude' => $destLng]]]
+                : null);
+        if ($destination === null) {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'X-Goog-Api-Key' => \App\Models\Setting::mapsKey(),
+                    'X-Goog-FieldMask' => 'routes.duration',
+                ])
+                ->post('https://routes.googleapis.com/directions/v2:computeRoutes', [
+                    'origin' => ['location' => ['latLng' => ['latitude' => $originLat, 'longitude' => $originLng]]],
+                    'destination' => $destination,
+                    'travelMode' => 'DRIVE',
+                    // Current traffic → a real ETA, so the set-off nudge fires at the
+                    // right moment on a busy road, not the free-flow one.
+                    'routingPreference' => 'TRAFFIC_AWARE',
+                ]);
+
+            $durations = array_filter(
+                array_map(fn ($r) => (int) rtrim((string) ($r['duration'] ?? '0s'), 's'), $response->json('routes', [])),
+                fn ($d) => $d > 0,
+            );
+            if ($response->successful() && $durations) {
+                return (int) round(min($durations) / 60); // fastest route = real ETA
+            }
+
+            Log::warning('Routes API (point) returned no route', ['body' => substr($response->body(), 0, 300)]);
+        } catch (\Throwable $e) {
+            Log::warning('Routes API (point) exception', ['error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{miles: float, minutes: int}|null
      */
     private function queryGoogle(string $pickup, string $destination): ?array
