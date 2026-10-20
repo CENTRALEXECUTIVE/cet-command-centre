@@ -109,7 +109,7 @@
                     <div class="loc-row">
                         <span class="pin pickup">A</span>
                         <div class="grow">
-                            <textarea id="pickup_address" name="pickup_address" data-places data-postcode-target="#pickup_postcode" autocomplete="off" placeholder="Start typing an address…" required>{{ old('pickup_address', $pf['pickup_address'] ?? $quote?->pickup_address) }}</textarea>
+                            <textarea id="pickup_address" name="pickup_address" data-places data-postcode-target="#pickup_postcode" autocomplete="off" placeholder="Start typing — or type the full address if it's not listed" required>{{ old('pickup_address', $pf['pickup_address'] ?? $quote?->pickup_address) }}</textarea>
                         </div>
                     </div>
                     @error('pickup_address') <div class="error">{{ $message }}</div> @enderror
@@ -139,7 +139,7 @@
                     <div class="loc-row">
                         <span class="pin drop">B</span>
                         <div class="grow">
-                            <textarea id="destination_address" name="destination_address" data-places data-postcode-target="#destination_postcode" autocomplete="off" placeholder="Start typing an address…" required>{{ old('destination_address', $pf['destination_address'] ?? $quote?->destination_address) }}</textarea>
+                            <textarea id="destination_address" name="destination_address" data-places data-postcode-target="#destination_postcode" autocomplete="off" placeholder="Start typing — or type the full address if it's not listed" required>{{ old('destination_address', $pf['destination_address'] ?? $quote?->destination_address) }}</textarea>
                         </div>
                     </div>
                     @error('destination_address') <div class="error">{{ $message }}</div> @enderror

@@ -151,13 +151,15 @@
         <div class="sec-title"><span class="n">1</span> Your journey</div>
         <div class="addr-row">
             <div><label class="f">Pick-up address <span class="req">*</span></label>
-                <input name="pickup_address" id="pickup" value="{{ old('pickup_address') }}" placeholder="Start typing your address…" data-places autocomplete="off" required></div>
+                <input name="pickup_address" id="pickup" value="{{ old('pickup_address') }}" placeholder="Start typing — or type your full address" data-places autocomplete="off" required>
+                <small style="display:block;color:#888;font-size:12px;margin-top:3px">Can’t find it in the list? Just type your full address — that’s fine.</small></div>
             <div><label class="f">Pick-up postcode <span class="req">*</span></label>
                 <input name="pickup_postcode" id="pickup_postcode" value="{{ old('pickup_postcode') }}" placeholder="e.g. S10 4BL" style="text-transform:uppercase" autocomplete="postal-code" required></div>
         </div>
         <div class="addr-row" style="margin-top:14px">
             <div><label class="f">Drop-off address <span class="req">*</span></label>
-                <input name="destination_address" id="destination" value="{{ old('destination_address') }}" placeholder="Start typing an address…" data-places autocomplete="off" required></div>
+                <input name="destination_address" id="destination" value="{{ old('destination_address') }}" placeholder="Start typing — or type your full address" data-places autocomplete="off" required>
+                <small style="display:block;color:#888;font-size:12px;margin-top:3px">Can’t find it in the list? Just type your full address — that’s fine.</small></div>
             <div><label class="f">Drop-off postcode</label>
                 <input name="destination_postcode" id="destination_postcode" value="{{ old('destination_postcode') }}" placeholder="If known" style="text-transform:uppercase" autocomplete="postal-code"></div>
         </div>

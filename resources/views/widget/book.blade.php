@@ -396,8 +396,9 @@
                         </div>
                         <div class="cet-addr-row">
                             <div class="cet-field icon" style="flex:1;min-width:0"><label for="b-pickup">Pickup address</label>
-                                <input id="b-pickup" name="pickup_address" required placeholder="Enter a pickup location" data-places data-postcode-target="#b-pickup-pc" autocomplete="off">
+                                <input id="b-pickup" name="pickup_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-pickup-pc" autocomplete="off">
                                 <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Clear address" title="Clear address">✕</button>
+                                <small style="display:block;color:#8a8a8a;font-size:11.5px;margin-top:3px">Can’t find it? Just type your full address.</small>
                             </div>
                             <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode</label>
                                 <input id="b-pickup-pc" name="pickup_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
@@ -410,8 +411,9 @@
                         </div>
                         <div class="cet-addr-row" id="b-dropoff-row">
                             <div class="cet-field icon" id="b-dropoff-field" style="flex:1;min-width:0"><label for="b-dropoff">Drop-off address</label>
-                                <input id="b-dropoff" name="destination_address" required placeholder="Enter a dropoff location" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
-                                <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button></div>
+                                <input id="b-dropoff" name="destination_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
+                                <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button>
+                                <small style="display:block;color:#8a8a8a;font-size:11.5px;margin-top:3px">Can’t find it? Just type your full address.</small></div>
                             <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode</label>
                                 <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                         </div>
