@@ -544,6 +544,14 @@ class BookingController extends Controller
             $booking = app(BookingStatusService::class)->onFarePaid($booking);
         }
 
+        // Self-heal the Payment history ledger: if the fare is paid but an older
+        // "Pay now" card transaction was left reading "Pending" (paid before this
+        // was wired), bring it into line on view. Cheap and idempotent.
+        if ($request->user()->isAdmin() && $booking->fareIsPaid()) {
+            try { $booking->reconcileLedgerFromFarePaid(); } catch (\Throwable) {
+            }
+        }
+
         return view('bookings.show', $this->showData($request, $booking));
     }
 

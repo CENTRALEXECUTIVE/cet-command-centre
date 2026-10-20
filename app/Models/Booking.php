@@ -1394,6 +1394,56 @@ class Booking extends Model
         }
     }
 
+    /**
+     * Heal the payment LEDGER after the fare is recorded paid online (webhook).
+     * markFarePaid() flips the booking's headline to paid but doesn't touch the
+     * transaction rows — so an office "Pay now" CARD transaction (link_sent) would
+     * still read "Pending" in the Payment history even though the money's in.
+     * This marks the still-open CARD transactions paid, oldest first, up to the
+     * amount actually paid — never touching cash/account rows (those are settled
+     * on the day / invoiced, not by this online payment). Idempotent and cheap.
+     */
+    public function reconcileLedgerFromFarePaid(): void
+    {
+        if (! $this->fareIsPaid()) {
+            return;
+        }
+        $this->loadMissing('payments');
+        if ($this->payments->isEmpty()) {
+            return; // no ledger rows → the view shows a synthesized "Paid" row
+        }
+
+        // How much the online payment covers: the fare, or the recorded amount.
+        $target = $this->fareGross() ?? (float) ($this->meta['square_payment']['amount'] ?? 0);
+        if ($target <= 0) {
+            return;
+        }
+
+        $paid = (float) $this->payments->where('status', 'paid')->sum('amount');
+        if ($paid + 0.01 >= $target) {
+            return; // the ledger already reflects the payment
+        }
+
+        $at = isset($this->meta['square_payment']['at'])
+            ? \Illuminate\Support\Carbon::parse($this->meta['square_payment']['at'])
+            : now();
+
+        $open = $this->payments
+            ->whereIn('status', ['pending', 'link_sent'])
+            ->where('method', 'card')
+            ->sortBy('id');
+
+        foreach ($open as $payment) {
+            $payment->forceFill(['status' => 'paid', 'paid_at' => $payment->paid_at ?? $at])->save();
+            $paid += (float) $payment->amount;
+            if ($paid + 0.01 >= $target) {
+                break;
+            }
+        }
+
+        $this->load('payments');
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
@@ -5709,6 +5759,10 @@ class Booking extends Model
         ], fn ($v) => $v !== null);
         $this->payment_status = 'paid';
         $this->forceFill(['meta' => $meta])->save();
+
+        // Keep the Payment history ledger in step: mark any open card "Pay now"
+        // transaction paid, so it never reads "Pending" after the money's in.
+        $this->reconcileLedgerFromFarePaid();
 
         return true;
     }

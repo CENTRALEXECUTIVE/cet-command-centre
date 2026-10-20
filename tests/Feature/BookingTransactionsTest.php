@@ -75,6 +75,37 @@ class BookingTransactionsTest extends TestCase
         $this->assertEqualsWithDelta(80.0, $booking->transactionsAmountDue(), 0.001);
     }
 
+    public function test_paying_the_fare_online_marks_the_open_card_transaction_paid(): void
+    {
+        // The office sends a "Pay now" card link (a link_sent ledger row). The
+        // customer pays it → the webhook records the fare. The ledger row must flip
+        // to Paid, not sit reading "Pending".
+        $booking = $this->booking(); // £105 fare
+        $tx = $booking->payments()->create([
+            'method' => 'card', 'amount' => 105, 'status' => 'link_sent',
+            'meta' => ['name' => 'Pay now'],
+        ]);
+
+        // Webhook records the online payment.
+        $booking->markFarePaid('sq_paid_1', 105.0);
+
+        $this->assertSame('paid', $tx->fresh()->status);
+        $this->assertNotNull($tx->fresh()->paid_at);
+        $this->assertSame('paid', $booking->fresh()->payment_status);
+    }
+
+    public function test_a_cash_ledger_row_is_not_marked_paid_by_an_online_fare_payment(): void
+    {
+        // Only the online CARD payment settles online — a separate cash row (what
+        // the driver collects) must be left alone.
+        $booking = $this->booking();
+        $cash = $booking->payments()->create(['method' => 'cash', 'amount' => 40, 'status' => 'pending']);
+
+        $booking->markFarePaid('sq_paid_2', 105.0);
+
+        $this->assertSame('pending', $cash->fresh()->status);
+    }
+
     public function test_a_recorded_paid_deposit_reduces_the_online_balance_to_the_remainder(): void
     {
         // Office books a job in and takes a £30 deposit via the simple "Deposit
