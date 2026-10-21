@@ -65,6 +65,49 @@ class DriverPushTest extends TestCase
         $this->assertSame(1, PushSubscription::where('user_id', $driver->id)->count());
     }
 
+    public function test_a_cover_driver_can_subscribe_via_the_job_link(): void
+    {
+        $this->configureVapid();
+        $driver = $this->driver();
+        $booking = Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Allocated]);
+        $token = $booking->driverLinkToken();
+
+        // Key endpoint is public (the token is in the path) and returns the VAPID key.
+        $this->getJson(route('driver.link.push-key', $token))
+            ->assertOk()->assertJson(['enabled' => true]);
+
+        // Subscribe → stored against the DRIVER this link is allocated to, so the
+        // office's new-job / set-off nudges reach the cover driver's phone.
+        $this->postJson(route('driver.link.push-subscribe', $token), [
+            'endpoint' => 'https://push.example.com/cover1',
+            'keys' => ['p256dh' => 'BPUB', 'auth' => 'AUTH'],
+        ])->assertOk()->assertJson(['subscribed' => true]);
+
+        $this->assertDatabaseHas('push_subscriptions', [
+            'user_id' => $driver->id,
+            'endpoint' => 'https://push.example.com/cover1',
+        ]);
+    }
+
+    public function test_the_link_push_subscribe_rejects_a_bad_token(): void
+    {
+        $this->postJson(route('driver.link.push-subscribe', 'nope-nope-nope'), [
+            'endpoint' => 'https://push.example.com/x',
+            'keys' => ['p256dh' => 'B', 'auth' => 'A'],
+        ])->assertStatus(404);
+        $this->assertSame(0, PushSubscription::count());
+    }
+
+    public function test_the_job_link_shows_the_notifications_banner_when_push_is_on(): void
+    {
+        $this->configureVapid();
+        $driver = $this->driver();
+        $booking = Booking::factory()->create(['driver_id' => $driver->id, 'status' => BookingStatus::Allocated]);
+
+        $this->get(route('driver.link', $booking->driverLinkToken()))
+            ->assertOk()->assertSee('Turn on job alerts');
+    }
+
     public function test_a_driver_can_unsubscribe(): void
     {
         $driver = $this->driver();

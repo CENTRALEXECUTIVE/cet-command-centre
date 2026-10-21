@@ -81,6 +81,22 @@
                 <p class="hint" style="margin:12px 0 0"><strong>Payment will be sent on Sundays.</strong></p>
             </div>
         @else
+            {{-- Push opt-in for a cover driver on this link — only when the server
+                 has VAPID keys. Lets them get the "new job" + set-off nudges on
+                 their phone, tied to the driver this job is allocated to. --}}
+            @if(app(\App\Services\Push\WebPushService::class)->configured())
+                <div id="push-banner" class="card" style="display:none;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
+                    <strong>🔔 Turn on job alerts</strong>
+                    <p class="hint" style="margin:4px 0 10px;font-size:13px">Get buzzed the moment you're given a job and when it's time to set off — even with this page closed.</p>
+                    <button type="button" id="push-enable" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Enable notifications</button>
+                    <span id="push-state" class="hint" style="font-size:13px;margin-left:8px"></span>
+                </div>
+                <div id="push-cfg"
+                     data-key-url="{{ route('driver.link.push-key', $token) }}"
+                     data-sub-url="{{ route('driver.link.push-subscribe', $token) }}" hidden></div>
+                <script src="{{ asset('js/cet-push.js') }}"></script>
+            @endif
+
             @include('driver._job', [
                 'linkMode' => true,
                 'statusUrl' => route('driver.link.status', $token),

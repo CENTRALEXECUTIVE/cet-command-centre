@@ -558,6 +558,11 @@ Route::post('job/{token}/notes-ack', [\App\Http\Controllers\Driver\LinkControlle
     ->middleware('throttle:60,1')->name('driver.link.notes-ack');
 Route::post('job/{token}/on-it', [\App\Http\Controllers\Driver\LinkController::class, 'confirmGettingReady'])
     ->middleware('throttle:60,1')->name('driver.link.on-it');
+// Push opt-in for a cover driver on a link (token is the auth; CSRF-exempt via job/*).
+Route::get('job/{token}/push-key', [\App\Http\Controllers\Driver\LinkPushController::class, 'key'])
+    ->middleware('throttle:60,1')->name('driver.link.push-key');
+Route::post('job/{token}/push-subscribe', [\App\Http\Controllers\Driver\LinkPushController::class, 'subscribe'])
+    ->middleware('throttle:30,1')->name('driver.link.push-subscribe');
 
 // Additional-car links on a multi-car job (each extra driver, tracked per car).
 Route::get('car/{token}', [\App\Http\Controllers\Driver\ExtraDriverController::class, 'show'])
