@@ -41,10 +41,17 @@ class SquareTipService
             && filled(config('services.square.location_id'));
     }
 
+    /** The Square webhook signing key — the office Setting wins over .env. */
+    private function webhookSignatureKey(): ?string
+    {
+        return \App\Models\Setting::get('square_webhook_signature_key')
+            ?: config('services.square.webhook_signature_key');
+    }
+
     /** Is the webhook signing key set? Without it, verification fails closed. */
     public function webhookKeySet(): bool
     {
-        return filled(config('services.square.webhook_signature_key'));
+        return filled($this->webhookSignatureKey());
     }
 
     /** Record that a verified Square webhook just arrived — powers the health indicator. */
@@ -254,7 +261,7 @@ class SquareTipService
      */
     public function verifySignature(?string $signature, string $body, string $notificationUrl): bool
     {
-        $key = config('services.square.webhook_signature_key');
+        $key = $this->webhookSignatureKey();
         if (blank($key) || blank($signature)) {
             return false;
         }
