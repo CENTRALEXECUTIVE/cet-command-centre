@@ -103,6 +103,9 @@
             'manual_override' => 'Office set next',
         ];
         $callsign = fn ($u) => $u?->driverProfile?->callsign ?: $u?->name;
+        // The driver who ACTUALLY did the job (the booking's current driver) — may
+        // differ from the one the rotation allocated if someone covered it.
+        $actualDriver = fn ($log) => $log->booking?->driver;
     @endphp
     <div class="card" style="margin-top:16px">
         <h2 style="margin-top:0">🗂 Rotation history</h2>
@@ -115,7 +118,7 @@
                     <thead>
                         <tr>
                             <th>When</th><th>Job</th><th>Airport · Vehicle</th>
-                            <th>Whose turn</th><th>Did it</th><th>Why</th>
+                            <th>Whose turn</th><th>Allocated to</th><th>Covered by</th><th>Why</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -131,8 +134,14 @@
                                     @endif
                                 </td>
                                 <td style="font-size:13px">{{ $log->airport?->code ?: $log->airport?->name ?: '—' }} · {{ $log->vehicleType?->name ?: '—' }}</td>
+                                {{-- 1) whose turn it was, 2) who the rotation gave it to, 3) who ACTUALLY did it. --}}
                                 <td>{{ $callsign($log->fromDriver) ?: '—' }}</td>
-                                <td><strong>{{ $callsign($log->toDriver) ?: '—' }}</strong></td>
+                                <td>{{ $callsign($log->toDriver) ?: '—' }}</td>
+                                @php $did = $actualDriver($log); $covered = $did && $log->toDriver && $did->id !== $log->toDriver->id; @endphp
+                                <td>
+                                    <strong>{{ $callsign($did) ?: ($callsign($log->toDriver) ?: '—') }}</strong>
+                                    @if($covered)<span class="badge badge-pending" style="margin-left:6px;font-size:11px">cover</span>@endif
+                                </td>
                                 <td class="muted" style="font-size:12px">{{ $reasonLabel[$log->reason] ?? $log->reason }}</td>
                             </tr>
                         @endforeach

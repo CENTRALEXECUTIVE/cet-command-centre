@@ -96,11 +96,12 @@ class JobsDayViewTest extends TestCase
         ]);
 
         // Allocated → tag is the driver's callsign (live), not the stale "V CLASS".
-        $this->assertSame('Nigel Corfield BHX (KASH)', $booking->boardTitle());
+        // An airport pickup is labelled "Arrival" (a meet-&-greet collection).
+        $this->assertSame('Nigel Corfield BHX Arrival (KASH)', $booking->boardTitle());
 
         // Not allocated → the tag is the booking's real vehicle type (live).
         $booking->update(['driver_id' => null]);
-        $this->assertSame('Nigel Corfield BHX (EXECUTIVE)', $booking->fresh()->boardTitle());
+        $this->assertSame('Nigel Corfield BHX Arrival (EXECUTIVE)', $booking->fresh()->boardTitle());
     }
 
     public function test_board_title_reflects_a_corrected_airport_over_a_stale_free_roam_title(): void

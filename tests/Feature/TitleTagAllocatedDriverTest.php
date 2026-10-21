@@ -45,6 +45,33 @@ class TitleTagAllocatedDriverTest extends TestCase
         $this->assertStringNotContainsString('MAJID', $this->title($b));
     }
 
+    public function test_an_airport_pickup_is_labelled_arrival(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first() ?? VehicleType::first();
+        $b = Booking::factory()->create([
+            'vehicle_type_id' => $exec->id,
+            'pickup_address' => 'Manchester Airport T2, Manchester',
+            'destination_address' => 'Chesterfield S40 3SL',
+            'meta' => ['lead_name' => 'Stella Slinn', 'journey_label' => 'Arrival'],
+        ]);
+
+        $this->assertStringContainsString('Arrival', $this->title($b));
+    }
+
+    public function test_an_airport_dropoff_is_not_labelled_arrival(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first() ?? VehicleType::first();
+        // Home → airport drop-off: a departure, so no "Arrival".
+        $b = Booking::factory()->create([
+            'vehicle_type_id' => $exec->id,
+            'pickup_address' => 'Chesterfield S40 3SL',
+            'destination_address' => 'Manchester Airport T2',
+            'meta' => ['lead_name' => 'Stella Slinn'],
+        ]);
+
+        $this->assertStringNotContainsString('Arrival', $this->title($b));
+    }
+
     public function test_vehicle_type_shows_until_a_driver_is_allocated(): void
     {
         $vclass = VehicleType::where('slug', 'v-class')->first() ?? VehicleType::first();

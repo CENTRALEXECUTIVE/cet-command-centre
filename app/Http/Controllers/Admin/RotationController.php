@@ -32,7 +32,11 @@ class RotationController extends Controller
         // The rotation history: every allocation in order — whose turn it was, who
         // actually did it, for which job, and why (normal turn / paired return /
         // substitute / manual override). The running record of the Abdi↔Maj order.
-        $history = \App\Models\RotationLog::with(['airport', 'vehicleType', 'fromDriver', 'toDriver', 'booking.customer'])
+        $history = \App\Models\RotationLog::with([
+            'airport', 'vehicleType',
+            'fromDriver.driverProfile', 'toDriver.driverProfile',
+            'booking.customer', 'booking.driver.driverProfile', // the driver who ACTUALLY did it (may be a cover)
+        ])
             ->latest('id')
             ->limit(60)
             ->get();

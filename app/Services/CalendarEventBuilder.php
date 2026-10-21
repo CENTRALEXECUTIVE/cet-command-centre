@@ -88,10 +88,14 @@ class CalendarEventBuilder
         $emojis = trim(($moneyEmoji ?? '').($this->hasChildSeat($booking) ? '🚼' : ''));
         $prefix = $emojis !== '' ? "$emojis " : '';
 
-        // Paired return legs carry a "Return" suffix (rule 4).
-        $return = $booking->is_return_leg ? ' Return' : '';
+        // A paired return leg carries "Return" (rule 4); any other airport PICKUP
+        // (a meet-&-greet collection off a flight) carries "Arrival", so dispatch
+        // sees at a glance it's an inbound collection, not a drop-off.
+        $label = $booking->is_return_leg
+            ? ' Return'
+            : ($booking->isAirportPickup() ? ' Arrival' : '');
 
-        return "*{$prefix}{$name} {$where}{$return} ({$tag})*";
+        return "*{$prefix}{$name} {$where}{$label} ({$tag})*";
     }
 
     /**
