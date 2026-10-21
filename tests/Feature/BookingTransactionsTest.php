@@ -35,6 +35,22 @@ class BookingTransactionsTest extends TestCase
         ]);
     }
 
+    public function test_a_full_length_stripe_checkout_url_fits_the_payment_link_column(): void
+    {
+        // A live Stripe Checkout URL is 500+ chars (a long cs_live_…#fid… fragment).
+        // The tide_payment_link column must hold it, not 500 with "Data too long".
+        $booking = $this->booking();
+        $longUrl = 'https://checkout.stripe.com/c/pay/cs_live_'.str_repeat('aA1bB2cC3', 90); // ~850 chars
+        $this->assertGreaterThan(500, strlen($longUrl));
+
+        $payment = $booking->payments()->create([
+            'method' => 'card', 'amount' => 150, 'status' => 'link_sent',
+            'tide_payment_link' => $longUrl,
+        ]);
+
+        $this->assertSame($longUrl, $payment->fresh()->tide_payment_link);
+    }
+
     public function test_an_admin_can_add_a_transaction(): void
     {
         $admin = User::factory()->admin()->create();
