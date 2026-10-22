@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    {{-- Desktop-only calendar: Chrome blocks the native date picker from opening on
-         click inside a cross-origin iframe, so on computers we use a clean calendar
-         that opens on click anywhere in the field. On phones/tablets flatpickr defers
-         to the device's own native picker (disableMobile:false). --}}
+    {{-- Clean calendar that opens on tap/click anywhere in the date field, on EVERY
+         device. The native datetime-local picker won't open on click inside a
+         cross-origin iframe (Chrome blocks it on desktop; some phones only highlight a
+         segment), so we always drive our own calendar (disableMobile:true). --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <style>
@@ -456,6 +456,7 @@
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
                             <div class="cet-field"><label for="b-pax">Passengers</label>
                                 <select id="b-pax" name="passengers" required>
+                                    <option value="" selected disabled>—</option>
                                     @for($i = 1; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
                                 </select></div>
                         </div>
@@ -470,11 +471,13 @@
                         </div>
                         <div class="cet-two">
                             <div class="cet-field"><label for="b-suit">Suitcases</label>
-                                <select id="b-suit" name="suitcases">
+                                <select id="b-suit" name="suitcases" required>
+                                    <option value="" selected disabled>—</option>
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
                                 </select></div>
                             <div class="cet-field"><label for="b-hand">Hand luggage</label>
-                                <select id="b-hand" name="hand_luggage">
+                                <select id="b-hand" name="hand_luggage" required>
+                                    <option value="" selected disabled>—</option>
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
                                 </select></div>
                         </div>
@@ -966,7 +969,7 @@
                 if (n === 1) {
                     var jt = journeyEl ? journeyEl.value : 'one_way';
                     var ok = true, first = null;
-                    var required = [['b-pickup','pickup'],['b-when','date & time']];
+                    var required = [['b-pickup','pickup'],['b-when','date & time'],['b-pax','passengers'],['b-suit','suitcases'],['b-hand','hand luggage']];
                     if (jt !== 'hourly') required.push(['b-dropoff','drop-off']);
                     if (jt === 'return') required.push(['b-return','return date & time']);
                     if (jt === 'hourly') required.push(['b-hours','hours']);
@@ -1693,7 +1696,7 @@
         var base = {
             enableTime: true, time_24hr: true, minuteIncrement: 15,
             dateFormat: 'Y-m-d\\TH:i', altInput: true, altFormat: 'D j M Y · H:i',
-            disableMobile: false, // phones/tablets keep their own native picker
+            disableMobile: true, // always use our own calendar — opens on tap/click on every device
             onOpen: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
             onChange: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
             onClose: function () { normal(); }
