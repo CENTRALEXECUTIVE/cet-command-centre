@@ -1677,11 +1677,12 @@
     .flatpickr-day.today:hover { border-color:#c9c8c2; background:#eef2fb; color:#0b0b0c; }
     .flatpickr-day:hover { background:#eef2fb; border-color:#eef2fb; }
     .flatpickr-day.flatpickr-disabled, .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color:#cfcec8; }
-    /* Tidy time row */
-    .flatpickr-time { border-top:1px solid var(--line); height:42px; line-height:42px; }
-    .flatpickr-time input { font-size:15px; font-weight:600; }
-    .flatpickr-time input:hover, .flatpickr-time input:focus { background:#eef2fb; }
-    .flatpickr-time .flatpickr-time-separator { font-weight:700; }
+    /* Date + time-as-dropdowns row (like ETO) */
+    .cet-dt { display:flex; gap:8px; align-items:center; }
+    .cet-dt .flatpickr-wrapper { flex:1 1 auto; min-width:0; display:block; }
+    .cet-dt .cet-dt-date { width:100%; cursor:pointer; }
+    .cet-dt .cet-dt-sel { flex:0 0 auto; width:auto; min-width:66px; padding:8px 9px; }
+    .cet-dt .cet-dt-colon { flex:0 0 auto; color:var(--muted); font-weight:700; }
 </style>
 <script defer>
 (function () {
@@ -1690,29 +1691,62 @@
         var widget = document.getElementById('cet-widget');
         function post(h) { try { parent.postMessage({ cetWidgetHeight: Math.ceil(h) }, '*'); } catch (e) {} }
         function normal() { if (widget) post(widget.offsetHeight + 24); }
-        function fit(inst) {
-            var cal = inst && inst.calendarContainer;
+        function fit(fp) {
+            var cal = fp && fp.calendarContainer;
             if (!cal || !widget) { normal(); return; }
             var bottom = cal.getBoundingClientRect().bottom + (window.pageYOffset || 0);
             post(Math.max(widget.offsetHeight, bottom) + 20); // reveal the whole calendar, no more
         }
-        var base = {
-            enableTime: true, time_24hr: true, minuteIncrement: 15,
-            dateFormat: 'Y-m-d\\TH:i', altInput: true, altFormat: 'D j M Y · H:i',
-            locale: { firstDayOfWeek: 1 }, // week starts Monday, like ETO
-            disableMobile: true, // always use our own calendar — opens on tap/click on every device
-            onOpen: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
-            onChange: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
-            onClose: function () { normal(); }
-        };
-        ['b-when', 'b-return', 'b-flight-landing'].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (!el || el._flatpickr) return;
-            var o = {}; for (var k in base) o[k] = base[k];
-            if (el.min) o.minDate = el.min;
-            if (el.value) o.defaultDate = el.value;
-            try { flatpickr(el, o); } catch (e) {}
-        });
+        function pad(n) { return (n < 10 ? '0' : '') + n; }
+        function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+        function opt(v, label) { var o = document.createElement('option'); o.value = v; o.textContent = label; return o; }
+
+        // Turn a datetime-local input into: [calendar date field] + [hour ▾] : [minute ▾].
+        // The calendar is date-only (so picking a day just closes — no keyboard), the
+        // time is plain dropdowns (like ETO), and the real hidden input keeps the
+        // combined value the form already expects.
+        function enhance(el) {
+            if (!el || el._cetDt) return; el._cetDt = true;
+            var min = el.getAttribute('min') || '';
+            var cur = el.value || '';
+            el.type = 'hidden';
+
+            var wrap = document.createElement('div'); wrap.className = 'cet-dt';
+            var dateInput = document.createElement('input');
+            dateInput.type = 'text'; dateInput.readOnly = true; dateInput.className = 'cet-dt-date'; dateInput.placeholder = 'Choose date';
+            var hSel = document.createElement('select'); hSel.className = 'cet-dt-sel'; hSel.setAttribute('aria-label', 'Hour');
+            for (var h = 0; h < 24; h++) hSel.appendChild(opt(pad(h), pad(h)));
+            var colon = document.createElement('span'); colon.className = 'cet-dt-colon'; colon.textContent = ':';
+            var mSel = document.createElement('select'); mSel.className = 'cet-dt-sel'; mSel.setAttribute('aria-label', 'Minute');
+            ['00', '15', '30', '45'].forEach(function (m) { mSel.appendChild(opt(m, m)); });
+
+            wrap.appendChild(dateInput); wrap.appendChild(hSel); wrap.appendChild(colon); wrap.appendChild(mSel);
+            el.parentNode.insertBefore(wrap, el);
+
+            var seed = null;
+            if (cur) { var d = new Date(cur); if (!isNaN(d)) { seed = d; hSel.value = pad(d.getHours()); mSel.value = pad(Math.floor(d.getMinutes() / 15) * 15); } }
+
+            var fp = flatpickr(dateInput, {
+                dateFormat: 'Y-m-d', altInput: true, altFormat: 'D j M Y',
+                disableMobile: true, locale: { firstDayOfWeek: 1 },
+                minDate: min ? min.slice(0, 10) : null,
+                defaultDate: seed ? fmtDate(seed) : null,
+                onOpen: function () { setTimeout(function () { fit(fp); }, 0); },
+                onChange: function () { combine(); setTimeout(function () { fit(fp); }, 0); },
+                onClose: function () { normal(); }
+            });
+
+            function combine() {
+                var d = fp.selectedDates[0];
+                el.value = d ? (fmtDate(d) + 'T' + hSel.value + ':' + mSel.value) : '';
+                el.dispatchEvent(new Event('change'));
+            }
+            hSel.addEventListener('change', combine);
+            mSel.addEventListener('change', combine);
+            if (seed) combine();
+        }
+
+        ['b-when', 'b-return', 'b-flight-landing'].forEach(function (id) { enhance(document.getElementById(id)); });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
