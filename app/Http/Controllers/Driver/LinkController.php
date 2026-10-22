@@ -52,11 +52,13 @@ class LinkController extends Controller
             'override' => ['nullable', 'boolean'],
         ]);
 
-        // GPS is required for every forward stage. If it's off or GPS puts the driver
-        // away from the pickup/drop-off we BLOCK first — but a driver who confirms twice
-        // on their phone (override) can still record it, and the office is flagged either way.
+        // GPS is required for every forward stage. "Arrived" and "Passenger on board"
+        // are HARD-gated — they only go through when GPS puts the driver AT the pickup
+        // (within ~1 mile), with no override, because a driver who isn't there yet
+        // hasn't picked up yet. Set off / Complete block first but a double-confirm can
+        // push them through. The office is flagged either way.
         $target = BookingStatus::from($data['status']);
-        $override = $request->boolean('override');
+        $override = $request->boolean('override') && ! JobController::locationHardBlocked($target);
         if (JobController::locationRequired($target)) {
             [$reason, $label, $msg] = JobController::locationGate($booking, $target, $data);
             if ($reason !== null) {

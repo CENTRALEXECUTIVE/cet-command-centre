@@ -67,13 +67,15 @@ class JobController extends Controller
         ]);
 
         // GPS is required from the GET-GO for a DRIVER: every forward stage needs
-        // location on, and Arrived/POB/Complete within ~1 mile of the pickup/drop-off.
-        // We BLOCK first, but a driver who confirms twice on their phone (override) can
-        // still record it — the office is flagged either way. (The office acting on
-        // someone else's job is exempt from the gate.)
+        // location on. "Arrived" and "Passenger on board" are HARD-gated — they only
+        // go through when GPS puts the driver AT the pickup (within ~1 mile); there is
+        // no override, because a driver who isn't there yet hasn't picked up yet. Set
+        // off / Complete block first but a double-confirm can push them through. The
+        // office is flagged either way. (The office acting on someone else's job is
+        // exempt from the gate.)
         $actorIsDriver = $request->user()->id === $booking->driver_id;
         $target = BookingStatus::from($data['status']);
-        $override = $request->boolean('override');
+        $override = $request->boolean('override') && ! self::locationHardBlocked($target);
         if ($actorIsDriver && self::locationRequired($target)) {
             [$reason, $label, $msg] = self::locationGate($booking, $target, $data);
             if ($reason !== null) {
@@ -302,10 +304,25 @@ class JobController extends Controller
     }
 
     /**
+     * HARD-blocked stages: "Arrived" and "Passenger on board" can ONLY be marked
+     * once GPS actually puts the driver at the pickup (within the arrival radius).
+     * There is NO confirm-twice override — a driver who is still on the way, or
+     * still texting the customer to find them, hasn't picked up yet, so the tap is
+     * refused outright (the office is flagged). Set off / Complete stay soft-gated:
+     * they block first but a double-confirm can push them through, so a job can
+     * always be started and always be closed even if GPS fails at an odd spot.
+     */
+    public static function locationHardBlocked(BookingStatus $status): bool
+    {
+        return in_array($status, [BookingStatus::Arrived, BookingStatus::Collected], true);
+    }
+
+    /**
      * Decide whether a forward-stage tap has a location problem, shared by the
      * logged-in driver app and the shareable link. Returns [reason, label, message]
-     * where reason is null when the fix is fine; the caller blocks (unless the driver
-     * has confirmed twice) and always flags the office.
+     * where reason is null when the fix is fine. For HARD stages (Arrived / POB)
+     * the caller refuses outright; for soft stages it blocks unless the driver
+     * confirmed twice. The office is flagged either way.
      *
      * @param  array{lat?:float|null,lng?:float|null,accuracy?:float|null}  $data
      * @return array{0:?string,1:string,2:?string}
@@ -315,16 +332,18 @@ class JobController extends Controller
         $lat = $data['lat'] ?? null;
         $lng = $data['lng'] ?? null;
         $acc = $data['accuracy'] ?? null;
+        $hard = self::locationHardBlocked($target);
 
         if ($lat === null || $lng === null) {
-            return ['no_location', $target->label(),
-                'Turn your location on to update this job — CET needs to see you. If GPS won’t work and you’re sure, confirm to continue.'];
+            return ['no_location', $target->label(), $hard
+                ? 'Turn your location on and be at the pickup to mark this — CET needs to see you’re actually there.'
+                : 'Turn your location on to update this job — CET needs to see you. If GPS won’t work and you’re sure, confirm to continue.'];
         }
         if (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
             && $booking->checkDriverAtPickup($lat, $lng, $acc) === 'far') {
             return $target === BookingStatus::Arrived
-                ? ['far', 'Arrived', 'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.']
-                : ['far', 'Passenger on board', 'Mark “Passenger on board” at the pickup — you look too far from it.'];
+                ? ['far', 'Arrived', 'You’re not at the pickup yet — you can mark Arrived once you’re there (within about a mile).']
+                : ['far', 'Passenger on board', 'Mark “Passenger on board” at the pickup — you’re not close enough yet.'];
         }
         if ($target === BookingStatus::Complete
             && $booking->checkDriverAtDropoff($lat, $lng, $acc) === 'far') {

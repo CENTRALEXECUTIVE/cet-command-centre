@@ -497,6 +497,7 @@
             @endphp
             <form method="POST" action="{{ $statusUrl }}" class="status-form"
                   data-status-label="{{ $confirmLabel }}" data-geo-what="{{ $gWhat }}"
+                  @if(in_array($status->value, ['arrived','collected'])) data-hard="1" @endif
                   @if(is_array($gPt) && isset($gPt[0], $gPt[1])) data-geo-lat="{{ $gPt[0] }}" data-geo-lng="{{ $gPt[1] }}" @endif>
                 @csrf
                 <input type="hidden" name="status" value="{{ $status->value }}">
@@ -609,11 +610,16 @@
                 return;
             }
 
-            // Forward driver stage: GPS is REQUIRED and we BLOCK first. If GPS fails,
-            // or puts the driver too far from the pickup/drop-off, they must confirm
-            // twice to override (which records it and flags the office).
+            // Forward driver stage: GPS is REQUIRED and we BLOCK first.
+            //   • HARD stages (Arrived / Passenger on board): they ONLY go through when
+            //     GPS puts the driver at the pickup. No override — a driver who isn't
+            //     there yet hasn't picked up yet, so the tap is refused.
+            //   • SOFT stages (Set off / Completed): block first, but a double-confirm
+            //     can push it through so a job can always be started and closed.
+            var isHard = form.dataset.hard === '1';
             e.preventDefault();
             if (!navigator.geolocation) {
+                if (isHard) { window.alert('Turn your location on and be at the pickup to mark “' + label + '”. CET needs to see you’re actually there.'); return; }
                 if (confirmTwice('Your phone can’t share its location. Mark “' + label + '” anyway?')) submit(true);
                 return;
             }
@@ -626,12 +632,14 @@
                 if (gl && gn) {
                     var miles = milesBetween(pos.coords.latitude, pos.coords.longitude, parseFloat(gl), parseFloat(gn));
                     if (miles > 1.2) {
+                        if (isHard) { window.alert('You’re about ' + Math.round(miles) + ' mile' + (Math.round(miles) === 1 ? '' : 's') + ' from the ' + geoWhat + '. You can mark “' + label + '” once you’re actually there.'); return; }
                         if (confirmTwice('You look about ' + Math.round(miles) + ' mile' + (Math.round(miles) === 1 ? '' : 's') + ' from the ' + geoWhat + '. Mark “' + label + '” anyway?')) submit(true);
                         return; // blocked unless they confirm twice
                     }
                 }
                 submit(false);
             }, function () {
+                if (isHard) { window.alert('We couldn’t get your location. Turn GPS on and be at the pickup to mark “' + label + '”.'); return; }
                 if (confirmTwice('We couldn’t get your location. Mark “' + label + '” anyway?')) submit(true);
             }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         });
