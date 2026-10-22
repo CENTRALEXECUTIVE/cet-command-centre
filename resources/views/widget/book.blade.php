@@ -281,7 +281,9 @@
         .cet-trust .ic { color:var(--gold-deep); font-size:14px; }
 
         /* "Add a return?" prompt shown when a one-way booking moves on. */
-        .cet-modal { position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:20px;
+        /* Anchored to the BOTTOM (near the Continue button the customer just tapped) —
+           centring it in the tall iframe put it above the visible area, so it got missed. */
+        .cet-modal { position:fixed; inset:0; z-index:60; display:grid; place-items:end center; padding:20px 20px 30px;
             background:rgba(11,11,12,.55); backdrop-filter:blur(3px); }
         .cet-modal[hidden] { display:none; }
         .cet-modal-card { background:var(--paper); border-radius:16px; max-width:380px; width:100%;
@@ -772,7 +774,14 @@
             catch (e) { document.documentElement.classList.add('standalone'); }
 
             function reportHeight() {
-                try { parent.postMessage({ cetWidgetHeight: document.getElementById('cet-widget').offsetHeight + 24 }, '*'); } catch (e) {}
+                try {
+                    var h = document.getElementById('cet-widget').offsetHeight + 24;
+                    // An open calendar is absolutely positioned (out of flow), so it isn't in
+                    // offsetHeight — include its extent so resize events never clip it.
+                    var openCal = document.querySelector('.cet-dt.open .cet-cal');
+                    if (openCal) { var r = openCal.getBoundingClientRect(); h = Math.max(h, Math.ceil(r.bottom + (window.pageYOffset || 0)) + 20); }
+                    parent.postMessage({ cetWidgetHeight: h }, '*');
+                } catch (e) {}
             }
             window.addEventListener('load', reportHeight);
             window.addEventListener('resize', reportHeight);
