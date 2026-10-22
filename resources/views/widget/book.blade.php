@@ -61,6 +61,11 @@
         .cet-brand .sub { color:#b7b6b0; font-size:11px; letter-spacing:.5px; margin-top:2px; }
         .cet-hero h1 { margin:8px 0 1px; font-size:17px; font-weight:800; letter-spacing:-.4px; }
         .cet-hero p { margin:0; color:#c7c6c0; font-size:12.5px; }
+        /* Embedded in the marketing site, the page already shows a heading above the
+           iframe — so drop the widget's own title/subtitle to keep the form short. */
+        html:not(.standalone) .cet-hero { padding:9px 20px 10px; }
+        html:not(.standalone) .cet-hero h1,
+        html:not(.standalone) .cet-hero p { display:none; }
 
         /* Language switcher (ETO-style) — drives Google's free website translation. */
         .cet-lang { align-self:flex-end; display:inline-flex; align-items:center; gap:5px;
@@ -144,7 +149,7 @@
         #b-loggedin { font-size:14px; color:#1f7a44; font-weight:600; }
         #b-loggedin #b-me-acct { color:var(--muted,#666); font-weight:500; }
         .cet-bad-note { background:#fbeaea; color:#b32020; border-radius:8px; padding:8px 10px; font-size:13px; }
-        .cet-two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .cet-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         @media (max-width:460px){ .cet-two { grid-template-columns:1fr; } }
 
         /* Vehicle cards — a tidy 3-column grid: photo · details · tick. The price
@@ -235,7 +240,7 @@
 
         /* Payment method (ETO-style radios). */
         .cet-pay { display:flex; align-items:center; gap:11px; border:1.5px solid var(--line); border-radius:12px;
-            padding:13px 14px; cursor:pointer; background:var(--cream); margin-top:9px; }
+            padding:10px 12px; cursor:pointer; background:var(--cream); margin-top:7px; }
         .cet-pay:hover { border-color:var(--gold-deep); background:#fff; }
         .cet-pay input { width:19px; height:19px; flex:0 0 auto; accent-color:var(--gold-deep); }
         .cet-pay .t { font-size:14px; }
@@ -260,8 +265,8 @@
             background:#fdecec; border:1px solid #f3b7b7; color:#8f1f1f; font-weight:600; }
         .cet-banner.show { display:block; }
 
-        .cet-actions { display:flex; gap:10px; margin-top:18px; }
-        .cet-btn { flex:1; padding:15px; border:0; border-radius:12px;
+        .cet-actions { display:flex; gap:10px; margin-top:13px; }
+        .cet-btn { flex:1; padding:13px; border:0; border-radius:12px;
             background:linear-gradient(135deg, var(--gold), var(--gold-deep)); color:#0b0b0c;
             font-weight:800; font-size:16px; cursor:pointer; letter-spacing:.2px;
             box-shadow:0 10px 24px -10px rgba(233,164,19,.7); transition:transform .12s, filter .12s; }
