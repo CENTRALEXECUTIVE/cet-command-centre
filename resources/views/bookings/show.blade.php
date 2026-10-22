@@ -392,17 +392,32 @@
             @php $recordShared = $booking->customer_id && \App\Models\Booking::where('customer_id', $booking->customer_id)->where('id', '!=', $booking->id)->exists(); @endphp
             <div class="card" style="border-left:4px solid #b8860b;background:rgba(184,134,11,.08);margin-bottom:16px">
                 <strong>⚠ Contact number doesn’t match the customer record</strong>
-                <p class="hint" style="margin:6px 0 8px">This booking’s contact number is <strong>{{ $contactFix }}</strong>, but it’s filed under <strong>{{ $booking->customer?->name }}</strong> whose saved number is <strong>{{ $booking->customer?->phone }}</strong>. Messages already go to the booking’s number.
-                    @if($recordShared)
-                        <br><strong style="color:#8a6d00">{{ $booking->customer?->name }} has other bookings</strong>, so tapping below re-files <em>this</em> booking under its own customer (named from the booking) and leaves {{ $booking->customer?->name }}’s record untouched — it will not change {{ $booking->customer?->name }}’s number.
-                    @else
-                        Tap below to correct the stored record to match.
-                    @endif
-                </p>
+                <p class="hint" style="margin:6px 0 10px">This booking’s contact number is <strong>{{ $contactFix }}</strong>, but it’s filed under <strong>{{ $booking->customer?->name }}</strong> whose saved number is <strong>{{ $booking->customer?->phone }}</strong>. Messages currently go to the booking’s number. <strong>Which one is right?</strong></p>
+
+                {{-- Option A: the booking's number is a TYPO — use the customer's saved number
+                     for THIS booking. Keeps it under the same customer, no duplicate. --}}
+                @if(filled($booking->customer?->phone))
+                    <form method="POST" action="{{ route('bookings.set-contact', $booking) }}" style="margin:0 0 6px">
+                        @csrf
+                        <input type="hidden" name="contact_number" value="{{ $booking->customer->phone }}">
+                        <button class="btn" style="background:#1f8b4c;color:#fff;padding:8px 16px">Use {{ $booking->customer?->name }}’s saved number ({{ $booking->customer->phone }}) for this booking</button>
+                    </form>
+                    <p class="hint" style="margin:0 0 12px">Use this if the booking’s number is a typo — it keeps this booking under {{ $booking->customer?->name }} and sends messages to <strong>{{ $booking->customer->phone }}</strong>.</p>
+                @endif
+
+                {{-- Option B: the booking's number is RIGHT — the record is wrong (or it's
+                     genuinely a different person who shares the name). --}}
                 <form method="POST" action="{{ route('bookings.fix-contact', $booking) }}" style="margin:0">
                     @csrf
-                    <button class="btn" style="background:#b8860b;color:#fff;padding:8px 16px">{{ $recordShared ? 'Re-file this booking under its own customer' : 'Use the booking’s number ('.$contactFix.')' }}</button>
+                    <button class="btn btn-light" style="padding:8px 16px">{{ $recordShared ? 'Different person — re-file this booking under its own customer' : 'The booking’s number is right — update the record to ('.$contactFix.')' }}</button>
                 </form>
+                <p class="hint" style="margin:6px 0 0">
+                    @if($recordShared)
+                        Use this only if this is a <em>different person</em> who happens to share the name — it re-files this booking under its own customer and leaves {{ $booking->customer?->name }}’s record untouched.
+                    @else
+                        Use this if the booking’s number is the correct one and the saved record is out of date.
+                    @endif
+                </p>
             </div>
         @endif
     @endif

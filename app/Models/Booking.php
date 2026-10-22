@@ -3503,14 +3503,17 @@ class Booking extends Model
      */
     public function contactNumberMismatch(): ?string
     {
-        $calendar = $this->calendarField('Contact No');
+        // The number messages / masking ACTUALLY use: a per-booking office override
+        // wins, otherwise the calendar's Contact No. So once the office sets this
+        // booking to the customer's saved number, the warning clears by itself.
+        $effective = ($this->meta['contact_override'] ?? null) ?: $this->calendarField('Contact No');
         $record = $this->customer?->phone;
-        if (blank($calendar) || blank($record)) {
+        if (blank($effective) || blank($record)) {
             return null;
         }
 
-        return \App\Support\Phone::wa($calendar) !== \App\Support\Phone::wa($record)
-            ? $calendar
+        return \App\Support\Phone::wa($effective) !== \App\Support\Phone::wa($record)
+            ? $effective
             : null;
     }
 

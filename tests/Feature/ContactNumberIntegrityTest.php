@@ -58,6 +58,31 @@ class ContactNumberIntegrityTest extends TestCase
         $this->assertNull($booking->fresh('customer')->contactNumberMismatch());
     }
 
+    public function test_admin_can_point_this_booking_at_the_customers_saved_number(): void
+    {
+        // Yasmine's real number is on her record and her other bookings; THIS
+        // booking's calendar contact is a typo (…6467 vs …6457). The office should
+        // be able to set this booking to her saved number without splitting her
+        // record into a duplicate.
+        $admin = User::factory()->admin()->create();
+        $booking = $this->bookingWithCalendarContact('+447535866457', '+447535866467');
+        // Give the customer another booking so the record is "shared".
+        Booking::factory()->create(['customer_id' => $booking->customer_id]);
+        $customerId = $booking->customer_id;
+
+        $this->assertSame('+447535866467', $booking->contactNumberMismatch()); // the typo is flagged
+
+        $this->actingAs($admin)->post(route('bookings.set-contact', $booking), [
+            'contact_number' => $booking->customer->phone,
+        ])->assertRedirect();
+
+        $fresh = $booking->fresh(['customer', 'calendarEvent']);
+        $this->assertSame('+447535866457', $fresh->displayContact());      // messages now use her real number
+        $this->assertNull($fresh->contactNumberMismatch());                // warning clears
+        $this->assertSame($customerId, $fresh->customer_id);               // still filed under Yasmine
+        $this->assertSame(1, \App\Models\Customer::where('phone', '+447535866457')->count()); // no duplicate
+    }
+
     public function test_admin_can_fix_the_record_to_the_calendar_number(): void
     {
         $admin = User::factory()->admin()->create();
