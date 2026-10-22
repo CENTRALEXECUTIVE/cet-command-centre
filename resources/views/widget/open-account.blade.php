@@ -173,6 +173,19 @@
         });
         cetType(@json(old('account_type') === 'company' ? 'company' : 'personal'));
     })();
+
+    // Tell a host page (the website embeds this form in an iframe) how tall we are,
+    // so it can size the iframe with no inner scrollbar — same contract the booking
+    // widget uses (postMessage {cetWidgetHeight}).
+    (function () {
+        function post() {
+            try { parent.postMessage({ cetWidgetHeight: Math.ceil(document.documentElement.scrollHeight) }, '*'); } catch (e) {}
+        }
+        window.addEventListener('load', post);
+        window.addEventListener('resize', post);
+        if (window.ResizeObserver) { try { new ResizeObserver(post).observe(document.body); } catch (e) {} }
+        setTimeout(post, 300); setTimeout(post, 1200);
+    })();
 </script>
 </body>
 </html>
