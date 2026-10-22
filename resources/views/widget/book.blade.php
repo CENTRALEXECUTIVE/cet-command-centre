@@ -67,11 +67,6 @@
         .cet-brand .sub { color:#b7b6b0; font-size:11px; letter-spacing:.5px; margin-top:2px; }
         .cet-hero h1 { margin:8px 0 1px; font-size:17px; font-weight:800; letter-spacing:-.4px; }
         .cet-hero p { margin:0; color:#c7c6c0; font-size:12.5px; }
-        /* Embedded in the marketing site, the page already shows a heading above the
-           iframe — so drop the widget's own title/subtitle to keep the form short. */
-        html:not(.standalone) .cet-hero { padding:9px 20px 10px; }
-        html:not(.standalone) .cet-hero h1,
-        html:not(.standalone) .cet-hero p { display:none; }
 
         /* Language switcher (ETO-style) — drives Google's free website translation. */
         .cet-lang { align-self:flex-end; display:inline-flex; align-items:center; gap:5px;
@@ -352,7 +347,7 @@
                 @if($done)
                     <h1>Thank you</h1><p>Your request is with our office.</p>
                 @else
-                    <h1>Book a journey</h1><p>Fixed prices, professional chauffeurs, confirmed by our office.</p>
+                    <h1>Book Now</h1><p>Fixed prices, professional chauffeurs, confirmed by our office.</p>
                 @endif
             </div>
 
@@ -1666,19 +1661,27 @@
      iframe just enough to show the calendar, then restores on close. --}}
 <style>
     .cet-field .flatpickr-wrapper { display:block; width:100%; }
-    .flatpickr-calendar { font-family:"Inter",sans-serif; border-radius:14px; border:1px solid var(--line);
+    .flatpickr-calendar { font-family:"Inter",sans-serif; border-radius:12px; border:1px solid var(--line);
         box-shadow:0 18px 50px -16px rgba(0,0,0,.42); }
     .flatpickr-calendar.arrowTop:before, .flatpickr-calendar.arrowTop:after,
     .flatpickr-calendar.arrowBottom:before, .flatpickr-calendar.arrowBottom:after { display:none; }
-    .flatpickr-months { padding:6px 0 2px; }
+    .flatpickr-months { padding:4px 0 2px; }
     .flatpickr-months .flatpickr-month, .flatpickr-current-month, .flatpickr-weekday { color:#0b0b0c; }
-    .flatpickr-months .flatpickr-prev-month:hover svg, .flatpickr-months .flatpickr-next-month:hover svg { fill:var(--gold-deep); }
-    .flatpickr-day { border-radius:9px; }
-    .flatpickr-day.selected, .flatpickr-day.selected:hover { background:var(--gold); border-color:var(--gold); color:#0b0b0c; }
-    .flatpickr-day.today { border-color:var(--gold); }
-    .flatpickr-day:hover { background:#fff6e0; border-color:#fff6e0; }
-    .flatpickr-day.flatpickr-disabled { color:#d7d6d0; }
-    .flatpickr-time input:hover, .flatpickr-time input:focus { background:#fff6e0; }
+    .flatpickr-current-month .flatpickr-monthDropdown-months, .numInputWrapper { font-weight:600; }
+    .flatpickr-day { border-radius:8px; }
+    /* Clean neutral selection (like ETO), not gold */
+    .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.selected:focus,
+    .flatpickr-day.startRange, .flatpickr-day.endRange {
+        background:#2f6fe4; border-color:#2f6fe4; color:#fff; }
+    .flatpickr-day.today { border-color:#d7d6d0; }
+    .flatpickr-day.today:hover { border-color:#c9c8c2; background:#eef2fb; color:#0b0b0c; }
+    .flatpickr-day:hover { background:#eef2fb; border-color:#eef2fb; }
+    .flatpickr-day.flatpickr-disabled, .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color:#cfcec8; }
+    /* Tidy time row */
+    .flatpickr-time { border-top:1px solid var(--line); height:42px; line-height:42px; }
+    .flatpickr-time input { font-size:15px; font-weight:600; }
+    .flatpickr-time input:hover, .flatpickr-time input:focus { background:#eef2fb; }
+    .flatpickr-time .flatpickr-time-separator { font-weight:700; }
 </style>
 <script defer>
 (function () {
@@ -1696,6 +1699,7 @@
         var base = {
             enableTime: true, time_24hr: true, minuteIncrement: 15,
             dateFormat: 'Y-m-d\\TH:i', altInput: true, altFormat: 'D j M Y · H:i',
+            locale: { firstDayOfWeek: 1 }, // week starts Monday, like ETO
             disableMobile: true, // always use our own calendar — opens on tap/click on every device
             onOpen: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
             onChange: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
