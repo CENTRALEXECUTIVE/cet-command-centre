@@ -497,7 +497,7 @@
             @endphp
             <form method="POST" action="{{ $statusUrl }}" class="status-form"
                   data-status-label="{{ $confirmLabel }}" data-geo-what="{{ $gWhat }}"
-                  @if(in_array($status->value, ['arrived','collected'])) data-hard="1" @endif
+                  @if(in_array($status->value, ['arrived','collected','complete'])) data-hard="1" @endif
                   @if(is_array($gPt) && isset($gPt[0], $gPt[1])) data-geo-lat="{{ $gPt[0] }}" data-geo-lng="{{ $gPt[1] }}" @endif>
                 @csrf
                 <input type="hidden" name="status" value="{{ $status->value }}">
@@ -619,7 +619,7 @@
             var isHard = form.dataset.hard === '1';
             e.preventDefault();
             if (!navigator.geolocation) {
-                if (isHard) { window.alert('Turn your location on and be at the pickup to mark “' + label + '”. CET needs to see you’re actually there.'); return; }
+                if (isHard) { window.alert('Turn your location on and be at the ' + geoWhat + ' to mark “' + label + '”. CET needs to see you’re actually there.'); return; }
                 if (confirmTwice('Your phone can’t share its location. Mark “' + label + '” anyway?')) submit(true);
                 return;
             }
@@ -639,7 +639,7 @@
                 }
                 submit(false);
             }, function () {
-                if (isHard) { window.alert('We couldn’t get your location. Turn GPS on and be at the pickup to mark “' + label + '”.'); return; }
+                if (isHard) { window.alert('We couldn’t get your location. Turn GPS on and be at the ' + geoWhat + ' to mark “' + label + '”.'); return; }
                 if (confirmTwice('We couldn’t get your location. Mark “' + label + '” anyway?')) submit(true);
             }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         });

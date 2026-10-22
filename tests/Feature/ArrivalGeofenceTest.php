@@ -10,11 +10,11 @@ use Tests\TestCase;
 
 /**
  * GPS is required for every forward stage and the office is flagged on any block.
- *   • Arrived + Passenger on board are HARD-gated: they only go through when GPS
- *     puts the driver AT the pickup (within ~1 mile). There is NO override — a
- *     driver who isn't there hasn't picked up yet.
- *   • Set off + Complete block first but a double-confirm (override) can push them
- *     through, so a job can always be started and always be closed.
+ *   • Arrived + Passenger on board + Complete are HARD-gated: they only go through
+ *     when GPS puts the driver AT the pickup (Arrived/POB) or drop-off (Complete),
+ *     within ~1 mile. There is NO override.
+ *   • Set off only needs location ON (no distance check) so a job can always start;
+ *     if CET can't geocode the point, the check fails OPEN and allows it.
  * checkDriverAtPickup/Dropoff still classify a fix as ok/far/no_location.
  */
 class ArrivalGeofenceTest extends TestCase
@@ -169,31 +169,10 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::Accepted, $b->fresh()->status);
     }
 
-    public function test_complete_is_blocked_without_location_but_overrides(): void
+    public function test_complete_without_location_stays_blocked_even_with_override(): void
     {
-        $driver = $this->driver();
-        $b = Booking::factory()->create([
-            'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
-            'pickup_at' => now()->subMinutes(30),
-        ]);
-
-        // Blocked first…
-        $this->actingAs($driver)
-            ->post(route('driver.job.status', $b), ['status' => 'complete'])
-            ->assertRedirect()->assertSessionHas('arriveError');
-        $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
-
-        // …but confirming twice (override) completes it.
-        $this->actingAs($driver)
-            ->post(route('driver.job.status', $b), ['status' => 'complete', 'override' => 1])
-            ->assertRedirect();
-        $this->assertSame(BookingStatus::Complete, $b->fresh()->status);
-    }
-
-    public function test_complete_is_blocked_far_from_the_dropoff_but_overrides(): void
-    {
-        // A driver marking COMPLETE miles from the drop-off is blocked first and the
-        // office flagged; confirming twice on the phone (override) records it anyway.
+        // Complete is hard-gated too: with the drop-off geocoded, a driver with no
+        // GPS fix can't close the job — the override flag is ignored.
         $driver = $this->driver();
         $b = Booking::factory()->create([
             'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
@@ -201,18 +180,30 @@ class ArrivalGeofenceTest extends TestCase
             'meta' => ['geo' => ['dropoff' => self::DROPOFF]],
         ]);
 
-        // Blocked first…
+        $this->actingAs($driver)
+            ->post(route('driver.job.status', $b), ['status' => 'complete', 'override' => 1])
+            ->assertRedirect()->assertSessionHas('arriveError');
+        $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'location_blocked']);
+    }
+
+    public function test_complete_far_from_the_dropoff_stays_blocked_even_with_override(): void
+    {
+        // A driver marking COMPLETE miles from the drop-off is blocked and the office
+        // flagged; the override flag can't push it through — they must actually be at
+        // the drop-off (within the radius).
+        $driver = $this->driver();
+        $b = Booking::factory()->create([
+            'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
+            'pickup_at' => now()->subMinutes(30),
+            'meta' => ['geo' => ['dropoff' => self::DROPOFF]],
+        ]);
+
         $this->actingAs($driver)->post(route('driver.job.status', $b), [
-            'status' => 'complete', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20, // London — far
+            'status' => 'complete', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20, 'override' => 1, // London — far
         ])->assertRedirect()->assertSessionHas('arriveError');
         $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
         $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'location_blocked']);
-
-        // …but confirming twice (override) completes it.
-        $this->actingAs($driver)->post(route('driver.job.status', $b), [
-            'status' => 'complete', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20, 'override' => 1,
-        ])->assertRedirect();
-        $this->assertSame(BookingStatus::Complete, $b->fresh()->status);
     }
 
     public function test_complete_goes_through_at_the_dropoff(): void

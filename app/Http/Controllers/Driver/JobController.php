@@ -304,17 +304,22 @@ class JobController extends Controller
     }
 
     /**
-     * HARD-blocked stages: "Arrived" and "Passenger on board" can ONLY be marked
-     * once GPS actually puts the driver at the pickup (within the arrival radius).
-     * There is NO confirm-twice override — a driver who is still on the way, or
-     * still texting the customer to find them, hasn't picked up yet, so the tap is
-     * refused outright (the office is flagged). Set off / Complete stay soft-gated:
-     * they block first but a double-confirm can push them through, so a job can
-     * always be started and always be closed even if GPS fails at an odd spot.
+     * HARD-blocked stages: "Arrived", "Passenger on board" and "Completed" can ONLY
+     * be marked once GPS actually puts the driver at the pickup (Arrived/POB) or the
+     * drop-off (Complete), within the arrival radius. There is NO confirm-twice
+     * override — a driver who is still on the way, still texting the customer to find
+     * them, or not yet at the drop-off hasn't finished that step, so the tap is
+     * refused outright (the office is flagged). Only "Set off" stays soft-gated (it
+     * just needs location ON, no distance check) so a job can always be started; if
+     * CET genuinely can't geocode the point, the check fails OPEN and allows it.
      */
     public static function locationHardBlocked(BookingStatus $status): bool
     {
-        return in_array($status, [BookingStatus::Arrived, BookingStatus::Collected], true);
+        return in_array($status, [
+            BookingStatus::Arrived,
+            BookingStatus::Collected,
+            BookingStatus::Complete,
+        ], true);
     }
 
     /**
@@ -333,10 +338,11 @@ class JobController extends Controller
         $lng = $data['lng'] ?? null;
         $acc = $data['accuracy'] ?? null;
         $hard = self::locationHardBlocked($target);
+        $place = $target === BookingStatus::Complete ? 'drop-off' : 'pickup';
 
         if ($lat === null || $lng === null) {
             return ['no_location', $target->label(), $hard
-                ? 'Turn your location on and be at the pickup to mark this — CET needs to see you’re actually there.'
+                ? 'Turn your location on and be at the '.$place.' to mark this — CET needs to see you’re actually there.'
                 : 'Turn your location on to update this job — CET needs to see you. If GPS won’t work and you’re sure, confirm to continue.'];
         }
         if (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
