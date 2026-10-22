@@ -9,11 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    {{-- Calendar/time picker that opens on tap and works INSIDE a cross-origin iframe
-         (the native datetime-local picker is blocked there, so tapping only focused the
-         field). Loaded from a CDN; if it fails the native datetime-local input still works. --}}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <style>
         :root {
             --gold:#FBBA2A; --gold-deep:#E9A413;
@@ -53,7 +48,7 @@
         .cet-hero {
             background:radial-gradient(600px 200px at 12% -40%, rgba(251,186,42,.30), transparent 60%),
                 linear-gradient(135deg, #17171a 0%, #0b0b0c 100%);
-            color:#fff; padding:14px 22px 14px; position:relative;
+            color:#fff; padding:11px 20px 11px; position:relative;
             display:flex; flex-direction:column;
         }
         .cet-hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3px;
@@ -64,8 +59,8 @@
         .cet-brand .name { font-weight:800; letter-spacing:1.5px; font-size:15px; line-height:1.1; }
         .cet-brand .name span { color:var(--gold); }
         .cet-brand .sub { color:#b7b6b0; font-size:11px; letter-spacing:.5px; margin-top:2px; }
-        .cet-hero h1 { margin:10px 0 2px; font-size:19px; font-weight:800; letter-spacing:-.4px; }
-        .cet-hero p { margin:0; color:#c7c6c0; font-size:13px; }
+        .cet-hero h1 { margin:8px 0 1px; font-size:17px; font-weight:800; letter-spacing:-.4px; }
+        .cet-hero p { margin:0; color:#c7c6c0; font-size:12.5px; }
 
         /* Language switcher (ETO-style) — drives Google's free website translation. */
         .cet-lang { align-self:flex-end; display:inline-flex; align-items:center; gap:5px;
@@ -83,7 +78,7 @@
         font { font:inherit !important; color:inherit !important; background:transparent !important; }
 
         /* Progress steps */
-        .cet-steps { display:flex; align-items:center; gap:6px; padding:12px 22px 4px; }
+        .cet-steps { display:flex; align-items:center; gap:6px; padding:10px 20px 2px; }
         .cet-steps .st { display:flex; align-items:center; gap:8px; }
         .cet-steps .num { width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
             font-size:13px; font-weight:800; background:#eee; color:#9a9aa2; flex:0 0 auto; transition:.2s; }
@@ -95,10 +90,10 @@
         .cet-steps .bar.fill { background:var(--gold); }
         @media (max-width:460px){ .cet-steps .lbl { display:none; } }
 
-        .cet-body { padding:12px 22px 18px; }
+        .cet-body { padding:10px 20px 14px; }
 
         .cet-step[hidden] { display:none; }
-        .cet-step-title { font-size:17px; font-weight:800; margin:2px 0 10px; letter-spacing:-.2px; }
+        .cet-step-title { font-size:15px; font-weight:800; margin:2px 0 8px; letter-spacing:-.2px; }
         /* Booking summary on the details step */
         .cet-summary { border:1px solid var(--line); border-radius:14px; background:var(--cream); padding:14px 16px; margin-bottom:16px; }
         .cet-summary h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:var(--muted); }
@@ -108,12 +103,12 @@
         .cet-summary .tot { margin-top:8px; padding-top:10px; border-top:1px solid var(--line); }
         .cet-summary .tot .v { font-size:18px; font-weight:800; }
 
-        .cet-field { margin-bottom:9px; }
-        .cet-field label { display:block; font-size:12.5px; font-weight:600; color:#3a3a40; margin-bottom:6px; }
+        .cet-field { margin-bottom:7px; }
+        .cet-field label { display:block; font-size:12px; font-weight:600; color:#3a3a40; margin-bottom:4px; }
         .cet-field label .opt { font-weight:400; color:var(--muted-2); }
         .cet-field input, .cet-field select, .cet-field textarea {
-            width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:11px;
-            font-size:14.5px; background:var(--cream); font-family:inherit; color:var(--ink);
+            width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:10px;
+            font-size:14px; background:var(--cream); font-family:inherit; color:var(--ink);
             transition:border-color .15s, box-shadow .15s, background .15s;
         }
         .cet-field input::placeholder, .cet-field textarea::placeholder { color:#b3b2ad; }
@@ -1651,50 +1646,5 @@
         })();
     </script>
 @include('partials.picker-js')
-
-{{-- Brand-matched calendar picker. flatpickr renders its own calendar INSIDE the
-     iframe (so it works where the native cross-origin picker is blocked), and we grow
-     the iframe while it's open so the calendar is never clipped. --}}
-<style>
-    .cet-field .flatpickr-wrapper { display:block; width:100%; }
-    .flatpickr-day.selected, .flatpickr-day.selected:hover { background:var(--gold); border-color:var(--gold); color:#0b0b0c; }
-    .flatpickr-day.today { border-color:var(--gold); }
-    .flatpickr-day:hover { background:#fff6e0; }
-    .flatpickr-calendar { box-shadow:0 12px 40px -12px rgba(0,0,0,.35); border:1px solid var(--line); }
-</style>
-<script defer>
-(function () {
-    function init() {
-        if (!window.flatpickr) return; // native datetime-local input stays usable as a fallback
-        var widget = document.getElementById('cet-widget');
-        function post(h) { try { parent.postMessage({ cetWidgetHeight: h }, '*'); } catch (e) {} }
-        function normal() { if (widget) post(widget.offsetHeight + 24); }
-        function withCalendar(inst) {
-            var cal = inst && inst.calendarContainer;
-            var extra = cal ? cal.offsetHeight + 24 : 340;
-            if (widget) post(widget.offsetHeight + extra);
-        }
-        var common = {
-            enableTime: true, time_24hr: true, minuteIncrement: 15,
-            dateFormat: 'Y-m-d\\TH:i', altInput: true, altFormat: 'D j M Y  ·  H:i',
-            disableMobile: true, static: true,
-            onOpen: function (s, t, inst) { withCalendar(inst); },
-            onChange: function () { normal(); },
-            onClose: function () { normal(); }
-        };
-        ['b-when', 'b-return', 'b-flight-landing'].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (!el || el._flatpickr) return;
-            var opts = {}; for (var k in common) opts[k] = common[k];
-            if (el.min) opts.minDate = el.min;
-            if (el.value) opts.defaultDate = el.value;
-            try { flatpickr(el, opts); } catch (e) {}
-        });
-        normal();
-    }
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
-})();
-</script>
 </body>
 </html>
