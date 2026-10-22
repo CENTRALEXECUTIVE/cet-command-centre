@@ -1743,11 +1743,11 @@
         var timeRow = document.createElement('div'); timeRow.className = 'cet-cal-time';
         var hSel = document.createElement('select'); for (var h = 0; h < 24; h++) { var oh = document.createElement('option'); oh.value = pad(h); oh.textContent = pad(h); hSel.appendChild(oh); }
         var sep = document.createElement('span'); sep.className = 'sep'; sep.textContent = ':';
-        var mnSel = document.createElement('select'); ['00','15','30','45'].forEach(function (m) { var om = document.createElement('option'); om.value = m; om.textContent = m; mnSel.appendChild(om); });
+        var mnSel = document.createElement('select'); for (var mn = 0; mn < 60; mn += 5) { var om = document.createElement('option'); om.value = pad(mn); om.textContent = pad(mn); mnSel.appendChild(om); }
         timeRow.appendChild(hSel); timeRow.appendChild(sep); timeRow.appendChild(mnSel);
 
         cal.appendChild(head); cal.appendChild(grid); cal.appendChild(timeRow);
-        if (sel) { hSel.value = pad(sel.getHours()); mnSel.value = pad(Math.floor(sel.getMinutes() / 15) * 15); }
+        if (sel) { hSel.value = pad(sel.getHours()); mnSel.value = pad(Math.floor(sel.getMinutes() / 5) * 5); }
 
         function fit() { if (!widget) return; var b = cal.getBoundingClientRect().bottom + (window.pageYOffset || 0); post(Math.max(widget.offsetHeight, b) + 20); }
         function position() {
