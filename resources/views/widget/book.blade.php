@@ -9,6 +9,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    {{-- Desktop-only calendar: Chrome blocks the native date picker from opening on
+         click inside a cross-origin iframe, so on computers we use a clean calendar
+         that opens on click anywhere in the field. On phones/tablets flatpickr defers
+         to the device's own native picker (disableMobile:false). --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <style>
         :root {
             --gold:#FBBA2A; --gold-deep:#E9A413;
@@ -1651,5 +1657,59 @@
         })();
     </script>
 @include('partials.picker-js')
+
+{{-- Clean, brand-matched calendar for desktop (where the native picker can't open
+     on click inside an embed). Opens on click anywhere in the field; grows the
+     iframe just enough to show the calendar, then restores on close. --}}
+<style>
+    .cet-field .flatpickr-wrapper { display:block; width:100%; }
+    .flatpickr-calendar { font-family:"Inter",sans-serif; border-radius:14px; border:1px solid var(--line);
+        box-shadow:0 18px 50px -16px rgba(0,0,0,.42); }
+    .flatpickr-calendar.arrowTop:before, .flatpickr-calendar.arrowTop:after,
+    .flatpickr-calendar.arrowBottom:before, .flatpickr-calendar.arrowBottom:after { display:none; }
+    .flatpickr-months { padding:6px 0 2px; }
+    .flatpickr-months .flatpickr-month, .flatpickr-current-month, .flatpickr-weekday { color:#0b0b0c; }
+    .flatpickr-months .flatpickr-prev-month:hover svg, .flatpickr-months .flatpickr-next-month:hover svg { fill:var(--gold-deep); }
+    .flatpickr-day { border-radius:9px; }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover { background:var(--gold); border-color:var(--gold); color:#0b0b0c; }
+    .flatpickr-day.today { border-color:var(--gold); }
+    .flatpickr-day:hover { background:#fff6e0; border-color:#fff6e0; }
+    .flatpickr-day.flatpickr-disabled { color:#d7d6d0; }
+    .flatpickr-time input:hover, .flatpickr-time input:focus { background:#fff6e0; }
+</style>
+<script defer>
+(function () {
+    function init() {
+        if (!window.flatpickr) return; // native datetime-local input stays usable as a fallback
+        var widget = document.getElementById('cet-widget');
+        function post(h) { try { parent.postMessage({ cetWidgetHeight: Math.ceil(h) }, '*'); } catch (e) {} }
+        function normal() { if (widget) post(widget.offsetHeight + 24); }
+        function fit(inst) {
+            var cal = inst && inst.calendarContainer;
+            if (!cal || !widget) { normal(); return; }
+            var bottom = cal.getBoundingClientRect().bottom + (window.pageYOffset || 0);
+            post(Math.max(widget.offsetHeight, bottom) + 20); // reveal the whole calendar, no more
+        }
+        var base = {
+            enableTime: true, time_24hr: true, minuteIncrement: 15,
+            dateFormat: 'Y-m-d\\TH:i', altInput: true, altFormat: 'D j M Y · H:i',
+            disableMobile: false, // phones/tablets keep their own native picker
+            onOpen: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
+            onChange: function (s, t, inst) { setTimeout(function () { fit(inst); }, 0); },
+            onClose: function () { normal(); }
+        };
+        ['b-when', 'b-return', 'b-flight-landing'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el || el._flatpickr) return;
+            var o = {}; for (var k in base) o[k] = base[k];
+            if (el.min) o.minDate = el.min;
+            if (el.value) o.defaultDate = el.value;
+            try { flatpickr(el, o); } catch (e) {}
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+</script>
 </body>
 </html>
