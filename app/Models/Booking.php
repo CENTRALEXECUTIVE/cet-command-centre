@@ -374,7 +374,7 @@ class Booking extends Model
      * location-gated tap — so you can see who's trying to mark a job without
      * being there / without location on. Deduped so a mashed button can't spam.
      */
-    public function flagLocationBlocked(string $action, string $reason): void
+    public function flagLocationBlocked(string $action, string $reason, bool $overridden = false): void
     {
         $recent = \App\Models\WatchdogEvent::where('booking_id', $this->id)
             ->where('event_type', 'location_blocked')
@@ -393,13 +393,21 @@ class Booking extends Model
         $why = $reason === 'no_location'
             ? 'location off'
             : 'away from the '.($atDropoff ? 'drop-off' : 'pickup');
+        $placeTxt = \Illuminate\Support\Str::limit((string) $place, 60, '');
 
-        // The driver is never blocked from recording a status; this is a heads-up for
-        // the office that the mark came in without a good GPS fix.
-        $title = '⚠️ '.$driver.' marked '.$action.' — '.$why;
-        $body = $reason === 'no_location'
-            ? 'Their location was off, so there’s no GPS fix for this '.$action.'. The status was still recorded.'
-            : 'GPS put them away from '.\Illuminate\Support\Str::limit((string) $place, 60, '').' when they marked '.$action.'. The status was still recorded.';
+        if ($overridden) {
+            // The driver was blocked, then confirmed twice to record it anyway — the
+            // office needs to know a status came in without a good GPS fix.
+            $title = '⚠️ '.$driver.' overrode '.$action.' — '.$why;
+            $body = $reason === 'no_location'
+                ? 'Location was off, but they confirmed twice and marked '.$action.'. No GPS fix for it.'
+                : 'GPS put them away from '.$placeTxt.', but they confirmed twice and marked '.$action.'.';
+        } else {
+            $title = '🚫 '.$driver.' blocked from '.$action.' — '.$why;
+            $body = $reason === 'no_location'
+                ? 'Their location was off, so '.$action.' was blocked. They can confirm twice to override.'
+                : 'GPS put them away from '.$placeTxt.', so '.$action.' was blocked. They can confirm twice to override.';
+        }
 
         // Feed row for the control tower...
         \App\Models\WatchdogEvent::log('location_blocked', $title, 'warning', $this, body: $body);

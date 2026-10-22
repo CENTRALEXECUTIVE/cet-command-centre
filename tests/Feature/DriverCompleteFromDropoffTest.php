@@ -11,10 +11,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * A driver can always finish the job — even if an intermediate tap (e.g.
- * "Passenger on board") was missed, and even if their location is off. The driver
- * is never blocked from recording a status; a missing/odd GPS fix is only flagged
- * for the office.
+ * A driver can always finish the job even if an intermediate tap (e.g. "Passenger
+ * on board") was missed. GPS is required, though: completing with location off is
+ * blocked first and the office flagged — the driver confirms twice on their phone
+ * (override) to record it anyway.
  */
 class DriverCompleteFromDropoffTest extends TestCase
 {
@@ -63,21 +63,28 @@ class DriverCompleteFromDropoffTest extends TestCase
         $this->assertSame('complete', $booking->fresh()->status->value);
     }
 
-    public function test_completing_without_location_goes_through_and_is_flagged(): void
+    public function test_completing_without_location_is_blocked_but_overrides(): void
     {
         $driver = User::factory()->driver()->create();
         $booking = $this->jobFor($driver, BookingStatus::EnRoute->value);
 
-        // No lat/lng → the driver is NEVER blocked. The job completes, and the
-        // office gets a flag that the mark came in without a GPS fix.
+        // No lat/lng → blocked first, and the office gets a flag that a mark came in
+        // without a GPS fix.
         $this->actingAs($driver)->post(route('driver.job.status', $booking), [
             'status' => 'complete',
-        ])->assertRedirect();
+        ])->assertRedirect()->assertSessionHas('arriveError');
 
-        $this->assertSame('complete', $booking->fresh()->status->value);
+        $this->assertSame('en_route', $booking->fresh()->status->value);
         $this->assertDatabaseHas('watchdog_events', [
             'booking_id' => $booking->id,
             'event_type' => 'location_blocked',
         ]);
+
+        // Confirming twice on the phone (override) completes it.
+        $this->actingAs($driver)->post(route('driver.job.status', $booking), [
+            'status' => 'complete', 'override' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame('complete', $booking->fresh()->status->value);
     }
 }

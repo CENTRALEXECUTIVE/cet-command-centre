@@ -483,13 +483,27 @@
                     'complete' => count($viaStops) ? 'Completed (final drop-off)' : 'Completed',
                     default => $status->label(),
                 };
+                // The geofence point for THIS tap (pickup for arrived/POB, drop-off for
+                // complete) so the phone can double-check distance before submitting.
+                $geo = $booking->meta['geo'] ?? [];
+                $gPt = in_array($status->value, ['arrived','collected']) ? ($geo['pickup'] ?? null)
+                    : ($status->value === 'complete' ? ($geo['dropoff'] ?? null) : null);
+                $gWhat = $status->value === 'complete' ? 'drop-off' : 'pickup';
+                $confirmLabel = match($status->value) {
+                    'en_route' => 'On My Way', 'arrived' => 'Arrived',
+                    'collected' => 'Passenger On Board', 'complete' => 'Completed',
+                    default => $status->label(),
+                };
             @endphp
-            <form method="POST" action="{{ $statusUrl }}" class="status-form">
+            <form method="POST" action="{{ $statusUrl }}" class="status-form"
+                  data-status-label="{{ $confirmLabel }}" data-geo-what="{{ $gWhat }}"
+                  @if(is_array($gPt) && isset($gPt[0], $gPt[1])) data-geo-lat="{{ $gPt[0] }}" data-geo-lng="{{ $gPt[1] }}" @endif>
                 @csrf
                 <input type="hidden" name="status" value="{{ $status->value }}">
                 <input type="hidden" name="lat" class="lat-input">
                 <input type="hidden" name="lng" class="lng-input">
                 <input type="hidden" name="accuracy" class="acc-input">
+                <input type="hidden" name="override" value="0" class="override-input">
                 <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
             </form>
         @endforeach
@@ -552,27 +566,74 @@
         var needsLocation = isDriver
             && ['accepted', 'en_route', 'arrived', 'collected', 'complete'].indexOf(statusVal) !== -1;
 
+        var label = form.dataset.statusLabel || 'this status';
+        var geoWhat = form.dataset.geoWhat || 'pickup';
+
+        // Rough distance (miles) between two lat/lng points.
+        function milesBetween(aLat, aLng, bLat, bLng) {
+            var R = 3958.8, toR = Math.PI / 180;
+            var dLat = (bLat - aLat) * toR, dLng = (bLng - aLng) * toR;
+            var s = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(aLat * toR) * Math.cos(bLat * toR) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            return 2 * R * Math.asin(Math.sqrt(s));
+        }
+        // Two "are you sure?" prompts before we let a blocked tap through.
+        function confirmTwice(first) {
+            if (!window.confirm(first)) return false;
+            return window.confirm('Are you absolutely sure? The office will be told you marked “' + label + '” without confirmed GPS.');
+        }
+
         form.addEventListener('submit', function (e) {
             if (form.dataset.located) return;
 
-            // Best-effort GPS for the office's audit trail, but a driver is NEVER
-            // blocked from recording a status. If location is off / denied / slow we
-            // submit anyway after a short wait — the server flags a missing fix for
-            // the office rather than stopping the driver. Forward stages (arrived,
-            // POB, complete) try a little longer for a fresh fix, then go regardless.
-            if (!navigator.geolocation) { return; }
+            var submit = function (override) {
+                if (form.dataset.located) return;
+                form.dataset.located = '1';
+                if (override) { var o = form.querySelector('.override-input'); if (o) o.value = '1'; }
+                form.submit();
+            };
+
+            // Office / non-forward taps: best-effort GPS, never held up.
+            if (!needsLocation) {
+                if (!navigator.geolocation) { return; }
+                e.preventDefault();
+                var done = false;
+                var go = function () { if (!done) { done = true; submit(false); } };
+                setTimeout(go, 4000);
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    form.querySelector('.lat-input').value = pos.coords.latitude;
+                    form.querySelector('.lng-input').value = pos.coords.longitude;
+                    var acc = form.querySelector('.acc-input'); if (acc) { acc.value = pos.coords.accuracy || ''; }
+                    go();
+                }, go, { enableHighAccuracy: true, timeout: 4000, maximumAge: 10000 });
+                return;
+            }
+
+            // Forward driver stage: GPS is REQUIRED and we BLOCK first. If GPS fails,
+            // or puts the driver too far from the pickup/drop-off, they must confirm
+            // twice to override (which records it and flags the office).
             e.preventDefault();
-            var ms = needsLocation ? 6000 : 4000;
-            var sent = false;
-            var go = function () { if (!sent) { sent = true; form.dataset.located = '1'; form.submit(); } };
-            setTimeout(go, ms);
+            if (!navigator.geolocation) {
+                if (confirmTwice('Your phone can’t share its location. Mark “' + label + '” anyway?')) submit(true);
+                return;
+            }
             navigator.geolocation.getCurrentPosition(function (pos) {
                 form.querySelector('.lat-input').value = pos.coords.latitude;
                 form.querySelector('.lng-input').value = pos.coords.longitude;
-                var acc = form.querySelector('.acc-input');
-                if (acc) { acc.value = pos.coords.accuracy || ''; }
-                go();
-            }, go, { enableHighAccuracy: true, timeout: ms, maximumAge: needsLocation ? 0 : 10000 });
+                var acc = form.querySelector('.acc-input'); if (acc) { acc.value = pos.coords.accuracy || ''; }
+                // Distance double-check when we know the geofence point.
+                var gl = form.dataset.geoLat, gn = form.dataset.geoLng;
+                if (gl && gn) {
+                    var miles = milesBetween(pos.coords.latitude, pos.coords.longitude, parseFloat(gl), parseFloat(gn));
+                    if (miles > 1.2) {
+                        if (confirmTwice('You look about ' + Math.round(miles) + ' mile' + (Math.round(miles) === 1 ? '' : 's') + ' from the ' + geoWhat + '. Mark “' + label + '” anyway?')) submit(true);
+                        return; // blocked unless they confirm twice
+                    }
+                }
+                submit(false);
+            }, function () {
+                if (confirmTwice('We couldn’t get your location. Mark “' + label + '” anyway?')) submit(true);
+            }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         });
     });
 

@@ -49,24 +49,21 @@ class LinkController extends Controller
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric'],
+            'override' => ['nullable', 'boolean'],
         ]);
 
-        // Location helps the office SEE the driver, but a driver is NEVER blocked
-        // from recording Arrived / Passenger on board / Complete. If location is off
-        // or GPS puts them away from the pickup/drop-off we flag it for the office,
-        // then let the status through anyway.
+        // GPS is required for every forward stage. If it's off or GPS puts the driver
+        // away from the pickup/drop-off we BLOCK first — but a driver who confirms twice
+        // on their phone (override) can still record it, and the office is flagged either way.
         $target = BookingStatus::from($data['status']);
+        $override = $request->boolean('override');
         if (JobController::locationRequired($target)) {
-            $lat = $data['lat'] ?? null;
-            $lng = $data['lng'] ?? null;
-            if ($lat === null || $lng === null) {
-                $booking->flagLocationBlocked($target->label(), 'no_location');
-            } elseif (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
-                && $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null) === 'far') {
-                $booking->flagLocationBlocked($target === BookingStatus::Arrived ? 'Arrived' : 'Passenger on board', 'far');
-            } elseif ($target === BookingStatus::Complete
-                && $booking->checkDriverAtDropoff($lat, $lng, $data['accuracy'] ?? null) === 'far') {
-                $booking->flagLocationBlocked('Complete', 'far');
+            [$reason, $label, $msg] = JobController::locationGate($booking, $target, $data);
+            if ($reason !== null) {
+                $booking->flagLocationBlocked($label, $reason, $override);
+                if (! $override) {
+                    return back()->with('arriveError', $msg);
+                }
             }
         }
 
