@@ -153,11 +153,17 @@
                             @if($r['is_due'])<span class="badge badge-pending">Send</span>@else<span class="muted" style="font-size:12px">{{ $r['due']?->format('D H:i') }}</span>@endif
                         </span>
                         <span style="flex:1"><a href="{{ $r['url'] }}" style="color:inherit;font-weight:600">{{ $r['customer'] ?? 'Customer' }}</a> <span class="muted">· journey {{ $r['pickup']->format('D d M, H:i') }}</span></span>
+                        <form method="POST" action="{{ route('bookings.review-sending', $r['booking_id']) }}" style="display:inline"
+                              onsubmit="return confirm('Don’t send a review to {{ addslashes($r['customer'] ?? 'this customer') }}? It’s removed from this list and they won’t be asked.')">
+                            @csrf
+                            <input type="hidden" name="allow" value="0">
+                            <button class="btn btn-light" style="padding:4px 11px;font-size:12px" title="Turn this review off — don’t send it">🔕 Don’t send</button>
+                        </form>
                         <a href="{{ $r['url'] }}" class="btn" style="{{ $r['is_due'] ? 'background:#FBBA2A;color:#111' : '' }};padding:4px 12px;font-size:12px" @class(['btn-light' => ! $r['is_due']])>{{ $r['is_due'] ? 'Open & send →' : 'Open →' }}</a>
                     </div>
                 @endforeach
             </div>
-            <p class="hint" style="margin:8px 0 0">Sent after each completed journey. Open the booking, tap "Send on WhatsApp" (from <strong>WhatsApp Business</strong>), then "Mark sent".</p>
+            <p class="hint" style="margin:8px 0 0">Sent after each completed journey. Open the booking, tap "Send on WhatsApp" (from <strong>WhatsApp Business</strong>), then "Mark sent". Had a bad experience? Tap <strong>🔕 Don’t send</strong> to switch that one off so it’s never sent.</p>
         </div>
     @endif
 

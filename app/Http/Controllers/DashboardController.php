@@ -200,6 +200,7 @@ class DashboardController extends Controller
             ->unique('booking_id')
             ->take(60) // show a good batch — backfilled previous jobs land here too
             ->map(fn (Message $m) => [
+                'booking_id' => $m->booking_id,
                 'ref' => $m->booking->external_reference ?? $m->booking->reference,
                 'customer' => $m->booking->displayName(),
                 'pickup' => $m->booking->pickup_at,

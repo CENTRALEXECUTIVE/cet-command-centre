@@ -40,7 +40,7 @@
     <div class="card">
         <div class="table-scroll">
             <table class="table-modern table-cards">
-                <thead><tr><th>Customer</th><th>Sent to</th><th>Booking</th><th>Channel</th><th>Status</th></tr></thead>
+                <thead><tr><th>Customer</th><th>Sent to</th><th>Booking</th><th>Channel</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @forelse($messages as $m)
                         @php
@@ -71,9 +71,19 @@
                                     @if($m->scheduled_for)<span class="muted" style="font-size:12px"> for {{ $m->scheduled_for->format('d M, H:i') }}</span>@endif
                                 @endif
                             </td>
+                            <td data-label="">
+                                @if($booking && $m->status !== 'sent')
+                                    <form method="POST" action="{{ route('bookings.review-sending', $booking) }}" style="display:inline"
+                                          onsubmit="return confirm('Don’t send a review to {{ addslashes($name) }}? It’s removed from the list and they won’t be asked.')">
+                                        @csrf
+                                        <input type="hidden" name="allow" value="0">
+                                        <button class="btn btn-light" style="padding:5px 11px;font-size:12px" title="Switch this review off">🔕 Don’t send</button>
+                                    </form>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="muted" style="text-align:center;padding:22px">
+                        <tr><td colspan="6" class="muted" style="text-align:center;padding:22px">
                             @if($filter === 'sent')No review requests have been sent yet.
                             @elseif($filter === 'pending')Nothing queued — every review request has been sent.
                             @else No review requests recorded yet.@endif

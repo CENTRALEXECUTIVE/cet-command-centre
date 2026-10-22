@@ -98,6 +98,23 @@ class ReviewSuppressionTest extends TestCase
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'review_request']);
     }
 
+    public function test_the_dashboard_worklist_offers_the_dont_send_switch(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $booking = $this->completedJob();
+        // A queued review due now lands on the dashboard "Review requests" worklist.
+        $booking->messages()->create([
+            'channel' => 'whatsapp', 'direction' => 'outbound', 'to_address' => '07700900123',
+            'type' => 'review_request', 'body' => 'How was your journey?',
+            'status' => 'queued', 'scheduled_for' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Don’t send', false)
+            ->assertSee(route('bookings.review-sending', $booking), false);
+    }
+
     public function test_the_toggle_is_admin_only(): void
     {
         $driver = User::factory()->driver()->create();
