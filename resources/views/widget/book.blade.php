@@ -778,7 +778,7 @@
                     var h = document.getElementById('cet-widget').offsetHeight + 24;
                     // An open calendar is absolutely positioned (out of flow), so it isn't in
                     // offsetHeight — include its extent so resize events never clip it.
-                    var openCal = document.querySelector('.cet-dt.open .cet-cal');
+                    var openCal = document.querySelector('.cet-cal.show');
                     if (openCal) { var r = openCal.getBoundingClientRect(); h = Math.max(h, Math.ceil(r.bottom + (window.pageYOffset || 0)) + 20); }
                     parent.postMessage({ cetWidgetHeight: h }, '*');
                 } catch (e) {}
@@ -1674,29 +1674,31 @@
     .cet-dt-field svg { flex:0 0 auto; }
     .cet-field.bad .cet-dt-field { border-color:var(--err); background:#fdf3f3; }
 
-    .cet-cal { position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:60; display:none;
-        background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px;
+    /* Rendered at <body> level (not inside the card) so the card's overflow:hidden
+       can't clip it; positioned under the field in JS. Compact on every device. */
+    .cet-cal { position:absolute; z-index:1000; display:none; width:290px; max-width:calc(100vw - 20px);
+        background:#fff; border:1px solid var(--line); border-radius:12px; padding:9px;
         box-shadow:0 18px 50px -16px rgba(0,0,0,.42); }
-    .cet-dt.open .cet-cal { display:block; }
-    .cet-cal-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-    .cet-cal-nav { flex:0 0 auto; width:34px; height:34px; border:1px solid var(--line); border-radius:8px;
-        background:#fff; cursor:pointer; font-size:18px; line-height:1; color:#0b0b0c; display:grid; place-items:center; }
+    .cet-cal.show { display:block; }
+    .cet-cal-head { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
+    .cet-cal-nav { flex:0 0 auto; width:30px; height:30px; border:1px solid var(--line); border-radius:8px;
+        background:#fff; cursor:pointer; font-size:16px; line-height:1; color:#0b0b0c; display:grid; place-items:center; }
     .cet-cal-nav:hover { background:#f3f4f6; }
-    .cet-cal-head select { flex:1 1 auto; min-width:0; padding:8px 8px; border:1px solid var(--line); border-radius:8px;
-        background:#fff; font-family:inherit; font-size:14px; font-weight:600; color:#0b0b0c; }
-    .cet-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-    .cet-cal-wd { text-align:center; font-size:11px; font-weight:700; color:var(--muted-2); padding:4px 0; }
-    .cet-cal-day { text-align:center; padding:9px 0; border-radius:8px; cursor:pointer; font-size:14px; color:#0b0b0c; }
+    .cet-cal-head select { flex:1 1 auto; min-width:0; padding:6px 6px; border:1px solid var(--line); border-radius:8px;
+        background:#fff; font-family:inherit; font-size:13.5px; font-weight:600; color:#0b0b0c; }
+    .cet-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; }
+    .cet-cal-wd { text-align:center; font-size:10.5px; font-weight:700; color:var(--muted-2); padding:3px 0; }
+    .cet-cal-day { text-align:center; padding:6px 0; border-radius:7px; cursor:pointer; font-size:13px; color:#0b0b0c; }
     .cet-cal-day:hover { background:#eef2fb; }
     .cet-cal-day.muted { color:#cfcec8; }
     .cet-cal-day.muted:hover { background:transparent; }
     .cet-cal-day.off { color:#dedcd6; cursor:default; }
     .cet-cal-day.off:hover { background:transparent; }
     .cet-cal-day.sel, .cet-cal-day.sel:hover { background:#2f6fe4; color:#fff; font-weight:700; }
-    .cet-cal-time { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px;
-        padding-top:11px; border-top:1px solid var(--line); }
-    .cet-cal-time select { padding:8px 11px; border:1px solid var(--line); border-radius:8px; background:#fff;
-        font-family:inherit; font-size:15px; font-weight:600; color:#0b0b0c; }
+    .cet-cal-time { display:flex; align-items:center; justify-content:center; gap:7px; margin-top:8px;
+        padding-top:8px; border-top:1px solid var(--line); }
+    .cet-cal-time select { padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:#fff;
+        font-family:inherit; font-size:14px; font-weight:600; color:#0b0b0c; }
     .cet-cal-time .sep { font-weight:700; color:var(--muted); }
 </style>
 <script defer>
@@ -1722,7 +1724,7 @@
         var fieldText = document.createElement('span'); var icon = document.createElement('span'); icon.innerHTML = CAL_SVG;
         field.appendChild(fieldText); field.appendChild(icon);
         var cal = document.createElement('div'); cal.className = 'cet-cal';
-        dt.appendChild(field); dt.appendChild(cal);
+        dt.appendChild(field); // the calendar is appended to <body> on open, not here
         el.parentNode.insertBefore(dt, el);
 
         var base = sel || minD || new Date();
@@ -1748,6 +1750,15 @@
         if (sel) { hSel.value = pad(sel.getHours()); mnSel.value = pad(Math.floor(sel.getMinutes() / 15) * 15); }
 
         function fit() { if (!widget) return; var b = cal.getBoundingClientRect().bottom + (window.pageYOffset || 0); post(Math.max(widget.offsetHeight, b) + 20); }
+        function position() {
+            var r = field.getBoundingClientRect();
+            var w = cal.offsetWidth || 290;
+            var left = r.left + (window.pageXOffset || 0);
+            var maxLeft = (document.documentElement.clientWidth || 360) - w - 10;
+            if (left > maxLeft) left = Math.max(10, maxLeft);
+            cal.style.top = (r.bottom + (window.pageYOffset || 0) + 6) + 'px';
+            cal.style.left = left + 'px';
+        }
         function label() {
             if (!sel) { fieldText.innerHTML = '<span class="ph">Choose date &amp; time</span>'; return; }
             fieldText.textContent = sel.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + hSel.value + ':' + mnSel.value;
@@ -1779,8 +1790,17 @@
             sel = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hSel.value, 10), parseInt(mnSel.value, 10));
             render(); commit(); close();
         }
-        function open() { closeAll(); dt.classList.add('open'); render(); setTimeout(fit, 0); }
-        function close() { dt.classList.remove('open'); normal(); }
+        function open() {
+            closeAll();
+            document.body.appendChild(cal); cal.classList.add('show'); dt.classList.add('open');
+            render(); position();
+            setTimeout(function () { position(); fit(); }, 0);
+        }
+        function close() {
+            cal.classList.remove('show'); dt.classList.remove('open');
+            if (cal.parentNode) cal.parentNode.removeChild(cal);
+            normal();
+        }
 
         field.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); dt.classList.contains('open') ? close() : open(); });
         prev.addEventListener('click', function () { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); setTimeout(fit, 0); });
@@ -1789,14 +1809,17 @@
         ySel.addEventListener('change', function () { viewY = parseInt(ySel.value, 10); render(); });
         hSel.addEventListener('change', function () { sel ? commit() : label(); });
         mnSel.addEventListener('change', function () { sel ? commit() : label(); });
-        document.addEventListener('click', function (e) { if (dt.classList.contains('open') && !dt.contains(e.target)) close(); });
+        document.addEventListener('click', function (e) { if (dt.classList.contains('open') && !dt.contains(e.target) && !cal.contains(e.target)) close(); });
 
         label();
         if (sel) commit(); // seed the hidden value from the default
     }
 
     // Close every open calendar (only one open at a time).
-    function closeAll() { Array.prototype.forEach.call(document.querySelectorAll('.cet-dt.open'), function (d) { d.classList.remove('open'); }); }
+    function closeAll() {
+        Array.prototype.forEach.call(document.querySelectorAll('.cet-dt.open'), function (d) { d.classList.remove('open'); });
+        Array.prototype.forEach.call(document.querySelectorAll('.cet-cal.show'), function (c) { c.classList.remove('show'); if (c.parentNode) c.parentNode.removeChild(c); });
+    }
 
     function init() { ['b-when', 'b-return', 'b-flight-landing'].forEach(function (id) { build(document.getElementById(id)); }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
