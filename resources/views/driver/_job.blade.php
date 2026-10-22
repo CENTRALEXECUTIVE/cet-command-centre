@@ -555,44 +555,24 @@
         form.addEventListener('submit', function (e) {
             if (form.dataset.located) return;
 
-            // Arrived: ALWAYS get a FRESH live fix and BLOCK if we can't — no more
-            // marking Arrived without location. maximumAge:0 forces a new reading.
-            if (needsLocation) {
-                e.preventDefault();
-                if (!navigator.geolocation) {
-                    cetShowLocBlock('This phone can’t share location. ' + CET_LOC_DENIED_HINT);
-                    return;
-                }
-                var locSent = false;
-                var submitWithLoc = function () { if (!locSent) { locSent = true; form.dataset.located = '1'; form.submit(); } };
-                navigator.geolocation.getCurrentPosition(function (pos) {
-                    form.querySelector('.lat-input').value = pos.coords.latitude;
-                    form.querySelector('.lng-input').value = pos.coords.longitude;
-                    var acc = form.querySelector('.acc-input');
-                    if (acc) { acc.value = pos.coords.accuracy || ''; }
-                    submitWithLoc();
-                }, function (err) {
-                    cetShowLocBlock((err && err.code === 1)
-                        ? CET_LOC_DENIED_HINT
-                        : 'Couldn’t get your location — make sure it’s on and you’re outside, then try again.');
-                }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-                return;
-            }
-
-            // Every other status (set off, POB, complete): best-effort GPS for the
-            // audit trail, never held up — a 4s fallback always lets the tap through.
+            // Best-effort GPS for the office's audit trail, but a driver is NEVER
+            // blocked from recording a status. If location is off / denied / slow we
+            // submit anyway after a short wait — the server flags a missing fix for
+            // the office rather than stopping the driver. Forward stages (arrived,
+            // POB, complete) try a little longer for a fresh fix, then go regardless.
             if (!navigator.geolocation) { return; }
             e.preventDefault();
+            var ms = needsLocation ? 6000 : 4000;
             var sent = false;
             var go = function () { if (!sent) { sent = true; form.dataset.located = '1'; form.submit(); } };
-            setTimeout(go, 4000);
+            setTimeout(go, ms);
             navigator.geolocation.getCurrentPosition(function (pos) {
                 form.querySelector('.lat-input').value = pos.coords.latitude;
                 form.querySelector('.lng-input').value = pos.coords.longitude;
                 var acc = form.querySelector('.acc-input');
                 if (acc) { acc.value = pos.coords.accuracy || ''; }
                 go();
-            }, go, { enableHighAccuracy: true, timeout: 4000 });
+            }, go, { enableHighAccuracy: true, timeout: ms, maximumAge: needsLocation ? 0 : 10000 });
         });
     });
 

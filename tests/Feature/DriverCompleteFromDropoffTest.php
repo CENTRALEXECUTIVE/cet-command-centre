@@ -11,9 +11,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * A driver at the drop-off can always finish the job — even if an intermediate
- * tap (e.g. "Passenger on board") was missed on a long job. The only rule is
- * being at the drop-off with location on.
+ * A driver can always finish the job — even if an intermediate tap (e.g.
+ * "Passenger on board") was missed, and even if their location is off. The driver
+ * is never blocked from recording a status; a missing/odd GPS fix is only flagged
+ * for the office.
  */
 class DriverCompleteFromDropoffTest extends TestCase
 {
@@ -62,16 +63,21 @@ class DriverCompleteFromDropoffTest extends TestCase
         $this->assertSame('complete', $booking->fresh()->status->value);
     }
 
-    public function test_completing_still_needs_location_on(): void
+    public function test_completing_without_location_goes_through_and_is_flagged(): void
     {
         $driver = User::factory()->driver()->create();
         $booking = $this->jobFor($driver, BookingStatus::EnRoute->value);
 
-        // No lat/lng → blocked (we must see the driver), and the job stays open.
+        // No lat/lng → the driver is NEVER blocked. The job completes, and the
+        // office gets a flag that the mark came in without a GPS fix.
         $this->actingAs($driver)->post(route('driver.job.status', $booking), [
             'status' => 'complete',
         ])->assertRedirect();
 
-        $this->assertSame(BookingStatus::EnRoute->value, $booking->fresh()->status->value);
+        $this->assertSame('complete', $booking->fresh()->status->value);
+        $this->assertDatabaseHas('watchdog_events', [
+            'booking_id' => $booking->id,
+            'event_type' => 'location_blocked',
+        ]);
     }
 }

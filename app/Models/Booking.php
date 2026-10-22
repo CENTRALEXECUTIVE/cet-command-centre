@@ -391,13 +391,15 @@ class Booking extends Model
             ? ($this->displayDropoffAddress() ?: $this->destination_address)
             : ($this->displayPickupAddress() ?: $this->pickup_address);
         $why = $reason === 'no_location'
-            ? 'no location turned on'
-            : 'not at the '.($atDropoff ? 'drop-off' : 'pickup');
+            ? 'location off'
+            : 'away from the '.($atDropoff ? 'drop-off' : 'pickup');
 
-        $title = '🚫 '.$driver.' — couldn’t mark '.$action.' ('.$why.')';
+        // The driver is never blocked from recording a status; this is a heads-up for
+        // the office that the mark came in without a good GPS fix.
+        $title = '⚠️ '.$driver.' marked '.$action.' — '.$why;
         $body = $reason === 'no_location'
-            ? 'Their location was off, so '.$action.' was blocked. Ask them to turn it on.'
-            : 'GPS put them away from '.\Illuminate\Support\Str::limit((string) $place, 60, '').', so '.$action.' was blocked.';
+            ? 'Their location was off, so there’s no GPS fix for this '.$action.'. The status was still recorded.'
+            : 'GPS put them away from '.\Illuminate\Support\Str::limit((string) $place, 60, '').' when they marked '.$action.'. The status was still recorded.';
 
         // Feed row for the control tower...
         \App\Models\WatchdogEvent::log('location_blocked', $title, 'warning', $this, body: $body);

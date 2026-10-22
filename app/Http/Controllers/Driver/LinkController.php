@@ -51,37 +51,22 @@ class LinkController extends Controller
             'accuracy' => ['nullable', 'numeric'],
         ]);
 
-        // Location required from the get-go for a cover driver too — every forward
-        // stage needs location on; Arrived also within ~1 mile. Blocks are flagged.
+        // Location helps the office SEE the driver, but a driver is NEVER blocked
+        // from recording Arrived / Passenger on board / Complete. If location is off
+        // or GPS puts them away from the pickup/drop-off we flag it for the office,
+        // then let the status through anyway.
         $target = BookingStatus::from($data['status']);
         if (JobController::locationRequired($target)) {
             $lat = $data['lat'] ?? null;
             $lng = $data['lng'] ?? null;
             if ($lat === null || $lng === null) {
                 $booking->flagLocationBlocked($target->label(), 'no_location');
-
-                return back()->with('arriveError',
-                    'Turn your location on to update this job — CET needs to see you from the moment you start. Allow location, then tap again.');
-            }
-            // Arrived AND Passenger-on-board both happen at the pickup → both must
-            // be within ~1 mile of it (stops rattling through statuses at the drop-off).
-            if (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
+            } elseif (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
                 && $booking->checkDriverAtPickup($lat, $lng, $data['accuracy'] ?? null) === 'far') {
-                $label = $target === BookingStatus::Arrived ? 'Arrived' : 'Passenger on board';
-                $booking->flagLocationBlocked($label, 'far');
-
-                return back()->with('arriveError', $target === BookingStatus::Arrived
-                    ? 'You don’t look like you’re at the pickup yet — get within about a mile and tap Arrived again.'
-                    : 'Mark “Passenger on board” at the pickup — you look too far from it. Tap it when the passenger actually gets in.');
-            }
-            // COMPLETE happens at the drop-off — block it if the driver is miles away
-            // (e.g. mid-route), so a job can't be closed in the wrong place.
-            if ($target === BookingStatus::Complete
+                $booking->flagLocationBlocked($target === BookingStatus::Arrived ? 'Arrived' : 'Passenger on board', 'far');
+            } elseif ($target === BookingStatus::Complete
                 && $booking->checkDriverAtDropoff($lat, $lng, $data['accuracy'] ?? null) === 'far') {
                 $booking->flagLocationBlocked('Complete', 'far');
-
-                return back()->with('arriveError',
-                    'You’re not at the drop-off yet — complete the job once you’ve actually dropped the passenger off.');
             }
         }
 

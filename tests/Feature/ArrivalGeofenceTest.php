@@ -9,9 +9,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * "Arrived" can only be marked at the pickup (within ~1 mile), but a driver who
- * is genuinely there is NEVER blocked: a far GPS fix is rejected, while no fix /
- * location off is allowed through.
+ * Location helps the office SEE the driver, but a driver is NEVER blocked from
+ * recording a status. The checkDriverAtPickup/Dropoff model checks still classify
+ * a fix as ok/far/no_location, and a far/missing fix is FLAGGED for the office —
+ * but the status always goes through.
  */
 class ArrivalGeofenceTest extends TestCase
 {
@@ -63,7 +64,7 @@ class ArrivalGeofenceTest extends TestCase
 
     /* ── Endpoint ────────────────────────────────────────────────────────── */
 
-    public function test_arrived_is_blocked_when_gps_is_far(): void
+    public function test_arrived_goes_through_but_is_flagged_when_gps_is_far(): void
     {
         $driver = $this->driver();
         $b = $this->job($driver);
@@ -71,11 +72,11 @@ class ArrivalGeofenceTest extends TestCase
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), [
                 'status' => 'arrived', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20,
-            ])
-            ->assertRedirect()
-            ->assertSessionHas('arriveError');
+            ])->assertRedirect();
 
-        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status); // not marked arrived
+        // Recorded (never blocked) and flagged for the office.
+        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'location_blocked']);
     }
 
     public function test_arrived_goes_through_when_close(): void
@@ -91,19 +92,19 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
     }
 
-    public function test_arrived_is_blocked_when_location_is_off(): void
+    public function test_arrived_goes_through_when_location_is_off(): void
     {
-        // No fix at all (location off) → a driver cannot mark Arrived. They must
-        // turn location on; this is what stops a fake "arrived" from miles away.
+        // No fix at all (location off) → the driver is still NOT blocked; the mark
+        // is recorded and the office is flagged that there was no GPS fix.
         $driver = $this->driver();
         $b = $this->job($driver);
 
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), ['status' => 'arrived'])
-            ->assertRedirect()
-            ->assertSessionHas('arriveError');
+            ->assertRedirect();
 
-        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
+        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'location_blocked']);
     }
 
     public function test_set_off_is_allowed_from_anywhere_with_location_on(): void
@@ -123,9 +124,9 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
     }
 
-    public function test_set_off_requires_location_too(): void
+    public function test_set_off_goes_through_without_location(): void
     {
-        // Location is required from the get-go: set off with no fix is blocked.
+        // Set off with no fix is no longer blocked — it's recorded and flagged.
         $driver = $this->driver();
         $b = Booking::factory()->create([
             'driver_id' => $driver->id, 'status' => BookingStatus::Accepted->value,
@@ -134,13 +135,12 @@ class ArrivalGeofenceTest extends TestCase
 
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), ['status' => 'en_route'])
-            ->assertRedirect()
-            ->assertSessionHas('arriveError');
+            ->assertRedirect();
 
-        $this->assertSame(BookingStatus::Accepted, $b->fresh()->status);
+        $this->assertSame(BookingStatus::EnRoute, $b->fresh()->status);
     }
 
-    public function test_complete_requires_location_too(): void
+    public function test_complete_goes_through_without_location(): void
     {
         $driver = $this->driver();
         $b = Booking::factory()->create([
@@ -150,16 +150,15 @@ class ArrivalGeofenceTest extends TestCase
 
         $this->actingAs($driver)
             ->post(route('driver.job.status', $b), ['status' => 'complete'])
-            ->assertRedirect()
-            ->assertSessionHas('arriveError');
+            ->assertRedirect();
 
-        $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
+        $this->assertSame(BookingStatus::Complete, $b->fresh()->status);
     }
 
-    public function test_complete_is_blocked_far_from_the_dropoff(): void
+    public function test_complete_goes_through_but_is_flagged_far_from_the_dropoff(): void
     {
-        // The real incident: a driver marked a job COMPLETE out on the A57, miles
-        // from the drop-off. Complete now has to happen at the drop-off.
+        // A driver marking COMPLETE miles from the drop-off is no longer blocked —
+        // it completes and the office is flagged so they can query it if needed.
         $driver = $this->driver();
         $b = Booking::factory()->create([
             'driver_id' => $driver->id, 'status' => BookingStatus::Collected->value,
@@ -169,9 +168,10 @@ class ArrivalGeofenceTest extends TestCase
 
         $this->actingAs($driver)->post(route('driver.job.status', $b), [
             'status' => 'complete', 'lat' => 51.5074, 'lng' => -0.1278, 'accuracy' => 20, // London — far
-        ])->assertRedirect()->assertSessionHas('arriveError');
+        ])->assertRedirect();
 
-        $this->assertSame(BookingStatus::Collected, $b->fresh()->status); // NOT completed
+        $this->assertSame(BookingStatus::Complete, $b->fresh()->status);
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'location_blocked']);
     }
 
     public function test_complete_goes_through_at_the_dropoff(): void
@@ -220,10 +220,10 @@ class ArrivalGeofenceTest extends TestCase
         $this->assertSame('unknown', $b->checkDriverAtDropoff(51.5074, -0.1278, 20));
     }
 
-    public function test_pob_is_blocked_far_from_the_pickup(): void
+    public function test_pob_goes_through_but_is_flagged_far_from_the_pickup(): void
     {
-        // Passenger-on-board happens at the pickup — a driver rattling through the
-        // statuses near the DROP-OFF can't mark it from miles away.
+        // Passenger-on-board far from the pickup is recorded (never blocked) and
+        // flagged for the office.
         $driver = $this->driver();
         $b = Booking::factory()->create([
             'driver_id' => $driver->id, 'status' => BookingStatus::Arrived->value,
@@ -232,9 +232,10 @@ class ArrivalGeofenceTest extends TestCase
 
         $this->actingAs($driver)->post(route('driver.job.status', $b), [
             'status' => 'collected', 'lat' => 51.5074, 'lng' => -0.1278, // London — far
-        ])->assertRedirect()->assertSessionHas('arriveError');
+        ])->assertRedirect();
 
-        $this->assertSame(BookingStatus::Arrived, $b->fresh()->status);
+        $this->assertSame(BookingStatus::Collected, $b->fresh()->status);
+        $this->assertDatabaseHas('watchdog_events', ['booking_id' => $b->id, 'event_type' => 'location_blocked']);
     }
 
     public function test_pob_goes_through_at_the_pickup(): void
