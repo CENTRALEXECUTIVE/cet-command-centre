@@ -448,6 +448,12 @@ class BookingNotifier
      */
     public function scheduleReviewRequest(Booking $booking, bool $force = false): ?Message
     {
+        // The office can turn review requests OFF for a booking (bad experience / a
+        // customer we'd rather not ask) — never queue one, even on a manual request.
+        if ($booking->reviewSuppressed()) {
+            return null;
+        }
+
         $to = $booking->customerContactNumber();
         if (blank($to)) {
             return null;

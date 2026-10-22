@@ -374,7 +374,7 @@ class Booking extends Model
      * location-gated tap — so you can see who's trying to mark a job without
      * being there / without location on. Deduped so a mashed button can't spam.
      */
-    public function flagLocationBlocked(string $action, string $reason, bool $overridden = false): void
+    public function flagLocationBlocked(string $action, string $reason): void
     {
         $recent = \App\Models\WatchdogEvent::where('booking_id', $this->id)
             ->where('event_type', 'location_blocked')
@@ -395,19 +395,10 @@ class Booking extends Model
             : 'away from the '.($atDropoff ? 'drop-off' : 'pickup');
         $placeTxt = \Illuminate\Support\Str::limit((string) $place, 60, '');
 
-        if ($overridden) {
-            // The driver was blocked, then confirmed twice to record it anyway — the
-            // office needs to know a status came in without a good GPS fix.
-            $title = '⚠️ '.$driver.' overrode '.$action.' — '.$why;
-            $body = $reason === 'no_location'
-                ? 'Location was off, but they confirmed twice and marked '.$action.'. No GPS fix for it.'
-                : 'GPS put them away from '.$placeTxt.', but they confirmed twice and marked '.$action.'.';
-        } else {
-            $title = '🚫 '.$driver.' blocked from '.$action.' — '.$why;
-            $body = $reason === 'no_location'
-                ? 'Their location was off, so '.$action.' was blocked. They can confirm twice to override.'
-                : 'GPS put them away from '.$placeTxt.', so '.$action.' was blocked. They can confirm twice to override.';
-        }
+        $title = '🚫 '.$driver.' blocked from '.$action.' — '.$why;
+        $body = $reason === 'no_location'
+            ? 'Their location was off, so '.$action.' was blocked. GPS has to be on.'
+            : 'GPS put them away from '.$placeTxt.', so '.$action.' was blocked until they’re actually there.';
 
         // Feed row for the control tower...
         \App\Models\WatchdogEvent::log('location_blocked', $title, 'warning', $this, body: $body);
@@ -2416,10 +2407,44 @@ class Booking extends Model
      * office isn't left wondering). Returns null when a review exists, the job
      * isn't complete, or a review is simply still to be prepared.
      */
+    /**
+     * Has the office turned OFF review requests for this booking? Used when a
+     * customer had a bad experience (or is one we'd rather not ask) — nothing is
+     * ever auto-queued and the manual "Request a review" button is hidden. Stored
+     * in meta so it needs no migration.
+     */
+    public function reviewSuppressed(): bool
+    {
+        return (bool) ($this->meta['no_review'] ?? false);
+    }
+
+    /**
+     * Turn review requests off (or back on) for this booking. Turning them off also
+     * removes any review request that's still QUEUED (not yet sent) so it drops off
+     * the office's send list. An already-sent review is left alone — it's gone out.
+     */
+    public function setReviewSuppressed(bool $off): void
+    {
+        $meta = $this->meta ?? [];
+        if ($off) {
+            $meta['no_review'] = true;
+        } else {
+            unset($meta['no_review']);
+        }
+        $this->forceFill(['meta' => $meta])->save();
+
+        if ($off) {
+            $this->messages()->where('type', 'review_request')->whereNull('sent_at')->delete();
+        }
+    }
+
     public function reviewSkipReason(): ?string
     {
         if ($this->status->value !== 'complete') {
             return null;
+        }
+        if ($this->reviewSuppressed()) {
+            return 'Review requests are turned OFF for this booking — the customer won’t be asked.';
         }
         if ($this->messages()->where('type', 'review_request')->exists()) {
             return null; // it has one

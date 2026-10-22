@@ -1893,6 +1893,23 @@ class BookingController extends Controller
     }
 
     /**
+     * Turn review requests on/off for a booking. Off = never ask this customer for
+     * this trip (e.g. a bad experience) and drop any queued-but-unsent review from
+     * the send list. On = back to the normal review flow.
+     */
+    public function setReviewSending(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $allow = $request->boolean('allow');
+        $booking->setReviewSuppressed(! $allow);
+
+        return back()->with('status', $allow
+            ? 'Review requests are back ON for this booking.'
+            : 'Review requests are OFF for this booking — the customer won’t be asked, and any queued review was removed.');
+    }
+
+    /**
      * Correct the linked customer record's phone to THIS booking's contact number —
      * the fix for a booking that got filed under a record holding another booker's
      * number. Messaging already uses the booking's contact; this just tidies the

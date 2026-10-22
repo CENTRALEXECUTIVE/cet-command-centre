@@ -63,26 +63,21 @@ class JobController extends Controller
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric'],
-            'override' => ['nullable', 'boolean'],
         ]);
 
-        // GPS is required from the GET-GO for a DRIVER: every forward stage needs
-        // location on. "Arrived" and "Passenger on board" are HARD-gated — they only
-        // go through when GPS puts the driver AT the pickup (within ~1 mile); there is
-        // no override, because a driver who isn't there yet hasn't picked up yet. Set
-        // off / Complete block first but a double-confirm can push them through. The
-        // office is flagged either way. (The office acting on someone else's job is
-        // exempt from the gate.)
+        // GPS is MANDATORY for a DRIVER on every forward stage — no negotiation, no
+        // override. Set off needs location ON; Arrived/POB need the driver AT the
+        // pickup and Complete AT the drop-off (within the arrival radius). Anything
+        // off or too far is refused and the office flagged. (The office acting on
+        // someone else's job is exempt; a point CET can't geocode fails OPEN.)
         $actorIsDriver = $request->user()->id === $booking->driver_id;
         $target = BookingStatus::from($data['status']);
-        $override = $request->boolean('override') && ! self::locationHardBlocked($target);
         if ($actorIsDriver && self::locationRequired($target)) {
             [$reason, $label, $msg] = self::locationGate($booking, $target, $data);
             if ($reason !== null) {
-                $booking->flagLocationBlocked($label, $reason, $override);
-                if (! $override) {
-                    return back()->with('arriveError', $msg);
-                }
+                $booking->flagLocationBlocked($label, $reason);
+
+                return back()->with('arriveError', $msg);
             }
         }
 
@@ -304,30 +299,12 @@ class JobController extends Controller
     }
 
     /**
-     * HARD-blocked stages: "Arrived", "Passenger on board" and "Completed" can ONLY
-     * be marked once GPS actually puts the driver at the pickup (Arrived/POB) or the
-     * drop-off (Complete), within the arrival radius. There is NO confirm-twice
-     * override — a driver who is still on the way, still texting the customer to find
-     * them, or not yet at the drop-off hasn't finished that step, so the tap is
-     * refused outright (the office is flagged). Only "Set off" stays soft-gated (it
-     * just needs location ON, no distance check) so a job can always be started; if
-     * CET genuinely can't geocode the point, the check fails OPEN and allows it.
-     */
-    public static function locationHardBlocked(BookingStatus $status): bool
-    {
-        return in_array($status, [
-            BookingStatus::Arrived,
-            BookingStatus::Collected,
-            BookingStatus::Complete,
-        ], true);
-    }
-
-    /**
      * Decide whether a forward-stage tap has a location problem, shared by the
-     * logged-in driver app and the shareable link. Returns [reason, label, message]
-     * where reason is null when the fix is fine. For HARD stages (Arrived / POB)
-     * the caller refuses outright; for soft stages it blocks unless the driver
-     * confirmed twice. The office is flagged either way.
+     * logged-in driver app and the shareable link. GPS is mandatory and there is no
+     * override, so a non-null reason always means BLOCK. Returns [reason, label,
+     * message]; reason is null when the fix is fine. "Set off" only needs location
+     * ON; Arrived/POB need the driver at the pickup, Complete at the drop-off. A
+     * point CET can't geocode fails OPEN (not the driver's fault).
      *
      * @param  array{lat?:float|null,lng?:float|null,accuracy?:float|null}  $data
      * @return array{0:?string,1:string,2:?string}
@@ -337,18 +314,17 @@ class JobController extends Controller
         $lat = $data['lat'] ?? null;
         $lng = $data['lng'] ?? null;
         $acc = $data['accuracy'] ?? null;
-        $hard = self::locationHardBlocked($target);
         $place = $target === BookingStatus::Complete ? 'drop-off' : 'pickup';
 
         if ($lat === null || $lng === null) {
-            return ['no_location', $target->label(), $hard
-                ? 'Turn your location on and be at the '.$place.' to mark this — CET needs to see you’re actually there.'
-                : 'Turn your location on to update this job — CET needs to see you. If GPS won’t work and you’re sure, confirm to continue.'];
+            return ['no_location', $target->label(),
+                'Turn your location on to mark this — CET needs to see you. GPS has to be on'
+                .($target === BookingStatus::EnRoute ? '.' : ' and you at the '.$place.'.')];
         }
         if (in_array($target, [BookingStatus::Arrived, BookingStatus::Collected], true)
             && $booking->checkDriverAtPickup($lat, $lng, $acc) === 'far') {
             return $target === BookingStatus::Arrived
-                ? ['far', 'Arrived', 'You’re not at the pickup yet — you can mark Arrived once you’re there (within about a mile).']
+                ? ['far', 'Arrived', 'You’re not at the pickup yet — you can mark Arrived once you’re there (within about 1.5 miles).']
                 : ['far', 'Passenger on board', 'Mark “Passenger on board” at the pickup — you’re not close enough yet.'];
         }
         if ($target === BookingStatus::Complete

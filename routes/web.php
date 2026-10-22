@@ -208,6 +208,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('cash-summary', [\App\Http\Controllers\Admin\PayrollController::class, 'daily'])->name('payroll.daily');
         Route::post('bookings/{booking}/message', [\App\Http\Controllers\MessageController::class, 'store'])->middleware('throttle:30,1')->name('bookings.message');
         Route::post('bookings/{booking}/request-review', [BookingController::class, 'requestReview'])->middleware('throttle:30,1')->name('bookings.request-review');
+        Route::post('bookings/{booking}/review-sending', [BookingController::class, 'setReviewSending'])->middleware('throttle:30,1')->name('bookings.review-sending');
         // Correct the customer record's phone to this booking's calendar contact.
         Route::post('bookings/{booking}/fix-contact', [BookingController::class, 'fixContact'])->middleware('throttle:30,1')->name('bookings.fix-contact');
         Route::post('messages/{message}/resend', [\App\Http\Controllers\MessageController::class, 'resend'])->middleware('throttle:30,1')->name('messages.resend');

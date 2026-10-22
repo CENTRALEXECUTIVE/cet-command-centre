@@ -121,12 +121,14 @@ return [
     // hammering the database.
     'gps_live_seconds' => (int) env('CET_GPS_LIVE_SECONDS', 20),
 
-    // How close (metres) a driver must be to the pickup before "Arrived" is
-    // accepted. Deliberately GENEROUS — 1 mile — plus the phone's own GPS accuracy
-    // is added on top, so a driver who's genuinely there is NEVER blocked; only a
-    // clearly-far tap (miles away) is rejected. If location is off/unavailable we
-    // can't verify, so we allow it rather than risk blocking a present driver.
-    'arrival_radius_metres' => (int) env('CET_ARRIVAL_RADIUS_M', 1609),
+    // How close (metres) a driver must be to the pickup / drop-off before Arrived,
+    // Passenger-on-board or Completed is accepted. 1.5 miles (~2414 m) — roughly a
+    // 5-minute drive out, generous enough to cover every terminal at the airports we
+    // run to — plus the phone's own GPS accuracy on top, so a driver who's genuinely
+    // there is never blocked; only a clearly-far tap is rejected. If CET can't
+    // geocode the point we can't verify, so that case fails OPEN. (Location being
+    // OFF is always blocked — GPS is mandatory.)
+    'arrival_radius_metres' => (int) env('CET_ARRIVAL_RADIUS_M', 2414),
 
     // Free waiting time the customer gets once the driver has arrived at the
     // pickup. The waiting timer on the driver's job screen only starts counting

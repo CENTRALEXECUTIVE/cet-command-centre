@@ -497,14 +497,12 @@
             @endphp
             <form method="POST" action="{{ $statusUrl }}" class="status-form"
                   data-status-label="{{ $confirmLabel }}" data-geo-what="{{ $gWhat }}"
-                  @if(in_array($status->value, ['arrived','collected','complete'])) data-hard="1" @endif
                   @if(is_array($gPt) && isset($gPt[0], $gPt[1])) data-geo-lat="{{ $gPt[0] }}" data-geo-lng="{{ $gPt[1] }}" @endif>
                 @csrf
                 <input type="hidden" name="status" value="{{ $status->value }}">
                 <input type="hidden" name="lat" class="lat-input">
                 <input type="hidden" name="lng" class="lng-input">
                 <input type="hidden" name="accuracy" class="acc-input">
-                <input type="hidden" name="override" value="0" class="override-input">
                 <button type="submit" class="{{ $class }}" style="width:100%">{{ $btnLabel }}</button>
             </form>
         @endforeach
@@ -564,11 +562,15 @@
         // (accept → set off → arrived → POB → complete) needs a live fix. Only the
         // office (viewing someone else's job) is exempt. Cancel/no-show aren't here.
         var isDriver = window.CET_IS_DRIVER !== false;
+        // GPS is MANDATORY for every forward job step (set off → arrived → POB →
+        // complete). No negotiation: location off = the tap is refused. Accepting a
+        // job (which can happen days ahead) and office taps are best-effort only.
         var needsLocation = isDriver
-            && ['accepted', 'en_route', 'arrived', 'collected', 'complete'].indexOf(statusVal) !== -1;
+            && ['en_route', 'arrived', 'collected', 'complete'].indexOf(statusVal) !== -1;
 
         var label = form.dataset.statusLabel || 'this status';
         var geoWhat = form.dataset.geoWhat || 'pickup';
+        var FAR_MILES = 1.5; // arrival radius — mirror of cet.arrival_radius_metres
 
         // Rough distance (miles) between two lat/lng points.
         function milesBetween(aLat, aLng, bLat, bLng) {
@@ -578,28 +580,22 @@
                 + Math.cos(aLat * toR) * Math.cos(bLat * toR) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
             return 2 * R * Math.asin(Math.sqrt(s));
         }
-        // Two "are you sure?" prompts before we let a blocked tap through.
-        function confirmTwice(first) {
-            if (!window.confirm(first)) return false;
-            return window.confirm('Are you absolutely sure? The office will be told you marked “' + label + '” without confirmed GPS.');
-        }
 
         form.addEventListener('submit', function (e) {
             if (form.dataset.located) return;
 
-            var submit = function (override) {
+            var submit = function () {
                 if (form.dataset.located) return;
                 form.dataset.located = '1';
-                if (override) { var o = form.querySelector('.override-input'); if (o) o.value = '1'; }
                 form.submit();
             };
 
-            // Office / non-forward taps: best-effort GPS, never held up.
+            // Office / accept taps: best-effort GPS, never held up.
             if (!needsLocation) {
                 if (!navigator.geolocation) { return; }
                 e.preventDefault();
                 var done = false;
-                var go = function () { if (!done) { done = true; submit(false); } };
+                var go = function () { if (!done) { done = true; submit(); } };
                 setTimeout(go, 4000);
                 navigator.geolocation.getCurrentPosition(function (pos) {
                     form.querySelector('.lat-input').value = pos.coords.latitude;
@@ -610,37 +606,30 @@
                 return;
             }
 
-            // Forward driver stage: GPS is REQUIRED and we BLOCK first.
-            //   • HARD stages (Arrived / Passenger on board): they ONLY go through when
-            //     GPS puts the driver at the pickup. No override — a driver who isn't
-            //     there yet hasn't picked up yet, so the tap is refused.
-            //   • SOFT stages (Set off / Completed): block first, but a double-confirm
-            //     can push it through so a job can always be started and closed.
-            var isHard = form.dataset.hard === '1';
+            // Forward job step: GPS REQUIRED, and (for a stage with a known point)
+            // the driver must be within the arrival radius. No override — location off
+            // or too far away means the tap is simply refused and the office flagged.
             e.preventDefault();
             if (!navigator.geolocation) {
-                if (isHard) { window.alert('Turn your location on and be at the ' + geoWhat + ' to mark “' + label + '”. CET needs to see you’re actually there.'); return; }
-                if (confirmTwice('Your phone can’t share its location. Mark “' + label + '” anyway?')) submit(true);
+                window.alert('Turn your location on and be at the ' + geoWhat + ' to mark “' + label + '”. CET needs to see you’re actually there.');
                 return;
             }
             navigator.geolocation.getCurrentPosition(function (pos) {
                 form.querySelector('.lat-input').value = pos.coords.latitude;
                 form.querySelector('.lng-input').value = pos.coords.longitude;
                 var acc = form.querySelector('.acc-input'); if (acc) { acc.value = pos.coords.accuracy || ''; }
-                // Distance double-check when we know the geofence point.
+                // Distance check when we know the geofence point (pickup / drop-off).
                 var gl = form.dataset.geoLat, gn = form.dataset.geoLng;
                 if (gl && gn) {
                     var miles = milesBetween(pos.coords.latitude, pos.coords.longitude, parseFloat(gl), parseFloat(gn));
-                    if (miles > 1.2) {
-                        if (isHard) { window.alert('You’re about ' + Math.round(miles) + ' mile' + (Math.round(miles) === 1 ? '' : 's') + ' from the ' + geoWhat + '. You can mark “' + label + '” once you’re actually there.'); return; }
-                        if (confirmTwice('You look about ' + Math.round(miles) + ' mile' + (Math.round(miles) === 1 ? '' : 's') + ' from the ' + geoWhat + '. Mark “' + label + '” anyway?')) submit(true);
-                        return; // blocked unless they confirm twice
+                    if (miles > FAR_MILES) {
+                        window.alert('You’re about ' + Math.round(miles) + ' mile' + (Math.round(miles) === 1 ? '' : 's') + ' from the ' + geoWhat + '. You can mark “' + label + '” once you’re actually there.');
+                        return;
                     }
                 }
-                submit(false);
+                submit();
             }, function () {
-                if (isHard) { window.alert('We couldn’t get your location. Turn GPS on and be at the ' + geoWhat + ' to mark “' + label + '”.'); return; }
-                if (confirmTwice('We couldn’t get your location. Mark “' + label + '” anyway?')) submit(true);
+                window.alert('We couldn’t get your location. Turn GPS on and be at the ' + geoWhat + ' to mark “' + label + '”.');
             }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         });
     });

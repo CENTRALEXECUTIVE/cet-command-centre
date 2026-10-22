@@ -2320,7 +2320,7 @@
                 <p class="muted">No messages yet for this booking.</p>
             @endforelse
 
-            @if($booking->status->value === 'complete' && ! $booking->messages()->where('type', 'review_request')->exists())
+            @if($booking->status->value === 'complete' && ! $booking->reviewSuppressed() && ! $booking->messages()->where('type', 'review_request')->exists())
                 <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
                     @if($reason = $booking->reviewSkipReason())
                         <p class="hint" style="margin:0 0 8px;color:#b8860b">⭐ {{ $reason }}</p>
@@ -2331,6 +2331,29 @@
                             <button class="btn btn-light" style="padding:7px 14px;font-size:13px">⭐ Request a review</button>
                         </form>
                         <p class="hint" style="margin:6px 0 0">Creates a review request to send by hand — overrides the once-per-customer rule.</p>
+                    @endif
+                </div>
+            @endif
+
+            {{-- Office control: turn review requests off for a customer who had a bad
+                 experience (or we'd rather not ask), or back on again. --}}
+            @if($booking->status->value === 'complete')
+                <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+                    @if($booking->reviewSuppressed())
+                        <p class="hint" style="margin:0 0 8px;color:#b8860b">🔕 Review requests are <strong>OFF</strong> for this booking — {{ $booking->displayName() ?: 'the customer' }} won’t be asked.</p>
+                        <form method="POST" action="{{ route('bookings.review-sending', $booking) }}">
+                            @csrf
+                            <input type="hidden" name="allow" value="1">
+                            <button class="btn btn-light" style="padding:7px 14px;font-size:13px">⭐ Turn review requests back on</button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('bookings.review-sending', $booking) }}"
+                              onsubmit="return confirm('Turn OFF review requests for this booking? The customer won’t be asked for a review, and any queued one is removed.')">
+                            @csrf
+                            <input type="hidden" name="allow" value="0">
+                            <button class="btn btn-light" style="padding:7px 14px;font-size:13px">🔕 Don’t send a review for this one</button>
+                        </form>
+                        <p class="hint" style="margin:6px 0 0">Use this if they had a bad experience — stops the automatic review request and removes any that’s queued.</p>
                     @endif
                 </div>
             @endif
