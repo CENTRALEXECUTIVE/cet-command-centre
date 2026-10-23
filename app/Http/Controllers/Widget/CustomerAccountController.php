@@ -140,6 +140,18 @@ class CustomerAccountController extends Controller
         \App\Models\WatchdogEvent::log('web_booking', 'Customer '.$what.' request — '.$booking->reference, 'warning', $booking);
         $this->adminAlerts->notify('web_booking', '✏️ Customer '.$what.' request — '.$name, $body, 'warning', $booking);
 
+        // Time-sensitive — email the office too, not just push, so a cancel/change
+        // is never missed. Best-effort; a mail failure must not block the request.
+        if ($ops = config('cet.ops_email')) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($ops)->send(
+                    new \App\Mail\CustomerRequestMail($booking, $data['type'], $data['message'] ?? null)
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[CustomerRequest] office email failed: '.$e->getMessage());
+            }
+        }
+
         // Record it on the booking so the office sees it on the booking page too.
         $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
             'customer_requests' => array_merge($booking->meta['customer_requests'] ?? [], [[

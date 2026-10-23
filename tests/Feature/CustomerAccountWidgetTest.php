@@ -69,6 +69,7 @@ class CustomerAccountWidgetTest extends TestCase
 
     public function test_a_change_request_notifies_the_office_without_auto_acting(): void
     {
+        \Illuminate\Support\Facades\Mail::fake();
         $booking = $this->customerBooking();
 
         $this->withSession(['widget_customer_id' => $booking->customer_id])
@@ -77,8 +78,10 @@ class CustomerAccountWidgetTest extends TestCase
                 'message' => 'Please cancel, plans changed',
             ])->assertRedirect();
 
-        // Office alerted, request recorded on the booking, status NOT changed.
+        // Office alerted (feed + push + EMAIL), request recorded, status NOT changed.
         $this->assertDatabaseHas('watchdog_events', ['booking_id' => $booking->id, 'event_type' => 'web_booking']);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\CustomerRequestMail::class,
+            fn ($m) => $m->booking->is($booking) && $m->requestType === 'cancel');
         $booking->refresh();
         $this->assertNotEmpty($booking->meta['customer_requests'] ?? []);
         $this->assertNotSame(\App\Enums\BookingStatus::Cancelled, $booking->status);
