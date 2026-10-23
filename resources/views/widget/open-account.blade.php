@@ -171,7 +171,7 @@
             x.addEventListener('click', function () { row.remove(); });
             row.appendChild(input); row.appendChild(x); wrap.appendChild(row); input.focus();
         });
-        cetType(@json(old('account_type') === 'company' ? 'company' : 'personal'));
+        cetType(@json(old('account_type') === 'company' ? 'company' : ($preselect ?? 'personal')));
     })();
 
     // Tell a host page (the website embeds this form in an iframe) how tall we are,

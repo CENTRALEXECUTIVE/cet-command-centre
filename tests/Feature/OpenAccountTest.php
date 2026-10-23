@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Mail\AccountRequestMail;
 use App\Models\CorporateAccount;
 use App\Models\Customer;
+use App\Models\WatchdogEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -23,8 +26,24 @@ class OpenAccountTest extends TestCase
             ->assertSee('Business');
     }
 
-    public function test_a_personal_signup_saves_a_customer(): void
+    public function test_business_type_query_preselects_the_business_tab(): void
     {
+        // A "?type=business" link (from the marketing "Open a business account" button)
+        // must open straight on the Business tab, not Personal.
+        $this->get(route('widget.open-account', ['type' => 'business']))
+            ->assertOk()
+            ->assertSee('cetType("company")', false);
+
+        // No param still defaults to Personal.
+        $this->get(route('widget.open-account'))
+            ->assertOk()
+            ->assertSee('cetType("personal")', false);
+    }
+
+    public function test_a_personal_signup_saves_a_customer_and_notifies_the_office(): void
+    {
+        Mail::fake();
+
         $this->post(route('widget.open-account.store'), [
             'account_type' => 'personal',
             'personal_name' => 'Olivia Lester',
@@ -33,10 +52,17 @@ class OpenAccountTest extends TestCase
         ])->assertOk()->assertSee("You're all set", false);
 
         $this->assertDatabaseHas('customers', ['name' => 'Olivia Lester', 'email' => 'olivia@example.com']);
+
+        // Office is emailed AND a persistent alerts-feed row is written (push alone is
+        // not enough — a personal sign-up used to leave no trace if push was off).
+        Mail::assertSent(AccountRequestMail::class, fn ($m) => $m->type === 'personal' && $m->name === 'Olivia Lester');
+        $this->assertTrue(WatchdogEvent::where('event_type', 'account_request')->exists());
     }
 
     public function test_a_company_signup_creates_a_pending_account_with_contacts(): void
     {
+        Mail::fake();
+
         $this->post(route('widget.open-account.store'), [
             'account_type' => 'company',
             'company_name' => 'JELD-WEN UK',
@@ -60,6 +86,9 @@ class OpenAccountTest extends TestCase
         $this->assertSame(1, $account->contacts()->where('is_primary', true)->count());
         $this->assertSame(3, $account->contacts()->count());
         $this->assertTrue($account->contacts()->where('email', 'accounts@jeldwen.example')->exists());
+
+        // Office is emailed about the business application.
+        Mail::assertSent(AccountRequestMail::class, fn ($m) => $m->type === 'company' && $m->name === 'JELD-WEN UK');
     }
 
     public function test_company_signup_validates_required_fields(): void
