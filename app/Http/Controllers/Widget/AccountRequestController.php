@@ -120,6 +120,11 @@ class AccountRequestController extends Controller
                 'Email' => $data['contact_email'],
                 'Phone' => $data['contact_phone'],
             ], url('/accounts/'.$account->id));
+            $this->notifyApplicant($data['contact_email'],
+                'We’ve received your business account application',
+                'Application received',
+                'Thanks '.$data['contact_name'].' — we’ve received your business account application for '.$account->name.'.',
+                ['Our office reviews each application and will be in touch to confirm your account, usually within one working day.']);
 
             return response()->view('widget.open-account', ['done' => true, 'accountType' => 'company'])
                 ->header('Content-Security-Policy', $this->frameAncestors());
@@ -150,6 +155,11 @@ class AccountRequestController extends Controller
             'Email' => $customer->email,
             'Phone' => $customer->phone,
         ], url('/customers/'.$customer->id));
+        $this->notifyApplicant($customer->email,
+            'Your Central Executive Transfers account',
+            'Welcome aboard',
+            'Thanks '.$customer->name.' — your account is set up.',
+            ['You can book and manage your journeys any time via My Account.']);
 
         return response()->view('widget.open-account', ['done' => true, 'accountType' => 'personal'])
             ->header('Content-Security-Policy', $this->frameAncestors());
@@ -174,6 +184,26 @@ class AccountRequestController extends Controller
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('[Signup] office email failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Acknowledge a sign-up to the applicant by email — reassures them we've got it
+     * (nothing to action their end). Best-effort; never breaks the sign-up.
+     *
+     * @param  array<int,string>  $lines
+     */
+    private function notifyApplicant(?string $email, string $subject, string $heading, string $lead, array $lines = []): void
+    {
+        if (blank($email)) {
+            return;
+        }
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(
+                new \App\Mail\CustomerNoticeMail($subject, $heading, $lead, $lines)
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Signup] applicant email failed: '.$e->getMessage());
         }
     }
 

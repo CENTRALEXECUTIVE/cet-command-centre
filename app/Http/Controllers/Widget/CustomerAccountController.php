@@ -152,6 +152,20 @@ class CustomerAccountController extends Controller
             }
         }
 
+        // Acknowledge to the customer so they know it reached us.
+        if ($email = $booking->customer?->email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\CustomerNoticeMail(
+                    'We’ve received your '.$what.' request',
+                    'Request received',
+                    'Thanks '.$name.' — we’ve received your '.$what.' request for booking '.$booking->reference.' ('.$when.').',
+                    ['Our office will be in touch to confirm. Nothing on your booking has changed yet.']
+                ));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[CustomerRequest] customer ack failed: '.$e->getMessage());
+            }
+        }
+
         // Record it on the booking so the office sees it on the booking page too.
         $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
             'customer_requests' => array_merge($booking->meta['customer_requests'] ?? [], [[

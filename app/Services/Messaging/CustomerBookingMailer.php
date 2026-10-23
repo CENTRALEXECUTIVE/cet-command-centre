@@ -26,7 +26,11 @@ class CustomerBookingMailer
 
     public static function enabled(): bool
     {
-        return (bool) Setting::get(self::SETTING, false);
+        // Default ON (opted in by the directors): web-widget customers get an
+        // automatic booking confirmation. Still fully guarded below — source must
+        // be 'web', so ETO/import/calendar customers can never be emailed. The
+        // office can switch it off in Settings → Web widgets.
+        return (bool) Setting::get(self::SETTING, true);
     }
 
     /**

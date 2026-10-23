@@ -53,9 +53,18 @@ class WidgetCustomerEmailTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_nothing_is_sent_when_the_setting_is_off(): void
+    public function test_customer_confirmations_are_on_by_default(): void
     {
-        // Setting defaults OFF.
+        // Default is now ON (directors opted in) — a web booking with an email is confirmed.
+        $booking = $this->booking('web');
+
+        $this->assertTrue(app(CustomerBookingMailer::class)->confirmIfWebBooking($booking));
+        Mail::assertSent(BookingConfirmationMail::class);
+    }
+
+    public function test_nothing_is_sent_when_the_setting_is_turned_off(): void
+    {
+        Setting::set(CustomerBookingMailer::SETTING, false, 'boolean', 'widgets');
         $booking = $this->booking('web');
 
         $this->assertFalse(app(CustomerBookingMailer::class)->confirmIfWebBooking($booking));

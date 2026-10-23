@@ -111,7 +111,7 @@
                         <div class="field"><label>Company number <span class="opt">(optional)</span></label><input name="company_number" value="{{ old('company_number') }}" placeholder="e.g. 15749931"></div>
                         <div class="field"><label>VAT number <span class="opt">(optional)</span></label><input name="vat_number" value="{{ old('vat_number') }}"></div>
                     </div>
-                    <div class="field"><label>Company address</label><textarea name="company_address">{{ old('company_address') }}</textarea></div>
+                    <div class="field"><label>Company address</label><input name="company_address" value="{{ old('company_address') }}" placeholder="Start typing — or type your full address" data-places autocomplete="off"></div>
 
                     <div class="sec">Main contact</div>
                     <div class="field"><label>Contact name</label><input name="contact_name" value="{{ old('contact_name') }}"></div>
@@ -119,7 +119,7 @@
                         <div class="field"><label>Contact mobile</label><input name="contact_phone" value="{{ old('contact_phone') }}" placeholder="07…"></div>
                         <div class="field"><label>Contact email</label><input name="contact_email" type="email" value="{{ old('contact_email') }}"></div>
                     </div>
-                    <div class="field"><label>Main contact address <span class="opt">(optional)</span></label><textarea name="contact_address">{{ old('contact_address') }}</textarea></div>
+                    <div class="field"><label>Main contact address <span class="opt">(optional)</span></label><input name="contact_address" value="{{ old('contact_address') }}" placeholder="Start typing — or type your full address" data-places autocomplete="off"></div>
 
                     <div class="sec">Sign-in password <span class="opt" style="text-transform:none;letter-spacing:0;font-weight:500">(optional — for the main contact's My Account)</span></div>
                     <div class="two">
@@ -187,5 +187,14 @@
         setTimeout(post, 300); setTimeout(post, 1200);
     })();
 </script>
+
+{{-- Google address autocomplete on the address fields (key stays server-side via the proxy). --}}
+<script>
+    window.CET_PLACES_URL = "{{ route('public.book.places') }}";
+    window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
+    window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";
+    window.CET_REVERSE_URL = "{{ route('public.book.reverse') }}";
+</script>
+<script src="{{ asset('js/cet-forms.js') }}?v=35" defer></script>
 </body>
 </html>
