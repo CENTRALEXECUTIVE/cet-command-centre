@@ -716,6 +716,27 @@ class BookingWidgetTest extends TestCase
         $this->assertFalse($b->vatInvoiceRequested());
     }
 
+    public function test_a_one_way_with_an_explicit_card_choice_is_a_card_job(): void
+    {
+        // When the customer explicitly chooses CARD on a plain one-way, it's a card
+        // job (awaiting payment) — NOT cash-collect. The office then sees "Incomplete
+        // booking (awaiting payment)" and the driver collects nothing; markFarePaid()
+        // settles it when they pay. (Previously a card choice was silently stored as
+        // cash — regression guard.)
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Rotherham S60 1AA',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $exec->id, 'passengers' => 2,
+            'customer_name' => 'Card Carl', 'customer_phone' => '07464905385',
+            'payment_method' => 'card',
+        ])->assertOk();
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame('card', $b->payment_method->value);
+        $this->assertFalse($b->isCashCollectJob());
+    }
+
     public function test_booking_for_someone_else_makes_them_the_lead_passenger(): void
     {
         $exec = VehicleType::where('slug', 'executive')->first();

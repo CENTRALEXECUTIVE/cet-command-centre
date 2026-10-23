@@ -362,10 +362,13 @@
                     @if(!empty($quoteRequest))
                         <p class="cet-foot" style="margin-top:12px">No payment has been taken — this vehicle is quoted on request.</p>
                     @elseif(!empty($payUrl))
-                        <a href="{{ $payUrl }}" target="_top" class="cet-btn" style="display:block;margin-top:18px;text-decoration:none;text-align:center">
-                            Pay now to secure it{{ $payAmount ? ' · £'.number_format($payAmount, 0) : '' }}</a>
+                        @if(!empty($payWanted))
+                            <p style="color:var(--muted);margin:10px 0 2px">Taking you to secure payment…</p>
+                        @endif
+                        <a href="{{ $payUrl }}" target="_top" class="cet-btn" style="display:block;margin-top:14px;text-decoration:none;text-align:center">
+                            Pay now{{ $payAmount ? ' · £'.number_format($payAmount, 0) : '' }}</a>
                         <p class="cet-foot" style="margin-top:8px">Secure card payment by Square.
-                            @if(empty($payWanted))Prefer to pay later? No problem — we'll be in touch.@endif</p>
+                            @if(empty($payWanted))Prefer to pay later? No problem — we'll be in touch.@else If you're not taken there automatically, tap the button above.@endif</p>
                     @else
                         <p class="cet-foot" style="margin-top:12px">No payment has been taken — our office will confirm your journey and price.</p>
                     @endif
@@ -387,6 +390,19 @@
                     } };
                     if (window.parent && window.parent !== window) { window.parent.postMessage(msg, '*'); }
                 } catch (e) {}
+                @if(!empty($payUrl) && !empty($payWanted))
+                // Card booking — take them straight to the Square payment page in the
+                // TOP window (the checkout can't live inside the iframe). We wait a beat
+                // so the conversion ping above lands first; the on-page button is the
+                // fallback if the browser blocks the auto-navigation.
+                try {
+                    var _pay = @json($payUrl);
+                    setTimeout(function () {
+                        try { (window.top || window).location.href = _pay; }
+                        catch (e) { window.location.href = _pay; }
+                    }, 700);
+                } catch (e) {}
+                @endif
             })();
             </script>
         @else

@@ -485,11 +485,14 @@ class BookingWidgetController extends Controller
         // card/cash store the all-in charge the customer pays.
         $quotedPrice = $isAccount ? $afterDiscount : $charge;
 
-        // VAT-invoice bookings are ALWAYS card (never cash — the driver never collects
-        // cash on a VAT job), as are returns. Everything else keeps the cash default so
-        // the driver collects on the day. Account is invoiced monthly.
-        $effectiveMethod = $isAccount ? 'account' : (($isReturn || $needsInvoice) ? 'card' : 'cash');
-        $wantsCard = $effectiveMethod === 'card' || (! $isAccount && ($data['payment_method'] ?? 'cash') === 'card');
+        // VAT-invoice bookings and returns are ALWAYS card (the driver never collects
+        // cash on them). A plain one-way defaults to cash-collect UNLESS the customer
+        // explicitly chose to pay by card — then it's a CARD job (awaiting payment), so
+        // the office sees "Incomplete booking (awaiting payment)", the driver collects
+        // nothing, and markFarePaid() settles it when they pay. Account is invoiced monthly.
+        $chosenCard = ! $isAccount && (($data['payment_method'] ?? 'cash') === 'card');
+        $effectiveMethod = $isAccount ? 'account' : (($isReturn || $needsInvoice || $chosenCard) ? 'card' : 'cash');
+        $wantsCard = $effectiveMethod === 'card';
         // A discount code is recorded for the office even when we can't validate it
         // (they apply it on confirm); a valid one is already reflected in $charge.
         if (filled($data['voucher'] ?? null)) {
