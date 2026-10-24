@@ -103,6 +103,7 @@
                 'locationStoreUrl' => route('driver.link.location', $token),
                 'stopUrl' => route('driver.link.reach-stop', $token),
                 'ackCashUrl' => route('driver.link.ack-cash', $token),
+                'recordCashUrl' => route('driver.link.record-cash', $token),
                 'ackChildSeatsUrl' => route('driver.link.child-seats', $token),
                 'ackNotesUrl' => route('driver.link.notes-ack', $token),
                 'onItUrl' => route('driver.link.on-it', $token),

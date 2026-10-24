@@ -185,6 +185,22 @@ class JobController extends Controller
         return back()->with('status', 'Thanks — noted you’ll collect the cash.');
     }
 
+    /**
+     * Driver records the actual cash they collected (£). Logs a tracked cash
+     * transaction so the office always knows what's been paid and what's left.
+     * Admin-side only — the customer is never emailed about cash.
+     */
+    public function recordCash(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->authoriseOwnership($request, $booking);
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+        ]);
+        $booking->recordCashCollected((float) $data['amount'], $request->user());
+
+        return back()->with('status', 'Cash recorded: £'.number_format((float) $data['amount'], 2).'. Thanks.');
+    }
+
     /** Driver confirms they've collected the child seat(s) from the office. */
     public function confirmChildSeats(Request $request, Booking $booking): RedirectResponse
     {

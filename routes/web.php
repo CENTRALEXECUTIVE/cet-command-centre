@@ -301,6 +301,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('jobs/{booking}/status', [JobController::class, 'updateStatus'])->name('job.status');
         Route::post('jobs/{booking}/reach-stop', [JobController::class, 'reachStop'])->middleware('throttle:60,1')->name('job.reach-stop');
         Route::post('jobs/{booking}/ack-cash', [JobController::class, 'acknowledgeCash'])->middleware('throttle:60,1')->name('job.ack-cash');
+        Route::post('jobs/{booking}/record-cash', [JobController::class, 'recordCash'])->middleware('throttle:60,1')->name('job.record-cash');
         Route::post('jobs/{booking}/child-seats', [JobController::class, 'confirmChildSeats'])->middleware('throttle:60,1')->name('job.child-seats');
         Route::post('jobs/{booking}/notes-ack', [JobController::class, 'confirmNotes'])->middleware('throttle:60,1')->name('job.notes-ack');
         Route::post('jobs/{booking}/on-it', [JobController::class, 'confirmGettingReady'])->middleware('throttle:60,1')->name('job.on-it');
@@ -553,6 +554,8 @@ Route::post('job/{token}/reach-stop', [\App\Http\Controllers\Driver\LinkControll
     ->middleware('throttle:60,1')->name('driver.link.reach-stop');
 Route::post('job/{token}/ack-cash', [\App\Http\Controllers\Driver\LinkController::class, 'acknowledgeCash'])
     ->middleware('throttle:60,1')->name('driver.link.ack-cash');
+Route::post('job/{token}/record-cash', [\App\Http\Controllers\Driver\LinkController::class, 'recordCash'])
+    ->middleware('throttle:60,1')->name('driver.link.record-cash');
 Route::post('job/{token}/child-seats', [\App\Http\Controllers\Driver\LinkController::class, 'confirmChildSeats'])
     ->middleware('throttle:60,1')->name('driver.link.child-seats');
 Route::post('job/{token}/notes-ack', [\App\Http\Controllers\Driver\LinkController::class, 'confirmNotes'])

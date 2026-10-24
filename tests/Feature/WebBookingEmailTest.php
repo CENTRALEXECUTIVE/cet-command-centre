@@ -149,7 +149,7 @@ class WebBookingEmailTest extends TestCase
         $html = (new BookingConfirmationMail($booking, paid: false, payUrl: 'https://pay.example/x'))->render();
 
         $this->assertStringContainsString('Includes VAT', $html);
-        $this->assertStringContainsString('(Card)', $html);
+        $this->assertStringContainsString('Awaiting payment', $html);
         // Unpaid card booking is on hold until paid, with a Complete-payment link.
         $this->assertStringContainsString('Complete payment', $html);
         $this->assertStringContainsString('on hold', $html);
@@ -173,7 +173,7 @@ class WebBookingEmailTest extends TestCase
 
         $html = (new BookingConfirmationMail($booking, paid: false, payUrl: 'https://pay.example/x'))->render();
 
-        $this->assertStringContainsString('(Card)', $html);
+        $this->assertStringContainsString('Awaiting payment', $html);
         $this->assertStringNotContainsString('Includes VAT', $html);
         // The fare is the plain £105 — never marked up by 20% for a non-VAT card job.
         $this->assertStringContainsString('£105.00', $html);

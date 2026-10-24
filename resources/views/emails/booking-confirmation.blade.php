@@ -80,29 +80,30 @@
         <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
             {!! $row('Reference number:', $ref) !!}
             {!! $row('Booking date:', ($booking->created_at ?? now())->format('d/m/Y H:i')) !!}
-            {!! $row('Summary:', 'Journey £'.number_format($gross, 2)) !!}
-            {!! $row('Total:', '£'.number_format($gross, 2)) !!}
-            @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
-                {!! $row('Includes VAT:', '£'.number_format($vat['vat'], 2).' (net £'.number_format($vat['net'], 2).')') !!}
-            @endif
-            <tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top">Payment:</td>
-                <td style="padding:4px 0;color:#111">
-                    @if($isAccount)
-                        £{{ number_format($gross, 2) }} — <strong>Billed to your business account</strong>
-                    @elseif($isCash)
-                        £{{ number_format($gross, 2) }} — <strong>Pay the driver on the day (cash)</strong>
-                    @else
-                        £{{ number_format($gross, 2) }} (Card) —
-                        <strong style="color:{{ $paid ? '#1f7a44' : '#b9770a' }}">{{ $paid ? 'Paid' : 'Awaiting payment — booking on hold' }}</strong>
-                        @if(! $paid && $payUrl)
-                            <br><a href="{{ $payUrl }}" style="display:inline-block;margin-top:8px;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment →</a>
-                        @endif
-                    @endif
-                </td></tr>
-            @unless($isCash || $isAccount)
-                {!! $row('Amount due:', '£'.number_format($paid ? 0 : $gross, 2)) !!}
-            @endunless
         </table>
+
+        {{-- Payment: what they've just paid + total / paid / remaining, with a line per payment --}}
+        <div style="margin-top:14px">
+            @if($paid)
+                @php $lastPaid = $booking->payments->where('status', 'paid')->sortByDesc('paid_at')->first(); @endphp
+                @if($lastPaid)
+                    <p style="margin:0 0 10px;font-size:15px;color:#1f7a44;font-weight:700">&#10003; Payment received: £{{ number_format((float) $lastPaid->amount, 2) }}{{ $lastPaid->method === 'card' ? ' by card' : '' }}</p>
+                @endif
+            @elseif($isCash)
+                <p style="margin:0 0 10px;font-size:15px;color:#b9770a;font-weight:700">Pay the driver on the day (cash)</p>
+            @elseif($isAccount)
+                <p style="margin:0 0 10px;font-size:15px;color:#12558c;font-weight:700">Billed to your business account</p>
+            @else
+                <p style="margin:0 0 10px;font-size:15px;color:#b9770a;font-weight:700">Awaiting payment — booking on hold</p>
+            @endif
+            @include('emails._payments')
+            @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
+                <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($vat['vat'], 2) }} (net £{{ number_format($vat['net'], 2) }}).</p>
+            @endif
+            @if(! $paid && ! $isCash && ! $isAccount && $payUrl)
+                <p style="margin:12px 0 0"><a href="{{ $payUrl }}" style="display:inline-block;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment &rarr;</a></p>
+            @endif
+        </div>
     </td></tr>
 
     {{-- Important info --}}

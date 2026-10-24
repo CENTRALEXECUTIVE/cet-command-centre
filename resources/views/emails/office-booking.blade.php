@@ -107,6 +107,12 @@
         </table>
     </td></tr>
 
+    {{-- Payment breakdown — total / paid / remaining + a line per payment --}}
+    <tr><td style="padding:20px 28px 0">
+        <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:8px">Payment</div>
+        @include('emails._payments')
+    </td></tr>
+
     {{-- Notes (office / customer / calendar) — highlighted, because they matter --}}
     @php $notes = $booking->driverReadNotes(); @endphp
     @if(filled($notes))

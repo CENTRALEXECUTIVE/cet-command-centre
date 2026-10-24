@@ -112,6 +112,18 @@ class LinkController extends Controller
         return back()->with('status', 'Thanks — noted you’ll collect the cash.');
     }
 
+    /** Driver records the actual cash collected (admin tracking; no customer email). */
+    public function recordCash(Request $request, string $token): RedirectResponse
+    {
+        $booking = $this->resolve($token);
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+        ]);
+        $booking->recordCashCollected((float) $data['amount'], $booking->driver);
+
+        return back()->with('status', 'Cash recorded: £'.number_format((float) $data['amount'], 2).'. Thanks.');
+    }
+
     /** Driver confirms they've collected the child seat(s) from the office. */
     public function confirmChildSeats(string $token): RedirectResponse
     {

@@ -9,6 +9,7 @@
     $locationStoreUrl = $locationStoreUrl ?? route('driver.locations.store');
     $stopUrl = $stopUrl ?? route('driver.job.reach-stop', $booking);
     $ackCashUrl = $ackCashUrl ?? route('driver.job.ack-cash', $booking);
+    $recordCashUrl = $recordCashUrl ?? route('driver.job.record-cash', $booking);
     $ackChildSeatsUrl = $ackChildSeatsUrl ?? route('driver.job.child-seats', $booking);
     $ackNotesUrl = $ackNotesUrl ?? route('driver.job.notes-ack', $booking);
     $onItUrl = $onItUrl ?? route('driver.job.on-it', $booking);
@@ -211,6 +212,24 @@
             </form>
         </div>
     @endif
+    {{-- Record the ACTUAL cash taken (may differ from what's due — e.g. customer
+         only had £90 of a £105 balance). Logs a tracked transaction so the office
+         always knows what's been paid and what's left. No customer email. --}}
+    <div class="card" style="border-left:4px solid #b8860b;margin-bottom:16px">
+        <div style="font-weight:700;font-size:14px">💷 Record the cash you collected</div>
+        <form method="POST" action="{{ $recordCashUrl }}" style="margin-top:8px">
+            @csrf
+            <div style="display:flex;gap:8px">
+                <input type="number" step="0.01" min="0" name="amount" inputmode="decimal"
+                    value="{{ number_format((float) ($booking->cashDueToDriver() ?? 0), 2, '.', '') }}"
+                    style="flex:1;padding:11px;border:1px solid #ccc;border-radius:8px;font-size:16px">
+                <button type="submit" class="btn" style="padding:11px 18px;font-size:15px">Record</button>
+            </div>
+            @if($booking->cashCollectedTotal() > 0)
+                <div class="muted" style="font-size:12px;margin-top:6px">Already recorded: <strong>£{{ number_format($booking->cashCollectedTotal(), 2) }}</strong></div>
+            @endif
+        </form>
+    </div>
 @elseif($booking->paymentNeedsChecking())
     {{-- FAILSAFE: a balance may be owed but we couldn't read the exact amount.
          Never let the driver assume it's paid — tell them to confirm. --}}

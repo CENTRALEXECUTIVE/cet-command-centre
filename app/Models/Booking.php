@@ -4681,6 +4681,44 @@ class Booking extends Model
         return $at ? \Illuminate\Support\Carbon::parse($at) : null;
     }
 
+    /**
+     * Driver records the CASH they actually collected from the customer (£). Logs
+     * a PAID cash transaction on the ledger so Paid/Due stays accurate (e.g. a £105
+     * balance where the driver takes £90 leaves £15 still due), and reconciles the
+     * headline status. Admin-side tracking only — the customer is NOT emailed (they
+     * know what they handed over). Returns the created transaction, or null if £0.
+     */
+    public function recordCashCollected(float $amount, ?User $by = null): ?Payment
+    {
+        if ($amount <= 0) {
+            return null;
+        }
+        $payment = $this->payments()->create([
+            'method' => 'cash',
+            'amount' => round($amount, 2),
+            'status' => 'paid',
+            'paid_at' => now(),
+            'meta' => array_filter([
+                'name' => 'Cash to driver',
+                'by' => $by?->id,
+                'source' => 'driver',
+            ], fn ($v) => $v !== null),
+        ]);
+        $this->load('payments');
+        $this->reconcilePaymentStatusFromTransactions();
+
+        return $payment;
+    }
+
+    /** Total cash the driver has recorded as collected on this job (£). */
+    public function cashCollectedTotal(): float
+    {
+        return (float) $this->payments
+            ->where('method', 'cash')
+            ->where('status', 'paid')
+            ->sum('amount');
+    }
+
     /* ---- Child-seat collection ----------------------------------------------
      * A job carrying a child/booster/infant seat needs the driver to physically
      * pick the seat up from the office. The driver confirms on their link; until
