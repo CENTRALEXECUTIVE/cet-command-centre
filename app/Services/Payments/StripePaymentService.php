@@ -52,8 +52,14 @@ class StripePaymentService
     }
 
     /**
-     * A Stripe-hosted Checkout URL to pay this booking's fare, or null if
-     * unavailable. $label sets the line-item name shown at checkout.
+     * A Stripe-hosted URL to pay this booking's fare, or null if unavailable.
+     * $label sets the line-item name shown at checkout.
+     *
+     * Uses a durable Stripe PAYMENT LINK (not a Checkout Session) so the invoice
+     * the office sends a customer does NOT expire after 24h — a Checkout Session
+     * link went dead within a day, forcing the office to resend a fresh link,
+     * which looked unprofessional. A Payment Link stays live until it's paid.
+     * Falls back to a Checkout Session only if the payment link can't be made.
      */
     public function createCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null, ?string $label = null): ?string
     {
@@ -65,29 +71,104 @@ class StripePaymentService
         // Stripe is the NON-VAT provider → bill under the sister company, PVT LTD.
         $name = ($label ? trim($label) : 'Journey fare').' — '.config('cet.company_novat.name', 'Central Executive Transfers PVT LTD').' ('.$booking->reference.')';
 
+        $link = $this->createPaymentLink($name, $amount, self::FARE_PREFIX.$reference, $redirectUrl, [
+            'reference' => $reference,
+            'cet_booking' => (string) $booking->id,
+        ]);
+
+        return $link ?: $this->createCheckoutSession($name, $amount, self::FARE_PREFIX.$reference, $redirectUrl, [
+            'reference' => $reference,
+            'cet_booking' => (string) $booking->id,
+        ]);
+    }
+
+    /**
+     * Create a durable, non-expiring Stripe Payment Link for a one-off amount and
+     * return its URL. Payment Links require a Price (not inline price_data), so we
+     * first mint an inline product+price, then build a single-use link that carries
+     * our reference back on the resulting checkout.session.completed webhook via the
+     * ?client_reference_id query param. Null on any failure, so the caller can fall
+     * back to a Checkout Session.
+     */
+    private function createPaymentLink(string $name, float $amount, string $clientRef, ?string $redirectUrl, array $metadata = []): ?string
+    {
         try {
-            $res = $this->http()->post(self::API.'/checkout/sessions', array_filter([
+            // 1) Inline product + price in one call.
+            $price = $this->http()->post(self::API.'/prices', [
+                'currency' => 'gbp',
+                'unit_amount' => (string) ((int) round($amount * 100)),
+                'product_data[name]' => $name,
+            ]);
+            if ($price->failed() || ! $price->json('id')) {
+                Log::warning('[Stripe] price create failed', ['status' => $price->status(), 'body' => $price->body()]);
+
+                return null;
+            }
+
+            // 2) Single-use payment link that never expires.
+            $params = [
+                'line_items[0][price]' => (string) $price->json('id'),
+                'line_items[0][quantity]' => '1',
+                'restrictions[completed_sessions][limit]' => '1',
+            ];
+            foreach ($metadata as $k => $v) {
+                $params['metadata['.$k.']'] = (string) $v;
+            }
+            if ($redirectUrl) {
+                $params['after_completion[type]'] = 'redirect';
+                $params['after_completion[redirect][url]'] = $redirectUrl;
+            }
+
+            $res = $this->http()->post(self::API.'/payment_links', array_filter($params, fn ($v) => $v !== null && $v !== ''));
+            if ($res->failed() || ! $res->json('url')) {
+                Log::warning('[Stripe] payment link failed', ['status' => $res->status(), 'body' => $res->body()]);
+
+                return null;
+            }
+
+            // The checkout.session.completed event copies client_reference_id from
+            // this query param, so the fare webhook can match the booking.
+            $url = (string) $res->json('url');
+
+            return $url.(str_contains($url, '?') ? '&' : '?').'client_reference_id='.rawurlencode($clientRef);
+        } catch (\Throwable $e) {
+            Log::warning('[Stripe] payment link error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Fallback: a one-shot Stripe Checkout Session (expires within 24h). Used only
+     * when a durable payment link can't be created.
+     */
+    private function createCheckoutSession(string $name, float $amount, string $clientRef, ?string $redirectUrl, array $metadata = []): ?string
+    {
+        try {
+            $params = [
                 'mode' => 'payment',
                 'success_url' => $redirectUrl ?: config('app.url'),
                 'cancel_url' => $redirectUrl ?: config('app.url'),
-                'client_reference_id' => self::FARE_PREFIX.$reference,
-                'metadata[reference]' => $reference,
-                'metadata[cet_booking]' => (string) $booking->id,
+                'client_reference_id' => $clientRef,
                 'line_items[0][quantity]' => '1',
                 'line_items[0][price_data][currency]' => 'gbp',
                 'line_items[0][price_data][unit_amount]' => (string) ((int) round($amount * 100)),
                 'line_items[0][price_data][product_data][name]' => $name,
-            ], fn ($v) => $v !== null && $v !== ''));
+            ];
+            foreach ($metadata as $k => $v) {
+                $params['metadata['.$k.']'] = (string) $v;
+            }
 
+            $res = $this->http()->post(self::API.'/checkout/sessions', array_filter($params, fn ($v) => $v !== null && $v !== ''));
             if ($res->failed()) {
-                Log::warning('[Stripe] checkout link failed', ['status' => $res->status(), 'body' => $res->body()]);
+                Log::warning('[Stripe] checkout session failed', ['status' => $res->status(), 'body' => $res->body()]);
 
                 return null;
             }
 
             return $res->json('url');
         } catch (\Throwable $e) {
-            Log::warning('[Stripe] checkout link error: '.$e->getMessage());
+            Log::warning('[Stripe] checkout session error: '.$e->getMessage());
 
             return null;
         }
@@ -108,32 +189,14 @@ class StripePaymentService
             return null;
         }
 
-        try {
-            $res = $this->http()->post(self::API.'/checkout/sessions', array_filter([
-                'mode' => 'payment',
-                'success_url' => $redirectUrl ?: config('app.url'),
-                'cancel_url' => $redirectUrl ?: config('app.url'),
-                'client_reference_id' => self::COVER_PREFIX.$reference,
-                'line_items[0][quantity]' => '1',
-                'line_items[0][price_data][currency]' => 'gbp',
-                'line_items[0][price_data][unit_amount]' => (string) ((int) round($amount * 100)),
-                // Stripe is the NON-VAT provider → bill under the sister company,
-                // Central Executive Transfers PVT LTD, not the VAT company.
-                'line_items[0][price_data][product_data][name]' => trim($label).' — '.config('cet.company_novat.name', 'Central Executive Transfers PVT LTD').' ('.$reference.')',
-            ], fn ($v) => $v !== null && $v !== ''));
+        // Stripe is the NON-VAT provider → bill under the sister company,
+        // Central Executive Transfers PVT LTD, not the VAT company.
+        $name = trim($label).' — '.config('cet.company_novat.name', 'Central Executive Transfers PVT LTD').' ('.$reference.')';
 
-            if ($res->failed()) {
-                Log::warning('[Stripe] cover link failed', ['status' => $res->status(), 'body' => $res->body()]);
-
-                return null;
-            }
-
-            return $res->json('url');
-        } catch (\Throwable $e) {
-            Log::warning('[Stripe] cover link error: '.$e->getMessage());
-
-            return null;
-        }
+        // Durable payment link so a cover invoice sent to an operator doesn't die
+        // after 24h; Checkout Session only as a fallback.
+        return $this->createPaymentLink($name, $amount, self::COVER_PREFIX.$reference, $redirectUrl)
+            ?: $this->createCheckoutSession($name, $amount, self::COVER_PREFIX.$reference, $redirectUrl);
     }
 
     /**

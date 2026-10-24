@@ -26,21 +26,48 @@ class StripeSisterPaymentTest extends TestCase
         ]);
     }
 
-    public function test_it_creates_a_stripe_checkout_link(): void
+    public function test_it_creates_a_durable_stripe_payment_link(): void
     {
         $this->enableStripe();
-        Http::fake(['api.stripe.com/*' => Http::response(['url' => 'https://checkout.stripe.com/pay/cs_test_1'], 200)]);
+        // A Payment Link is built from a Price, then the link itself. Unlike a
+        // Checkout Session it does NOT expire, so the invoice stays payable.
+        Http::fake([
+            'api.stripe.com/v1/prices' => Http::response(['id' => 'price_123'], 200),
+            'api.stripe.com/v1/payment_links' => Http::response(['id' => 'plink_1', 'url' => 'https://buy.stripe.com/test_abc'], 200),
+        ]);
+
+        $booking = Booking::factory()->create(['reference' => 'CET-NOVAT']);
+        $url = app(StripePaymentService::class)->createCheckoutUrl($booking, 120.0, 'https://app/redirect', 'Journey fare');
+
+        // The non-expiring buy.stripe.com link, with our FARE reference carried on
+        // the query param so the webhook can match the booking.
+        $this->assertStringStartsWith('https://buy.stripe.com/test_abc', $url);
+        $this->assertStringContainsString('client_reference_id=FARE-CET-NOVAT', $url);
+
+        // Price is in pence; the link is single-use; no Checkout Session is created.
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/v1/prices')
+            && str_contains(urldecode(http_build_query($req->data())), 'unit_amount=12000'));
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/v1/payment_links')
+            && str_contains(urldecode(http_build_query($req->data())), 'completed_sessions][limit]=1'));
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), '/checkout/sessions'));
+    }
+
+    public function test_it_falls_back_to_a_checkout_session_if_the_link_fails(): void
+    {
+        $this->enableStripe();
+        // Price creation fails → fall back to a one-shot Checkout Session so a link
+        // is still produced rather than nothing.
+        Http::fake([
+            'api.stripe.com/v1/prices' => Http::response(['error' => 'nope'], 400),
+            'api.stripe.com/v1/checkout/sessions' => Http::response(['url' => 'https://checkout.stripe.com/pay/cs_test_1'], 200),
+        ]);
 
         $booking = Booking::factory()->create(['reference' => 'CET-NOVAT']);
         $url = app(StripePaymentService::class)->createCheckoutUrl($booking, 120.0, 'https://app/redirect', 'Journey fare');
 
         $this->assertSame('https://checkout.stripe.com/pay/cs_test_1', $url);
-        // Amount is in pence, with our FARE reference on the session.
-        Http::assertSent(function ($req) {
-            $body = urldecode(http_build_query($req->data()));
-            return str_contains($body, 'unit_amount]=12000')
-                && str_contains($body, 'FARE-CET-NOVAT');
-        });
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/checkout/sessions')
+            && str_contains(urldecode(http_build_query($req->data())), 'FARE-CET-NOVAT'));
     }
 
     public function test_it_is_a_silent_noop_until_configured(): void
