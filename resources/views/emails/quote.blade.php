@@ -89,7 +89,7 @@
           <td style="padding:22px 32px 30px;">
             <div style="border-top:1px solid #ececec;padding-top:16px;font-size:11px;color:#8a8a8a;line-height:1.7;">
               <strong style="color:#333333;">{{ config('cet.company.name') }}</strong><br>
-              Company No. {{ config('cet.company.number') }} · Operator Licence {{ config('cet.company.operator_licence') }}@if(trim((string) \App\Support\InvoiceProfile::company()['vat_number'])) · VAT {{ \App\Support\InvoiceProfile::company()['vat_number'] }}@endif
+              Company No. {{ config('cet.company.number') }}@if(trim((string) \App\Support\InvoiceProfile::company()['vat_number'])) · VAT {{ \App\Support\InvoiceProfile::company()['vat_number'] }}@endif
             </div>
           </td>
         </tr>

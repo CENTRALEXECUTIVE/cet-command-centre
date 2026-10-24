@@ -41,7 +41,7 @@
                 @endif
             </p>
         </div>
-        <p class="site-footer" style="border:none">Central Executive Transfers Ltd · Operator Licence {{ config('cet.company.operator_licence') }}</p>
+        <p class="site-footer" style="border:none">Central Executive Transfers Ltd</p>
     </main>
 
     <div id="track-config" data-url="{{ route('track.location', $booking->trackingLink?->token ?? '') }}" hidden></div>

@@ -31,5 +31,5 @@ Thank you for travelling with us.
 @endif
 
 {{ config('cet.company.name') }}<br>
-Company No. {{ config('cet.company.number') }} · Operator Licence {{ config('cet.company.operator_licence') }}
+Company No. {{ config('cet.company.number') }}
 </x-mail::message>

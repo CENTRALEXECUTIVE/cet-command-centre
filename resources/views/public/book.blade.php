@@ -261,7 +261,7 @@
     </form>
 </div>
 
-<footer class="wrap"><b>Central Executive Transfers Ltd</b> · Operator Licence OP037 · 07405 172435 · centralexecutivetransfers.co.uk</footer>
+<footer class="wrap"><b>Central Executive Transfers Ltd</b> · 07405 172435 · centralexecutivetransfers.co.uk</footer>
 
 {{-- Google address autocomplete on the pickup/drop-off fields, via the server
      proxy (the Google key never reaches the browser). Falls back silently to a

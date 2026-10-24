@@ -24,5 +24,5 @@ Payment due by **{{ $inv->due_at?->format('d M Y') }}**.
 Thank you for your business.
 
 {{ config('cet.company.name') }}<br>
-Company No. {{ config('cet.company.number') }} · Operator Licence {{ config('cet.company.operator_licence') }}
+Company No. {{ config('cet.company.number') }}
 </x-mail::message>

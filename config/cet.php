@@ -10,7 +10,7 @@ return [
     'company' => [
         'name' => 'Central Executive Transfers Ltd',
         'number' => '15749931',
-        'operator_licence' => 'OP037',
+        'operator_licence' => '',
         'licensing_authority' => 'Sheffield City Council',
         'website' => 'centralexecutivetransfers.co.uk',
         // VAT registration number — set CET_VAT_NUMBER in .env once you have it

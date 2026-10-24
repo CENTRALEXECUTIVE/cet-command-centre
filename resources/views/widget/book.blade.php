@@ -314,7 +314,7 @@
         <div class="cet-tagline-top">
             <div class="k">Central Executive Transfers</div>
             <div class="t">Book your executive journey</div>
-            <div class="s">Sheffield's premium chauffeur service · Licensed Operator OP037</div>
+            <div class="s">Sheffield's premium chauffeur service</div>
         </div>
 
         <div class="cet-widget" id="cet-widget">

@@ -102,7 +102,7 @@
 
             <div class="brand">
                 <b>Central Executive Transfers Ltd</b><br>
-                Operator Licence OP037 · <a href="tel:+447405172435">07405 172435</a> · centralexecutivetransfers.co.uk
+                <a href="tel:+447405172435">07405 172435</a> · centralexecutivetransfers.co.uk
             </div>
         </div>
     </div>

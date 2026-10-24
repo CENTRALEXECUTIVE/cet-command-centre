@@ -143,7 +143,7 @@
     <tr><td style="padding:10px 28px 24px;text-align:center">
         <div style="color:#9a9a9a;font-size:12px;line-height:1.7">
             <strong style="color:#444">Central Executive Transfers Ltd</strong><br>
-            Operator Licence OP037 · 07405 172435
+            07405 172435
         </div>
     </td></tr>
 
