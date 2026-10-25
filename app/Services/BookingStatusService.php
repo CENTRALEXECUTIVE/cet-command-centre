@@ -233,23 +233,34 @@ class BookingStatusService
         $this->emailPaidConfirmation($fresh);
         $this->emailOffice($fresh->fresh(), 'paid');
 
-        // A return is paid in one go — the pay link charges the whole trip's total,
-        // so settle EVERY other leg on the same invoice too. Each is marked paid for
-        // its OWN fare and gets its own paid confirmation (£105 on one, £115 on the
-        // other), and the combined invoice then reads "Paid in full". Guarded so a
-        // leg already paid (or a one-way with no linked leg) is left untouched.
-        $basePaymentId = $fresh->meta['square_payment']['id'] ?? ('GRP-'.$fresh->id);
-        $entity = $fresh->meta['square_payment']['entity'] ?? null;
-        foreach ($fresh->invoiceGroupBookings() as $leg) {
-            if ($leg->is($fresh) || $leg->fareIsPaid()) {
-                continue;
+        // A return CAN be paid in one go (the combined pay link charges the whole
+        // trip) — but a leg is also often paid on its OWN. Only settle the other
+        // legs when THIS payment actually covered the whole group total; never mark a
+        // sibling paid off a single-leg payment (that falsely showed the unpaid
+        // return as paid and emailed the customer). The amount recorded on this leg
+        // is the authority.
+        $group = $fresh->invoiceGroupBookings();
+        if ($group->count() > 1) {
+            $thisPaid = (float) ($fresh->meta['square_payment']['amount'] ?? 0);
+            if ($thisPaid <= 0) {
+                $thisPaid = (float) $fresh->transactionsPaidTotal();
             }
-            $leg->markFarePaid($basePaymentId.'-L'.$leg->id, (float) ($leg->fareGross() ?? 0), $entity);
-            $leg = $leg->fresh();
-            $leg->reconcilePaidStatus();
-            $this->confirmPaidWebBooking($leg->fresh());
-            $this->emailPaidConfirmation($leg->fresh());
-            $this->emailOffice($leg->fresh(), 'paid');
+            $groupTotal = round($group->sum(fn (Booking $b) => (float) ($b->fareGross() ?? 0)), 2);
+            // Only cascade when the payment genuinely covers the whole trip.
+            if ($groupTotal > 0 && $thisPaid + 0.01 >= $groupTotal) {
+                $basePaymentId = $fresh->meta['square_payment']['id'] ?? ('GRP-'.$fresh->id);
+                $entity = $fresh->meta['square_payment']['entity'] ?? null;
+                foreach ($group as $leg) {
+                    if ($leg->is($fresh) || $leg->fareIsPaid()) {
+                        continue;
+                    }
+                    $leg->markFarePaid($basePaymentId.'-L'.$leg->id, (float) ($leg->fareGross() ?? 0), $entity);
+                    $leg->fresh()->reconcilePaidStatus();
+                    // Mark it paid + confirm the web booking, but DON'T send a second
+                    // customer email — this one payment already got one confirmation.
+                    $this->confirmPaidWebBooking($leg->fresh());
+                }
+            }
         }
 
         return $fresh->fresh();

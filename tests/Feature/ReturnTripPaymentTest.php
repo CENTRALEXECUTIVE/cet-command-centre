@@ -55,6 +55,22 @@ class ReturnTripPaymentTest extends TestCase
         $this->assertEqualsWithDelta(0.0, (float) $out->fresh()->transactionsAmountDue(), 0.01);
     }
 
+    public function test_paying_one_leg_on_its_own_does_NOT_mark_the_other_paid(): void
+    {
+        // The failsafe: the outbound is paid for ITS OWN fare (£115), not the whole
+        // trip — so the unpaid return (£105) must stay unpaid. (Previously this wrongly
+        // marked the return paid and emailed the customer.)
+        \Illuminate\Support\Facades\Mail::fake();
+        [$out, $ret] = $this->returnPair();
+
+        $out->markFarePaid('pi_out_only', 115, 'chauffeurs'); // just this leg's fare
+        app(BookingStatusService::class)->onFarePaid($out->fresh());
+
+        $this->assertTrue($out->fresh()->fareIsPaid());
+        $this->assertFalse($ret->fresh()->fareIsPaid(), 'the return must NOT be settled by a single-leg payment');
+        $this->assertSame('pending', $ret->fresh()->payment_status);
+    }
+
     public function test_the_pay_link_charges_the_whole_trip_total(): void
     {
         config(['services.stripe.secret_key' => 'sk_test_123']);

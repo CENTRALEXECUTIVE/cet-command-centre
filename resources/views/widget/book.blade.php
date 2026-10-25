@@ -573,13 +573,13 @@
                              "No" is the standard price. Must be chosen before continuing. --}}
                         <div class="cet-field" id="b-vat-field">
                             <label>Do you need a business (VAT) invoice?</label>
-                            <label class="cet-pay" id="b-vat-yes-wrap">
-                                <input type="radio" name="vat_invoice" id="b-vat-yes" value="1">
-                                <span class="t"><b>Yes</b><span class="opt"> — I’ll reclaim VAT ({{ $vatPercent ?? 20 }}% VAT added, VAT invoice provided)</span></span>
-                            </label>
                             <label class="cet-pay" id="b-vat-no-wrap">
                                 <input type="radio" name="vat_invoice" id="b-vat-no" value="0">
                                 <span class="t"><b>No</b><span class="opt"> — standard price, no VAT reclaim needed</span></span>
+                            </label>
+                            <label class="cet-pay" id="b-vat-yes-wrap">
+                                <input type="radio" name="vat_invoice" id="b-vat-yes" value="1">
+                                <span class="t"><b>Yes</b><span class="opt"> — I’ll reclaim VAT ({{ $vatPercent ?? 20 }}% VAT added, VAT invoice provided)</span></span>
                             </label>
                         </div>
 
@@ -1394,6 +1394,7 @@
             // one-way price for a return. Airport arrivals include the mandatory meet
             // & greet once.
             function renderPrices() {
+                if (!priceById) return; // not fetched yet (e.g. on first load) — nothing to paint
                 form.querySelectorAll('.cet-veh').forEach(function (card) {
                     var el = card.querySelector('[data-price]'); if (!el) return;
                     var o = priceById[card.dataset.id];
