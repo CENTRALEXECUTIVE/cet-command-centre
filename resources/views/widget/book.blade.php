@@ -630,17 +630,26 @@
                                 <input id="b-biz-vat" name="business_vat_number" autocomplete="off" disabled placeholder="e.g. GB123456789" style="text-transform:uppercase"></div>
                         </div>
 
-                        {{-- Extras — compact. Meet & greet appears (pre-ticked) only for airport
-                             journeys; child seats hide behind a tick, max 2 in total. --}}
+                        {{-- Flight details — a PROMINENT section of its own (not an "extra"),
+                             because it's important: for an airport journey we track the
+                             flight and set the pickup to the landing time. Shown only when
+                             the journey touches an airport (toggled in applyAirportMeetGreet). --}}
+                        <div id="b-flight-section" hidden>
+                            <div class="cet-mini-title">✈️ Flight details <span class="opt">— so we can track your flight</span></div>
+                            <div class="cet-field" id="b-flight-field" hidden>
+                                <label for="b-flight"><span id="b-flight-label">Flight number</span> <span class="opt" id="b-flight-opt">— for airport journeys (we track it)</span></label>
+                                <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
+                            </div>
+                            <div class="cet-field" id="b-flight-landing-field" hidden>
+                                <label for="b-flight-landing"><span id="b-flight-landing-label">Flight landing time</span> <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
+                                <input id="b-flight-landing" name="flight_landing_at" type="datetime-local">
+                            </div>
+                            <p class="cet-foot" style="text-align:left;margin:2px 0 0">We track your flight and adjust the pickup if it lands early or late — at no extra charge.</p>
+                        </div>
+
+                        {{-- Extras — just the real add-ons (child seats, wedding ribbons). Meet
+                             & greet is applied automatically for airport arrivals, not here. --}}
                         <div class="cet-mini-title">Extras <span class="opt">(optional)</span></div>
-                        <div class="cet-field" id="b-flight-field" hidden>
-                            <label for="b-flight"><span id="b-flight-label">Flight number</span> <span class="opt" id="b-flight-opt">— for airport journeys (we track it)</span></label>
-                            <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
-                        </div>
-                        <div class="cet-field" id="b-flight-landing-field" hidden>
-                            <label for="b-flight-landing"><span id="b-flight-landing-label">Flight landing time</span> <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
-                            <input id="b-flight-landing" name="flight_landing_at" type="datetime-local">
-                        </div>
                         <div class="cet-xtras">
                             <label class="cet-check cet-check-sm" id="b-mg-wrap" hidden>
                                 <input type="checkbox" id="b-meet-greet" name="meet_greet" value="1" data-extra="{{ (float) ($sc['meet_greet'] ?? 0) }}">
@@ -1398,8 +1407,11 @@
                 var le = document.getElementById('b-flight-landing');
                 var llabel = document.getElementById('b-flight-landing-label');
 
-                // Show the flight field for any airport journey; require it (and landing)
-                // for arrivals/returns; a plain one-way DEPARTURE is optional, no landing.
+                // Show the whole Flight details section (and its fields) for any airport
+                // journey; require the number + landing for arrivals/returns; a plain
+                // one-way DEPARTURE is optional, no landing.
+                var fsec = document.getElementById('b-flight-section');
+                if (fsec) fsec.hidden = !anyAir;
                 if (ff) ff.hidden = !anyAir;
                 if (fe) fe.dataset.required = arrival ? '1' : '';
                 if (lf) lf.hidden = !arrival;
