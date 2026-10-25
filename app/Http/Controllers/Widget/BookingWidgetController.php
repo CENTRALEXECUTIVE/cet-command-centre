@@ -631,8 +631,13 @@ class BookingWidgetController extends Controller
 
         // Confirmation email to the customer who just used our widget — strictly
         // web-only and off by default (see CustomerBookingMailer). Never reaches
-        // ETO/existing customers.
-        app(\App\Services\Messaging\CustomerBookingMailer::class)->confirmIfWebBooking($booking);
+        // ETO/existing customers. On a return we confirm BOTH legs, so the customer
+        // gets a confirmation + tap-to-pay link for the outbound AND the return.
+        $mailer = app(\App\Services\Messaging\CustomerBookingMailer::class);
+        $mailer->confirmIfWebBooking($booking);
+        if ($isReturn && isset($return)) {
+            $mailer->confirmIfWebBooking($return->fresh());
+        }
 
         // Tell the office at once — a web request needs a human to confirm.
         $name = $customer->name;

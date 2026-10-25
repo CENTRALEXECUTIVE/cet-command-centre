@@ -62,8 +62,22 @@ class CustomerBookingMailer
             return false;
         }
 
+        // A stable "tap to pay" link for an unpaid card booking, so the confirmation
+        // lets the customer pay the amount due straight away — each leg of a return
+        // is its own booking, so each gets its own confirmation with its own link
+        // (outbound …A, return …B). Only when that booking's card provider is live
+        // and there's a balance to take; cash/account/paid get no link.
+        $payUrl = null;
+        $due = (float) ($booking->transactionsAmountDue() ?? $booking->amountPayable() ?? 0);
+        if (($booking->payment_method?->value ?? null) === 'card'
+            && ! $booking->fareIsPaid()
+            && $due > 0
+            && app(\App\Services\Payments\PaymentGateway::class)->enabledForBooking($booking)) {
+            $payUrl = \Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $booking->id]);
+        }
+
         try {
-            Mail::to($email)->send(new BookingConfirmationMail($booking));
+            Mail::to($email)->send(new BookingConfirmationMail($booking, paid: false, payUrl: $payUrl));
         } catch (\Throwable $e) {
             \App\Support\MailFailure::report('customer booking confirmation', $e, $booking);
 
