@@ -93,6 +93,10 @@
                 <input type="checkbox" name="customer_emails" value="1" @checked($emailsOn) style="width:20px;height:20px">
                 Send automatic confirmation emails for website-widget bookings
             </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;margin-top:12px">
+                <input type="checkbox" name="show_hourly" value="1" @checked($hourlyOn ?? false) style="width:20px;height:20px">
+                Offer “Hourly hire (as directed)” as a journey type on the booking form
+            </label>
             <button class="btn btn-primary" style="margin-top:12px;padding:8px 16px">Save</button>
             <span class="hint" style="margin-left:10px">Currently <strong>{{ $emailsOn ? 'ON' : 'OFF' }}</strong>.</span>
         </form>

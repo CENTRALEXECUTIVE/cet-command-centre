@@ -302,6 +302,66 @@
         .cet-done h2 { margin:6px 0 6px; font-size:22px; font-weight:800; }
         .cet-ref { display:inline-block; margin-top:2px; font-weight:800; letter-spacing:1px;
             background:var(--cream); border:1px dashed var(--gold); border-radius:8px; padding:5px 12px; color:var(--ink); }
+
+        /* ============================================================
+           DARK PREMIUM THEME — matches the website (black/gold, Sora).
+           Re-skins by flipping the palette + spot-fixing the few places
+           that hard-coded a light colour. Markup & JS unchanged.
+           ============================================================ */
+        :root{
+            --paper:#131318; --cream:#1b1b22; --line:#2a2a33; --ink:#f0eef6;
+            --muted:#a2a2ac; --muted-2:#6f6f7a;
+            --shadow:0 40px 90px -40px rgba(0,0,0,.85),0 12px 30px -16px rgba(0,0,0,.6);
+        }
+        .cet-step-title,.cet-mini-title{font-family:'Sora','Inter',sans-serif}
+        .cet-widget{background:linear-gradient(180deg,#15151b,#0f0f14)}
+        .cet-field label{color:#b7b7c2}
+        .cet-field input,.cet-field select,.cet-field textarea{background:var(--cream);color:#fff;border-color:var(--line)}
+        .cet-field input::placeholder,.cet-field textarea::placeholder{color:#6d6d78}
+        .cet-field input:focus,.cet-field select:focus,.cet-field textarea:focus{background:#20202b;border-color:var(--gold)}
+        .cet-field.bad input,.cet-field.bad textarea{border-color:var(--err);background:#2a1618}
+        select option{background:#1b1b22;color:#fff}
+        /* steps */
+        .cet-steps .num{background:rgba(255,255,255,.08);color:var(--muted);border:1px solid var(--line)}
+        .cet-steps .st.done .num{background:#fff;color:#0b0b0c;border-color:transparent}
+        .cet-steps .bar{background:rgba(255,255,255,.12)}
+        /* grouped surfaces */
+        .cet-summary,.cet-acctbar,.cet-authtabs{background:rgba(255,255,255,.04);border-color:var(--line)}
+        .cet-summary .row .v{color:#fff}
+        .cet-authtabs button{color:var(--muted)} .cet-authtabs button.on{background:#262630;color:#fff}
+        .cet-swap{background:#17171d;color:var(--gold);border-color:var(--line)}
+        .cet-swap:hover{background:#20202a;color:var(--gold)}
+        .cet-addstop{background:rgba(255,255,255,.03);color:#e7e7ee}
+        /* vehicle cards */
+        .cet-veh{background:rgba(255,255,255,.035);border-color:var(--line)}
+        .cet-veh:hover{background:rgba(255,255,255,.06);border-color:var(--gold-deep)}
+        .cet-veh.sel{background:rgba(251,186,42,.08);border-color:var(--gold)}
+        .cet-veh-name{color:#fff} .cet-veh-price .amt{color:#fff} .cet-veh-tick{border-color:var(--line)}
+        /* extras / checks / payment / vat */
+        .cet-check,.cet-pay,.cet-vat{background:rgba(255,255,255,.04);border-color:var(--line);color:var(--ink)}
+        .cet-check:hover,.cet-pay:hover{background:rgba(255,255,255,.07)}
+        .cet-check.on,.cet-pay.on,.cet-vat.on{background:rgba(251,186,42,.08);border-color:var(--gold)}
+        .cet-check .px,.cet-check-sm .px,.cet-pay .t b,.cet-vat .t b{color:#fff}
+        .cet-stepper .ctrl{background:var(--cream);border-color:var(--line)}
+        .cet-stepper .ctrl input{color:#fff}
+        .cet-stepper label{color:#b7b7c2}
+        /* total band */
+        .cet-total{background:linear-gradient(135deg,rgba(251,186,42,.16),rgba(233,164,19,.05));border-color:rgba(251,186,42,.5)}
+        .cet-total .lbl{color:#fff} .cet-total .amt{color:#fff}
+        /* buttons / misc */
+        .cet-back{background:transparent;color:#fff;border-color:var(--line-2,rgba(255,255,255,.22))}
+        .cet-back:hover{background:rgba(255,255,255,.06)}
+        .cet-agree{color:#b7b7c2}
+        .cet-trust{border-color:var(--line)} .cet-trust span{color:#b7b7c2}
+        .cet-signedin{background:rgba(31,139,76,.14);border-color:#2f6b45;color:#6fe0a0}
+        .cet-modal-card{background:#15151b;color:var(--ink)}
+        .cet-modal-card p{color:var(--muted)}
+        .cet-bad-note{background:#2a1618;color:#ffb4b4}
+        .cet-ref{background:rgba(255,255,255,.05)}
+        /* segmented journey toggle (built from the <select> via JS below) */
+        .cet-seg{display:grid;gap:6px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:12px}
+        .cet-seg button{border:0;background:transparent;padding:11px 6px;border-radius:10px;font:inherit;font-weight:700;font-size:13.5px;color:var(--muted);cursor:pointer}
+        .cet-seg button.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#0b0b0c;box-shadow:0 6px 16px -8px rgba(251,186,42,.6)}
     </style>
 </head>
 <body>
@@ -427,11 +487,20 @@
                     <div class="cet-step" data-step="1">
                         <div class="cet-step-title">📍 Where and when?</div>
                         <div class="cet-banner" id="b-notice"></div>
+                        @php $showHourly = (bool) \App\Models\Setting::get('widget_show_hourly', false); @endphp
                         <div class="cet-field"><label for="b-journey">Journey type</label>
-                            <select id="b-journey" name="journey_type">
+                            {{-- Segmented toggle drives the hidden <select> below (all the
+                                 pricing/airport JS reads #b-journey), so nothing else changes.
+                                 Hourly only appears when the office enables it in Settings. --}}
+                            <div class="cet-seg" id="b-journey-seg" style="grid-template-columns:repeat({{ $showHourly ? 3 : 2 }},1fr)">
+                                <button type="button" class="on" data-journey="one_way">One way</button>
+                                <button type="button" data-journey="return">Return</button>
+                                @if($showHourly)<button type="button" data-journey="hourly">Hourly</button>@endif
+                            </div>
+                            <select id="b-journey" name="journey_type" style="display:none" aria-hidden="true" tabindex="-1">
                                 <option value="one_way">One way</option>
                                 <option value="return">Return</option>
-                                <option value="hourly">Hourly hire (as directed)</option>
+                                @if($showHourly)<option value="hourly">Hourly hire (as directed)</option>@endif
                             </select>
                         </div>
                         <div class="cet-addr-row">
@@ -687,8 +756,8 @@
                             </label>
                         </div>
 
-                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Comments <span class="opt">(optional)</span></label>
-                            <textarea id="b-notes" name="notes" rows="2" placeholder="Anything else we should know…"></textarea></div>
+                        <div class="cet-field" style="margin-top:14px"><label for="b-notes">Extra details <span class="opt">(optional)</span></label>
+                            <textarea id="b-notes" name="notes" rows="2" placeholder="Full address, flat / company / buzzer, terminal, or anything else we should know…"></textarea></div>
 
                         {{-- Payment method (like ETO): pay by card online, or cash to the
                              driver on the day. Hidden entirely for a quote-only vehicle
@@ -871,6 +940,19 @@
 
             // Journey type toggles: return date, hours, and whether drop-off is needed.
             var journeyEl = document.getElementById('b-journey');
+            // Segmented toggle → the hidden <select> (all other JS reads #b-journey).
+            (function () {
+                var seg = document.getElementById('b-journey-seg');
+                if (!seg || !journeyEl) return;
+                seg.querySelectorAll('button[data-journey]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        seg.querySelectorAll('button').forEach(function (b) { b.classList.remove('on'); });
+                        btn.classList.add('on');
+                        journeyEl.value = btn.dataset.journey;
+                        journeyEl.dispatchEvent(new Event('change'));
+                    });
+                });
+            })();
             var returnField = document.getElementById('b-return-field');
             var hoursField = document.getElementById('b-hours-field');
             var dropRow = document.getElementById('b-dropoff-row');
@@ -1451,7 +1533,20 @@
             var flightEl = document.getElementById('b-flight');
             if (flightEl) { flightEl.addEventListener('input', fillSummary); }
             var flightLandEl = document.getElementById('b-flight-landing');
-            if (flightLandEl) { flightLandEl.addEventListener('change', fillSummary); }
+            if (flightLandEl) {
+                flightLandEl.addEventListener('change', function () {
+                    // On an airport RETURN the return pickup IS the landing time — so
+                    // copy the flight landing time into the return pickup automatically.
+                    // (The office can still adjust it.) Non-airport returns keep their
+                    // own return date & time untouched.
+                    if (isAirportReturn() && retEl && flightLandEl.value) {
+                        retEl.value = flightLandEl.value;
+                        if (typeof build === 'function') { try { build(retEl); } catch (e) {} }
+                        retEl.dispatchEvent(new Event('change'));
+                    }
+                    fillSummary();
+                });
+            }
             // Wheelchair / ribbons checkbox extras — highlight + live total.
             ['b-wheelchair', 'b-ribbons'].forEach(function (id) {
                 var el = document.getElementById(id); if (!el) return;

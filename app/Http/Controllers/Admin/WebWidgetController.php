@@ -22,6 +22,7 @@ class WebWidgetController extends Controller
 
         return view('admin.web-widgets', [
             'emailsOn' => CustomerBookingMailer::enabled(),
+            'hourlyOn' => (bool) Setting::get('widget_show_hourly', false),
             'urls' => [
                 'mini' => route('widget.mini'),
                 'book' => route('widget.book'),
@@ -36,6 +37,7 @@ class WebWidgetController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         Setting::set(CustomerBookingMailer::SETTING, $request->boolean('customer_emails'), 'boolean', 'widgets');
+        Setting::set('widget_show_hourly', $request->boolean('show_hourly'), 'boolean', 'widgets');
 
         return back()->with('status', $request->boolean('customer_emails')
             ? 'Automatic customer confirmation emails are ON — for website-widget bookings only.'
