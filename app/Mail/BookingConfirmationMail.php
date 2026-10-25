@@ -51,10 +51,22 @@ class BookingConfirmationMail extends Mailable
         // registered) — so no VAT number, no VAT split, just the price.
         $isVat = $this->booking->vatInvoiceRequested();
 
+        // On a return trip the pay link charges the WHOLE trip (both legs) in one go,
+        // even though this confirmation shows just this leg's fare — so pass the trip
+        // total to explain the button ("covers your full return trip — £220").
+        $group = $this->booking->invoiceGroupBookings();
+        $tripPayTotal = null;
+        if (! $this->paid && $this->payUrl && $group->count() > 1) {
+            $outstanding = round($group->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? $b->amountPayable() ?? 0)), 2);
+            $own = (float) ($this->booking->transactionsAmountDue() ?? $this->booking->amountPayable() ?? 0);
+            $tripPayTotal = $outstanding > $own + 0.01 ? $outstanding : null;
+        }
+
         return new Content(view: 'emails.booking-confirmation', with: [
             'booking' => $this->booking,
             'paid' => $this->paid,
             'payUrl' => $this->payUrl,
+            'tripPayTotal' => $tripPayTotal,
             'vat' => $isVat ? $this->booking->fareVatBreakdown() : null,
             'vatNumber' => $isVat ? app(VatService::class)->number() : null,
             'company' => \App\Support\InvoiceProfile::companyFor($isVat),

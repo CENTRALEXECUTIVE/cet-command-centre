@@ -690,20 +690,28 @@ class BookingWidgetController extends Controller
     {
         abort_unless($request->hasValidSignature(), 403);
 
-        // Already settled → send them to a friendly "already paid" page, never a
-        // second charge.
-        if ($booking->fareIsPaid()) {
+        // A return trip is one payment for the WHOLE journey: either leg's link
+        // charges the full outstanding across both legs (e.g. £220), and paying once
+        // settles both. So work out the amount, and which leg to charge, across the
+        // whole invoice group — not just the leg whose link was clicked.
+        $legs = $booking->invoiceGroupBookings();
+        $legs = $legs->isNotEmpty() ? $legs : collect([$booking]);
+        $unpaid = $legs->filter(fn (Booking $b) => ! $b->fareIsPaid())->values();
+
+        // Nothing left to pay → a friendly "already paid" page, never a second charge.
+        if ($unpaid->isEmpty()) {
             return redirect()->route('widget.paid', ['already' => 1]);
         }
 
-        // Build the checkout fresh at CLICK time from the CURRENT amount OUTSTANDING
-        // (final_price + VAT where it applies, LESS any deposit/part-payment already
-        // taken in the ledger). This is why the emailed link is a stable CET URL,
-        // not a baked provider link: if the office corrects the price or takes a
-        // deposit, the customer always pays the right balance, never the old figure.
-        $amount = (float) ($booking->transactionsAmountDue() ?? $booking->amountPayable() ?? 0);
+        // Charge the TOTAL outstanding across the trip. Built fresh at click time, so
+        // a corrected price or a deposit already taken is always reflected — the
+        // customer pays the right balance, never a stale figure.
+        $amount = round($unpaid->sum(fn (Booking $b) => (float) ($b->transactionsAmountDue() ?? $b->amountPayable() ?? 0)), 2);
+        // Charge it on an UNPAID leg (the clicked one if it's unpaid, else the first),
+        // so the provider reference points at a leg that still owes.
+        $target = $unpaid->first(fn (Booking $b) => $b->is($booking)) ?? $unpaid->first();
         $url = $amount > 0
-            ? $this->payments->createCheckoutUrl($booking, $amount, route('widget.paid'))
+            ? $this->payments->createCheckoutUrl($target, $amount, route('widget.paid'))
             : null;
 
         if (! $url) {

@@ -101,7 +101,10 @@
                 <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($vat['vat'], 2) }} (net £{{ number_format($vat['net'], 2) }}).</p>
             @endif
             @if(! $paid && ! $isCash && ! $isAccount && $payUrl)
-                <p style="margin:12px 0 0"><a href="{{ $payUrl }}" style="display:inline-block;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment &rarr;</a></p>
+                <p style="margin:12px 0 0"><a href="{{ $payUrl }}" style="display:inline-block;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment{{ ($tripPayTotal ?? null) ? ' · £'.number_format($tripPayTotal, 2) : '' }} &rarr;</a></p>
+                @if($tripPayTotal ?? null)
+                    <p style="margin:7px 0 0;font-size:12.5px;color:#666">This secures your <strong>whole return trip</strong> — the payment covers both the outbound and the return (£{{ number_format($tripPayTotal, 2) }} total). You only pay once.</p>
+                @endif
             @endif
         </div>
     </td></tr>

@@ -233,6 +233,25 @@ class BookingStatusService
         $this->emailPaidConfirmation($fresh);
         $this->emailOffice($fresh->fresh(), 'paid');
 
+        // A return is paid in one go — the pay link charges the whole trip's total,
+        // so settle EVERY other leg on the same invoice too. Each is marked paid for
+        // its OWN fare and gets its own paid confirmation (£105 on one, £115 on the
+        // other), and the combined invoice then reads "Paid in full". Guarded so a
+        // leg already paid (or a one-way with no linked leg) is left untouched.
+        $basePaymentId = $fresh->meta['square_payment']['id'] ?? ('GRP-'.$fresh->id);
+        $entity = $fresh->meta['square_payment']['entity'] ?? null;
+        foreach ($fresh->invoiceGroupBookings() as $leg) {
+            if ($leg->is($fresh) || $leg->fareIsPaid()) {
+                continue;
+            }
+            $leg->markFarePaid($basePaymentId.'-L'.$leg->id, (float) ($leg->fareGross() ?? 0), $entity);
+            $leg = $leg->fresh();
+            $leg->reconcilePaidStatus();
+            $this->confirmPaidWebBooking($leg->fresh());
+            $this->emailPaidConfirmation($leg->fresh());
+            $this->emailOffice($leg->fresh(), 'paid');
+        }
+
         return $fresh->fresh();
     }
 
