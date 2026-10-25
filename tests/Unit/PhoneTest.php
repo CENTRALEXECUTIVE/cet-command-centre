@@ -32,4 +32,32 @@ class PhoneTest extends TestCase
             'too short' => ['12345', null],
         ];
     }
+
+    public function test_it_recognises_the_region_from_the_dialling_code(): void
+    {
+        $this->assertSame('GB', Phone::region('07700900123'));
+        $this->assertSame('GB', Phone::region('+44 7700 900123'));
+        $this->assertSame('IE', Phone::region('00353860889895')); // the Irish customer
+        $this->assertSame('IE', Phone::region('+353 86 088 9895'));
+        $this->assertSame('ES', Phone::region('+34 600 123 456'));
+        $this->assertNull(Phone::region(null));
+    }
+
+    public function test_it_builds_an_e164_number_for_dialling(): void
+    {
+        $this->assertSame('+447700900123', Phone::e164('07700900123'));
+        $this->assertSame('+353860889895', Phone::e164('00353860889895'));
+        $this->assertNull(Phone::e164(''));
+    }
+
+    public function test_it_displays_numbers_recognised_and_grouped(): void
+    {
+        // UK shows the familiar national form.
+        $this->assertSame('07700 900123', Phone::display('+447700900123'));
+        // Foreign shows "+<code> …" so it reads as its country, not raw 00353….
+        $this->assertSame('+353 860 889 895', Phone::display('00353860889895'));
+        // Unparseable input is returned as-is, never blanked.
+        $this->assertSame('ask the office', Phone::display('ask the office'));
+        $this->assertNull(Phone::display(null));
+    }
 }

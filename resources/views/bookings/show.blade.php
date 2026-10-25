@@ -1789,6 +1789,24 @@
                 <div><div class="muted" style="font-size:12px">Amount due</div><div style="font-weight:800;font-size:18px;{{ ($amountDue ?? 0) > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($amountDue ?? 0, 2) }}</div></div>
             </div>
 
+            {{-- One tap: when there's a balance due, make a card payment link for that
+                 amount and hand over WhatsApp/SMS/copy to send it — no need to open
+                 "Add new transaction" and fill it in. Uses the booking's own provider
+                 (Square for VAT/Ltd, Stripe for non-VAT/PVT LTD). --}}
+            @if(($amountDue ?? 0) > 0.009)
+                <form method="POST" action="{{ route('bookings.transactions.store', $booking) }}" style="margin-top:12px">
+                    @csrf
+                    <input type="hidden" name="name" value="Balance">
+                    <input type="hidden" name="amount" value="{{ number_format($amountDue, 2, '.', '') }}">
+                    <input type="hidden" name="method" value="card">
+                    <input type="hidden" name="status" value="pending">
+                    <button class="btn btn-primary" name="create_link" value="whatsapp" style="padding:10px 16px"
+                            title="Creates a card payment link for the amount due and lets you send it by WhatsApp, SMS, email or copy">
+                        💳 Create &amp; send card link — £{{ number_format($amountDue, 2) }}
+                    </button>
+                </form>
+            @endif
+
             @if($txns->isNotEmpty())
                 <div style="overflow-x:auto">
                 <table style="width:100%">
@@ -2050,7 +2068,10 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                 <div style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
                     <div class="muted" style="font-size:12px">📞 Customer</div>
-                    <div style="font-weight:700;font-size:15px" class="mono">{{ $booking->customerContactNumber() ?? '—' }}</div>
+                    @php $custNum = $booking->customerContactNumber(); @endphp
+                    <div style="font-weight:700;font-size:15px" class="mono">
+                        @if($custNum)<a href="tel:{{ \App\Support\Phone::e164($custNum) ?: $custNum }}" style="color:inherit;text-decoration:none">{{ \App\Support\Phone::display($custNum) }}</a>@if(\App\Support\Phone::region($custNum) && \App\Support\Phone::region($custNum) !== 'GB')<span class="muted" style="font-size:11px;font-weight:600"> · {{ \App\Support\Phone::region($custNum) }}</span>@endif @else — @endif
+                    </div>
                     @if($booking->customerContactNumber() && $booking->customer?->phone && \App\Support\Phone::wa($booking->customerContactNumber()) !== \App\Support\Phone::wa($booking->customer?->phone))
                         <div class="muted" style="font-size:11px;margin-top:2px">office-set contact · this is the number the switchboard connects</div>
                     @endif

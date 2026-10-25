@@ -255,7 +255,9 @@ class InvoicePdf
             'billToAddress' => $billToAddress,
             'billToVat' => $billToVat,
             'customerEmail' => $billedEmail,
-            'customerPhone' => $cover ? ($cover['phone'] ?? null) : $booking->bookerPhone(),
+            // Shown recognised to its country (e.g. +353 … for Ireland), not the raw
+            // "00353…" the customer typed.
+            'customerPhone' => \App\Support\Phone::display($cover ? ($cover['phone'] ?? null) : $booking->bookerPhone()),
             'invoiceNumber' => $booking->external_reference ?: $booking->reference,
             'issueDate' => now(),
             'paymentDue' => now()->addDays(14),
