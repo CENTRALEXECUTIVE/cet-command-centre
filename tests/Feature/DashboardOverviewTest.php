@@ -76,21 +76,26 @@ class DashboardOverviewTest extends TestCase
             'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
         ], $attrs));
 
-        // Came in TODAY, travelling next week → counts as taken today.
-        $make(['pickup_at' => today()->addDays(7), 'final_price' => 200]);
+        // Came in TODAY, travelling next week, and PAID → collected today.
+        $make(['pickup_at' => today()->addDays(7), 'final_price' => 200, 'payment_status' => 'paid']);
+
+        // Came in TODAY but NOT paid yet → counts in booked value, NOT in collected.
+        $make(['pickup_at' => today()->addDays(3), 'final_price' => 100, 'payment_status' => 'pending']);
 
         // Came in YESTERDAY, travelling today → NOT taken today (created earlier).
         $old = $make(['pickup_at' => today()->addHours(9), 'final_price' => 999]);
         Booking::where('id', $old->id)->update(['created_at' => now()->subDay()]);
 
-        // Came in today but cancelled → excluded from the money figure.
+        // Came in today but cancelled → excluded from both figures.
         $make(['pickup_at' => today()->addDays(2), 'final_price' => 50, 'status' => BookingStatus::Cancelled->value]);
 
         $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
 
-        $this->assertSame(1, $res->viewData('bookedTodayCount'));
+        $this->assertSame(2, $res->viewData('bookedTodayCount'));
+        // Collected = only the paid £200; booked value = £200 + £100 pending.
         $this->assertEquals(200.0, $res->viewData('bookedTodayRevenue'));
-        $res->assertSee('Bookings taken today', false)->assertSee('Revenue taken today', false);
+        $this->assertEquals(300.0, $res->viewData('bookedTodayValue'));
+        $res->assertSee('Bookings taken today', false)->assertSee('Collected today', false);
     }
 
     public function test_a_cancelled_booking_is_not_in_the_review_worklist(): void

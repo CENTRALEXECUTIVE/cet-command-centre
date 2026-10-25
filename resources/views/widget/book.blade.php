@@ -874,8 +874,9 @@
                 if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
                 // No cash bookings on return journeys — hide Cash, force card (or account).
                 applyReturnPaymentRule();
-                // A return doubles the fare — refresh the live total/summary so the
-                // round-trip price shows the moment the journey type changes.
+                // A return doubles the fare — refresh the card prices, live total and
+                // summary so the round-trip price shows the moment the journey changes.
+                if (typeof renderPrices === 'function') renderPrices();
                 if (typeof fillSummary === 'function') fillSummary();
                 if (typeof updateTotal === 'function') updateTotal();
             }
@@ -1284,8 +1285,10 @@
                 if (mgFee() > 0) notes.push('incl. meet &amp; greet');
                 el.innerHTML = money(t) + (notes.length ? ' <small>' + notes.join(' · ') + '</small>' : '');
             }
-            // Put the current price on each vehicle card (VAT added when wanted). Airport
-            // arrivals include the mandatory meet & greet in the shown price.
+            // Put the current price on each vehicle card (VAT added when wanted). A
+            // RETURN shows the WHOLE trip (both legs), so the customer never sees a
+            // one-way price for a return. Airport arrivals include the mandatory meet
+            // & greet once.
             function renderPrices() {
                 form.querySelectorAll('.cet-veh').forEach(function (card) {
                     var el = card.querySelector('[data-price]'); if (!el) return;
@@ -1293,7 +1296,7 @@
                     if (!o) { el.textContent = ''; el.classList.remove('poa'); return; }
                     if (o.poa || o.price == null) { el.classList.add('poa'); el.textContent = 'On request'; return; }
                     el.classList.remove('poa');
-                    el.textContent = money(withVat(o.price + mgFee()));
+                    el.textContent = money(withVat(o.price * legs() + mgFee()));
                 });
             }
             // Total child/booster/infant seats we can carry across all three types.

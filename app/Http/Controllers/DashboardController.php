@@ -71,7 +71,17 @@ class DashboardController extends Controller
                 'bookedTodayCount' => Booking::whereDate('created_at', today())
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->count(),
+                // Money actually COLLECTED from bookings taken today — only paid fares
+                // count, never a quoted price that hasn't been received. (A return
+                // where only the outbound is paid shows £115, not £220.)
                 'bookedTodayRevenue' => (float) Booking::whereDate('created_at', today())
+                    ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
+                    ->with('payments')
+                    ->get()
+                    ->sum(fn (Booking $b) => (float) $b->transactionsPaidTotal()),
+                // The booked VALUE of today's bookings (quoted), paid or not — the
+                // pipeline that came in, shown alongside the collected figure.
+                'bookedTodayValue' => (float) Booking::whereDate('created_at', today())
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->sum(DB::raw($revenue)),
                 'weekCount' => Booking::whereBetween('pickup_at', [now()->startOfDay(), now()->addDays(7)->endOfDay()])

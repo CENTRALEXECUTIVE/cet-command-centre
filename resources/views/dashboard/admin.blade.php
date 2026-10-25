@@ -55,7 +55,10 @@
         <a class="kpi {{ $bookedTodayRevenue > 0 ? 'ok' : '' }}" href="{{ route('bookings.index', ['filter' => 'booked-today']) }}">
             <div class="kpi-ico">📈</div>
             <div class="kpi-n" data-countup="{{ round($bookedTodayRevenue) }}" data-prefix="£">£{{ number_format($bookedTodayRevenue, 0) }}</div>
-            <div class="kpi-l">Revenue taken today</div>
+            <div class="kpi-l">Collected today (paid)</div>
+            @if(($bookedTodayValue ?? 0) > $bookedTodayRevenue + 0.5)
+                <div class="kpi-sub" style="font-size:11px;color:#9a7a1a">£{{ number_format($bookedTodayValue, 0) }} booked · £{{ number_format($bookedTodayValue - $bookedTodayRevenue, 0) }} awaiting payment</div>
+            @endif
         </a>
         <a class="kpi {{ $cashToday > 0 ? 'warn' : '' }}" href="{{ route('payments.index') }}">
             <div class="kpi-ico">💰</div>
