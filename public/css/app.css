@@ -566,9 +566,16 @@ body.driver-app .tabbar a.active { color: var(--gold); }
     padding: 14px 20px; margin-top: 8px;
     box-shadow: 0 -4px 20px rgba(0,0,0,.15);
 }
+.total-bar .total-main { min-width: 0; }
 .total-bar .total-label { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: #bdbdbd; }
 .total-bar .total-amount { font-size: 26px; font-weight: 800; color: var(--gold); line-height: 1.1; }
 .total-bar .total-amount .basis { display: block; font-size: 11px; font-weight: 400; letter-spacing: .3px; color: #9a9a9a; text-transform: none; }
+/* Itemised breakdown beside the big total (dark bar) */
+.total-bar .total-breakdown { margin-top: 8px; font-size: 12.5px; color: #d7d7d7; max-width: 300px;
+    border-top: 1px solid rgba(255,255,255,.14); padding-top: 6px; }
+.total-bar .total-breakdown .row { display: flex; justify-content: space-between; gap: 18px; padding: 1.5px 0; }
+.total-bar .total-breakdown .row.total { border-top: 1px solid rgba(255,255,255,.14); margin-top: 4px;
+    padding-top: 5px; font-weight: 700; color: #fff; }
 .total-bar .actions { display: flex; gap: 10px; }
 @media (max-width: 560px) {
     .total-bar { flex-direction: column; align-items: stretch; }

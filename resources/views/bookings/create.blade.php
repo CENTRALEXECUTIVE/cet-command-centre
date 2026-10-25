@@ -472,9 +472,12 @@
 
         {{-- ───────────── Total + submit ───────────── --}}
         <div class="total-bar">
-            <div>
+            <div class="total-main">
                 <div class="total-label">Total</div>
                 <div class="total-amount" id="total-amount">£{{ number_format(old('quoted_price', $quote?->price ?? 0), 2) }}<span class="basis" id="total-basis">enter journey for a live price</span></div>
+                {{-- Itemised breakdown right by the figure so the office sees what
+                     makes up the total (base + each extra), not just a number. --}}
+                <div class="total-breakdown" id="total-breakdown" hidden></div>
             </div>
             <div class="actions">
                 <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
@@ -777,6 +780,7 @@
                         var p = card.dataset.price;
                         if (priceEl && p !== '' && p != null) {
                             priceEl.value = Number(p).toFixed(2);
+                            autoPrice = Number(p); // keep tracking the live quote for this vehicle
                             priceEl.dispatchEvent(new Event('input'));
                         }
                         selectCard(id);
@@ -785,22 +789,51 @@
 
                 var priceNudge = document.getElementById('price-nudge');
                 var breakdownEl = document.getElementById('fare-breakdown');
+                var totalBreakdownEl = document.getElementById('total-breakdown');
                 var lastOptions = [];
+                // The last live price we auto-wrote into the price box. While the box
+                // still matches it (or is empty), we keep it in sync with the live
+                // quote so ticking an add-on updates the total automatically. Once the
+                // operator types their own figure it stops tracking (the nudge takes
+                // over) so a negotiated price is never clobbered.
+                var autoPrice = null;
 
                 // Itemised fare for the CHOSEN vehicle: base + surcharge + each extra
                 // = total, so the office sees what makes up the price, not just a figure.
+                // Painted both under the vehicle cards and beside the big Total.
                 function showBreakdown() {
-                    if (!breakdownEl) return;
                     var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
                     var lines = opt && opt.breakdown ? opt.breakdown : [];
-                    if (!opt || opt.poa || lines.length < 2) { breakdownEl.hidden = true; breakdownEl.innerHTML = ''; return; }
-                    var html = '';
-                    lines.forEach(function (l) {
-                        html += '<div class="row"><span>' + l.label + '</span><span>£' + Number(l.amount).toFixed(2) + '</span></div>';
-                    });
-                    html += '<div class="row total"><span>Total</span><span>£' + Number(opt.price).toFixed(2) + '</span></div>';
-                    breakdownEl.innerHTML = html;
-                    breakdownEl.hidden = false;
+                    var ok = opt && !opt.poa && lines.length >= 2;
+                    var cardHtml = '', totalHtml = '';
+                    if (ok) {
+                        lines.forEach(function (l) {
+                            var row = '<span>' + l.label + '</span><span>£' + Number(l.amount).toFixed(2) + '</span>';
+                            cardHtml += '<div class="row">' + row + '</div>';
+                            totalHtml += '<div class="row">' + row + '</div>';
+                        });
+                        var tot = '<span>Total</span><span>£' + Number(opt.price).toFixed(2) + '</span>';
+                        cardHtml += '<div class="row total">' + tot + '</div>';
+                        totalHtml += '<div class="row total">' + tot + '</div>';
+                    }
+                    if (breakdownEl) { breakdownEl.hidden = !ok; breakdownEl.innerHTML = cardHtml; }
+                    if (totalBreakdownEl) { totalBreakdownEl.hidden = !ok; totalBreakdownEl.innerHTML = totalHtml; }
+                }
+
+                // Keep the price box (and so the big Total) in step with the live quote
+                // for the chosen vehicle — unless the operator has typed a custom price.
+                function applyLive() {
+                    if (!priceEl) return;
+                    var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
+                    if (!opt || opt.price == null || opt.poa) return;
+                    var live = Number(opt.price);
+                    var typed = parseFloat(priceEl.value);
+                    var tracking = isNaN(typed) || (autoPrice != null && Math.abs(typed - autoPrice) < 0.01);
+                    if (tracking) {
+                        priceEl.value = live.toFixed(2);
+                        autoPrice = live;
+                        priceEl.dispatchEvent(new Event('input'));
+                    }
                 }
 
                 // Nudge when the typed price doesn't match the live full quote for
@@ -842,6 +875,7 @@
                     });
                     selectCard(vehSel.value);
                     applyFit();
+                    applyLive();
                     nudge();
                     showBreakdown();
                 }
