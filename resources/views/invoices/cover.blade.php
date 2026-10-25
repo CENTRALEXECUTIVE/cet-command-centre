@@ -18,10 +18,20 @@
         html[data-theme="dark"] .bill-opt:has(input:checked) { background: rgba(251,186,42,.14); }
     </style>
     <h1 class="page-title">Cover-job invoices</h1>
-    <p class="page-sub">Jobs you've covered for other operators, grouped by company. <strong>Search</strong> by reference, passenger or operator, <strong>tick</strong> the ones to bill, and send a <strong>single combined invoice</strong> with one total — no need for one invoice per job.</p>
+    <p class="page-sub">Jobs you've covered for other operators, grouped by company. <strong>Search</strong> by reference, passenger or operator, <strong>tick</strong> the ones to bill, and send a <strong>single combined invoice</strong> with one total — no need for one invoice per job. Once an operator has paid, <strong>Mark paid</strong> so the jobs drop off and can't be billed again.</p>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
     @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
+
+    <div style="margin:10px 0 16px">
+        @if($showPaid)
+            <a href="{{ route('cover-invoices.index') }}" class="btn btn-ghost" style="padding:7px 12px;font-size:13px">← Back to unpaid</a>
+            <span class="muted" style="font-size:13px;margin-left:6px">Showing all cover jobs, including settled ones.</span>
+        @else
+            <a href="{{ route('cover-invoices.index', ['show_paid' => 1]) }}" class="btn btn-ghost" style="padding:7px 12px;font-size:13px">✓ Show settled ({{ $paidCount }})</a>
+            <span class="muted" style="font-size:13px;margin-left:6px">Paid cover jobs are hidden so they aren't billed twice.</span>
+        @endif
+    </div>
 
     @if($groups->isNotEmpty())
         <div class="card" style="margin-bottom:16px;padding:12px 14px">
@@ -59,7 +69,7 @@
                                 data-search="{{ \Illuminate\Support\Str::lower(trim($b->displayName().' '.$ref.' '.$b->reference.' '.$operator.' '.$b->displayPickupAddress().' '.$b->displayDropoffAddress().' '.$b->pickup_at?->format('d/m/Y'))) }}">
                                 <td style="padding:6px 8px"><input type="checkbox" class="jobcb" name="ids[]" value="{{ $b->id }}" checked></td>
                                 <td style="padding:6px 8px;white-space:nowrap">{{ $b->pickup_at?->format('d/m/Y H:i') }}</td>
-                                <td style="padding:6px 8px">{{ $b->displayName() }}</td>
+                                <td style="padding:6px 8px">{{ $b->displayName() }}@if($b->isCoverPaid())<span class="badge" style="background:#1f7a44;color:#fff;font-size:10px;padding:2px 7px;border-radius:999px;margin-left:6px">✓ PAID</span>@endif</td>
                                 <td style="padding:6px 8px"><a href="{{ route('bookings.show', $b) }}">{{ \Illuminate\Support\Str::limit($b->displayPickupAddress().' → '.$b->displayDropoffAddress(), 40) }}</a></td>
                                 <td style="padding:6px 8px;white-space:nowrap">{{ $ref }}</td>
                                 <td style="padding:6px 8px;text-align:right">£{{ number_format($amt, 2) }}</td>
@@ -101,6 +111,14 @@
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" formtarget="_self"
                             formaction="{{ route('cover-invoices.email') }}"
                             onclick="return confirm('Email the combined invoice to {{ $jobs->first()->coverFor()['email'] ?: $operator }}?')">✉ Email to {{ $operator }}</button>
+                    <button type="submit" class="btn btn-success" style="padding:8px 14px;background:#1f7a44;color:#fff;border-color:#1f7a44" formtarget="_self"
+                            formaction="{{ route('cover-invoices.mark-paid') }}"
+                            onclick="return confirm('Mark the ticked job(s) as PAID? They drop off this list so they can\'t be billed again. (Use ‘Show settled’ to reopen if needed.)')">✅ Mark paid</button>
+                    @if($showPaid)
+                        <button type="submit" class="btn btn-ghost" style="padding:8px 14px" formtarget="_self"
+                                formaction="{{ route('cover-invoices.mark-paid') }}" name="paid" value="0"
+                                onclick="return confirm('Reopen the ticked job(s) so they can be invoiced again?')">↩ Reopen</button>
+                    @endif
                 </div>
                 @php $existingLink = $jobs->first()->meta['cover_payment_link'] ?? null; @endphp
                 <div class="paylink-panel" style="margin-top:10px;background:#f3faf3;border:1px solid #cfe8cf;border-radius:10px;padding:10px 12px;{{ (is_array($existingLink) && ($existingLink['url'] ?? null)) ? '' : 'display:none' }}">

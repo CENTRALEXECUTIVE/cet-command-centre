@@ -522,6 +522,9 @@ class DashboardController extends Controller
     {
         return Booking::with(['customer', 'vehicleType', 'driver.driverProfile', 'airport', 'calendarEvent'])
             ->whereDate('pickup_at', $day)
+            // Cancelled jobs aren't running that day — keep them off the day view so
+            // the operator only sees live work (they stay on the booking record).
+            ->where('status', '!=', BookingStatus::Cancelled->value)
             ->orderBy('pickup_at')
             ->get()
             ->map(fn (Booking $b) => [

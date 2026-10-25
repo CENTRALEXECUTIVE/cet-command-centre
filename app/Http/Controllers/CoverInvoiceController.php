@@ -26,16 +26,69 @@ class CoverInvoiceController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $groups = Booking::query()
+        // Show settled (paid) cover jobs too only when asked — by default they drop
+        // off so they can't be billed again on a future invoice.
+        $showPaid = $request->boolean('show_paid');
+
+        $all = Booking::query()
             ->whereNotNull('meta->cover_for')
             ->with('vehicleType')
             ->orderBy('pickup_at')
             ->get()
-            ->filter(fn (Booking $b) => $b->isCoverJob())
+            ->filter(fn (Booking $b) => $b->isCoverJob());
+
+        $paidCount = $all->filter(fn (Booking $b) => $b->isCoverPaid())->count();
+
+        $groups = $all
+            ->filter(fn (Booking $b) => $showPaid ? true : ! $b->isCoverPaid())
             ->groupBy(fn (Booking $b) => $b->coverFor()['name'])
             ->sortKeys();
 
-        return view('invoices.cover', ['groups' => $groups]);
+        return view('invoices.cover', [
+            'groups' => $groups,
+            'showPaid' => $showPaid,
+            'paidCount' => $paidCount,
+        ]);
+    }
+
+    /**
+     * Mark (or reopen) cover jobs as paid. Used when the operator settles an
+     * invoice — by card link (auto, via the webhook) or by cash/bank transfer the
+     * office records here. A paid job drops off the list so it can't be attached to
+     * another invoice. Pass paid=0 to reopen a job marked paid by mistake.
+     */
+    public function markPaid(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+        // Reopen when paid=0 is sent; otherwise this is a manual "they've settled it"
+        // mark (cash/bank transfer). Card payments auto-settle via the webhook.
+        $markPaid = ! $request->has('paid') || $request->boolean('paid');
+
+        $bookings = Booking::whereIn('id', $data['ids'])->get()
+            ->filter(fn (Booking $b) => $b->isCoverJob())
+            ->values();
+        abort_if($bookings->isEmpty(), 422, 'No cover jobs selected.');
+
+        foreach ($bookings as $b) {
+            if ($markPaid) {
+                $b->markCoverPaid([
+                    'provider' => 'manual',
+                    'reference' => $b->meta['cover_payment_link']['reference'] ?? null,
+                ]);
+            } else {
+                $b->clearCoverPaid();
+            }
+        }
+
+        $n = $bookings->count();
+        $verb = $markPaid ? 'marked paid' : 'reopened';
+
+        return back()->with('status', $n.' cover job'.($n === 1 ? '' : 's').' '.$verb.'.');
     }
 
     /**

@@ -120,7 +120,12 @@ class WebhookController extends Controller
             app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
 
-        return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking)]);
+        // Not a tip or a fare? It may be a COVER- combined-invoice payment — settle it.
+        $cover = ($tipBooking || $fareBooking)
+            ? false
+            : $this->settleCoverByReference($square->coverReferenceFromWebhook($payload), 'square');
+
+        return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking), 'cover' => $cover]);
     }
 
     /**
@@ -156,12 +161,17 @@ class WebhookController extends Controller
             return response()->json(['error' => 'bad signature'], 403);
         }
 
-        $fareBooking = $fares->recordFareFromWebhook($request->json()->all(), 'chauffeurs');
+        $payload = $request->json()->all();
+        $fareBooking = $fares->recordFareFromWebhook($payload, 'chauffeurs');
         if ($fareBooking) {
             app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
 
-        return response()->json(['recorded' => (bool) $fareBooking]);
+        $cover = $fareBooking
+            ? false
+            : $this->settleCoverByReference($fares->coverReferenceFromWebhook($payload, 'chauffeurs'), 'square');
+
+        return response()->json(['recorded' => (bool) $fareBooking, 'cover' => $cover]);
     }
 
     /**
@@ -179,12 +189,53 @@ class WebhookController extends Controller
             return response()->json(['error' => 'bad signature'], 403);
         }
 
-        $fareBooking = $stripe->recordFareFromWebhook($request->json()->all());
+        $payload = $request->json()->all();
+        $fareBooking = $stripe->recordFareFromWebhook($payload);
         if ($fareBooking) {
             app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
 
-        return response()->json(['recorded' => (bool) $fareBooking]);
+        $cover = $fareBooking
+            ? false
+            : $this->settleCoverByReference($stripe->coverReferenceFromWebhook($payload), 'stripe');
+
+        return response()->json(['recorded' => (bool) $fareBooking, 'cover' => $cover]);
+    }
+
+    /**
+     * Settle a COVER- combined invoice paid by card: find the booking that created
+     * the link (it stashed the reference + the ids of every job on the invoice) and
+     * mark them all paid, so they drop off the cover-invoice list and can't be
+     * billed again. Returns true if anything was settled.
+     */
+    private function settleCoverByReference(?string $reference, string $provider): bool
+    {
+        if (! $reference) {
+            return false;
+        }
+
+        $anchor = \App\Models\Booking::where('meta->cover_payment_link->reference', $reference)->first();
+        if (! $anchor) {
+            return false;
+        }
+
+        $link = $anchor->meta['cover_payment_link'] ?? [];
+        $ids = is_array($link['ids'] ?? null) ? $link['ids'] : [];
+        $bookings = $ids ? \App\Models\Booking::whereIn('id', $ids)->get() : collect([$anchor]);
+
+        $settled = false;
+        foreach ($bookings as $b) {
+            if ($b->isCoverJob() && ! $b->isCoverPaid()) {
+                $b->markCoverPaid([
+                    'provider' => $provider,
+                    'reference' => $reference,
+                    'amount' => $link['amount'] ?? null,
+                ]);
+                $settled = true;
+            }
+        }
+
+        return $settled;
     }
 
     /**

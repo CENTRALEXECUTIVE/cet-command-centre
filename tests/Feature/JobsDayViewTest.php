@@ -130,6 +130,33 @@ class JobsDayViewTest extends TestCase
         $this->assertSame('LHR', $booking->routeGroupKey());  // and it classifies as an airport job
     }
 
+    public function test_cancelled_jobs_are_hidden_from_the_day_view(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $veh = VehicleType::where('slug', 'executive')->first()->id;
+
+        Booking::create([
+            'reference' => Booking::generateReference(), 'external_reference' => 'LIVE1',
+            'customer_id' => Customer::create(['name' => 'Live Passenger'])->id,
+            'vehicle_type_id' => $veh, 'pickup_at' => '2026-10-27 09:00',
+            'pickup_address' => 'Sheffield', 'destination_address' => 'MAN',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+        ]);
+        Booking::create([
+            'reference' => Booking::generateReference(), 'external_reference' => 'DEADJOB',
+            'customer_id' => Customer::create(['name' => 'Cancelled Passenger'])->id,
+            'vehicle_type_id' => $veh, 'pickup_at' => '2026-10-27 10:00',
+            'pickup_address' => 'Sheffield', 'destination_address' => 'LHR',
+            'passengers' => 1, 'status' => 'cancelled', 'payment_method' => 'card',
+        ]);
+
+        $this->actingAs($admin)->get(route('jobs.day', ['date' => '2026-10-27']))
+            ->assertOk()
+            ->assertSee('Live Passenger')
+            ->assertDontSee('Cancelled Passenger')
+            ->assertDontSee('DEADJOB');
+    }
+
     public function test_day_view_navigates_by_date(): void
     {
         // Pin "now" so the target date is never "today" (which renders as "Today"

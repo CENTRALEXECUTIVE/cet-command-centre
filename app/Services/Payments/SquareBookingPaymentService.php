@@ -262,6 +262,32 @@ class SquareBookingPaymentService
         return $booking;
     }
 
+    /**
+     * If this completed Square webhook is a COVER- combined-invoice payment, return
+     * the stripped cover reference (so the office's cover jobs can be marked paid).
+     * Null for anything else — a fare, a tip, or an unmatched charge.
+     */
+    public function coverReferenceFromWebhook(array $payload, string $entity = 'transfers'): ?string
+    {
+        $payment = data_get($payload, 'data.object.payment');
+        if (! is_array($payment)) {
+            return null;
+        }
+        if (! in_array(strtoupper((string) ($payment['status'] ?? '')), ['COMPLETED', 'APPROVED'], true)) {
+            return null;
+        }
+        $orderId = (string) ($payment['order_id'] ?? '');
+        if ($orderId === '') {
+            return null;
+        }
+        $reference = $this->retrieveOrderReference($orderId, $entity);
+        if (! $reference || ! str_starts_with($reference, self::COVER_PREFIX)) {
+            return null;
+        }
+
+        return substr($reference, strlen(self::COVER_PREFIX));
+    }
+
     private function retrieveOrderReference(string $orderId, string $entity = 'transfers'): ?string
     {
         try {

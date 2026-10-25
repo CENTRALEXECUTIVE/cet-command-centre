@@ -280,6 +280,28 @@ class StripePaymentService
     }
 
     /**
+     * If this completed Stripe webhook is a COVER- combined-invoice payment, return
+     * the stripped cover reference (so the office's cover jobs can be marked paid).
+     * Null for anything else — a fare (FARE-), a test, or an unpaid session.
+     */
+    public function coverReferenceFromWebhook(array $payload): ?string
+    {
+        if (($payload['type'] ?? null) !== 'checkout.session.completed') {
+            return null;
+        }
+        $session = data_get($payload, 'data.object');
+        if (! is_array($session)) {
+            return null;
+        }
+        if (strtolower((string) ($session['payment_status'] ?? '')) !== 'paid') {
+            return null;
+        }
+        $ref = (string) ($session['client_reference_id'] ?? '');
+
+        return str_starts_with($ref, self::COVER_PREFIX) ? substr($ref, strlen(self::COVER_PREFIX)) : null;
+    }
+
+    /**
      * Verify a Stripe webhook signature (the `Stripe-Signature` header) against
      * the signing secret, raw body and a tolerance window. Standard Stripe scheme:
      * sign "{t}.{payload}" with HMAC-SHA256, compare the v1 signature.

@@ -493,6 +493,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
     Route::post('invoices/cover/payment-link', [\App\Http\Controllers\CoverInvoiceController::class, 'paymentLink'])->middleware('throttle:20,1')->name('cover-invoices.payment-link');
     Route::post('invoices/cover/pdf', [\App\Http\Controllers\CoverInvoiceController::class, 'pdf'])->name('cover-invoices.pdf');
     Route::post('invoices/cover/email', [\App\Http\Controllers\CoverInvoiceController::class, 'email'])->middleware('throttle:10,1')->name('cover-invoices.email');
+    Route::post('invoices/cover/mark-paid', [\App\Http\Controllers\CoverInvoiceController::class, 'markPaid'])->name('cover-invoices.mark-paid');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'download'])->name('invoices.pdf');
 });

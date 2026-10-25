@@ -1256,6 +1256,53 @@ class Booking extends Model
     }
 
     /**
+     * Cover-invoice settlement: once the operator has paid for a cover job (by
+     * card link, or cash/bank transfer the office marks by hand), we stamp it so
+     * the office can see it's settled AND it drops off the "to invoice" list and
+     * can't be attached to a future cover invoice again.
+     *
+     * @return array{reference: ?string, amount: ?float, provider: ?string, at: ?string}|null
+     */
+    public function coverPaidInfo(): ?array
+    {
+        $p = $this->meta['cover_paid'] ?? null;
+
+        return is_array($p) ? $p : null;
+    }
+
+    /** True when this cover job has been marked paid/settled by the operator. */
+    public function isCoverPaid(): bool
+    {
+        return $this->coverPaidInfo() !== null;
+    }
+
+    /**
+     * Mark this cover job paid. $info carries the invoice reference, amount,
+     * provider (square/stripe/cash/transfer) and when. Idempotent.
+     *
+     * @param  array{reference?: ?string, amount?: ?float, provider?: ?string}  $info
+     */
+    public function markCoverPaid(array $info = []): void
+    {
+        $meta = $this->meta ?? [];
+        $meta['cover_paid'] = [
+            'reference' => filled($info['reference'] ?? null) ? (string) $info['reference'] : null,
+            'amount' => ($info['amount'] ?? null) !== null ? (float) $info['amount'] : $this->coverForAmount(),
+            'provider' => filled($info['provider'] ?? null) ? (string) $info['provider'] : null,
+            'at' => now()->toIso8601String(),
+        ];
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** Undo a cover-paid mark (office correction). */
+    public function clearCoverPaid(): void
+    {
+        $meta = $this->meta ?? [];
+        unset($meta['cover_paid']);
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /**
      * The booking's calendar event. There is no unique constraint on
      * calendar_events.booking_id and several code paths can create a row, so a
      * booking may hold more than one. Without an explicit order a plain hasOne
