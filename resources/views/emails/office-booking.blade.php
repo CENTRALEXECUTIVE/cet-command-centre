@@ -100,7 +100,7 @@
         <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:6px">Customer</div>
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
             {!! $row('Name', $booking->displayName() ?: $booking->customer?->name) !!}
-            {!! $row('Phone', $booking->customer?->phone) !!}
+            {!! $row('Phone', \App\Support\Phone::display($booking->customer?->phone)) !!}
             {!! $row('Email', $booking->customer?->email) !!}
             {!! $row('Reference', $ref) !!}
             {!! $row('Booked', ($booking->created_at ?? now())->timezone(config('app.timezone'))->format('d/m/Y · H:i')) !!}
@@ -148,7 +148,7 @@
 
     <tr><td style="padding:10px 28px 24px;text-align:center">
         <div style="color:#9a9a9a;font-size:12px;line-height:1.7">
-            <strong style="color:#444">Central Executive Transfers Ltd</strong><br>
+            <strong style="color:#444">{{ $booking->billingEntity() === 'chauffeurs' ? config('cet.company_novat.name', 'Central Executive Transfers PVT LTD') : 'Central Executive Transfers Ltd' }}</strong><br>
             07405 172435
         </div>
     </td></tr>

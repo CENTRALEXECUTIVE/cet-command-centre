@@ -168,7 +168,23 @@
             <tr><td class="k">Subtotal (net)</td><td class="v">£{{ number_format($netTotal, 2) }}</td></tr>
             @if($isVat ?? false)<tr><td class="k">VAT ({{ $ratePercent }}%)</td><td class="v">£{{ number_format($vatTotal, 2) }}</td></tr>@endif
             <tr><td class="k">Total{{ ($isVat ?? false) ? ' incl. VAT' : '' }}</td><td class="v">£{{ number_format($grossTotal, 2) }}</td></tr>
-            @if($paymentsReceived > 0)<tr><td class="k">Paid</td><td class="v">−£{{ number_format($paymentsReceived, 2) }}</td></tr>@endif
+            @php
+                // Itemise the actual payments (deposit + balance …) when there are
+                // several and they reconcile to the total received — so the invoice
+                // shows exactly what was paid and when, not just one "Paid" figure.
+                $paidTx = isset($booking) ? $booking->payments->where('status', 'paid')->sortBy('paid_at')->values() : collect();
+                $txPaidSum = round($paidTx->sum(fn ($p) => (float) $p->amount), 2);
+                $itemisePayments = $paidTx->count() >= 2 && abs($txPaidSum - $paymentsReceived) < 0.01;
+            @endphp
+            @if($paymentsReceived > 0)
+                @if($itemisePayments)
+                    @foreach($paidTx as $p)
+                        @php $pName = trim((string) ($p->meta['name'] ?? '')); $pMethod = ucfirst((string) $p->method); @endphp
+                        <tr><td class="k" style="padding-left:14px;color:#666">· {{ $pName !== '' ? $pName.' ('.$pMethod.')' : $pMethod }}</td><td class="v">−£{{ number_format((float) $p->amount, 2) }}</td></tr>
+                    @endforeach
+                @endif
+                <tr><td class="k">Paid</td><td class="v">−£{{ number_format($paymentsReceived, 2) }}</td></tr>
+            @endif
             <tr class="due"><td class="k">{{ $balanceDue > 0 ? 'Amount due' : 'Paid in full' }}</td><td class="v">£{{ number_format(max(0, $balanceDue), 2) }}</td></tr>
           </table>
         </div>

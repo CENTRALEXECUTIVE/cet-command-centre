@@ -69,7 +69,7 @@
         <h2 style="font-size:17px;margin:0 0 8px">Customer</h2>
         <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
             {!! $row('Name:', $booking->displayName() ?: $booking->customer?->name) !!}
-            {!! $row('Phone number:', $booking->customer?->phone) !!}
+            {!! $row('Phone number:', \App\Support\Phone::display($booking->customer?->phone)) !!}
             {!! $row('Email:', $booking->customer?->email) !!}
         </table>
     </td></tr>
