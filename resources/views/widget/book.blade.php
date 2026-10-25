@@ -362,6 +362,16 @@
         .cet-seg{display:grid;gap:6px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:12px}
         .cet-seg button{border:0;background:transparent;padding:11px 6px;border-radius:10px;font:inherit;font-weight:700;font-size:13.5px;color:var(--muted);cursor:pointer}
         .cet-seg button.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#0b0b0c;box-shadow:0 6px 16px -8px rgba(251,186,42,.6)}
+        /* Grouped pickup/drop-off box with the swap as a circle (matches the design). */
+        .cet-grp{position:relative;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);padding:12px 13px;margin-bottom:12px}
+        .cet-grp .cet-field{margin-bottom:8px}
+        .cet-grp .cet-field:last-child{margin-bottom:0}
+        .cet-grp .cet-pc{max-width:140px}
+        .cet-swap-circle{position:absolute;right:12px;top:-14px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:#17171d;color:var(--gold);font-size:14px;font-weight:800;cursor:pointer;z-index:2}
+        .cet-swap-circle:hover{background:#20202a}
+        .cet-three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+        @media (max-width:420px){ .cet-three{grid-template-columns:1fr 1fr 1fr} }
+        .cet-grp .cet-field.icon .geo{top:25px}
     </style>
 </head>
 <body>
@@ -503,55 +513,55 @@
                                 @if($showHourly)<option value="hourly">Hourly hire (as directed)</option>@endif
                             </select>
                         </div>
-                        <div class="cet-addr-row">
-                            <div class="cet-field icon" style="flex:1;min-width:0"><label for="b-pickup">Pickup address</label>
+                        {{-- Grouped pickup / drop-off with a swap circle (full-width
+                             addresses, compact postcode beneath each). --}}
+                        <div class="cet-grp">
+                            <button type="button" id="b-swap" class="cet-swap-circle" title="Swap pickup and drop-off">⇅</button>
+                            <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
                                 <input id="b-pickup" name="pickup_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-pickup-pc" autocomplete="off">
                                 <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Clear address" title="Clear address">✕</button>
-                                <small style="display:block;color:#8a8a8a;font-size:11.5px;margin-top:3px">Can’t find it? Just type your full address.</small>
                             </div>
-                            <div class="cet-field cet-pc"><label for="b-pickup-pc">Postcode</label>
-                                <input id="b-pickup-pc" name="pickup_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
+                            <div class="cet-field cet-pc">
+                                <input id="b-pickup-pc" name="pickup_postcode" placeholder="Postcode" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
+                            </div>
+                            <div id="b-dropoff-row">
+                                <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
+                                    <input id="b-dropoff" name="destination_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
+                                    <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button>
+                                </div>
+                                <div class="cet-field cet-pc" id="b-dropoff-pc-field">
+                                    <input id="b-dropoff-pc" name="destination_postcode" placeholder="Postcode" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                             </div>
                         </div>
                         <div class="cet-field" id="b-stops-field" data-stop-rate="{{ (float) ($sc['stopover'] ?? 0) }}">
-                            <label>Extra stops <span class="opt">(optional)</span></label>
                             <div id="b-stops"></div>
-                            <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop</button>
+                            <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop <span class="opt">(optional)</span></button>
                         </div>
-                        <div class="cet-addr-row" id="b-dropoff-row">
-                            <div class="cet-field icon" id="b-dropoff-field" style="flex:1;min-width:0"><label for="b-dropoff">Drop-off address</label>
-                                <input id="b-dropoff" name="destination_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
-                                <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button>
-                                <small style="display:block;color:#8a8a8a;font-size:11.5px;margin-top:3px">Can’t find it? Just type your full address.</small></div>
-                            <div class="cet-field cet-pc" id="b-dropoff-pc-field"><label for="b-dropoff-pc">Postcode</label>
-                                <input id="b-dropoff-pc" name="destination_postcode" placeholder="" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
-                        </div>
-                        <div id="b-swap-row" style="margin:-4px 0 12px"><button type="button" id="b-swap" class="cet-swap" title="Swap pickup and drop-off">⇅ Swap pickup &amp; drop-off</button></div>
-                        <div class="cet-two">
-                            <div class="cet-field"><label for="b-when">Date &amp; time</label>
+                        <div class="cet-two" id="b-when-row" style="grid-template-columns:1fr">
+                            <div class="cet-field"><label for="b-when">Pickup date &amp; time</label>
                                 <input id="b-when" name="pickup_at" type="datetime-local" required></div>
-                            <div class="cet-field"><label for="b-pax">Passengers</label>
-                                <select id="b-pax" name="passengers" required>
-                                    <option value="" selected disabled>—</option>
-                                    @for($i = 1; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
-                                </select></div>
-                        </div>
-                        <div class="cet-field" id="b-return-field" style="display:none">
-                            <label for="b-return">Return date &amp; time</label>
-                            <input id="b-return" name="return_pickup_at" type="datetime-local">
+                            <div class="cet-field" id="b-return-field" style="display:none">
+                                <label for="b-return">Return date &amp; time</label>
+                                <input id="b-return" name="return_pickup_at" type="datetime-local">
+                            </div>
                         </div>
                         <div class="cet-field" id="b-hours-field" style="display:none">
                             <label for="b-hours">Hours booked</label>
                             <input id="b-hours" name="hours" type="number" min="1" max="24" value="3">
                             <span class="opt" style="font-size:12px">Car &amp; driver by the hour — no fixed destination. We'll confirm the price.</span>
                         </div>
-                        <div class="cet-two">
+                        <div class="cet-three">
+                            <div class="cet-field"><label for="b-pax">Passengers</label>
+                                <select id="b-pax" name="passengers" required>
+                                    <option value="" selected disabled>—</option>
+                                    @for($i = 1; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
+                                </select></div>
                             <div class="cet-field"><label for="b-suit">Suitcases</label>
                                 <select id="b-suit" name="suitcases" required>
                                     <option value="" selected disabled>—</option>
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
                                 </select></div>
-                            <div class="cet-field"><label for="b-hand">Hand luggage</label>
+                            <div class="cet-field"><label for="b-hand">Hand bags</label>
                                 <select id="b-hand" name="hand_luggage" required>
                                     <option value="" selected disabled>—</option>
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
@@ -959,6 +969,9 @@
             function toggleJourney() {
                 var v = journeyEl ? journeyEl.value : 'one_way';
                 if (returnField) returnField.style.display = v === 'return' ? '' : 'none';
+                // Date row goes 2-up only when a return is shown (else date is full width).
+                var whenRow = document.getElementById('b-when-row');
+                if (whenRow) whenRow.style.gridTemplateColumns = v === 'return' ? '1fr 1fr' : '1fr';
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
                 if (dropRow) dropRow.style.display = v === 'hourly' ? 'none' : '';
                 var stopsField = document.getElementById('b-stops-field');
