@@ -22,7 +22,7 @@
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdecec;border:1px solid #f1b7b7;border-radius:10px">
             <tr><td style="padding:16px 18px">
                 <div style="font-size:17px;font-weight:800;color:#8f1f1f;margin-bottom:4px">Your booking has been cancelled</div>
-                <div style="font-size:14px;color:#7a2a2a">Booking <strong>{{ $ref }}</strong> has been cancelled. We’re sorry we won’t be taking you on this occasion.</div>
+                <div style="font-size:14px;color:#7a2a2a">Booking <strong>{{ $ref }}</strong> has been cancelled.</div>
             </td></tr>
         </table>
     </td></tr>
