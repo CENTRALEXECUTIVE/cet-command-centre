@@ -1789,22 +1789,37 @@
                 <div><div class="muted" style="font-size:12px">Amount due</div><div style="font-weight:800;font-size:18px;{{ ($amountDue ?? 0) > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($amountDue ?? 0, 2) }}</div></div>
             </div>
 
-            {{-- One tap: when there's a balance due, make a card payment link for that
-                 amount and hand over WhatsApp/SMS/copy to send it — no need to open
-                 "Add new transaction" and fill it in. Uses the booking's own provider
-                 (Square for VAT/Ltd, Stripe for non-VAT/PVT LTD). --}}
+            {{-- One tap when there's a balance due. EMAIL sends the customer a
+                 "booking on hold" confirmation with a Complete payment button (the
+                 stable link charges the current amount — the whole trip for a return,
+                 from the PVT address for a non-VAT booking). WhatsApp/copy creates a
+                 card link to send by hand. No need to open "Add new transaction". --}}
             @if(($amountDue ?? 0) > 0.009)
-                <form method="POST" action="{{ route('bookings.transactions.store', $booking) }}" style="margin-top:12px">
-                    @csrf
-                    <input type="hidden" name="name" value="Balance">
-                    <input type="hidden" name="amount" value="{{ number_format($amountDue, 2, '.', '') }}">
-                    <input type="hidden" name="method" value="card">
-                    <input type="hidden" name="status" value="pending">
-                    <button class="btn btn-primary" name="create_link" value="whatsapp" style="padding:10px 16px"
-                            title="Creates a card payment link for the amount due and lets you send it by WhatsApp, SMS, email or copy">
-                        💳 Create &amp; send card link — £{{ number_format($amountDue, 2) }}
-                    </button>
-                </form>
+                <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+                    @if($booking->customer?->email)
+                        <form method="POST" action="{{ route('bookings.email-payment-request', $booking) }}">
+                            @csrf
+                            <button class="btn btn-primary" style="padding:10px 16px"
+                                    title="Emails the customer a booking confirmation (on hold) with a Complete payment button">
+                                ✉ Email payment request — £{{ number_format($amountDue, 2) }}
+                            </button>
+                        </form>
+                    @endif
+                    <form method="POST" action="{{ route('bookings.transactions.store', $booking) }}">
+                        @csrf
+                        <input type="hidden" name="name" value="Balance">
+                        <input type="hidden" name="amount" value="{{ number_format($amountDue, 2, '.', '') }}">
+                        <input type="hidden" name="method" value="card">
+                        <input type="hidden" name="status" value="pending">
+                        <button class="btn btn-light" name="create_link" value="whatsapp" style="padding:10px 16px"
+                                title="Creates a card payment link to send by WhatsApp or copy">
+                            📲 Create card link (WhatsApp / copy)
+                        </button>
+                    </form>
+                </div>
+                @unless($booking->customer?->email)
+                    <p class="hint" style="margin:6px 0 0">No customer email on file — add one to email the payment request, or use the WhatsApp / copy link.</p>
+                @endunless
             @endif
 
             @if($txns->isNotEmpty())

@@ -72,6 +72,49 @@ class BookingTransactionController extends Controller
             ->with('scroll', 'transactions');
     }
 
+    /**
+     * Email the customer a "booking on hold" confirmation with a Complete payment
+     * button — the office's one-tap "send the payment request by email". The button
+     * uses the stable widget.pay link, so it charges the CURRENT amount due (the
+     * whole trip for a return), and the email routes from the PVT address for a
+     * non-VAT booking. Records a "link sent" card transaction so the Payment history
+     * shows it was requested.
+     */
+    public function emailPaymentRequest(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $email = $booking->customer?->email;
+        if (! $email) {
+            return back()->with('error', 'No customer email on file — copy the link and send it another way.')->with('scroll', 'transactions');
+        }
+
+        $due = (float) ($booking->transactionsAmountDue() ?? $booking->amountPayable() ?? 0);
+        if ($due <= 0) {
+            return back()->with('status', 'Nothing to pay — this booking is already settled.')->with('scroll', 'transactions');
+        }
+
+        // Reflect the request in the Payment history (if there isn't an open card
+        // line already), so the office can see a link's been sent.
+        $hasOpen = $booking->payments()->whereIn('status', ['pending', 'link_sent'])->where('method', 'card')->exists();
+        if (! $hasOpen) {
+            $booking->payments()->create(['method' => 'card', 'amount' => $due, 'status' => 'link_sent', 'meta' => ['name' => 'Balance']]);
+        }
+
+        $payUrl = \Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $booking->id]);
+        try {
+            Mail::to($email)->send(new \App\Mail\BookingConfirmationMail($booking, paid: false, payUrl: $payUrl));
+        } catch (\Throwable $e) {
+            \App\Support\MailFailure::report('payment request email', $e, $booking);
+
+            return back()->with('error', 'Could not email the payment request — try again, or copy the link to send another way.')->with('scroll', 'transactions');
+        }
+
+        return back()
+            ->with('status', 'Payment request emailed to '.$email.' — the booking shows "on hold" with a Complete payment button.')
+            ->with('scroll', 'transactions');
+    }
+
     /** Edit an existing transaction (amount, method, status, name, charge). */
     public function update(Request $request, Booking $booking, Payment $payment): RedirectResponse
     {
