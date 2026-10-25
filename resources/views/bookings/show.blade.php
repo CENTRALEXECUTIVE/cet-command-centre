@@ -280,6 +280,23 @@
             <h2 style="margin:0 0 4px">🚫 Cancellation outcome</h2>
             <p class="hint" style="margin:0 0 10px">Decide what happens to the money. Charge nothing, charge part or all (the driver still gets their share), or refund the customer in full or part. Nothing here touches Google Calendar.</p>
 
+            {{-- Cancellation email to the customer — PREVIEW it first, then send (manual,
+                 never auto). Confirms the cancellation and the refund. --}}
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 14px">
+                <a href="{{ route('bookings.cancellation-email.preview', $booking) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px">👁 Preview cancellation email</a>
+                @if($booking->customer?->email)
+                    <form method="POST" action="{{ route('bookings.cancellation-email.send', $booking) }}" onsubmit="return confirm('Send the cancellation email to {{ $booking->customer->email }}?')" style="margin:0">
+                        @csrf
+                        <button class="btn btn-dark" style="padding:8px 14px">✉ Send cancellation email</button>
+                    </form>
+                @else
+                    <span class="hint">No customer email on file to send to.</span>
+                @endif
+                @if(!empty($booking->meta['cancellation_email_sent']))
+                    <span class="hint" style="color:#1f7a44">✓ Sent {{ \Illuminate\Support\Carbon::parse($booking->meta['cancellation_email_sent'])->format('d/m H:i') }}</span>
+                @endif
+            </div>
+
             @if($paid > 0)
                 <p style="margin:0 0 8px;font-size:14px">Customer has paid <strong>£{{ number_format($paid, 2) }}</strong> so far{{ $booking->payment_status === 'refunded' ? ' · marked REFUNDED' : '' }}.</p>
             @endif

@@ -684,6 +684,45 @@ class BookingController extends Controller
     }
 
     /**
+     * Preview the customer cancellation email in the browser (so the office sees
+     * exactly what will go out before sending it). Admin only.
+     */
+    public function previewCancellationEmail(Request $request, Booking $booking): \Illuminate\Http\Response
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        return response((new \App\Mail\BookingCancellationMail($booking))->render());
+    }
+
+    /**
+     * Send the cancellation email to the customer — manual (the office previews it
+     * first), never automatic. Confirms the cancellation and the refund.
+     */
+    public function sendCancellationEmail(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $email = $booking->customer?->email;
+        if (! $email) {
+            return back()->with('error', 'No customer email on file — can’t send the cancellation email.');
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\BookingCancellationMail($booking));
+        } catch (\Throwable $e) {
+            \App\Support\MailFailure::report('cancellation email', $e, $booking);
+
+            return back()->with('error', 'Could not send the cancellation email — please try again.');
+        }
+
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'cancellation_email_sent' => now()->toIso8601String(),
+        ])])->save();
+
+        return back()->with('status', 'Cancellation email sent to '.$email.'.');
+    }
+
+    /**
      * Postpone a booking for a reschedule — the common "the customer's flight was
      * cancelled, they'll rebook once they have new details" case. NOT a
      * cancellation: the record and any payment are HELD against the booking,
