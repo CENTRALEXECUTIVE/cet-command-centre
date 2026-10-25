@@ -41,14 +41,19 @@ class BookingService
             // same way the customer/widget flow does, and is recorded for the office.
             [$data, $voucherMeta] = $this->applyVoucherDiscount($data);
 
-            $outbound = $this->buildLeg($data, $customer, $creator, isReturn: false);
+            // A return trip gets PAIRED references — outbound …A, return …B, same
+            // base — so the two legs read as one trip (like ETO's A/B).
+            $isReturnTrip = ($data['journey_type'] ?? 'one_way') === 'return';
+            [$outRef, $retRef] = $isReturnTrip ? Booking::generateReferencePair() : [null, null];
+
+            $outbound = $this->buildLeg($data, $customer, $creator, isReturn: false, reference: $outRef);
 
             if ($voucherMeta) {
                 $outbound->forceFill(['meta' => array_merge($outbound->meta ?? [], $voucherMeta)])->save();
             }
 
-            if (($data['journey_type'] ?? 'one_way') === 'return') {
-                $return = $this->buildLeg($data, $customer, $creator, isReturn: true);
+            if ($isReturnTrip) {
+                $return = $this->buildLeg($data, $customer, $creator, isReturn: true, reference: $retRef);
                 // Link the pair both ways so the rotation engine can honour the
                 // "same driver, move once" rule.
                 $outbound->linked_booking_id = $return->id;
@@ -467,7 +472,7 @@ class BookingService
         return [$suitcases, $handLuggage, $combined];
     }
 
-    private function buildLeg(array $data, Customer $customer, ?User $creator, bool $isReturn): Booking
+    private function buildLeg(array $data, Customer $customer, ?User $creator, bool $isReturn, ?string $reference = null): Booking
     {
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
 
@@ -484,7 +489,7 @@ class BookingService
         [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
         $booking = Booking::create([
-            'reference' => Booking::generateReference(),
+            'reference' => $reference ?? Booking::generateReference(),
             'customer_id' => $customer->id,
             'corporate_account_id' => $data['corporate_account_id'] ?? null,
             'cost_code' => $data['cost_code'] ?? null,

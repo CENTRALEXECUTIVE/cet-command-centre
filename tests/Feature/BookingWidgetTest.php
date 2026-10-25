@@ -361,6 +361,10 @@ class BookingWidgetTest extends TestCase
         $this->assertNotNull($ret);
         $this->assertSame($ret->id, $out->linked_booking_id);
         $this->assertSame($out->id, $ret->linked_booking_id);
+        // Paired references: same base, outbound ends A, return ends B (like ETO).
+        $this->assertStringEndsWith('A', $out->reference);
+        $this->assertStringEndsWith('B', $ret->reference);
+        $this->assertSame(substr($out->reference, 0, -1), substr($ret->reference, 0, -1));
         // Return leg reverses the route and carries its OWN fare (a round trip is two
         // journeys) — £105 base each way; the outbound also carries the airport
         // meet & greet (£10), so the round trip is £115 + £105 = £220, not £115.

@@ -504,8 +504,12 @@ class BookingWidgetController extends Controller
             $customer->forceFill(['corporate_account_id' => $account->id])->save();
         }
 
+        // A return trip gets a PAIRED reference — outbound …A, return …B, same base —
+        // so the two legs are obviously one trip. A one-way gets a normal reference.
+        [$outboundRef, $returnRef] = $isReturn ? Booking::generateReferencePair() : [Booking::generateReference(), null];
+
         $booking = Booking::create([
-            'reference' => Booking::generateReference(),
+            'reference' => $outboundRef,
             'customer_id' => $customer->id,
             'corporate_account_id' => $account?->id,
             'vehicle_type_id' => $vehicleType->id,
@@ -586,7 +590,7 @@ class BookingWidgetController extends Controller
             $returnQuoted = $isAccount ? $returnNet : $returnCharge;
 
             $return = Booking::create([
-                'reference' => Booking::generateReference(),
+                'reference' => $returnRef,
                 'customer_id' => $customer->id,
                 'vehicle_type_id' => $vehicleType->id,
                 'journey_type' => 'return',

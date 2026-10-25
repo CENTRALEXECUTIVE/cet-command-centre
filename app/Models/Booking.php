@@ -6374,4 +6374,23 @@ class Booking extends Model
 
         return $reference;
     }
+
+    /**
+     * A paired reference for a return trip: the outbound and return share a base
+     * and differ only in the last character — A for the outbound, B for the return
+     * (e.g. CET-2A4F9A / CET-2A4F9B) — so a pair is obvious at a glance, the way
+     * ETO's A/B references worked.
+     *
+     * @return array{0: string, 1: string} [outboundRef, returnRef]
+     */
+    public static function generateReferencePair(): array
+    {
+        do {
+            $tail = strtoupper(substr(bin2hex(random_bytes(3)), 0, 5)); // 5 hex chars
+            $out = 'CET-'.$tail.'A';
+            $ret = 'CET-'.$tail.'B';
+        } while (static::whereIn('reference', [$out, $ret])->exists());
+
+        return [$out, $ret];
+    }
 }
