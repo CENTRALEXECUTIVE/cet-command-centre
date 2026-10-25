@@ -451,9 +451,9 @@
             (function () {
                 try {
                     var msg = { cetBooking: {
-                        event: 'booking_request',
+                        event: @json($conversionEvent ?? 'booking_request'),
                         ref: @json($ref ?? null),
-                        value: {{ (float) ($payAmount ?? 0) }},
+                        value: {{ (float) ($conversionValue ?? $payAmount ?? 0) }},
                         currency: 'GBP',
                         quoteRequest: {{ !empty($quoteRequest) ? 'true' : 'false' }},
                         canPay: {{ !empty($payUrl) ? 'true' : 'false' }}

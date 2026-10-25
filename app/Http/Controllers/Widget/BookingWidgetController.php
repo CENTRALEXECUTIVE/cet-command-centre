@@ -672,6 +672,15 @@ class BookingWidgetController extends Controller
             $payUrl = URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id]);
         }
 
+        // Google Ads / GA4 conversion value = the WHOLE job's value, not just the
+        // amount payable now. For a return it's both legs combined (the £220 trip,
+        // not the £115 outbound). A quote request has no price yet, so it reports as
+        // its own event at £0 — the office can count it as a softer (secondary) goal,
+        // and it never inflates the real "booking" conversion that bidding learns from.
+        $conversionValue = $isQuoteRequest ? 0.0 : round((float) ($booking->quoted_price ?? $charge ?? 0)
+            + ($isReturn && isset($return) ? (float) ($return->quoted_price ?? 0) : 0.0), 2);
+        $conversionEvent = $isQuoteRequest ? 'quote_request' : 'booking_request';
+
         return response()
             ->view('widget.book', [
                 'vehicleTypes' => collect(),
@@ -681,6 +690,8 @@ class BookingWidgetController extends Controller
                 'payWanted' => $wantsCard,
                 'payAmount' => $charge,
                 'quoteRequest' => $isQuoteRequest,
+                'conversionValue' => $conversionValue,
+                'conversionEvent' => $conversionEvent,
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }

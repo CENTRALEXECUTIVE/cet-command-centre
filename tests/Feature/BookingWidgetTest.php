@@ -118,6 +118,72 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('airports', $booking->meta['marketing']['utm_campaign'] ?? null);
     }
 
+    public function test_the_conversion_fires_with_the_real_fare_value_and_booking_event(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $res = $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id,
+            'passengers' => 2,
+            'customer_name' => 'Val Yoo', 'customer_phone' => '07700900111',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        // Google must see a real job value (£105 fixed route), not £0, and the
+        // "booking_request" event — so bidding learns from real bookings.
+        $res->assertSee('event: "booking_request"', false);
+        $res->assertSee('value: '.(float) $booking->quoted_price, false);
+        $this->assertEqualsWithDelta(105.0, (float) $booking->quoted_price, 0.01);
+    }
+
+    public function test_a_return_conversion_reports_both_legs_combined(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $res = $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'journey_type' => 'return',
+            'pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(3)->addHour()->format('Y-m-d\TH:i'),
+            'flight_number' => 'BA1368',
+            'flight_landing_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id,
+            'passengers' => 2,
+            'customer_name' => 'Ray Turn', 'customer_phone' => '07700900222',
+        ])->assertOk();
+
+        $out = \App\Models\Booking::where('source', 'web')->where('is_return_leg', false)->first();
+        $ret = \App\Models\Booking::where('is_return_leg', true)->first();
+        $combined = (float) $out->quoted_price + (float) $ret->quoted_price;
+        // The whole trip's value (both legs), never just the outbound leg.
+        $res->assertSee('value: '.$combined, false);
+        $this->assertGreaterThan((float) $out->quoted_price, $combined);
+    }
+
+    public function test_a_quote_request_fires_its_own_event_at_zero_value(): void
+    {
+        // A "price on request" vehicle (Rolls Royce POA) has no fixed fare — it must
+        // report as a quote_request at £0, so it never inflates the real booking
+        // conversion that bidding learns from.
+        $rolls = VehicleType::where('slug', 'rolls-royce-ghost')->first();
+        $res = $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Chatsworth House',
+            'pickup_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $rolls->id, 'passengers' => 2,
+            'customer_name' => 'Posey Ay', 'customer_phone' => '07700900333',
+            'customer_email' => 'quote@example.com',
+        ])->assertOk();
+
+        $res->assertSee('event: "quote_request"', false);
+        $res->assertSee('value: 0', false);
+        $this->assertNull(\App\Models\Booking::firstWhere('source', 'web')->quoted_price);
+    }
+
     public function test_the_landing_url_ad_params_are_rendered_as_hidden_fields(): void
     {
         $this->get(route('widget.book', ['gclid' => 'ABC123', 'utm_source' => 'google']))

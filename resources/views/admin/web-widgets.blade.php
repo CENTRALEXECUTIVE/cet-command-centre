@@ -28,7 +28,8 @@
                 .'    f.style.height=e.data.cetWidgetHeight+"px";}});})();</script>';
         };
         $adsSnippet = '<!-- Google Ads conversion tracking for the CET booking widget -->'."\n"
-            .'<!-- Replace AW-XXXXXXXXX (your Conversion ID) and YOUR_LABEL (your Conversion label) -->'."\n"
+            .'<!-- Replace AW-XXXXXXXXX (Conversion ID). BOOKING_LABEL = your "Booking" action label. -->'."\n"
+            .'<!-- QUOTE_LABEL is OPTIONAL — only if you make a separate (Secondary) "Quote request" action. -->'."\n"
             .'<script async src="https://www.googletagmanager.com/gtag/js?id=AW-XXXXXXXXX"></script>'."\n"
             .'<script>'."\n"
             .'  window.dataLayer = window.dataLayer || [];'."\n"
@@ -37,8 +38,14 @@
             .'  gtag("config", "AW-XXXXXXXXX");'."\n"
             .'  window.addEventListener("message", function (e) {'."\n"
             .'    var b = e.data && e.data.cetBooking; if (!b) return;'."\n"
+            .'    if (b.event === "quote_request") {'."\n"
+            .'      // Optional soft goal — delete these 4 lines if you have no QUOTE_LABEL.'."\n"
+            .'      gtag("event", "conversion", { send_to: "AW-XXXXXXXXX/QUOTE_LABEL",'."\n"
+            .'        value: 0, currency: "GBP", transaction_id: b.ref || "" });'."\n"
+            .'      return;'."\n"
+            .'    }'."\n"
             .'    gtag("event", "conversion", {'."\n"
-            .'      send_to: "AW-XXXXXXXXX/YOUR_LABEL",'."\n"
+            .'      send_to: "AW-XXXXXXXXX/BOOKING_LABEL",'."\n"
             .'      value: b.value || 0, currency: b.currency || "GBP", transaction_id: b.ref || ""'."\n"
             .'    });'."\n"
             .'  });'."\n"
@@ -67,10 +74,13 @@
         <p class="hint" style="margin:0 0 10px">
             Paste this <strong>once</strong> into your website (in the <code>&lt;head&gt;</code>, on every page that can show the
             booking widget). It tells Google Ads when a booking is placed, so you can see which ads and keywords actually win
-            jobs. Replace <strong>AW-XXXXXXXXX</strong> with your Conversion ID and <strong>YOUR_LABEL</strong> with the
+            jobs. Replace <strong>AW-XXXXXXXXX</strong> with your Conversion ID and <strong>BOOKING_LABEL</strong> with the
             Conversion label — both from Google Ads → <em>Goals → Conversions → your "Booking" action → Tag setup</em>.
         </p>
         <ul class="hint" style="margin:0 0 10px;padding-left:18px">
+            <li><strong>Check this is actually live on the website.</strong> If the site was ever rebuilt or restored, this tag can get lost — and Google then records no bookings even while jobs keep coming in. Verify with the Google <em>Tag Assistant</em> extension: place a test booking and confirm a "conversion" fires.</li>
+            <li>Each conversion now carries the <strong>full job value</strong> (both legs of a return, e.g. £220 — not just £115) so your revenue/ROAS figures are real.</li>
+            <li>Make the <strong>Booking</strong> action your one <strong>Primary</strong> conversion. Set calls, WhatsApp taps and (optional) quote requests to <strong>Secondary</strong> so bidding optimises to real bookings, not taps.</li>
             <li>The widget already forwards the ad click (<code>gclid</code>) into every booking, so each booking is traced back to its ad — and stored for an exact <em>offline conversion import</em> later if you want paid-only revenue.</li>
             <li>This fires when a booking <strong>request is submitted</strong>. Tell me if you'd rather only count <strong>paid</strong> bookings and I'll switch it to offline-import.</li>
         </ul>
