@@ -98,14 +98,4 @@ class BookingFormRendersTest extends TestCase
         $this->assertSame('booked', $enquiry->fresh()->status);
     }
 
-    public function test_quote_form_renders_with_autocomplete(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin)->get(route('quotes.create'))
-            ->assertOk()
-            ->assertSee('data-places', false)
-            ->assertSee('js/cet-forms.js', false)
-            ->assertSee('id="quote-note"', false);
-    }
 }

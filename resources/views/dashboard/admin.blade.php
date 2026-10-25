@@ -214,7 +214,6 @@
     {{-- Quick actions --}}
     <div class="toolbar" style="gap:8px;flex-wrap:wrap;margin-bottom:20px">
         <a href="{{ route('bookings.create') }}" class="btn btn-primary" style="padding:9px 16px">+ New Booking</a>
-        <a href="{{ route('quotes.create') }}" class="btn btn-dark" style="padding:9px 16px">New Quote</a>
         <a href="{{ route('despatch.board') }}" class="btn btn-light" style="padding:9px 16px">Dispatch Board</a>
         <a href="{{ route('bookings.index') }}" class="btn btn-light" style="padding:9px 16px">All Bookings</a>
         <a href="{{ route('review.index') }}" class="btn btn-light" style="padding:9px 16px">Review</a>

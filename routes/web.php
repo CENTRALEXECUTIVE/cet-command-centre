@@ -13,7 +13,6 @@ use App\Http\Controllers\ErasureController;
 use App\Http\Controllers\FixedPriceController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MarketingController;
-use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\WaitingListController;
@@ -97,16 +96,14 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
     Route::post('jobs/import-all', [\App\Http\Controllers\CalendarJobController::class, 'storeAll'])
         ->middleware('role:admin', 'throttle:20,1')->name('jobs.import-all');
 
-    // Bookings + AI quotes — admins and corporate clients.
+    // Bookings — admins and corporate clients. (The old standalone "Get a quote"
+    // tool was retired: the booking form shows a live price before you confirm, so
+    // quoting and booking happen on one screen.)
     Route::middleware('role:admin,corporate_client')->group(function () {
         Route::get('bookings/create', [BookingController::class, 'create'])->name('bookings.create');
         Route::post('bookings', [BookingController::class, 'store'])
             ->middleware('throttle:30,1')
             ->name('bookings.store');
-
-        Route::get('quotes/create', [QuoteController::class, 'create'])->name('quotes.create');
-        Route::post('quotes', [QuoteController::class, 'store'])->middleware('throttle:30,1')->name('quotes.store');
-        Route::get('quotes/{quote}', [QuoteController::class, 'show'])->name('quotes.show');
 
         // Address autocomplete (server-side proxy to Google Places).
         Route::get('places/autocomplete', [\App\Http\Controllers\PlacesController::class, 'autocomplete'])

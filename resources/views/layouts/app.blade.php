@@ -61,7 +61,6 @@
 
             @if($u->isCorporateClient())
                 <div class="nav-group">
-                    <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
                     <a href="{{ route('invoices.index') }}" class="{{ request()->routeIs('invoices.index') || request()->routeIs('invoices.show') || request()->routeIs('invoices.pdf') ? 'active' : '' }}">Invoices</a>
                     <a href="{{ route('cover-invoices.index') }}" class="{{ request()->routeIs('cover-invoices.*') ? 'active' : '' }}">Cover invoices</a>
                     <a href="{{ route('corporate.statement') }}" class="{{ request()->routeIs('corporate.*') ? 'active' : '' }}">My account</a>
@@ -70,7 +69,7 @@
 
             @if($u->isAdmin())
                 @php
-                    $inSales = request()->routeIs('quotes.*', 'enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'cover-invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
+                    $inSales = request()->routeIs('enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'cover-invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
                     $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*');
                     $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'route-order.*', 'fleet-photos.*', 'driver.documents*');
                     $inAdmin = request()->routeIs('imports.*', 'audit.*', 'users.*', 'settings.*', 'gdpr.*');
@@ -78,7 +77,6 @@
 
                 <details class="nav-fold" @if($inSales) open @endif>
                     <summary>Sales &amp; customers</summary>
-                    <a href="{{ route('quotes.create') }}" class="{{ request()->routeIs('quotes.*') ? 'active' : '' }}">New quote</a>
                     <a href="{{ route('enquiries.index') }}" class="{{ request()->routeIs('enquiries.*') ? 'active' : '' }}">Enquiries</a>
                     <a href="{{ route('customers.index') }}" class="{{ request()->routeIs('customers.*') ? 'active' : '' }}">Customers</a>
                     <a href="{{ route('accounts.index') }}" class="{{ request()->routeIs('accounts.*') ? 'active' : '' }}">Business accounts</a>

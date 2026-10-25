@@ -39,7 +39,7 @@ class DashboardOverviewTest extends TestCase
         $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
         $this->assertEquals(120.0, $res->viewData('todayRevenue'));
         $res->assertSee('Today\'s booked value', false)
-            ->assertSee(route('quotes.create'))       // quick actions
+            ->assertSee(route('bookings.create'))      // quick actions
             ->assertSee('↻ Refresh', false);          // interactive refresh
     }
 

@@ -64,11 +64,11 @@ class QuoteExtrasTest extends TestCase
         $this->assertSame((float) $quote->breakdown['rule_price'], (float) $quote->price);
     }
 
-    public function test_quote_form_accepts_extras_and_stopover_addresses(): void
+    public function test_the_engine_prices_extras_and_stopovers(): void
     {
-        $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin)->post(route('quotes.store'), [
+        // The standalone quote tool was retired, but the AI engine still prices
+        // extras + stopovers (it's the same extras maths the booking form uses).
+        $quote = app(AiPricingEngine::class)->quote([
             'vehicle_type_id' => VehicleType::where('slug', 'executive')->value('id'),
             'pickup_address' => 'Sheffield S10',
             'destination_address' => 'Manchester Airport',
@@ -76,9 +76,8 @@ class QuoteExtrasTest extends TestCase
             'distance_miles' => 40, 'duration_minutes' => 55,
             'meet_greet' => 1, 'stopovers' => 1,
             'stopover_addresses' => 'Ecclesall Road, Sheffield',
-        ])->assertRedirect();
+        ]);
 
-        $quote = \App\Models\Quote::latest('id')->first();
         $this->assertSame(20.0, (float) $quote->breakdown['extras_total']); // £10 M&G + £10 stopover
     }
 }

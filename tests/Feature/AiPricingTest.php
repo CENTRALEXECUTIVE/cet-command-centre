@@ -111,22 +111,6 @@ class AiPricingTest extends TestCase
         $this->assertEquals('Peak demand', $quote->breakdown['ai_rationale']);
     }
 
-    public function test_admin_can_generate_a_quote_via_http(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin)->post(route('quotes.store'), [
-            'vehicle_type_id' => $this->executive()->id,
-            'pickup_address' => 'Sheffield',
-            'destination_address' => 'MAN',
-            'pickup_at' => '2026-06-15 14:00',
-            'distance_miles' => 10,
-            'duration_minutes' => 20,
-        ])->assertRedirect();
-
-        $this->assertEquals(1, Quote::count());
-    }
-
     protected function tearDown(): void
     {
         Mockery::close();
