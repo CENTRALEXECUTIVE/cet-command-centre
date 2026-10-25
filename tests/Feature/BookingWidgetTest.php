@@ -361,10 +361,15 @@ class BookingWidgetTest extends TestCase
         $this->assertNotNull($ret);
         $this->assertSame($ret->id, $out->linked_booking_id);
         $this->assertSame($out->id, $ret->linked_booking_id);
-        // Return leg reverses the route; fare stays on the outbound only.
+        // Return leg reverses the route and carries its OWN fare (a round trip is two
+        // journeys) — £105 base each way; the outbound also carries the airport
+        // meet & greet (£10), so the round trip is £115 + £105 = £220, not £115.
         $this->assertSame('Manchester Airport', $ret->pickup_address);
         $this->assertSame('Sheffield S1 2HH', $ret->destination_address);
-        $this->assertNull($ret->quoted_price);
+        $this->assertEqualsWithDelta(105.0, (float) $ret->quoted_price, 0.01);
+        $this->assertEqualsWithDelta(115.0, (float) $out->quoted_price, 0.01);
+        $groupTotal = $out->invoiceGroupBookings()->sum(fn ($b) => (float) ($b->fareGross() ?? 0));
+        $this->assertEqualsWithDelta(220.0, $groupTotal, 0.01);
         // Airport return: meet & greet is applied no matter what, and the flight
         // landing time is captured for the office.
         $this->assertTrue((bool) $out->meta['meet_greet']);

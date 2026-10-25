@@ -24,7 +24,15 @@ class OfficeBookingMail extends Mailable
      * @param  string  $stage  'new' (a booking has just been created) or
      *                         'paid' (its fare has just been paid online).
      */
-    public function __construct(public Booking $booking, public string $stage = 'new') {}
+    public function __construct(public Booking $booking, public string $stage = 'new')
+    {
+        // A non-VAT (PVT LTD) booking's office copy goes through the PVT mailbox, so
+        // it's consistent with the PVT invoice + customer email instead of being sent
+        // from the normal VAT-company account. No-op until PVT sending is set up.
+        if ($name = $this->booking->pvtMailer()) {
+            $this->mailer($name);
+        }
+    }
 
     public function envelope(): Envelope
     {
@@ -32,7 +40,14 @@ class OfficeBookingMail extends Mailable
 
         // A branded sender (and, when configured, a distinct from-address) so the
         // office copy reads as "Central Executive Transfers", not "Note to self".
-        $fromAddress = trim((string) config('cet.office_from')) ?: config('mail.from.address');
+        // A non-VAT booking is sent from the PVT LTD address to match its invoice.
+        $isPvt = $this->booking->billingEntity() === 'chauffeurs';
+        $fromAddress = $isPvt
+            ? $this->booking->senderAddress()
+            : (trim((string) config('cet.office_from')) ?: config('mail.from.address'));
+        $fromName = $isPvt
+            ? (string) config('cet.company_novat.name', 'Central Executive Transfers PVT LTD')
+            : 'Central Executive Transfers';
         $replyTo = config('cet.ops_email');
 
         // An unpaid card booking is INCOMPLETE until the customer pays (ETO-style);
@@ -48,7 +63,7 @@ class OfficeBookingMail extends Mailable
         };
 
         return new Envelope(
-            from: new Address($fromAddress, 'Central Executive Transfers'),
+            from: new Address($fromAddress, $fromName),
             replyTo: $replyTo ? [new Address($replyTo, 'Central Executive Transfers')] : [],
             subject: $subject,
         );

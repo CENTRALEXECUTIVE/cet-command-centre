@@ -570,11 +570,21 @@ class BookingWidgetController extends Controller
         ]);
 
         // Return trip: create the linked inbound leg (office confirms; no rotation
-        // or calendar until then). Fare stays on the outbound so revenue isn't
-        // double-counted.
+        // or calendar until then). The return is its OWN priced transfer — a round
+        // trip is two journeys, so the customer is charged for both legs, not one.
         if ($isReturn) {
             $returnAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone'))
                 ?: Carbon::parse($data['return_pickup_at']);
+
+            // Price the return as its own leg (same base as the outbound, reversed
+            // route — matches the round-trip total the customer saw). VAT / account
+            // handling mirror the outbound so both legs are stored consistently.
+            $returnNet = $quote['price']; // null for on-request (POA) — stays unpriced
+            $returnCharge = $returnNet === null
+                ? null
+                : ($needsInvoice ? round((float) $returnNet * (1 + $vatRate), 2) : (float) $returnNet);
+            $returnQuoted = $isAccount ? $returnNet : $returnCharge;
+
             $return = Booking::create([
                 'reference' => Booking::generateReference(),
                 'customer_id' => $customer->id,
@@ -589,11 +599,13 @@ class BookingWidgetController extends Controller
                 'flight_number' => null, // return leg has no inbound flight
                 'special_requests' => $composedNotes,
                 'status' => BookingStatus::Pending->value,
-                // A return leg never collects on the day (the outbound carries the
-                // fare) and returns are card-only, so it's a card job — never cash.
+                // A return leg never collects cash on the day (returns are card-only),
+                // so it's a card job — but it carries its OWN fare so the round trip
+                // is charged in full and the invoice shows the return priced.
                 'payment_method' => 'card',
                 'payment_status' => 'pending',
                 'source' => 'web',
+                'quoted_price' => $returnQuoted,
                 'meta' => array_filter([
                     'web_booking' => true,
                     'lead_name' => $leadName,

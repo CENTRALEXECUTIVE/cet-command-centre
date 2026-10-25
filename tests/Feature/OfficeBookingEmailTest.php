@@ -118,6 +118,37 @@ class OfficeBookingEmailTest extends TestCase
         Mail::assertSent(OfficeBookingMail::class, 2);
     }
 
+    public function test_a_non_vat_booking_office_email_routes_through_the_pvt_mailbox(): void
+    {
+        // PVT sending set up (separate mailbox).
+        \App\Models\Setting::set('mail_pvt_enabled', '1', 'string', 'mail');
+        \App\Models\Setting::set('mail_pvt_host', 'smtp.pvt.example', 'string', 'mail');
+        \App\Models\Setting::set('mail_pvt_from_address', 'admin@centralexecutivetransferspvt.co.uk', 'string', 'mail');
+
+        $booking = Booking::factory()->create(['payment_method' => 'card', 'payment_status' => 'pending', 'quoted_price' => 115]);
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'billing_entity' => 'chauffeurs', 'vat_invoice_requested' => false,
+        ])])->save();
+
+        $mail = new OfficeBookingMail($booking->fresh(), 'new');
+
+        // Sent through the PVT mailer and from the PVT address — not the normal account.
+        $this->assertSame('pvt', $mail->mailer);
+        $this->assertSame('admin@centralexecutivetransferspvt.co.uk', $mail->envelope()->from->address);
+    }
+
+    public function test_a_vat_booking_office_email_stays_on_the_main_account(): void
+    {
+        config(['cet.office_from' => 'office@centralexecutivetransfers.co.uk']);
+        $booking = Booking::factory()->create();
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['billing_entity' => 'transfers'])])->save();
+
+        $mail = new OfficeBookingMail($booking->fresh(), 'new');
+
+        $this->assertNull($mail->mailer); // default mailer
+        $this->assertSame('office@centralexecutivetransfers.co.uk', $mail->envelope()->from->address);
+    }
+
     public function test_no_office_email_when_no_ops_inbox_is_set(): void
     {
         config(['cet.ops_email' => null]);

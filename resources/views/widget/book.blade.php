@@ -874,6 +874,10 @@
                 if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
                 // No cash bookings on return journeys — hide Cash, force card (or account).
                 applyReturnPaymentRule();
+                // A return doubles the fare — refresh the live total/summary so the
+                // round-trip price shows the moment the journey type changes.
+                if (typeof fillSummary === 'function') fillSummary();
+                if (typeof updateTotal === 'function') updateTotal();
             }
             if (journeyEl) { journeyEl.addEventListener('change', toggleJourney); }
 
@@ -1178,9 +1182,12 @@
                 items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
                 var vat = vatOn();
                 if (lastQuote && !lastQuote.poa && lastQuote.price != null) {
-                    var net = Number(lastQuote.price) + mgFee() + extrasTotal();
+                    // Show the return as its own line so the round-trip total is clear.
+                    if (legs() === 2) html += row('Return journey (2 legs)', money(Number(lastQuote.price) * 2));
+                    var net = Number(lastQuote.price) * legs() + mgFee() + extrasTotal();
                     if (vat) html += row('VAT (' + vatPercent + '%)', money(net * vatPercent / 100));
                     var totNotes = [];
+                    if (legs() === 2) totNotes.push('return — both legs');
                     if (vat) totNotes.push('inc. VAT');
                     if (mgFee() > 0) totNotes.push('including meet &amp; greet');
                     if (lastQuote.surchargeLabel) totNotes.push('includes ' + lastQuote.surchargeLabel);
@@ -1258,10 +1265,13 @@
             function mgFee() {
                 return (mgApplies() && mg) ? (parseFloat(mg.dataset.extra) || 0) : 0;
             }
+            // A return is two journeys — price both legs (the return costs the same
+            // as the outbound), so the customer sees the real round-trip total.
+            function legs() { return (journeyEl && journeyEl.value === 'return') ? 2 : 1; }
             // The all-in total for the selected vehicle, or null when it's on request.
             function currentTotal() {
                 if (!lastQuote || lastQuote.poa || lastQuote.price == null) return null;
-                return withVat(Number(lastQuote.price) + mgFee() + extrasTotal());
+                return withVat(Number(lastQuote.price) * legs() + mgFee() + extrasTotal());
             }
             // The prominent Total-price band on the details step.
             function updateTotal() {
@@ -1269,6 +1279,7 @@
                 var t = currentTotal();
                 if (t == null) { el.innerHTML = 'Office to confirm'; return; }
                 var notes = [];
+                if (legs() === 2) notes.push('return — both legs');
                 if (vatOn()) notes.push('inc. VAT');
                 if (mgFee() > 0) notes.push('incl. meet &amp; greet');
                 el.innerHTML = money(t) + (notes.length ? ' <small>' + notes.join(' · ') + '</small>' : '');
