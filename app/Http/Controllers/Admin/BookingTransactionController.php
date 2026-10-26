@@ -53,6 +53,7 @@ class BookingTransactionController extends Controller
 
         $booking->load('payments');
         $booking->reconcilePaymentStatusFromTransactions();
+        $this->settleIfPaid($booking);
 
         // One-step: add the charge AND create the Square card link in the same tap
         // (ETO-style), then hand the office a way to send it.
@@ -168,8 +169,23 @@ class BookingTransactionController extends Controller
         $payment->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
         $booking->load('payments');
         $booking->reconcilePaymentStatusFromTransactions();
+        $this->settleIfPaid($booking);
 
         return back()->with('status', 'Transaction marked paid.')->with('scroll', 'transactions');
+    }
+
+    /**
+     * When a manually-recorded payment brings the fare fully paid, run the SAME paid
+     * flow a provider webhook would: switch the booking to paid, send the customer
+     * the paid receipt + invoice, and the office the "payment received" notice. This
+     * is the reliable fallback for a payment the webhook missed — one tap reconciles
+     * it end to end. onFarePaid is idempotent, so it never double-sends.
+     */
+    private function settleIfPaid(Booking $booking): void
+    {
+        if ($booking->fresh()->fareIsPaid()) {
+            app(\App\Services\BookingStatusService::class)->onFarePaid($booking->fresh());
+        }
     }
 
     /** Copy a transaction (e.g. to bill the return leg the same way). */
