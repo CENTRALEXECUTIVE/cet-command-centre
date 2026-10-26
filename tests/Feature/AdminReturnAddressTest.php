@@ -79,6 +79,10 @@ class AdminReturnAddressTest extends TestCase
 
     public function test_the_confirmation_email_can_be_previewed_before_saving(): void
     {
+        // Mirror live: Square (tips) configured, so the email builds a tip link —
+        // which must NOT try to save the unsaved preview booking (the staging bug).
+        config(['services.square.access_token' => 'sq', 'services.square.location_id' => 'LOC']);
+
         $res = $this->actingAs(User::factory()->admin()->create())
             ->post(route('bookings.confirmation-email.preview-new'), $this->payload())
             ->assertOk();

@@ -756,6 +756,9 @@ class BookingController extends Controller
                 $meta['flight_landing_at'] = $request->input('flight_landing_at');
             }
             $booking->meta = $meta;
+            // A dummy tip token so the email's tip link never calls tipToken(), which
+            // would try to SAVE this unsaved preview booking (and throw). Preview only.
+            $booking->tip_token = 'PREVIEW';
             $booking->setRelation('customer', $customer);
             $booking->setRelation('payments', collect()); // no DB query on an unsaved booking
             if ($request->filled('vehicle_type_id')) {
