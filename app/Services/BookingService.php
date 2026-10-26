@@ -46,6 +46,16 @@ class BookingService
             $isReturnTrip = ($data['journey_type'] ?? 'one_way') === 'return';
             [$outRef, $retRef] = $isReturnTrip ? Booking::generateReferencePair() : [null, null];
 
+            // Split the trip fare across the two legs so EACH leg stores its own price
+            // (outbound …A and return …B), exactly like the website — the customer gets
+            // a confirmation per leg showing that leg's fare, and the pay link charges
+            // the whole trip. One-way is untouched.
+            if ($isReturnTrip) {
+                [$outPrice, $returnPrice] = $this->splitReturnFare($data);
+                $data['quoted_price'] = $outPrice;
+                $data['return_quoted_price'] = $returnPrice;
+            }
+
             $outbound = $this->buildLeg($data, $customer, $creator, isReturn: false, reference: $outRef);
 
             if ($voucherMeta) {
@@ -472,6 +482,42 @@ class BookingService
         return [$suitcases, $handLuggage, $combined];
     }
 
+    /**
+     * Split a return trip's total fare into [outbound, return] leg prices. The live
+     * quote's per-leg figures win when they add up to the total (the office took the
+     * quote — this is where a DIFFERENT-priced return keeps its own share). If the
+     * office changed the total, it's split in the same ratio as the quote; with no
+     * per-leg quote at all it's an even 50/50. A null total stays null on both legs.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: float|null, 1: float|null}
+     */
+    private function splitReturnFare(array $data): array
+    {
+        $total = ($data['quoted_price'] ?? null) !== null && $data['quoted_price'] !== ''
+            ? round((float) $data['quoted_price'], 2) : null;
+        if ($total === null) {
+            return [null, null];
+        }
+
+        $num = fn ($k) => ($data[$k] ?? null) !== null && $data[$k] !== '' ? round((float) $data[$k], 2) : null;
+        $out = $num('leg_price_out');
+        $ret = $num('leg_price_return');
+
+        // Quote accepted as-is → use its exact per-leg figures.
+        if ($out !== null && $ret !== null && abs(($out + $ret) - $total) < 0.01) {
+            return [$out, $ret];
+        }
+        // Total edited → keep the quote's split ratio.
+        if ($out !== null && $ret !== null && ($out + $ret) > 0) {
+            $o = round($total * ($out / ($out + $ret)), 2);
+            return [$o, round($total - $o, 2)];
+        }
+        // No per-leg quote → even split.
+        $half = round($total / 2, 2);
+        return [$half, round($total - $half, 2)];
+    }
+
     private function buildLeg(array $data, Customer $customer, ?User $creator, bool $isReturn, ?string $reference = null): Booking
     {
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
@@ -548,7 +594,7 @@ class BookingService
             'status' => BookingStatus::Pending,
             // The quoted price is the TOTAL for the journey — keep it on the
             // outbound leg only so a return isn't double-counted in revenue.
-            'quoted_price' => $isReturn ? null : ($data['quoted_price'] ?? null),
+            'quoted_price' => $isReturn ? ($data['return_quoted_price'] ?? null) : ($data['quoted_price'] ?? null),
             'payment_method' => $data['payment_method'] ?? PaymentMethod::Card->value,
             'source' => $creator?->isCorporateClient() ? 'portal' : 'phone',
             'created_by' => $creator?->id,

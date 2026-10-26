@@ -379,23 +379,33 @@ class BookingController extends Controller
         // operator left the box ticked and the customer has an email. Deliberate,
         // one booking at a time (unlike a bulk import, which never emails). Once
         // per booking; a send failure is reported to the office, never fatal.
-        if ($request->boolean('email_customer')
-            && $booking->customerEmailAllowed()
-            && empty($booking->meta['customer_email_sent'])) {
-            try {
-                // For an unpaid CARD booking, include a "Pay now" link so the
-                // customer can pay the amount (incl. VAT) straight from the email —
-                // routed to the right provider (Square for VAT, Stripe otherwise).
-                // Null for cash/account/paid, or if no card provider is set up.
-                $payUrl = $this->customerPayLink($booking->fresh());
+        if ($request->boolean('email_customer')) {
+            // A return trip is two legs (outbound …A and return …B): email a
+            // confirmation for EACH, showing that leg's own fare, with a pay link that
+            // charges the WHOLE trip (paying once settles both). A one-way is just the
+            // single booking. Once per leg; a send failure is reported, never fatal.
+            $group = $booking->fresh()->invoiceGroupBookings();
+            $legs = $group->isNotEmpty() ? $group : collect([$booking->fresh()]);
+            foreach ($legs as $leg) {
+                if (blank($leg->customer?->email)
+                    || ! $leg->customerEmailAllowed()
+                    || ! empty($leg->meta['customer_email_sent'])) {
+                    continue;
+                }
+                try {
+                    // For an unpaid CARD booking, include a "Pay now" link routed to the
+                    // right provider (Square for VAT, Stripe otherwise); the link charges
+                    // the whole trip for a return. Null for cash/account/paid.
+                    $payUrl = $this->customerPayLink($leg);
 
-                \Illuminate\Support\Facades\Mail::to($booking->customer->email)
-                    ->send(new \App\Mail\BookingConfirmationMail($booking->fresh(), paid: false, payUrl: $payUrl));
-                $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
-                    'customer_email_sent' => now()->toIso8601String(),
-                ])])->save();
-            } catch (\Throwable $e) {
-                \App\Support\MailFailure::report('admin booking confirmation', $e, $booking);
+                    \Illuminate\Support\Facades\Mail::to($leg->customer->email)
+                        ->send(new \App\Mail\BookingConfirmationMail($leg, paid: false, payUrl: $payUrl));
+                    $leg->forceFill(['meta' => array_merge($leg->meta ?? [], [
+                        'customer_email_sent' => now()->toIso8601String(),
+                    ])])->save();
+                } catch (\Throwable $e) {
+                    \App\Support\MailFailure::report('admin booking confirmation', $e, $leg);
+                }
             }
         }
 
@@ -731,6 +741,12 @@ class BookingController extends Controller
 
             $needsInvoice = $request->boolean('vat_invoice');
             $price = $request->filled('quoted_price') ? round((float) $request->input('quoted_price'), 2) : null;
+            // A return's confirmation shows THIS leg's fare (the outbound …A), not the
+            // whole-trip total — so the preview matches the per-leg email the customer
+            // gets. The pay link still charges the full trip in the real email.
+            if ($request->input('journey_type') === 'return' && $request->filled('leg_price_out')) {
+                $price = round((float) $request->input('leg_price_out'), 2);
+            }
 
             $booking = new Booking([
                 'reference' => 'CET-PREVIEW',

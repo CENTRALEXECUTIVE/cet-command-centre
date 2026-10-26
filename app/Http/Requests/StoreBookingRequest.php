@@ -52,6 +52,11 @@ class StoreBookingRequest extends FormRequest
             'return_pickup_postcode' => ['nullable', 'string', 'max:16'],
             'return_destination_address' => ['nullable', 'string', 'max:500'],
             'return_destination_postcode' => ['nullable', 'string', 'max:16'],
+            // Per-leg fares from the live quote (hidden), so a return stores its own
+            // price on each leg (outbound …A and return …B) instead of the whole
+            // total on one. Blank → the total is split evenly.
+            'leg_price_out' => ['nullable', 'numeric', 'min:0'],
+            'leg_price_return' => ['nullable', 'numeric', 'min:0'],
             // Hourly hire: how many hours the car + driver are booked for.
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'via_stops' => ['nullable', 'array', 'max:10'],

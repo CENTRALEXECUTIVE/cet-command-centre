@@ -99,4 +99,60 @@ class AdminReturnAddressTest extends TestCase
             ->post(route('bookings.confirmation-email.preview-new'), $this->payload())
             ->assertForbidden();
     }
+
+    public function test_a_return_stores_each_leg_s_own_fare(): void
+    {
+        Mail::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload([
+                'quoted_price' => 110,
+                'leg_price_out' => 55,
+                'leg_price_return' => 55,
+            ]))
+            ->assertRedirect();
+
+        $out = Booking::where('is_return_leg', false)->firstOrFail();
+        $ret = Booking::where('is_return_leg', true)->firstOrFail();
+        // £55 on each leg — not £110 on the outbound and nothing on the return.
+        $this->assertEqualsWithDelta(55.0, (float) $out->quoted_price, 0.01);
+        $this->assertEqualsWithDelta(55.0, (float) $ret->quoted_price, 0.01);
+        // The whole trip still totals £110.
+        $this->assertEqualsWithDelta(110.0, (float) $out->invoiceGroupBookings()->sum(fn ($b) => (float) $b->fareGross()), 0.01);
+    }
+
+    public function test_a_custom_total_splits_in_the_quote_ratio(): void
+    {
+        Mail::fake();
+        // Quote was 60/40; the office types a £120 total → split stays 60/40 = 72/48.
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload([
+                'quoted_price' => 120,
+                'leg_price_out' => 60,
+                'leg_price_return' => 40,
+            ]))
+            ->assertRedirect();
+
+        $out = Booking::where('is_return_leg', false)->firstOrFail();
+        $ret = Booking::where('is_return_leg', true)->firstOrFail();
+        $this->assertEqualsWithDelta(72.0, (float) $out->quoted_price, 0.01);
+        $this->assertEqualsWithDelta(48.0, (float) $ret->quoted_price, 0.01);
+    }
+
+    public function test_a_return_emails_both_legs_each_with_a_pay_link(): void
+    {
+        Mail::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload([
+                'email_customer' => '1',
+                'quoted_price' => 110, 'leg_price_out' => 55, 'leg_price_return' => 55,
+            ]))
+            ->assertRedirect();
+
+        // Two confirmations — one per leg — each carrying a Pay now link.
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, 2);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class,
+            fn ($m) => ! $m->booking->is_return_leg && $m->payUrl !== null);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class,
+            fn ($m) => $m->booking->is_return_leg && $m->payUrl !== null);
+    }
 }

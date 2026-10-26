@@ -438,6 +438,9 @@
                     <div class="field">
                         <label for="quoted_price">Quoted price (£)</label>
                         <input id="quoted_price" type="number" step="0.01" min="0" name="quoted_price" value="{{ old('quoted_price', $pf['quoted_price'] ?? $quote?->price) }}">
+                        {{-- Per-leg fares from the live quote, so a return stores its own price on each leg. --}}
+                        <input type="hidden" id="leg_price_out" name="leg_price_out" value="{{ old('leg_price_out') }}">
+                        <input type="hidden" id="leg_price_return" name="leg_price_return" value="{{ old('leg_price_return') }}">
                         <div id="price-nudge" class="price-nudge" hidden></div>
                         @error('quoted_price') <div class="error">{{ $message }}</div> @enderror
                     </div>
@@ -884,8 +887,25 @@
                 // Itemised fare for the CHOSEN vehicle: base + surcharge + each extra
                 // = total, so the office sees what makes up the price, not just a figure.
                 // Painted both under the vehicle cards and beside the big Total.
+                // Capture the per-leg fares from the chosen vehicle's breakdown, so a
+                // return stores its own price on each leg (the office never types them).
+                var legOutEl = document.getElementById('leg_price_out');
+                var legRetEl = document.getElementById('leg_price_return');
+                function setLegPrices(opt) {
+                    if (!legOutEl || !legRetEl) return;
+                    var o = '', r = '';
+                    if (opt && opt.breakdown) {
+                        opt.breakdown.forEach(function (l) {
+                            if (l.label === 'Outbound leg') o = Number(l.amount).toFixed(2);
+                            if (l.label === 'Return leg') r = Number(l.amount).toFixed(2);
+                        });
+                    }
+                    legOutEl.value = o; legRetEl.value = r;
+                }
+
                 function showBreakdown() {
                     var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
+                    setLegPrices(opt);
                     var lines = opt && opt.breakdown ? opt.breakdown : [];
                     var ok = opt && !opt.poa && lines.length >= 2;
                     var cardHtml = '', totalHtml = '';

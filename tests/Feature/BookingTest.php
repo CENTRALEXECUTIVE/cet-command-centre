@@ -438,10 +438,13 @@ class BookingTest extends TestCase
         $outbound = Booking::where('is_return_leg', false)->first();
         $return = Booking::where('is_return_leg', true)->first();
 
-        // The journey total sits on the outbound only — the return leg carries no
-        // fare, so revenue counts £100 once (not £200).
-        $this->assertEquals('100.00', (string) $outbound->quoted_price);
-        $this->assertNull($return->quoted_price);
+        // The £100 trip is split across the two legs (£50 each) so each leg carries
+        // its OWN fare — but the trip still totals £100 once, never £200. Revenue sums
+        // both legs (COALESCE(final_price, quoted_price)), so the split is neutral.
+        $this->assertEqualsWithDelta(50.0, (float) $outbound->quoted_price, 0.01);
+        $this->assertEqualsWithDelta(50.0, (float) $return->quoted_price, 0.01);
+        $tripRevenue = Booking::all()->sum(fn (Booking $b) => (float) ($b->final_price ?? $b->quoted_price ?? 0));
+        $this->assertEqualsWithDelta(100.0, $tripRevenue, 0.01);
     }
 
     public function test_a_cash_return_leg_offer_does_not_tell_the_driver_to_collect_cash(): void
