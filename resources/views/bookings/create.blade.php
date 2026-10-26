@@ -729,12 +729,16 @@
 
                 var rx = /\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bman\b|manchester airport|east midlands|\bema\b|\blba\b|leeds bradford|doncaster|\bt[1-5]\b/i;
                 function looksAirport(v) { return rx.test(String(v || '')); }
-                function isPickupAirport() { return (airportSel && airportSel.value !== '') || looksAirport(pickup && pickup.value); }
-                function isAnyAirport() { return isPickupAirport() || looksAirport(dest && dest.value); }
+                // Direction is decided by WHICH END is the airport. The Airport dropdown
+                // only flags that a job involves an airport (for driver rotation) — it does
+                // NOT mean the PICKUP is the airport. Meet & greet is an ARRIVALS thing, so
+                // it must key off the pickup address only, never the dropdown or the dropoff.
+                function pickupIsAirport() { return looksAirport(pickup && pickup.value); }
+                function isAnyAirport() { return pickupIsAirport() || looksAirport(dest && dest.value) || (airportSel && airportSel.value !== ''); }
 
                 function apply() {
                     var any = isAnyAirport();
-                    var arrival = isPickupAirport();
+                    var arrival = pickupIsAirport();
                     if (note) note.hidden = !any;
                     if (landingField) landingField.hidden = !any;
                     // RECOMMENDED on an airport job, never forced — the office (admin)

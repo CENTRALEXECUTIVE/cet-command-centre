@@ -63,6 +63,38 @@ class ManualMarkPaidTest extends TestCase
         Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($booking) && $m->paid === true);
     }
 
+    public function test_the_main_mark_paid_button_settles_and_emails(): void
+    {
+        Mail::fake();
+        $booking = $this->unpaidCardBooking();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('payments.paid', $booking))
+            ->assertRedirect();
+
+        $this->assertSame('paid', $booking->fresh()->payment_status);
+        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($booking) && $m->paid === true);
+    }
+
+    public function test_an_imported_eto_customer_is_never_emailed_on_mark_paid(): void
+    {
+        Mail::fake();
+        $customer = Customer::create(['name' => 'Old ETO', 'email' => 'old@example.com', 'phone' => '07700900900']);
+        $booking = Booking::factory()->create([
+            'customer_id' => $customer->id, 'source' => 'phone', 'source_system' => 'eto',
+            'payment_method' => 'card', 'payment_status' => 'pending',
+            'quoted_price' => 80, 'pickup_at' => now()->addDays(2),
+            'status' => \App\Enums\BookingStatus::Pending,
+        ]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('payments.paid', $booking))->assertRedirect();
+
+        // Status still settles, but the imported customer is NOT emailed.
+        $this->assertSame('paid', $booking->fresh()->payment_status);
+        Mail::assertNotSent(BookingConfirmationMail::class);
+    }
+
     public function test_a_partial_payment_does_not_send_a_paid_receipt(): void
     {
         Mail::fake();

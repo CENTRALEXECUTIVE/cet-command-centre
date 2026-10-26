@@ -163,6 +163,12 @@ class BookingStatusService
         if (! empty($booking->meta['paid_email_sent'])) {
             return;
         }
+        // Never auto-email an IMPORTED customer (ETO / calendar migration data) — the
+        // same rule the rest of the system follows. In-system bookings (web / phone /
+        // intake) have no import marker and are fine to email.
+        if (in_array($booking->source_system, ['eto', 'calendar'], true)) {
+            return;
+        }
         // Safety gate: never auto-email about an old, finished, cancelled or
         // address-less booking.
         $reason = '';
