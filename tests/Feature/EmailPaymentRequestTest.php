@@ -67,4 +67,26 @@ class EmailPaymentRequestTest extends TestCase
             ->post(route('bookings.email-payment-request', $this->booking()))
             ->assertForbidden();
     }
+
+    public function test_the_confirmation_email_can_be_previewed_without_sending(): void
+    {
+        Mail::fake();
+        $booking = $this->booking();
+
+        $res = $this->actingAs(User::factory()->admin()->create())
+            ->get(route('bookings.confirmation-email.preview', $booking))
+            ->assertOk();
+
+        // It renders the real confirmation email (the brand + the booking ref show).
+        $res->assertSee($booking->reference, false);
+        // Previewing never sends anything.
+        Mail::assertNothingSent();
+    }
+
+    public function test_the_confirmation_preview_is_admin_only(): void
+    {
+        $this->actingAs(User::factory()->driver()->create())
+            ->get(route('bookings.confirmation-email.preview', $this->booking()))
+            ->assertForbidden();
+    }
 }

@@ -1813,6 +1813,9 @@
                  card link to send by hand. No need to open "Add new transaction". --}}
             @if(($amountDue ?? 0) > 0.009)
                 <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+                    <a href="{{ route('bookings.confirmation-email.preview', $booking) }}" target="_blank" rel="noopener"
+                       class="btn btn-light" style="padding:10px 16px"
+                       title="See exactly what the customer's confirmation email will look like — nothing is sent">👁 Preview email</a>
                     @if($booking->customer?->email)
                         <form method="POST" action="{{ route('bookings.email-payment-request', $booking) }}">
                             @csrf

@@ -134,6 +134,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::put('bookings/{booking}', [BookingController::class, 'update'])->middleware('throttle:30,1')->name('bookings.update');
         Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::get('bookings/{booking}/cancellation-email/preview', [BookingController::class, 'previewCancellationEmail'])->name('bookings.cancellation-email.preview');
+        Route::get('bookings/{booking}/confirmation-email/preview', [BookingController::class, 'previewConfirmationEmail'])->name('bookings.confirmation-email.preview');
         Route::post('bookings/{booking}/cancellation-email', [BookingController::class, 'sendCancellationEmail'])->middleware('throttle:20,1')->name('bookings.cancellation-email.send');
         Route::post('bookings/{booking}/postpone', [BookingController::class, 'postpone'])->middleware('throttle:30,1')->name('bookings.postpone');
         Route::post('bookings/{booking}/reschedule', [BookingController::class, 'reschedule'])->middleware('throttle:30,1')->name('bookings.reschedule');

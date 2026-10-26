@@ -695,6 +695,24 @@ class BookingController extends Controller
     }
 
     /**
+     * Preview the CUSTOMER confirmation email exactly as it would be sent — the
+     * same mailable, pay link and PVT/VAT routing, rendered to the screen so the
+     * office can check it before sending. Read-only: nothing is sent or saved.
+     */
+    public function previewConfirmationEmail(Request $request, Booking $booking): \Illuminate\Http\Response
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $fresh = $booking->fresh();
+        $paid = $fresh->fareIsPaid();
+        // A paid booking previews as the receipt (no pay link); an unpaid card
+        // booking previews with the Pay now link, just as the customer would get.
+        $payUrl = $paid ? null : $this->customerPayLink($fresh);
+
+        return response((new \App\Mail\BookingConfirmationMail($fresh, paid: $paid, payUrl: $payUrl))->render());
+    }
+
+    /**
      * Send the cancellation email to the customer — manual (the office previews it
      * first), never automatic. Confirms the cancellation and the refund.
      */
