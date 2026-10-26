@@ -424,6 +424,9 @@
                     @if(!empty($quoteRequest))
                         <h2>Quote request received</h2>
                         <p style="color:var(--muted);margin:0 0 6px">Thank you — we’ll email you a price for your chosen vehicle shortly.</p>
+                    @elseif(!empty($payUrl) && !empty($payWanted))
+                        <h2>Almost done</h2>
+                        <p style="color:var(--muted);margin:0 0 6px">Complete payment to confirm your booking.</p>
                     @else
                         <h2>Booking request received</h2>
                         <p style="color:var(--muted);margin:0 0 6px">Our office will confirm your journey and price shortly.</p>
