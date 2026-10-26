@@ -73,6 +73,26 @@ class AdminBookingEmailTest extends TestCase
             && str_contains($m->payUrl, 'signature='));
     }
 
+    public function test_a_non_vat_admin_booking_is_pvt_and_emails_from_the_pvt_address(): void
+    {
+        Mail::fake();
+        \App\Models\Setting::set('mail_pvt_enabled', true, 'boolean', 'mail');
+        \App\Models\Setting::set('mail_pvt_from_address', 'bookings@centralexecutivetransferspvt.co.uk', 'string', 'mail');
+
+        // A plain booking (no VAT invoice) — the PVT sister company.
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload(['email_customer' => '1']))
+            ->assertRedirect();
+
+        $booking = Booking::latest('id')->first();
+        // Stamped to the PVT company at creation, regardless of which card provider is set.
+        $this->assertSame('chauffeurs', $booking->billingEntity());
+        $this->assertSame('bookings@centralexecutivetransferspvt.co.uk', $booking->senderAddress());
+        // And the customer confirmation actually sends from the PVT address.
+        Mail::assertSent(BookingConfirmationMail::class,
+            fn ($m) => $m->booking->senderAddress() === 'bookings@centralexecutivetransferspvt.co.uk');
+    }
+
     public function test_a_cash_booking_email_has_no_pay_link(): void
     {
         config(['services.square.access_token' => 'sq', 'services.square.location_id' => 'LOC']);

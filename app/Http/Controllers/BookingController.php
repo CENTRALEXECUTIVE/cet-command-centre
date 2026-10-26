@@ -375,6 +375,18 @@ class BookingController extends Controller
             $booking->forceFill(['meta' => $meta])->save();
         }
 
+        // Stamp the billing company on EVERY leg so it's explicit and permanent, like
+        // the website does: a VAT-invoice booking is the Ltd (transfers), everyone else
+        // is the PVT sister (chauffeurs). This is what drives the PVT email + invoice,
+        // so a non-VAT booking is PVT regardless of which card provider is configured —
+        // no silent fallback to the main company. Done before the emails go out.
+        $entity = $request->boolean('vat_invoice') ? 'transfers' : 'chauffeurs';
+        foreach ($booking->fresh()->invoiceGroupBookings() as $leg) {
+            if (($leg->meta['billing_entity'] ?? null) !== $entity) {
+                $leg->forceFill(['meta' => array_merge($leg->meta ?? [], ['billing_entity' => $entity])])->save();
+            }
+        }
+
         // Email the customer a confirmation for this office-made booking, when the
         // operator left the box ticked and the customer has an email. Deliberate,
         // one booking at a time (unlike a bulk import, which never emails). Once
