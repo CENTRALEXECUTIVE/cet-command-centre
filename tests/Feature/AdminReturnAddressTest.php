@@ -90,6 +90,9 @@ class AdminReturnAddressTest extends TestCase
         // It renders the real email from the entered details, and saves NOTHING.
         $res->assertSee('John Mannix', false);
         $res->assertSee('Cavendish Hotel, Baslow', false);
+        // A return preview shows THIS leg's fare (£110 trip → £55 per leg), not £110.
+        $res->assertSee('55.00', false);
+        $res->assertDontSee('110.00', false);
         $this->assertSame(0, Booking::count(), 'previewing must not create a booking');
     }
 

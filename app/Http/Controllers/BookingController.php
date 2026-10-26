@@ -743,9 +743,15 @@ class BookingController extends Controller
             $price = $request->filled('quoted_price') ? round((float) $request->input('quoted_price'), 2) : null;
             // A return's confirmation shows THIS leg's fare (the outbound …A), not the
             // whole-trip total — so the preview matches the per-leg email the customer
-            // gets. The pay link still charges the full trip in the real email.
-            if ($request->input('journey_type') === 'return' && $request->filled('leg_price_out')) {
-                $price = round((float) $request->input('leg_price_out'), 2);
+            // gets. Use the quote's per-leg figure when it's to hand, otherwise split
+            // the total evenly (mirrors how the booking itself splits the fare). The
+            // pay link still charges the full trip in the real email.
+            if ($request->input('journey_type') === 'return') {
+                if ($request->filled('leg_price_out')) {
+                    $price = round((float) $request->input('leg_price_out'), 2);
+                } elseif ($price !== null) {
+                    $price = round($price / 2, 2);
+                }
             }
 
             $booking = new Booking([
