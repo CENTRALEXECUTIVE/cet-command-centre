@@ -184,6 +184,33 @@ class BookingWidgetTest extends TestCase
         $this->assertNull(\App\Models\Booking::firstWhere('source', 'web')->quoted_price);
     }
 
+    public function test_a_priced_card_booking_goes_straight_to_payment_even_when_not_a_fixed_route(): void
+    {
+        // A local, distance-priced run (fixed:false) is still a REAL shown price. If
+        // the customer chose card, the screen must take them to payment — not drop to
+        // "office will confirm" while the email offers a pay button. (This was the bug:
+        // the screen required a fixed-matrix route; the email only required a balance.)
+        config(['services.stripe.secret_key' => 'sk_test_123']); // a card provider is live
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $res = $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Ecclesall Road, Sheffield S11 8PG',
+            'destination_address' => 'Rotherham Town Centre S60 1AA',
+            'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $executive->id,
+            'passengers' => 2,
+            'customer_name' => 'Payna Howe', 'customer_phone' => '07700900444',
+            'payment_method' => 'card',
+        ])->assertOk();
+
+        $booking = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertNotNull($booking->quoted_price, 'a distance route should still produce a real price');
+        $this->assertFalse((bool) ($booking->meta['quote_request'] ?? false), 'this is a priced booking, not a quote');
+        // The screen offers payment and auto-sends to checkout, not the no-payment path.
+        $res->assertSee('Taking you to secure payment', false);
+        $res->assertDontSee('No payment has been taken', false);
+    }
+
     public function test_the_landing_url_ad_params_are_rendered_as_hidden_fields(): void
     {
         $this->get(route('widget.book', ['gclid' => 'ABC123', 'utm_source' => 'google']))

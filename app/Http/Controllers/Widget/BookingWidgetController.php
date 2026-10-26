@@ -667,8 +667,15 @@ class BookingWidgetController extends Controller
         // price to charge (a fixed-matrix fare). "Price on request" stays office-
         // confirmed first — never charge a guess. The booking stays 'cash' until
         // payment actually succeeds, so nothing is lost if the customer doesn't pay.
+        // Offer immediate online payment whenever the customer has a REAL price to
+        // pay (any shown fare, fixed-matrix or distance-based — not a POA/quote, which
+        // has a null charge) and this booking's card provider is live. This mirrors
+        // the confirmation email's rule exactly, so "Book & pay" always lands on the
+        // payment page and the screen never says "office will confirm" while the email
+        // says "pay now". The office still confirms before anyone is charged a GUESS:
+        // a price-on-request vehicle has $charge === null and is excluded here.
         $payUrl = null;
-        if (! $isAccount && $this->payments->enabled() && $quote['fixed'] && ($charge ?? 0) > 0) {
+        if (! $isAccount && ($charge ?? 0) > 0 && $this->payments->enabledForBooking($booking)) {
             $payUrl = URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id]);
         }
 
