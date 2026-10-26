@@ -57,10 +57,24 @@
             {!! $row('Dropoff:', $booking->destination_address) !!}
             {!! $row('Vehicle type:', $booking->vehicleType?->name) !!}
             {!! $row('Passengers:', $booking->passengers) !!}
+            @php
+                $bags = [];
+                $sc = $booking->displaySuitcases(); $hl = $booking->displayHandLuggage();
+                if ($sc > 0) { $bags[] = $sc.' suitcase'.($sc === 1 ? '' : 's'); }
+                if ($hl > 0) { $bags[] = $hl.' hand bag'.($hl === 1 ? '' : 's'); }
+                $seats = [];
+                foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $k => $lbl) {
+                    $n = (int) ($booking->meta[$k] ?? 0);
+                    if ($n > 0) { $seats[] = $n.' '.$lbl.' seat'.($n === 1 ? '' : 's'); }
+                }
+            @endphp
+            {!! $row('Luggage:', $bags ? implode(', ', $bags) : 'None') !!}
+            @if($seats){!! $row('Child seats:', implode(', ', $seats)) !!}@endif
             {!! $row('Flight:', $booking->displayFlightNumber()) !!}
             @php $landing = $booking->meta['flight_landing_at'] ?? null; @endphp
             @if($landing){!! $row('Flight lands:', \Illuminate\Support\Carbon::parse($landing)->format('d/m/Y H:i')) !!}@endif
             @if(!empty($booking->meta['meet_greet'])){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
+            @if(trim((string) ($booking->special_requests ?? '')) !== ''){!! $row('Notes:', trim((string) $booking->special_requests)) !!}@endif
         </table>
     </td></tr>
 

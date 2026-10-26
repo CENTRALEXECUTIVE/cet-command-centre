@@ -740,6 +740,12 @@ class BookingController extends Controller
      * email before confirming (and before anything is sent to the customer).
      * Lenient (no full validation) and read-only: nothing is created or sent.
      */
+    /** Does an address read like an airport? (meet & greet only applies to airport pickups). */
+    private function looksLikeAirport(?string $address): bool
+    {
+        return (bool) preg_match('/\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|east midlands|leeds bradford|doncaster|\bt[1-5]\b/i', (string) $address);
+    }
+
     public function previewNewConfirmationEmail(Request $request): \Illuminate\Http\Response
     {
         abort_unless($request->user()?->isAdmin(), 403);
@@ -777,13 +783,26 @@ class BookingController extends Controller
                 'passengers' => (int) $request->input('passengers', 1),
                 'flight_number' => $request->input('flight_number'),
                 'quoted_price' => $price,
+                'special_requests' => $request->input('special_requests'),
                 'payment_method' => $needsInvoice ? 'card' : $request->input('payment_method', 'card'),
             ]);
-            $meta = ['billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs'];
+            $meta = [
+                'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
+                // So the preview shows luggage + seats exactly like the real email.
+                'suitcases' => (int) $request->input('suitcases', 0),
+                'hand_luggage' => (int) $request->input('hand_luggage', 0),
+            ];
+            foreach (['child_seats', 'booster_seats', 'infant_seats'] as $seatKey) {
+                if ((int) $request->input($seatKey, 0) > 0) {
+                    $meta[$seatKey] = (int) $request->input($seatKey);
+                }
+            }
             if ($needsInvoice) {
                 $meta['vat_invoice_requested'] = true;
             }
-            if ($request->boolean('meet_greet')) {
+            // Meet & greet is an ARRIVALS thing: only when the PICKUP is the airport,
+            // never a drop-off/departure (mirrors the fixed form rule).
+            if ($request->boolean('meet_greet') && $this->looksLikeAirport($request->input('pickup_address'))) {
                 $meta['meet_greet'] = true;
             }
             if ($request->filled('flight_landing_at')) {

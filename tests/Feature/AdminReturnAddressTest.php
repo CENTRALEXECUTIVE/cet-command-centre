@@ -84,12 +84,17 @@ class AdminReturnAddressTest extends TestCase
         config(['services.square.access_token' => 'sq', 'services.square.location_id' => 'LOC']);
 
         $res = $this->actingAs(User::factory()->admin()->create())
-            ->post(route('bookings.confirmation-email.preview-new'), $this->payload())
+            ->post(route('bookings.confirmation-email.preview-new'), $this->payload([
+                'suitcases' => 2, 'hand_luggage' => 1,
+            ]))
             ->assertOk();
 
         // It renders the real email from the entered details, and saves NOTHING.
         $res->assertSee('John Mannix', false);
         $res->assertSee('Cavendish Hotel, Baslow', false);
+        // Luggage now shows (the bug: it was missing from the email entirely).
+        $res->assertSee('2 suitcases', false);
+        $res->assertSee('1 hand bag', false);
         // A return preview shows THIS leg's fare (£110 trip → £55 per leg), not £110.
         $res->assertSee('55.00', false);
         $res->assertDontSee('110.00', false);
