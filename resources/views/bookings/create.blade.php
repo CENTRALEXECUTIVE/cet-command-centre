@@ -158,6 +158,42 @@
                     </div>
                 </div>
 
+                {{-- Return-leg addresses. A return defaults to the REVERSE of the outbound;
+                     these are pre-filled with that reverse, so a simple return needs no
+                     typing. Change them only when the return is from/to a different place. --}}
+                <div id="return_locations" style="display:none;border:1px dashed var(--line,#dcdcdc);border-radius:10px;padding:12px;margin:0 0 4px">
+                    <div style="font-weight:700;margin-bottom:8px">↩ Return journey
+                        <span class="muted" style="font-weight:400">— defaults to the reverse; edit if the return is different</span></div>
+                    <div class="field">
+                        <label for="return_pickup_postcode">Return pickup postcode</label>
+                        <input id="return_pickup_postcode" name="return_pickup_postcode" data-postcode-fill="#return_pickup_address" autocomplete="off"
+                               placeholder="e.g. DE45 1SP" value="{{ old('return_pickup_postcode') }}" style="text-transform:uppercase">
+                    </div>
+                    <div class="field">
+                        <label for="return_pickup_address">Return pickup address</label>
+                        <div class="loc-row">
+                            <span class="pin">A</span>
+                            <div class="grow">
+                                <textarea id="return_pickup_address" name="return_pickup_address" data-places data-postcode-target="#return_pickup_postcode" autocomplete="off" placeholder="Where the return journey starts">{{ old('return_pickup_address') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="return_destination_postcode">Return destination postcode</label>
+                        <input id="return_destination_postcode" name="return_destination_postcode" data-postcode-fill="#return_destination_address" autocomplete="off"
+                               placeholder="e.g. S1 2BP" value="{{ old('return_destination_postcode') }}" style="text-transform:uppercase">
+                    </div>
+                    <div class="field" style="margin-bottom:0">
+                        <label for="return_destination_address">Return destination address</label>
+                        <div class="loc-row">
+                            <span class="pin drop">B</span>
+                            <div class="grow">
+                                <textarea id="return_destination_address" name="return_destination_address" data-places data-postcode-target="#return_destination_postcode" autocomplete="off" placeholder="Where the return journey ends">{{ old('return_destination_address') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="field" style="margin-bottom:0">
                     <label for="airport_id">Airport <span class="muted">(drives driver rotation)</span></label>
                     <select id="airport_id" name="airport_id">
@@ -481,6 +517,12 @@
             </div>
             <div class="actions">
                 <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
+                {{-- See the customer's confirmation email BEFORE confirming — opens in a new
+                     tab from the details entered so far. Sends nothing; nothing is saved. --}}
+                <button type="submit" class="btn btn-light"
+                        formaction="{{ route('bookings.confirmation-email.preview-new') }}"
+                        formmethod="post" formtarget="_blank" formnovalidate
+                        title="Preview the customer's email before confirming — nothing is sent">👁 Preview email</button>
                 <button type="submit" class="btn btn-primary">Confirm booking →</button>
             </div>
         </div>
@@ -604,10 +646,49 @@
             var destField = document.getElementById('destination_address');
             var destLabel = destField ? destField.closest('.field').querySelector('label') : null;
             var destLabelHtml = destLabel ? destLabel.innerHTML : '';
+            var returnLocations = document.getElementById('return_locations');
+
+            // The return addresses default to the REVERSE of the outbound. We keep them
+            // in sync with the outbound ONLY until the office edits them by hand — after
+            // that their entry wins (a genuinely different return is never clobbered).
+            var retPickup = document.getElementById('return_pickup_address');
+            var retPickupPc = document.getElementById('return_pickup_postcode');
+            var retDest = document.getElementById('return_destination_address');
+            var retDestPc = document.getElementById('return_destination_postcode');
+            var outPickup = document.getElementById('pickup_address');
+            var outPickupPc = document.getElementById('pickup_postcode');
+            var outDest = document.getElementById('destination_address');
+            var outDestPc = document.getElementById('destination_postcode');
+            var returnEdited = false;
+            [retPickup, retPickupPc, retDest, retDestPc].forEach(function (el) {
+                if (el) el.addEventListener('input', function () { returnEdited = true; });
+            });
+            function prefillReturnFromOutbound() {
+                if (returnEdited) return; // never overwrite the office's own entry
+                if (retPickup && outDest) retPickup.value = outDest.value;
+                if (retPickupPc && outDestPc) retPickupPc.value = outDestPc.value;
+                if (retDest && outPickup) retDest.value = outPickup.value;
+                if (retDestPc && outPickupPc) retDestPc.value = outPickupPc.value;
+            }
+            [outPickup, outPickupPc, outDest, outDestPc].forEach(function (el) {
+                if (el) el.addEventListener('input', function () {
+                    if (journey && journey.value === 'return') prefillReturnFromOutbound();
+                });
+            });
+
             function toggleJourney() {
                 var isReturn = journey.value === 'return';
                 var isHourly = journey.value === 'hourly';
                 if (returnField) returnField.style.display = isReturn ? '' : 'none';
+                if (returnLocations) {
+                    returnLocations.style.display = isReturn ? '' : 'none';
+                    // Seed the reverse the first time it's shown (unless old() restored
+                    // values after a validation error, or the office already typed some).
+                    if (isReturn && !returnEdited
+                        && retPickup && !retPickup.value && retDest && !retDest.value) {
+                        prefillReturnFromOutbound();
+                    }
+                }
                 if (hoursField) hoursField.style.display = isHourly ? '' : 'none';
                 if (destField) {
                     destField.required = !isHourly;

@@ -480,11 +480,18 @@ class BookingService
         $hourlyHours = $isHourly ? (int) ($data['hours'] ?? 0) : null;
 
         $pickupAt = $isReturn ? $data['return_pickup_at'] : $data['pickup_at'];
-        $pickupAddress = $isReturn ? $data['destination_address'] : $data['pickup_address'];
+        // The return leg defaults to the reverse of the outbound, but the office can
+        // enter DIFFERENT return addresses on the form (the return isn't always a
+        // straight reverse) — those win when given, otherwise fall back to reversing.
+        $pickupAddress = $isReturn
+            ? (($data['return_pickup_address'] ?? null) ?: $data['destination_address'])
+            : $data['pickup_address'];
         // Hourly hire has no fixed destination — the car is "as directed".
         $destinationAddress = $isHourly
             ? 'As directed (hourly hire)'
-            : ($isReturn ? $data['pickup_address'] : $data['destination_address']);
+            : ($isReturn
+                ? (($data['return_destination_address'] ?? null) ?: $data['pickup_address'])
+                : $data['destination_address']);
 
         [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
@@ -500,9 +507,9 @@ class BookingService
             'is_return_leg' => $isReturn,
             'pickup_at' => $pickupAt,
             'pickup_address' => $pickupAddress,
-            'pickup_postcode' => $isReturn ? ($data['destination_postcode'] ?? null) : ($data['pickup_postcode'] ?? null),
+            'pickup_postcode' => $isReturn ? (($data['return_pickup_postcode'] ?? null) ?: ($data['destination_postcode'] ?? null)) : ($data['pickup_postcode'] ?? null),
             'destination_address' => $destinationAddress,
-            'destination_postcode' => $isReturn ? ($data['pickup_postcode'] ?? null) : ($data['destination_postcode'] ?? null),
+            'destination_postcode' => $isReturn ? (($data['return_destination_postcode'] ?? null) ?: ($data['pickup_postcode'] ?? null)) : ($data['destination_postcode'] ?? null),
             'flight_number' => $data['flight_number'] ?? null,
             'passengers' => $data['passengers'],
             'luggage' => $luggage,

@@ -46,6 +46,12 @@ class StoreBookingRequest extends FormRequest
             // Destination isn't needed for hourly hire ("as directed").
             'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
             'destination_postcode' => ['nullable', 'string', 'max:16'],
+            // Optional DIFFERENT return-leg addresses (a return isn't always a straight
+            // reverse). Blank → the return reverses the outbound, as before.
+            'return_pickup_address' => ['nullable', 'string', 'max:500'],
+            'return_pickup_postcode' => ['nullable', 'string', 'max:16'],
+            'return_destination_address' => ['nullable', 'string', 'max:500'],
+            'return_destination_postcode' => ['nullable', 'string', 'max:16'],
             // Hourly hire: how many hours the car + driver are booked for.
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'via_stops' => ['nullable', 'array', 'max:10'],

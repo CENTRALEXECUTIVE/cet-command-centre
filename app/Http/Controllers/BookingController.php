@@ -713,6 +713,73 @@ class BookingController extends Controller
     }
 
     /**
+     * Preview the confirmation email from the create form BEFORE the booking is
+     * saved — built from the details entered so far, so the office can check the
+     * email before confirming (and before anything is sent to the customer).
+     * Lenient (no full validation) and read-only: nothing is created or sent.
+     */
+    public function previewNewConfirmationEmail(Request $request): \Illuminate\Http\Response
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        try {
+            $customer = new \App\Models\Customer([
+                'name' => trim((string) $request->input('customer_name')) ?: 'Customer',
+                'email' => trim((string) $request->input('customer_email')) ?: null,
+                'phone' => trim((string) $request->input('customer_phone')) ?: null,
+            ]);
+
+            $needsInvoice = $request->boolean('vat_invoice');
+            $price = $request->filled('quoted_price') ? round((float) $request->input('quoted_price'), 2) : null;
+
+            $booking = new Booking([
+                'reference' => 'CET-PREVIEW',
+                'journey_type' => $request->input('journey_type', 'one_way'),
+                'pickup_at' => $request->filled('pickup_at')
+                    ? \Illuminate\Support\Carbon::parse($request->input('pickup_at'), config('app.timezone'))
+                    : now(),
+                'pickup_address' => $request->input('pickup_address'),
+                'destination_address' => $request->input('destination_address'),
+                'passengers' => (int) $request->input('passengers', 1),
+                'flight_number' => $request->input('flight_number'),
+                'quoted_price' => $price,
+                'payment_method' => $needsInvoice ? 'card' : $request->input('payment_method', 'card'),
+            ]);
+            $meta = ['billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs'];
+            if ($needsInvoice) {
+                $meta['vat_invoice_requested'] = true;
+            }
+            if ($request->boolean('meet_greet')) {
+                $meta['meet_greet'] = true;
+            }
+            if ($request->filled('flight_landing_at')) {
+                $meta['flight_landing_at'] = $request->input('flight_landing_at');
+            }
+            $booking->meta = $meta;
+            $booking->setRelation('customer', $customer);
+            $booking->setRelation('payments', collect()); // no DB query on an unsaved booking
+            if ($request->filled('vehicle_type_id')) {
+                $booking->setRelation('vehicleType', \App\Models\VehicleType::find($request->integer('vehicle_type_id')));
+            }
+
+            // A placeholder link so the "Pay now" button appears exactly as it will
+            // (the real signed link is minted once the booking is saved).
+            $payUrl = ($price && $price > 0 && ($request->input('payment_method', 'card') === 'card' || $needsInvoice || $request->input('journey_type') === 'return'))
+                ? '#preview-only'
+                : null;
+
+            return response((new \App\Mail\BookingConfirmationMail($booking, paid: false, payUrl: $payUrl))->render());
+        } catch (\Throwable $e) {
+            \App\Support\MailFailure::report('confirmation email preview', $e);
+
+            return response('<div style="font-family:system-ui,sans-serif;padding:28px;max-width:560px;margin:0 auto">'
+                .'<h2 style="margin:0 0 8px">Preview not ready yet</h2>'
+                .'<p style="color:#555">Fill in the pickup, drop-off, date/time, vehicle and price, then tap <b>Preview email</b> again.</p>'
+                .'</div>');
+        }
+    }
+
+    /**
      * Send the cancellation email to the customer — manual (the office previews it
      * first), never automatic. Confirms the cancellation and the refund.
      */
