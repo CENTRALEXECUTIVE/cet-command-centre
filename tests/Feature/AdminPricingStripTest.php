@@ -50,6 +50,28 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta(125.0, $this->execPrice($twoStops), 0.001); // + 2 × £10
     }
 
+    public function test_a_return_with_different_addresses_prices_each_leg_separately(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Straight reverse: Sheffield ↔ Manchester Airport = £105 each way = £210.
+        $reverse = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+            'journey_type' => 'return',
+        ])->assertOk()->json('options');
+        $this->assertEqualsWithDelta(210.0, $this->execPrice($reverse), 0.001);
+
+        // DIFFERENT return drop-off (Chesterfield = £110 from Manchester): the return
+        // leg re-prices on its own route — £105 out + £110 back = £215, not £210.
+        $different = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+            'journey_type' => 'return',
+            'return_pickup' => 'Manchester Airport',
+            'return_destination' => 'Chesterfield',
+        ])->assertOk()->json('options');
+        $this->assertEqualsWithDelta(215.0, $this->execPrice($different), 0.001);
+    }
+
     public function test_strip_adds_the_ticked_extras_on_top_of_the_stop(): void
     {
         $admin = User::factory()->admin()->create();

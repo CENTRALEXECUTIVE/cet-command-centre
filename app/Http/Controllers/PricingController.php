@@ -44,6 +44,9 @@ class PricingController extends Controller
             'pickup_at' => ['nullable', 'date'],
             'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
             'return_pickup_at' => ['nullable', 'date'],
+            // Optional DIFFERENT return-leg addresses; blank → the return reverses.
+            'return_pickup' => ['nullable', 'string', 'max:300'],
+            'return_destination' => ['nullable', 'string', 'max:300'],
             'stops' => ['nullable', 'integer', 'min:0', 'max:10'],
             'meet_greet' => ['nullable', 'boolean'],
             'child_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
@@ -73,8 +76,14 @@ class PricingController extends Controller
         $options = VehicleType::where('is_active', true)->orderBy('sort_order')->get()
             ->map(function (VehicleType $vt) use ($fares, $data, $pickupAt, $returnAt, $isReturn, $options) {
                 $out = $fares->calculate($data['pickup'], $data['destination'], $vt, $pickupAt, $options);
+                // The return leg prices its OWN addresses when the office gave different
+                // ones; otherwise it reverses the outbound (destination → pickup).
                 $in = $isReturn
-                    ? $fares->calculate($data['destination'], $data['pickup'], $vt, $returnAt, $options)
+                    ? $fares->calculate(
+                        ! empty($data['return_pickup']) ? $data['return_pickup'] : $data['destination'],
+                        ! empty($data['return_destination']) ? $data['return_destination'] : $data['pickup'],
+                        $vt, $returnAt, $options
+                    )
                     : null;
 
                 $poa = $out['poa'] || ($in && $in['poa']);

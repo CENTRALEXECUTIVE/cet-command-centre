@@ -800,6 +800,8 @@
                 var whenEl = document.getElementById('pickup_at');
                 var journeyEl = document.getElementById('journey_type');
                 var returnEl = document.getElementById('return_pickup_at');
+                var retPickupEl = document.getElementById('return_pickup_address');
+                var retDestEl = document.getElementById('return_destination_address');
                 var paxEl = document.getElementById('passengers');
                 var suitEl = document.getElementById('suitcases');
                 var handEl = document.getElementById('hand_luggage');
@@ -967,13 +969,17 @@
                     var when = whenEl ? (whenEl.value || '') : '';
                     var journey = journeyEl ? (journeyEl.value || 'one_way') : 'one_way';
                     var returnAt = (journey === 'return' && returnEl) ? (returnEl.value || '') : '';
+                    // Different return addresses (when given) price the return leg on its
+                    // own route, not a blind reverse of the outbound.
+                    var rp = (journey === 'return' && retPickupEl) ? (retPickupEl.value || '').trim() : '';
+                    var rd = (journey === 'return' && retDestEl) ? (retDestEl.value || '').trim() : '';
                     var ex = extras();
-                    // Re-quote when the journey, time, stops or priced extras change —
-                    // including switching to a return, so the price covers both legs.
-                    var key = [p, d, when, journey, returnAt, ex.stops, ex.meet_greet, ex.child_seats, ex.booster_seats, ex.infant_seats, ex.ribbons].join('||');
+                    // Re-quote when the journey, time, stops, return route or priced extras
+                    // change — including switching to a return, so the price covers both legs.
+                    var key = [p, d, when, journey, returnAt, rp, rd, ex.stops, ex.meet_greet, ex.child_seats, ex.booster_seats, ex.infant_seats, ex.ribbons].join('||');
                     if (key === lastKey) return;
                     lastKey = key;
-                    var body = { pickup: p, destination: d, pickup_at: when, journey_type: journey, return_pickup_at: returnAt };
+                    var body = { pickup: p, destination: d, pickup_at: when, journey_type: journey, return_pickup_at: returnAt, return_pickup: rp, return_destination: rd };
                     for (var k in ex) { body[k] = ex[k]; }
                     fetch(url, {
                         method: 'POST',
@@ -987,7 +993,7 @@
                 // Journey / time / stops / extras change the PRICE → re-quote.
                 // The journey-type select and return time matter too: switching to a
                 // return must re-price for both legs.
-                var priceInputs = [pickup, dest, whenEl, journeyEl, returnEl];
+                var priceInputs = [pickup, dest, whenEl, journeyEl, returnEl, retPickupEl, retDestEl];
                 document.querySelectorAll('input[name="via_stops[]"], #meet_greet, #child_seats, #booster_seats, #infant_seats, #ribbon').forEach(function (el) { priceInputs.push(el); });
                 priceInputs.forEach(function (el) { if (!el) return; el.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(refresh, 300); }); el.addEventListener('blur', refresh); });
                 // Exposed so a dynamically-added via stop can trigger a re-quote too.
