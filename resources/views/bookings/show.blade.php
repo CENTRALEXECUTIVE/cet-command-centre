@@ -1914,21 +1914,35 @@
                 </div>
             @elseif($booking->fareIsPaid() && $fareGross)
                 {{-- No itemised ledger rows, but the fare is already paid (e.g. online
-                     via Square, recorded on the booking) — show it so it never reads
-                     as £0/unpaid. --}}
+                     via Square/Stripe, recorded on the booking) — show it so it never
+                     reads as £0/unpaid. The amount shown is what was ACTUALLY paid
+                     ($paidTotal), not the current price, so a re-priced job keeps the
+                     paid figure and the balance (surfaced above) is what's still owed. --}}
                 @php
                     $sqRef = $booking->meta['square_payment']['id'] ?? null;
                     $paidMethod = $sqRef ? 'Card / Square' : ucfirst($booking->payment_method?->value ?? 'card');
-                    $paidNote = 'Recorded on the booking'.($sqRef ? ' (Square)' : '').'. Add a transaction below only if you need to split it into a deposit + balance.';
+                    $partPaid = ($amountDue ?? 0) > 0.009;
+                    $paidNote = $partPaid
+                        ? 'Recorded on the booking'.($sqRef ? ' (Square/Stripe)' : '').'. The price was changed after this payment — £'.number_format($amountDue, 2).' is still outstanding (use the payment request above).'
+                        : 'Recorded on the booking'.($sqRef ? ' (Square/Stripe)' : '').'. Add a transaction below only if you need to split it into a deposit + balance.';
                 @endphp
                 <table style="width:100%">
                     <thead><tr><th>Name</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
                     <tbody><tr>
-                        <td>Full amount</td>
-                        <td>£{{ number_format($fareGross, 2) }}</td>
+                        <td>{{ $partPaid ? 'Paid so far' : 'Full amount' }}</td>
+                        <td>£{{ number_format($paidTotal, 2) }}</td>
                         <td>{{ $paidMethod }}</td>
                         <td><span class="badge badge-complete">Paid</span></td>
-                    </tr></tbody>
+                    </tr>
+                    @if($partPaid)
+                        <tr>
+                            <td>Balance (price changed)</td>
+                            <td>£{{ number_format($amountDue, 2) }}</td>
+                            <td>{{ $paidMethod }}</td>
+                            <td><span class="badge badge-pending">Due</span></td>
+                        </tr>
+                    @endif
+                    </tbody>
                 </table>
                 <p class="hint" style="margin:6px 0 0">{{ $paidNote }}</p>
             @else

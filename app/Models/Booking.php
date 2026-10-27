@@ -1386,7 +1386,26 @@ class Booking extends Model
             return (float) $this->payments->where('status', 'paid')->sum('amount');
         }
 
-        return $this->fareIsPaid() ? (float) ($this->fareGross() ?? 0) : 0.0;
+        if (! $this->fareIsPaid()) {
+            return 0.0;
+        }
+
+        // No itemised ledger. When an online payment recorded the EXACT amount it
+        // took (Square/Stripe webhook → markFarePaid stamps meta['square_payment']
+        // ['amount']), honour THAT figure — never the current fare. So if the office
+        // later re-prices the job (e.g. £55 paid, then price raised to £100), the
+        // already-paid £55 stays put and only the £45 balance moves; it must not
+        // silently read as "the whole new fare is paid". Capped at this leg's own
+        // fare: a return trip records the WHOLE-trip total on the outbound, but each
+        // leg only ever counts its own fare as paid. Falls back to the gross fare
+        // for a job simply flagged paid by hand with no recorded amount.
+        $recorded = $this->meta['square_payment']['amount'] ?? null;
+        $fare = $this->fareGross();
+        if ($recorded !== null && (float) $recorded > 0) {
+            return round(min((float) $recorded, $fare ?? (float) $recorded), 2);
+        }
+
+        return (float) ($fare ?? 0);
     }
 
     /** Total of all payment-ledger transactions, paid or not (£). */
