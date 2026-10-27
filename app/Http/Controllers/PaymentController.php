@@ -56,7 +56,15 @@ class PaymentController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
 
-        $booking->update(['payment_status' => 'paid']);
+        // Record the amount being settled (the fare now) so the paid total is pinned —
+        // otherwise a hand-marked booking has no recorded amount and a LATER price
+        // change would read the new price as fully paid. markFarePaid stamps
+        // meta['square_payment']['amount']; transactionsPaidTotal honours that figure.
+        if (! $booking->fareIsPaid()) {
+            $booking->markFarePaid('MANUAL-'.$booking->id.'-'.now()->timestamp, (float) ($booking->fareGross() ?? 0), $booking->billingEntity());
+        } else {
+            $booking->update(['payment_status' => 'paid']);
+        }
         $booking->payments()->where('status', '!=', 'paid')
             ->update(['status' => 'paid', 'paid_at' => now()]);
 

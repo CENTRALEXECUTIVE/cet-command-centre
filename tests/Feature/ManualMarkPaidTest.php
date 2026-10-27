@@ -95,6 +95,25 @@ class ManualMarkPaidTest extends TestCase
         Mail::assertNotSent(BookingConfirmationMail::class);
     }
 
+    public function test_marking_paid_pins_the_amount_so_a_later_price_rise_shows_a_balance(): void
+    {
+        Mail::fake();
+        $booking = $this->unpaidCardBooking();
+        $booking->forceFill(['quoted_price' => 100])->save();
+        $admin = User::factory()->admin()->create();
+
+        // Mark paid at £100 (records the amount, not just a flag).
+        $this->actingAs($admin)->post(route('payments.paid', $booking))->assertRedirect();
+        $this->assertEqualsWithDelta(100.0, $booking->fresh()->transactionsPaidTotal(), 0.01);
+
+        // Raise the price to £140. Only £100 was settled, so £40 is due — it must NOT
+        // read as £140 fully paid.
+        $this->actingAs($admin)->post(route('bookings.price', $booking), ['final_price' => 140])->assertRedirect();
+        $fresh = $booking->fresh();
+        $this->assertEqualsWithDelta(100.0, $fresh->transactionsPaidTotal(), 0.01, 'paid total stays at the amount actually settled');
+        $this->assertEqualsWithDelta(40.0, (float) $fresh->transactionsAmountDue(), 0.01, 'the increase is a balance due, not already paid');
+    }
+
     public function test_a_partial_payment_does_not_send_a_paid_receipt(): void
     {
         Mail::fake();
