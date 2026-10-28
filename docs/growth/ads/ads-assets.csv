@@ -1,0 +1,23 @@
+Asset type,Level,Text / Header,Description line 1 / Values,Description line 2,Final URL
+Sitelink,Account,Airport Transfers,"Manchester, Heathrow and more","Fixed prices, flight tracking",https://centralexecutivetransfers.co.uk/airport-transfers-sheffield
+Sitelink,Account,Get a Price,Instant fixed price online,Book in a few minutes,https://centralexecutivetransfers.co.uk/booking
+Sitelink,Account,Corporate Accounts,"VAT invoices, monthly billing","Owner-run, directors drive",https://centralexecutivetransfers.co.uk/corporate-chauffeur-sheffield
+Sitelink,Account,Groups & V-Class,Up to 8 passengers,V-Class and minibus options,https://centralexecutivetransfers.co.uk/mercedes-vclass-hire-sheffield
+Sitelink,Account,East Midlands Airport,Fixed price from Sheffield,Flight tracking on pickups,https://centralexecutivetransfers.co.uk/sheffield-to-east-midlands-airport-transfers
+Sitelink,Account,Heathrow Transfers,Fixed price from Sheffield,Meet & greet in arrivals,https://centralexecutivetransfers.co.uk/sheffield-to-heathrow-airport-transfers
+Callout,Account,Fixed Prices,,,
+Callout,Account,Flight Tracking,,,
+Callout,Account,Meet & Greet,,,
+Callout,Account,VAT Invoices,,,
+Callout,Account,Card or Cash,,,
+Callout,Account,Live Driver Tracking,,,
+Callout,Account,Instant Online Price,,,
+Callout,Account,No Hidden Fees,,,
+Callout,Account,Corporate Accounts,,,
+Callout,Account,Licensed Operator OP037,,,
+Callout,Account,Owner-Run Firm,,,
+Callout,Account,Number-Masked Calls,,,
+Structured snippet,Account,Services,Airport Transfers;Executive Chauffeur;Corporate Travel;Group Transfers;Event Travel,,
+Structured snippet,Account,Types,Executive Saloon;Estate;V-Class;Minibus;Minibus XL,,
+Structured snippet,Account,Destinations,Manchester Airport;East Midlands Airport;Heathrow;Gatwick;Stansted;Leeds Bradford,,
+Call,Account,0114 399 8242,"Call reporting ON; conversion = Calls from ads (Secondary, 60s); schedule = office hours [CONFIRM]",,

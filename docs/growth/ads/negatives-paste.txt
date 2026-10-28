@@ -1,0 +1,270 @@
+# Paste everything below this line into Google Ads > Tools > Shared library > Exclusion lists > Negative keyword lists > CET Master Negatives > + (one per line). "quotes" = phrase, no quotes = broad.
+jobs
+job
+careers
+career
+vacancies
+vacancy
+hiring
+recruitment
+recruiting
+employment
+"driver wanted"
+"drivers wanted"
+"driver jobs"
+"driving jobs"
+"chauffeur jobs"
+"taxi driver"
+salary
+wages
+apprenticeship
+"part time"
+"full time"
+"work for"
+indeed
+"become a"
+"self employed"
+"owner driver"
+course
+courses
+training
+licence
+license
+licensing
+badge
+dbs
+"knowledge test"
+topographical
+insurance
+mot
+plates
+cheap
+cheapest
+budget
+"low cost"
+discount
+voucher
+vouchers
+"promo code"
+coupon
+deals
+student
+students
+free
+bus
+buses
+train
+trains
+rail
+railway
+tram
+coach
+coaches
+"national express"
+megabus
+flixbus
+timetable
+"shuttle bus"
+"shared shuttle"
+parking
+"car park"
+"park and ride"
+valet
+"drop off charge"
+"drop off fee"
+"drop off zone"
+"drop off area"
+"drop off point"
+"pick up zone"
+"pickup zone"
+"pick up area"
+"pick up point"
+flights
+"cheap flights"
+"flight status"
+departures
+"arrivals board"
+lounge
+"fast track"
+security
+"duty free"
+"terminal map"
+postcode
+address
+weather
+news
+strike
+"jobs at"
+"how to"
+"how do"
+"how far"
+"how long"
+distance
+"miles from"
+directions
+"route planner"
+map
+meaning
+definition
+wiki
+wikipedia
+rental
+rentals
+rent
+"rent a car"
+"self drive"
+"van hire"
+"hire car"
+"for sale"
+used
+"second hand"
+lease
+leasing
+finance
+toy
+lego
+diecast
+wallpaper
+logo
+png
+game
+simulator
+uniform
+hat
+courier
+delivery
+parcel
+removal
+removals
+"man and van"
+tow
+recovery
+breakdown
+ambulance
+"patient transport"
+hearse
+funeral
+helicopter
+"private jet"
+limo
+limos
+limousine
+hummer
+"party bus"
+stretch
+stag
+"hen party"
+"hen do"
+wheelchair
+"wheelchair accessible"
+wav
+mobility
+pet
+pets
+dog
+dogs
+animal
+school
+schools
+"school run"
+"lost property"
+complaint
+complaints
+refund
+"9 seater"
+"10 seater"
+"12 seater"
+"14 seater"
+"15 seater"
+"16 seater"
+"17 seater"
+"20 seater"
+"24 seater"
+"29 seater"
+"33 seater"
+"49 seater"
+"53 seater"
+"coach hire"
+"taxi number"
+"taxi numbers"
+"taxi phone number"
+"cab number"
+"taxi rank"
+"taxi ranks"
+"black cab"
+hackney
+"taxi app"
+app
+alicante
+malaga
+benidorm
+tenerife
+lanzarote
+"gran canaria"
+fuerteventura
+majorca
+mallorca
+palma
+ibiza
+menorca
+faro
+algarve
+dalaman
+antalya
+bodrum
+marmaris
+turkey
+spain
+portugal
+greece
+crete
+rhodes
+corfu
+zante
+kos
+cyprus
+paphos
+larnaca
+dubai
+orlando
+florida
+"new york"
+paris
+amsterdam
+rome
+krakow
+prague
+budapest
+sharm
+hurghada
+egypt
+croatia
+dubrovnik
+abroad
+resort
+dublin
+belfast
+glasgow
+edinburgh
+aberdeen
+uber
+bolt
+veezu
+"city taxis"
+"mercury taxis"
+"addison lee"
+blacklane
+"holiday extras"
+suntransfers
+hoppa
+"welcome pickups"
+kiwitaxi
+gett
+"free now"
+freenow
+lyft
+transfeero
+daytrip
+"doncaster sheffield airport"
+"robin hood airport"
+"dsa airport"
