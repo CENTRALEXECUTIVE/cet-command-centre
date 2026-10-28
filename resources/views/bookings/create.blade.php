@@ -192,6 +192,29 @@
                             </div>
                         </div>
                     </div>
+                    {{-- The return leg's own vehicle + price (ETO-style): defaults to the
+                         outbound vehicle and the live quote for the return route; change
+                         either, or type your own return price. --}}
+                    <div class="grid grid-2" style="margin-top:10px">
+                        <div class="field" style="margin-bottom:0">
+                            <label for="return_vehicle_type_id">Return vehicle</label>
+                            <select id="return_vehicle_type_id" name="return_vehicle_type_id">
+                                <option value="">Same as outbound</option>
+                                @foreach($vehicleTypes as $vt)
+                                    <option value="{{ $vt->id }}" @selected((string) old('return_vehicle_type_id') === (string) $vt->id)>{{ $vt->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field" style="margin-bottom:0">
+                            <label for="return_leg_price">Return price (£)</label>
+                            <input id="return_leg_price" type="number" step="0.01" min="0" inputmode="decimal" value="{{ old('leg_price_return') }}" placeholder="live quote">
+                            <div class="hint" id="return-price-hint" style="margin-top:4px"></div>
+                        </div>
+                    </div>
+                    <div class="field" style="margin:10px 0 0">
+                        <label for="return_flight_number">Return flight number <span class="muted">(only if the return collects from an airport)</span></label>
+                        <input id="return_flight_number" name="return_flight_number" value="{{ old('return_flight_number') }}" placeholder="e.g. EZY1234" style="text-transform:uppercase">
+                    </div>
                 </div>
 
                 <div class="field" style="margin-bottom:0">
@@ -908,23 +931,71 @@
                 // return stores its own price on each leg (the office never types them).
                 var legOutEl = document.getElementById('leg_price_out');
                 var legRetEl = document.getElementById('leg_price_return');
+                // The RETURN leg's own vehicle + price (ETO-style). The return price box
+                // follows the live quote for the return route + return vehicle until the
+                // office types over it; then their figure wins.
+                var retVehSel = document.getElementById('return_vehicle_type_id');
+                var retPriceEl = document.getElementById('return_leg_price');
+                var retHint = document.getElementById('return-price-hint');
+                var autoReturn = null;
+                function optFor(id) { return lastOptions.filter(function (o) { return String(o.id) === String(id); })[0]; }
+                function legAmount(opt, label) {
+                    var a = null;
+                    (opt && opt.breakdown ? opt.breakdown : []).forEach(function (l) { if (l.label === label) a = Number(l.amount); });
+                    return a;
+                }
+                function isReturnTrip() { return !!(journeyEl && journeyEl.value === 'return'); }
+                function liveReturn() {
+                    var o = optFor((retVehSel && retVehSel.value) || vehSel.value);
+                    return o && !o.poa ? legAmount(o, 'Return leg') : null;
+                }
+                function syncReturnPrice() {
+                    if (!retPriceEl) return;
+                    var live = liveReturn();
+                    var typed = parseFloat(retPriceEl.value);
+                    var tracking = isNaN(typed) || (autoReturn != null && Math.abs(typed - autoReturn) < 0.01);
+                    if (tracking && live != null) { retPriceEl.value = live.toFixed(2); autoReturn = live; }
+                    if (retHint) {
+                        retHint.textContent = live == null ? ''
+                            : (tracking ? 'Live quote — type to change' : 'Live quote £' + live.toFixed(2) + ' · using your price');
+                    }
+                }
+                // [outbound, return] on a return trip — the return is the office's
+                // figure (or the live quote for the return vehicle). Null otherwise.
+                function returnLegs() {
+                    if (!isReturnTrip()) return null;
+                    var o = legAmount(optFor(vehSel.value), 'Outbound leg');
+                    var r = retPriceEl ? parseFloat(retPriceEl.value) : NaN;
+                    if (isNaN(r)) r = liveReturn();
+                    return (o != null && r != null) ? [o, r] : null;
+                }
+                function liveTotal(opt) {
+                    var legs = returnLegs();
+                    if (legs) return Math.round((legs[0] + legs[1]) * 100) / 100;
+                    return opt && opt.price != null && !opt.poa ? Number(opt.price) : null;
+                }
                 function setLegPrices(opt) {
                     if (!legOutEl || !legRetEl) return;
-                    var o = '', r = '';
-                    if (opt && opt.breakdown) {
-                        opt.breakdown.forEach(function (l) {
-                            if (l.label === 'Outbound leg') o = Number(l.amount).toFixed(2);
-                            if (l.label === 'Return leg') r = Number(l.amount).toFixed(2);
-                        });
-                    }
-                    legOutEl.value = o; legRetEl.value = r;
+                    var legs = returnLegs();
+                    if (legs) { legOutEl.value = legs[0].toFixed(2); legRetEl.value = legs[1].toFixed(2); return; }
+                    var o = legAmount(opt, 'Outbound leg'), r = legAmount(opt, 'Return leg');
+                    legOutEl.value = o == null ? '' : o.toFixed(2);
+                    legRetEl.value = r == null ? '' : r.toFixed(2);
                 }
 
                 function showBreakdown() {
-                    var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
+                    syncReturnPrice();
+                    var opt = optFor(vehSel.value);
                     setLegPrices(opt);
                     var lines = opt && opt.breakdown ? opt.breakdown : [];
-                    var ok = opt && !opt.poa && lines.length >= 2;
+                    var legs = returnLegs();
+                    if (legs) {
+                        var rv = retVehSel && retVehSel.value && retVehSel.value !== vehSel.value
+                            ? ' (' + retVehSel.options[retVehSel.selectedIndex].text + ')' : '';
+                        lines = [{ label: 'Outbound leg', amount: legs[0] }, { label: 'Return leg' + rv, amount: legs[1] }];
+                    }
+                    var total = liveTotal(opt);
+                    var ok = opt && !opt.poa && lines.length >= 2 && total != null;
                     var cardHtml = '', totalHtml = '';
                     if (ok) {
                         lines.forEach(function (l) {
@@ -932,7 +1003,7 @@
                             cardHtml += '<div class="row">' + row + '</div>';
                             totalHtml += '<div class="row">' + row + '</div>';
                         });
-                        var tot = '<span>Total</span><span>£' + Number(opt.price).toFixed(2) + '</span>';
+                        var tot = '<span>Total</span><span>£' + total.toFixed(2) + '</span>';
                         cardHtml += '<div class="row total">' + tot + '</div>';
                         totalHtml += '<div class="row total">' + tot + '</div>';
                     }
@@ -944,9 +1015,9 @@
                 // for the chosen vehicle — unless the operator has typed a custom price.
                 function applyLive() {
                     if (!priceEl) return;
-                    var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
-                    if (!opt || opt.price == null || opt.poa) return;
-                    var live = Number(opt.price);
+                    syncReturnPrice();
+                    var live = liveTotal(optFor(vehSel.value));
+                    if (live == null) return;
                     var typed = parseFloat(priceEl.value);
                     var tracking = isNaN(typed) || (autoPrice != null && Math.abs(typed - autoPrice) < 0.01);
                     if (tracking) {
@@ -961,21 +1032,26 @@
                 // both a stale typed price and extras ticked but not folded in.
                 function nudge() {
                     if (!priceNudge || !priceEl) return;
-                    var opt = lastOptions.filter(function (o) { return String(o.id) === String(vehSel.value); })[0];
-                    if (!opt || opt.price == null || opt.poa) { priceNudge.hidden = true; return; }
+                    var opt = optFor(vehSel.value);
+                    var live = liveTotal(opt);
+                    if (live == null) { priceNudge.hidden = true; return; }
                     var typed = parseFloat(priceEl.value);
-                    var live = Number(opt.price);
                     if (isNaN(typed) || Math.abs(typed - live) < 0.01) { priceNudge.hidden = true; return; }
-                    var extra = Number(opt.extras_total || 0) > 0 ? ' (incl. stop / extras)' : '';
+                    var extra = Number(opt && opt.extras_total || 0) > 0 ? ' (incl. stop / extras)' : '';
                     priceNudge.innerHTML = '';
                     var span = document.createElement('span');
-                    span.textContent = 'Live quote for this vehicle is £' + live.toFixed(2) + extra + '. ';
+                    span.textContent = 'Live quote ' + (returnLegs() ? 'for both legs' : 'for this vehicle') + ' is £' + live.toFixed(2) + extra + '. ';
                     var btn = document.createElement('button');
                     btn.type = 'button'; btn.className = 'link'; btn.textContent = 'Use £' + live.toFixed(2);
                     btn.addEventListener('click', function () { priceEl.value = live.toFixed(2); priceEl.dispatchEvent(new Event('input')); nudge(); });
                     priceNudge.appendChild(span); priceNudge.appendChild(btn);
                     priceNudge.hidden = false;
                 }
+                // Changing the return vehicle or typing a return price updates the
+                // legs, the breakdown and the total straight away.
+                function returnChanged() { applyLive(); nudge(); showBreakdown(); }
+                if (retVehSel) retVehSel.addEventListener('change', function () { autoReturn = null; if (retPriceEl) retPriceEl.value = ''; returnChanged(); });
+                if (retPriceEl) { retPriceEl.addEventListener('input', returnChanged); retPriceEl.addEventListener('change', returnChanged); }
 
                 // Drop the live price onto each vehicle card (the cards are rendered
                 // server-side; here we just fill in / refresh their prices).

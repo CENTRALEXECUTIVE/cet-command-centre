@@ -77,6 +77,66 @@ class AdminReturnAddressTest extends TestCase
         $this->assertSame($return->id, $out->linked_booking_id);
     }
 
+    public function test_the_return_leg_keeps_its_own_vehicle_price_and_no_copied_airport_details(): void
+    {
+        // JELD-WEN, Oct 2026: MAN T2 arrival → office, then office → Ibis Birmingham
+        // Airport on a different vehicle and the office's own return price.
+        Mail::fake();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $vclass = VehicleType::where('slug', 'v-class')->firstOrFail();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload([
+                'vehicle_type_id' => $exec->id,
+                'return_vehicle_type_id' => $vclass->id,
+                'pickup_address' => 'Manchester Airport Terminal 2',
+                'destination_address' => 'JELD-WEN, Shepcote Lane, Sheffield S9 1DZ',
+                'return_pickup_address' => 'JELD-WEN, Shepcote Lane, Sheffield S9 1DZ',
+                'return_destination_address' => 'Ibis Birmingham Airport, Bickenhill B26 3AW',
+                'flight_number' => 'ib987', 'flight_landing_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+                'meet_greet' => '1',
+                'quoted_price' => 275.00, 'leg_price_out' => 115.00, 'leg_price_return' => 160.00,
+            ]))
+            ->assertRedirect();
+
+        $out = Booking::where('is_return_leg', false)->firstOrFail();
+        $ret = Booking::where('is_return_leg', true)->firstOrFail();
+
+        // Each leg keeps its own price and vehicle.
+        $this->assertEqualsWithDelta(115.0, (float) $out->quoted_price, 0.001);
+        $this->assertEqualsWithDelta(160.0, (float) $ret->quoted_price, 0.001);
+        $this->assertSame($exec->id, $out->vehicle_type_id);
+        $this->assertSame($vclass->id, $ret->vehicle_type_id);
+
+        // The arrival flight + meet & greet stay on the airport leg only.
+        $this->assertSame('IB987', $out->flight_number);
+        $this->assertNotEmpty($out->meta['meet_greet'] ?? null);
+        $this->assertNull($ret->flight_number);
+        $this->assertEmpty($ret->meta['meet_greet'] ?? null);
+        $this->assertEmpty($ret->meta['flight_landing_at'] ?? null);
+    }
+
+    public function test_a_return_from_an_airport_takes_its_own_return_flight(): void
+    {
+        Mail::fake();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload([
+                'pickup_address' => 'Sheffield S1 2BP', 'destination_address' => 'Manchester Airport Terminal 1',
+                'flight_number' => 'EZY100', 'return_flight_number' => 'ezy101',
+            ]))
+            ->assertRedirect();
+
+        $this->assertSame('EZY101', Booking::where('is_return_leg', true)->firstOrFail()->flight_number);
+    }
+
+    public function test_the_form_shows_the_return_vehicle_and_price_boxes(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())->get(route('bookings.create'))->assertOk()
+            ->assertSee('id="return_vehicle_type_id"', false)
+            ->assertSee('id="return_leg_price"', false)
+            ->assertSee('id="return_flight_number"', false);
+    }
+
     public function test_the_confirmation_email_can_be_previewed_before_saving(): void
     {
         // Mirror live: Square (tips) configured, so the email builds a tip link —
@@ -146,7 +206,7 @@ class AdminReturnAddressTest extends TestCase
         $this->assertEqualsWithDelta(48.0, (float) $ret->quoted_price, 0.01);
     }
 
-    public function test_a_return_emails_both_legs_each_with_a_pay_link(): void
+    public function test_a_return_sends_one_confirmation_for_the_whole_trip(): void
     {
         Mail::fake();
         $this->actingAs(User::factory()->admin()->create())
@@ -156,11 +216,11 @@ class AdminReturnAddressTest extends TestCase
             ]))
             ->assertRedirect();
 
-        // Two confirmations — one per leg — each carrying a Pay now link.
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, 2);
+        // ONE confirmation (the email lists both journeys + the trip total), from
+        // the outbound leg, with a Pay now link — never two near-identical emails.
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, 1);
         \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class,
             fn ($m) => ! $m->booking->is_return_leg && $m->payUrl !== null);
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class,
-            fn ($m) => $m->booking->is_return_leg && $m->payUrl !== null);
+        $this->assertSame(2, Booking::whereNotNull('meta->customer_email_sent')->count());
     }
 }

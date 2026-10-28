@@ -53,8 +53,13 @@ class CustomerBookingMailer
         if (blank($email)) {
             return false;
         }
-        // Guard 3 — once per booking.
+        // Guard 3 — once per booking, and once per TRIP: the confirmation lists
+        // every journey on a return, so a second leg never gets its own copy.
         if (! empty($booking->meta['customer_email_sent'])) {
+            return false;
+        }
+        $group = $booking->invoiceGroupBookings();
+        if ($group->count() > 1 && $group->contains(fn (Booking $b) => ! empty($b->meta['customer_email_sent']))) {
             return false;
         }
         // Guard 4 — the shared safety gate (not terminal, pickup not in the past).
@@ -84,9 +89,11 @@ class CustomerBookingMailer
             return false;
         }
 
-        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
-            'customer_email_sent' => now()->toIso8601String(),
-        ])])->save();
+        $sentAt = now()->toIso8601String();
+        foreach (($group->count() > 1 ? $group : collect([$booking])) as $leg) {
+            $leg = $leg->is($booking) ? $booking : $leg->fresh();
+            $leg->forceFill(['meta' => array_merge($leg->meta ?? [], ['customer_email_sent' => $sentAt])])->save();
+        }
 
         return true;
     }

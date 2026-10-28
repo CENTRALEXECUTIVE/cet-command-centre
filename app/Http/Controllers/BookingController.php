@@ -392,12 +392,14 @@ class BookingController extends Controller
         // one booking at a time (unlike a bulk import, which never emails). Once
         // per booking; a send failure is reported to the office, never fatal.
         if ($request->boolean('email_customer')) {
-            // A return trip is two legs (outbound …A and return …B): email a
-            // confirmation for EACH, showing that leg's own fare, with a pay link that
-            // charges the WHOLE trip (paying once settles both). A one-way is just the
-            // single booking. Once per leg; a send failure is reported, never fatal.
+            // ONE confirmation for the whole trip: the email lists every journey (the
+            // return too) and the trip total, with a pay link that charges the lot.
+            // It used to send one per leg, which now would be two near-identical
+            // emails. Sent from the outbound leg; every leg is marked as emailed.
+            // A send failure is reported, never fatal.
             $group = $booking->fresh()->invoiceGroupBookings();
             $legs = $group->isNotEmpty() ? $group : collect([$booking->fresh()]);
+            $legs = $legs->sortBy(fn ($b) => [$b->is_return_leg ? 1 : 0, $b->pickup_at?->timestamp ?? 0])->values()->take(1);
             foreach ($legs as $leg) {
                 if (blank($leg->customer?->email)
                     || ! $leg->customerEmailAllowed()
@@ -412,9 +414,11 @@ class BookingController extends Controller
 
                     \Illuminate\Support\Facades\Mail::to($leg->customer->email)
                         ->send(new \App\Mail\BookingConfirmationMail($leg, paid: false, payUrl: $payUrl));
-                    $leg->forceFill(['meta' => array_merge($leg->meta ?? [], [
-                        'customer_email_sent' => now()->toIso8601String(),
-                    ])])->save();
+                    $sentAt = now()->toIso8601String();
+                    foreach (($group->isNotEmpty() ? $group : collect([$leg])) as $each) {
+                        $each = $each->fresh();
+                        $each->forceFill(['meta' => array_merge($each->meta ?? [], ['customer_email_sent' => $sentAt])])->save();
+                    }
                 } catch (\Throwable $e) {
                     \App\Support\MailFailure::report('admin booking confirmation', $e, $leg);
                 }

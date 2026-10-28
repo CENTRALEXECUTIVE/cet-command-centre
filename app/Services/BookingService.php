@@ -520,7 +520,10 @@ class BookingService
 
     private function buildLeg(array $data, Customer $customer, ?User $creator, bool $isReturn, ?string $reference = null): Booking
     {
-        $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
+        // The return leg can run a different vehicle (chosen on the form).
+        $vehicleType = VehicleType::findOrFail(
+            $isReturn && ! empty($data['return_vehicle_type_id']) ? $data['return_vehicle_type_id'] : $data['vehicle_type_id']
+        );
 
         $isHourly = ($data['journey_type'] ?? 'one_way') === 'hourly';
         $hourlyHours = $isHourly ? (int) ($data['hours'] ?? 0) : null;
@@ -541,6 +544,15 @@ class BookingService
 
         [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
+        // Airport details only belong on a leg that COLLECTS from an airport: the
+        // outbound's arrival flight, landing time and meet & greet must not be
+        // copied onto a return picked up from an office or hotel. A return from an
+        // airport takes its own return flight when given.
+        $airportPickup = ! $isReturn || \App\Support\AirportMatcher::isAirport($pickupAddress);
+        $flightNumber = $isReturn
+            ? (trim((string) ($data['return_flight_number'] ?? '')) ?: ($airportPickup ? ($data['flight_number'] ?? null) : null))
+            : ($data['flight_number'] ?? null);
+
         $booking = Booking::create([
             'reference' => $reference ?? Booking::generateReference(),
             'customer_id' => $customer->id,
@@ -556,7 +568,7 @@ class BookingService
             'pickup_postcode' => $isReturn ? (($data['return_pickup_postcode'] ?? null) ?: ($data['destination_postcode'] ?? null)) : ($data['pickup_postcode'] ?? null),
             'destination_address' => $destinationAddress,
             'destination_postcode' => $isReturn ? (($data['return_destination_postcode'] ?? null) ?: ($data['pickup_postcode'] ?? null)) : ($data['destination_postcode'] ?? null),
-            'flight_number' => $data['flight_number'] ?? null,
+            'flight_number' => $flightNumber ? strtoupper($flightNumber) : null,
             'passengers' => $data['passengers'],
             'luggage' => $luggage,
             'meta' => array_filter([
@@ -573,10 +585,10 @@ class BookingService
                 // Extras — same set the customer widget captures (child-seat counts are
                 // capped at the passenger count), so the calendar marks and the driver
                 // sheet show them.
-                'meet_greet' => ! empty($data['meet_greet']) ?: null,
+                'meet_greet' => (! empty($data['meet_greet']) && $airportPickup) ?: null,
                 // Flight landing time (airport arrivals) — kept so the office can
                 // track the flight and time the pickup; UK-local like all CET times.
-                'flight_landing_at' => ! empty($data['flight_landing_at'])
+                'flight_landing_at' => (! empty($data['flight_landing_at']) && ! $isReturn)
                     ? \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->toDateTimeString()
                     : null,
                 'child_seats' => min((int) ($data['child_seats'] ?? 0), (int) $data['passengers']) ?: null,

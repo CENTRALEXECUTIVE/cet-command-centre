@@ -57,6 +57,10 @@ class StoreBookingRequest extends FormRequest
             // total on one. Blank → the total is split evenly.
             'leg_price_out' => ['nullable', 'numeric', 'min:0'],
             'leg_price_return' => ['nullable', 'numeric', 'min:0'],
+            // The return leg's own vehicle (blank = same as outbound) and its own
+            // flight (a return collected from an airport is a different flight).
+            'return_vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')->where('is_active', true)],
+            'return_flight_number' => ['nullable', 'string', 'max:32'],
             // Hourly hire: how many hours the car + driver are booked for.
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'via_stops' => ['nullable', 'array', 'max:10'],

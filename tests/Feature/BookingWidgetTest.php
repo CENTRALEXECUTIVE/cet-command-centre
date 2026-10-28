@@ -380,11 +380,12 @@ class BookingWidgetTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_a_web_return_emails_a_confirmation_with_a_pay_link_for_each_leg(): void
+    public function test_a_web_return_emails_one_confirmation_for_the_whole_trip_with_a_pay_link(): void
     {
         // Non-VAT → Stripe (PVT) provider, so an unpaid card booking gets a tap-to-pay
-        // link in its confirmation. The customer should get a confirmation for BOTH
-        // legs (outbound …A and return …B), each with its own "Complete payment" link.
+        // link in its confirmation. The customer gets ONE confirmation listing both
+        // journeys (outbound …A and return …B) with one "Complete payment" link —
+        // never two near-identical emails.
         config(['services.stripe.secret_key' => 'sk_test_123']);
         \Illuminate\Support\Facades\Mail::fake();
         $executive = VehicleType::where('slug', 'executive')->first();
@@ -400,9 +401,10 @@ class BookingWidgetTest extends TestCase
             'customer_name' => 'Pauric Shanley', 'customer_email' => 'p@example.com',
         ])->assertOk();
 
-        // One confirmation per leg, and the return leg's carries a pay link.
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, 2);
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, fn ($m) => $m->booking->is_return_leg && $m->payUrl !== null);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, 1);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class, fn ($m) => ! $m->booking->is_return_leg && $m->payUrl !== null);
+        $html = \Illuminate\Support\Facades\Mail::sent(\App\Mail\BookingConfirmationMail::class)->first()->render();
+        $this->assertStringContainsString('Return journey', $html);
     }
 
     public function test_the_honeypot_blocks_spam_bookings(): void
