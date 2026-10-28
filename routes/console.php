@@ -76,6 +76,12 @@ Schedule::command('cet:calendar-refresh')->everyFiveMinutes()->withoutOverlappin
 // existing and freshly-pulled jobs are picked up without hand-allocating.
 Schedule::command('cet:auto-allocate-tagged')->everyFiveMinutes()->withoutOverlapping(10);
 
+// Card-payment safety net: ask Stripe and Square for recent fare payments and
+// record any whose webhook never arrived — so the customer's paid confirmation
+// and the office "Payment received" email always go out within minutes.
+Schedule::command('cet:reconcile-payments')->everyFiveMinutes()->withoutOverlapping(10)
+    ->after(fn () => \App\Support\Heartbeat::stamp('reconcile-payments'));
+
 // Parse Outlook booking emails into bookings, every 2 minutes — so an ETO
 // amendment or cancellation reaches the Command Centre quickly.
 Schedule::command('cet:ingest-outlook')->everyTwoMinutes()->withoutOverlapping(10);

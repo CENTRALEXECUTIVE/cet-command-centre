@@ -100,6 +100,8 @@ class WebhookController extends Controller
     {
         $signature = $request->header('x-square-hmacsha256-signature');
         if (! $square->verifySignature($signature, $request->getContent(), $request->fullUrl())) {
+            \Illuminate\Support\Facades\Log::warning('[Square webhook] REJECTED — bad signature (check the signature key in Settings → payments and the webhook URL in Square)', ['url' => $request->fullUrl()]);
+
             return response()->json(['error' => 'bad signature'], 403);
         }
 
@@ -114,6 +116,8 @@ class WebhookController extends Controller
         $fareBooking = $tipBooking
             ? null
             : app(\App\Services\Payments\SquareBookingPaymentService::class)->recordFareFromWebhook($payload);
+
+        \Illuminate\Support\Facades\Log::info('[Square webhook] '.($payload['type'] ?? '?').' → '.($tipBooking ? 'tip '.$tipBooking->reference : ($fareBooking ? 'fare recorded '.$fareBooking->reference : 'not a new fare (ignored)')));
 
         // A fare paid online confirms the web booking: allocate + calendar + alert.
         if ($fareBooking) {
@@ -144,6 +148,8 @@ class WebhookController extends Controller
         $signature = $request->header('x-square-hmacsha256-signature');
 
         if (! $sisterSet || blank($key) || blank($signature)) {
+            \Illuminate\Support\Facades\Log::warning('[Square sister webhook] REJECTED — not configured');
+
             return response()->json(['error' => 'not configured'], 403);
         }
         // Scheme-proof (a host proxy can make the app see http where Square signed
@@ -158,11 +164,14 @@ class WebhookController extends Controller
             }
         }
         if (! $matched) {
+            \Illuminate\Support\Facades\Log::warning('[Square sister webhook] REJECTED — bad signature');
+
             return response()->json(['error' => 'bad signature'], 403);
         }
 
         $payload = $request->json()->all();
         $fareBooking = $fares->recordFareFromWebhook($payload, 'chauffeurs');
+        \Illuminate\Support\Facades\Log::info('[Square sister webhook] '.($payload['type'] ?? '?').' → '.($fareBooking ? 'fare recorded '.$fareBooking->reference : 'not a new fare (ignored)'));
         if ($fareBooking) {
             app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }
@@ -183,14 +192,19 @@ class WebhookController extends Controller
     {
         $stripe = app(\App\Services\Payments\StripePaymentService::class);
         if (! $stripe->enabled()) {
+            \Illuminate\Support\Facades\Log::warning('[Stripe webhook] REJECTED — Stripe not configured');
+
             return response()->json(['error' => 'not configured'], 403);
         }
         if (! $stripe->verifyWebhook($request->getContent(), $request->header('Stripe-Signature'))) {
+            \Illuminate\Support\Facades\Log::warning('[Stripe webhook] REJECTED — bad signature (the webhook signing secret in Settings → payments must match this Stripe endpoint, same live/test mode)');
+
             return response()->json(['error' => 'bad signature'], 403);
         }
 
         $payload = $request->json()->all();
         $fareBooking = $stripe->recordFareFromWebhook($payload);
+        \Illuminate\Support\Facades\Log::info('[Stripe webhook] '.($payload['type'] ?? '?').' → '.($fareBooking ? 'fare recorded '.$fareBooking->reference : 'not a new fare (ignored)'));
         if ($fareBooking) {
             app(\App\Services\BookingStatusService::class)->onFarePaid($fareBooking->fresh()); // heal status + customer & office paid emails
         }

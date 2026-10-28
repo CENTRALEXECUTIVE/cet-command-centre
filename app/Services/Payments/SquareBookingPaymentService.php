@@ -288,12 +288,66 @@ class SquareBookingPaymentService
         return substr($reference, strlen(self::COVER_PREFIX));
     }
 
+    /**
+     * Recent payments on one Square account (newest first), for the reconcile
+     * safety net that catches a fare whose webhook never arrived. Empty on any
+     * failure or when that account isn't configured.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function recentPayments(string $entity, \DateTimeInterface $since, int $maxPages = 5): array
+    {
+        if (! $this->enabled($entity)) {
+            return [];
+        }
+        $payments = [];
+        $cursor = null;
+        try {
+            for ($page = 0; $page < $maxPages; $page++) {
+                $res = $this->http($entity)->get($this->baseUrl($entity).'/v2/payments', array_filter([
+                    'begin_time' => \Illuminate\Support\Carbon::instance($since)->utc()->format('Y-m-d\TH:i:s\Z'),
+                    'location_id' => $this->account($entity)['location_id'],
+                    'limit' => 100,
+                    'cursor' => $cursor,
+                ]));
+                if (! $res->successful()) {
+                    Log::warning('[Square] payments list failed', ['entity' => $entity, 'status' => $res->status(), 'body' => mb_substr($res->body(), 0, 300)]);
+                    break;
+                }
+                $payments = array_merge($payments, (array) $res->json('payments', []));
+                $cursor = $res->json('cursor');
+                if (! $cursor) {
+                    break;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[Square] payments list error: '.$e->getMessage());
+        }
+
+        return $payments;
+    }
+
     private function retrieveOrderReference(string $orderId, string $entity = 'transfers'): ?string
     {
+        // Orders never change reference — cache a successful lookup so the
+        // reconcile run doesn't re-fetch the same orders every few minutes.
+        $cacheKey = 'sq_order_ref:'.$entity.':'.$orderId;
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return \Illuminate\Support\Facades\Cache::get($cacheKey) ?: null;
+        }
         try {
             $res = $this->http($entity)->get($this->baseUrl($entity).'/v2/orders/'.$orderId);
+            if (! $res->successful()) {
+                // Was silent: a token missing ORDERS_READ made every fare webhook
+                // quietly do nothing. Say so in the log.
+                Log::warning('[Square] order lookup failed', ['entity' => $entity, 'order' => $orderId, 'status' => $res->status(), 'body' => mb_substr($res->body(), 0, 300)]);
 
-            return $res->successful() ? ($res->json('order.reference_id') ?: null) : null;
+                return null;
+            }
+            $ref = (string) ($res->json('order.reference_id') ?? '');
+            \Illuminate\Support\Facades\Cache::put($cacheKey, $ref, now()->addDays(2));
+
+            return $ref !== '' ? $ref : null;
         } catch (\Throwable $e) {
             Log::warning('[Square] order lookup error: '.$e->getMessage());
 

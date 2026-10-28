@@ -280,6 +280,48 @@ class StripePaymentService
     }
 
     /**
+     * Completed Checkout Sessions since a time (newest first), for the reconcile
+     * safety net that catches a fare whose webhook never arrived. Payment Links
+     * create Checkout Sessions too, so every way a customer pays shows up here.
+     * Empty on any failure or when Stripe isn't configured.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function recentCompletedSessions(\DateTimeInterface $since, int $maxPages = 5): array
+    {
+        if (! $this->enabled()) {
+            return [];
+        }
+        $sessions = [];
+        $after = null;
+        try {
+            for ($page = 0; $page < $maxPages; $page++) {
+                $res = Http::withToken((string) $this->secretKey())->timeout(15)
+                    ->get(self::API.'/checkout/sessions', array_filter([
+                        'limit' => 100,
+                        'status' => 'complete',
+                        'created[gte]' => $since->getTimestamp(),
+                        'starting_after' => $after,
+                    ]));
+                if (! $res->successful()) {
+                    Log::warning('[Stripe] sessions list failed', ['status' => $res->status(), 'body' => mb_substr($res->body(), 0, 300)]);
+                    break;
+                }
+                $data = (array) $res->json('data', []);
+                $sessions = array_merge($sessions, $data);
+                if (! $res->json('has_more') || $data === []) {
+                    break;
+                }
+                $after = (string) (end($data)['id'] ?? '');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[Stripe] sessions list error: '.$e->getMessage());
+        }
+
+        return $sessions;
+    }
+
+    /**
      * If this completed Stripe webhook is a COVER- combined-invoice payment, return
      * the stripped cover reference (so the office's cover jobs can be marked paid).
      * Null for anything else — a fare (FARE-), a test, or an unpaid session.
