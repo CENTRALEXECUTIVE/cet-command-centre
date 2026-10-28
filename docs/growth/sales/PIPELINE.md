@@ -6,6 +6,7 @@ every message. Update the row the same day you send something or get a reply.
 
 Prospect details and sources: `2026-10-28-prospects.csv`. Drafts: `2026-10-28-emails.md`.
 Batch B (professional services & institutions): `batch-B-professional.csv` (details, sources and email 1 drafts in one file).
+Batch A (manufacturing & engineering): `batch-A-manufacturing.csv` (details, sources and email 1 drafts in one file).
 
 ## Status key
 `new` → `email1-sent` → `fu1-sent` (day 4) → `fu2-sent` (day 10) → `linkedin-sent` →
@@ -134,3 +135,69 @@ P02 University of Sheffield goes out Mon 9 Nov so it doesn't land the same week 
 - **Fri 13 – Mon 16 Nov:** day-10 follow-ups to the same 10
 - **Wed 18 Nov:** LinkedIn connect notes (company-page-verified roles only)
 - **Wed 25 – Thu 26 Nov:** close-the-loop emails to anyone still silent
+
+## Batch A: manufacturing & engineering (28 Oct 2026)
+
+Source file: `batch-A-manufacturing.csv`. All Track A. Email 1 drafts are in the CSV `email_body` column.
+**No contact emails or phone numbers are filled in.** The search limit was reached and company
+websites couldn't be fetched, so take each published enquiry address or switchboard from the
+company's own contact page before sending. Never guess a personal address. Any draft containing
+`[CONFIRM: …]` must be checked and edited first.
+
+| ID | Company | Fit | Target role | Owner | Status | Last touch | Next action | Due |
+|---|---|---|---|---|---|---|---|---|
+| MA01 | ITM Power | 5 | PA to CEO / facilities / HR | | new | – | Find contact, send email 1 | 6 Nov |
+| MA02 | Special Melted Products | 5 | PA to CEO / office manager | | new | – | Find contact, send email 1 | 6 Nov |
+| MA03 | Independent Forgings and Alloys | 4 | PA to MD | | new | – | Find contact, send email 1 | 6 Nov |
+| MA04 | Marcegaglia Sheffield | 4 | PA to site president | | new | – | Find contact, send email 1 | 6 Nov |
+| MA05 | Danieli UK (AMP) | 4 | PA to UK MD | | new | – | Confirm building occupied, send | 6 Nov |
+| MA06 | Primetals Technologies UK | 4 | Office manager | | new | – | Find contact, send email 1 | 11 Nov |
+| MA07 | Nikken Kosakusho Europe | 4 | PA to MD Europe | | new | – | Verify current, send email 1 | 11 Nov |
+| MA08 | Vulcan Seals | 4 | PA to chairman/MD | | new | – | Find contact, send email 1 | 11 Nov |
+| MA09 | William Cook Cast Products | 4 | PA to chairman/MD | | new | – | Find contact, send email 1 | 11 Nov |
+| MA10 | Cooper & Turner | 4 | PA to CEO | | new | – | Confirm ownership news, send | 11 Nov |
+| MA11 | BAE Systems Sheffield | 3 | Site admin / procurement | | new | – | Find supplier route | wk of 16 Nov |
+| MA12 | Castings Technology International | 3 | PA to MD | | new | – | Confirm move date, send | wk of 16 Nov |
+| MA13 | Chesterfield Special Cylinders | 3 | PA to CEO | | new | – | Send email 1 | wk of 16 Nov |
+| MA14 | Metalysis | 3 | PA to CEO | | new | – | Send email 1 | wk of 16 Nov |
+| MA15 | Iceotope | 3 | Office manager | | new | – | Confirm base, send | wk of 16 Nov |
+| MA16 | TWI Yorkshire | 3 | Centre administrator | | new | – | Send email 1 | wk of 16 Nov |
+| MA17 | Technicut | 3 | PA to MD | | new | – | Send email 1 | wk of 23 Nov |
+| MA18 | Abbey Forged Products | 3 | PA to MD | | new | – | Send email 1 | wk of 23 Nov |
+| MA19 | Sherwin-Williams Chapeltown | 3 | Site office manager | | new | – | Send email 1 | wk of 23 Nov |
+| MA20 | Beatson Clark | 3 | PA to MD | | new | – | Send email 1 | wk of 23 Nov |
+| MA21 | Swann-Morton | 3 | PA to MD | | new | – | Send email 1 | wk of 23 Nov |
+| MA22 | Leviat | 3 | Office manager | | new | – | Send email 1 | wk of 23 Nov |
+| MA23 | Parker (PEGL / Bestobell) | 2 | Site office manager | | new | – | Confirm site active | wk of 30 Nov |
+| MA24 | Evolution Power Tools | 2 | PA to MD | | new | – | Send email 1 | wk of 30 Nov |
+| MA25 | Straaltechniek UK | 2 | Office manager | | new | – | Send email 1 | wk of 30 Nov |
+| MA26 | Rotabroach | 2 | Office manager | | new | – | Send email 1 | wk of 30 Nov |
+| MA27 | United Caps (Dinnington) | 2 | Site administrator | | new | – | Confirm site operating | wk of 30 Nov |
+| MA28 | E.ON Blackburn Meadows | 2 | Site admin / procurement | | new | – | Find supplier route | wk of 30 Nov |
+
+### Excluded from Batch A (researched, deliberately not approached)
+| Company | Reason |
+|---|---|
+| Speciality Steel UK (ex-Liberty), Stocksbridge & Rotherham | Compulsory liquidation Aug 2025; run by the Official Receiver while a buyer is sought. |
+| Toyoda Gosei UK, Rotherham | Production ended Jul 2023; UK company liquidated. |
+| Hydro Components UK, Barbot Hall | Plant closure reported 2020. |
+| Stanley Black & Decker (Sheffield) | No current Sheffield site found; group still cutting its footprint in 2026. |
+| Faradion | No 2026 activity found since the Reliance takeover; check before any approach. |
+| Newburgh Engineering | Can't tell whether a Rotherham site still exists (2026 news is about Bradwell, Derbyshire, 24 staff). |
+| Sandvik Coromant | UK centre is Halesowen; no AMP site confirmed. |
+| CW Fletcher, UEF Aerospace, Ross & Catherall, Tinsley Bridge | Couldn't confirm current site or 2026 activity. Recheck next round. |
+| MTL Group, DavyMarkham, CF Booth | Went into administration (historic). |
+| Already in batch 1 | Rolls-Royce ABCF, AMRC, Nuclear AMRC, Forgemasters, AESSEAL, Boeing, McLaren, Howmet/Firth Rixson, UKAEA, Gripple, Outokumpu. |
+| Existing accounts | The three manufacturing/engineering clients in CLAUDE.md (one of them is reported to be moving within the region; still an account, not a prospect). |
+
+### Batch A: send these 10 (Fri 6 Nov and Wed 11 Nov, clear of batch 1 and B send days)
+MA01 ITM Power, MA02 SMP, MA03 IFA, MA04 Marcegaglia, MA05 Danieli UK (Fri 6 Nov);
+MA06 Primetals, MA07 Nikken, MA08 Vulcan Seals, MA09 William Cook, MA10 Cooper & Turner (Wed 11 Nov).
+
+### Batch A follow-ups due
+- **Tue 10 Nov:** day-4 follow-up to Friday's five (MA01–MA05)
+- **Sun 15 → send Mon 16 Nov:** day-4 follow-up to Wednesday's five (MA06–MA10)
+- **Mon 16 Nov:** day-10 follow-up to MA01–MA05
+- **Fri 20 Nov:** day-10 follow-up to MA06–MA10
+- **Mon 23 Nov:** LinkedIn connect notes to anyone in the 10 who hasn't replied (company-page-verified roles only)
+- **Fri 27 Nov – Tue 1 Dec:** close-the-loop emails to anyone still silent
