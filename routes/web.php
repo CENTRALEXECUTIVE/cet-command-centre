@@ -418,6 +418,21 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('intake/store', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'store'])
             ->middleware('throttle:30,1')->name('intake.store');
 
+        // Outreach — B2B prospecting. Emails open in the director's own mail app
+        // (mailto:); the server never sends anything to a prospect.
+        Route::get('outreach', [\App\Http\Controllers\Admin\OutreachController::class, 'index'])->name('outreach.index');
+        Route::post('outreach/import', [\App\Http\Controllers\Admin\OutreachController::class, 'import'])
+            ->middleware('throttle:20,1')->name('outreach.import');
+        Route::get('outreach/{prospect}', [\App\Http\Controllers\Admin\OutreachController::class, 'show'])->name('outreach.show');
+        Route::put('outreach/{prospect}', [\App\Http\Controllers\Admin\OutreachController::class, 'update'])
+            ->middleware('throttle:60,1')->name('outreach.update');
+        Route::post('outreach/{prospect}/emailed', [\App\Http\Controllers\Admin\OutreachController::class, 'markEmailed'])
+            ->middleware('throttle:60,1')->name('outreach.emailed');
+        Route::post('outreach/{prospect}/status', [\App\Http\Controllers\Admin\OutreachController::class, 'setStatus'])
+            ->middleware('throttle:60,1')->name('outreach.status');
+        Route::post('outreach/{prospect}/note', [\App\Http\Controllers\Admin\OutreachController::class, 'addNote'])
+            ->middleware('throttle:60,1')->name('outreach.note');
+
         // Driver onboarding — create login + profile (+ vehicle).
         Route::get('drivers/create', [\App\Http\Controllers\Admin\DriverController::class, 'create'])->name('drivers.create');
         Route::post('drivers', [\App\Http\Controllers\Admin\DriverController::class, 'store'])->name('drivers.store');

@@ -56,6 +56,23 @@ Two companies, routed by VAT (see CLAUDE.md "Card payments — two entities"):
    key prefix (`sk_live_` vs `sk_test_`) decides. Operator may test with test
    keys first then swap to live. A toggle could be added if wanted.
 
+## Outreach — B2B prospecting (added 28 Oct 2026) — ADDS A MIGRATION
+
+- `/outreach` (admin only, sidebar **Sales & customers → 📣 Outreach**):
+  `Admin\OutreachController`, models `Prospect` + `ProspectActivity`, services
+  `Outreach\ProspectImporter` + `Outreach\OutreachEmailComposer`, templates in
+  `config/outreach.php`.
+- **New migration** `2026_10_28_000001_create_prospects_tables` (`prospects`,
+  `prospect_activities`). Staging MUST run `php artisan migrate --force`.
+- **Nothing is sent by the server.** "Open email" is a `mailto:` link into the
+  director's own mail app; "Mark emailed" only logs it and schedules the next
+  step (+4 days → day-4 follow-up, +6 → day-10, +8 → suggest close as no reply).
+- **Do-not-contact is permanent**: email buttons hidden, status locked, a CSV
+  re-import never re-opens it (also matched by email address).
+- Import: upload on `/outreach`, or `php artisan cet:import-prospects {path}
+  [--owner=email]`. Dedupe on lower(company)+town (`dedupe_key` unique);
+  duplicates only get BLANK fields filled — status/notes/owner/dates untouched.
+
 ## What was built THIS session (newest first)
 
 | Commit | What |

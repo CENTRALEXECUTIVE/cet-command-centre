@@ -69,7 +69,7 @@
 
             @if($u->isAdmin())
                 @php
-                    $inSales = request()->routeIs('enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'cover-invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*');
+                    $inSales = request()->routeIs('enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'cover-invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*', 'outreach.*');
                     $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*');
                     $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'route-order.*', 'fleet-photos.*', 'driver.documents*');
                     $inAdmin = request()->routeIs('imports.*', 'audit.*', 'users.*', 'settings.*', 'gdpr.*');
@@ -85,6 +85,7 @@
                     <a href="{{ route('payments.index') }}" class="{{ request()->routeIs('payments.*') ? 'active' : '' }}">Payments</a>
                     <a href="{{ route('pricing.index') }}" class="{{ request()->routeIs('pricing.*') ? 'active' : '' }}">Pricing</a>
                     <a href="{{ route('waiting-list.index') }}" class="{{ request()->routeIs('waiting-list.*') ? 'active' : '' }}">Waiting list</a>
+                    <a href="{{ route('outreach.index') }}" class="{{ request()->routeIs('outreach.*') ? 'active' : '' }}">📣 Outreach</a>
                 </details>
 
                 <details class="nav-fold" @if($inMarketing) open @endif>
