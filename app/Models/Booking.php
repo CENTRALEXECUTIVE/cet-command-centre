@@ -47,6 +47,19 @@ class Booking extends Model
             if ($booking->exists && $booking->isDirty('meta')) {
                 \App\Support\BookingEmailLog::preserve($booking);
             }
+
+            // Re-priced (or VAT toggled) after an online payment: the headline must
+            // follow what's actually owed now — a £55-paid job raised to £100 is
+            // part-paid (pending, £45 due), and lowering it back reads paid again.
+            if ($booking->exists && $booking->onlinePaidTotal() > 0
+                && in_array($booking->payment_status, ['paid', 'pending'], true)) {
+                $vatBefore = (bool) (($booking->getOriginal('meta') ?? [])['vat_invoice_requested'] ?? false);
+                $vatNow = (bool) ($booking->meta['vat_invoice_requested'] ?? false);
+                if ($booking->isDirty(['final_price', 'quoted_price']) || $vatBefore !== $vatNow) {
+                    $due = $booking->transactionsAmountDue();
+                    $booking->payment_status = ($due === null || $due <= 0.009) ? 'paid' : 'pending';
+                }
+            }
         });
     }
 
@@ -1365,7 +1378,33 @@ class Booking extends Model
      */
     public function fareIsPaid(): bool
     {
-        return $this->payment_status === 'paid' || filled($this->meta['square_payment'] ?? null);
+        return $this->payment_status === 'paid' || $this->onlinePaymentCoversFare();
+    }
+
+    /**
+     * Total taken ONLINE for this booking (£) — every Square/Stripe payment the
+     * webhooks recorded, summed (a balance paid after a re-price adds to it).
+     */
+    public function onlinePaidTotal(): float
+    {
+        return round((float) ($this->meta['square_payment']['amount'] ?? 0), 2);
+    }
+
+    /**
+     * Does the money taken online cover what's payable now? A recorded payment
+     * with no amount (legacy) is honoured as paid; a part payment — e.g. £55 paid
+     * and the price then raised to £100 — is not, so the balance can still be
+     * charged instead of the booking reading "already paid".
+     */
+    public function onlinePaymentCoversFare(): bool
+    {
+        if (blank($this->meta['square_payment'] ?? null)) {
+            return false;
+        }
+        $paid = $this->onlinePaidTotal();
+        $payable = $this->amountPayable();
+
+        return $paid <= 0 || $payable === null || $paid + 0.01 >= $payable;
     }
 
     /**
@@ -1417,26 +1456,23 @@ class Booking extends Model
             return (float) $this->payments->where('status', 'paid')->sum('amount');
         }
 
-        if (! $this->fareIsPaid()) {
-            return 0.0;
-        }
-
         // No itemised ledger. When an online payment recorded the EXACT amount it
         // took (Square/Stripe webhook → markFarePaid stamps meta['square_payment']
-        // ['amount']), honour THAT figure — never the current fare. So if the office
-        // later re-prices the job (e.g. £55 paid, then price raised to £100), the
-        // already-paid £55 stays put and only the £45 balance moves; it must not
-        // silently read as "the whole new fare is paid". Capped at this leg's own
-        // fare: a return trip records the WHOLE-trip total on the outbound, but each
-        // leg only ever counts its own fare as paid. Falls back to the gross fare
-        // for a job simply flagged paid by hand with no recorded amount.
-        $recorded = $this->meta['square_payment']['amount'] ?? null;
+        // ['amount'], summed across payments), honour THAT figure — never the
+        // current fare. So if the office later re-prices the job (e.g. £55 paid,
+        // then price raised to £100), the already-paid £55 stays put and only the
+        // £45 balance moves; it must not silently read as "the whole new fare is
+        // paid". Capped at this leg's own fare: a return trip records the WHOLE-trip
+        // total on the outbound, but each leg only ever counts its own fare as paid.
+        // Falls back to the gross fare for a job simply flagged paid by hand with no
+        // recorded amount.
+        $recorded = $this->onlinePaidTotal();
         $fare = $this->fareGross();
-        if ($recorded !== null && (float) $recorded > 0) {
-            return round(min((float) $recorded, $fare ?? (float) $recorded), 2);
+        if ($recorded > 0) {
+            return round(min($recorded, $fare ?? $recorded), 2);
         }
 
-        return (float) ($fare ?? 0);
+        return $this->fareIsPaid() ? (float) ($fare ?? 0) : 0.0;
     }
 
     /** Total of all payment-ledger transactions, paid or not (£). */
@@ -1503,7 +1539,8 @@ class Booking extends Model
      */
     public function reconcileLedgerFromFarePaid(): void
     {
-        if (! $this->fareIsPaid()) {
+        $online = $this->onlinePaidTotal();
+        if ($online <= 0 && ! $this->fareIsPaid()) {
             return;
         }
         $this->loadMissing('payments');
@@ -1511,13 +1548,18 @@ class Booking extends Model
             return; // no ledger rows → the view shows a synthesized "Paid" row
         }
 
-        // How much the online payment covers: the fare, or the recorded amount.
-        $target = $this->fareGross() ?? (float) ($this->meta['square_payment']['amount'] ?? 0);
+        // How much has really been taken by card: the online total (capped at this
+        // leg's fare — a return records the whole trip on one leg), or the fare for
+        // a job marked paid by hand. Never the CURRENT fare when only part was paid,
+        // or an open balance line would be ticked paid with no money taken (the page
+        // view runs this) — e.g. £55 paid, re-priced to £100, £45 link still open.
+        $fare = $this->fareGross();
+        $target = $online > 0 ? min($online, $fare ?? $online) : (float) ($fare ?? 0);
         if ($target <= 0) {
             return;
         }
 
-        $paid = (float) $this->payments->where('status', 'paid')->sum('amount');
+        $paid = (float) $this->payments->where('status', 'paid')->where('method', 'card')->sum('amount');
         if ($paid + 0.01 >= $target) {
             return; // the ledger already reflects the payment
         }
@@ -4498,7 +4540,9 @@ class Booking extends Model
      */
     public function reconcilePaidStatus(): bool
     {
-        if (filled($this->meta['square_payment'] ?? null)
+        // Only when the money taken online covers the fare — a part payment (price
+        // raised after paying) stays pending so the balance can still be charged.
+        if ($this->onlinePaymentCoversFare()
             && ! in_array($this->payment_status, ['paid', 'refunded'], true)) {
             $this->forceFill(['payment_status' => 'paid'])->save();
 
@@ -5928,22 +5972,42 @@ class Booking extends Model
     public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool
     {
         $meta = $this->meta ?? [];
-        if (($meta['square_payment']['id'] ?? null) === $paymentId) {
+        $prev = $meta['square_payment'] ?? null;
+        // Every payment this booking has taken online. A booking re-priced after
+        // paying can take a SECOND payment (the balance) — it must add to what was
+        // paid, never overwrite it (£55 + £45 = £100 paid, not £45).
+        $history = $prev['history'] ?? ($prev ? [array_intersect_key($prev, array_flip(['id', 'amount', 'at', 'entity']))] : []);
+        if (in_array($paymentId, array_column($history, 'id'), true)) {
             return false; // already recorded
         }
-        $meta['square_payment'] = array_filter([
+        $entry = array_filter([
             'id' => $paymentId,
             'amount' => round($amount, 2),
             'at' => now()->toIso8601String(),
-            // Which company's Square account received the money (transfers/chauffeurs).
-            'entity' => $entity,
+            // Which company's Square/Stripe account received the money (transfers/chauffeurs).
+            'entity' => $entity ?? ($prev['entity'] ?? null),
         ], fn ($v) => $v !== null);
-        $this->payment_status = 'paid';
-        $this->forceFill(['meta' => $meta])->save();
+        $history[] = $entry;
+
+        $meta['square_payment'] = $entry + [
+            'history' => $history,
+        ];
+        $meta['square_payment']['amount'] = round(array_sum(array_map(fn ($h) => (float) ($h['amount'] ?? 0), $history)), 2);
+        $this->forceFill(['meta' => $meta]);
+        // Paid only once what's been taken covers what's payable now; a part
+        // payment (e.g. a deposit link) leaves it pending with the balance due.
+        $this->payment_status = $this->onlinePaymentCoversFare() ? 'paid' : 'pending';
+        $this->save();
 
         // Keep the Payment history ledger in step: mark any open card "Pay now"
         // transaction paid, so it never reads "Pending" after the money's in.
         $this->reconcileLedgerFromFarePaid();
+
+        // The ledger may settle it (e.g. cash already recorded + this card balance).
+        if ($this->payment_status !== 'paid' && $this->payments->isNotEmpty()
+            && ($this->transactionsAmountDue() ?? 1) <= 0.009) {
+            $this->forceFill(['payment_status' => 'paid'])->save();
+        }
 
         return true;
     }

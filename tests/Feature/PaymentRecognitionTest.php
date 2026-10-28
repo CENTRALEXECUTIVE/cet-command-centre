@@ -125,10 +125,81 @@ class PaymentRecognitionTest extends TestCase
         $booking->forceFill(['final_price' => 100])->save();
         $booking = $booking->fresh();
 
-        // The £55 already paid is preserved; only the £45 balance is now due.
+        // The £55 already paid is preserved; only the £45 balance is now due, and
+        // the booking reads part-paid (so the balance can still be charged).
         $this->assertSame(55.0, $booking->transactionsPaidTotal());
         $this->assertSame(45.0, $booking->transactionsAmountDue());
+        $this->assertFalse($booking->fareIsPaid());
+        $this->assertSame('pending', $booking->payment_status);
+
+        // Viewing the booking never heals it back to "paid".
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+        $this->assertSame('pending', $booking->fresh()->payment_status);
+
+        // The customer pays the £45 balance online: it ADDS to the £55.
+        $booking->fresh()->markFarePaid('pi_balance', 45.0, 'chauffeurs');
+        $booking = $booking->fresh();
+        $this->assertSame(100.0, $booking->onlinePaidTotal());
+        $this->assertSame(100.0, $booking->transactionsPaidTotal());
+        $this->assertSame(0.0, $booking->transactionsAmountDue());
         $this->assertTrue($booking->fareIsPaid());
+        $this->assertSame('paid', $booking->payment_status);
+
+        // A webhook retry for the same payment is ignored (no double count).
+        $this->assertFalse($booking->markFarePaid('pi_balance', 45.0, 'chauffeurs'));
+        $this->assertSame(100.0, $booking->fresh()->onlinePaidTotal());
+    }
+
+    public function test_the_stable_pay_link_charges_only_the_balance_after_a_re_price(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $booking = Booking::factory()->create([
+            'vehicle_type_id' => $exec->id, 'payment_method' => 'card',
+            'payment_status' => 'pending', 'quoted_price' => 55,
+        ]);
+        $booking->markFarePaid('pi_abc', 55.0, 'chauffeurs');
+        $booking->fresh()->forceFill(['final_price' => 100])->save();
+
+        $gateway = \Mockery::mock(\App\Services\Payments\PaymentGateway::class);
+        $gateway->shouldReceive('createCheckoutUrl')->once()
+            ->withArgs(fn ($b, $amount) => $b->is($booking) && abs($amount - 45.0) < 0.001)
+            ->andReturn('https://checkout.example/pay');
+        $this->app->instance(\App\Services\Payments\PaymentGateway::class, $gateway);
+
+        $this->get(\Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $booking->id]))
+            ->assertRedirect('https://checkout.example/pay');
+    }
+
+    public function test_a_balance_line_on_an_online_paid_booking_keeps_the_online_payment_in_the_ledger(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $booking = Booking::factory()->create([
+            'vehicle_type_id' => $exec->id, 'payment_method' => 'card',
+            'payment_status' => 'pending', 'quoted_price' => 55,
+        ]);
+        $booking->markFarePaid('pi_abc', 55.0, 'chauffeurs');
+        $booking->fresh()->forceFill(['final_price' => 100])->save();
+
+        // The office adds a £45 card balance line (link sent, not yet paid).
+        $booking->payments()->create(['method' => 'card', 'amount' => 45, 'status' => 'link_sent', 'meta' => ['name' => 'Balance']]);
+        $booking = $booking->fresh();
+
+        // The £55 online payment was put in the ledger first, so nothing is lost.
+        $this->assertCount(2, $booking->payments);
+        $this->assertSame(55.0, $booking->transactionsPaidTotal());
+        $this->assertSame(45.0, $booking->transactionsAmountDue());
+
+        // Opening the page must NOT tick the open £45 line paid — no money yet.
+        $booking->reconcileLedgerFromFarePaid();
+        $this->assertSame(45.0, $booking->fresh()->transactionsAmountDue());
+
+        // The balance is paid online → the £45 line is marked paid; £100 in total.
+        $booking->markFarePaid('pi_balance', 45.0, 'chauffeurs');
+        $booking = $booking->fresh();
+        $this->assertSame(100.0, $booking->transactionsPaidTotal());
+        $this->assertSame(0.0, $booking->transactionsAmountDue());
+        $this->assertSame('paid', $booking->payment_status);
     }
 
     /**

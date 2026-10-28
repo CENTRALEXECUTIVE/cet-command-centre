@@ -12,6 +12,34 @@ class Payment extends Model
         'tide_payment_link', 'tide_reference', 'paid_at', 'meta',
     ];
 
+    protected static function booted(): void
+    {
+        // The first ledger line on a booking already paid ONLINE (recorded on the
+        // booking, not as a line): put that payment in the ledger first. Once the
+        // ledger has rows it's the only source of "paid", so without this a £45
+        // balance line on a £55-paid booking would read £45 paid, not £100.
+        static::creating(function (Payment $payment) {
+            if (! empty($payment->meta['online_seed']) || ! $payment->booking_id) {
+                return;
+            }
+            $booking = Booking::find($payment->booking_id);
+            if (! $booking || $booking->onlinePaidTotal() <= 0 || $booking->payments()->exists()) {
+                return;
+            }
+            $amount = round(min($booking->onlinePaidTotal(), $booking->fareGross() ?? $booking->onlinePaidTotal()), 2);
+            $sp = $booking->meta['square_payment'] ?? [];
+            static::create([
+                'booking_id' => $booking->id,
+                'method' => 'card',
+                'amount' => $amount,
+                'status' => 'paid',
+                'paid_at' => isset($sp['at']) ? \Illuminate\Support\Carbon::parse($sp['at']) : now(),
+                'tide_reference' => $sp['id'] ?? null,
+                'meta' => ['name' => 'Paid online', 'online_seed' => true],
+            ]);
+        });
+    }
+
     protected function casts(): array
     {
         return [

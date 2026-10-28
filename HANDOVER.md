@@ -98,14 +98,15 @@ link** strip at the top of Payment history. Every send is a button press.
   stored log back in so a stale model's meta save can't wipe it.
 - **Resend payment link** (`BookingTransactionController::resendPaymentLink`) reuses
   the newest open card link for exactly the amount due (`Booking::reusableCardLink`),
-  else creates ONE Balance line + link. Refuses a booking marked paid then re-priced
-  up (see open issue below).
-- **Open issue (pre-existing, not changed):** on a booking paid online with no ledger
-  rows and then re-priced up, any NEW card payment for the balance goes through
-  `markFarePaid`, which overwrites `square_payment.amount` and then the ledger sum
-  under-counts the total paid. The stable `widget.pay` link also treats such a booking
-  as already paid. Needs a proper "balance after re-price" design before card links
-  are allowed there.
+  else creates ONE Balance line + link.
+- **Re-priced after paying online (fixed):** `markFarePaid` now ADDS each online
+  payment (`meta['square_payment']['history']`, `amount` = running total) instead of
+  overwriting; `fareIsPaid()` only counts online money that covers what's payable
+  now (`onlinePaymentCoversFare()`), so a £55-paid job raised to £100 reads pending
+  with £45 due and the stable pay link charges just the £45. Re-pricing flips the
+  headline paid↔pending (Booking `saving` hook). The first ledger line added to an
+  online-paid booking seeds a "Paid online" line first (`Payment::booted`), and the
+  ledger reconcile never ticks an open balance line paid without the money.
 
 ## Key files (payments)
 

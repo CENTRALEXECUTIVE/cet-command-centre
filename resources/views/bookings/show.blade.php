@@ -2053,7 +2053,7 @@
                     </tbody>
                 </table>
                 </div>
-            @elseif($booking->fareIsPaid() && $fareGross)
+            @elseif(($booking->fareIsPaid() || $paidTotal > 0) && $fareGross)
                 {{-- No itemised ledger rows, but the fare is already paid (e.g. online
                      via Square/Stripe, recorded on the booking) — show it so it never
                      reads as £0/unpaid. The amount shown is what was ACTUALLY paid

@@ -340,15 +340,23 @@ class BookingCommsPackTest extends TestCase
             ->assertSessionHas('copy_link', 'https://pay.example/current');
     }
 
-    public function test_resend_link_refuses_a_paid_booking_re_priced_up(): void
+    public function test_resend_link_charges_only_the_balance_on_a_paid_booking_re_priced_up(): void
     {
-        $this->mock(PaymentGateway::class, fn ($m) => $m->shouldNotReceive('createCheckoutUrl'));
         $b = $this->booking(['payment_status' => 'paid'], ['square_payment' => ['id' => 'sq_1', 'amount' => 55]]);
+        $due = round((float) $b->fresh()->transactionsAmountDue(), 2);
+        $this->assertGreaterThan(0, $due);
+        $this->mock(PaymentGateway::class, fn ($m) => $m->shouldReceive('createCheckoutUrl')->once()
+            ->withArgs(fn ($booking, $amount) => abs($amount - $due) < 0.001)
+            ->andReturn('https://pay.example/balance'));
 
         $this->actingAs($this->admin())->post(route('bookings.resend-payment-link', $b), ['channel' => 'copy'])
-            ->assertSessionHas('error');
+            ->assertSessionMissing('error');
 
-        $this->assertSame(0, $b->payments()->count());
+        // The £55 taken online is kept in the ledger beside the new balance line.
+        $b = $b->fresh();
+        $this->assertSame(55.0, $b->transactionsPaidTotal());
+        $this->assertSame($due, round((float) $b->transactionsAmountDue(), 2));
+        $this->assertSame(1, $b->payments()->where('meta->name', 'Paid online')->count());
     }
 
     public function test_resend_link_without_a_provider_leaves_no_orphan_line(): void

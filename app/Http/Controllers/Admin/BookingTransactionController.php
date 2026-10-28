@@ -134,15 +134,6 @@ class BookingTransactionController extends Controller
             return back()->with('status', 'Nothing to pay — this booking is already settled.')->with('scroll', 'transactions');
         }
 
-        // A booking already marked paid and then re-priced up: a new card payment
-        // would overwrite the recorded paid amount (so the books would under-count
-        // what's been taken). Don't create one — the office takes it by hand.
-        if ($booking->fareIsPaid()) {
-            return back()
-                ->with('error', 'This booking is marked paid but £'.number_format($due, 2).' is still owed after a price change. A card link here would overwrite the recorded payment — take the extra by hand and add it as a transaction.')
-                ->with('scroll', 'transactions');
-        }
-
         if ($existing = $booking->reusableCardLink($due)) {
             if ($existing->status !== 'link_sent') {
                 $existing->forceFill(['status' => 'link_sent'])->save();
