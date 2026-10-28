@@ -41,5 +41,12 @@ exports into `docs/growth/data/` first (that folder is never committed).
 - "Use the product-strategist. Is selling our dispatch system viable? Competitors, pricing, what multi-tenancy needs, pilot plan, go/no-go."
 - "Use the product-strategist. What would make the Command Centre feel like a polished professional app? Top 10, smallest first."
 
-## Monday brief (all agents)
+## Social (social-media-manager) — or just type /social-week
+- "/social-week"
+- "/social-week — theme: Christmas party season, push V-Class for groups."
+- "Use the social-media-manager. Set up our profiles: bios for Instagram, Facebook, LinkedIn, TikTok and which free scheduler to use so everything is in one place."
+- "Use the social-media-manager. Write 5 Reel scripts I can film on my phone at the airport and with the car."
+- "Use the social-media-manager. Here's my analytics export — what worked, and change next week's plan."
+
+## Monday brief (all agents) — or just type /monday-brief
 - "Monday brief: use each growth agent to review its folder in docs/growth/ and any new exports in docs/growth/data/. Give me one page: last week's numbers, what worked, what didn't, and my 5 jobs this week ranked by money."

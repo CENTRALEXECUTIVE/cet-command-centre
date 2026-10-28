@@ -14,6 +14,10 @@ the bottleneck is customers. Agents live in `.claude/agents/`, facts in
 | `reviews-retention` | Google reviews, replies, repeat/seasonal campaigns | Reviews/week, repeat bookings |
 | `ops-booking-qa` | Booking/payment flow never breaks; bug fixes | Zero lost bookings |
 | `product-strategist` | Speed-to-lead, app polish, dispatch-SaaS plan | Lead response time |
+| `social-media-manager` | Weekly posts for every channel, captions, shot briefs, one scheduler | Enquiries from social |
+
+**Skills (one-word routines):** `/social-week` (whole week of posts),
+`/monday-brief` (one-page brief + 5 jobs), `/ads-review` (weekly Ads changes).
 
 Agents draft and analyse; a director sends, posts and clicks. Nothing goes out
 automatically.
