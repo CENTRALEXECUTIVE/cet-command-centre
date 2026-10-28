@@ -84,7 +84,7 @@ in one place (see §6 step 6).
 
 | Campaign (budget/day) | Ad group | Landing page (Final URL) |
 |---|---|---|
-| **CET \| Manchester Airport** (£11) | Sheffield to Manchester Airport (incl. Rotherham/Barnsley/Chesterfield/Doncaster → MAN) | `/airport-transfers-sheffield` **for now**. Swap to a dedicated MAN page when one exists (see §4) |
+| **CET \| Manchester Airport** (£11) | Sheffield to Manchester Airport (incl. Rotherham/Barnsley/Chesterfield/Doncaster → MAN) | `/sheffield-to-manchester-airport-transfers` (the page EXISTS — uploaded in the Oct SEO batch, just not indexed yet; request indexing first) |
 | **CET \| Airports & Towns** (£11) | Sheffield to East Midlands Airport | `/sheffield-to-east-midlands-airport-transfers` |
 | | Sheffield to Heathrow | `/sheffield-to-heathrow-airport-transfers` |
 | | Sheffield Airport Transfers (generic + exact Gatwick/Stansted/Luton/Liverpool/Birmingham; LBA paused) | `/airport-transfers-sheffield` (Birmingham kw → `/sheffield-to-birmingham-airport-transfers`, LBA kw → `/sheffield-to-leeds-bradford-airport-transfers`) |

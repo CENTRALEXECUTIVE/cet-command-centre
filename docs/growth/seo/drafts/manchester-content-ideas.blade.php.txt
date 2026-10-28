@@ -1,0 +1,240 @@
+{{--
+  DRAFT - 2026-10-28 - Sheffield to Manchester Airport (new SEO page)
+
+  IMPORTANT FOR THE OPERATOR / WHOEVER UPLOADS:
+  The live site could not be read from the drafting environment (network blocked),
+  so the section names and CSS classes below are CLEAN SEMANTIC PLACEHOLDERS, not
+  a copy of the live template. Before upload:
+    1. Open an existing page, e.g. resources/views/frontend/.../airport-transfers-sheffield.blade.php
+       (find it in cPanel File Manager, view only, do not edit it).
+    2. Copy its @section names (title / meta description / content / schema) and
+       its wrapper + button classes into this file. Only the CONTENT is final.
+    3. Replace every [CONFIRM ...] marker. Search the file for "CONFIRM".
+  Kept deliberately simple: no @if / @foreach anywhere, static JSON-LD only.
+  In the JSON-LD, "@@" renders as a single "@" so Blade never reads it as a directive.
+
+  Title (55 chars): Sheffield to Manchester Airport Transfers | Fixed Price
+  Meta (145 chars): see below
+--}}
+@extends('frontend.layouts.seo')
+
+@section('title', 'Sheffield to Manchester Airport Transfers | Fixed Price')
+
+@section('meta_description', 'Fixed-price Sheffield to Manchester Airport transfers. Executive cars, flight tracking and meet and greet at all terminals. Instant price online.')
+
+@section('content')
+
+<section class="seo-hero">
+    <h1>Sheffield to Manchester Airport Transfers</h1>
+    <p>
+        Private executive chauffeur transfers from Sheffield to Manchester Airport
+        (Terminals 1, 2 and 3), with the price fixed before you travel. Fixed price
+        from [CONFIRM: &pound;100 executive saloon].
+    </p>
+    <p>
+        <a href="https://centralexecutivetransfers.co.uk/booking" class="btn btn-primary">Get an instant price and book</a>
+        <a href="tel:01143998242" class="btn btn-secondary">Call 0114 399 8242</a>
+    </p>
+</section>
+
+<section class="seo-section">
+    <h2>Sheffield to Manchester Airport: journey time and route</h2>
+    <p>
+        Manchester Airport is roughly 40 miles from Sheffield city centre by the
+        most direct route. [CONFIRM: director to check these figures against a live
+        Maps run from S1 before publishing.] Allow about 1 hour 15 minutes in normal
+        traffic. That can stretch in the morning and evening peaks, in bad weather,
+        or when the Snake Pass (A57) is closed and traffic is sent the long way round
+        via the M1 and M62. We plan the route on the day and leave extra time for
+        early-morning flights.
+    </p>
+    <p>
+        We also collect from Rotherham, Barnsley, Doncaster, Chesterfield and North
+        Derbyshire. See our <a href="https://centralexecutivetransfers.co.uk/airport-transfers-sheffield">Sheffield airport transfers</a>
+        page for every airport we cover.
+    </p>
+</section>
+
+<section class="seo-section">
+    <h2>Manchester Airport terminals 1, 2 and 3</h2>
+    <p>
+        Manchester Airport has three terminals. Give us your flight number when you
+        book and we will confirm your terminal with you before the day.
+    </p>
+    <ul>
+        <li><strong>Drop-off (departures):</strong> your driver takes you to the
+            departures drop-off for your terminal. The airport charges for time spent
+            at its drop-off zones, so check Manchester Airport's current drop-off
+            rules on its own website. [CONFIRM: whether any airport fees are included
+            in our fixed price.]</li>
+        <li><strong>Pick-up (arrivals):</strong> your driver meets you in the arrivals
+            hall of your terminal with a name sign, then helps with your bags to the car.</li>
+        <li><strong>Flight tracking:</strong> on arrivals we track your flight, so
+            if it lands early or late your driver adjusts and you are not charged
+            extra for a delay to the landing time. [CONFIRM: waiting-time policy and
+            any charge beyond the included waiting time.]</li>
+    </ul>
+</section>
+
+<section class="seo-section">
+    <h2>What is included</h2>
+    <ul>
+        <li>Fixed price quoted up front. No hidden fees. Any seasonal surcharge is published.</li>
+        <li>Meet and greet in arrivals.</li>
+        <li>Flight tracking on airport pickups.</li>
+        <li>Live driver tracking link and driver details sent before pickup.</li>
+        <li>Private calls and texts with your driver without sharing real phone numbers.</li>
+        <li>Pay by card, secure payment link or cash. VAT invoices for business customers.</li>
+    </ul>
+</section>
+
+<section class="seo-section">
+    <h2>Choose your vehicle</h2>
+    <table class="seo-table">
+        <thead>
+            <tr><th>Vehicle</th><th>Passengers</th><th>Bags</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Executive saloon</td><td>Up to 4</td><td>2</td></tr>
+            <tr><td>Estate</td><td>Up to 4</td><td>4</td></tr>
+            <tr><td>Mercedes V-Class</td><td>Up to 7</td><td>7</td></tr>
+            <tr><td>Minibus</td><td>Up to 7</td><td>5</td></tr>
+            <tr><td>Minibus XL</td><td>Up to 8</td><td>8</td></tr>
+        </tbody>
+    </table>
+    <p>
+        Larger vehicles may be provided by our vetted partner drivers. Need something
+        special for a wedding or VIP guest? Ask us for a quote. Fixed price from
+        [CONFIRM: &pound;100 executive saloon]; other vehicles priced online.
+    </p>
+</section>
+
+<section class="seo-section">
+    <h2>How to book</h2>
+    <ol>
+        <li>Enter your pickup address, Manchester Airport and your travel date and time on the <a href="https://centralexecutivetransfers.co.uk/booking">booking page</a>.</li>
+        <li>See your fixed price instantly and choose your vehicle.</li>
+        <li>Add your flight number and pay by card, payment link or cash.</li>
+        <li>Receive your driver's details and a live tracking link before pickup.</li>
+    </ol>
+    <p>
+        Prefer to talk? Call <a href="tel:01143998242">0114 399 8242</a> or message us on
+        <a href="https://wa.me/447405172435">WhatsApp</a>.
+    </p>
+</section>
+
+<section class="seo-section">
+    <h2>Sheffield to Manchester Airport: common questions</h2>
+
+    <h3>How long does it take to get from Sheffield to Manchester Airport?</h3>
+    <p>About 1 hour 15 minutes in normal traffic. Peak times, weather or a Snake Pass closure can add time, so we plan extra for early flights.</p>
+
+    <h3>How much is a taxi from Sheffield to Manchester Airport?</h3>
+    <p>Our prices are fixed and quoted up front, so you know the fare before you travel. Enter your pickup address on our booking page for an instant price.</p>
+
+    <h3>Which Manchester Airport terminal do you serve?</h3>
+    <p>All three: Terminals 1, 2 and 3. Tell us your flight number when you book and we will confirm the terminal with you.</p>
+
+    <h3>What if my flight is delayed?</h3>
+    <p>We track your flight on airport pickups, so your driver adjusts to the actual landing time and meets you in arrivals.</p>
+
+    <h3>Can you collect me from Manchester Airport and bring me home to Sheffield?</h3>
+    <p>Yes. Book the return with your outward journey or separately. Your driver meets you in arrivals and takes you to your door.</p>
+
+    <h3>Do you cover Rotherham, Barnsley, Doncaster and Chesterfield?</h3>
+    <p>Yes. We serve Sheffield, Rotherham, Barnsley, Doncaster, Chesterfield and North Derbyshire.</p>
+
+    <h3>Can I pay by card or get a VAT invoice?</h3>
+    <p>Yes. Pay by card, a secure payment link or cash. Business customers can have VAT invoices and a corporate account.</p>
+
+    <h3>Is Central Executive Transfers a licensed operator?</h3>
+    <p>Yes. We are a licensed private hire operator, Operator Licence OP037.</p>
+</section>
+
+<section class="seo-section seo-contact">
+    <h2>Central Executive Transfers</h2>
+    <p>
+        Sheffield, South Yorkshire<br>
+        Phone: <a href="tel:01143998242">0114 399 8242</a><br>
+        WhatsApp: <a href="https://wa.me/447405172435">+44 7405 172435</a><br>
+        Email: <a href="mailto:admin@centralexecutivetransfers.co.uk">admin@centralexecutivetransfers.co.uk</a>
+    </p>
+    <p>
+        <a href="https://centralexecutivetransfers.co.uk/booking" class="btn btn-primary">Book Sheffield to Manchester Airport</a>
+        &nbsp;|&nbsp;
+        <a href="https://centralexecutivetransfers.co.uk/airport-transfers-sheffield">All airport transfers from Sheffield</a>
+    </p>
+</section>
+
+{{-- Static JSON-LD. No Blade logic inside. Street address and postcode are not in
+     BUSINESS_FACTS.md, so none is published here. [CONFIRM] before adding. --}}
+<script type="application/ld+json">
+{
+  "@@context": "https://schema.org",
+  "@@type": "TaxiService",
+  "name": "Central Executive Transfers",
+  "url": "https://centralexecutivetransfers.co.uk",
+  "telephone": "+441143998242",
+  "email": "admin@centralexecutivetransfers.co.uk",
+  "description": "Licensed private hire operator offering executive chauffeur and airport transfers from Sheffield, including Sheffield to Manchester Airport.",
+  "address": {
+    "@@type": "PostalAddress",
+    "addressLocality": "Sheffield",
+    "addressRegion": "South Yorkshire",
+    "addressCountry": "GB"
+  },
+  "areaServed": ["Sheffield", "Rotherham", "Barnsley", "Doncaster", "Chesterfield", "North Derbyshire"],
+  "serviceType": "Airport transfer"
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@@context": "https://schema.org",
+  "@@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@@type": "Question",
+      "name": "How long does it take to get from Sheffield to Manchester Airport?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "About 1 hour 15 minutes in normal traffic. Peak times, weather or a Snake Pass closure can add time, so we plan extra for early flights." }
+    },
+    {
+      "@@type": "Question",
+      "name": "How much is a taxi from Sheffield to Manchester Airport?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "Our prices are fixed and quoted up front, so you know the fare before you travel. Enter your pickup address on our booking page for an instant price." }
+    },
+    {
+      "@@type": "Question",
+      "name": "Which Manchester Airport terminal do you serve?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "All three: Terminals 1, 2 and 3. Tell us your flight number when you book and we will confirm the terminal with you." }
+    },
+    {
+      "@@type": "Question",
+      "name": "What if my flight is delayed?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "We track your flight on airport pickups, so your driver adjusts to the actual landing time and meets you in arrivals." }
+    },
+    {
+      "@@type": "Question",
+      "name": "Can you collect me from Manchester Airport and bring me home to Sheffield?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "Yes. Book the return with your outward journey or separately. Your driver meets you in arrivals and takes you to your door." }
+    },
+    {
+      "@@type": "Question",
+      "name": "Do you cover Rotherham, Barnsley, Doncaster and Chesterfield?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "Yes. We serve Sheffield, Rotherham, Barnsley, Doncaster, Chesterfield and North Derbyshire." }
+    },
+    {
+      "@@type": "Question",
+      "name": "Can I pay by card or get a VAT invoice?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "Yes. Pay by card, a secure payment link or cash. Business customers can have VAT invoices and a corporate account." }
+    },
+    {
+      "@@type": "Question",
+      "name": "Is Central Executive Transfers a licensed operator?",
+      "acceptedAnswer": { "@@type": "Answer", "text": "Yes. We are a licensed private hire operator, Operator Licence OP037." }
+    }
+  ]
+}
+</script>
+
+@endsection
