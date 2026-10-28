@@ -26,7 +26,7 @@ class Payment extends Model
             if (! $booking || $booking->onlinePaidTotal() <= 0 || $booking->payments()->exists()) {
                 return;
             }
-            $amount = round(min($booking->onlinePaidTotal(), $booking->fareGross() ?? $booking->onlinePaidTotal()), 2);
+            $amount = round(min($booking->onlinePaidTotal(), $booking->amountPayable() ?? $booking->onlinePaidTotal()), 2);
             $sp = $booking->meta['square_payment'] ?? [];
             static::create([
                 'booking_id' => $booking->id,

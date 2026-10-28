@@ -1,5 +1,5 @@
 @php
-    $ref = $booking->external_reference ?: $booking->reference;
+    $ref = ! empty($trip['refs']) ? $trip['refs'] : ($booking->external_reference ?: $booking->reference);
     $gross = $vat['gross'] ?? ($booking->fareGross() ?? 0);
     $isCash = $booking->isCashCollectJob();
     $isAccount = ($booking->payment_method?->value ?? null) === 'account';
@@ -58,56 +58,19 @@
         </td></tr>
     @endif
 
-    {{-- Journey --}}
-    <tr><td style="padding:8px 26px 0">
-        <h2 style="font-size:17px;margin:0 0 8px">Journey</h2>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-            {!! $row('Date &amp; time:', $booking->pickup_at?->format('d/m/Y H:i')) !!}
-            {{-- The real UK offset ON THE PICKUP DATE (was hard-coded UTC+1, wrong all winter). --}}
-            @php $ukAt = $booking->pickup_at?->clone()->setTimezone('Europe/London'); @endphp
-            {!! $row('Time zone:', $ukAt ? ($ukAt->dst ? 'UTC+1 London (BST)' : 'UTC+0 London (GMT)') : 'UK time') !!}
-            {!! $row('Pickup:', $booking->pickup_address) !!}
-            @foreach($booking->viaStops() as $stop){!! $row('Via:', $stop) !!}@endforeach
-            {!! $row('Dropoff:', $booking->destination_address) !!}
-            {!! $row('Vehicle type:', $booking->vehicleType?->name) !!}
-            {!! $row('Passengers:', $booking->passengers) !!}
-            @php
-                $bags = [];
-                $sc = $booking->displaySuitcases(); $hl = $booking->displayHandLuggage();
-                if ($sc > 0) { $bags[] = $sc.' suitcase'.($sc === 1 ? '' : 's'); }
-                if ($hl > 0) { $bags[] = $hl.' hand bag'.($hl === 1 ? '' : 's'); }
-                $seats = [];
-                foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $k => $lbl) {
-                    $n = (int) ($booking->meta[$k] ?? 0);
-                    if ($n > 0) { $seats[] = $n.' '.$lbl.' seat'.($n === 1 ? '' : 's'); }
-                }
-            @endphp
-            {!! $row('Luggage:', $bags ? implode(', ', $bags) : 'None') !!}
-            @if($seats){!! $row('Child seats:', implode(', ', $seats)) !!}@endif
-            {!! $row('Flight:', $booking->displayFlightNumber()) !!}
-            @php $landing = $booking->meta['flight_landing_at'] ?? null; @endphp
-            @if($landing){!! $row('Flight lands:', \Illuminate\Support\Carbon::parse($landing)->format('d/m/Y H:i')) !!}@endif
-            @if(!empty($booking->meta['meet_greet']) && ! ($booking->is_return_leg && ! \App\Support\AirportMatcher::isAirport($booking->pickup_address))){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
-            @if(trim((string) ($booking->special_requests ?? '')) !== ''){!! $row('Notes:', trim((string) $booking->special_requests)) !!}@endif
-        </table>
-    </td></tr>
-
-    {{-- The other journey(s) on this trip (e.g. the return), so one email shows the lot. --}}
-    @foreach(($trip['others'] ?? []) as $leg)
-        <tr><td style="padding:18px 26px 0">
-            <h2 style="font-size:17px;margin:0 0 8px">{{ $leg->is_return_leg ? 'Return journey' : 'Outbound journey' }}</h2>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-                @php $legUk = $leg->pickup_at?->clone()->setTimezone('Europe/London'); @endphp
-                {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i')) !!}
-                {!! $row('Time zone:', $legUk ? ($legUk->dst ? 'UTC+1 London (BST)' : 'UTC+0 London (GMT)') : 'UK time') !!}
-                {!! $row('Pickup:', $leg->pickup_address) !!}
-                @foreach($leg->viaStops() as $stop){!! $row('Via:', $stop) !!}@endforeach
-                {!! $row('Dropoff:', $leg->destination_address) !!}
-                {!! $row('Vehicle type:', $leg->vehicleType?->name) !!}
-                {!! $row('Flight:', $leg->displayFlightNumber()) !!}
-                @if(!empty($leg->meta['meet_greet']) && \App\Support\AirportMatcher::isAirport($leg->pickup_address)){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
-                {!! $row('Reference:', $leg->external_reference ?: $leg->reference) !!}
-            </table>
+    {{-- Journey(s). A return / multi-leg trip shows EVERY journey in date order,
+         the same whichever leg the email is sent from; cancelled legs are listed
+         separately and left out of the money. --}}
+    @if(! empty($trip))
+        @foreach($trip['legs'] as $tl)
+            @include('emails._journey', ['leg' => $tl['booking'], 'title' => $tl['title'], 'changed' => $tl['changed'], 'showRef' => true])
+        @endforeach
+    @else
+        @include('emails._journey', ['leg' => $booking, 'title' => 'Journey'])
+    @endif
+    @foreach(($cancelledLegs ?? []) as $cl)
+        <tr><td style="padding:14px 26px 0">
+            <p style="margin:0;font-size:14px;color:#8a1c1c"><strong>Cancelled:</strong> {{ $cl->is_return_leg ? 'return journey' : 'journey' }} {{ $cl->external_reference ?: $cl->reference }} on {{ $cl->pickup_at?->format('D d M, H:i') }} — not charged on this trip.</p>
         </td></tr>
     @endforeach
 

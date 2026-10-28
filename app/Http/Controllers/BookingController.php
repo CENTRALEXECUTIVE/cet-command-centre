@@ -1124,12 +1124,19 @@ class BookingController extends Controller
 
         $return = \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $when, $data) {
             $leg = $booking->replicate(['reference', 'external_reference', 'status', 'driver_id', 'linked_booking_id', 'quoted_price', 'final_price']);
-            $leg->reference = Booking::generateReference();
+            // Match the outbound's reference so the pair reads as one trip: an …A
+            // outbound gets the same reference ending B; an older reference without
+            // the A gets "-R". Falls back to a fresh one only if that's taken.
+            $base = (string) $booking->reference;
+            $paired = preg_match('/A$/', $base) ? substr($base, 0, -1).'B' : $base.'-R';
+            $leg->reference = Booking::where('reference', $paired)->exists() ? Booking::generateReference() : $paired;
             // The return leg is operator-created — it must NOT reuse the outbound's
             // external reference (that pair is unique per source_system and would
             // throw a duplicate-key error, and confuse the ETO re-ingest).
             $leg->external_reference = null;
             $leg->status = BookingStatus::Pending;
+            // A new return hasn't been paid for — never inherit the outbound's "paid".
+            $leg->payment_status = 'pending';
             $leg->driver_id = null;
             $leg->is_return_leg = true;
             // Swap the ends for the return.
@@ -1148,8 +1155,14 @@ class BookingController extends Controller
             $meta = $booking->meta ?? [];
             foreach (['geo', 'audit_issues', 'payroll', 'discount', 'voucher_code', 'contact_override',
                 'rescheduled_from', 'rescheduled_at', 'postponed', 'postpone_reason', 'postponed_at',
-                'postponed_from_pickup_at', 'cancellation_reason', 'cancelled_at', 'status_locked_at', 'status_locked_to'] as $k) {
+                'postponed_from_pickup_at', 'cancellation_reason', 'cancelled_at', 'status_locked_at', 'status_locked_to',
+                // Arrival-only details and email stamps belong to the outbound.
+                'flight_landing_at', 'customer_email_sent', 'paid_email_sent', 'paid_email_for', 'office_email_new_sent',
+                'office_email_paid_sent', 'office_email_paid_for', 'square_payment', 'pay_link', 'email_log', 'last_edited_at'] as $k) {
                 unset($meta[$k]);
+            }
+            if (! \App\Support\AirportMatcher::isAirport($leg->pickup_address)) {
+                unset($meta['meet_greet'], $meta['meeting_board'], $meta['meeting_point']);
             }
             $leg->meta = $meta ?: null;
             $leg->save();

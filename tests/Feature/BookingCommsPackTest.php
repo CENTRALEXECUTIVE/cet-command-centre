@@ -84,16 +84,17 @@ class BookingCommsPackTest extends TestCase
         Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($account) && ! $m->paid && $m->payUrl === null);
     }
 
-    public function test_a_paid_booking_re_priced_up_resends_as_paid_with_no_dead_end_pay_button(): void
+    public function test_a_paid_booking_re_priced_up_resends_with_a_pay_button_for_the_balance(): void
     {
         Mail::fake();
-        // £55 taken online, then the office raised the price to £100.
+        // £55 taken online, then the office raised the price to £100: the balance
+        // can now be charged, so the email carries a pay button for the £45.
         $b = $this->booking(['payment_status' => 'paid'], ['square_payment' => ['id' => 'sq_1', 'amount' => 55]]);
         $this->assertEqualsWithDelta(45.0, $b->transactionsAmountDue(), 0.001);
 
         $this->actingAs($this->admin())->post(route('bookings.resend-confirmation', $b))->assertSessionHas('status');
 
-        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->paid === true && $m->payUrl === null);
+        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->paid === false && $m->payUrl !== null);
     }
 
     public function test_resend_is_refused_for_a_cancelled_booking(): void

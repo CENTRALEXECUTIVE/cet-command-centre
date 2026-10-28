@@ -305,13 +305,15 @@ class BookingStatusService
         // sibling paid off a single-leg payment (that falsely showed the unpaid
         // return as paid and emailed the customer). The amount recorded on this leg
         // is the authority.
-        $group = $fresh->invoiceGroupBookings();
+        $group = $fresh->tripBookings();
         if ($group->count() > 1) {
             $thisPaid = (float) ($fresh->meta['square_payment']['amount'] ?? 0);
             if ($thisPaid <= 0) {
                 $thisPaid = (float) $fresh->transactionsPaidTotal();
             }
-            $groupTotal = round($group->sum(fn (Booking $b) => (float) ($b->fareGross() ?? 0)), 2);
+            // What's PAYABLE (VAT-inclusive on a VAT invoice) — the pay link charges
+            // that, so the fare before VAT would leave each leg showing VAT owed.
+            $groupTotal = round($group->sum(fn (Booking $b) => (float) ($b->amountPayable() ?? 0)), 2);
             // Only cascade when the payment genuinely covers the whole trip.
             if ($groupTotal > 0 && $thisPaid + 0.01 >= $groupTotal) {
                 $basePaymentId = $fresh->meta['square_payment']['id'] ?? ('GRP-'.$fresh->id);
@@ -320,7 +322,7 @@ class BookingStatusService
                     if ($leg->is($fresh) || $leg->fareIsPaid()) {
                         continue;
                     }
-                    $leg->markFarePaid($basePaymentId.'-L'.$leg->id, (float) ($leg->fareGross() ?? 0), $entity);
+                    $leg->markFarePaid($basePaymentId.'-L'.$leg->id, (float) ($leg->amountPayable() ?? 0), $entity);
                     $leg->fresh()->reconcilePaidStatus();
                     // Mark it paid + confirm the web booking, but DON'T send a second
                     // customer email — this one payment already got one confirmation.

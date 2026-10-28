@@ -65,6 +65,14 @@ class BookingCommsController extends Controller
             return back()->with('error', 'Could not send the '.$what.' — check Settings → Email and try again.')->with('scroll', 'customer-emails');
         }
 
+        // The email covers every live leg of the trip — note it as sent on each, so
+        // the "UPDATED" tag only marks changes made after this email.
+        $sentAt = now()->toIso8601String();
+        foreach (($booking->tripBookings()->count() > 1 ? $booking->tripBookings() : collect([$booking])) as $leg) {
+            $leg = $leg->fresh();
+            $leg->forceFill(['meta' => array_merge($leg->meta ?? [], ['customer_email_sent' => $sentAt])])->save();
+        }
+
         return back()
             ->with('status', ($updated ? 'Updated booking' : 'Confirmation').' emailed to '.$email.' ('.$state['label'].') from '.$booking->senderAddress().'.')
             ->with('scroll', 'customer-emails');

@@ -1469,7 +1469,11 @@ class Booking extends Model
         $recorded = $this->onlinePaidTotal();
         $fare = $this->fareGross();
         if ($recorded > 0) {
-            return round(min($recorded, $fare ?? $recorded), 2);
+            // Capped at what this leg is PAYABLE (incl. VAT on a VAT invoice — what
+            // the card was charged), not the pre-VAT fare.
+            $cap = $this->amountPayable() ?? $fare ?? $recorded;
+
+            return round(min($recorded, $cap), 2);
         }
 
         return $this->fareIsPaid() ? (float) ($fare ?? 0) : 0.0;
@@ -1554,7 +1558,8 @@ class Booking extends Model
         // or an open balance line would be ticked paid with no money taken (the page
         // view runs this) — e.g. £55 paid, re-priced to £100, £45 link still open.
         $fare = $this->fareGross();
-        $target = $online > 0 ? min($online, $fare ?? $online) : (float) ($fare ?? 0);
+        $cap = $this->amountPayable() ?? $fare;
+        $target = $online > 0 ? min($online, $cap ?? $online) : (float) ($fare ?? 0);
         if ($target <= 0) {
             return;
         }
@@ -2989,6 +2994,18 @@ class Booking extends Model
      *
      * @return \Illuminate\Support\Collection<int, self>
      */
+    /**
+     * The LIVE legs of this trip: the invoice group without cancelled / no-show
+     * legs. A customer who cancels the return mustn't be charged for it by the
+     * trip pay link, or see it in the trip total.
+     */
+    public function tripBookings(): \Illuminate\Support\Collection
+    {
+        return $this->invoiceGroupBookings()
+            ->reject(fn (self $b) => in_array($b->status, [BookingStatus::Cancelled, BookingStatus::NoShow], true))
+            ->values();
+    }
+
     public function invoiceGroupBookings(): \Illuminate\Support\Collection
     {
         $ids = collect([$this->id]);
@@ -6062,7 +6079,7 @@ class Booking extends Model
 
         // More taken online than the whole trip is worth → very likely a double
         // payment (two links paid). Flag it so the office can refund the extra.
-        $group = $this->invoiceGroupBookings();
+        $group = $this->tripBookings();
         $tripTotal = round(($group->isNotEmpty() ? $group : collect([$this]))
             ->sum(fn (Booking $b) => (float) ($b->amountPayable() ?? 0)), 2);
         if ($tripTotal > 0 && $this->onlinePaidTotal() > $tripTotal + 0.5) {

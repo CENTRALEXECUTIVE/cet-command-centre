@@ -712,9 +712,13 @@ class BookingWidgetController extends Controller
         // charges the full outstanding across both legs (e.g. £220), and paying once
         // settles both. So work out the amount, and which leg to charge, across the
         // whole invoice group — not just the leg whose link was clicked.
-        $legs = $booking->invoiceGroupBookings();
+        // Live legs only — a cancelled return is never charged.
+        $legs = $booking->tripBookings();
         $legs = $legs->isNotEmpty() ? $legs : collect([$booking]);
-        $unpaid = $legs->filter(fn (Booking $b) => ! $b->fareIsPaid())->values();
+        // A leg still owes when its balance is above zero — not just when it isn't
+        // flagged paid: a paid leg re-priced up owes the difference.
+        $unpaid = $legs->filter(fn (Booking $b) => $b->payment_status !== 'refunded'
+            && (! $b->fareIsPaid() || ($b->transactionsAmountDue() ?? 0) > 0.009))->values();
 
         // Nothing left to pay → a friendly "already paid" page, never a second charge.
         if ($unpaid->isEmpty()) {

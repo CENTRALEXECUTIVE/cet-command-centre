@@ -26,10 +26,15 @@ class ConfirmationEmailState
     public static function for(Booking $booking): array
     {
         $method = $booking->payment_method?->value ?? null;
-        $dueRaw = $booking->transactionsAmountDue();
+        // A return / multi-leg trip is paid and owed as ONE trip: what's due is the
+        // sum across its live legs (e.g. the outbound paid, the return re-priced up).
+        $legs = $booking->tripBookings();
+        $legs = $legs->count() > 1 ? $legs : collect([$booking]);
+        $dues = $legs->map(fn ($b) => $b->transactionsAmountDue());
+        $dueRaw = $dues->filter(fn ($d) => $d !== null)->isEmpty() ? null : (float) $dues->sum();
         $due = round((float) ($dueRaw ?? 0), 2);
 
-        if ($booking->fareIsPaid()) {
+        if ($legs->every(fn ($b) => $b->fareIsPaid()) && $due <= 0.009) {
             return [
                 'paid' => true, 'payUrl' => null, 'due' => $due,
                 'label' => 'Paid confirmation + invoice',
@@ -39,7 +44,7 @@ class ConfirmationEmailState
             ];
         }
 
-        if ($dueRaw !== null && $due <= 0.009 && $booking->transactionsPaidTotal() > 0) {
+        if ($dueRaw !== null && $due <= 0.009 && $legs->sum(fn ($b) => $b->transactionsPaidTotal()) > 0) {
             return ['paid' => true, 'payUrl' => null, 'due' => 0.0, 'label' => 'Paid confirmation + invoice', 'warning' => null];
         }
 

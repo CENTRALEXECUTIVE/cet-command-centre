@@ -58,7 +58,7 @@ class BookingConfirmationMail extends Mailable
         // On a return trip the pay link charges the WHOLE trip (both legs) in one go,
         // even though this confirmation shows just this leg's fare — so pass the trip
         // total to explain the button ("covers your full return trip — £220").
-        $group = $this->booking->invoiceGroupBookings();
+        $group = $this->booking->tripBookings();
         $tripPayTotal = null;
         if (! $this->paid && $this->payUrl && $group->count() > 1) {
             $outstanding = round($group->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? $b->amountPayable() ?? 0)), 2);
@@ -66,12 +66,22 @@ class BookingConfirmationMail extends Mailable
             $tripPayTotal = $outstanding > $own + 0.01 ? $outstanding : null;
         }
 
-        // A return / multi-leg trip: show EVERY journey and the TRIP money (each
-        // leg, total, paid, remaining, VAT) in this one email — not just this leg's
-        // fare beside a pay button that charges the whole trip.
+        // A return / multi-leg trip: show EVERY live journey (date order, the same
+        // whichever leg it's sent from) and the TRIP money — each leg, total, paid,
+        // remaining, VAT. Cancelled legs are listed apart and never charged.
         $trip = null;
+        $all = $this->booking->invoiceGroupBookings();
+        $cancelledLegs = $all->count() > 1
+            ? $all->filter(fn ($b) => in_array($b->status, [\App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow], true))->values()
+            : collect();
         if ($group->count() > 1) {
             $legs = $group->sortBy(fn ($b) => $b->pickup_at?->timestamp ?? 0)->values();
+            $isPair = $legs->count() === 2 && $legs->contains(fn ($b) => $b->is_return_leg);
+            $title = fn ($b, $i) => $isPair ? ($b->is_return_leg ? 'Return journey' : 'Outbound journey') : 'Journey '.($i + 1);
+            // "UPDATED" marks a leg edited since the customer was last emailed.
+            $lastSent = fn ($b) => $b->meta['customer_email_sent'] ?? null;
+            $changed = fn ($b) => $this->updated && filled($b->meta['last_edited_at'] ?? null)
+                && (! $lastSent($b) || \Illuminate\Support\Carbon::parse($b->meta['last_edited_at'])->gt(\Illuminate\Support\Carbon::parse($lastSent($b))));
             $vatNet = 0.0;
             $vatAmt = 0.0;
             foreach ($legs as $leg) {
@@ -81,9 +91,10 @@ class BookingConfirmationMail extends Mailable
                 }
             }
             $trip = [
-                'others' => $legs->reject(fn ($b) => $b->is($this->booking))->values(),
-                'lines' => $legs->map(fn ($b) => [
-                    'label' => ($b->is_return_leg ? 'Return' : 'Outbound').' — '.($b->pickup_at?->format('D d M, H:i') ?? ''),
+                'refs' => $legs->map(fn ($b) => $b->external_reference ?: $b->reference)->implode(' / '),
+                'legs' => $legs->map(fn ($b, $i) => ['booking' => $b, 'title' => $title($b, $i), 'changed' => $changed($b)])->all(),
+                'lines' => $legs->map(fn ($b, $i) => [
+                    'label' => ($isPair ? ($b->is_return_leg ? 'Return' : 'Outbound') : 'Journey '.($i + 1)).' — '.($b->pickup_at?->format('D d M, H:i') ?? ''),
                     'amount' => (float) ($b->amountPayable() ?? 0),
                 ])->all(),
                 'total' => round($legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2),
@@ -95,6 +106,7 @@ class BookingConfirmationMail extends Mailable
 
         return new Content(view: 'emails.booking-confirmation', with: [
             'trip' => $trip,
+            'cancelledLegs' => $cancelledLegs,
             'booking' => $this->booking,
             'paid' => $this->paid,
             'payUrl' => $this->payUrl,

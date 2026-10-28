@@ -58,7 +58,7 @@ class CustomerBookingMailer
         if (! empty($booking->meta['customer_email_sent'])) {
             return false;
         }
-        $group = $booking->invoiceGroupBookings();
+        $group = $booking->tripBookings();
         if ($group->count() > 1 && $group->contains(fn (Booking $b) => ! empty($b->meta['customer_email_sent']))) {
             return false;
         }
