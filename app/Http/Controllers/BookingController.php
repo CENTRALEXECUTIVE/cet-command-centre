@@ -790,21 +790,32 @@ class BookingController extends Controller
 
             $needsInvoice = $request->boolean('vat_invoice');
             $price = $request->filled('quoted_price') ? round((float) $request->input('quoted_price'), 2) : null;
-            // A return's confirmation shows THIS leg's fare (the outbound …A), not the
-            // whole-trip total — so the preview matches the per-leg email the customer
-            // gets. Use the quote's per-leg figure when it's to hand, otherwise split
-            // the total evenly (mirrors how the booking itself splits the fare). The
-            // pay link still charges the full trip in the real email.
-            if ($request->input('journey_type') === 'return') {
+            // A return previews as the ONE combined email it sends: each leg carries
+            // its own fare (the form's per-leg figures, else an even split of the
+            // total, mirroring how the booking itself splits the fare).
+            $isReturn = $request->input('journey_type') === 'return';
+            $totalPrice = $price;
+            $returnPrice = null;
+            if ($isReturn) {
                 if ($request->filled('leg_price_out')) {
                     $price = round((float) $request->input('leg_price_out'), 2);
+                    $returnPrice = $request->filled('leg_price_return')
+                        ? round((float) $request->input('leg_price_return'), 2)
+                        : ($totalPrice !== null ? round($totalPrice - $price, 2) : null);
                 } elseif ($price !== null) {
-                    $price = round($price / 2, 2);
+                    $price = round($totalPrice / 2, 2);
+                    $returnPrice = round($totalPrice - $price, 2);
+                }
+                // A custom total the legs don't add up to → keep the legs' ratio.
+                if ($totalPrice !== null && $price !== null && $returnPrice !== null && abs(($price + $returnPrice) - $totalPrice) > 0.009 && ($price + $returnPrice) > 0) {
+                    $o = round($totalPrice * ($price / ($price + $returnPrice)), 2);
+                    [$price, $returnPrice] = [$o, round($totalPrice - $o, 2)];
                 }
             }
 
             $booking = new Booking([
-                'reference' => 'CET-PREVIEW',
+                'reference' => $isReturn ? 'CET-PREVIEWA' : 'CET-PREVIEW',
+                'is_return_leg' => false,
                 'journey_type' => $request->input('journey_type', 'one_way'),
                 'pickup_at' => $request->filled('pickup_at')
                     ? \Illuminate\Support\Carbon::parse($request->input('pickup_at'), config('app.timezone'))
@@ -855,7 +866,42 @@ class BookingController extends Controller
                 ? '#preview-only'
                 : null;
 
-            return response((new \App\Mail\BookingConfirmationMail($booking, paid: false, payUrl: $payUrl))->render());
+            // The return leg, built the same way the booking will be saved: its own
+            // addresses (default the reverse), time, vehicle, flight and price.
+            $legs = null;
+            if ($isReturn) {
+                $retPickup = trim((string) $request->input('return_pickup_address')) ?: $request->input('destination_address');
+                $ret = new Booking([
+                    'reference' => 'CET-PREVIEWB',
+                    'journey_type' => 'return',
+                    'is_return_leg' => true,
+                    'pickup_at' => $request->filled('return_pickup_at')
+                        ? \Illuminate\Support\Carbon::parse($request->input('return_pickup_at'), config('app.timezone'))
+                        : $booking->pickup_at,
+                    'pickup_address' => $retPickup,
+                    'destination_address' => trim((string) $request->input('return_destination_address')) ?: $request->input('pickup_address'),
+                    'passengers' => $booking->passengers,
+                    'flight_number' => trim((string) $request->input('return_flight_number'))
+                        ?: (\App\Support\AirportMatcher::isAirport($retPickup) ? $request->input('flight_number') : null),
+                    'quoted_price' => $returnPrice,
+                    'payment_method' => $booking->payment_method?->value ?? 'card',
+                ]);
+                $retMeta = array_diff_key($meta, array_flip(['meet_greet', 'flight_landing_at']));
+                if ($request->boolean('meet_greet') && \App\Support\AirportMatcher::isAirport($retPickup)) {
+                    $retMeta['meet_greet'] = true;
+                }
+                $ret->meta = $retMeta;
+                $ret->tip_token = 'PREVIEW';
+                $ret->setRelation('customer', $customer);
+                $ret->setRelation('payments', collect());
+                $retVehicle = $request->filled('return_vehicle_type_id')
+                    ? \App\Models\VehicleType::find($request->integer('return_vehicle_type_id'))
+                    : ($booking->relationLoaded('vehicleType') ? $booking->vehicleType : null);
+                $ret->setRelation('vehicleType', $retVehicle);
+                $legs = collect([$booking, $ret]);
+            }
+
+            return response((new \App\Mail\BookingConfirmationMail($booking, paid: false, payUrl: $payUrl, previewLegs: $legs))->render());
         } catch (\Throwable $e) {
             \App\Support\MailFailure::report('confirmation email preview', $e);
 

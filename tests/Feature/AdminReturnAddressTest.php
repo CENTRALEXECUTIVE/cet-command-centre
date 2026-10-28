@@ -155,10 +155,36 @@ class AdminReturnAddressTest extends TestCase
         // Luggage now shows (the bug: it was missing from the email entirely).
         $res->assertSee('2 suitcases', false);
         $res->assertSee('1 hand bag', false);
-        // A return preview shows THIS leg's fare (£110 trip → £55 per leg), not £110.
+        // A return previews as the ONE combined email: both journeys, each leg's
+        // fare (£55 + £55) and the whole-trip total.
+        $res->assertSee('Outbound journey', false);
+        $res->assertSee('Return journey', false);
         $res->assertSee('55.00', false);
-        $res->assertDontSee('110.00', false);
+        $res->assertSee('Total (whole trip):', false);
+        $res->assertSee('110.00', false);
+        $res->assertSee('CET-PREVIEWA / CET-PREVIEWB', false);
         $this->assertSame(0, Booking::count(), 'previewing must not create a booking');
+    }
+
+    public function test_the_jeldwen_return_previews_with_both_journeys_and_vat(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $res = $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.confirmation-email.preview-new'), $this->payload([
+                'vehicle_type_id' => $exec->id, 'vat_invoice' => '1',
+                'pickup_address' => 'Manchester Airport Terminal 2', 'destination_address' => 'JELD-WEN, Shepcote Lane, Sheffield S9 1DZ',
+                'return_pickup_address' => 'JELD-WEN, Shepcote Lane, Sheffield S9 1DZ',
+                'return_destination_address' => 'Ibis Birmingham Airport, Bickenhill B26 3AW',
+                'flight_number' => 'IB987', 'meet_greet' => '1',
+                'quoted_price' => 265, 'leg_price_out' => 115, 'leg_price_return' => 150,
+            ]))
+            ->assertOk();
+
+        config(['cet.vat_registered' => true]);
+        $res->assertSee('Ibis Birmingham Airport', false);
+        $res->assertSee('Total (whole trip):', false);
+        $this->assertSame(1, substr_count($res->getContent(), 'driver waits in arrivals')); // outbound only
+        $this->assertSame(0, Booking::count());
     }
 
     public function test_the_new_booking_preview_is_admin_only(): void

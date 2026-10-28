@@ -31,6 +31,9 @@ class BookingConfirmationMail extends Mailable
         // An office-sent "your booking has been updated" copy (after an edit or
         // re-price) — same email, an "Updated" subject and banner. Never automatic.
         public bool $updated = false,
+        // Unsaved legs for the New Booking form's preview (nothing is in the DB
+        // yet), so a return previews as the same combined email it will send.
+        public ?\Illuminate\Support\Collection $previewLegs = null,
     ) {
         // The PVT LTD company sends through its own mailer, kept separate.
         if ($name = $booking->pvtMailer()) {
@@ -58,7 +61,7 @@ class BookingConfirmationMail extends Mailable
         // On a return trip the pay link charges the WHOLE trip (both legs) in one go,
         // even though this confirmation shows just this leg's fare — so pass the trip
         // total to explain the button ("covers your full return trip — £220").
-        $group = $this->booking->tripBookings();
+        $group = $this->previewLegs ?? $this->booking->tripBookings();
         $tripPayTotal = null;
         if (! $this->paid && $this->payUrl && $group->count() > 1) {
             $outstanding = round($group->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? $b->amountPayable() ?? 0)), 2);
@@ -70,7 +73,7 @@ class BookingConfirmationMail extends Mailable
         // whichever leg it's sent from) and the TRIP money — each leg, total, paid,
         // remaining, VAT. Cancelled legs are listed apart and never charged.
         $trip = null;
-        $all = $this->booking->invoiceGroupBookings();
+        $all = $this->previewLegs ?? $this->booking->invoiceGroupBookings();
         $cancelledLegs = $all->count() > 1
             ? $all->filter(fn ($b) => in_array($b->status, [\App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow], true))->values()
             : collect();
