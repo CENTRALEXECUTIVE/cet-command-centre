@@ -82,6 +82,11 @@ Schedule::command('cet:auto-allocate-tagged')->everyFiveMinutes()->withoutOverla
 Schedule::command('cet:reconcile-payments')->everyFiveMinutes()->withoutOverlapping(10)
     ->after(fn () => \App\Support\Heartbeat::stamp('reconcile-payments'));
 
+// Repair any booking that counted a hand "Mark paid" AND the real card payment
+// as two payments (CET-CB4218). Idempotent and sends nothing — runs on its own
+// after a deploy so no one has to type the command.
+Schedule::command('cet:heal-manual-payments')->everyTenMinutes()->withoutOverlapping(10);
+
 // Parse Outlook booking emails into bookings, every 2 minutes — so an ETO
 // amendment or cancellation reaches the Command Centre quickly.
 Schedule::command('cet:ingest-outlook')->everyTwoMinutes()->withoutOverlapping(10);
