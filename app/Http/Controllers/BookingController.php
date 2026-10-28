@@ -360,19 +360,27 @@ class BookingController extends Controller
         // flag it + route to the Ltd/Square entity, and keep the company details
         // for the invoice. The company name becomes the invoice "bill to"; the
         // lead passenger still shows as the traveller.
+        // On EVERY leg of a return — the trip is one VAT invoice. (It used to flag
+        // only the outbound, so the return was priced and emailed without VAT.)
         if ($request->boolean('vat_invoice')) {
-            $booking->setVatInvoiceRequested(true);
-            $meta = $booking->meta ?? [];
             $company = trim((string) $request->input('vat_company', ''));
-            $meta['vat_details'] = array_filter([
+            $details = array_filter([
                 'company' => $company,
                 'vat_number' => trim((string) $request->input('vat_number', '')),
                 'address' => trim((string) $request->input('vat_address', '')),
             ], fn ($v) => $v !== '');
-            if ($company !== '') {
-                $meta['booker_name'] = $company; // invoice bills the company
+            $legs = $booking->fresh()->invoiceGroupBookings();
+            foreach (($legs->isNotEmpty() ? $legs : collect([$booking])) as $leg) {
+                $leg = $leg->fresh();
+                $leg->setVatInvoiceRequested(true);
+                $meta = $leg->meta ?? [];
+                $meta['vat_details'] = $details;
+                if ($company !== '') {
+                    $meta['booker_name'] = $company; // invoice bills the company
+                }
+                $leg->forceFill(['meta' => $meta])->save();
             }
-            $booking->forceFill(['meta' => $meta])->save();
+            $booking->refresh();
         }
 
         // Stamp the billing company on EVERY leg so it's explicit and permanent, like
@@ -1840,9 +1848,16 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $on = $request->boolean('vat');
-        $booking->setVatInvoiceRequested($on);
+        // A return trip is one invoice: switch VAT on every live leg together, so
+        // the outbound and return never disagree (one with VAT, one without).
+        $legs = $booking->tripBookings();
+        foreach (($legs->count() > 1 ? $legs : collect([$booking])) as $leg) {
+            $leg->is($booking) ? $booking->setVatInvoiceRequested($on) : $leg->fresh()->setVatInvoiceRequested($on);
+        }
 
-        $gross = $booking->amountPayable();
+        $gross = $legs->count() > 1
+            ? round($booking->fresh()->tripBookings()->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2)
+            : $booking->amountPayable();
 
         return back()->with('status', $on
             ? 'VAT invoice on — billed by Central Executive Transfers Ltd (card via Square). Total with 20% VAT is £'.number_format((float) $gross, 2).'.'

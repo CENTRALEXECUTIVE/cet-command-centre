@@ -1815,7 +1815,7 @@
                     <a href="{{ route('bookings.confirmation-email.preview', ['booking' => $booking, 'updated' => 1]) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px">👁 Preview updated</a>
                 </div>
                 @if($booking->invoiceGroupBookings()->count() > 1)
-                    <p class="hint" style="margin:8px 0 0">Return trip: each leg has its own confirmation — send from each leg's page. A pay button charges the whole trip.</p>
+                    <p class="hint" style="margin:8px 0 0">Return trip: one email covers both journeys and the whole-trip total — send it from either leg's page.</p>
                 @endif
             @endif
 

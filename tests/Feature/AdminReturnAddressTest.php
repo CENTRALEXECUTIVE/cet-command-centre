@@ -249,4 +249,45 @@ class AdminReturnAddressTest extends TestCase
             fn ($m) => ! $m->booking->is_return_leg && $m->payUrl !== null);
         $this->assertSame(2, Booking::whereNotNull('meta->customer_email_sent')->count());
     }
+
+    public function test_a_vat_return_puts_vat_on_both_legs_and_the_email_shows_the_full_vat(): void
+    {
+        // JELD-WEN, 28 Oct 2026: only the outbound got VAT, so the email read
+        // £138 + £150 = £288 with "VAT £23" instead of £318 / VAT £53.
+        Mail::fake();
+        config(['cet.vat_registered' => true]);
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload([
+                'vehicle_type_id' => $exec->id, 'vat_invoice' => '1', 'vat_company' => 'JELD-WEN UK Ltd',
+                'quoted_price' => 265, 'leg_price_out' => 115, 'leg_price_return' => 150,
+            ]))->assertRedirect();
+
+        $out = Booking::where('is_return_leg', false)->firstOrFail();
+        $ret = Booking::where('is_return_leg', true)->firstOrFail();
+        $this->assertTrue($out->vatInvoiceRequested());
+        $this->assertTrue($ret->vatInvoiceRequested());
+        $this->assertSame('JELD-WEN UK Ltd', $ret->meta['vat_details']['company'] ?? null);
+
+        $html = (new \App\Mail\BookingConfirmationMail($out->fresh(), paid: false, payUrl: '#'))->render();
+        $this->assertStringContainsString('£318.00', $html);
+        $this->assertStringContainsString('Includes VAT £53.00 (net £265.00)', $html);
+    }
+
+    public function test_the_vat_toggle_switches_both_legs_of_a_return(): void
+    {
+        Mail::fake();
+        $this->actingAs($admin = User::factory()->admin()->create())
+            ->post(route('bookings.store'), $this->payload(['quoted_price' => 110, 'leg_price_out' => 55, 'leg_price_return' => 55]));
+        $out = Booking::where('is_return_leg', false)->firstOrFail();
+        $ret = Booking::where('is_return_leg', true)->firstOrFail();
+
+        $this->actingAs($admin)->post(route('bookings.vat-invoice', $ret), ['vat' => '1']);
+        $this->assertTrue($out->fresh()->vatInvoiceRequested());
+        $this->assertTrue($ret->fresh()->vatInvoiceRequested());
+
+        $this->actingAs($admin)->post(route('bookings.vat-invoice', $out), ['vat' => '0']);
+        $this->assertFalse($out->fresh()->vatInvoiceRequested());
+        $this->assertFalse($ret->fresh()->vatInvoiceRequested());
+    }
 }
