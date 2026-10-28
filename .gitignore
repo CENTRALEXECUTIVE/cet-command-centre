@@ -24,3 +24,7 @@ yarn-error.log
 
 /database/*.sqlite
 /database/*.sqlite-*
+
+# Growth data exports (may contain customer PII) — never commit
+/docs/growth/data/*
+!/docs/growth/data/.gitkeep
