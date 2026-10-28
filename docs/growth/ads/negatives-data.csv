@@ -1,0 +1,376 @@
+Shared set name,Campaign,Ad group,Keyword,Criterion Type,Level,Theme,Source,Evidence cost (Mar-Oct),Evidence clicks,Evidence conv,Example search terms,Reason
+CET Master Negatives,,,airport taxi,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,116.98,89,0.00,airport taxi; airport taxi,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,airport taxis,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,63.77,27,0.00,airport taxis; airport taxis,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,airport transfer,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,53.77,30,0.00,airport transfer,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,aylesbury,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,39.02,2,0.00,taxi from aylesbury to heathrow,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,sheffield taxi,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,24.31,27,0.00,sheffield taxi,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,shuttle,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,17.46,13,0.00,airport shuttle; airport shuttle manchester; airport taxi shuttle,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,airport transport,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,16.45,10,0.00,airport transport,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,filcan,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,15.17,6,0.00,filcan executive travel,navigational search for another firm
+CET Master Negatives,,,in manchester airport,Negative Phrase,Shared list,Already at the airport,search terms Mar-Oct 2026,14.26,1,0.00,taxi in manchester airport,searcher is at MAN looking for a local cab
+CET Master Negatives,,,taxi to airport,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,13.06,12,0.00,taxi to airport; taxi to airport,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,derby,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,10.77,5,0.00,taxi from east midlands airport to derby; wedding car hire derby; derby to birmingham airport taxi,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,cdg,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,10.45,1,0.00,cdg transfers,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,taxi services sheffield,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,10.33,5,0.00,taxi services sheffield,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,connect cars,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,9.56,4,0.00,connect cars rotherham,navigational search for another firm
+CET Master Negatives,,,sheffield taxi services,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,8.04,1,0.00,sheffield taxi services,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,mma,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,7.98,1,0.00,mma transfers manchester,navigational search for another firm
+CET Master Negatives,,,prestige,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,5.60,6,0.00,prestige car hire sheffield; sheffield prestige car hire,navigational search for another firm
+CET Master Negatives,,,huddersfield,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,4.44,8,0.00,airport transfers in huddersfield; airport taxis huddersfield; airport transfers huddersfield,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,lynx,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,4.39,2,0.00,lynx taxi manchester airport,navigational search for another firm
+CET Master Negatives,,,airport transportation,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,4.37,1,0.00,airport transportation,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,aeroport,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,3.80,1,0.00,aeroport taxi,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,taxi service in sheffield,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,3.80,3,0.00,taxi service in sheffield,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,sheffield taxi booking,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,3.40,2,0.00,sheffield taxi booking,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,airport cars,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,3.04,2,0.00,airport cars,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,airport runs,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,2.79,4,0.00,airport runs,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,sheffield taxi service,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,2.33,4,0.00,sheffield taxi service,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,kegworth,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,2.32,1,0.00,aj cars kegworth,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,aj cars,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,2.32,1,0.00,aj cars kegworth,navigational search for another firm
+CET Master Negatives,,,elite,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,2.21,1,0.00,elite airport taxis,navigational search for another firm
+CET Master Negatives,,,harrogate,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,2.08,1,0.00,harrogate airport transfers,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,airport run,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,2.05,2,0.00,airport run,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,york,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,1.73,1,0.00,taxi to leeds bradford airport from york,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,hinckley,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,1.69,1,0.00,taxi hinckley to birmingham airport,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,ferrari,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,1.62,2,0.00,ferrari hire sheffield,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,arrow,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,1.26,2,0.00,east midlands airport taxis arrow,navigational search for another firm
+CET Master Negatives,,,pegasus,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,1.23,1,0.00,pegasus travel rotherham,navigational search for another firm
+CET Master Negatives,,,supercar,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,1.05,1,0.00,supercar hire sheffield,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,tiffany's,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,1.00,1,0.00,tiffany's taxis doncaster,navigational search for another firm
+CET Master Negatives,,,bullseye,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.99,1,0.00,bullseye travel sheffield,navigational search for another firm
+CET Master Negatives,,,koiride,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.94,1,0.00,bookings koiride com,navigational search for another firm
+CET Master Negatives,,,peterborough,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.85,1,0.00,taxi from peterborough to stansted airport,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,shuttles,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.79,1,0.00,luxury airport shuttles,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,rugby,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.74,1,0.00,airport taxi rugby,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,noah,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.69,1,0.00,noah taxis,navigational search for another firm
+CET Master Negatives,,,aston martin,Negative Phrase,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.68,1,0.00,aston martin hire sheffield,vehicle CET does not offer
+CET Master Negatives,,,brighouse,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.65,1,0.00,brighouse airport transfers,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,sprinter,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.61,1,0.00,sprinter to airport,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,limousines,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.60,1,0.00,limousines in sheffield,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,burton,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.47,1,0.00,taxi burton to birmingham airport,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,bury,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.41,1,0.00,airport taxi bury,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,beverley,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.34,1,0.00,airport taxi beverley,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,leicester,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,keynes,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,macclesfield,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,wilmslow,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,timperley,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,skipton,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,boroughbridge,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,morley,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,loughborough,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,bristol,Negative Broad,Shared list,Outside area (origin elsewhere),search terms Mar-Oct 2026,0.00,0,0.00,,searcher is starting outside the Sheffield/S Yorks/N Derbys area
+CET Master Negatives,,,streetcars,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,conrads,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,conrad,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,redline,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,blackberry,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,britannia,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,elife,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,majestic,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,platinum,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,izec,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,a2b,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,smc,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,bark,Negative Broad,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,aj taxi,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,aj sheffield,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,a star travel,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,all star transfers,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,anytime airports,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,four seasons,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,first choice,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,1st choice,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,signature elite,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,sky high,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,airline connect,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,voyage vip,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,1st airport,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,dm airport,Negative Phrase,Shared list,Competitor / other firm name,search terms Mar-Oct 2026,0.00,0,0.00,,navigational search for another firm
+CET Master Negatives,,,lamborghini,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.00,0,0.00,,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,vintage,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.00,0,0.00,,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,university,Negative Broad,Shared list,Not offered / wrong intent,search terms Mar-Oct 2026,0.00,0,0.00,,"vehicle/service CET does not offer, or wrong intent"
+CET Master Negatives,,,taxi sheffield,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,0.00,0,0.00,,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,sheffield taxis,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,0.00,0,0.00,,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,taxis sheffield,Negative Exact,Shared list,Bare generic / local-cab (exact only),search terms Mar-Oct 2026,0.00,0,0.00,,no location or local-hop intent; exact-only so longer airport searches still show
+CET Master Negatives,,,9 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),7.66,1,0.00,9 seater minibus airport transfer,
+CET Master Negatives,,,10 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),7.26,4,0.00,10 seater minibus airport transfer; 10 seater airport transfer near me,
+CET Master Negatives,,,how to,Negative Phrase,Shared list,Informational,generic (28 Oct list),2.88,1,0.00,how to get from east midlands airport to sheffield,
+CET Master Negatives,,,pick up point,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),2.45,1,0.00,manchester airport taxi pick up point,
+CET Master Negatives,,,buses,Negative Broad,Shared list,Public transport,generic (28 Oct list),1.01,1,0.00,mini buses to airport,
+CET Master Negatives,,,jobs,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,job,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,careers,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,career,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,vacancies,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,vacancy,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hiring,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,recruitment,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,recruiting,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,employment,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,driver wanted,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,drivers wanted,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,driver jobs,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,driving jobs,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,chauffeur jobs,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi driver,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,salary,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wages,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,apprenticeship,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,part time,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,full time,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,work for,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,indeed,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,become a,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,self employed,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,owner driver,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,course,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,courses,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,training,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,licence,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,license,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,licensing,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,badge,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dbs,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,knowledge test,Negative Phrase,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,topographical,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,insurance,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,mot,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,plates,Negative Broad,Shared list,Jobs & licensing,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,cheap,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,cheapest,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,budget,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,low cost,Negative Phrase,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,discount,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,voucher,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,vouchers,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,promo code,Negative Phrase,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,coupon,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,deals,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,student,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,students,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,free,Negative Broad,Shared list,Cheap / free / deals,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,bus,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,train,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,trains,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rail,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,railway,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,tram,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,coach,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,coaches,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,national express,Negative Phrase,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,megabus,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,flixbus,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,timetable,Negative Broad,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,shuttle bus,Negative Phrase,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,shared shuttle,Negative Phrase,Shared list,Public transport,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,parking,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,car park,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,park and ride,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,valet,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,drop off charge,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,drop off fee,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,drop off zone,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,drop off area,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,drop off point,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,pick up zone,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,pickup zone,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,pick up area,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,flights,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,cheap flights,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,flight status,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,departures,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,arrivals board,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,lounge,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,fast track,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,security,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,duty free,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,terminal map,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,postcode,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,address,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,weather,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,news,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,strike,Negative Broad,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,jobs at,Negative Phrase,Shared list,Airport parking & info,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,how do,Negative Phrase,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,how far,Negative Phrase,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,how long,Negative Phrase,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,miles from,Negative Phrase,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,directions,Negative Broad,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,route planner,Negative Phrase,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,map,Negative Broad,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,meaning,Negative Broad,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,definition,Negative Broad,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wiki,Negative Broad,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wikipedia,Negative Broad,Shared list,Informational,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rental,Negative Broad,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rentals,Negative Broad,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rent,Negative Broad,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rent a car,Negative Phrase,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,self drive,Negative Phrase,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,van hire,Negative Phrase,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hire car,Negative Phrase,Shared list,Self drive / rental,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,for sale,Negative Phrase,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,used,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,second hand,Negative Phrase,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,lease,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,leasing,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,finance,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,toy,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,lego,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,diecast,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wallpaper,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,logo,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,png,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,game,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,simulator,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,uniform,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hat,Negative Broad,Shared list,Vehicles for sale / misc products,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,courier,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,delivery,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,parcel,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,removal,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,removals,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,man and van,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,tow,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,recovery,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,breakdown,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,ambulance,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,patient transport,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hearse,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,funeral,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,helicopter,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,private jet,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,limo,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,limos,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,limousine,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hummer,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,party bus,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,stretch,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,stag,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hen party,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hen do,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wheelchair,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wheelchair accessible,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,wav,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,mobility,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,pet,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,pets,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dog,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dogs,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,animal,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,school run,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,lost property,Negative Phrase,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,complaint,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,complaints,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,refund,Negative Broad,Shared list,Not our service,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,12 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,14 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,15 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,16 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,17 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,20 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,24 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,29 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,33 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,49 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,53 seater,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,coach hire,Negative Phrase,Shared list,Group size we can't do (fleet max 8),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi number,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi numbers,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi phone number,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,cab number,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi rank,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi ranks,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,black cab,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hackney,Negative Broad,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,taxi app,Negative Phrase,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,app,Negative Broad,Shared list,Local-hop / taxi-number spam,generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,alicante,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,malaga,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,benidorm,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,tenerife,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,lanzarote,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,gran canaria,Negative Phrase,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,fuerteventura,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,majorca,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,mallorca,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,palma,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,ibiza,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,menorca,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,faro,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,algarve,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dalaman,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,antalya,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,bodrum,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,marmaris,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,turkey,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,spain,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,portugal,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,greece,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,crete,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rhodes,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,corfu,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,zante,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,kos,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,cyprus,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,paphos,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,larnaca,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dubai,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,orlando,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,florida,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,new york,Negative Phrase,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,paris,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,amsterdam,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,rome,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,krakow,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,prague,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,budapest,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,sharm,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hurghada,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,egypt,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,croatia,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dubrovnik,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,abroad,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,resort,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dublin,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,belfast,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,glasgow,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,edinburgh,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,aberdeen,Negative Broad,Shared list,Abroad (holiday-resort transfers),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,uber,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,bolt,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,veezu,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,city taxis,Negative Phrase,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,mercury taxis,Negative Phrase,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,addison lee,Negative Phrase,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,blacklane,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,holiday extras,Negative Phrase,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,suntransfers,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,hoppa,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,welcome pickups,Negative Phrase,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,kiwitaxi,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,gett,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,free now,Negative Phrase,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,freenow,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,lyft,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,transfeero,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,daytrip,Negative Broad,Shared list,Competitors & aggregators (review: optional),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,doncaster sheffield airport,Negative Phrase,Shared list,Doncaster Sheffield Airport (no passenger flights - remove when it reopens),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,robin hood airport,Negative Phrase,Shared list,Doncaster Sheffield Airport (no passenger flights - remove when it reopens),generic (28 Oct list),0.00,0,0.00,,
+CET Master Negatives,,,dsa airport,Negative Phrase,Shared list,Doncaster Sheffield Airport (no passenger flights - remove when it reopens),generic (28 Oct list),0.00,0,0.00,,
+,RT-Search-CAMP JAN26,General Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,392.84,139,35.33,central executive transfers; central executive & airport transfers; central executive travel,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport taxi service,Negative Exact,Ad group,"Manchester generic, no Sheffield (ad-group level)",search terms Mar-Oct 2026,59.05,13,0.00,manchester airport taxi service,no origin; poorest-CPA ad group; exact-only
+,RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport taxi,Negative Exact,Ad group,"Manchester generic, no Sheffield (ad-group level)",search terms Mar-Oct 2026,53.18,12,0.00,manchester airport taxi,no origin; poorest-CPA ad group; exact-only
+,RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport taxis,Negative Exact,Ad group,"Manchester generic, no Sheffield (ad-group level)",search terms Mar-Oct 2026,11.66,6,0.00,manchester airport taxis,no origin; poorest-CPA ad group; exact-only
+,RT-Search-CAMP JAN26,Manchester Airport Transfers,taxi manchester airport,Negative Exact,Ad group,"Manchester generic, no Sheffield (ad-group level)",search terms Mar-Oct 2026,5.08,4,0.00,taxi manchester airport,no origin; poorest-CPA ad group; exact-only
+,RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport taxi services,Negative Exact,Ad group,"Manchester generic, no Sheffield (ad-group level)",search terms Mar-Oct 2026,3.27,1,0.00,manchester airport taxi services,no origin; poorest-CPA ad group; exact-only
+,RT-Search-CAMP JAN26,Manchester Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Executive Chauffeur / Corporate,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,East Midlands Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Heathrow Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Leeds Bradford Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Weddings & Events Chauffeur,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Gatwick Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Luton Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group
+,RT-Search-CAMP JAN26,Birmingham Airport Transfers,central executive,Negative Phrase,Ad group,Brand routing (ad-group level) - ONLY after Brand ad group is live,search terms Mar-Oct 2026,0.00,0,0.00,,sends brand searches to the cheap Brand ad group

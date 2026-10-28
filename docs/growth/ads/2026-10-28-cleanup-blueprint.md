@@ -1,3 +1,17 @@
+> ## CORRECTION (29 Oct 2026). Read this first
+> This blueprint was written **without account data** and parts of it are **wrong**. It assumed
+> nine campaigns. The real account is **one live Search campaign, `RT-Search-CAMP JAN26`, with
+> 10 ad groups.** **Do NOT pause "General"**: General Airport Transfers is the top performer
+> (169 of 271 conversions, £45 each).
+> - **Superseded:** §1 (summary), §2 point 2 ("General stops"), §3 (3-campaign structure), §6
+>   (order of work, incl. "Pause General…"), §7 (budget split) and `keywords.csv` / `ads.csv`
+>   (built for campaigns that don't exist).
+> - **Still valid:** §5 settings checklist and §8 GTM build. Use the corrected versions in
+>   `2026-10-29-conversion-tracking-fix.md`.
+> - **Use instead:** `2026-10-29-data-review.md` (verdict), `2026-10-29-action-plan.md` (plan),
+>   `WALKTHROUGH-tablet.md` (click-by-click), `keyword-actions.csv`, `negatives-data-paste.txt`,
+>   `ads-v2.csv`.
+
 # Google Ads cleanup blueprint — 28 Oct 2026
 
 **Budget:** cut from £60 to £30/day (about £912/month). **Status:** this is a blueprint
@@ -48,7 +62,7 @@ Wrong or missing:
    day. That's about one booking a month, so you'd never learn anything, and the
    budget alone keeps those campaigns "limited by budget". Five campaigns on £30 is too many.
    **Fix:** three campaigns. Budget pools where the searches are.
-2. **General got the biggest share (£13) and nobody knows what's in it.** In this vertical
+2. **[WRONG, see the 29 Oct data review: General is the best ad group]** **General got the biggest share (£13) and nobody knows what's in it.** In this vertical
    "General" usually means broad "taxi sheffield" / "taxi near me" / "taxi number". Those
    are people wanting a £8 hop across town. **Fix:** General stops. Its useful airport
    intent moves into a "Sheffield Airport Transfers" ad group with exact/phrase keywords.
@@ -197,7 +211,7 @@ Account-level (do once):
 **Day 0 — stop the leaks (30 min, tablet OK):**
 1. Auto-apply recommendations → all off.
 2. Every campaign: Search partners off, Display off, location option → Presence only, radius 25 mi.
-3. Pause **General, Weddings, Leeds Bradford, Birmingham, Gatwick**.
+3. ~~Pause General, Weddings, Leeds Bradford, Birmingham, Gatwick.~~ **WITHDRAWN 29 Oct: do NOT pause General. Only Birmingham is paused. See the 29 Oct action plan.**
 4. Remaining campaigns: bid strategy → Manual CPC. Budgets per §7 (old names map:
    Manchester £11, East Midlands £11, Executive £8; Heathrow paused, since it moves into Airports & Towns).
 

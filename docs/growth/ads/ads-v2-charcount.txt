@@ -1,0 +1,284 @@
+Character counts for ads-v2.csv (counted by script, 29 Oct 2026). {KeyWord:x} counts the default text x.
+
+=== Brand  -> https://centralexecutivetransfers.co.uk/  /Book-Online/Fixed-Prices (paths 11,12 of 15)
+  H1  27/30 OK  Central Executive Transfers
+  H2  27/30 OK  Official Site - Book Online
+  H3  30/30 OK  Sheffield Executive Chauffeurs
+  H4  29/30 OK  Fixed Prices, Quoted Up Front
+  H5  20/30 OK  Instant Price Online
+  H6  27/30 OK  Airport Transfers Sheffield
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  28/30 OK  Corporate Accounts Available
+  H10 23/30 OK  Licensed Operator OP037
+  H11 25/30 OK  Live Driver Tracking Link
+  H12 25/30 OK  Card, Cash or Pay by Link
+  H13 24/30 OK  Executive Cars & V-Class
+  H14 24/30 OK  Owner-Run Sheffield Firm
+  H15 18/30 OK  Call 0114 399 8242
+  D1  78/90 OK  Central Executive Transfers - Sheffield executive chauffeurs. Book online now.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  66/90 OK  Book again or change a booking: call 0114 399 8242 or book online.
+  D4  71/90 OK  Corporate accounts with VAT invoices. Flight tracking and meet & greet.
+=== General Airport Transfers  -> https://centralexecutivetransfers.co.uk/airport-transfers-sheffield  /Airports/Sheffield (paths 8,9 of 15)
+  H1  27/30 OK  {KeyWord:Airport Transfers Sheffield}
+  H2  25/30 OK  Transfers South Yorkshire
+  H3  27/30 OK  Taxi to Airport? We Got You
+  H4  12/30 OK  Fixed Prices
+  H5  23/30 OK  Sheffield Airport Taxis
+  H6  28/30 OK  Fixed Price, Quoted Up Front
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  20/30 OK  Instant Price Online
+  H10 22/30 OK  Every Major UK Airport
+  H11 23/30 OK  Licensed Operator OP037
+  H12 24/30 OK  Owner-Run Sheffield Firm
+  H13 25/30 OK  Card, Cash or Pay by Link
+  H14 23/30 OK  VAT Invoices on Request
+  H15 26/30 OK  Book Your Airport Transfer
+  D1  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D2  79/90 OK  Executive airport transfers across South Yorkshire. Instant fixed price online.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  82/90 OK  Licensed private hire operator. Pay by card, link or cash. VAT invoices available.
+=== Manchester Airport Transfers  -> https://centralexecutivetransfers.co.uk/sheffield-to-manchester-airport-transfers  /Manchester/Airport (paths 10,7 of 15)
+  H1  23/30 OK  {KeyWord:Manchester Airport Taxi}
+  H2  24/30 OK  Sheffield to MAN Airport
+  H3  16/30 OK  Fixed Price £100
+  H4  17/30 OK  One Way or Return
+  H5  28/30 OK  Manchester Airport Transfers
+  H6  26/30 OK  Taxi to Manchester Airport
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  20/30 OK  Instant Price Online
+  H10 14/30 OK  No Hidden Fees
+  H11 25/30 OK  Live Driver Tracking Link
+  H12 25/30 OK  Transfers South Yorkshire
+  H13 23/30 OK  Licensed Operator OP037
+  H14 24/30 OK  Executive Cars & V-Class
+  H15 22/30 OK  Book Online or Call Us
+  D1  83/90 OK  Sheffield to Manchester Airport at a fixed price, quoted up front. Book online now.
+  D2  69/90 OK  Flight tracking on airport pickups, so your driver adjusts to delays.
+  D3  81/90 OK  One way or return from Sheffield, Rotherham, Barnsley, Chesterfield or Doncaster.
+  D4  79/90 OK  Meet & greet in arrivals. Live driver tracking link. Pay by card, link or cash.
+=== East Midlands Airport Transfers  -> https://centralexecutivetransfers.co.uk/sheffield-to-east-midlands-airport-transfers  /East-Midlands/Airport (paths 13,7 of 15)
+  H1  26/30 OK  {KeyWord:East Midlands Airport Taxi}
+  H2  26/30 OK  Sheffield to EMA Transfers
+  H3  29/30 OK  Taxi to East Midlands Airport
+  H4  12/30 OK  Fixed Prices
+  H5  26/30 OK  Flight Tracking on Pickups
+  H6  24/30 OK  Meet & Greet in Arrivals
+  H7  20/30 OK  Instant Price Online
+  H8  14/30 OK  No Hidden Fees
+  H9  17/30 OK  One Way or Return
+  H10 25/30 OK  Transfers South Yorkshire
+  H11 24/30 OK  Executive Cars & V-Class
+  H12 23/30 OK  Licensed Operator OP037
+  H13 25/30 OK  Live Driver Tracking Link
+  H14 24/30 OK  Owner-Run Sheffield Firm
+  H15 22/30 OK  Book Your EMA Transfer
+  D1  82/90 OK  Sheffield to East Midlands Airport at a fixed price, quoted up front. Book online.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  71/90 OK  Card, cash or payment link. VAT invoices available for business travel.
+=== Heathrow Airport Transfers  -> https://centralexecutivetransfers.co.uk/sheffield-to-heathrow-airport-transfers  /Heathrow/From-Sheffield (paths 8,14 of 15)
+  H1  21/30 OK  {KeyWord:Sheffield to Heathrow}
+  H2  26/30 OK  Heathrow Airport Transfers
+  H3  28/30 OK  Executive Heathrow Transfers
+  H4  25/30 OK  Return Journeys Available
+  H5  28/30 OK  Fixed Price – No Hidden Fees
+  H6  26/30 OK  Flight Tracking on Pickups
+  H7  24/30 OK  Meet & Greet in Arrivals
+  H8  20/30 OK  Instant Price Online
+  H9  27/30 OK  Reliable Long-Distance Taxi
+  H10 24/30 OK  Executive Cars & V-Class
+  H11 23/30 OK  Licensed Operator OP037
+  H12 25/30 OK  Live Driver Tracking Link
+  H13 25/30 OK  Transfers South Yorkshire
+  H14 23/30 OK  VAT Invoices on Request
+  H15 27/30 OK  Book Your Heathrow Transfer
+  D1  83/90 OK  Sheffield to Heathrow at a fixed price, quoted up front. Get your price online now.
+  D2  72/90 OK  Flight tracking on your return flight, so your driver adjusts to delays.
+  D3  71/90 OK  Meet & greet in arrivals and a live driver tracking link before pickup.
+  D4  71/90 OK  Card, cash or payment link. VAT invoices available for business travel.
+=== Gatwick Airport Transfers  -> https://centralexecutivetransfers.co.uk/sheffield-to-gatwick-airport-transfers  /Gatwick/From-Sheffield (paths 7,14 of 15)
+  H1  20/30 OK  {KeyWord:Sheffield to Gatwick}
+  H2  25/30 OK  Gatwick Airport Transfers
+  H3  27/30 OK  Executive Gatwick Transfers
+  H4  25/30 OK  Return Journeys Available
+  H5  28/30 OK  Fixed Price – No Hidden Fees
+  H6  26/30 OK  Flight Tracking on Pickups
+  H7  24/30 OK  Meet & Greet in Arrivals
+  H8  20/30 OK  Instant Price Online
+  H9  27/30 OK  Reliable Long-Distance Taxi
+  H10 24/30 OK  Executive Cars & V-Class
+  H11 23/30 OK  Licensed Operator OP037
+  H12 25/30 OK  Live Driver Tracking Link
+  H13 25/30 OK  Transfers South Yorkshire
+  H14 23/30 OK  VAT Invoices on Request
+  H15 26/30 OK  Book Your Gatwick Transfer
+  D1  82/90 OK  Sheffield to Gatwick at a fixed price, quoted up front. Get your price online now.
+  D2  72/90 OK  Flight tracking on your return flight, so your driver adjusts to delays.
+  D3  71/90 OK  Meet & greet in arrivals and a live driver tracking link before pickup.
+  D4  71/90 OK  Card, cash or payment link. VAT invoices available for business travel.
+=== Luton Airport Transfers  -> https://centralexecutivetransfers.co.uk/sheffield-to-luton-airport-transfers  /Luton/From-Sheffield (paths 5,14 of 15)
+  H1  26/30 OK  {KeyWord:Sheffield to Luton Airport}
+  H2  23/30 OK  Luton Airport Transfers
+  H3  28/30 OK  Sheffield to Luton Transfers
+  H4  25/30 OK  Return Journeys Available
+  H5  28/30 OK  Fixed Price – No Hidden Fees
+  H6  26/30 OK  Flight Tracking on Pickups
+  H7  24/30 OK  Meet & Greet in Arrivals
+  H8  20/30 OK  Instant Price Online
+  H9  27/30 OK  Reliable Long-Distance Taxi
+  H10 24/30 OK  Executive Cars & V-Class
+  H11 23/30 OK  Licensed Operator OP037
+  H12 25/30 OK  Live Driver Tracking Link
+  H13 25/30 OK  Transfers South Yorkshire
+  H14 23/30 OK  VAT Invoices on Request
+  H15 24/30 OK  Book Your Luton Transfer
+  D1  82/90 OK  Sheffield to Luton Airport at a fixed price, quoted up front. Price it online now.
+  D2  72/90 OK  Flight tracking on your return flight, so your driver adjusts to delays.
+  D3  71/90 OK  Meet & greet in arrivals and a live driver tracking link before pickup.
+  D4  71/90 OK  Card, cash or payment link. VAT invoices available for business travel.
+=== Leeds Bradford Airport Transfers  -> https://centralexecutivetransfers.co.uk/sheffield-to-leeds-bradford-airport-transfers  /Leeds-Bradford/Airport (paths 14,7 of 15)
+  H1  27/30 OK  {KeyWord:Leeds Bradford Airport Taxi}
+  H2  27/30 OK  Sheffield to Leeds Bradford
+  H3  30/30 OK  Taxi to Leeds Bradford Airport
+  H4  12/30 OK  Fixed Prices
+  H5  26/30 OK  Flight Tracking on Pickups
+  H6  24/30 OK  Meet & Greet in Arrivals
+  H7  20/30 OK  Instant Price Online
+  H8  14/30 OK  No Hidden Fees
+  H9  17/30 OK  One Way or Return
+  H10 25/30 OK  Transfers South Yorkshire
+  H11 24/30 OK  Executive Cars & V-Class
+  H12 23/30 OK  Licensed Operator OP037
+  H13 25/30 OK  Live Driver Tracking Link
+  H14 24/30 OK  Owner-Run Sheffield Firm
+  H15 22/30 OK  Book Your LBA Transfer
+  D1  83/90 OK  Sheffield to Leeds Bradford Airport at a fixed price, quoted up front. Book online.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  66/90 OK  Licensed private hire operator. Pay by card, payment link or cash.
+=== Executive Chauffeur / Corporate  -> https://centralexecutivetransfers.co.uk/executive-chauffeur-sheffield  /Chauffeur/Sheffield (paths 9,9 of 15)
+  H1  29/30 OK  {KeyWord:Executive Chauffeur Sheffield}
+  H2  27/30 OK  Chauffeur Service Sheffield
+  H3  28/30 OK  Corporate Accounts Available
+  H4  30/30 OK  VAT Invoices & Monthly Billing
+  H5  30/30 OK  Directors Drive Executive Jobs
+  H6  29/30 OK  Fixed Prices, Quoted Up Front
+  H7  24/30 OK  Executive Cars & V-Class
+  H8  26/30 OK  Number-Masked Driver Calls
+  H9  25/30 OK  Live Driver Tracking Link
+  H10 23/30 OK  Licensed Operator OP037
+  H11 25/30 OK  Business Travel Sheffield
+  H12 23/30 OK  Airport & Long Distance
+  H13 20/30 OK  Instant Price Online
+  H14 25/30 OK  Book Your Chauffeur Today
+  H15 24/30 OK  Owner-Run Sheffield Firm
+  D1  63/90 OK  Executive chauffeur services for corporate and business travel.
+  D2  68/90 OK  Corporate accounts with VAT invoices and combined monthly invoicing.
+  D3  89/90 OK  Fixed prices quoted up front. Directors drive the executive jobs - small and accountable.
+  D4  81/90 OK  Live driver tracking, number-masked calls and driver details before every pickup.
+=== Weddings & Events Chauffeur  -> https://centralexecutivetransfers.co.uk/prom-wedding-chauffeur-sheffield  /Weddings/Proms (paths 8,5 of 15)
+  H1  27/30 OK  {KeyWord:Wedding Chauffeur Sheffield}
+  H2  29/30 OK  Wedding & Prom Cars Sheffield
+  H3  28/30 OK  Rolls-Royce Ghost on Request
+  H4  28/30 OK  Perfect For Weddings & Proms
+  H5  27/30 OK  Arrive In Style And Comfort
+  H6  24/30 OK  Executive Cars & V-Class
+  H7  28/30 OK  Fixed Price, Quoted Up Front
+  H8  25/30 OK  Chauffeur-Driven Car Hire
+  H9  28/30 OK  Groups in V-Class or Minibus
+  H10 23/30 OK  Licensed Operator OP037
+  H11 24/30 OK  Owner-Run Sheffield Firm
+  H12 23/30 OK  Ask for a Wedding Quote
+  H13 27/30 OK  Book Your Wedding Chauffeur
+  H14 27/30 OK  Sheffield & South Yorkshire
+  H15 14/30 OK  No Hidden Fees
+  D1  60/90 OK  Arrive in style with our wedding and prom chauffeur service.
+  D2  81/90 OK  Rolls-Royce Ghost on request for weddings; executive cars and V-Class for guests.
+  D3  79/90 OK  Fixed price quoted up front, no hidden fees. Ask for your quote online or call.
+  D4  77/90 OK  Licensed private hire operator. Owner-run Sheffield firm. Card, link or cash.
+=== Rotherham Airport Transfers  -> https://centralexecutivetransfers.co.uk/rotherham-airport-transfers  /Rotherham/Airport-Taxi (paths 9,12 of 15)
+  H1  22/30 OK  {KeyWord:Rotherham Airport Taxi}
+  H2  27/30 OK  Rotherham Airport Transfers
+  H3  27/30 OK  Taxi to Airport? We Got You
+  H4  12/30 OK  Fixed Prices
+  H5  25/30 OK  Transfers South Yorkshire
+  H6  24/30 OK  Manchester, EMA & London
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  20/30 OK  Instant Price Online
+  H10 23/30 OK  Licensed Operator OP037
+  H11 25/30 OK  Live Driver Tracking Link
+  H12 14/30 OK  No Hidden Fees
+  H13 17/30 OK  One Way or Return
+  H14 24/30 OK  Executive Cars & V-Class
+  H15 26/30 OK  Book Your Airport Transfer
+  D1  84/90 OK  Airport transfers from Rotherham at a fixed price, quoted up front. Book online now.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  66/90 OK  Licensed private hire operator. Pay by card, payment link or cash.
+=== Barnsley Airport Transfers  -> https://centralexecutivetransfers.co.uk/barnsley-airport-transfers  /Barnsley/Airport-Taxi (paths 8,12 of 15)
+  H1  21/30 OK  {KeyWord:Barnsley Airport Taxi}
+  H2  26/30 OK  Barnsley Airport Transfers
+  H3  27/30 OK  Taxi to Airport? We Got You
+  H4  12/30 OK  Fixed Prices
+  H5  25/30 OK  Transfers South Yorkshire
+  H6  24/30 OK  Manchester, EMA & London
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  20/30 OK  Instant Price Online
+  H10 23/30 OK  Licensed Operator OP037
+  H11 25/30 OK  Live Driver Tracking Link
+  H12 14/30 OK  No Hidden Fees
+  H13 17/30 OK  One Way or Return
+  H14 24/30 OK  Executive Cars & V-Class
+  H15 26/30 OK  Book Your Airport Transfer
+  D1  83/90 OK  Airport transfers from Barnsley at a fixed price, quoted up front. Book online now.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  66/90 OK  Licensed private hire operator. Pay by card, payment link or cash.
+=== Doncaster Airport Transfers  -> https://centralexecutivetransfers.co.uk/doncaster-airport-transfers  /Doncaster/Airport-Taxi (paths 9,12 of 15)
+  H1  22/30 OK  {KeyWord:Doncaster Airport Taxi}
+  H2  27/30 OK  Doncaster Airport Transfers
+  H3  27/30 OK  Taxi to Airport? We Got You
+  H4  12/30 OK  Fixed Prices
+  H5  25/30 OK  Transfers South Yorkshire
+  H6  24/30 OK  Manchester, EMA & London
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  20/30 OK  Instant Price Online
+  H10 23/30 OK  Licensed Operator OP037
+  H11 25/30 OK  Live Driver Tracking Link
+  H12 14/30 OK  No Hidden Fees
+  H13 17/30 OK  One Way or Return
+  H14 24/30 OK  Executive Cars & V-Class
+  H15 26/30 OK  Book Your Airport Transfer
+  D1  84/90 OK  Airport transfers from Doncaster at a fixed price, quoted up front. Book online now.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  66/90 OK  Licensed private hire operator. Pay by card, payment link or cash.
+=== Chesterfield Airport Transfers  -> https://centralexecutivetransfers.co.uk/chesterfield-airport-transfers  /Chesterfield/Airport-Taxi (paths 12,12 of 15)
+  H1  25/30 OK  {KeyWord:Chesterfield Airport Taxi}
+  H2  30/30 OK  Chesterfield Airport Transfers
+  H3  27/30 OK  Taxi to Airport? We Got You
+  H4  12/30 OK  Fixed Prices
+  H5  28/30 OK  Sheffield & North Derbyshire
+  H6  24/30 OK  Manchester, EMA & London
+  H7  26/30 OK  Flight Tracking on Pickups
+  H8  24/30 OK  Meet & Greet in Arrivals
+  H9  20/30 OK  Instant Price Online
+  H10 23/30 OK  Licensed Operator OP037
+  H11 25/30 OK  Live Driver Tracking Link
+  H12 14/30 OK  No Hidden Fees
+  H13 17/30 OK  One Way or Return
+  H14 24/30 OK  Executive Cars & V-Class
+  H15 26/30 OK  Book Your Airport Transfer
+  D1  87/90 OK  Airport transfers from Chesterfield at a fixed price, quoted up front. Book online now.
+  D2  56/90 OK  Fixed prices to all major UK airports – book online now.
+  D3  80/90 OK  Flight tracking and meet & greet in arrivals. Driver details sent before pickup.
+  D4  66/90 OK  Licensed private hire operator. Pay by card, payment link or cash.
+
+Lines over limit: 0

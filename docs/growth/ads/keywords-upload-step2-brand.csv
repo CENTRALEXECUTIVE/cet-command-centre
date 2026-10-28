@@ -1,0 +1,7 @@
+Campaign,Ad group,Keyword,Criterion Type,Max CPC,Status
+RT-Search-CAMP JAN26,General Airport Transfers,central executive transfers,Phrase,,Paused
+RT-Search-CAMP JAN26,Brand,central executive travel,Exact,1.0,Enabled
+RT-Search-CAMP JAN26,Brand,central executive transfers,Exact,1.0,Enabled
+RT-Search-CAMP JAN26,Brand,central executive transfers,Phrase,1.0,Enabled
+RT-Search-CAMP JAN26,Brand,central executive cars,Exact,1.0,Enabled
+RT-Search-CAMP JAN26,Brand,centralexecutivetransfers,Exact,1.0,Enabled
