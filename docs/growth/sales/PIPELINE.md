@@ -7,6 +7,7 @@ every message. Update the row the same day you send something or get a reply.
 Prospect details and sources: `2026-10-28-prospects.csv`. Drafts: `2026-10-28-emails.md`.
 Batch B (professional services & institutions): `batch-B-professional.csv` (details, sources and email 1 drafts in one file).
 Batch A (manufacturing & engineering): `batch-A-manufacturing.csv` (details, sources and email 1 drafts in one file).
+Batch C (logistics, national firms, TMCs): `batch-C-logistics-national.csv`. Batch D (operator partners and platforms): `batch-D-partners.csv`.
 
 ## Status key
 `new` → `email1-sent` → `fu1-sent` (day 4) → `fu2-sent` (day 10) → `linkedin-sent` →
@@ -201,3 +202,91 @@ MA06 Primetals, MA07 Nikken, MA08 Vulcan Seals, MA09 William Cook, MA10 Cooper &
 - **Fri 20 Nov:** day-10 follow-up to MA06–MA10
 - **Mon 23 Nov:** LinkedIn connect notes to anyone in the 10 who hasn't replied (company-page-verified roles only)
 - **Fri 27 Nov – Tue 1 Dec:** close-the-loop emails to anyone still silent
+
+## Batch C: logistics, national firms and TMCs (28 Oct 2026)
+
+Source file: `batch-C-logistics-national.csv`. Track A (the TMCs sit in Track A as corporate buyers of ground transport).
+The email 1 drafts are in the `email_body` column. Contact emails are left blank because no published
+business address could be verified (sites couldn't be fetched). Take one from each company's contact page.
+Never guess a personal address.
+
+| ID | Company | Fit | Target role | Owner | Status | Last touch | Next action | Due |
+|---|---|---|---|---|---|---|---|---|
+| C01 | Laing O'Rourke Explore, Worksop | 4 | Site admin / PA | | new | – | Find contact, send email 1 | 12 Nov |
+| C02 | ILIOS (STEP, West Burton) | 4 | Project office | | new | – | Find contact, send email 1 | 12 Nov |
+| C03 | Keepmoat, Lakeside | 4 | PA to CEO | | new | – | Send email 1 | 12 Nov |
+| C04 | DFS, Redhouse | 4 | PA to CEO/CFO | | new | – | Send email 1 | 13 Nov |
+| C05 | WITRON UK (Unity DC) | 4 | Project office | | new | – | Find UK office, send | 13 Nov |
+| C06 | Good Travel Management | 4 | Supplier relations | | new | – | Send email 1 | 18 Nov |
+| C07 | Traveleads | 4 | Supplier relations | | new | – | Send email 1 | 18 Nov |
+| C08 | Clarity / Agiito | 4 | Ground transport | | new | – | Find contact, send | 18 Nov |
+| C09 | UKIFS (STEP) | 3 | Procurement | | new | – | Coordinate with A16, send | wk of 23 Nov |
+| C10 | TJ Morris (Unity DC) | 3 | PA / HR | | new | – | Send after C05 (same project, different buyer) | wk of 23 Nov |
+| C11 | Sumo Digital | 3 | Studio ops | | new | – | Verify 2026 status | wk of 23 Nov |
+| C12 | Woodland Group, iPort | 3 | Site GM office | | new | – | Verify current units | wk of 23 Nov |
+| C13 | Harworth Group | 3 | PA to CEO | | new | – | Hold until the offer period ends | – |
+| C14 | SIG plc | 3 | PA / facilities | | new | – | Send email 1 | wk of 23 Nov |
+| C15 | Card Factory | 3 | PA / facilities | | new | – | Send email 1 | wk of 30 Nov |
+| C16 | CCEP Wakefield | 3 | Site admin | | new | – | Send email 1 | wk of 30 Nov |
+| C17 | Gray Dawes Group | 3 | Supplier relations | | new | – | Send email 1 | wk of 30 Nov |
+| C18–C25 | GB Eye, Lontra, IKEA Doncaster, GXO/ASOS, Dusk, Gist, Kitwave, Sky Betting & Gaming | 2 | Site / office | | new | – | Verify first, low priority | next round |
+
+### Excluded from Batch C (researched, deliberately not approached)
+| Company | Reason |
+|---|---|
+| ITM Power, Sherwin-Williams/Ronseal | Already in Batch A (MA01, MA19). |
+| Robinson plc, Chesterfield | Profit warning (Oct 2026 trading update) and cost review. Same rule as Henry Boot. |
+| DWP, West Bar Square | Central government: framework buying only. |
+| Doncaster Sheffield Airport | Not reopened; airspace decision expected May 2027. Revisit then. |
+| Perk (TravelPerk) | Self-booking platform; no ground-transport supply route found. |
+| Already in earlier batches | Fellowes, Unipart Rail, Genuit/Polypipe, Reed & Mackay/Navan, existing accounts. |
+
+## Batch D: operator partners and platforms (28 Oct 2026)
+
+Source file: `batch-D-partners.csv`. Track B. Rows marked `PORTAL APPLICATION` or `APPLICATION` hold
+paste-in application text, not a cold email, so they have no opt-out line. Before applying, get the
+insurance certificates and the licensing-authority wording confirmed. Small operators came from
+directories, so check each one's Ltd status on Companies House before emailing (PECR: no sole traders without consent).
+
+| ID | Company | Fit | Target role | Owner | Status | Last touch | Next action | Due |
+|---|---|---|---|---|---|---|---|---|
+| D01 | TBR Global Chauffeuring (Lyft) | 5 | Affiliate relations | | new | – | Send email 1 | 12 Nov |
+| D02 | First Travel Solutions | 5 | Supplier team | | new | – | Send email 1 (published inbox) | 12 Nov |
+| D03 | Little's Chauffeur Drive | 4 | Ops / BD | | new | – | Find contact, send | 13 Nov |
+| D04 | Parkers Chauffeurs | 4 | Ops / events | | new | – | Find contact, send | 13 Nov |
+| D05 | Passenger Plus | 4 | Ops / partners | | new | – | Verify base, send | 18 Nov |
+| D06 | Portman Chauffeurs | 4 | Ops director | | new | – | Find contact, send | 12 Nov |
+| D07 | Leicester Executive Chauffeurs | 4 | Owner | | new | – | Send email 1 | 18 Nov |
+| D08 | Transferz | 4 | Portal | | new | – | Apply via portal | 30 Oct |
+| D09 | Carey (Alliance Partner) | 4 | Affiliate dev | | new | – | Find UK contact, send | 18 Nov |
+| D10 | Kiwitaxi | 3 | Portal | | new | – | Apply via form | 30 Oct |
+| D11 | Transfeero | 3 | Portal | | new | – | Apply via page | 30 Oct |
+| D12 | HCD Chauffeur Drive | 3 | Ops / owner | | new | – | Send email 1 | wk of 23 Nov |
+| D13 | Driven Worldwide | 3 | Ops | | new | – | Verify still trading | wk of 23 Nov |
+| D14 | National Express Transport Solutions | 3 | Partner operators | | new | – | Find contact, send | wk of 23 Nov |
+| D15–D19 | ETC Chauffeurs, Skyway, VIP Chauffeurs (Bham), Opulence, Nottingham Chauffeurs | 3 | Owner / ops | | new | – | Companies House check, then send | wk of 23 Nov |
+| D20 | GroundSpan | 3 | Partnerships | | new | – | Send enquiry | wk of 23 Nov |
+| D21 | Booking.com Taxis | 3 | Partner team | | new | – | Confirm dispatch/API route first | – |
+| D22–D25 | SmartExecCars, Wearside Executive, minicabit, AirportShuttles.com | 2 | Owner / portal | | new | – | Low priority | next round |
+
+### Excluded from Batch D (researched, deliberately not approached)
+| Company | Reason |
+|---|---|
+| Tristar Worldwide | Same group as Addison Lee (B02). |
+| Hoppa | Hotelbeds group, same as Holiday Taxis (B09). |
+| EuroChauffeurs | Now part of TBR (D01). |
+| Mozio, Taxi2Airport, Welcome Pickups | No supplier sign-up route found; recheck next round. |
+| National Executive Transfers (Birmingham) | Couldn't pin a verifiable source. |
+
+### Batches C and D: send these 10 (Thu 12 – Fri 13 Nov, clear of the batch 1, A and B send days)
+C01 Laing O'Rourke, C02 ILIOS, C03 Keepmoat, D01 TBR, D02 First Travel Solutions, D06 Portman (Thu 12 Nov);
+C04 DFS, C05 WITRON UK, D03 Little's, D04 Parkers (Fri 13 Nov).
+Also: submit the D08 Transferz, D10 Kiwitaxi and D11 Transfeero portal applications on Fri 30 Oct.
+
+### Batches C and D: follow-ups due
+- **Mon 16 Nov:** day-4 follow-up to Thursday's six
+- **Tue 17 Nov:** day-4 follow-up to Friday's four
+- **Mon 23 Nov:** day-10 follow-up to all 10
+- **Wed 25 Nov:** LinkedIn connect notes (TBR's company page is in the CSV; verify the others)
+- **Thu 3 Dec:** close-the-loop email to anyone still silent
+- **Fri 6 Nov:** chase the portal applications if nobody has acknowledged them
