@@ -63,7 +63,9 @@
         <h2 style="font-size:17px;margin:0 0 8px">Journey</h2>
         <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
             {!! $row('Date &amp; time:', $booking->pickup_at?->format('d/m/Y H:i')) !!}
-            {!! $row('Time zone:', 'UTC+1 London') !!}
+            {{-- The real UK offset ON THE PICKUP DATE (was hard-coded UTC+1, wrong all winter). --}}
+            @php $ukAt = $booking->pickup_at?->clone()->setTimezone('Europe/London'); @endphp
+            {!! $row('Time zone:', $ukAt ? ($ukAt->dst ? 'UTC+1 London (BST)' : 'UTC+0 London (GMT)') : 'UK time') !!}
             {!! $row('Pickup:', $booking->pickup_address) !!}
             @foreach($booking->viaStops() as $stop){!! $row('Via:', $stop) !!}@endforeach
             {!! $row('Dropoff:', $booking->destination_address) !!}
@@ -85,10 +87,29 @@
             {!! $row('Flight:', $booking->displayFlightNumber()) !!}
             @php $landing = $booking->meta['flight_landing_at'] ?? null; @endphp
             @if($landing){!! $row('Flight lands:', \Illuminate\Support\Carbon::parse($landing)->format('d/m/Y H:i')) !!}@endif
-            @if(!empty($booking->meta['meet_greet'])){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
+            @if(!empty($booking->meta['meet_greet']) && ! ($booking->is_return_leg && ! \App\Support\AirportMatcher::isAirport($booking->pickup_address))){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
             @if(trim((string) ($booking->special_requests ?? '')) !== ''){!! $row('Notes:', trim((string) $booking->special_requests)) !!}@endif
         </table>
     </td></tr>
+
+    {{-- The other journey(s) on this trip (e.g. the return), so one email shows the lot. --}}
+    @foreach(($trip['others'] ?? []) as $leg)
+        <tr><td style="padding:18px 26px 0">
+            <h2 style="font-size:17px;margin:0 0 8px">{{ $leg->is_return_leg ? 'Return journey' : 'Outbound journey' }}</h2>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
+                @php $legUk = $leg->pickup_at?->clone()->setTimezone('Europe/London'); @endphp
+                {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i')) !!}
+                {!! $row('Time zone:', $legUk ? ($legUk->dst ? 'UTC+1 London (BST)' : 'UTC+0 London (GMT)') : 'UK time') !!}
+                {!! $row('Pickup:', $leg->pickup_address) !!}
+                @foreach($leg->viaStops() as $stop){!! $row('Via:', $stop) !!}@endforeach
+                {!! $row('Dropoff:', $leg->destination_address) !!}
+                {!! $row('Vehicle type:', $leg->vehicleType?->name) !!}
+                {!! $row('Flight:', $leg->displayFlightNumber()) !!}
+                @if(!empty($leg->meta['meet_greet']) && \App\Support\AirportMatcher::isAirport($leg->pickup_address)){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
+                {!! $row('Reference:', $leg->external_reference ?: $leg->reference) !!}
+            </table>
+        </td></tr>
+    @endforeach
 
     {{-- Customer --}}
     <tr><td style="padding:18px 26px 0">
@@ -122,13 +143,32 @@
             @else
                 <p style="margin:0 0 10px;font-size:15px;color:#b9770a;font-weight:700">Awaiting payment — booking on hold</p>
             @endif
-            @include('emails._payments')
-            @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
-                <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($vat['vat'], 2) }} (net £{{ number_format($vat['net'], 2) }}).</p>
+            @if(! empty($trip))
+                {{-- Whole-trip money: each journey, the total, paid and what's left. --}}
+                <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;width:100%;max-width:380px">
+                    @foreach($trip['lines'] as $line)
+                        <tr><td style="padding:4px 14px 4px 0;color:#666">{{ $line['label'] }}</td><td style="padding:4px 0;color:#111;text-align:right">£{{ number_format($line['amount'], 2) }}</td></tr>
+                    @endforeach
+                    <tr><td style="padding:6px 14px 4px 0;color:#111;font-weight:700;border-top:1px solid #eee">Total (whole trip):</td><td style="padding:6px 0 4px;color:#111;font-weight:700;text-align:right;border-top:1px solid #eee">£{{ number_format($trip['total'], 2) }}</td></tr>
+                    <tr><td style="padding:4px 14px 4px 0;color:#666">Paid:</td><td style="padding:4px 0;color:#1f7a44;font-weight:700;text-align:right">£{{ number_format($trip['paid'], 2) }}</td></tr>
+                    <tr><td style="padding:4px 14px 4px 0;color:#666">{{ $trip['due'] > 0.001 ? 'Remaining:' : 'Balance:' }}</td>
+                        <td style="padding:4px 0;font-weight:700;text-align:right;color:{{ $trip['due'] > 0.001 ? '#b9770a' : '#1f7a44' }}">{{ $trip['due'] > 0.001 ? '£'.number_format($trip['due'], 2) : 'Paid in full' }}</td></tr>
+                </table>
+                @if($trip['vat'])
+                    <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($trip['vat']['vat'], 2) }} (net £{{ number_format($trip['vat']['net'], 2) }}).</p>
+                @endif
+            @else
+                @include('emails._payments')
+                @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
+                    <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($vat['vat'], 2) }} (net £{{ number_format($vat['net'], 2) }}).</p>
+                @endif
             @endif
             @if(! $paid && ! $isCash && ! $isAccount && $payUrl)
-                <p style="margin:12px 0 0"><a href="{{ $payUrl }}" style="display:inline-block;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment &rarr;</a></p>
-                @if($tripPayTotal ?? null)
+                <p style="margin:12px 0 0"><a href="{{ $payUrl }}" style="display:inline-block;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment{{ ! empty($trip) && $trip['due'] > 0.001 ? ' — £'.number_format($trip['due'], 2) : '' }} &rarr;</a></p>
+                @if(! empty($trip))
+                    <p style="margin:7px 0 0;font-size:12.5px;color:#666">One payment covers every journey on this trip.</p>
+                @endif
+                @if(($tripPayTotal ?? null) && empty($trip))
                     <p style="margin:7px 0 0;font-size:12.5px;color:#666">This secures your <strong>whole return trip</strong> — the payment covers both the outbound and the return (£{{ number_format($tripPayTotal, 2) }} total). You only pay once.</p>
                 @endif
             @endif

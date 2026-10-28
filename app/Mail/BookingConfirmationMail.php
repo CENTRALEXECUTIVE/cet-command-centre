@@ -66,7 +66,35 @@ class BookingConfirmationMail extends Mailable
             $tripPayTotal = $outstanding > $own + 0.01 ? $outstanding : null;
         }
 
+        // A return / multi-leg trip: show EVERY journey and the TRIP money (each
+        // leg, total, paid, remaining, VAT) in this one email — not just this leg's
+        // fare beside a pay button that charges the whole trip.
+        $trip = null;
+        if ($group->count() > 1) {
+            $legs = $group->sortBy(fn ($b) => $b->pickup_at?->timestamp ?? 0)->values();
+            $vatNet = 0.0;
+            $vatAmt = 0.0;
+            foreach ($legs as $leg) {
+                if ($leg->vatInvoiceRequested() && ($v = $leg->fareVatBreakdown())) {
+                    $vatNet += (float) $v['net'];
+                    $vatAmt += (float) $v['vat'];
+                }
+            }
+            $trip = [
+                'others' => $legs->reject(fn ($b) => $b->is($this->booking))->values(),
+                'lines' => $legs->map(fn ($b) => [
+                    'label' => ($b->is_return_leg ? 'Return' : 'Outbound').' — '.($b->pickup_at?->format('D d M, H:i') ?? ''),
+                    'amount' => (float) ($b->amountPayable() ?? 0),
+                ])->all(),
+                'total' => round($legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2),
+                'paid' => round($legs->sum(fn ($b) => (float) $b->transactionsPaidTotal()), 2),
+                'due' => round($legs->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? 0)), 2),
+                'vat' => $vatAmt > 0 ? ['vat' => round($vatAmt, 2), 'net' => round($vatNet, 2)] : null,
+            ];
+        }
+
         return new Content(view: 'emails.booking-confirmation', with: [
+            'trip' => $trip,
             'booking' => $this->booking,
             'paid' => $this->paid,
             'payUrl' => $this->payUrl,
