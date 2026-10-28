@@ -38,6 +38,10 @@ class EnquiryInboxService
                 $stats['skipped']++;
                 continue; // already captured
             }
+            if (\App\Support\InboxSeen::has('enquiry', $message['id'])) {
+                $stats['skipped']++;
+                continue; // the AI already said "not an enquiry" on an earlier scan
+            }
             if ($this->looksLikeEtoBooking($message)) {
                 $stats['skipped']++;
                 continue; // handled by the booking pipeline
@@ -45,6 +49,10 @@ class EnquiryInboxService
 
             $extracted = $this->extract($message['subject'] ?? '', $message['body'] ?? '');
             if (! $extracted || empty($extracted['is_enquiry'])) {
+                if (is_array($extracted)) {
+                    // A clear "not an enquiry" (not an AI error): never ask again.
+                    \App\Support\InboxSeen::remember('enquiry', $message['id']);
+                }
                 $stats['skipped']++;
                 continue; // not a transfer enquiry
             }

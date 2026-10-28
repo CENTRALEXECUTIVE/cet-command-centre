@@ -4,18 +4,20 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\MissedCall;
-use App\Services\Messaging\WhatsAppService;
+use App\Models\WatchdogEvent;
+use App\Support\Phone;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * Missed-call handling: every missed call to the CET line is logged and gets an
- * instant automated WhatsApp response, so no potential booking is ever lost.
+ * Missed-call handling: every missed call to the CET line is logged and the
+ * office is alerted at once with a ready-written WhatsApp reply to tap — so no
+ * potential booking is lost. Nothing is sent to the caller automatically
+ * (CLAUDE.md rule 2: customer messages are manual, via wa.me links). This used
+ * to auto-send a WhatsApp through Twilio whenever Twilio WhatsApp was set up.
  */
 class MissedCallService
 {
-    public function __construct(private readonly WhatsAppService $whatsApp) {}
-
     public function handle(string $fromNumber, ?Carbon $receivedAt = null): MissedCall
     {
         $customer = Customer::where('phone', $fromNumber)->first();
@@ -27,14 +29,19 @@ class MissedCallService
         ]);
 
         $name = $customer ? ' '.Str::before($customer->name, ' ') : '';
-        $body = "Hi{$name}, sorry we missed your call to Central Executive Transfers. "
-            .'Reply to this message with your pickup, destination and time and we’ll sort your booking right away.';
+        $draft = "Hi{$name}, sorry we missed your call to Central Executive Transfers. "
+            .'Reply here with your pickup, destination and time and we’ll sort your booking right away.';
+        $wa = Phone::wa($fromNumber);
 
-        $message = $this->whatsApp->send($fromNumber, $body, ['type' => 'custom', 'customer' => $customer]);
-
-        if ($message->status === 'sent') {
-            $call->update(['auto_response_sent' => true, 'auto_response_sent_at' => now()]);
-        }
+        WatchdogEvent::log(
+            'missed_call',
+            '📞 Missed call from '.($customer?->name ? $customer->name.' ('.$fromNumber.')' : $fromNumber).' — call back within 5 minutes.',
+            'warning',
+            null,
+            body: $wa
+                ? "Call back, or tap to WhatsApp them: https://wa.me/{$wa}?text=".rawurlencode($draft)
+                : 'Call back as soon as possible.',
+        );
 
         return $call;
     }

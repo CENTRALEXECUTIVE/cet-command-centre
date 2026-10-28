@@ -71,7 +71,7 @@ class WebhookController extends Controller
 
         return response()->json([
             'handled' => true,
-            'auto_response_sent' => $call->auto_response_sent,
+            'auto_response_sent' => (bool) $call->auto_response_sent, // always false now — the office replies by hand
         ]);
     }
 

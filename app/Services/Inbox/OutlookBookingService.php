@@ -31,6 +31,9 @@ use Illuminate\Support\Facades\DB;
  */
 class OutlookBookingService
 {
+    /** Set by parse(): the AI clearly answered "not a booking" for the last email. */
+    private bool $aiSaidNotBooking = false;
+
     public function __construct(
         private readonly GraphMailClient $mail,
         private readonly AnthropicService $ai,
@@ -60,8 +63,19 @@ class OutlookBookingService
             $stats['processed']++;
             // One unreadable email must NEVER abort the scan — otherwise every
             // email after it (including brand-new bookings) is silently lost.
+            // Already judged "not a booking" by the AI on an earlier scan — don't
+            // pay to ask again every 2 minutes.
+            if (\App\Support\InboxSeen::has('booking', $message['id'] ?? null)) {
+                $stats['skipped']++;
+
+                continue;
+            }
             try {
+                $this->aiSaidNotBooking = false;
                 $parsed = $this->parse($message['subject'] ?? '', $message['body'] ?? '', $message['from'] ?? null);
+                if (! $parsed && $this->aiSaidNotBooking) {
+                    \App\Support\InboxSeen::remember('booking', $message['id'] ?? null);
+                }
             } catch (\Throwable $e) {
                 $stats['skipped']++;
                 \Illuminate\Support\Facades\Log::warning('ETO ingest could not parse one email — skipped', [
@@ -161,6 +175,10 @@ class OutlookBookingService
         $data = $this->ai->completeJson("From: {$from}\nSubject: {$subject}\n\n{$body}", $system, ['max_tokens' => 800]);
 
         if (! $data || empty($data['is_booking'])) {
+            // A clear "not a booking" answer (not an AI error) — remembered so
+            // the scan never asks about this email again.
+            $this->aiSaidNotBooking = is_array($data);
+
             return null;
         }
 
