@@ -728,9 +728,26 @@ class BookingWidgetController extends Controller
         // Charge it on an UNPAID leg (the clicked one if it's unpaid, else the first),
         // so the provider reference points at a leg that still owes.
         $target = $unpaid->first(fn (Booking $b) => $b->is($booking)) ?? $unpaid->first();
+
+        // Reuse the checkout made on an earlier click for the SAME amount and
+        // company (within a day) instead of minting a new one each time — two open
+        // links for one fare is how a customer ends up paying twice.
+        $prior = $target->meta['pay_link'] ?? null;
+        if ($amount > 0 && is_array($prior) && filled($prior['url'] ?? null)
+            && abs((float) ($prior['amount'] ?? 0) - $amount) < 0.005
+            && ($prior['entity'] ?? null) === $target->billingEntity()
+            && isset($prior['at']) && \Illuminate\Support\Carbon::parse($prior['at'])->gt(now()->subHours(23))) {
+            return redirect()->away($prior['url']);
+        }
+
         $url = $amount > 0
             ? $this->payments->createCheckoutUrl($target, $amount, route('widget.paid'))
             : null;
+        if ($url) {
+            $target->forceFill(['meta' => array_merge($target->meta ?? [], [
+                'pay_link' => ['url' => $url, 'amount' => $amount, 'entity' => $target->billingEntity(), 'at' => now()->toIso8601String()],
+            ])])->save();
+        }
 
         if (! $url) {
             return redirect()->route('widget.paid', ['unavailable' => 1]);

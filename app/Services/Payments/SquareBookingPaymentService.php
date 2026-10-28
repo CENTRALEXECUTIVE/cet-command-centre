@@ -63,6 +63,18 @@ class SquareBookingPaymentService
             : $main;
     }
 
+    /**
+     * Does the sister company (PVT LTD) have its OWN Square account? When it
+     * doesn't, 'chauffeurs' quietly resolves to the main Ltd account.
+     */
+    public function sisterConfigured(): bool
+    {
+        $setting = fn (string $key, string $configKey) => \App\Models\Setting::get($key) ?: config($configKey);
+
+        return filled($setting('square_chauffeurs_access_token', 'services.square_chauffeurs.access_token'))
+            && filled($setting('square_chauffeurs_location_id', 'services.square_chauffeurs.location_id'));
+    }
+
     public function enabled(string $entity = 'transfers'): bool
     {
         $a = $this->account($entity);

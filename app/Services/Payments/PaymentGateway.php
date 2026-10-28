@@ -49,6 +49,19 @@ class PaymentGateway
             return $this->stripe->createCheckoutUrl($booking, $amount, $redirectUrl, $label);
         }
 
+        // A PVT LTD (non-VAT) booking with no Stripe and no sister Square account
+        // would be paid into the VAT company's Square while its invoice and email
+        // say PVT LTD. Still take the payment (never lose the booking) but say so.
+        if ($entity === 'chauffeurs' && ! $this->square->sisterConfigured()) {
+            \Illuminate\Support\Facades\Log::warning('[payments] PVT booking '.$booking->reference.' charged via the Ltd Square account — Stripe is not configured');
+            \App\Models\WatchdogEvent::log(
+                'payment_entity_fallback',
+                '⚠ Non-VAT booking '.($booking->external_reference ?: $booking->reference).' is being paid into the Ltd (VAT) Square account — Stripe isn’t set up. Check Settings → payments.',
+                'warning',
+                $booking,
+            );
+        }
+
         return $this->square->enabled($entity)
             ? $this->square->createCheckoutUrl($booking, $amount, $redirectUrl, $label)
             : null;

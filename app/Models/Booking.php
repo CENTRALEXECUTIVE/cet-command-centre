@@ -6009,6 +6009,22 @@ class Booking extends Model
             $this->forceFill(['payment_status' => 'paid'])->save();
         }
 
+        // More taken online than the whole trip is worth → very likely a double
+        // payment (two links paid). Flag it so the office can refund the extra.
+        $group = $this->invoiceGroupBookings();
+        $tripTotal = round(($group->isNotEmpty() ? $group : collect([$this]))
+            ->sum(fn (Booking $b) => (float) ($b->amountPayable() ?? 0)), 2);
+        if ($tripTotal > 0 && $this->onlinePaidTotal() > $tripTotal + 0.5) {
+            \Illuminate\Support\Facades\Log::warning('[payments] possible double payment on '.$this->reference, ['paid' => $this->onlinePaidTotal(), 'due' => $tripTotal]);
+            WatchdogEvent::log(
+                'possible_double_payment',
+                '💷 Possible double payment — '.($this->external_reference ?: $this->reference).': £'.number_format($this->onlinePaidTotal(), 2)
+                    .' taken online for a £'.number_format($tripTotal, 2).' trip. Check Stripe/Square and refund the extra.',
+                'warning',
+                $this,
+            );
+        }
+
         return true;
     }
 

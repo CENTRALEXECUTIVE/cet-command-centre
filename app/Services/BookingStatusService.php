@@ -160,7 +160,14 @@ class BookingStatusService
      */
     public function emailPaidConfirmation(Booking $booking): void
     {
-        if (! empty($booking->meta['paid_email_sent'])) {
+        // Once per PAYMENT, not once per booking: a balance paid after a re-price
+        // (£55 then £45) is a new payment and gets its own receipt.
+        if (! $this->paidEmailDue($booking, 'paid_email_sent', 'paid_email_for')) {
+            return;
+        }
+        // Only a booking that's now fully paid gets the PAID confirmation — a part
+        // payment (deposit link) must not tell the customer they're all settled.
+        if (($booking->transactionsAmountDue() ?? 0) > 0.009) {
             return;
         }
         // Never auto-email an IMPORTED customer (ETO / calendar migration data) — the
@@ -181,12 +188,54 @@ class BookingStatusService
         try {
             \Illuminate\Support\Facades\Mail::to($booking->customer->email)
                 ->send(new \App\Mail\BookingConfirmationMail($booking, paid: true));
-            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], array_filter([
                 'paid_email_sent' => now()->toIso8601String(),
-            ])])->save();
+                'paid_email_for' => $booking->meta['square_payment']['id'] ?? null,
+            ]))])->save();
         } catch (\Throwable $e) {
             \App\Support\MailFailure::report('paid booking confirmation', $e, $booking);
         }
+    }
+
+    /**
+     * Has this booking's CURRENT online payment not had this email yet? A flag
+     * with no payment id (sent before per-payment tracking, or a hand "Mark
+     * paid") counts as sent for the first recorded payment.
+     */
+    private function paidEmailDue(Booking $booking, string $sentFlag, string $forFlag): bool
+    {
+        $meta = $booking->meta ?? [];
+        if (empty($meta[$sentFlag])) {
+            return true;
+        }
+        $current = $meta['square_payment']['id'] ?? null;
+        if ($current === null) {
+            return false;
+        }
+        $sentFor = $meta[$forFlag] ?? ($meta['square_payment']['history'][0]['id'] ?? $current);
+
+        return $sentFor !== $current;
+    }
+
+    /**
+     * Should the reconcile sweep re-run the paid flow for this booking? True when
+     * its latest online payment is recorded but the office or (an emailable)
+     * customer still hasn't had the paid email for it — e.g. the send failed.
+     */
+    public function paidEmailsOutstanding(Booking $booking): bool
+    {
+        if (blank($booking->meta['square_payment'] ?? null)) {
+            return false;
+        }
+        if (filled(config('cet.ops_email')) && $this->paidEmailDue($booking, 'office_email_paid_sent', 'office_email_paid_for')) {
+            return true;
+        }
+        $reason = '';
+
+        return ! in_array($booking->source_system, ['eto', 'calendar'], true)
+            && $booking->customerEmailAllowed($reason)
+            && ($booking->transactionsAmountDue() ?? 0) <= 0.009
+            && $this->paidEmailDue($booking, 'paid_email_sent', 'paid_email_for');
     }
 
     /**
@@ -199,18 +248,29 @@ class BookingStatusService
     {
         $ops = config('cet.ops_email');
         $flag = 'office_email_'.$stage.'_sent';
-        if (blank($ops) || ! empty($booking->meta[$flag])) {
+        if (blank($ops)) {
+            return;
+        }
+        // "Payment received" goes once per PAYMENT (a balance after a re-price is a
+        // new payment); the other stages once per booking.
+        $due = $stage === 'paid'
+            ? $this->paidEmailDue($booking, $flag, 'office_email_paid_for')
+            : empty($booking->meta[$flag]);
+        if (! $due) {
             return;
         }
 
         try {
             \Illuminate\Support\Facades\Mail::to($ops)
                 ->send(new \App\Mail\OfficeBookingMail($booking->fresh(), $stage));
-            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], array_filter([
                 $flag => now()->toIso8601String(),
-            ])])->save();
+                'office_email_paid_for' => $stage === 'paid' ? ($booking->meta['square_payment']['id'] ?? null) : null,
+            ]))])->save();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[office] booking email ('.$stage.') failed: '.$e->getMessage());
+            // Was a log line only — now it also lands on the dashboard alerts and
+            // the booking's email history, so a missed office email is seen.
+            \App\Support\MailFailure::report('office booking email ('.$stage.')', $e, $booking, $ops);
         }
     }
 
