@@ -210,4 +210,62 @@ class ReturnTripChangesTest extends TestCase
         $this->assertEmpty($ret->meta['square_payment'] ?? null);
         $this->assertNotEmpty($ret->meta['meet_greet'] ?? null); // return collects from the airport
     }
+
+    private function payTrip(): void
+    {
+        $this->out->fresh()->markFarePaid('pi_trip', 318, 'transfers');
+        app(BookingStatusService::class)->onFarePaid($this->out->fresh());
+        Mail::fake();
+    }
+
+    public function test_cancelling_only_the_paid_return_refunds_just_the_return(): void
+    {
+        $this->payTrip();
+        $this->actingAs($this->admin())->post(route('bookings.cancel', $this->ret), ['cancellation_reason' => 'Return not needed']);
+        $this->actingAs($this->admin())->post(route('bookings.cancellation-email.send', $this->ret))->assertSessionHas('status');
+
+        Mail::assertSent(\App\Mail\BookingCancellationMail::class, 1);
+        $html = Mail::sent(\App\Mail\BookingCancellationMail::class)->first()->render();
+        $this->assertStringContainsString('Refund of £180.00', $html);          // the return incl. VAT — not £318
+        $this->assertStringNotContainsString('£318', $html);
+        $this->assertStringContainsString('Still booked', $html);               // the outbound stands
+        $this->assertStringContainsString($this->out->reference, $html);
+    }
+
+    public function test_cancelling_the_whole_trip_cancels_both_and_sends_one_email(): void
+    {
+        $this->payTrip();
+        $this->actingAs($this->admin())->post(route('bookings.cancel', $this->out), ['cancellation_reason' => 'Trip off', 'cancel_trip' => '1']);
+
+        $this->assertSame('cancelled', $this->out->fresh()->status->value);
+        $this->assertSame('cancelled', $this->ret->fresh()->status->value);
+
+        $this->actingAs($this->admin())->post(route('bookings.cancellation-email.send', $this->out));
+        $this->assertNotEmpty($this->ret->fresh()->meta['cancellation_email_sent'] ?? null); // covered by the one email
+
+        $mail = Mail::sent(\App\Mail\BookingCancellationMail::class)->first();
+        $html = $mail->render();
+        $this->assertSame(1, Mail::sent(\App\Mail\BookingCancellationMail::class)->count());
+        $this->assertStringContainsString('Refund of £318.00', $html);
+        $this->assertStringContainsString('Cancelled return journey', $html);
+        $this->assertStringContainsString($this->out->reference.' / '.$this->ret->reference, $mail->envelope()->subject);
+    }
+
+    public function test_a_kept_cancellation_fee_is_taken_off_the_refund(): void
+    {
+        $this->payTrip();
+        $this->actingAs($this->admin())->post(route('bookings.cancel', $this->ret), ['cancellation_reason' => 'Late cancel']);
+        $r = $this->ret->fresh();
+        $r->forceFill(['meta' => array_merge($r->meta, ['cancellation' => ['fee' => 50, 'original_fare' => 150]])])->save();
+
+        $html = (new \App\Mail\BookingCancellationMail($r->fresh()))->render();
+        $this->assertStringContainsString('Refund of £130.00', $html); // £180 paid − £50 kept
+    }
+
+    public function test_the_cancel_form_offers_to_cancel_the_whole_trip(): void
+    {
+        $this->actingAs($this->admin())->get(route('bookings.show', $this->out))->assertOk()
+            ->assertSee('name="cancel_trip"', false)
+            ->assertSee('Also cancel the return '.$this->ret->reference, false);
+    }
 }

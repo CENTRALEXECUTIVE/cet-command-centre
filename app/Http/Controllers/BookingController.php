@@ -687,27 +687,38 @@ class BookingController extends Controller
             'cancellation_reason' => ['required', 'string', 'max:500'],
         ]);
 
-        try {
-            $this->status->transition(
-                $booking,
-                BookingStatus::Cancelled,
-                $request->user(),
-                note: 'Cancelled: '.$data['cancellation_reason'],
-            );
-        } catch (\InvalidArgumentException $e) {
-            throw ValidationException::withMessages(['cancellation_reason' => $e->getMessage()]);
+        // "Cancel the whole trip": every live leg of the return goes together.
+        $legs = $request->boolean('cancel_trip')
+            ? $booking->tripBookings()->reject(fn ($b) => ! $b->is($booking) && $b->status->isTerminal())
+                ->push($booking)->unique('id')->values()
+            : collect([$booking]);
+
+        foreach ($legs as $leg) {
+            try {
+                $this->status->transition(
+                    $leg,
+                    BookingStatus::Cancelled,
+                    $request->user(),
+                    note: 'Cancelled: '.$data['cancellation_reason'],
+                );
+            } catch (\InvalidArgumentException $e) {
+                throw ValidationException::withMessages(['cancellation_reason' => $e->getMessage()]);
+            }
+
+            $leg = $leg->fresh();
+            $leg->forceFill([
+                'meta' => array_merge($leg->meta ?? [], [
+                    'cancellation_reason' => $data['cancellation_reason'],
+                    'cancelled_at' => now()->toDateTimeString(),
+                ]),
+            ])->save();
         }
 
-        $booking->forceFill([
-            'meta' => array_merge($booking->meta ?? [], [
-                'cancellation_reason' => $data['cancellation_reason'],
-                'cancelled_at' => now()->toDateTimeString(),
-            ]),
-        ])->save();
+        $refs = $legs->map(fn ($b) => $b->reference)->implode(' and ');
 
         return redirect()
             ->route('bookings.show', $booking)
-            ->with('status', "Booking {$booking->reference} cancelled. Remember to remove it from Google Calendar if it was pushed there.");
+            ->with('status', "Booking {$refs} cancelled. Remember to remove it from Google Calendar if it was pushed there.");
     }
 
     /**
@@ -868,17 +879,25 @@ class BookingController extends Controller
             return back()->with('error', 'No customer email on file — can’t send the cancellation email.');
         }
 
+        $mail = new \App\Mail\BookingCancellationMail($booking);
+        $covered = $mail->legs()['cancelled'];
         try {
-            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\BookingCancellationMail($booking));
+            \Illuminate\Support\Facades\Mail::to($email)->send($mail);
         } catch (\Throwable $e) {
             \App\Support\MailFailure::report('cancellation email', $e, $booking);
 
             return back()->with('error', 'Could not send the cancellation email — please try again.');
         }
 
-        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
-            'cancellation_email_sent' => now()->toIso8601String(),
-        ])])->save();
+        // One email covers every cancelled leg of the trip — mark each, so the
+        // other leg's page doesn't offer to send a second one.
+        $sentAt = now()->toIso8601String();
+        foreach ($covered as $leg) {
+            $leg = $leg->fresh();
+            $leg->forceFill(['meta' => array_merge($leg->meta ?? [], [
+                'cancellation_email_sent' => $sentAt,
+            ])])->save();
+        }
 
         return back()->with('status', 'Cancellation email sent to '.$email.'.');
     }

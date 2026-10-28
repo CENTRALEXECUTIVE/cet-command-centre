@@ -1,5 +1,7 @@
 @php
-    $ref = $booking->external_reference ?: $booking->reference;
+    $cancelledLegs = $cancelledLegs ?? collect([$booking]);
+    $stillBooked = $stillBooked ?? collect();
+    $ref = $cancelledLegs->map(fn ($b) => $b->external_reference ?: $b->reference)->implode(' / ');
     $row = fn ($k, $v) => $v !== null && $v !== ''
         ? '<tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top;white-space:nowrap">'.$k.'</td><td style="padding:4px 0;color:#111">'.e($v).'</td></tr>'
         : '';
@@ -22,7 +24,7 @@
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdecec;border:1px solid #f1b7b7;border-radius:10px">
             <tr><td style="padding:16px 18px">
                 <div style="font-size:17px;font-weight:800;color:#8f1f1f;margin-bottom:4px">Your booking has been cancelled</div>
-                <div style="font-size:14px;color:#7a2a2a">Booking <strong>{{ $ref }}</strong> has been cancelled.</div>
+                <div style="font-size:14px;color:#7a2a2a">Booking <strong>{{ $ref }}</strong> has been cancelled.@if($stillBooked->isNotEmpty()) Your other journey on this trip is <strong>still booked</strong>.@endif</div>
             </td></tr>
         </table>
     </td></tr>
@@ -30,20 +32,35 @@
     {{-- Greeting --}}
     <tr><td style="padding:18px 26px 0">
         <p style="margin:0;font-size:15px">Dear {{ $booking->displayName() ?: ($booking->customer?->name ?: 'Customer') }},</p>
-        <p style="margin:10px 0 0;font-size:15px">Thank you for letting us know. This email confirms that your booking below has been cancelled.</p>
+        <p style="margin:10px 0 0;font-size:15px">Thank you for letting us know. This email confirms that {{ $cancelledLegs->count() > 1 ? 'the journeys below have' : 'the journey below has' }} been cancelled.</p>
     </td></tr>
 
-    {{-- Journey --}}
-    <tr><td style="padding:14px 26px 0">
-        <h2 style="font-size:16px;margin:0 0 8px">Cancelled journey</h2>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-            {!! $row('Reference:', $ref) !!}
-            {!! $row('Date &amp; time:', $booking->pickup_at?->format('d/m/Y H:i')) !!}
-            {!! $row('Pickup:', $booking->pickup_address) !!}
-            {!! $row('Dropoff:', $booking->destination_address) !!}
-            {!! $row('Vehicle:', $booking->vehicleType?->name) !!}
-        </table>
-    </td></tr>
+    {{-- Cancelled journey(s) --}}
+    @foreach($cancelledLegs as $leg)
+        <tr><td style="padding:14px 26px 0">
+            <h2 style="font-size:16px;margin:0 0 8px">Cancelled {{ $leg->is_return_leg ? 'return journey' : 'journey' }}</h2>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
+                {!! $row('Reference:', $leg->external_reference ?: $leg->reference) !!}
+                {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i')) !!}
+                {!! $row('Pickup:', $leg->pickup_address) !!}
+                {!! $row('Dropoff:', $leg->destination_address) !!}
+                {!! $row('Vehicle:', $leg->vehicleType?->name) !!}
+            </table>
+        </td></tr>
+    @endforeach
+
+    {{-- What's still going ahead on the same trip --}}
+    @foreach($stillBooked as $leg)
+        <tr><td style="padding:14px 26px 0">
+            <h2 style="font-size:16px;margin:0 0 8px;color:#1f7a44">&#10003; Still booked — {{ $leg->is_return_leg ? 'return journey' : 'outbound journey' }}</h2>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
+                {!! $row('Reference:', $leg->external_reference ?: $leg->reference) !!}
+                {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i')) !!}
+                {!! $row('Pickup:', $leg->pickup_address) !!}
+                {!! $row('Dropoff:', $leg->destination_address) !!}
+            </table>
+        </td></tr>
+    @endforeach
 
     {{-- Refund --}}
     <tr><td style="padding:18px 26px 0">
@@ -55,7 +72,7 @@
                 </td></tr>
             </table>
         @else
-            <p style="margin:0;font-size:14px;color:#444">No payment had been taken for this booking, so there is nothing to refund.</p>
+            <p style="margin:0;font-size:14px;color:#444">No payment had been taken for {{ $cancelledLegs->count() > 1 ? 'these journeys' : 'this booking' }}, so there is nothing to refund{{ $stillBooked->isNotEmpty() ? ' — your other journey stays as booked' : '' }}.</p>
         @endif
     </td></tr>
 

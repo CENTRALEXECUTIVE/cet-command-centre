@@ -805,6 +805,13 @@
                     <label for="cancellation_reason" style="font-weight:600">Reason for cancellation <span class="req">*</span></label>
                     <input id="cancellation_reason" name="cancellation_reason" required placeholder="e.g. Customer cancelled — no charge" style="margin:6px 0 10px">
                     <p class="hint" style="margin:0 0 10px">Cancelling calls the job off for good. If it's just moving to another day, use <strong>Postpone</strong> instead so the payment is held.</p>
+                    @php $otherLive = $booking->tripBookings()->reject(fn ($b) => $b->is($booking) || $b->status->isTerminal()); @endphp
+                    @if($otherLive->isNotEmpty())
+                        <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-size:14px">
+                            <input type="checkbox" name="cancel_trip" value="1">
+                            Also cancel {{ $otherLive->map(fn ($b) => ($b->is_return_leg ? 'the return ' : 'the outbound ').$b->reference)->implode(', ') }} (whole trip)
+                        </label>
+                    @endif
                     <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Confirm cancellation</button>
                     <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('cancel-box').style.display='none'">Keep booking</button>
                     <p class="hint" style="margin:8px 0 0">The calendar event isn't removed automatically — take it off Google Calendar yourself if it was pushed there.</p>
