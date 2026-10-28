@@ -666,8 +666,13 @@
             var outDest = document.getElementById('destination_address');
             var outDestPc = document.getElementById('destination_postcode');
             var returnEdited = false;
+            // A Google/postcode pick arrives as 'change' (not 'input') — count it as
+            // the office's own entry too, so it's never overwritten afterwards.
             [retPickup, retPickupPc, retDest, retDestPc].forEach(function (el) {
-                if (el) el.addEventListener('input', function () { returnEdited = true; });
+                if (el) {
+                    el.addEventListener('input', function () { returnEdited = true; });
+                    el.addEventListener('change', function () { returnEdited = true; });
+                }
             });
             function prefillReturnFromOutbound() {
                 if (returnEdited) return; // never overwrite the office's own entry
@@ -676,9 +681,14 @@
                 if (retDest && outPickup) retDest.value = outPickup.value;
                 if (retDestPc && outPickupPc) retDestPc.value = outPickupPc.value;
             }
+            // Sync on 'change' as well as typing: picking a Google suggestion fires
+            // 'change', so the return now gets the FULL picked address, not the
+            // half-typed text from the last keystroke.
             [outPickup, outPickupPc, outDest, outDestPc].forEach(function (el) {
-                if (el) el.addEventListener('input', function () {
-                    if (journey && journey.value === 'return') prefillReturnFromOutbound();
+                if (el) ['input', 'change'].forEach(function (evt) {
+                    el.addEventListener(evt, function () {
+                        if (journey && journey.value === 'return') prefillReturnFromOutbound();
+                    });
                 });
             });
 

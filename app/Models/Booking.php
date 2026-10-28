@@ -5969,6 +5969,52 @@ class Booking extends Model
         return null;
     }
 
+    /**
+     * Fold hand "Mark paid" placeholders (MANUAL-…) into the real provider
+     * payments that later confirm them. Walks the history in order: each real
+     * payment absorbs earlier manual entries up to its own amount, and any
+     * "email sent for" markers pointing at an absorbed entry move to the real
+     * payment. Returns the cleaned history; updates $meta's email markers.
+     *
+     * @param  array<int, array<string, mixed>>  $history
+     * @param  array<string, mixed>  $meta
+     * @return array<int, array<string, mixed>>
+     */
+    public static function absorbManualPayments(array $history, array &$meta): array
+    {
+        $isManual = fn ($h) => str_starts_with((string) ($h['id'] ?? ''), 'MANUAL-');
+        $firstId = (string) ($history[0]['id'] ?? '');
+        $kept = [];
+        $pending = []; // manual entries not yet confirmed
+        foreach ($history as $h) {
+            if ($isManual($h)) {
+                $pending[] = $h;
+
+                continue;
+            }
+            $budget = (float) ($h['amount'] ?? 0) + 0.01;
+            $absorbed = [];
+            while ($pending && (float) ($pending[0]['amount'] ?? 0) <= $budget) {
+                $m = array_shift($pending);
+                $budget -= (float) ($m['amount'] ?? 0);
+                $absorbed[] = (string) ($m['id'] ?? '');
+            }
+            if ($absorbed) {
+                foreach (['paid_email_sent' => 'paid_email_for', 'office_email_paid_sent' => 'office_email_paid_for'] as $sent => $for) {
+                    // No marker = sent for the first recorded payment (see BookingStatusService).
+                    $sentFor = (string) ($meta[$for] ?? $firstId);
+                    if (! empty($meta[$sent]) && in_array($sentFor, $absorbed, true)) {
+                        $meta[$for] = (string) $h['id'];
+                    }
+                }
+                $h['confirms'] = $absorbed;
+            }
+            $kept[] = $h;
+        }
+
+        return array_values(array_merge($kept, $pending));
+    }
+
     public function markFarePaid(string $paymentId, float $amount, ?string $entity = null): bool
     {
         $meta = $this->meta ?? [];
@@ -5988,6 +6034,11 @@ class Booking extends Model
             'entity' => $entity ?? ($prev['entity'] ?? null),
         ], fn ($v) => $v !== null);
         $history[] = $entry;
+        // A real Stripe/Square payment arriving for a booking the office already
+        // MARKED PAID by hand is the same money, not a second payment — it
+        // replaces the manual placeholder (and the emails already sent for it
+        // count as sent for this payment), so nobody is emailed twice.
+        $history = static::absorbManualPayments($history, $meta);
 
         $meta['square_payment'] = $entry + [
             'history' => $history,

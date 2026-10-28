@@ -109,6 +109,52 @@ class PaymentEmailReliabilityTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_a_card_payment_confirming_a_hand_mark_paid_sends_nothing_again(): void
+    {
+        // CET-CB4218, 29 Oct: the office pressed Mark paid (customer + office
+        // emailed), then the safety net found the real Stripe payment. That's the
+        // SAME money — the customer must not get the confirmation a second time.
+        Mail::fake();
+        config(['services.stripe.secret_key' => 'sk_test_123']);
+        $booking = $this->booking(360);
+        $booking->forceFill(['reference' => 'CET-CB4218'])->save();
+        $booking->fresh()->markFarePaid('MANUAL-'.$booking->id.'-1', 360, 'chauffeurs');
+        app(BookingStatusService::class)->onFarePaid($booking->fresh());
+        Mail::assertSent(BookingConfirmationMail::class, 1);
+        $officeBefore = Mail::sent(OfficeBookingMail::class, fn ($m) => $m->stage === 'paid')->count();
+
+        Http::fake(['api.stripe.com/v1/checkout/sessions*' => Http::response(['has_more' => false, 'data' => [[
+            'id' => 'cs_1', 'payment_status' => 'paid', 'payment_intent' => 'pi_360',
+            'client_reference_id' => 'FARE-CET-CB4218', 'amount_total' => 36000,
+        ]]], 200)]);
+        $this->artisan('cet:reconcile-payments')->assertSuccessful();
+
+        Mail::assertSent(BookingConfirmationMail::class, 1);
+        $this->assertSame($officeBefore, Mail::sent(OfficeBookingMail::class, fn ($m) => $m->stage === 'paid')->count());
+        $this->assertSame(360.0, $booking->fresh()->onlinePaidTotal());
+        $this->assertFalse(WatchdogEvent::where('event_type', 'possible_double_payment')->exists());
+    }
+
+    public function test_the_heal_command_repairs_a_booking_counted_twice(): void
+    {
+        $booking = $this->booking(360);
+        $booking->forceFill(['payment_status' => 'paid', 'meta' => array_merge($booking->meta, [
+            'paid_email_sent' => now()->toIso8601String(), 'paid_email_for' => 'MANUAL-1',
+            'square_payment' => ['id' => 'pi_360', 'amount' => 720, 'history' => [
+                ['id' => 'MANUAL-1', 'amount' => 360, 'at' => now()->toIso8601String()],
+                ['id' => 'pi_360', 'amount' => 360, 'at' => now()->toIso8601String()],
+            ]],
+        ])])->save();
+        WatchdogEvent::log('possible_double_payment', 'x', 'warning', $booking);
+
+        $this->artisan('cet:heal-manual-payments')->assertSuccessful();
+
+        $b = $booking->fresh();
+        $this->assertSame(360.0, $b->onlinePaidTotal());
+        $this->assertSame('pi_360', $b->meta['paid_email_for']);
+        $this->assertNotNull(WatchdogEvent::where('event_type', 'possible_double_payment')->first()->acknowledged_at);
+    }
+
     public function test_clicking_pay_twice_reuses_the_same_checkout(): void
     {
         $booking = $this->booking(360);
