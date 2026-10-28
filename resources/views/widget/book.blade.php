@@ -564,7 +564,7 @@
                                     <option value="" selected disabled>—</option>
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor
                                 </select></div>
-                            <div class="cet-field"><label for="b-hand">Hand bags</label>
+                            <div class="cet-field"><label for="b-hand">Cabin bags</label>
                                 <select id="b-hand" name="hand_luggage" required>
                                     <option value="" selected disabled>—</option>
                                     @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor

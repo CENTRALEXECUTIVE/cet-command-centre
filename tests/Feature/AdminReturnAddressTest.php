@@ -154,7 +154,7 @@ class AdminReturnAddressTest extends TestCase
         $res->assertSee('Cavendish Hotel, Baslow', false);
         // Luggage now shows (the bug: it was missing from the email entirely).
         $res->assertSee('2 suitcases', false);
-        $res->assertSee('1 hand bag', false);
+        $res->assertSee('1 cabin bag', false);
         // A return previews as the ONE combined email: both journeys, each leg's
         // fare (£55 + £55) and the whole-trip total.
         $res->assertSee('Outbound journey', false);

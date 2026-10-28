@@ -1134,7 +1134,7 @@
                         var why = [];
                         if (pax > c.pax) why.push(pax + ' passengers (seats ' + c.pax + ')');
                         if (suit > c.lug) why.push(suit + ' suitcases (holds ' + c.lug + ')');
-                        if (hand > c.hand) why.push(hand + ' hand bags (holds ' + c.hand + ')');
+                        if (hand > c.hand) why.push(hand + ' cabin bags (holds ' + c.hand + ')');
                         if (!confirm(name + ' is too small for ' + why.join(' and ') + '.\n\nSave this booking anyway?')) {
                             e.preventDefault();
                         }

@@ -17,7 +17,7 @@
                 $bags = [];
                 $sc = $leg->displaySuitcases(); $hl = $leg->displayHandLuggage();
                 if ($sc > 0) { $bags[] = $sc.' suitcase'.($sc === 1 ? '' : 's'); }
-                if ($hl > 0) { $bags[] = $hl.' hand bag'.($hl === 1 ? '' : 's'); }
+                if ($hl > 0) { $bags[] = $hl.' cabin bag'.($hl === 1 ? '' : 's'); }
                 $seats = [];
                 foreach (['child_seats' => 'child', 'booster_seats' => 'booster', 'infant_seats' => 'infant'] as $k => $lbl) {
                     $n = (int) ($leg->meta[$k] ?? 0);
