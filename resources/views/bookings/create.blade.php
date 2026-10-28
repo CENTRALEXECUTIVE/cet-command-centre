@@ -517,6 +517,9 @@
                 {{-- Itemised breakdown right by the figure so the office sees what
                      makes up the total (base + each extra), not just a number. --}}
                 <div class="total-breakdown" id="total-breakdown" hidden></div>
+                {{-- VAT invoice ticked → VAT goes ON TOP of the price above, so show
+                     exactly what the customer will be charged (net + VAT = total). --}}
+                <div class="total-breakdown" id="total-vat" data-vat-rate="{{ app(\App\Services\Payments\VatService::class)->rate() ?: 0.20 }}" hidden></div>
             </div>
             <div class="actions">
                 <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
@@ -1057,12 +1060,28 @@
             var price = document.getElementById('quoted_price');
             var totalAmt = document.getElementById('total-amount');
             var totalBasis = document.getElementById('total-basis');
+            var vatBox = document.getElementById('total-vat');
+            var vatTick = document.getElementById('vat_invoice');
             function syncTotal() {
                 if (!totalAmt) return;
                 var v = parseFloat(price.value);
                 totalAmt.childNodes[0].nodeValue = '£' + (isNaN(v) ? '0.00' : v.toFixed(2));
+                // VAT invoice: the price is ex-VAT; the customer pays price + VAT.
+                if (vatBox) {
+                    var on = vatTick && vatTick.checked && !isNaN(v) && v > 0;
+                    vatBox.hidden = !on;
+                    if (on) {
+                        var rate = parseFloat(vatBox.getAttribute('data-vat-rate')) || 0.20;
+                        var vat = Math.round(v * rate * 100) / 100;
+                        vatBox.innerHTML = '<div class="row"><span>Price (ex VAT)</span><span>£' + v.toFixed(2) + '</span></div>'
+                            + '<div class="row"><span>VAT ' + Math.round(rate * 100) + '%</span><span>£' + vat.toFixed(2) + '</span></div>'
+                            + '<div class="row total"><span>Customer pays (incl. VAT)</span><span>£' + (v + vat).toFixed(2) + '</span></div>';
+                    }
+                }
             }
             if (price) { price.addEventListener('input', syncTotal); price.addEventListener('change', syncTotal); }
+            if (vatTick) { vatTick.addEventListener('change', syncTotal); }
+            syncTotal();
             // The auto-quote helper writes the basis into #quote-note; mirror it here too.
             var note = document.getElementById('quote-note');
             if (note && totalBasis && window.MutationObserver) {

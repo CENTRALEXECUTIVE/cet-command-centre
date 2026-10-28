@@ -31,7 +31,9 @@ class BookingFormRendersTest extends TestCase
             ->assertSee(route('pricing.strip'), false)  // full-fare strip (stops + extras)
             ->assertSee('data-cap-pax', false)          // vehicle capacity for fit-filtering
             ->assertSee('data-cap-lug', false)
-            ->assertSee('id="price-nudge"', false);      // typed-price vs live-quote nudge
+            ->assertSee('id="price-nudge"', false)       // typed-price vs live-quote nudge
+            ->assertSee('id="total-vat"', false)         // VAT-on-top breakdown by the total
+            ->assertSee('data-vat-rate="0.2"', false);
     }
 
     public function test_the_office_consent_box_is_pre_ticked_so_the_form_isnt_silently_blocked(): void

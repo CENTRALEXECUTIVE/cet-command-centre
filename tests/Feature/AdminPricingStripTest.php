@@ -72,6 +72,35 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta(215.0, $this->execPrice($different), 0.001);
     }
 
+    public function test_meet_and_greet_is_only_charged_on_the_airport_arrival_leg_of_a_return(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        // JELD-WEN, Oct 2026: MAN T2 → office, then office → Ibis Birmingham Airport.
+        // Meet & greet belongs to the Manchester arrival only — the office pickup
+        // must not carry it (the Birmingham leg showed £160 instead of £150).
+        $options = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Manchester Airport Terminal 2', 'destination' => 'Shepcote Lane, Sheffield S9 1DZ',
+            'journey_type' => 'return', 'meet_greet' => true,
+            'return_pickup' => 'Shepcote Lane, Sheffield S9 1DZ',
+            'return_destination' => 'Ibis Birmingham Airport, Ambassador Road, Bickenhill B26 3AW',
+        ])->assertOk()->json('options');
+
+        $legs = collect(collect($options)->firstWhere('id', $exec->id)['breakdown'])->pluck('amount', 'label');
+        $oneWayOut = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Manchester Airport Terminal 2', 'destination' => 'Shepcote Lane, Sheffield S9 1DZ', 'meet_greet' => true,
+        ])->json('options');
+        $oneWayBack = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Shepcote Lane, Sheffield S9 1DZ', 'destination' => 'Ibis Birmingham Airport, Ambassador Road, Bickenhill B26 3AW',
+        ])->json('options');
+
+        // Outbound = the airport fare WITH meet & greet; return = the plain fare.
+        $this->assertEqualsWithDelta($this->execPrice($oneWayOut), (float) $legs['Outbound leg'], 0.001);
+        $this->assertEqualsWithDelta($this->execPrice($oneWayBack), (float) $legs['Return leg'], 0.001);
+        $this->assertEqualsWithDelta(150.0, (float) $legs['Return leg'], 0.001); // Sheffield → Birmingham Airport
+    }
+
     public function test_strip_adds_the_ticked_extras_on_top_of_the_stop(): void
     {
         $admin = User::factory()->admin()->create();

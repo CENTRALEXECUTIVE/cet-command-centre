@@ -73,16 +73,27 @@ class PricingController extends Controller
             'ribbons' => (bool) ($data['ribbons'] ?? false),
         ];
 
+        // On a return, meet & greet is charged only on the leg that's an AIRPORT
+        // PICKUP (an arrival) — never on both. MAN → office → Ibis BHX charged it on
+        // the office pickup too (£150 Birmingham fare showed as £160).
+        $returnPickup = ! empty($data['return_pickup']) ? $data['return_pickup'] : $data['destination'];
+        $outOptions = $options;
+        $inOptions = $options;
+        if ($isReturn && $options['meet_greet']) {
+            $outOptions['meet_greet'] = \App\Support\AirportMatcher::isAirport($data['pickup']);
+            $inOptions['meet_greet'] = \App\Support\AirportMatcher::isAirport($returnPickup);
+        }
+
         $options = VehicleType::where('is_active', true)->orderBy('sort_order')->get()
-            ->map(function (VehicleType $vt) use ($fares, $data, $pickupAt, $returnAt, $isReturn, $options) {
-                $out = $fares->calculate($data['pickup'], $data['destination'], $vt, $pickupAt, $options);
+            ->map(function (VehicleType $vt) use ($fares, $data, $pickupAt, $returnAt, $isReturn, $outOptions, $inOptions, $returnPickup) {
+                $out = $fares->calculate($data['pickup'], $data['destination'], $vt, $pickupAt, $outOptions);
                 // The return leg prices its OWN addresses when the office gave different
                 // ones; otherwise it reverses the outbound (destination → pickup).
                 $in = $isReturn
                     ? $fares->calculate(
-                        ! empty($data['return_pickup']) ? $data['return_pickup'] : $data['destination'],
+                        $returnPickup,
                         ! empty($data['return_destination']) ? $data['return_destination'] : $data['pickup'],
-                        $vt, $returnAt, $options
+                        $vt, $returnAt, $inOptions
                     )
                     : null;
 
