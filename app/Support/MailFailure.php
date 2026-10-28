@@ -15,9 +15,14 @@ use Illuminate\Support\Facades\Log;
  */
 class MailFailure
 {
-    public static function report(string $what, \Throwable $e, ?Booking $booking = null): void
+    public static function report(string $what, \Throwable $e, ?Booking $booking = null, ?string $to = null): void
     {
         Log::warning('[mail] '.$what.' failed to send: '.$e->getMessage());
+
+        // The booking's "📧 Emails sent" history shows the failure too.
+        if ($booking && $booking->exists) {
+            \App\Support\BookingEmailLog::recordFailure($booking, $what, $e, $to);
+        }
 
         $ref = $booking ? ($booking->external_reference ?: $booking->reference) : null;
         WatchdogEvent::log(

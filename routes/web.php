@@ -241,6 +241,11 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Reset a booking's payment status back to unpaid (undo a test payment).
         Route::post('bookings/{booking}/transactions/reset-payment', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'resetPayment'])->middleware('throttle:30,1')->name('bookings.transactions.reset-payment');
         Route::post('bookings/{booking}/email-payment-request', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'emailPaymentRequest'])->middleware('throttle:30,1')->name('bookings.email-payment-request');
+        // Booking communications pack: resend the payment link (reuses an open one),
+        // resend the confirmation, email the customer the updated booking. All manual.
+        Route::post('bookings/{booking}/resend-payment-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'resendPaymentLink'])->middleware('throttle:30,1')->name('bookings.resend-payment-link');
+        Route::post('bookings/{booking}/resend-confirmation', [\App\Http\Controllers\Admin\BookingCommsController::class, 'resendConfirmation'])->middleware('throttle:20,1')->name('bookings.resend-confirmation');
+        Route::post('bookings/{booking}/updated-email', [\App\Http\Controllers\Admin\BookingCommsController::class, 'sendUpdated'])->middleware('throttle:20,1')->name('bookings.updated-email');
 
         // ETO-style "Send a notification": templated customer/driver messages.
         Route::post('bookings/{booking}/notify', [\App\Http\Controllers\Admin\BookingNotificationController::class, 'send'])->middleware('throttle:60,1')->name('bookings.notify');

@@ -58,7 +58,14 @@ class BookingReceiptController extends Controller
                 : 'This customer has no email address on file — add one first, then resend.');
         }
 
-        Mail::to($to)->send(new BookingReceiptMail($booking, $pdf->renderReceipt($booking)));
+        try {
+            Mail::to($to)->send(new BookingReceiptMail($booking, $pdf->renderReceipt($booking)));
+        } catch (\Throwable $e) {
+            // Never a 500 — report it (alerts feed + the booking's email history).
+            \App\Support\MailFailure::report('invoice email', $e, $booking, $to);
+
+            return back()->with('error', 'Could not email the invoice to '.$to.' — check Settings → Email and try again.');
+        }
 
         return back()->with('status', 'Invoice emailed to '.$to.'.');
     }

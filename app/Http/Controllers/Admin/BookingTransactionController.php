@@ -106,7 +106,7 @@ class BookingTransactionController extends Controller
         try {
             Mail::to($email)->send(new \App\Mail\BookingConfirmationMail($booking, paid: false, payUrl: $payUrl));
         } catch (\Throwable $e) {
-            \App\Support\MailFailure::report('payment request email', $e, $booking);
+            \App\Support\MailFailure::report('payment request email', $e, $booking, $email);
 
             return back()->with('error', 'Could not email the payment request — try again, or copy the link to send another way.')->with('scroll', 'transactions');
         }
@@ -114,6 +114,66 @@ class BookingTransactionController extends Controller
         return back()
             ->with('status', 'Payment request emailed to '.$email.' — the booking shows "on hold" with a Complete payment button.')
             ->with('scroll', 'transactions');
+    }
+
+    /**
+     * "Resend payment link" — the one top-level action when a balance is due. Sends
+     * the customer a card link for the CURRENT amount due by email / WhatsApp / SMS
+     * / copy. Reuses the newest open card link for exactly that amount when there is
+     * one (no duplicate transaction, no new provider link); otherwise creates ONE
+     * "Balance" card line + link. Manual, office-initiated only.
+     */
+    public function resendPaymentLink(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $data = $request->validate(['channel' => ['required', Rule::in(['email', 'sms', 'whatsapp', 'copy'])]]);
+
+        $booking->load('payments');
+        $due = round((float) ($booking->transactionsAmountDue() ?? 0), 2);
+        if ($due <= 0.009) {
+            return back()->with('status', 'Nothing to pay — this booking is already settled.')->with('scroll', 'transactions');
+        }
+
+        // A booking already marked paid and then re-priced up: a new card payment
+        // would overwrite the recorded paid amount (so the books would under-count
+        // what's been taken). Don't create one — the office takes it by hand.
+        if ($booking->fareIsPaid()) {
+            return back()
+                ->with('error', 'This booking is marked paid but £'.number_format($due, 2).' is still owed after a price change. A card link here would overwrite the recorded payment — take the extra by hand and add it as a transaction.')
+                ->with('scroll', 'transactions');
+        }
+
+        if ($existing = $booking->reusableCardLink($due)) {
+            if ($existing->status !== 'link_sent') {
+                $existing->forceFill(['status' => 'link_sent'])->save();
+            }
+
+            return $this->shareLink(back(), $booking, $due, (string) $existing->tide_payment_link, $data['channel'])
+                ->with('link_reused', 'Reused the existing £'.number_format($due, 2).' card link from '.$existing->created_at?->format('d/m H:i').' — no duplicate created.');
+        }
+
+        // No reusable link: use an open card line for this amount that has no link
+        // yet, else add one "Balance" line — then create its link.
+        $payment = $booking->payments()
+            ->where('method', 'card')->whereIn('status', ['pending', 'link_sent'])
+            ->orderByDesc('id')->get()
+            ->first(fn ($p) => blank($p->tide_payment_link) && abs((float) $p->amount - $due) < 0.005);
+        $created = false;
+        if (! $payment) {
+            $payment = $booking->payments()->create(['method' => 'card', 'amount' => $due, 'status' => 'pending', 'meta' => ['name' => 'Balance']]);
+            $created = true;
+        }
+
+        $link = $this->createLink($booking, $payment, $due);
+        if (! $link) {
+            if ($created) {
+                $payment->delete(); // don't leave an orphan line behind
+            }
+
+            return back()->with('error', 'Card payments aren’t set up for this booking’s company yet, so no link could be created.')->with('scroll', 'transactions');
+        }
+
+        return $this->shareLink(back(), $booking, $due, $link, $data['channel']);
     }
 
     /** Edit an existing transaction (amount, method, status, name, charge). */
@@ -338,7 +398,7 @@ class BookingTransactionController extends Controller
             try {
                 Mail::to($email)->send(new \App\Mail\PaymentLinkMail($booking, $amount, $link));
             } catch (\Throwable $e) {
-                \App\Support\MailFailure::report('payment link email', $e, $booking);
+                \App\Support\MailFailure::report('payment link email', $e, $booking, $email);
 
                 return $redirect->with('error', 'Could not email the link — it’s created, copy it to send another way.');
             }

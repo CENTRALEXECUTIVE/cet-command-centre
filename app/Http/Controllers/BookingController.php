@@ -659,6 +659,7 @@ class BookingController extends Controller
         // Idempotent, and a no-op for admin drivers, unmasked jobs, missing
         // numbers or when masking is off.
         $booking->refresh()->loadMissing('customer', 'driver');
+        $this->stampEdited($booking);
         if ($booking->driver && ! $booking->status->isTerminal()) {
             app(\App\Services\Telephony\TwilioProxyService::class)->openSession($booking, $booking->driver);
         }
@@ -706,6 +707,18 @@ class BookingController extends Controller
     }
 
     /**
+     * Note when the booking was last edited / re-priced, so the booking page can
+     * prompt "Email the customer the updated booking" (a manual button — nothing is
+     * ever sent automatically on an edit).
+     */
+    private function stampEdited(Booking $booking): void
+    {
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
+            'last_edited_at' => now()->toIso8601String(),
+        ])])->save();
+    }
+
+    /**
      * Preview the customer cancellation email in the browser (so the office sees
      * exactly what will go out before sending it). Admin only.
      */
@@ -726,12 +739,15 @@ class BookingController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $fresh = $booking->fresh();
-        $paid = $fresh->fareIsPaid();
-        // A paid booking previews as the receipt (no pay link); an unpaid card
-        // booking previews with the Pay now link, just as the customer would get.
-        $payUrl = $paid ? null : $this->customerPayLink($fresh);
+        // The same state the booking-page Resend / "Email updated booking" buttons
+        // send (paid → receipt; balance due on card → pay link; cash/account → no
+        // button), so the preview is exactly what goes out. ?updated=1 previews the
+        // "Booking updated" version.
+        $state = \App\Services\Messaging\ConfirmationEmailState::for($fresh);
 
-        return response((new \App\Mail\BookingConfirmationMail($fresh, paid: $paid, payUrl: $payUrl))->render());
+        return response((new \App\Mail\BookingConfirmationMail(
+            $fresh, paid: $state['paid'], payUrl: $state['payUrl'], updated: $request->boolean('updated'),
+        ))->render());
     }
 
     /**
@@ -1761,6 +1777,7 @@ class BookingController extends Controller
 
         $previousFare = $booking->fareAmount();
         $booking->forceFill(['final_price' => $data['final_price'] === '' ? null : $data['final_price']])->save();
+        $this->stampEdited($booking);
 
         // A corrected price must cascade: recompute the AUTO driver pay (90% of the
         // new fare) so driver income and payroll follow the new figure at once. A

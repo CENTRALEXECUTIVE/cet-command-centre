@@ -28,6 +28,9 @@ class BookingConfirmationMail extends Mailable
         public Booking $booking,
         public bool $paid = false,
         public ?string $payUrl = null,
+        // An office-sent "your booking has been updated" copy (after an edit or
+        // re-price) — same email, an "Updated" subject and banner. Never automatic.
+        public bool $updated = false,
     ) {
         // The PVT LTD company sends through its own mailer, kept separate.
         if ($name = $booking->pvtMailer()) {
@@ -39,7 +42,8 @@ class BookingConfirmationMail extends Mailable
     {
         return new Envelope(
             from: new \Illuminate\Mail\Mailables\Address($this->booking->senderAddress(), $this->booking->senderName()),
-            subject: 'Central Executive Transfers booking confirmation '.($this->booking->external_reference ?: $this->booking->reference),
+            subject: ($this->updated ? 'Updated: Central Executive Transfers booking confirmation ' : 'Central Executive Transfers booking confirmation ')
+                .($this->booking->external_reference ?: $this->booking->reference),
         );
     }
 
@@ -66,6 +70,7 @@ class BookingConfirmationMail extends Mailable
             'booking' => $this->booking,
             'paid' => $this->paid,
             'payUrl' => $this->payUrl,
+            'updated' => $this->updated,
             'tripPayTotal' => $tripPayTotal,
             'vat' => $isVat ? $this->booking->fareVatBreakdown() : null,
             'vatNumber' => $isVat ? app(VatService::class)->number() : null,

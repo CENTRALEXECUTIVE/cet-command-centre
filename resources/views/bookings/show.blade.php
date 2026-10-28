@@ -289,6 +289,7 @@
                         @csrf
                         <button class="btn btn-dark" style="padding:8px 14px">✉ Send cancellation email</button>
                     </form>
+                    @include('bookings.partials.sending-as')
                 @else
                     <span class="hint">No customer email on file to send to.</span>
                 @endif
@@ -596,6 +597,9 @@
                     @csrf
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" @disabled(! $recEmail)>✉ Email {{ $cover ? 'to operator' : 'to customer' }}</button>
                 </form>
+                @if($recEmail)
+                    @include('bookings.partials.sending-as', ['saMargin' => '0 0 0 4px'])
+                @endif
                 @if($cover && $waDigits)
                     <a href="https://wa.me/{{ $waDigits }}?text={{ $waText }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:8px 14px;border-color:#25D366;color:#128C4A">🟢 WhatsApp</a>
                 @endif
@@ -1746,6 +1750,104 @@
     @endif
 
 
+    {{-- Booking communications: resend the confirmation, email the UPDATED booking
+         after an edit / re-price, and the per-booking email history. Every send is
+         an office button press with a preview first — nothing is ever automatic.
+         Imported ETO/calendar bookings need an explicit "Send anyway" tick. --}}
+    @if(auth()->user()->isAdmin())
+        @php
+            $commsState = \App\Services\Messaging\ConfirmationEmailState::for($booking);
+            $commsBlocked = \App\Services\Messaging\ConfirmationEmailState::blockedReason($booking);
+            $commsImported = \App\Services\Messaging\ConfirmationEmailState::isImported($booking);
+            $emailLog = \App\Support\BookingEmailLog::entries($booking);
+            $lastConf = \App\Support\BookingEmailLog::lastConfirmation($booking);
+            $editedAt = !empty($booking->meta['last_edited_at']) ? \Illuminate\Support\Carbon::parse($booking->meta['last_edited_at']) : null;
+            $editedSince = $editedAt && (! $lastConf || $editedAt->gt(\Illuminate\Support\Carbon::parse($lastConf['at'])));
+            $commsTo = $booking->customer?->email;
+            $fmtAt = fn ($at) => \Illuminate\Support\Carbon::parse($at)->timezone(config('app.timezone'))->format('d/m/Y H:i');
+        @endphp
+        <div id="customer-emails" class="card" style="scroll-margin-top:16px;margin-bottom:16px">
+            <h2 style="margin:0 0 4px">✉ Customer emails</h2>
+            <p class="hint" style="margin:0 0 8px">Resend the booking confirmation, or email the customer the updated booking after a change. Preview first — nothing is sent until you press a button.</p>
+            @include('bookings.partials.sending-as', ['saMargin' => '0 0 10px'])
+
+            @if($commsBlocked)
+                <p class="hint" style="margin:0;color:#8a6d00">{{ $commsBlocked }}</p>
+            @else
+                <p style="margin:0 0 8px;font-size:14px">The customer will get: <strong>{{ $commsState['label'] }}</strong> → {{ $commsTo }}</p>
+                @if($commsState['warning'])
+                    <p class="hint" style="margin:0 0 8px;color:#b32020">⚠ {{ $commsState['warning'] }}</p>
+                @endif
+                @if($editedSince)
+                    <div style="border-left:4px solid #12558c;background:rgba(18,85,140,.07);padding:8px 12px;border-radius:6px;margin:0 0 10px;font-size:13px">
+                        ✎ This booking was changed {{ $fmtAt($booking->meta['last_edited_at']) }}{{ $lastConf ? ', after the last confirmation was emailed' : '' }}. Check it, then email the customer the updated booking.
+                    </div>
+                @endif
+                @if($commsImported)
+                    <p class="hint" style="margin:0 0 8px;color:#8a6d00">⚠ Imported from {{ strtoupper($booking->source_system) }} — these customers are never emailed unless you tick <strong>Send anyway</strong> on the button you use.</p>
+                @endif
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                    <form method="POST" action="{{ route('bookings.resend-confirmation', $booking) }}" style="margin:0;display:flex;gap:6px;align-items:center"
+                          onsubmit="return confirm(@js('Email the booking confirmation to '.$commsTo.'?'))">
+                        @csrf
+                        @if($commsImported)
+                            <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" name="send_anyway" value="1"> Send anyway</label>
+                        @endif
+                        <button class="btn btn-dark" style="padding:8px 14px">↻ Resend confirmation</button>
+                    </form>
+                    <a href="{{ route('bookings.confirmation-email.preview', $booking) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px">👁 Preview</a>
+                    <span style="width:1px;height:28px;background:var(--line,#ddd)"></span>
+                    <form method="POST" action="{{ route('bookings.updated-email', $booking) }}" style="margin:0;display:flex;gap:6px;align-items:center"
+                          onsubmit="return confirm(@js('Email the UPDATED booking to '.$commsTo.'? It replaces their earlier confirmation.'))">
+                        @csrf
+                        @if($commsImported)
+                            <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" name="send_anyway" value="1"> Send anyway</label>
+                        @endif
+                        <button class="btn {{ $editedSince ? 'btn-primary' : 'btn-ghost' }}" style="padding:8px 14px">✉ Email the customer the updated booking</button>
+                    </form>
+                    <a href="{{ route('bookings.confirmation-email.preview', ['booking' => $booking, 'updated' => 1]) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px">👁 Preview updated</a>
+                </div>
+                @if($booking->invoiceGroupBookings()->count() > 1)
+                    <p class="hint" style="margin:8px 0 0">Return trip: each leg has its own confirmation — send from each leg's page. A pay button charges the whole trip.</p>
+                @endif
+            @endif
+
+            {{-- 📧 Email history (newest first, capped at 50) --}}
+            <details style="margin-top:14px" @if($emailLog) open @endif>
+                <summary style="cursor:pointer;font-weight:600;font-size:14px">📧 Emails sent ({{ count($emailLog) }})</summary>
+                @if($emailLog)
+                    <div style="overflow-x:auto;margin-top:8px">
+                        <table style="width:100%;font-size:13px">
+                            <thead><tr><th>When</th><th>Type</th><th>To</th><th>From</th><th>Subject</th><th>By</th><th>Result</th></tr></thead>
+                            <tbody>
+                            @foreach($emailLog as $e)
+                                <tr>
+                                    <td style="white-space:nowrap">{{ $fmtAt($e['at'] ?? now()) }}</td>
+                                    <td>{{ $e['type'] ?? '—' }}@if(($e['audience'] ?? '') === 'office')<div class="muted" style="font-size:11px">office</div>@endif</td>
+                                    <td>{{ $e['to'] ?? '' }}</td>
+                                    <td>{{ $e['from'] ?? '' }}</td>
+                                    <td>{{ $e['subject'] ?? '' }}@if(!empty($e['note']))<div class="muted" style="font-size:11px">{{ $e['note'] }}</div>@endif</td>
+                                    <td>{{ $e['by'] ?? '' }}</td>
+                                    <td>
+                                        @if($e['ok'] ?? false)
+                                            <span class="badge badge-complete">✓ Sent</span>
+                                        @else
+                                            <span class="badge badge-cancelled">✗ Failed</span>
+                                            @if(!empty($e['error']))<div class="muted" style="font-size:11px;max-width:220px">{{ $e['error'] }}</div>@endif
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="hint" style="margin:8px 0 0">No emails recorded for this booking yet. (History starts from this update — older sends aren't listed.)</p>
+                @endif
+            </details>
+        </div>
+    @endif
+
     @if(auth()->user()->isAdmin())
         @php
             $txns = $booking->payments->sortByDesc('id');
@@ -1780,7 +1882,10 @@
 
             @if(session('copy_link'))
                 <div class="card" style="border-left:4px solid #1f7a44;background:rgba(31,122,68,.07);margin:0 0 12px;padding:10px 14px">
-                    <div style="font-weight:700;margin-bottom:6px">💳 Square payment link ready</div>
+                    <div style="font-weight:700;margin-bottom:6px">💳 Card payment link ready</div>
+                    @if(session('link_reused'))
+                        <p class="hint" style="margin:0 0 6px">{{ session('link_reused') }}</p>
+                    @endif
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         @if(session('share_wa'))
                             <a href="{{ session('share_wa') }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:7px 14px;font-size:13px">📲 Open WhatsApp with the link</a>
@@ -1806,6 +1911,40 @@
                 <div><div class="muted" style="font-size:12px">Amount due</div><div style="font-weight:800;font-size:18px;{{ ($amountDue ?? 0) > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($amountDue ?? 0, 2) }}</div></div>
             </div>
 
+            {{-- 🔁 Resend payment link — THE one action when a balance is due. Reuses the
+                 newest open card link for exactly the amount due (no duplicate); else
+                 creates one Balance line + link. Email / WhatsApp / SMS / copy. --}}
+            @if(($amountDue ?? 0) > 0.009)
+                @php $reusable = $booking->fareIsPaid() ? null : $booking->reusableCardLink(round((float) $amountDue, 2)); @endphp
+                <div id="resend-payment-link" style="border:2px solid #1f7a44;border-radius:10px;padding:10px 14px;margin:0 0 12px;background:rgba(31,122,68,.05)">
+                    <div style="font-weight:800;margin-bottom:4px">🔁 Resend payment link — £{{ number_format($amountDue, 2) }} due</div>
+                    @if($booking->fareIsPaid())
+                        <p class="hint" style="margin:0;color:#b32020">This booking is marked paid but £{{ number_format($amountDue, 2) }} is still owed after a price change. A card link would overwrite the recorded payment — take the extra by hand and add it as a transaction.</p>
+                    @else
+                        <p class="hint" style="margin:0 0 8px">
+                            @if($reusable)
+                                Resends your existing £{{ number_format((float) $reusable->amount, 2) }} card link from {{ $reusable->created_at?->format('d/m H:i') }} — no new link is created.
+                            @else
+                                Creates one card link for £{{ number_format($amountDue, 2) }} ({{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe · PVT LTD' : 'Square · Ltd' }}); next time it's reused.
+                            @endif
+                        </p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            @foreach(['email' => '✉ Email', 'whatsapp' => '📲 WhatsApp', 'sms' => '💬 SMS', 'copy' => '⧉ Copy link'] as $ch => $lbl)
+                                @continue($ch === 'email' && ! $booking->customer?->email)
+                                <form method="POST" action="{{ route('bookings.resend-payment-link', $booking) }}" style="margin:0">
+                                    @csrf
+                                    <input type="hidden" name="channel" value="{{ $ch }}">
+                                    <button class="btn {{ $ch === 'email' ? 'btn-primary' : 'btn-light' }}" style="padding:8px 14px">{{ $lbl }}</button>
+                                </form>
+                            @endforeach
+                            @if($booking->customer?->email)
+                                @include('bookings.partials.sending-as')
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
+
             {{-- One tap when there's a balance due. EMAIL sends the customer a
                  "booking on hold" confirmation with a Complete payment button (the
                  stable link charges the current amount — the whole trip for a return,
@@ -1824,6 +1963,7 @@
                                 ✉ Email payment request — £{{ number_format($amountDue, 2) }}
                             </button>
                         </form>
+                        @include('bookings.partials.sending-as', ['saMargin' => '0 0 0 2px;align-self:center'])
                     @endif
                     <form method="POST" action="{{ route('bookings.transactions.store', $booking) }}">
                         @csrf
@@ -1875,6 +2015,7 @@
                                             <input type="hidden" name="channel" value="email">
                                             <button class="txn-menu-item">✉ Card link by email</button>
                                         </form>
+                                        <div style="padding:0 8px 6px;white-space:normal;max-width:230px">@include('bookings.partials.sending-as')</div>
                                         <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
                                             <input type="hidden" name="channel" value="copy">
                                             <button class="txn-menu-item">⧉ Create &amp; copy card link</button>

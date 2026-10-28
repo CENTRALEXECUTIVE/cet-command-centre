@@ -37,6 +37,19 @@ class Booking extends Model
         'source', 'source_system', 'external_reference', 'created_by', 'meta',
     ];
 
+    /**
+     * Saving a booking's meta from an instance loaded before an email was logged
+     * must not wipe that history (see BookingEmailLog::preserve).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $booking) {
+            if ($booking->exists && $booking->isDirty('meta')) {
+                \App\Support\BookingEmailLog::preserve($booking);
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -1326,6 +1339,24 @@ class Booking extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * The newest OPEN card transaction whose card link can be resent for exactly
+     * $amount (pending / link sent, a link already created, same amount to the
+     * penny) — so "Resend payment link" reuses it instead of minting a duplicate.
+     * A link for a different amount (e.g. made before a re-price) is never reused.
+     */
+    public function reusableCardLink(float $amount): ?Payment
+    {
+        return $this->payments()
+            ->where('method', 'card')
+            ->whereIn('status', ['pending', 'link_sent'])
+            ->whereNotNull('tide_payment_link')
+            ->where('tide_payment_link', '!=', '')
+            ->orderByDesc('id')
+            ->get()
+            ->first(fn (Payment $p) => abs((float) $p->amount - $amount) < 0.005);
     }
 
     /**

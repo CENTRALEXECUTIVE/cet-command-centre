@@ -18,7 +18,7 @@ checklist. **No secrets are in this file** (keys live in the staging database).
   The operator runs server commands (this session can't reach the staging DB).
   Config changes REQUIRE `optimize:clear`. No new migrations were added in this
   run, but run `migrate --force` anyway in case staging is behind.
-- **Tests:** `php artisan test` (SQLite). Suite is green at **1592 passing**.
+- **Tests:** `php artisan test` (SQLite). Suite is green at **1811 passing** (28 Oct 2026).
   A fresh container needs `composer install` + `php artisan key:generate` first.
 
 ## Current focus: GO-LIVE on card payments + email, then embed the widget
@@ -78,6 +78,34 @@ Earlier in the (pre-compaction) session: invoice redesign + VAT-on-top + auto-se
 booker-billing, customer-import, instant-quote improvements, title-tag driver fix,
 customer mis-link fix, match-return cash rules, default-90%-pay, and more — all in
 Git history before 51794af.
+
+## Booking communications pack (28 Oct 2026) — no migrations
+
+On the booking page (admin): **✉ Customer emails** card + a **🔁 Resend payment
+link** strip at the top of Payment history. Every send is a button press.
+- **Resend confirmation** / **Email the customer the updated booking** →
+  `Admin\BookingCommsController`; the state (paid / pay link for the balance /
+  cash / account / no price) comes from `Services\Messaging\ConfirmationEmailState`,
+  which the preview (`?updated=1` for the updated version) also uses. Cancelled /
+  no-show refused; imported ETO/calendar bookings need the **Send anyway** tick.
+  Edits (`update`) and re-prices (`setPrice`) stamp `meta['last_edited_at']` so the
+  page prompts for the updated email — never sent automatically.
+- **"Sending as"** label (`bookings/partials/sending-as.blade.php`) beside every
+  customer email button; warns when a PVT booking would fall back to the main address.
+- **Email history** in `meta['email_log']` (cap 50) via `Support\BookingEmailLog`:
+  successes from a `MessageSent` listener (any mailable with a public `$booking`),
+  failures from `MailFailure::report()`. A `saving` guard on `Booking` merges the
+  stored log back in so a stale model's meta save can't wipe it.
+- **Resend payment link** (`BookingTransactionController::resendPaymentLink`) reuses
+  the newest open card link for exactly the amount due (`Booking::reusableCardLink`),
+  else creates ONE Balance line + link. Refuses a booking marked paid then re-priced
+  up (see open issue below).
+- **Open issue (pre-existing, not changed):** on a booking paid online with no ledger
+  rows and then re-priced up, any NEW card payment for the balance goes through
+  `markFarePaid`, which overwrites `square_payment.amount` and then the ledger sum
+  under-counts the total paid. The stable `widget.pay` link also treats such a booking
+  as already paid. Needs a proper "balance after re-price" design before card links
+  are allowed there.
 
 ## Key files (payments)
 

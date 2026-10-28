@@ -26,6 +26,18 @@
         <div style="background:#0b0b0b;color:#fff;font-weight:700;letter-spacing:8px;font-size:26px;padding:44px 0;border-radius:8px">CENTRAL</div>
     </td></tr>
 
+    {{-- "Booking updated" copy (office-sent after an edit / re-price) --}}
+    @if(!empty($updated))
+        <tr><td style="padding:22px 26px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef5ff;border:1px solid #b9d3f5;border-radius:10px">
+                <tr><td style="padding:14px 18px">
+                    <div style="font-size:16px;font-weight:800;color:#12558c;margin-bottom:4px">&#128260; Your booking has been updated</div>
+                    <div style="font-size:14px;color:#2b4a6b">This replaces any earlier confirmation for ref <strong>{{ $ref }}</strong>. Please check the details below and contact us if anything is wrong.</div>
+                </td></tr>
+            </table>
+        </td></tr>
+    @endif
+
     {{-- On hold (unpaid card) vs confirmed (paid / cash / account) vs enquiry --}}
     @if($awaitingPayment)
         <tr><td style="padding:22px 26px 0">

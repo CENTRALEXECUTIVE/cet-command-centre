@@ -36,6 +36,13 @@ class AppServiceProvider extends ServiceProvider
             // Settings table not ready / unreachable — fall back to config defaults.
         }
 
+        // Per-booking email history: every booking mailable that actually sends is
+        // recorded on the booking (BookingEmailLog — never blocks a send).
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Mail\Events\MessageSent::class,
+            [\App\Support\BookingEmailLog::class, 'onMessageSent'],
+        );
+
         // Register the Microsoft 365 (Graph) mail transport, so email can be sent
         // through the same mailbox that reads ETO — reliable, unbranded, HTTPS.
         try {
