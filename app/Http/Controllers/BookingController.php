@@ -379,6 +379,14 @@ class BookingController extends Controller
                     $meta['booker_name'] = $company; // invoice bills the company
                 }
                 $leg->forceFill(['meta' => $meta])->save();
+                // The auto-made unpaid card line was created before VAT was added —
+                // bring it up to the VAT-inclusive amount the customer will pay.
+                $payable = $leg->amountPayable();
+                if ($payable !== null) {
+                    $leg->payments()->where('method', 'card')->whereIn('status', ['pending', 'link_sent'])
+                        ->get()->each(fn ($p) => abs((float) $p->amount - (float) $leg->fareGross()) < 0.01
+                            ? $p->forceFill(['amount' => $payable])->save() : null);
+                }
             }
             $booking->refresh();
         }

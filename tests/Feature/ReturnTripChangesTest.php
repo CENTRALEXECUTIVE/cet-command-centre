@@ -268,4 +268,20 @@ class ReturnTripChangesTest extends TestCase
             ->assertSee('name="cancel_trip"', false)
             ->assertSee('Also cancel the return '.$this->ret->reference, false);
     }
+
+    public function test_a_trip_paid_in_one_go_shows_the_real_payment_and_figures_that_add_up(): void
+    {
+        // JELD-WEN, 28 Oct: Square took £318, but the email said "Payment received
+        // £115" and "Paid £295" — an auto-made pre-VAT £115 line was ticked paid.
+        $this->out->payments()->create(['method' => 'card', 'amount' => 115, 'status' => 'link_sent']);
+        $this->out->fresh()->markFarePaid('pi_trip', 318, 'transfers');
+        app(BookingStatusService::class)->onFarePaid($this->out->fresh());
+
+        $html = Mail::sent(BookingConfirmationMail::class)->last()->render();
+        $this->assertStringContainsString('Payment received: £318.00 by card', $html);
+        $this->assertStringNotContainsString('£295', $html);
+        $this->assertStringContainsString('Paid in full', $html);
+        // And the ledger line now matches what was really taken for that leg.
+        $this->assertEqualsWithDelta(138.0, (float) $this->out->fresh()->payments()->where('status', 'paid')->sum('amount'), 0.01);
+    }
 }

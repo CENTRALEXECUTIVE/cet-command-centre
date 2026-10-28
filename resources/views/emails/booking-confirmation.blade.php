@@ -95,8 +95,18 @@
         {{-- Payment: what they've just paid + total / paid / remaining, with a line per payment --}}
         <div style="margin-top:14px">
             @if($paid)
-                @php $lastPaid = $booking->payments->where('status', 'paid')->sortByDesc('paid_at')->first(); @endphp
-                @if($lastPaid)
+                @php
+                    // The REAL payment the customer made: the latest online card payment
+                    // recorded on this booking (a trip's one payment covers every leg),
+                    // else the latest paid ledger line.
+                    $hist = $booking->meta['square_payment']['history'] ?? [];
+                    $lastOnline = $hist ? end($hist) : (! empty($booking->meta['square_payment']['amount']) ? $booking->meta['square_payment'] : null);
+                    $lastPaid = $booking->payments->where('status', 'paid')->sortByDesc('paid_at')->first();
+                    $isManual = $lastOnline && str_starts_with((string) ($lastOnline['id'] ?? ''), 'MANUAL-');
+                @endphp
+                @if($lastOnline && ! $isManual)
+                    <p style="margin:0 0 10px;font-size:15px;color:#1f7a44;font-weight:700">&#10003; Payment received: £{{ number_format((float) $lastOnline['amount'], 2) }} by card</p>
+                @elseif($lastPaid)
                     <p style="margin:0 0 10px;font-size:15px;color:#1f7a44;font-weight:700">&#10003; Payment received: £{{ number_format((float) $lastPaid->amount, 2) }}{{ $lastPaid->method === 'card' ? ' by card' : '' }}</p>
                 @endif
             @elseif($isCash)

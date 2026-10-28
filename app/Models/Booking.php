@@ -1578,11 +1578,26 @@ class Booking extends Model
             ->where('method', 'card')
             ->sortBy('id');
 
+        $lastMarked = null;
         foreach ($open as $payment) {
             $payment->forceFill(['status' => 'paid', 'paid_at' => $payment->paid_at ?? $at])->save();
             $paid += (float) $payment->amount;
+            $lastMarked = $payment;
             if ($paid + 0.01 >= $target) {
                 break;
+            }
+        }
+
+        // The card took MORE for this leg than the line says — the line was made
+        // before VAT was added (or before a re-price). Make the line match what was
+        // actually taken, so the ledger and the emails show the real payment
+        // (JELD-WEN: a £115 line vs £138 paid incl. VAT). Only a line this same
+        // payment settled (its paid time is the payment's time) is ever adjusted.
+        if ($online > 0 && $paid + 0.01 < $target) {
+            $settled = $lastMarked ?? $this->payments->where('status', 'paid')->where('method', 'card')
+                ->first(fn ($p) => $p->paid_at && $p->paid_at->equalTo($at));
+            if ($settled) {
+                $settled->forceFill(['amount' => round((float) $settled->amount + ($target - $paid), 2)])->save();
             }
         }
 

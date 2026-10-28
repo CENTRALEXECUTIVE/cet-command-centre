@@ -101,10 +101,12 @@ class BookingConfirmationMail extends Mailable
                     'amount' => (float) ($b->amountPayable() ?? 0),
                 ])->all(),
                 'total' => round($legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2),
-                'paid' => round($legs->sum(fn ($b) => (float) $b->transactionsPaidTotal()), 2),
-                'due' => round($legs->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? 0)), 2),
+                'due' => $due = round($legs->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? 0)), 2),
                 'vat' => $vatAmt > 0 ? ['vat' => round($vatAmt, 2), 'net' => round($vatNet, 2)] : null,
             ];
+            // Paid = total − what's still owed, so the three figures always add up
+            // (summing each leg's ledger showed £295 paid on a £318 trip paid in full).
+            $trip['paid'] = round(max(0.0, $trip['total'] - $due), 2);
         }
 
         return new Content(view: 'emails.booking-confirmation', with: [

@@ -268,6 +268,10 @@ class AdminReturnAddressTest extends TestCase
         $this->assertTrue($out->vatInvoiceRequested());
         $this->assertTrue($ret->vatInvoiceRequested());
         $this->assertSame('JELD-WEN UK Ltd', $ret->meta['vat_details']['company'] ?? null);
+        // Any auto-made unpaid card line is VAT-inclusive, not the pre-VAT fare.
+        foreach ($out->payments()->whereIn('status', ['pending', 'link_sent'])->get() as $p) {
+            $this->assertEqualsWithDelta(138.0, (float) $p->amount, 0.01);
+        }
 
         $html = (new \App\Mail\BookingConfirmationMail($out->fresh(), paid: false, payUrl: '#'))->render();
         $this->assertStringContainsString('£318.00', $html);
