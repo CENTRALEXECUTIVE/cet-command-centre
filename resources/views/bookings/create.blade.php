@@ -4,13 +4,13 @@
 @section('content')
     @include('partials.smart-form-skin')
 
-    <div class="smart-form">
-        <div class="smart-hero">
-            <div class="brand"><span class="mark">C</span><span class="name">CENTRAL <span>EXECUTIVE</span> TRANSFERS</span></div>
-            <span class="eyebrow">Sales · New job</span>
-            <h1>New booking</h1>
-            <p>The customer booking form, with your admin controls built in — quote to confirmed booking in under 60 seconds.</p>
-            <span class="pill">⚡ Live price · driver &amp; payment control</span>
+    <div class="smart-form sf-booking">
+        <div class="smart-hero sf-compact">
+            <div>
+                <span class="eyebrow">Sales · New job</span>
+                <h1>New booking</h1>
+            </div>
+            <span class="pill">⚡ Live price · checks meet &amp; greet, VAT and payment as you type</span>
         </div>
 
     @if($errors->any())
@@ -316,7 +316,7 @@
                 @error('suitcases') <div class="error">{{ $message }}</div> @enderror
 
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
-                    <span class="lbl">Hand luggage<span class="sub">Cabin / small bags</span></span>
+                    <span class="lbl">Cabin bags<span class="sub">Hand luggage / small bags</span></span>
                     <div class="stepper" data-stepper>
                         <button type="button" data-dec>−</button>
                         <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', 0) }}">
@@ -344,7 +344,7 @@
         <div class="eto-section">
             <div class="head" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"
                  onclick="var b=this.nextElementSibling;var show=b.hidden;b.hidden=!show;this.querySelector('.fold-caret').textContent=show?'▾':'▸'">
-                <span><span class="ico">✨</span> Extras <span class="muted" style="font-weight:400;font-size:12px">— meet &amp; greet, child seats, ribbons</span></span>
+                <span><span class="ico">✨</span> Extras <span class="muted" style="font-weight:400;font-size:12px">— meet &amp; greet, child seats, ribbons</span> <span class="sf-chip" id="sf-mg-chip" hidden>Meet &amp; greet on</span></span>
                 <span class="fold-caret" style="color:#999">{{ $extrasOpen ? '▾' : '▸' }}</span>
             </div>
             <div class="body" {{ $extrasOpen ? '' : 'hidden' }}>
@@ -535,6 +535,9 @@
         {{-- ───────────── Total + submit ───────────── --}}
         <div class="total-bar">
             <div class="total-main">
+                {{-- Live summary of what's being booked (desktop side panel) — read-only,
+                     filled from the fields above so the office can check before confirming. --}}
+                <dl class="sf-summary" id="sf-summary" aria-live="polite"></dl>
                 <div class="total-label">Total</div>
                 <div class="total-amount" id="total-amount">£{{ number_format(old('quoted_price', $quote?->price ?? 0), 2) }}<span class="basis" id="total-basis">enter journey for a live price</span></div>
                 {{-- Itemised breakdown right by the figure so the office sees what
@@ -1244,6 +1247,111 @@
         document.addEventListener('click', function (e) {
             if (!results.contains(e.target) && e.target !== box) hide();
         });
+    })();
+    </script>
+    {{-- ───── Layout refresh (Oct 2026): compact header, numbered steps, and on wide
+         screens a two-column form with the total as a sticky summary panel. Pure
+         presentation — every field id/name and script hook is unchanged. ───── --}}
+    <style>
+        .sf-booking .smart-hero.sf-compact{ display:flex; align-items:flex-end; justify-content:space-between;
+            gap:12px 20px; flex-wrap:wrap; padding:16px 20px 18px; }
+        .sf-booking .smart-hero.sf-compact h1{ margin:2px 0 0; font-size:24px; }
+        .sf-booking .smart-hero.sf-compact .pill{ margin-top:0; }
+
+        /* Numbered steps — the sections are filled in this order. */
+        .sf-booking .eto-form{ counter-reset:sfstep; }
+        .sf-booking .eto-section > .head{ counter-increment:sfstep; }
+        .sf-booking .eto-section > .head .ico{ display:none; }
+        .sf-booking .eto-section > .head::before{ content:counter(sfstep); flex:0 0 auto; width:24px; height:24px;
+            border-radius:50%; display:inline-grid; place-items:center; font-size:12px; letter-spacing:0;
+            background:#0b0b0c; color:#FBBA2A; margin-right:2px; }
+        html[data-theme="dark"] .sf-booking .eto-section > .head::before{ background:#FBBA2A; color:#0b0b0c; }
+
+        /* Meet & greet status shown on the Extras header even when folded. */
+        .sf-booking .sf-chip{ display:inline-flex; align-items:center; margin-left:8px; padding:3px 9px; border-radius:999px;
+            background:rgba(251,186,42,.18); border:1px solid rgba(233,164,19,.6); color:#6b4e00;
+            font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; vertical-align:middle; }
+        html[data-theme="dark"] .sf-booking .sf-chip{ color:#FBBA2A; }
+        .sf-booking .sf-chip[hidden]{ display:none; }
+
+        /* Summary list inside the dark total panel. */
+        .sf-booking .sf-summary{ display:none; margin:0 0 14px; padding:0 0 12px; border-bottom:1px solid rgba(255,255,255,.12);
+            font-size:13px; line-height:1.45; }
+        .sf-booking .sf-summary div{ display:grid; grid-template-columns:86px minmax(0,1fr); gap:8px; padding:3px 0; }
+        .sf-booking .sf-summary dt{ color:#9d9c96; font-size:11px; letter-spacing:.6px; text-transform:uppercase; padding-top:2px; }
+        .sf-booking .sf-summary dd{ margin:0; color:#f4f2ec; overflow-wrap:anywhere; }
+        .sf-booking .sf-summary dd.empty{ color:#6f6e69; }
+        .sf-booking .sf-summary dd.warn{ color:#FBBA2A; font-weight:700; }
+
+        @media (min-width:1100px){
+            .sf-booking .eto-form{ display:grid; grid-template-columns:minmax(0,1fr) 340px; column-gap:22px; align-items:start; max-width:1240px; }
+            .sf-booking .eto-form > *{ grid-column:1; }
+            .sf-booking .eto-form > .total-bar{ grid-column:2; grid-row:1 / span 40; position:sticky; top:84px; bottom:auto;
+                flex-direction:column; align-items:stretch; margin-top:0; padding:18px; }
+            .sf-booking .eto-form > .total-bar .actions{ flex-direction:column; align-items:stretch; }
+            .sf-booking .eto-form > .total-bar .actions > *{ width:100%; text-align:center; justify-content:center; }
+            .sf-booking .eto-form > .total-bar .btn-primary{ order:-1; padding:15px 18px; }
+            .sf-booking .sf-summary{ display:block; }
+            .sf-booking .veh-cards{ grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); }
+        }
+        @media (max-width:560px){
+            .sf-booking .smart-hero.sf-compact .pill{ display:none; }
+            .sf-booking .total-bar{ padding:12px 14px; gap:10px; }
+            .sf-booking .total-bar .total-amount{ font-size:24px; }
+            .sf-booking .total-bar .actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+            .sf-booking .total-bar .actions .btn-primary{ grid-column:1 / -1; order:-1; }
+        }
+    </style>
+    <script>
+    // Live booking summary + meet & greet chip (read-only mirrors of the fields).
+    (function () {
+        var box = document.getElementById('sf-summary');
+        var chip = document.getElementById('sf-mg-chip');
+        var form = box && box.closest('form');
+        if (!form) return;
+        function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+        function short(a) { a = a.replace(/,\s*UK$/i, ''); return a.length > 70 ? a.slice(0, 68) + '…' : a; }
+        function when(v) {
+            if (!v) return '';
+            var d = new Date(v);
+            if (isNaN(d)) return v;
+            return d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+        function plural(n, w) { n = parseInt(n, 10) || 0; return n + ' ' + w + (n === 1 ? '' : 's'); }
+        function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function row(label, text, cls) {
+            return '<div><dt>' + label + '</dt><dd class="' + (cls || (text ? '' : 'empty')) + '">' + esc(text || '—') + '</dd></div>';
+        }
+        function render() {
+            var jt = document.getElementById('journey_type');
+            var journey = jt ? jt.options[jt.selectedIndex].text : '';
+            if (jt && jt.value === 'hourly') journey += ' · ' + (val('hours') || '?') + ' h';
+            var veh = document.getElementById('vehicle_type_id');
+            var vehText = veh && veh.value ? veh.options[veh.selectedIndex].text : '';
+            var mg = document.getElementById('meet_greet');
+            var mgOn = !!(mg && mg.checked);
+            var pm = document.getElementById('payment_method');
+            var vat = document.getElementById('vat_invoice');
+            var pay = pm && pm.value ? pm.options[pm.selectedIndex].text : '';
+            if (vat && vat.checked) pay += ' · VAT invoice';
+            var html = row('Customer', val('customer_name'))
+                + row('Journey', journey)
+                + row('Pickup', short(val('pickup_address')))
+                + row(jt && jt.value === 'hourly' ? 'Then' : 'Drop-off', short(val('destination_address')) || (jt && jt.value === 'hourly' ? 'As directed' : ''))
+                + row('When', when(val('pickup_at')));
+            if (jt && jt.value === 'return') html += row('Return', when(val('return_pickup_at')));
+            html += row('Vehicle', vehText)
+                + row('People', plural(val('passengers'), 'passenger') + ' · ' + plural(val('suitcases'), 'suitcase') + ' · ' + plural(val('hand_luggage'), 'cabin bag'))
+                + row('Meet & greet', mgOn ? 'Yes' : 'No', mgOn ? 'warn' : '')
+                + row('Payment', pay);
+            if (box.innerHTML !== html) box.innerHTML = html;
+            if (chip) chip.hidden = !mgOn;
+        }
+        form.addEventListener('input', render);
+        form.addEventListener('change', render);
+        document.addEventListener('click', function () { setTimeout(render, 0); });
+        setInterval(render, 1500); // picks up values set by the address/price scripts
+        render();
     })();
     </script>
 @endsection
