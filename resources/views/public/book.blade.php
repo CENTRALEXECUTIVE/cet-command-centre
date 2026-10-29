@@ -330,6 +330,28 @@
     document.getElementById('bookForm').addEventListener('input',function(e){
         if(e.target.hasAttribute&&e.target.hasAttribute('data-extra')) refreshTotal();});
 
+    // Meet & greet is only for an airport PICKUP (an arrival) — the server never
+    // charges it on a drop-off to the airport, so neither does this total; the box
+    // is hidden (and cleared) unless the pick-up is an airport.
+    var AIR_STREET = '(?:road|rd|street|lane|avenue|drive|close|crescent|grove|terrace|retail\\s+park|business\\s+park|shopping\\s+park|industrial\\s+estate|trading\\s+estate)\\b';
+    var AIR_NAME = new RegExp('(?:^|[^a-z0-9])(?:airport|heathrow|gatwick|london\\s+stansted|stansted\\s+airport|london\\s+luton|luton\\s+airport|manchester\\s+airport|east\\s+midlands\\s+airport|nottingham\\s+east\\s+midlands|leeds\\s+bradford|doncaster\\s+sheffield|robin\\s+hood\\s+airport|liverpool\\s+john\\s+lennon)(?![a-z0-9])(?!\\s+' + AIR_STREET + ')');
+    function airportIn(v) {
+        var s = String(v || '').toLowerCase();
+        if (AIR_NAME.test(s)) return true;
+        if (/\((man|lhr|lgw|stn|ema|lba|bhx|lpl|huy|ltn|dsa|ncl|edi|gla|brs)\)/.test(s)) return true;
+        if (/\bm90\b|\btw6\b|\bde74\s*2sa\b|\blu2\s*9ly\b|\bb26\s*3qj\b|\bls19\s*7tu\b|\bl24\s*1yd\b|\bcm24\s*1qw\b|\brh6\s*0(np|pj)\b|\bdn39\s*6yh\b/.test(s)) return true;
+        if (/\bt[1-5]\b/.test(s)) return true;
+        var t = s.replace(/\b(bus|coach|ferry|freight|cargo|container|cruise|rail|oil|lorry|truck)\s+terminal\b/g, ' ')
+            .replace(/\bterminal\s+(house|buildings?|chambers|court|works|road|rd|street|lane|avenue|drive|close|place|business\s+park|industrial\s+estate|trading\s+estate)\b/g, ' ');
+        return /\bterminal\b/.test(t);
+    }
+    function mgAllowed(){ return airportIn((document.getElementById('pickup')||{}).value); }
+    function syncMeetGreet(){
+        var mgEl=document.querySelector('input[name=meet_greet]'); if(!mgEl) return;
+        var ok=mgAllowed(); var lab=mgEl.closest('label'); if(lab) lab.style.display=ok?'':'none';
+        if(!ok) mgEl.checked=false;
+    }
+    (function(){var pu=document.getElementById('pickup'); if(pu){['input','change'].forEach(function(ev){pu.addEventListener(ev,function(){syncMeetGreet();refreshTotal();});});} syncMeetGreet();})();
     function extrasTotal(){
         var sel=cars.querySelector('input[name=vehicle_type_id]:checked'), isMini=false;
         if(sel){var nm=(sel.closest('.vcard').querySelector('.nm').textContent||'').toLowerCase();
@@ -337,6 +359,7 @@
         var sum=0;
         document.querySelectorAll('[data-extra]').forEach(function(el){
             var unit=parseFloat(el.getAttribute('data-extra'))||0;
+            if(el.name==='meet_greet'&&!mgAllowed()) return;
             if(el.type==='checkbox'){if(el.checked){if(el.name==='ribbons'&&isMini){unit=parseFloat(el.getAttribute('data-extra-minibus'))||unit;}sum+=unit;}}
             else{sum+=(parseInt(el.value,10)||0)*unit;}});
         return sum;

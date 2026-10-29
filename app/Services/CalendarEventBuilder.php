@@ -196,6 +196,11 @@ class CalendarEventBuilder
     private function journeyLabel(Booking $booking): string
     {
         $label = $booking->meta['journey_label'] ?? 'Transfer';
+        // Never print meet & greet on a leg that doesn't collect from an airport,
+        // even when a copied/imported label carries it.
+        if (! $booking->collectsFromAirport()) {
+            $label = trim((string) preg_replace('/\s*\(\s*meet\s*(?:&|and)\s*greet\s*\)/i', '', $label)) ?: 'Transfer';
+        }
         if ($booking->isMeetGreet() && stripos($label, 'meet') === false) {
             $label .= ' (Meet & Greet)';
         }

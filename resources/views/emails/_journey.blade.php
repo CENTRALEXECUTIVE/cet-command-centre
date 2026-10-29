@@ -29,7 +29,7 @@
             {!! $row('Flight:', $leg->displayFlightNumber()) !!}
             @php $landing = $leg->meta['flight_landing_at'] ?? null; @endphp
             @if($landing){!! $row('Flight lands:', \Illuminate\Support\Carbon::parse($landing)->format('d/m/Y H:i')) !!}@endif
-            @if(!empty($leg->meta['meet_greet']) && (! $leg->is_return_leg || \App\Support\AirportMatcher::isAirport($leg->pickup_address))){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
+            @if($leg->isMeetGreet()){!! $row('Meet &amp; greet:', 'Yes — driver waits in arrivals with a name board') !!}@endif
             @if(trim((string) ($leg->special_requests ?? '')) !== ''){!! $row('Notes:', trim((string) $leg->special_requests)) !!}@endif
         </table>
     </td></tr>

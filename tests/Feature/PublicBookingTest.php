@@ -80,14 +80,17 @@ class PublicBookingTest extends TestCase
             'max_uses' => 1, 'valid_from' => now()->subDay(), 'valid_to' => now()->addYear(),
         ]);
 
-        // Base 105 + meet&greet 10 + 1 child seat 10 = 125; 20% off = 100.
+        // Base 105 + 1 child seat 10 = 115; 20% off = 92. The ticked meet & greet is
+        // NOT charged — this is a drop-off TO the airport (Sheffield → MAN), and meet
+        // & greet only ever applies to an airport pickup.
         $this->post(route('public.book.store'), $this->payload($exec->id, [
             'meet_greet' => 1, 'child_seats' => 1, 'voucher' => 'rachel20',
         ]))->assertRedirect(route('public.book.thanks'));
 
         $booking = Booking::latest('id')->first();
-        $this->assertSame(100.0, (float) $booking->quoted_price);
-        $this->assertSame(25.0, (float) $booking->meta['voucher']['discount']); // 20% of 125
+        $this->assertSame(92.0, (float) $booking->quoted_price);
+        $this->assertSame(23.0, (float) $booking->meta['voucher']['discount']); // 20% of 115
+        $this->assertNotContains('Meet & greet', array_column($booking->meta['fare_extras'] ?? [], 'label'));
         $this->assertSame(0, Voucher::first()->used_count); // not consumed until paid
     }
 

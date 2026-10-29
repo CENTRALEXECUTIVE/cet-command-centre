@@ -1463,17 +1463,30 @@
                 var pu = (document.getElementById('b-pickup') || {}).value || '';
                 var dp = (document.getElementById('b-dropoff') || {}).value || '';
                 var jt = journeyEl ? journeyEl.value : 'one_way';
-                var hay = (jt === 'return') ? (pu + ' ' + dp) : pu; // return legs pick up from either end
-                hay = hay.toLowerCase();
-                return /\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|\bt1\b|\bt2\b|\bt3\b|\bt5\b/.test(hay);
+                // Return legs pick up from either end.
+                return airportIn(pu) || (jt === 'return' && airportIn(dp));
             }
             // True when the journey is an airport RETURN (return trip touching an airport).
             function isAirportReturn() {
                 var jt = journeyEl ? journeyEl.value : 'one_way';
                 return jt === 'return' && isAirportJourney();
             }
+            // Mirrors App\Support\AirportMatcher (server side decides the charge):
+            // never a bare town ("Luton"), a road/estate named after an airport
+            // ("Gatwick Road", "Airport Retail Park"), an office ("Terminal House")
+            // or a bus/coach terminal — those used to force meet & greet onto a
+            // home pickup.
+            var AIR_STREET = '(?:road|rd|street|lane|avenue|drive|close|crescent|grove|terrace|retail\\s+park|business\\s+park|shopping\\s+park|industrial\\s+estate|trading\\s+estate)\\b';
+            var AIR_NAME = new RegExp('(?:^|[^a-z0-9])(?:airport|heathrow|gatwick|london\\s+stansted|stansted\\s+airport|london\\s+luton|luton\\s+airport|manchester\\s+airport|east\\s+midlands\\s+airport|nottingham\\s+east\\s+midlands|leeds\\s+bradford|doncaster\\s+sheffield|robin\\s+hood\\s+airport|liverpool\\s+john\\s+lennon)(?![a-z0-9])(?!\\s+' + AIR_STREET + ')');
             function airportIn(v) {
-                return /\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|\bt1\b|\bt2\b|\bt3\b|\bt5\b/.test(String(v || '').toLowerCase());
+                var s = String(v || '').toLowerCase();
+                if (AIR_NAME.test(s)) return true;
+                if (/\((man|lhr|lgw|stn|ema|lba|bhx|lpl|huy|ltn|dsa|ncl|edi|gla|brs)\)/.test(s)) return true;
+                if (/\bm90\b|\btw6\b|\bde74\s*2sa\b|\blu2\s*9ly\b|\bb26\s*3qj\b|\bls19\s*7tu\b|\bl24\s*1yd\b|\bcm24\s*1qw\b|\brh6\s*0(np|pj)\b|\bdn39\s*6yh\b/.test(s)) return true;
+                if (/\bt[1-5]\b/.test(s)) return true;
+                var t = s.replace(/\b(bus|coach|ferry|freight|cargo|container|cruise|rail|oil|lorry|truck)\s+terminal\b/g, ' ')
+                    .replace(/\bterminal\s+(house|buildings?|chambers|court|works|road|rd|street|lane|avenue|drive|close|place|business\s+park|industrial\s+estate|trading\s+estate)\b/g, ' ');
+                return /\bterminal\b/.test(t);
             }
             function isAirportPickup() { return airportIn((document.getElementById('b-pickup') || {}).value); }
             function isAirportDropoff() { return airportIn((document.getElementById('b-dropoff') || {}).value); }

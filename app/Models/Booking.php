@@ -3694,6 +3694,13 @@ class Booking extends Model
         // Prefer the synced calendar line (the operator's source of truth); fall
         // back to the live flag + board/point so a just-created admin booking
         // still shows meet & greet before any calendar event exists.
+        // Never on a leg that doesn't collect from an airport — not even when an
+        // older calendar event (written before the arrivals-only fix) carries a
+        // "Meet & Greet" line on a drop-off.
+        if (! $this->collectsFromAirport()) {
+            return null;
+        }
+
         return $this->calendarField('Meet & Greet') ?: $this->meetGreetLabel();
     }
 
@@ -3720,8 +3727,11 @@ class Booking extends Model
             return true;
         }
 
+        // The shared matcher (not a bare "airport" substring): "Terminal 5,
+        // Longford" IS an airport pickup; "15 Airport Road" or "Terminal House"
+        // is not — that mislabelled home pickups as an "Arrival".
         $pickup = strtolower((string) $this->displayPickupAddress());
-        if ($pickup !== '' && str_contains($pickup, 'airport')) {
+        if ($pickup !== '' && \App\Support\AirportMatcher::isAirport($pickup)) {
             return true;
         }
 
@@ -4173,7 +4183,27 @@ class Booking extends Model
      */
     public function isMeetGreet(): bool
     {
-        return ! empty($this->meta['meet_and_greet']) || ! empty($this->meta['meet_greet']);
+        if (empty($this->meta['meet_and_greet']) && empty($this->meta['meet_greet'])) {
+            return false;
+        }
+
+        // Meet & greet only ever applies on a leg that COLLECTS from an airport (an
+        // arrival). A flag that reached a drop-off/departure leg — an ETO/Outlook
+        // import, a widget return copying it onto both legs, an edit that moved the
+        // pickup off the airport — must never show on the driver sheet, calendar or
+        // emails (a Doncaster home → EMA run showed and charged it).
+        return $this->collectsFromAirport();
+    }
+
+    /**
+     * Does this leg COLLECT from an airport (an arrival)? The Arrival label, the
+     * linked airport code in the pickup, or the shared matcher on the pickup
+     * (calendar copy or our own). The gate for meet & greet.
+     */
+    public function collectsFromAirport(): bool
+    {
+        return $this->isAirportPickup()
+            || \App\Support\AirportMatcher::isAirport($this->pickup_address);
     }
 
     /**

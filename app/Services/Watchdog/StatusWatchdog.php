@@ -984,7 +984,7 @@ class StatusWatchdog
             return true;
         }
 
-        return Str::contains(Str::lower((string) $booking->pickup_address), 'airport');
+        return \App\Support\AirportMatcher::isAirport($booking->pickup_address);
     }
 
     /**

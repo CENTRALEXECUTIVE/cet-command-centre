@@ -4,32 +4,63 @@ namespace App\Support;
 
 /**
  * One place that works out which airport an address refers to — used for the title
- * WHERE word, the Arrival/Departure/Transfer classification, and driver rotation.
+ * WHERE word, the Arrival/Departure/Transfer classification, driver rotation and,
+ * critically, whether MEET & GREET may be charged (only on a leg that collects from
+ * an airport). A false positive here charges a customer for meet & greet on a
+ * home pickup, so matching is deliberately strict:
  *
- * It matches, in order: a bracketed IATA code "(MAN)", an airport name/postcode
- * alias ("Manchester Airport", "M90"), and — the case that used to slip through —
- * a TERMINAL reference next to a city ("Terminal 2, Manchester", "T2 Manchester"),
- * which is unmistakably that city's airport even though the word "airport" is absent.
+ * It matches, in order: a bracketed IATA code "(MAN)", an airport NAME alias
+ * ("Manchester Airport", "Heathrow"), an airport-only POSTCODE ("M90", "DE74 2SA"),
+ * and a TERMINAL reference next to a city ("Terminal 2, Manchester", "T2
+ * Manchester"), which is unmistakably that city's airport even though the word
+ * "airport" is absent.
+ *
+ * It never matches: a bare city/town ("Doncaster", "Luton", "Castle Donington"),
+ * a road or retail/business park NAMED after an airport ("Gatwick Road, Crawley",
+ * "Airport Retail Park"), an office building ("Terminal House"), a bus/coach/ferry
+ * terminal, or a residential postcode district the airport merely shares (LU2,
+ * DE74, B26, RH6, LS19, …).
  */
 class AirportMatcher
 {
-    /** IATA code → name / postcode-area aliases. */
+    /** IATA code → airport NAME aliases (matched as whole words, never as a street name). */
     private const ALIASES = [
-        'MAN' => ['manchester airport', 'm90'],
-        'LHR' => ['heathrow', 'tw6'],
-        'LGW' => ['gatwick', 'rh6'],
-        'STN' => ['stansted', 'cm24'],
-        'EMA' => ['east midlands airport', 'nottingham east midlands', 'de74'],
-        'LBA' => ['leeds bradford', 'ls19'],
-        'BHX' => ['birmingham airport', 'b26'],
-        'LPL' => ['liverpool john lennon', 'liverpool airport', 'l24'],
-        'HUY' => ['humberside airport', 'dn39'],
-        'LTN' => ['luton airport', 'london luton', 'lu2'],
+        'MAN' => ['manchester airport'],
+        'LHR' => ['heathrow'],
+        'LGW' => ['gatwick'],
+        'STN' => ['stansted airport', 'london stansted'],
+        'EMA' => ['east midlands airport', 'nottingham east midlands'],
+        'LBA' => ['leeds bradford'],
+        'BHX' => ['birmingham airport'],
+        'LPL' => ['liverpool john lennon', 'liverpool airport'],
+        'HUY' => ['humberside airport'],
+        'LTN' => ['luton airport', 'london luton'],
         'DSA' => ['doncaster sheffield', 'robin hood airport'],
         'NCL' => ['newcastle airport'],
         'EDI' => ['edinburgh airport'],
         'GLA' => ['glasgow airport'],
         'BRS' => ['bristol airport'],
+    ];
+
+    /**
+     * IATA code → postcodes that are the airport itself. Only districts that are
+     * ENTIRELY airport (M90, TW6) are matched by district; everywhere else the
+     * district is shared with homes (Luton LU2, Kegworth DE74, Sheldon B26, Horley
+     * RH6, Yeadon LS19, Speke L24, Stansted Mountfitchet CM24), so only the
+     * airport's own full postcode counts.
+     */
+    private const POSTCODES = [
+        'MAN' => ['m90'],
+        'LHR' => ['tw6'],
+        'LGW' => ['rh6 0np', 'rh6 0pj'],
+        'STN' => ['cm24 1qw'],
+        'EMA' => ['de74 2sa'],
+        'LBA' => ['ls19 7tu'],
+        'BHX' => ['b26 3qj'],
+        'LPL' => ['l24 1yd'],
+        'HUY' => ['dn39 6yh'],
+        'LTN' => ['lu2 9ly'],
+        'DSA' => ['dn9 3rh'],
     ];
 
     /**
@@ -62,6 +93,14 @@ class AirportMatcher
         'luton' => 'LTN',
     ];
 
+    /**
+     * Words that, straight after an airport word, make it a STREET / estate named
+     * after the airport rather than the airport ("Gatwick Road, Crawley", "Airport
+     * Retail Park", "Leeds Bradford Road"). "Way" is deliberately NOT here — the
+     * real airports' own addresses use it (Airport Way, Luton / Gatwick).
+     */
+    private const STREET = '(?:road|rd|street|lane|avenue|drive|close|crescent|grove|terrace|retail\s+park|business\s+park|shopping\s+park|industrial\s+estate|trading\s+estate)\b';
+
     /** The IATA code for one or more address parts, or null if none looks like an airport. */
     public static function codeFor(?string ...$parts): ?string
     {
@@ -77,16 +116,26 @@ class AirportMatcher
 
         $needle = strtolower($haystack);
 
-        // 2. A name or postcode-area alias.
+        // 2. An airport name alias — as whole words, and not a road named after it.
         foreach (self::ALIASES as $code => $aliases) {
             foreach ($aliases as $alias) {
-                if (str_contains($needle, $alias)) {
+                if (self::hasWord($needle, $alias)) {
                     return $code;
                 }
             }
         }
 
-        // 3. A terminal reference next to a city → that city's airport.
+        // 3. The airport's own postcode (space optional).
+        foreach (self::POSTCODES as $code => $postcodes) {
+            foreach ($postcodes as $pc) {
+                $rx = str_replace(' ', '\s*', preg_quote($pc, '/'));
+                if (preg_match('/\b'.$rx.'\b/', $needle)) {
+                    return $code;
+                }
+            }
+        }
+
+        // 4. A terminal reference next to a city → that city's airport.
         if (self::hasTerminal($needle)) {
             foreach (self::TERMINAL_CITIES as $city => $code) {
                 if (str_contains($needle, $city)) {
@@ -102,14 +151,38 @@ class AirportMatcher
     public static function isAirport(?string ...$parts): bool
     {
         $needle = strtolower(trim(implode(' ', array_filter($parts))));
+        if ($needle === '') {
+            return false;
+        }
 
-        return str_contains($needle, 'airport')
+        return self::hasWord($needle, 'airport')
             || self::hasTerminal($needle)
             || self::codeFor(...$parts) !== null;
     }
 
+    /** $phrase as whole word(s) in $needle, NOT immediately followed by a street word. */
+    private static function hasWord(string $needle, string $phrase): bool
+    {
+        $rx = str_replace(' ', '\s+', preg_quote($phrase, '/'));
+
+        return (bool) preg_match('/(?<![a-z0-9])'.$rx.'(?![a-z0-9])(?!\s+'.self::STREET.')/', $needle);
+    }
+
+    /**
+     * An airport terminal reference: "Terminal 2", "North Terminal", "T5" — but not
+     * an office building or street ("Terminal House", "Terminal Road") and not a
+     * bus / coach / ferry / freight terminal.
+     */
     private static function hasTerminal(string $needle): bool
     {
-        return (bool) preg_match('/\bterminal\b|\bt[1-5]\b/', $needle);
+        if (preg_match('/\bt[1-5]\b/', $needle)) {
+            return true;
+        }
+
+        return (bool) preg_match(
+            '/(?<!bus )(?<!coach )(?<!ferry )(?<!freight )(?<!cargo )(?<!container )(?<!cruise )(?<!rail )(?<!oil )(?<!lorry )(?<!truck )\bterminal\b'
+            .'(?!\s+(?:house|building|buildings|chambers|court|works|road|rd|street|lane|avenue|drive|close|place|business\s+park|industrial\s+estate|trading\s+estate)\b)/',
+            $needle
+        );
     }
 }

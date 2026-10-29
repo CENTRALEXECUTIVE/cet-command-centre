@@ -766,10 +766,22 @@
                     if (meetingDetails && meet) meetingDetails.hidden = !meet.checked;
                 }
 
-                var rx = /\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bman\b|manchester airport|east midlands|\bema\b|\blba\b|leeds bradford|doncaster sheffield|robin hood|\bt[1-5]\b/i;
-                // (Never bare "doncaster": a Doncaster home address is not the airport — it
-                // made an outbound from Sprotbrough look like an arrival and ticked meet & greet.)
-                function looksAirport(v) { return rx.test(String(v || '')); }
+                // Same rules as App\Support\AirportMatcher and the customer widget: never a
+                // bare town ("Doncaster", "Luton"), a road named after an airport ("Gatwick
+                // Road") or an office ("Terminal House") — those auto-ticked meet & greet.
+                var AIR_STREET = '(?:road|rd|street|lane|avenue|drive|close|crescent|grove|terrace|retail\\s+park|business\\s+park|shopping\\s+park|industrial\\s+estate|trading\\s+estate)\\b';
+                var AIR_NAME = new RegExp('(?:^|[^a-z0-9])(?:airport|heathrow|gatwick|london\\s+stansted|stansted\\s+airport|london\\s+luton|luton\\s+airport|manchester\\s+airport|east\\s+midlands\\s+airport|nottingham\\s+east\\s+midlands|leeds\\s+bradford|doncaster\\s+sheffield|robin\\s+hood\\s+airport|liverpool\\s+john\\s+lennon)(?![a-z0-9])(?!\\s+' + AIR_STREET + ')');
+                function airportIn(v) {
+                    var s = String(v || '').toLowerCase();
+                    if (AIR_NAME.test(s)) return true;
+                    if (/\((man|lhr|lgw|stn|ema|lba|bhx|lpl|huy|ltn|dsa|ncl|edi|gla|brs)\)/.test(s)) return true;
+                    if (/\bm90\b|\btw6\b|\bde74\s*2sa\b|\blu2\s*9ly\b|\bb26\s*3qj\b|\bls19\s*7tu\b|\bl24\s*1yd\b|\bcm24\s*1qw\b|\brh6\s*0(np|pj)\b|\bdn39\s*6yh\b/.test(s)) return true;
+                    if (/\bt[1-5]\b/.test(s)) return true;
+                    var t = s.replace(/\b(bus|coach|ferry|freight|cargo|container|cruise|rail|oil|lorry|truck)\s+terminal\b/g, ' ')
+                        .replace(/\bterminal\s+(house|buildings?|chambers|court|works|road|rd|street|lane|avenue|drive|close|place|business\s+park|industrial\s+estate|trading\s+estate)\b/g, ' ');
+                    return /\bterminal\b/.test(t);
+                }
+                function looksAirport(v) { return airportIn(v); }
                 // Direction is decided by WHICH END is the airport. The Airport dropdown
                 // only flags that a job involves an airport (for driver rotation) — it does
                 // NOT mean the PICKUP is the airport. Meet & greet is an ARRIVALS thing, so

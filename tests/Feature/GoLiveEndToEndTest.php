@@ -72,14 +72,16 @@ class GoLiveEndToEndTest extends TestCase
             'vehicle_type_id' => $exec->id, 'passengers' => 2, 'suitcases' => 1, 'hand_luggage' => 1,
             'customer_name' => 'Jane Traveller', 'customer_email' => 'jane@example.com',
             'customer_phone' => '07700900123',
-            'meet_greet' => 1, 'child_seats' => 1, // base 105 + 10 + 10 = 125
+            // base 105 + child seat 10 = 115 — the ticked meet & greet is NOT charged
+            // on a drop-off to the airport (arrivals only).
+            'meet_greet' => 1, 'child_seats' => 1,
         ])->assertRedirect('https://pay.test/checkout/abc');
 
         $booking = Booking::latest('id')->firstOrFail();
         $this->assertSame('web', $booking->source);
         $this->assertSame('pending', $booking->payment_status);
-        $this->assertSame(125.0, (float) $booking->quoted_price); // extras folded into the fare
-        $this->assertSame(20.0, (float) $booking->meta['fare_extras_total']);
+        $this->assertSame(115.0, (float) $booking->quoted_price); // extras folded into the fare
+        $this->assertSame(10.0, (float) $booking->meta['fare_extras_total']);
 
         // The office gets the "new booking" notice straight away (unpaid = incomplete).
         Mail::assertSent(OfficeBookingMail::class, fn ($m) => $m->stage === 'new'

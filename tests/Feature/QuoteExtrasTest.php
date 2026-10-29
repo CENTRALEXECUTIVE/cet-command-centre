@@ -28,8 +28,9 @@ class QuoteExtrasTest extends TestCase
     {
         $quote = app(AiPricingEngine::class)->quote([
             'vehicle_type_id' => VehicleType::where('slug', 'executive')->value('id'),
-            'pickup_address' => 'Sheffield S10',
-            'destination_address' => 'Manchester Airport',
+            // An airport PICKUP — meet & greet only ever applies to an arrival.
+            'pickup_address' => 'Manchester Airport',
+            'destination_address' => 'Sheffield S10',
             'pickup_at' => now()->addDays(2)->setTime(10, 0)->toDateTimeString(),
             'distance_miles' => 40, 'duration_minutes' => 55,
             'meet_greet' => 1,
@@ -70,8 +71,8 @@ class QuoteExtrasTest extends TestCase
         // extras + stopovers (it's the same extras maths the booking form uses).
         $quote = app(AiPricingEngine::class)->quote([
             'vehicle_type_id' => VehicleType::where('slug', 'executive')->value('id'),
-            'pickup_address' => 'Sheffield S10',
-            'destination_address' => 'Manchester Airport',
+            'pickup_address' => 'Manchester Airport',
+            'destination_address' => 'Sheffield S10',
             'pickup_at' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d\TH:i'),
             'distance_miles' => 40, 'duration_minutes' => 55,
             'meet_greet' => 1, 'stopovers' => 1,
@@ -79,5 +80,22 @@ class QuoteExtrasTest extends TestCase
         ]);
 
         $this->assertSame(20.0, (float) $quote->breakdown['extras_total']); // £10 M&G + £10 stopover
+    }
+
+    public function test_meet_and_greet_is_never_priced_on_a_drop_off_to_the_airport(): void
+    {
+        // Sprotbrough home → East Midlands Airport is a DEPARTURE: a ticked meet &
+        // greet must not add £10 (the £190-instead-of-£180 incident).
+        $quote = app(AiPricingEngine::class)->quote([
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->value('id'),
+            'pickup_address' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA',
+            'destination_address' => 'East Midlands Airport (EMA)',
+            'pickup_at' => now()->addDays(2)->setTime(10, 0)->toDateTimeString(),
+            'distance_miles' => 60, 'duration_minutes' => 70,
+            'meet_greet' => 1,
+        ]);
+
+        $this->assertSame(0.0, (float) $quote->breakdown['extras_total']);
+        $this->assertNotContains('Meet & greet', array_column($quote->breakdown['extras'], 'label'));
     }
 }

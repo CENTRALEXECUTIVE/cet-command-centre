@@ -151,9 +151,13 @@ class PublicBookingController extends Controller
         $destinationFull = $this->withPostcode($data['destination_address'], $data['destination_postcode'] ?? null);
 
         // Base + holiday surcharge + extras, all VAT-inclusive.
+        // Meet & greet only on an airport PICKUP (an arrival) — a ticked box on a
+        // drop-off to the airport is never charged.
+        $extraOptions = $this->extraOptions($data);
+        $extraOptions['meet_greet'] = $extraOptions['meet_greet'] && \App\Support\AirportMatcher::isAirport($pickupFull);
         $fare = $this->fares->calculate(
             $pickupFull, $destinationFull, $vehicleType, $pickupAt,
-            $this->extraOptions($data),
+            $extraOptions,
         );
         $base = $fare['base'];
         $subtotal = $fare['subtotal'];

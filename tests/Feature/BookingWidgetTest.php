@@ -486,17 +486,20 @@ class BookingWidgetTest extends TestCase
         $this->assertStringEndsWith('B', $ret->reference);
         $this->assertSame(substr($out->reference, 0, -1), substr($ret->reference, 0, -1));
         // Return leg reverses the route and carries its OWN fare (a round trip is two
-        // journeys) — £105 base each way; the outbound also carries the airport
-        // meet & greet (£10), so the round trip is £115 + £105 = £220, not £115.
+        // journeys) — £105 base each way; the RETURN (picked up at the airport) carries
+        // the meet & greet (£10) — never the outbound drop-off — so the round trip is
+        // £105 + £115 = £220.
         $this->assertSame('Manchester Airport', $ret->pickup_address);
         $this->assertSame('Sheffield S1 2HH', $ret->destination_address);
-        $this->assertEqualsWithDelta(105.0, (float) $ret->quoted_price, 0.01);
-        $this->assertEqualsWithDelta(115.0, (float) $out->quoted_price, 0.01);
+        $this->assertEqualsWithDelta(115.0, (float) $ret->quoted_price, 0.01);
+        $this->assertEqualsWithDelta(105.0, (float) $out->quoted_price, 0.01);
         $groupTotal = $out->invoiceGroupBookings()->sum(fn ($b) => (float) ($b->fareGross() ?? 0));
         $this->assertEqualsWithDelta(220.0, $groupTotal, 0.01);
-        // Airport return: meet & greet is applied no matter what, and the flight
-        // landing time is captured for the office.
-        $this->assertTrue((bool) $out->meta['meet_greet']);
+        // Airport return: meet & greet is applied no matter what — on the leg that
+        // collects from the airport only — and the flight landing time is captured.
+        $this->assertTrue((bool) ($ret->meta['meet_greet'] ?? false));
+        $this->assertFalse((bool) ($out->meta['meet_greet'] ?? false));
+        $this->assertFalse($out->isMeetGreet());
         $this->assertNotEmpty($out->meta['flight_landing_at']);
     }
 
@@ -742,8 +745,11 @@ class BookingWidgetTest extends TestCase
         $b = \App\Models\Booking::firstWhere('source', 'web');
         $this->assertSame('BA1368', $b->flight_number);
         $this->assertSame(2, $b->meta['child_seats']);
-        $this->assertTrue((bool) $b->meta['meet_greet']);
-        $this->assertStringContainsString('Meet & greet', (string) $b->special_requests);
+        // Sheffield → Manchester Airport is a DROP-OFF: a ticked meet & greet is never
+        // kept or noted on a departure (arrivals only).
+        $this->assertFalse((bool) ($b->meta['meet_greet'] ?? false));
+        $this->assertStringNotContainsString('Meet & greet', (string) $b->special_requests);
+        $this->assertStringContainsString('child seat', (string) $b->special_requests);
         $this->assertStringContainsString('2× child seats', (string) $b->special_requests);
         $this->assertStringContainsString('Please call on arrival', (string) $b->special_requests);
     }

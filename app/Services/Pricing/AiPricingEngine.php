@@ -101,7 +101,8 @@ class AiPricingEngine
 
         $count = fn (string $key) => max(0, min(8, (int) ($input[$key] ?? 0)));
 
-        if (! empty($input['meet_greet'])) {
+        // Meet & greet only on an airport PICKUP (an arrival), never a drop-off.
+        if (! empty($input['meet_greet']) && \App\Support\AirportMatcher::isAirport($input['pickup_address'] ?? null)) {
             $items[] = ['label' => 'Meet & greet', 'amount' => (float) ($rates['meet_greet'] ?? 10)];
         }
         foreach ([

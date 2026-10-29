@@ -88,7 +88,9 @@ class ImportBookingsCsv extends Command
 
             $childSeat = ((int) $get('Child Seats') > 0) || ((int) $get('Booster Seats') > 0) || str_contains($notes, '🚼');
             [$payMethod, $payStatus] = $this->payment($get('Payment Status'), $get('Payment Method'));
-            $meetGreet = preg_match('/\b(yes|required|true)\b/i', $get('Meet & Greet')) === 1;
+            // Meet & greet only on a leg that collects from an airport (an arrival).
+            $meetGreet = preg_match('/\b(yes|required|true)\b/i', $get('Meet & Greet')) === 1
+                && \App\Support\AirportMatcher::isAirport($pickup);
 
             $where = $this->airportCode($pickup.' '.$dropoff) ?: 'FREE ROAM';
             $meta = [
@@ -293,8 +295,8 @@ class ImportBookingsCsv extends Command
 
     private function journeyLabel(string $pickup, string $dropoff, ?int $airportId, bool $meetGreet): string
     {
-        $pickupAirport = $airportId && stripos($pickup, 'airport') !== false;
-        $dropoffAirport = stripos($dropoff, 'airport') !== false;
+        $pickupAirport = $airportId && \App\Support\AirportMatcher::isAirport($pickup);
+        $dropoffAirport = \App\Support\AirportMatcher::isAirport($dropoff);
         if ($pickupAirport) {
             return $meetGreet ? 'Arrival (Meet & Greet)' : 'Arrival';
         }

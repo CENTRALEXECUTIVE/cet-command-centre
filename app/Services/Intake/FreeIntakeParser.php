@@ -135,8 +135,13 @@ class FreeIntakeParser
     {
         if (preg_match('/\b(?:landing|arriv\w*|land)\s+(?:in|at|into)\s+([A-Za-z][A-Za-z\' ]{2,30}?)(?=\s*(?:at\b|\d|,|\.|$))/i', $text, $m)) {
             $place = trim($m[1]);
-            // Already reads like an airport? keep it; else append "Airport".
-            return preg_match('/airport/i', $place) ? Str::title($place) : Str::title($place).' Airport';
+            // Already reads like an airport? keep it; else append "Airport" — but only
+            // when that names a REAL airport. "Arriving at Sprotbrough" must not become
+            // "Sprotbrough Airport" (a home pickup read as an arrival: wrong title, and
+            // meet & greet on a leg that never collects from an airport).
+            $candidate = preg_match('/airport/i', $place) ? Str::title($place) : Str::title($place).' Airport';
+
+            return \App\Support\AirportMatcher::codeFor($candidate) !== null ? $candidate : null;
         }
 
         return null;

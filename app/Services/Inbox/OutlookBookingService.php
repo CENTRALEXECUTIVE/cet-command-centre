@@ -400,7 +400,8 @@ class OutlookBookingService
             // EtoEmailParser already puts the lead passenger in customer_name; the AI
             // fallback gives it as lead_passenger_name, so prefer that when present.
             'lead_name' => $parsed['lead_passenger_name'] ?? $parsed['customer_name'] ?? null,
-            'meet_and_greet' => $meetGreet,
+            // Only on an arrival — never a drop-off to the airport.
+            'meet_and_greet' => $meetGreet && $pickupIsAirport,
             'child_seat' => ! empty($parsed['child_seat']) || $childSeats > 0 || $infantSeats > 0 || $boosterSeats > 0,
             'child_seats' => $childSeats,
             'infant_seats' => $infantSeats,

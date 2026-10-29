@@ -352,10 +352,14 @@ class BookingWidgetController extends Controller
         // Any airport ARRIVAL (a one-way airport pickup, or any return touching an
         // airport) ALWAYS gets meet & greet — the driver waits in arrivals with a name
         // board. It's mandatory and baked into the price, never a removable option, so
-        // force it on here regardless of what the form submitted.
-        if ($isAirportArrival) {
-            $data['meet_greet'] = true;
-        }
+        // force it on here regardless of what the form submitted. It belongs ONLY to
+        // the leg that collects from the airport: on a return that's the inbound when
+        // the outbound is a drop-off; on a one-way drop-off TO the airport it never
+        // applies, even if the box was ticked (charged once per trip, like the form).
+        $mgOutbound = $isAirportArrival && \App\Support\AirportMatcher::isAirport($data['pickup_address']);
+        $mgReturn = $isReturn && $isAirportArrival && ! $mgOutbound
+            && \App\Support\AirportMatcher::isAirport($data['destination_address'] ?? null);
+        $data['meet_greet'] = $mgOutbound || $mgReturn;
 
         // No cash bookings on a return journey — the customer pays by card (or on
         // account when signed in). A cash choice on a return is rejected.
@@ -433,9 +437,13 @@ class BookingWidgetController extends Controller
         // office/driver see. The guide price is confirmed by the office, so nothing
         // is auto-charged; the seat counts also drive the calendar's child-seat mark.
         $extra = $this->extrasFrom($data);
-        $composedNotes = $this->composedNotes($data['notes'] ?? null, $extra['labels']);
+        // The "Extras: Meet & greet" note only on the leg that has it.
+        $labelsNoMg = array_values(array_filter($extra['labels'], fn ($l) => $l !== 'Meet & greet'));
+        $composedNotes = $this->composedNotes($data['notes'] ?? null, $mgOutbound ? $extra['labels'] : $labelsNoMg);
+        $returnNotes = $this->composedNotes($data['notes'] ?? null, $mgReturn ? $extra['labels'] : $labelsNoMg);
         if ($passengerLine) {
             $composedNotes = trim($passengerLine.($composedNotes ? "\n".$composedNotes : ''));
+            $returnNotes = trim($passengerLine.($returnNotes ? "\n".$returnNotes : ''));
         }
         $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
         // Customer-entered flight landing time (UK-local, like every other clock we
@@ -466,6 +474,14 @@ class BookingWidgetController extends Controller
         $voucher = \App\Models\Voucher::findByCode($data['voucher'] ?? null);
         $discount = ($voucher && $voucher->isRedeemable() && $net !== null) ? $voucher->discountOn($net) : 0.0;
         $afterDiscount = $net === null ? null : round($net - $discount, 2);
+        // On a return whose airport pickup is the INBOUND leg, the meet & greet fee
+        // moves onto that leg (same trip total) — the outbound is a drop-off and
+        // must never carry it.
+        $mgMoved = ($mgReturn && $extra['meet_greet'] && $afterDiscount !== null)
+            ? min((float) ($rates['meet_greet'] ?? 0), $afterDiscount) : 0.0;
+        if ($afterDiscount !== null) {
+            $afterDiscount = round($afterDiscount - $mgMoved, 2);
+        }
         $vatRate = app(\App\Services\Payments\VatService::class)->rate();
 
         // Account (monthly invoice): ONLY for a signed-in customer whose account is
@@ -497,6 +513,7 @@ class BookingWidgetController extends Controller
         // (they apply it on confirm); a valid one is already reflected in $charge.
         if (filled($data['voucher'] ?? null)) {
             $composedNotes = trim(($composedNotes ? $composedNotes."\n" : '').'Discount code: '.strtoupper(trim($data['voucher'])));
+            $returnNotes = trim(($returnNotes ? $returnNotes."\n" : '').'Discount code: '.strtoupper(trim($data['voucher'])));
         }
 
         // Link the customer to the account so future bookings are recognised at once.
@@ -542,13 +559,13 @@ class BookingWidgetController extends Controller
                 'web_quote_basis' => $quote['basis'],
                 'flight_landing_at' => $flightLandingAt,
                 'hourly_hours' => $isHourly ? (int) $data['hours'] : null,
-                'meet_greet' => $extra['meet_greet'] ?: null,
+                'meet_greet' => $mgOutbound ?: null,
                 'child_seats' => $extra['child_seats'] ?: null,
                 'booster_seats' => $extra['booster_seats'] ?: null,
                 'infant_seats' => $extra['infant_seats'] ?: null,
                 'extra_stops' => $extra['stopovers'] ?: null,
                 'stops' => $stops ?: null,
-                'fare_extras_total' => $extrasTotal ?: null,
+                'fare_extras_total' => round($extrasTotal - $mgMoved, 2) ?: null,
                 'vat_invoice_requested' => $needsInvoice,
                 'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
                 // Business details for the VAT invoice (name / address / VAT number).
@@ -583,7 +600,9 @@ class BookingWidgetController extends Controller
             // Price the return as its own leg (same base as the outbound, reversed
             // route — matches the round-trip total the customer saw). VAT / account
             // handling mirror the outbound so both legs are stored consistently.
-            $returnNet = $quote['price']; // null for on-request (POA) — stays unpriced
+            $returnNet = $quote['price'] === null // null for on-request (POA) — stays unpriced
+                ? null
+                : round((float) $quote['price'] + $mgMoved, 2); // + meet & greet when THIS leg is the arrival
             $returnCharge = $returnNet === null
                 ? null
                 : ($needsInvoice ? round((float) $returnNet * (1 + $vatRate), 2) : (float) $returnNet);
@@ -601,7 +620,7 @@ class BookingWidgetController extends Controller
                 'destination_address' => $pickupFull,
                 'passengers' => $data['passengers'],
                 'flight_number' => null, // return leg has no inbound flight
-                'special_requests' => $composedNotes,
+                'special_requests' => $returnNotes,
                 'status' => BookingStatus::Pending->value,
                 // A return leg never collects cash on the day (returns are card-only),
                 // so it's a card job — but it carries its OWN fare so the round trip
@@ -616,8 +635,9 @@ class BookingWidgetController extends Controller
                     'booked_by' => $leadName ? $customer->name : null,
                     'suitcases' => (int) ($data['suitcases'] ?? 0),
                     'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
-                    'driver_notes' => $composedNotes,
-                    'meet_greet' => $extra['meet_greet'] ?: null,
+                    'driver_notes' => $returnNotes,
+                    'meet_greet' => $mgReturn ?: null,
+                    'fare_extras_total' => $mgMoved ?: null,
                     'child_seats' => $extra['child_seats'] ?: null,
                     'booster_seats' => $extra['booster_seats'] ?: null,
                     'infant_seats' => $extra['infant_seats'] ?: null,
@@ -818,12 +838,13 @@ class BookingWidgetController extends Controller
     /** Does this journey arrive from an airport (so a flight number is required)? */
     private function isAirportArrival(string $journeyType, string $pickup, ?string $destination): bool
     {
-        $pattern = '/\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bt[1-5]\b/i';
+        // The shared matcher — the old local regex matched bare "luton", "terminal",
+        // "gatwick"/"heathrow" (so a Luton home, "Terminal House" or "Gatwick Road"
+        // pickup was forced into meet & greet and a mandatory flight number).
         // One-way: only an arrival when the PICKUP is the airport (a departure to the
         // airport needs no flight). Return: either end may be the airport arrival.
-        $haystack = $journeyType === 'return' ? $pickup.' '.(string) $destination : $pickup;
-
-        return (bool) preg_match($pattern, $haystack);
+        return \App\Support\AirportMatcher::isAirport($pickup)
+            || ($journeyType === 'return' && \App\Support\AirportMatcher::isAirport($destination));
     }
 
     /** The customer's free-text notes with the chosen extras appended, or null. */

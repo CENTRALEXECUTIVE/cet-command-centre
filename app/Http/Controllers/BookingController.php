@@ -790,7 +790,10 @@ class BookingController extends Controller
     /** Does an address read like an airport? (meet & greet only applies to airport pickups). */
     private function looksLikeAirport(?string $address): bool
     {
-        return (bool) preg_match('/\bairport\b|terminal|heathrow|gatwick|stansted|luton|manchester airport|east midlands|leeds bradford|doncaster|\bt[1-5]\b/i', (string) $address);
+        // The shared matcher — the old local regex matched bare "doncaster", "luton",
+        // "east midlands" and "terminal", so a Doncaster home pickup previewed meet &
+        // greet on the email.
+        return \App\Support\AirportMatcher::isAirport($address);
     }
 
     public function previewNewConfirmationEmail(Request $request): \Illuminate\Http\Response
@@ -1243,7 +1246,14 @@ class BookingController extends Controller
                 unset($meta[$k]);
             }
             if (! \App\Support\AirportMatcher::isAirport($leg->pickup_address)) {
-                unset($meta['meet_greet'], $meta['meeting_board'], $meta['meeting_point']);
+                // Both keys: ETO/Outlook imports store meet_and_greet, the forms meet_greet.
+                unset($meta['meet_greet'], $meta['meet_and_greet'], $meta['meeting_board'], $meta['meeting_point']);
+            }
+            // The outbound's "Arrival (Meet & Greet)" label must not head the return's
+            // calendar description — re-derive it from the return's own ends.
+            if (isset($meta['journey_label'])) {
+                $meta['journey_label'] = \App\Support\AirportMatcher::isAirport($leg->pickup_address) ? 'Arrival'
+                    : (\App\Support\AirportMatcher::isAirport($leg->destination_address) ? 'Departure' : 'Transfer');
             }
             $leg->meta = $meta ?: null;
             $leg->save();
