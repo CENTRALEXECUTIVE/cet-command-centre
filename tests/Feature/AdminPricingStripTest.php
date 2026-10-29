@@ -101,12 +101,33 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta(150.0, (float) $legs['Return leg'], 0.001); // Sheffield → Birmingham Airport
     }
 
+    public function test_meet_and_greet_is_never_charged_on_a_one_way_drop_off_to_the_airport(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Oct 2026: 28a Park Drive, Sprotbrough, Doncaster → East Midlands Airport showed
+        // £190 (£180 + £10 meet & greet). A departure never carries meet & greet, even
+        // if the box was ticked.
+        $ticked = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'destination' => 'East Midlands Airport (EMA), Castle Donington, Derby, UK',
+            'meet_greet' => true,
+        ])->assertOk()->json('options');
+        $plain = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'destination' => 'East Midlands Airport (EMA), Castle Donington, Derby, UK',
+        ])->assertOk()->json('options');
+
+        $this->assertEqualsWithDelta($this->execPrice($plain), $this->execPrice($ticked), 0.001);
+    }
+
     public function test_strip_adds_the_ticked_extras_on_top_of_the_stop(): void
     {
         $admin = User::factory()->admin()->create();
 
+        // An ARRIVAL (airport pickup), where meet & greet applies.
         $options = $this->actingAs($admin)->postJson(route('pricing.strip'), [
-            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+            'pickup' => 'Manchester Airport', 'destination' => 'Sheffield S1',
             'stops' => 1, 'meet_greet' => true, 'child_seats' => 1,
         ])->assertOk()->json('options');
 
@@ -120,7 +141,7 @@ class AdminPricingStripTest extends TestCase
         $exec = VehicleType::where('slug', 'executive')->firstOrFail();
 
         $options = $this->actingAs($admin)->postJson(route('pricing.strip'), [
-            'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
+            'pickup' => 'Manchester Airport', 'destination' => 'Sheffield S1',
             'stops' => 1, 'meet_greet' => true,
         ])->assertOk()->json('options');
 

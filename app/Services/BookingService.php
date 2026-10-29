@@ -585,7 +585,8 @@ class BookingService
                 // Extras — same set the customer widget captures (child-seat counts are
                 // capped at the passenger count), so the calendar marks and the driver
                 // sheet show them.
-                'meet_greet' => (! empty($data['meet_greet']) && $airportPickup) ?: null,
+                // Only on a leg that COLLECTS from an airport — never a drop-off to one.
+                'meet_greet' => (! empty($data['meet_greet']) && \App\Support\AirportMatcher::isAirport($pickupAddress)) ?: null,
                 // Flight landing time (airport arrivals) — kept so the office can
                 // track the flight and time the pickup; UK-local like all CET times.
                 'flight_landing_at' => (! empty($data['flight_landing_at']) && ! $isReturn)

@@ -59,11 +59,27 @@ class BookingTest extends TestCase
         $this->assertDatabaseHas('bookings', ['destination_address' => 'Manchester Airport']);
     }
 
-    public function test_admin_create_captures_extras(): void
+    public function test_meet_and_greet_is_not_saved_on_a_drop_off_to_the_airport(): void
     {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'pickup_address' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'destination_address' => 'East Midlands Airport (EMA), Castle Donington, Derby, UK',
+            'meet_greet' => '1',
+        ]))->assertRedirect();
+
+        $this->assertNull(Booking::latest('id')->first()->meta['meet_greet'] ?? null);
+    }
+
+    public function test_admin_create_captures_extras(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // An airport ARRIVAL — meet & greet only belongs on a leg collecting from one.
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'pickup_address' => 'Manchester Airport',
+            'destination_address' => '12 Fargate, Sheffield',
             'passengers' => 3,
             'meet_greet' => '1',
             'child_seats' => 1,

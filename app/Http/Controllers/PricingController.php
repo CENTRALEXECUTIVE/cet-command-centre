@@ -73,13 +73,14 @@ class PricingController extends Controller
             'ribbons' => (bool) ($data['ribbons'] ?? false),
         ];
 
-        // On a return, meet & greet is charged only on the leg that's an AIRPORT
-        // PICKUP (an arrival) — never on both. MAN → office → Ibis BHX charged it on
-        // the office pickup too (£150 Birmingham fare showed as £160).
+        // Meet & greet is charged only on a leg that's an AIRPORT PICKUP (an
+        // arrival) — never on a drop-off to the airport, one-way or return. MAN →
+        // office → Ibis BHX charged it on the office pickup too (£150 showed as £160),
+        // and a Doncaster home → EMA one-way showed £190 instead of £180.
         $returnPickup = ! empty($data['return_pickup']) ? $data['return_pickup'] : $data['destination'];
         $outOptions = $options;
         $inOptions = $options;
-        if ($isReturn && $options['meet_greet']) {
+        if ($options['meet_greet']) {
             $outOptions['meet_greet'] = \App\Support\AirportMatcher::isAirport($data['pickup']);
             $inOptions['meet_greet'] = \App\Support\AirportMatcher::isAirport($returnPickup);
         }

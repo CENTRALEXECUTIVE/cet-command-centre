@@ -763,7 +763,9 @@
                     if (meetingDetails && meet) meetingDetails.hidden = !meet.checked;
                 }
 
-                var rx = /\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bman\b|manchester airport|east midlands|\bema\b|\blba\b|leeds bradford|doncaster|\bt[1-5]\b/i;
+                var rx = /\bairport\b|terminal|heathrow|gatwick|stansted|luton|\bman\b|manchester airport|east midlands|\bema\b|\blba\b|leeds bradford|doncaster sheffield|robin hood|\bt[1-5]\b/i;
+                // (Never bare "doncaster": a Doncaster home address is not the airport — it
+                // made an outbound from Sprotbrough look like an arrival and ticked meet & greet.)
                 function looksAirport(v) { return rx.test(String(v || '')); }
                 // Direction is decided by WHICH END is the airport. The Airport dropdown
                 // only flags that a job involves an airport (for driver rotation) — it does
