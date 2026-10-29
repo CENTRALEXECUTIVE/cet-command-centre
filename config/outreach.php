@@ -15,9 +15,9 @@ return [
     // (operator-to-operator) follow-ups; everyone else gets the CORPORATE ones.
     'partner_keywords' => ['partner', 'operator', 'chauffeur', 'travel management', 'tmc', 'trade'],
 
-    'signature' => "{sender}\nDirector, Central Executive Transfers Ltd\n0114 399 8242 · admin@centralexecutivetransfers.co.uk\ncentralexecutivetransfers.co.uk · Licensed operator OP037 · Company No. 15749931",
+    'signature' => "Abdi & Maj\nDirectors, Central Executive Transfers Ltd\n0114 399 8242 · admin@centralexecutivetransfers.co.uk\ncentralexecutivetransfers.co.uk · Licensed operator OP037 · Company No. 15749931",
 
-    'opt_out' => "If this isn't relevant, just reply \"no thanks\" and I won't contact you again.",
+    'opt_out' => "If this isn't relevant, just reply \"no thanks\" and we won't contact you again.",
 
     'follow_ups' => [
         'corporate' => [
@@ -27,7 +27,7 @@ return [
                 'body' => "Hello {first_name},\n\n"
                     ."A quick follow-up from a different angle: the person who books the car.\n\n"
                     ."When we collect your visitor, you get the driver's name and vehicle before pickup, plus a live tracking link. You can see they've been collected without chasing anyone. Inbound flights are tracked, so a two-hour delay doesn't become your problem. Calls between visitor and driver use masked numbers, so nobody's personal number is shared.\n\n"
-                    ."If it helps, I can set {company} up with an account and you could try us on your next visitor. One journey, invoiced like the rest.\n\n"
+                    ."If it helps, we can set {company} up with an account and you could try us on your next visitor. One journey, invoiced like the rest.\n\n"
                     ."Worth a 10-minute call?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
@@ -39,7 +39,7 @@ return [
                     ."- Prices for your regular routes are agreed once and fixed. No surge.\n"
                     ."- You book by phone, email or online, and you get driver details and a tracking link before each pickup.\n"
                     ."- At month end you receive one VAT invoice from our VAT-registered Ltd covering every journey.\n\n"
-                    ."Shall I send the rate card over? If the timing's wrong, just say and I'll leave it there.\n\n"
+                    ."Shall we send the rate card over? If the timing's wrong, just say and we'll leave it there.\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
         ],
@@ -56,7 +56,7 @@ return [
                 'label' => 'Day-10 follow-up',
                 'subject' => 'Trade rates for South Yorkshire',
                 'body' => "Hello {first_name},\n\n"
-                    ."I'll keep this short. If you ever have a job starting or ending in Sheffield, South Yorkshire, North Derbyshire or at East Midlands Airport, we can cover it at agreed trade rates with unbranded tracking and one cover invoice. Shall I send the rate card and the one-page partner outline?\n\n"
+                    ."We'll keep this short. If you ever have a job starting or ending in Sheffield, South Yorkshire, North Derbyshire or at East Midlands Airport, we can cover it at agreed trade rates with unbranded tracking and one cover invoice. Shall we send the rate card and the one-page partner outline?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
         ],

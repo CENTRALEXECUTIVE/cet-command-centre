@@ -173,11 +173,11 @@ class OutreachTest extends TestCase
             ->assertSee('Mark emailed')
             ->assertSee('Day-4 follow-up')
             ->assertSee('Day-10 follow-up')
-            ->assertSee('Director, Central Executive Transfers Ltd');
+            ->assertSee('Directors, Central Executive Transfers Ltd');
 
         // The merged draft expands the kit placeholders (the raw text stays editable).
         $merged = app(OutreachEmailComposer::class)->firstEmail($p->fresh(), $admin)['body'];
-        $this->assertStringStartsWith("Hello Jane,\n\nHi.\n\nMaj\nDirector", $merged);
+        $this->assertStringStartsWith("Hello Jane,\n\nHi.\n\nAbdi & Maj\nDirectors", $merged);
         $this->assertStringNotContainsString('[', $merged);
         $this->assertStringContainsString('reply "no thanks"', $merged);
 
