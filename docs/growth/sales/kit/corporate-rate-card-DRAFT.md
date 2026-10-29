@@ -150,7 +150,7 @@ centralexecutivetransfers.co.uk (at least 8 hours' notice online; ring for anyth
 sooner) · WhatsApp +44 7405 172435.
 
 *Central Executive Transfers Ltd · Company No. 15749931 · VAT No. [CONFIRM] ·
-Licensed operator OP037 ([CONFIRM licensing authority])*
+Licensed operator OP037 (Sheffield City Council)*
 
 ---
 

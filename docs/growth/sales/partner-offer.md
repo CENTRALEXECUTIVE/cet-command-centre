@@ -72,7 +72,7 @@ commission either way: [CONFIRM whether to offer].
 *An outline for the directors to agree, then have checked before signing. This is not legal advice.*
 
 1. **Parties and scope.** CET and [Partner]. The agreement covers jobs either party passes to the other. Neither party is obliged to send a minimum volume.
-2. **Licensing.** Each party holds a valid private hire operator licence and uses only licensed drivers and vehicles. CET operator licence OP037 [CONFIRM authority]. Cross-district subcontracting must follow the rules for operator-to-operator subcontracting [CONFIRM with the licensing authority].
+2. **Licensing.** Each party holds a valid private hire operator licence and uses only licensed drivers and vehicles. CET operator licence OP037 (Sheffield City Council). Cross-district subcontracting must follow the rules for operator-to-operator subcontracting [CONFIRM with the licensing authority].
 3. **Booking process.** Jobs are sent in writing (email or portal) with passenger name, pickup time (UK local time), addresses, flight number, vehicle class and price. Acceptance is confirmed in writing within [CONFIRM] minutes or hours.
 4. **Service standard.**
    - Driver details are sent [CONFIRM: X hours] before pickup.
@@ -82,7 +82,7 @@ commission either way: [CONFIRM whether to offer].
 5. **Unbranded service.** The receiving operator uses the sender's name, or no branding, with the passenger: unbranded driver link, no leaflets or business cards, no marketing.
 6. **No poaching.** Neither party solicits or accepts direct bookings from the other's passed client for [CONFIRM: 12] months after the last job. If the client approaches directly, they are referred back.
 7. **Pricing and payment.** Agreed trade rates, as in the rate card above. One cover invoice per period, paid within [CONFIRM] days. Disputed items are raised within [CONFIRM] days of the invoice.
-8. **Insurance.** Each party holds hire and reward motor insurance and public liability cover [CONFIRM CET wording and limits]. Certificates are shared on request.
+8. **Insurance.** Each party holds hire and reward motor insurance and public liability cover (CET: public liability £1m, employers' liability £10m, Simply Business, policy CHDB5246828XB to 21 Oct 2027). Certificates are shared on request.
 9. **Data protection.** Passenger data is used only to perform the job, kept secure and deleted when no longer needed (UK GDPR). Number masking is used where available. Neither party passes the other's client data to third parties.
 10. **Complaints and incidents.** Notified to the other party within 24 hours [CONFIRM]. The sending operator owns the customer response.
 11. **Liability.** Each party is responsible for its own drivers, vehicles and conduct.

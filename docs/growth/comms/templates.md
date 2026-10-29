@@ -704,7 +704,7 @@ To do so, please confirm:
 - Any purchase order number
 - Email address for the invoice
 
-The invoice will be issued by Central Executive Transfers Ltd (Company No. 15749931, VAT No. [CONFIRM: VAT number]).
+The invoice will be issued by Central Executive Transfers Ltd (Company No. 15749931, VAT No. GB 527 2204 17).
 
 Kind regards,
 {signature}

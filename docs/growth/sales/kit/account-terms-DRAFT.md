@@ -15,7 +15,7 @@ Version [CONFIRM] · effective [CONFIRM date]
 
 Central Executive Transfers Ltd (Company No. 15749931, VAT No. [CONFIRM]),
 Sheffield, South Yorkshire. Licensed private hire operator, licence OP037, issued
-by [CONFIRM licensing authority]. Registered office: [CONFIRM address].
+by Sheffield City Council. Registered office: [CONFIRM address].
 In these terms, "we" means Central Executive Transfers Ltd and "you" means the
 business that holds the account.
 
@@ -84,12 +84,12 @@ business that holds the account.
   account. Each journey is listed with its date, its booking reference, and your
   cost code or reference.
 - If you need a PO number on the invoice itself, tell us when the account is opened
-  [CONFIRM: whether a header PO is supported, or only per-journey references].
+  one reference per journey; tell us if you need a single PO for the whole account.
 - Invoices are emailed to the billing address you give us. Tell us if it changes.
 
 ## 8. Payment
 
-- Payment is due within **[CONFIRM: 30] days** of the invoice date. That's our
+- Payment is due within **30 days** of the invoice date, or you can pay by card when you book if you prefer. That's our
   standard term for new accounts.
 - Pay by bank transfer to the account shown on the invoice [CONFIRM bank details],
   or by card using the payment link on the invoice.

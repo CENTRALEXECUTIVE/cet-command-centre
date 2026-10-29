@@ -14,7 +14,7 @@ Sheffield-based. Owner-run. Licensed operator OP037.
 - **Prices fixed and agreed in advance.** No surge pricing and no hidden fees.
   Festive surcharges are published ahead of time.
 - **Pay how suits you:** on account, by card, or by payment link.
-- Cost-centre or PO reference on each journey: [CONFIRM we can show this on invoices].
+- Cost-centre or PO reference on each journey: yes, shown on each invoice line..
 
 ## For the person booking: you know your visitor is collected
 

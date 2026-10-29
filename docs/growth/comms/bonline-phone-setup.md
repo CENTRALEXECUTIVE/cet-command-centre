@@ -51,9 +51,9 @@ Director pick-up openings (for the team, not recorded):
 
 ## 3. Business hours
 
-Opening hours are not confirmed in BUSINESS_FACTS.md (listed as `[CONFIRM operating hours]`).
+Hours are confirmed in BUSINESS_FACTS.md: **24/7**, the phone is answered around the clock.
 
-- Menu hours (live answering): `[CONFIRM: e.g. 07:00 to 21:00, 7 days]`
+- Menu hours (live answering): **24/7**
 - Outside those hours, play the out-of-hours message (section 4).
 - Bank holidays and Christmas period: `[CONFIRM]` whether to use the out-of-hours message all day.
 
@@ -149,4 +149,4 @@ Checklist for whoever sets this up. Do not assume any of these exist until seen 
 - [ ] Per-key whisper messages or labels
 - [ ] Call reporting (volumes, missed calls, peak hours)
 - [ ] Costs: any extra charge for ring groups, extra lines, app licences, recording or call menus
-- [ ] Opening hours to be confirmed by the directors (`[CONFIRM operating hours]` in BUSINESS_FACTS.md)
+- [x] Opening hours confirmed: 24/7

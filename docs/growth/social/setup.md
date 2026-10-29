@@ -30,7 +30,7 @@ Common facts only from BUSINESS_FACTS. No years-trading, insurance or vetting cl
 - **LinkedIn tagline:** Executive chauffeur and corporate transfers, Sheffield.
 - **LinkedIn About:** Central Executive Transfers Ltd (Company No. 15749931) is an owner-run, licensed private hire operator (Operator Licence OP037) based in Sheffield. We provide airport transfers, executive travel and corporate accounts for South Yorkshire businesses: fixed prices, flight tracking, VAT invoices and combined or monthly invoicing. The directors drive the executive work. Also: partner operators, get in touch for cover work.
 - **TikTok (80 chars):** Executive chauffeur, Sheffield. Airport runs and behind the scenes. Book below.
-- **Google Business Profile description (750 max):** Owner-run executive chauffeur service in Sheffield. Airport transfers to Manchester, East Midlands, Leeds Bradford, Heathrow and more, with flight tracking and meet & greet. Corporate accounts with VAT invoices. Mercedes V-Class and minibuses for groups. Fixed prices quoted up front, live driver tracking, card or cash. Licensed private hire operator. Book online or call 0114 399 8242. [CONFIRM: opening hours / 24-7]
+- **Google Business Profile description (750 max):** Owner-run executive chauffeur service in Sheffield. Airport transfers to Manchester, East Midlands, Leeds Bradford, Heathrow and more, with flight tracking and meet & greet. Corporate accounts with VAT invoices. Mercedes V-Class and minibuses for groups. Fixed prices quoted up front, live driver tracking, card or cash. Licensed private hire operator. Book online or call 0114 399 8242. Open 24/7.
 
 Handle: use the same name everywhere, e.g. `@centralexecutivetransfers` [CONFIRM availability].
 

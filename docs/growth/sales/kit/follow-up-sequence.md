@@ -22,16 +22,15 @@ If they reply at any point, drop the sequence and answer them properly.
 **Standard signature (plain text, no logo)**
 
 ```
-Maj
-Director, Central Executive Transfers Ltd
+Abdi & Maj
+Directors, Central Executive Transfers Ltd
 0114 399 8242 · admin@centralexecutivetransfers.co.uk
 centralexecutivetransfers.co.uk · Licensed operator OP037 · Company No. 15749931
 ```
-[CONFIRM: Maj's direct email address for the signature, if it's not admin@.]
 
 **Opt-out line (every email, under the signature)**
 
-> If this isn't relevant, just reply "no thanks" and I won't contact you again.
+> If this isn't relevant, just reply "no thanks" and we won't contact you again.
 
 Personalise the **first line** of every follow-up. Use something real: a new
 contract, a job advert, an event, a site visit in the news. If there's nothing
@@ -187,7 +186,7 @@ Hello [Name],
 
 [Referrer full name] at [Referrer company] suggested I get in touch. [He/She] mentioned you [look after visitor travel / book airport transfers for the leadership team / are setting up the new site] and thought we might be useful.
 
-I'm one of the two directors of Central Executive Transfers, a licensed chauffeur firm in Sheffield (operator licence OP037). We work on account for businesses across South Yorkshire. Prices are fixed in advance and you get driver details and a live tracking link before every pickup. Airport pickups come with flight tracking and meet and greet, and every journey goes on one monthly VAT invoice from our VAT-registered Ltd.
+We're the two directors of Central Executive Transfers, a licensed chauffeur firm in Sheffield (operator licence OP037). We work on account for businesses across South Yorkshire. Prices are fixed in advance and you get driver details and a live tracking link before every pickup. Airport pickups come with flight tracking and meet and greet, and every journey goes on one monthly VAT invoice from our VAT-registered Ltd.
 
 Would a 10-minute call this week or next be useful?
 

@@ -50,7 +50,7 @@ Maj or Abdi, Directors · 0114 399 8242 · admin@centralexecutivetransfers.co.uk
 WhatsApp +44 7405 172435 · centralexecutivetransfers.co.uk
 
 *Central Executive Transfers Ltd · Company No. 15749931 · VAT No. [CONFIRM] ·
-Licensed private hire operator OP037 ([CONFIRM licensing authority])*
+Licensed private hire operator OP037 (Sheffield City Council)*
 
 ---
 

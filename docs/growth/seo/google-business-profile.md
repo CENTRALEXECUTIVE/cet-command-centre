@@ -11,7 +11,7 @@ A director enters everything by hand. Facts come from BUSINESS_FACTS.md only.
 - Business type: service-area business. Hide the address if customers do not visit a
   premises. Service areas: Sheffield, Rotherham, Barnsley, Doncaster, Chesterfield,
   North Derbyshire (add Manchester Airport, East Midlands Airport as areas too if allowed).
-- Hours: [CONFIRM: operating hours / 24 hours]. Do not set 24 hours until confirmed.
+- Hours: **Open 24 hours**, every day (confirmed by the directors).
 - Use the same name, phone and email everywhere (see citations rule).
 
 ## Categories

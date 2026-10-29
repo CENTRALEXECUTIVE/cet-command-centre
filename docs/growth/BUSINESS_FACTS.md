@@ -11,21 +11,29 @@ Keep this file current; it's what stops the agents contradicting each other.
 - **Base:** Sheffield, South Yorkshire. Serves Sheffield, Rotherham, Barnsley,
   Doncaster, Chesterfield, North Derbyshire and onward UK-wide.
 - **Central Executive Transfers Ltd** — Company No. **15749931**, **VAT registered**
-  (VAT invoices issued by the Ltd; card payments via Square). VAT number: `[CONFIRM]`.
+  (VAT invoices issued by the Ltd; card payments via Square). VAT number: **GB 527 2204 17**.
 - **Central Executive Transfers PVT LTD** — sister company for non-VAT private
   customers (card payments via Stripe).
 - **Licensed private hire operator** — Operator Licence **OP037** (licensing
-  authority `[CONFIRM: Sheffield City Council?]`).
+  authority **Sheffield City Council**).
 - **Directors:** Abdi and Maj (run the business, also drive).
-- Years trading / number of journeys completed: `[CONFIRM]`.
-- Insurance (hire & reward, public liability): `[CONFIRM]` before claiming.
-- Driver vetting (DBS / licensed drivers): `[CONFIRM]` exact wording before claiming.
+- **Trading since 2024** (Ltd incorporated 2024). Number of journeys completed: `[CONFIRM]`.
+- **Business insurance (Simply Business, policy CHDB5246828XB, 22 Oct 2026 – 21 Oct 2027):**
+  public liability **£1,000,000**, employers' liability **£10,000,000**. Certificates
+  can be sent on request (directors hold the PDFs; not stored in the repo).
+  Say "public liability £1m". **Do not claim £5m or £10m public liability.** Some
+  corporate procurement asks for £5m PL, so flag it to the directors if a prospect asks.
+- Vehicle hire-and-reward motor insurance: required by the licence. Quote the
+  insurer/limits only once the directors supply the motor certificate.
+- **Driver vetting (confirmed):** every driver is council-licensed for private hire and
+  enhanced-DBS checked.
 
 ## Contact
 
 - **Phone (calls):** 0114 399 8242
 - **WhatsApp:** +44 7405 172435
-- **Email:** admin@centralexecutivetransfers.co.uk
+- **Email:** admin@centralexecutivetransfers.co.uk (shared by both directors; B2B
+  outreach is sent from here and signed **"Abdi & Maj, Directors"**)
 - **Website:** https://centralexecutivetransfers.co.uk — online booking + instant
   price at the booking page (CET's own widget).
 
@@ -52,9 +60,12 @@ specific car model/colour in ads.
 - **Live driver tracking link** for the customer; driver details sent before pickup.
 - **Number-masked calls/texts** between customer and driver (privacy).
 - **Card, Square/Stripe payment links, or cash**; **corporate accounts with VAT
-  invoices** and combined/monthly invoicing.
+  invoices** and combined/monthly invoicing. Each journey can carry the client's
+  **PO / cost-centre / matter reference** on its invoice line (per booking, not one
+  header PO). **Account terms: 30 days**, or the client pays by card at booking
+  if they prefer (some clients want to settle straight away).
 - **Directors drive the executive jobs** — a small, accountable, owner-run firm.
-- 24/7 bookings `[CONFIRM operating hours]`.
+- **24/7** — bookings taken and the phone answered around the clock.
 
 ## Example prices (executive saloon, fixed; from the price matrix)
 

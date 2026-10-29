@@ -53,8 +53,8 @@ account-discount options).
 ### 6. "We can only use approved suppliers / it has to go through procurement."
 "Understood. Who should I contact to get on the list? I'll fill in the supplier
 forms. You'll have our company number (15749931), VAT number [CONFIRM], operator
-licence (OP037, [CONFIRM licensing authority]) and the insurance documents
-[CONFIRM which certificates we hold and can send]." Log the procurement contact
+licence (OP037, Sheffield City Council) and the insurance documents
+our public liability (£1m) and employers' liability (£10m) certificates." Log the procurement contact
 and the renewal date of their framework.
 
 ### 7. "Send me your insurance certificates and driver vetting."
@@ -93,7 +93,7 @@ diverted.]"
 ### 12. "We need cars at short notice / early morning / late at night."
 "Online booking needs at least 8 hours' notice. For shorter notice, ring
 0114 399 8242 and we'll tell you straight away whether we can do it.
-[CONFIRM: operating hours and whether account clients get a short-notice line.]
+We take bookings and answer the phone 24/7, so short-notice work is fine.
 Early starts are normal for airport work." Don't say "24/7" until it's confirmed.
 
 ### 13. "You're a small firm. What if your car breaks down or you're busy?"
