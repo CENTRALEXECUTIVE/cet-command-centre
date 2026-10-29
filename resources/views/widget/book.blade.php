@@ -261,6 +261,10 @@
         .cet-banner.show { display:block; }
 
         .cet-actions { display:flex; gap:10px; margin-top:13px; }
+        /* Gentle pulse on the pay button when the automatic jump was blocked. */
+        @keyframes cetPulse { 0%,100% { box-shadow:0 0 0 0 rgba(251,186,42,.55); } 50% { box-shadow:0 0 0 10px rgba(251,186,42,0); } }
+        .cet-pulse { animation:cetPulse 1.6s ease-in-out 4; }
+        @media (prefers-reduced-motion: reduce) { .cet-pulse { animation:none; } }
         .cet-btn { flex:1; padding:13px; border:0; border-radius:12px;
             background:linear-gradient(135deg, var(--gold), var(--gold-deep)); color:#0b0b0c;
             font-weight:800; font-size:16px; cursor:pointer; letter-spacing:.2px;
@@ -436,11 +440,14 @@
                         <p class="cet-foot" style="margin-top:12px">No payment has been taken — this vehicle is quoted on request.</p>
                     @elseif(!empty($payUrl))
                         @if(!empty($payWanted))
-                            <p style="color:var(--muted);margin:10px 0 2px">Taking you to secure payment…</p>
+                            <p id="cet-pay-status" style="color:var(--muted);margin:10px 0 2px">Taking you to secure payment…</p>
                         @endif
-                        <a href="{{ $payUrl }}" target="_top" class="cet-btn" style="display:block;margin-top:14px;text-decoration:none;text-align:center">
-                            Pay now{{ $payAmount ? ' · £'.number_format($payAmount, 0) : '' }}</a>
-                        <p class="cet-foot" style="margin-top:8px">Secure card payment by Square.
+                        {{-- The button is the reliable route: a tap is always allowed to open
+                             payment in the full window, even when the booking form sits inside
+                             the website (where browsers block an automatic jump). --}}
+                        <a id="cet-pay-btn" href="{{ $payUrl }}" target="_top" rel="noopener" class="cet-btn" style="display:block;margin-top:14px;text-decoration:none;text-align:center">
+                            Continue to secure payment{{ $payAmount ? ' · £'.number_format($payAmount, 2) : '' }} →</a>
+                        <p class="cet-foot" style="margin-top:8px">Secure card payment.
                             @if(empty($payWanted))Prefer to pay later? No problem — we'll be in touch.@else If you're not taken there automatically, tap the button above.@endif</p>
                     @else
                         <p class="cet-foot" style="margin-top:12px">No payment has been taken — our office will confirm your journey and price.</p>
@@ -468,11 +475,28 @@
                 // TOP window (the checkout can't live inside the iframe). We wait a beat
                 // so the conversion ping above lands first; the on-page button is the
                 // fallback if the browser blocks the auto-navigation.
+                // NEVER fall back to opening payment INSIDE the iframe: Stripe/Square
+                // refuse to load in a frame, so the box went blank and the customer was
+                // left on the website ("it skips back to the homepage", Oct 2026). If the
+                // browser blocks the jump, we just ask for a tap on the button instead.
                 try {
                     var _pay = @json($payUrl);
+                    var _framed = window.top !== window.self;
                     setTimeout(function () {
-                        try { (window.top || window).location.href = _pay; }
-                        catch (e) { window.location.href = _pay; }
+                        if (!_framed) { window.location.href = _pay; return; }
+                        var jumped = false;
+                        try { window.top.location.href = _pay; jumped = true; } catch (e) {}
+                        // A blocked jump doesn't always throw — if we're still here
+                        // shortly after, it didn't happen.
+                        setTimeout(function () {
+                            var st = document.getElementById('cet-pay-status');
+                            if (st) {
+                                st.innerHTML = '<strong>Your booking is saved.</strong> Tap the button below to pay securely.';
+                                st.style.color = 'inherit';
+                            }
+                            var btn = document.getElementById('cet-pay-btn');
+                            if (btn) { btn.classList.add('cet-pulse'); try { btn.focus(); } catch (e) {} }
+                        }, jumped ? 2500 : 0);
                     }, 700);
                 } catch (e) {}
                 @endif
