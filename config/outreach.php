@@ -15,31 +15,30 @@ return [
     // (operator-to-operator) follow-ups; everyone else gets the CORPORATE ones.
     'partner_keywords' => ['partner', 'operator', 'chauffeur', 'travel management', 'tmc', 'trade'],
 
-    'signature' => "Abdi & Maj\nDirectors, Central Executive Transfers Ltd\n0114 399 8242 · admin@centralexecutivetransfers.co.uk\ncentralexecutivetransfers.co.uk · Licensed operator OP037 · Company No. 15749931",
+    'signature' => "Abdi & Maj\nDirectors, Central Executive Transfers\n0114 399 8242 · admin@centralexecutivetransfers.co.uk · centralexecutivetransfers.co.uk",
 
-    'opt_out' => "If this isn't relevant, just reply \"no thanks\" and we won't contact you again.",
+    'opt_out' => "If this isn't relevant, just let us know and we won't contact you again.",
 
+    // Follow-ups follow docs/growth/sales/kit/email-style-guide.md: short, about
+    // the reader, one easy question, no feature lists.
     'follow_ups' => [
         'corporate' => [
             'day_4' => [
                 'label' => 'Day-4 follow-up',
                 'subject' => 'Re: {original_subject}',
                 'body' => "Hello {first_name},\n\n"
-                    ."A quick follow-up from a different angle: the person who books the car.\n\n"
-                    ."When we collect your visitor, you get the driver's name and vehicle before pickup, plus a live tracking link. You can see they've been collected without chasing anyone. Inbound flights are tracked, so a two-hour delay doesn't become your problem. Calls between visitor and driver use masked numbers, so nobody's personal number is shared.\n\n"
-                    ."If it helps, we can set {company} up with an account and you could try us on your next visitor. One journey, invoiced like the rest.\n\n"
-                    ."Worth a 10-minute call?\n\n"
+                    ."Just following up on our note last week, in case it was buried.\n\n"
+                    ."When a visitor, client or senior colleague needs collecting, the person arranging it usually wants one thing: to know it's handled. That's what we do, whether it's an airport or station pickup, a day of meetings with the car waiting, or a run to London and back.\n\n"
+                    ."If it would help, we could set {company} up with an account so it's ready the next time something comes up. Would that be useful?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
             'day_10' => [
                 'label' => 'Day-10 follow-up',
-                'subject' => 'Corporate rate card - Central Executive Transfers',
+                'subject' => 'Chauffeur account for {company}',
                 'body' => "Hello {first_name},\n\n"
-                    ."One last useful thing. Here is how a CET account works in practice:\n\n"
-                    ."- Prices for your regular routes are agreed once and fixed. No surge.\n"
-                    ."- You book by phone, email or online, and you get driver details and a tracking link before each pickup.\n"
-                    ."- At month end you receive one VAT invoice from our VAT-registered Ltd covering every journey.\n\n"
-                    ."Shall we send the rate card over? If the timing's wrong, just say and we'll leave it there.\n\n"
+                    ."A last note from us, and then we'll leave you in peace.\n\n"
+                    ."If {company} ever needs a dependable chauffeur in South Yorkshire, for executives, visitors or events, we'd be glad to help. Everything runs on one account with a single monthly VAT invoice, and you'll always deal with one of the two of us directly.\n\n"
+                    ."Shall we send our account details over so you have them on file?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
         ],
@@ -48,15 +47,17 @@ return [
                 'label' => 'Day-4 follow-up',
                 'subject' => 'Re: {original_subject}',
                 'body' => "Hello {first_name},\n\n"
-                    ."A quick follow-up on the part that matters most to operators: staying invisible. We send your passenger an unbranded driver link with driver details and live tracking, and no CET branding appears anywhere. You keep the client and the relationship. We just do the miles in South Yorkshire and send you one cover invoice per period.\n\n"
-                    ."Happy to run a single test job so you can see it end to end.\n\n"
+                    ."Just following up on our note last week.\n\n"
+                    ."If you ever have a passenger starting or finishing in Sheffield, South Yorkshire or the East Midlands, we'd be glad to look after them for you: experienced chauffeurs, an unbranded service so your client stays yours, and someone available 24/7.\n\n"
+                    ."We're happy to start with a single job so you can see how we work. Would that be worth a quick call?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
             'day_10' => [
                 'label' => 'Day-10 follow-up',
-                'subject' => 'Trade rates for South Yorkshire',
+                'subject' => 'South Yorkshire cover for {company}',
                 'body' => "Hello {first_name},\n\n"
-                    ."We'll keep this short. If you ever have a job starting or ending in Sheffield, South Yorkshire, North Derbyshire or at East Midlands Airport, we can cover it at agreed trade rates with unbranded tracking and one cover invoice. Shall we send the rate card and the one-page partner outline?\n\n"
+                    ."A last note from us. If South Yorkshire or the East Midlands ever comes up for {company}, we'd like to be the partner you call, and any work in your area that comes our way would go to you.\n\n"
+                    ."Shall we send our trade details over so you have them on file?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
         ],

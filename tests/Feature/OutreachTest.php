@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Prospect;
 use App\Models\User;
 use App\Services\Outreach\OutreachEmailComposer;
+use App\Services\Outreach\ProspectImporter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -138,6 +139,37 @@ class OutreachTest extends TestCase
         $this->assertSame('do_not_contact', Prospect::where('company', 'Acme Steel')->value('status'));
     }
 
+    public function test_refresh_drafts_only_replaces_unsent_unedited_emails(): void
+    {
+        $fresh = $this->prospect();
+        $sent = $this->prospect(['company' => 'Sent Co', 'status' => 'emailed']);
+        $edited = $this->prospect(['company' => 'Edited Co']);
+        $edited->log('edited', 'Edited: email_body');
+        $dnc = $this->prospect(['company' => 'Gone Co', 'status' => 'do_not_contact']);
+
+        $path = tempnam(sys_get_temp_dir(), 'pr');
+        $rows = '';
+        foreach (['Acme Steel', 'Sent Co', 'Edited Co', 'Gone Co'] as $c) {
+            $rows .= "{$c},,Sheffield,,,,,,,,,,,New subject,\"Hello,\\n\\nNew copy.\"\n";
+        }
+        file_put_contents($path, self::HEADER."\n".$rows);
+
+        // Plain re-import leaves existing drafts alone.
+        $stats = app(ProspectImporter::class)->import($path);
+        $this->assertSame(0, $stats['refreshed']);
+        $this->assertSame('Visitors to Acme', $fresh->fresh()->email_subject);
+
+        $stats = app(ProspectImporter::class)->import($path, null, null, refreshDrafts: true);
+        @unlink($path);
+
+        $this->assertSame(1, $stats['refreshed']);
+        $this->assertSame('New subject', $fresh->fresh()->email_subject);
+        $this->assertSame("Hello,\n\nNew copy.", $fresh->fresh()->email_body);
+        $this->assertSame('Visitors to Acme', $sent->fresh()->email_subject);
+        $this->assertSame('Visitors to Acme', $edited->fresh()->email_subject);
+        $this->assertSame('Visitors to Acme', $dnc->fresh()->email_subject);
+    }
+
     public function test_company_and_town_are_unique_case_insensitively_in_the_database(): void
     {
         $this->prospect();
@@ -173,13 +205,13 @@ class OutreachTest extends TestCase
             ->assertSee('Mark emailed')
             ->assertSee('Day-4 follow-up')
             ->assertSee('Day-10 follow-up')
-            ->assertSee('Directors, Central Executive Transfers Ltd');
+            ->assertSee('Directors, Central Executive Transfers');
 
         // The merged draft expands the kit placeholders (the raw text stays editable).
         $merged = app(OutreachEmailComposer::class)->firstEmail($p->fresh(), $admin)['body'];
         $this->assertStringStartsWith("Hello Jane,\n\nHi.\n\nAbdi & Maj\nDirectors", $merged);
         $this->assertStringNotContainsString('[', $merged);
-        $this->assertStringContainsString('reply "no thanks"', $merged);
+        $this->assertStringContainsString('just let us know', $merged);
 
         $p->update(['status' => 'do_not_contact']);
         $this->actingAs($admin)->get(route('outreach.show', $p))

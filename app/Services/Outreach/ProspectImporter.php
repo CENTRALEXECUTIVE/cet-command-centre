@@ -52,11 +52,15 @@ class ProspectImporter
     ];
 
     /**
-     * @return array{created:int, duplicates:int, filled:int, dnc_skipped:int, invalid:int, errors:array<int,string>}
+     * $refreshDrafts: also replace the drafted first email (subject + body) on an
+     * existing prospect that is still 'new' (never emailed) and whose email the
+     * directors haven't edited by hand. Used when the copy is rewritten centrally.
+     *
+     * @return array{created:int, duplicates:int, filled:int, refreshed:int, dnc_skipped:int, invalid:int, errors:array<int,string>}
      */
-    public function import(string $path, ?int $ownerId = null, ?int $actorId = null): array
+    public function import(string $path, ?int $ownerId = null, ?int $actorId = null, bool $refreshDrafts = false): array
     {
-        $stats = ['created' => 0, 'duplicates' => 0, 'filled' => 0, 'dnc_skipped' => 0, 'invalid' => 0, 'errors' => []];
+        $stats = ['created' => 0, 'duplicates' => 0, 'filled' => 0, 'refreshed' => 0, 'dnc_skipped' => 0, 'invalid' => 0, 'errors' => []];
 
         $fh = @fopen($path, 'r');
         if (! $fh) {
@@ -95,7 +99,7 @@ class ProspectImporter
                         $assoc[$col] = isset($row[$i]) ? trim((string) $row[$i]) : '';
                     }
                 }
-                $this->importRow($assoc, $line, $ownerId, $actorId, $stats);
+                $this->importRow($assoc, $line, $ownerId, $actorId, $stats, $refreshDrafts);
             }
         } finally {
             fclose($fh);
@@ -104,7 +108,7 @@ class ProspectImporter
         return $stats;
     }
 
-    private function importRow(array $raw, int $line, ?int $ownerId, ?int $actorId, array &$stats): void
+    private function importRow(array $raw, int $line, ?int $ownerId, ?int $actorId, array &$stats, bool $refreshDrafts = false): void
     {
         $data = $this->clean($raw);
         if (($data['company'] ?? '') === '') {
@@ -124,6 +128,7 @@ class ProspectImporter
             }
             $stats['duplicates']++;
             $this->fillBlanks($existing, $data, $actorId) && $stats['filled']++;
+            $refreshDrafts && $this->refreshDraft($existing, $data, $actorId) && $stats['refreshed']++;
 
             return;
         }
@@ -148,6 +153,31 @@ class ProspectImporter
             $p->log('imported', 'Imported from CSV (line '.$line.')'.($optedOut ? ' — marked do not contact' : ''), $actorId);
         });
         $stats['created']++;
+    }
+
+    /** Replace the drafted first email on a never-emailed prospect, unless a director edited it. */
+    private function refreshDraft(Prospect $p, array $data, ?int $actorId): bool
+    {
+        if ($p->status !== 'new' || blank($data['email_body'] ?? null)) {
+            return false;
+        }
+        $handEdited = $p->activities()->where('type', 'edited')
+            ->where(fn ($q) => $q->where('body', 'like', '%email_subject%')->orWhere('body', 'like', '%email_body%'))
+            ->where('body', 'not like', 'Re-import%')->where('body', 'not like', 'Draft email refreshed%')
+            ->exists();
+        if ($handEdited) {
+            return false;
+        }
+
+        $p->email_subject = $data['email_subject'] ?? $p->email_subject;
+        $p->email_body = $data['email_body'];
+        if (! $p->isDirty(['email_subject', 'email_body'])) {
+            return false;
+        }
+        $p->save();
+        $p->log('edited', 'Draft email refreshed from CSV (email_subject, email_body)', $actorId);
+
+        return true;
     }
 
     /** Fill only the existing prospect's blank fields. Never status/notes/owner/dates. */
