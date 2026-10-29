@@ -47,6 +47,9 @@ class FareCalculator
             $surcharge = ['label' => $factor['label'], 'factor' => $factor['factor'], 'amount' => $amount];
         }
 
+        // At an airport hotel / private-jet handler the meet & greet fee is still
+        // charged, but it's called an airport pickup (no name board in arrivals).
+        $options['meet_greet_label'] = \App\Support\AirportMatcher::isAirportSite($pickup) ? 'Airport pickup' : 'Meet & greet';
         $extras = $this->extraItems($options, $vehicleType);
         $extrasTotal = round(array_sum(array_column($extras, 'amount')), 2);
 
@@ -127,7 +130,7 @@ class FareCalculator
         $qty = fn ($k) => max(0, min(20, (int) ($options[$k] ?? 0)));
 
         if ($flag('meet_greet') && ($rates['meet_greet'] ?? 0) > 0) {
-            $items[] = $this->line('Meet & greet', 1, (float) $rates['meet_greet']);
+            $items[] = $this->line($options['meet_greet_label'] ?? 'Meet & greet', 1, (float) $rates['meet_greet']);
         }
         foreach ([
             'child_seats' => ['Child seat', 'child_seat'],

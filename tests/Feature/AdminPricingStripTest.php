@@ -121,6 +121,30 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta($this->execPrice($plain), $this->execPrice($ticked), 0.001);
     }
 
+    public function test_meet_and_greet_is_charged_on_a_pickup_from_a_private_jet_handler_at_the_airport(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Kerry's private flights land at the EMA flight-support cabin — that's an
+        // airport arrival, so meet & greet applies.
+        $ticked = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Advantage Flight Support Ltd, Derby DE74 2SA, UK',
+            'destination' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'meet_greet' => true,
+        ])->assertOk()->json('options');
+        $plain = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Advantage Flight Support Ltd, Derby DE74 2SA, UK',
+            'destination' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+        ])->assertOk()->json('options');
+
+        $this->assertEqualsWithDelta($this->execPrice($plain) + 10.0, $this->execPrice($ticked), 0.001);
+
+        // Charged, but called an airport pickup — no "meet & greet / name board" there.
+        $labels = array_column(collect($ticked)->firstWhere('id', VehicleType::where('slug', 'executive')->value('id'))['breakdown'], 'label');
+        $this->assertContains('Airport pickup', $labels);
+        $this->assertNotContains('Meet & greet', $labels);
+    }
+
     public function test_strip_adds_the_ticked_extras_on_top_of_the_stop(): void
     {
         $admin = User::factory()->admin()->create();

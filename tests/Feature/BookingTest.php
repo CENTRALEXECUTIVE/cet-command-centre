@@ -72,6 +72,22 @@ class BookingTest extends TestCase
         $this->assertNull(Booking::latest('id')->first()->meta['meet_greet'] ?? null);
     }
 
+    public function test_a_private_jet_handler_pickup_keeps_meet_and_greet_but_not_the_name_board_wording(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'pickup_address' => 'Advantage Flight Support Ltd, Derby DE74 2SA, UK',
+            'destination_address' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'meet_greet' => '1',
+        ]))->assertRedirect();
+
+        $booking = Booking::latest('id')->first();
+        $this->assertTrue($booking->isMeetGreet());
+        $this->assertStringStartsWith('Airport pickup', (string) $booking->meetGreetLabel());
+        $this->assertStringNotContainsString('name board', view('emails._journey', ['leg' => $booking, 'row' => fn ($l, $v) => '<tr><td>'.$l.'</td><td>'.e((string) $v).'</td></tr>'])->render());
+    }
+
     public function test_admin_create_captures_extras(): void
     {
         $admin = User::factory()->admin()->create();

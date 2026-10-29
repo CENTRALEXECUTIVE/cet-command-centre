@@ -78,6 +78,18 @@ class AirportMatcherAddressTableTest extends TestCase
             // Stansted village vs the airport.
             'Stansted Mountfitchet home' => ['2 Lower Street, Stansted Mountfitchet CM24 8LP', false, null],
             'London Stansted Airport' => ['London Stansted Airport, Bassingbourn Road, Stansted CM24 1QW', true, 'STN'],
+
+            // Private-jet handlers / FBOs and airport hotels count as the airport
+            // (Kerry's private flights land at the EMA flight-support cabin).
+            'EMA flight support (Kerry)' => ['Advantage Flight Support Ltd, Derby DE74 2SA, UK', true, 'EMA'],
+            'EMA flight support, no postcode' => ['Advantage Flight Support, Castle Donington', true, 'EMA'],
+            'Luton FBO' => ['Harrods Aviation, Luton LU2 9PA', true, 'LTN'],
+            'Birmingham FBO' => ['Signature Aviation, Birmingham B26 3QN', true, 'BHX'],
+            'Kegworth hangar' => ['Hangar 5, Kegworth', true, 'EMA'],
+            'EMA airport hotel' => ['Radisson Blu Hotel, East Midlands Airport, DE74 2SH', true, 'EMA'],
+            'MAN airport hotel' => ['Hilton Manchester Airport, Outwood Lane', true, 'MAN'],
+            'Aviation office in town' => ['Aviation House, Manchester M1 2AB', false, null],
+            'Castle Donington hotel (not the airport)' => ['Premier Inn Castle Donington DE74 2TU', false, null],
         ];
     }
 
@@ -86,6 +98,22 @@ class AirportMatcherAddressTableTest extends TestCase
     {
         $this->assertSame($isAirport, AirportMatcher::isAirport($address), "isAirport({$address})");
         $this->assertSame($code, AirportMatcher::codeFor($address), "codeFor({$address})");
+    }
+
+    public function test_airport_hotels_and_jet_handlers_are_sites_not_the_terminal(): void
+    {
+        // Charged as an airport pickup, but no "name board in arrivals" wording.
+        $this->assertTrue(AirportMatcher::isAirportSite('Advantage Flight Support Ltd, Derby DE74 2SA, UK'));
+        $this->assertTrue(AirportMatcher::isAirportSite('Radisson Blu Hotel, East Midlands Airport, DE74 2SH'));
+        $this->assertTrue(AirportMatcher::isAirportSite('Hilton Manchester Airport, Outwood Lane'));
+        $this->assertTrue(AirportMatcher::isAirportSite('Harrods Aviation, Luton LU2 9PA'));
+
+        // The terminal itself is a normal meet & greet.
+        $this->assertFalse(AirportMatcher::isAirportSite('Manchester Airport Terminal 2'));
+        $this->assertFalse(AirportMatcher::isAirportSite('East Midlands Airport (EMA), Castle Donington, Derby, UK'));
+        $this->assertFalse(AirportMatcher::isAirportSite('Heathrow Terminal 5'));
+        // Not an airport at all.
+        $this->assertFalse(AirportMatcher::isAirportSite('Premier Inn Castle Donington DE74 2TU'));
     }
 
     public function test_the_incident_route_is_a_departure_not_an_arrival(): void

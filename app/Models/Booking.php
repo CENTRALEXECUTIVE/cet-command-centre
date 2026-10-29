@@ -4200,6 +4200,11 @@ class Booking extends Model
      * linked airport code in the pickup, or the shared matcher on the pickup
      * (calendar copy or our own). The gate for meet & greet.
      */
+    public function isAirportSitePickup(): bool
+    {
+        return \App\Support\AirportMatcher::isAirportSite($this->pickup_address);
+    }
+
     public function collectsFromAirport(): bool
     {
         return $this->isAirportPickup()
@@ -4250,6 +4255,13 @@ class Booking extends Model
     {
         if (! $this->isMeetGreet()) {
             return null;
+        }
+
+        // Airport hotel / private-jet handler: collected at the door, no name board.
+        if ($this->isAirportSitePickup()) {
+            $point = $this->meetingPoint();
+
+            return 'Airport pickup — collect at the pickup address, no name board'.($point ? ' (meet at '.$point.')' : '');
         }
 
         $detail = [];

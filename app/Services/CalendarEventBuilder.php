@@ -201,7 +201,11 @@ class CalendarEventBuilder
         if (! $booking->collectsFromAirport()) {
             $label = trim((string) preg_replace('/\s*\(\s*meet\s*(?:&|and)\s*greet\s*\)/i', '', $label)) ?: 'Transfer';
         }
-        if ($booking->isMeetGreet() && stripos($label, 'meet') === false) {
+        // At an airport hotel / private-jet handler it's a door pickup — the fee is
+        // charged but the heading doesn't promise a name board in arrivals.
+        if ($booking->isAirportSitePickup()) {
+            $label = trim((string) preg_replace('/\s*\(\s*meet\s*(?:&|and)\s*greet\s*\)/i', '', $label)) ?: 'Arrival';
+        } elseif ($booking->isMeetGreet() && stripos($label, 'meet') === false) {
             $label .= ' (Meet & Greet)';
         }
 

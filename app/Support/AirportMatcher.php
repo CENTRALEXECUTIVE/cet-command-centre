@@ -94,6 +94,33 @@ class AirportMatcher
     ];
 
     /**
+     * Airport-side SITES that don't say "airport": private-jet handlers / FBOs
+     * ("Advantage Flight Support", "Harrods Aviation", "Signature Aviation"), jet
+     * centres, hangars. Meet & greet applies there (Kerry's private flights land
+     * at the EMA flight-support cabin). Only counted together with the airport's
+     * own area below, so "Aviation House, Sheffield" is never an airport.
+     */
+    private const AVIATION_SITE = '(?:flight\s+support|aviation|fbo|jet\s+cent(?:re|er)|private\s+jets?|business\s+jets?|executive\s+jets?|general\s+aviation|hangar|airside)';
+
+    /**
+     * IATA code → postcode districts and the villages the airport sits in. Big
+     * cities are left out on purpose ("Aviation House, Manchester" is an office).
+     */
+    private const AREAS = [
+        'EMA' => ['districts' => ['de74'], 'places' => ['castle donington', 'kegworth', 'east midlands']],
+        'LTN' => ['districts' => ['lu2'], 'places' => []],
+        'LGW' => ['districts' => ['rh6'], 'places' => ['gatwick', 'horley']],
+        'MAN' => ['districts' => ['m90', 'm22'], 'places' => ['ringway']],
+        'BHX' => ['districts' => ['b26', 'b40'], 'places' => ['elmdon', 'marston green']],
+        'LBA' => ['districts' => ['ls19'], 'places' => ['yeadon']],
+        'LPL' => ['districts' => ['l24'], 'places' => ['speke']],
+        'STN' => ['districts' => ['cm24'], 'places' => ['stansted']],
+        'LHR' => ['districts' => ['tw6'], 'places' => ['heathrow']],
+        'DSA' => ['districts' => ['dn9'], 'places' => ['finningley']],
+        'HUY' => ['districts' => ['dn39'], 'places' => ['kirmington']],
+    ];
+
+    /**
      * Words that, straight after an airport word, make it a STREET / estate named
      * after the airport rather than the airport ("Gatwick Road, Crawley", "Airport
      * Retail Park", "Leeds Bradford Road"). "Way" is deliberately NOT here — the
@@ -135,7 +162,26 @@ class AirportMatcher
             }
         }
 
-        // 4. A terminal reference next to a city → that city's airport.
+        // 4. An airport-side aviation site (private-jet handler, FBO, jet centre) in
+        //    that airport's own area → that airport.
+        if (preg_match('/(?<![a-z0-9])'.self::AVIATION_SITE.'(?![a-z0-9])/', $needle)) {
+            foreach (self::AREAS as $code => $area) {
+                foreach ($area['districts'] as $d) {
+                    if (preg_match('/\b'.$d.'\s*\d[a-z]{2}\b/', $needle)) {
+                        return $code;
+                    }
+                }
+            }
+            foreach (self::AREAS as $code => $area) {
+                foreach ($area['places'] as $place) {
+                    if (self::hasWord($needle, $place)) {
+                        return $code;
+                    }
+                }
+            }
+        }
+
+        // 5. A terminal reference next to a city → that city's airport.
         if (self::hasTerminal($needle)) {
             foreach (self::TERMINAL_CITIES as $city => $code) {
                 if (str_contains($needle, $city)) {
@@ -158,6 +204,26 @@ class AirportMatcher
         return self::hasWord($needle, 'airport')
             || self::hasTerminal($needle)
             || self::codeFor(...$parts) !== null;
+    }
+
+    /** Hotels at the airport — collected at the door, not in arrivals. */
+    private const HOTEL = '(?:hotel|inn|lodge|travelodge|hilton|radisson|marriott|ibis|novotel|crowne\s+plaza|moxy|hampton|doubletree|sofitel|clayton|ramada|best\s+western|premier\s+inn|holiday\s+inn)';
+
+    /**
+     * An airport-side SITE rather than the terminal: an airport hotel or a private-
+     * jet handler / FBO ("Advantage Flight Support, DE74 2SA", "Hilton Manchester
+     * Airport"). Still an airport pickup — meet & greet is CHARGED — but the
+     * customer isn't told "driver waits in arrivals with a name board", because
+     * the chauffeur collects them at the door.
+     */
+    public static function isAirportSite(?string $address): bool
+    {
+        $needle = strtolower(trim((string) $address));
+        if ($needle === '' || ! self::isAirport($address) || self::hasTerminal($needle)) {
+            return false;
+        }
+
+        return (bool) preg_match('/(?<![a-z0-9])(?:'.self::AVIATION_SITE.'|'.self::HOTEL.')(?![a-z0-9])/', $needle);
     }
 
     /** $phrase as whole word(s) in $needle, NOT immediately followed by a street word. */

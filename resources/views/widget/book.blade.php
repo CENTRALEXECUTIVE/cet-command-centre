@@ -1507,6 +1507,11 @@
                 if (AIR_NAME.test(s)) return true;
                 if (/\((man|lhr|lgw|stn|ema|lba|bhx|lpl|huy|ltn|dsa|ncl|edi|gla|brs)\)/.test(s)) return true;
                 if (/\bm90\b|\btw6\b|\bde74\s*2sa\b|\blu2\s*9ly\b|\bb26\s*3qj\b|\bls19\s*7tu\b|\bl24\s*1yd\b|\bcm24\s*1qw\b|\brh6\s*0(np|pj)\b|\bdn39\s*6yh\b/.test(s)) return true;
+                // Private-jet handlers / FBOs / hangars at an airport ("Advantage Flight
+                // Support, DE74 2SA") — only inside that airport's own area.
+                if (/(?:^|[^a-z0-9])(?:flight\s+support|aviation|fbo|jet\s+cent(?:re|er)|private\s+jets?|business\s+jets?|executive\s+jets?|general\s+aviation|hangar|airside)(?![a-z0-9])/.test(s)
+                    && (/\b(?:de74|lu2|rh6|m90|m22|b26|b40|ls19|l24|cm24|tw6|dn9|dn39)\s*\d[a-z]{2}\b/.test(s)
+                        || /\b(?:castle donington|kegworth|east midlands|gatwick|horley|ringway|elmdon|marston green|yeadon|speke|stansted|heathrow|finningley|kirmington)\b/.test(s))) return true;
                 if (/\bt[1-5]\b/.test(s)) return true;
                 var t = s.replace(/\b(bus|coach|ferry|freight|cargo|container|cruise|rail|oil|lorry|truck)\s+terminal\b/g, ' ')
                     .replace(/\bterminal\s+(house|buildings?|chambers|court|works|road|rd|street|lane|avenue|drive|close|place|business\s+park|industrial\s+estate|trading\s+estate)\b/g, ' ');

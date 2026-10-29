@@ -103,7 +103,10 @@ class AiPricingEngine
 
         // Meet & greet only on an airport PICKUP (an arrival), never a drop-off.
         if (! empty($input['meet_greet']) && \App\Support\AirportMatcher::isAirport($input['pickup_address'] ?? null)) {
-            $items[] = ['label' => 'Meet & greet', 'amount' => (float) ($rates['meet_greet'] ?? 10)];
+            $items[] = [
+                'label' => \App\Support\AirportMatcher::isAirportSite($input['pickup_address'] ?? null) ? 'Airport pickup' : 'Meet & greet',
+                'amount' => (float) ($rates['meet_greet'] ?? 10),
+            ];
         }
         foreach ([
             'child_seats' => ['Child seat', $rates['child_seat'] ?? 10],
