@@ -1598,6 +1598,12 @@
                     // copy the flight landing time into the return pickup automatically.
                     // (The office can still adjust it.) Non-airport returns keep their
                     // own return date & time untouched.
+                    // Collecting FROM the airport one-way: the pickup time IS the landing time.
+                    var whenEl = document.getElementById('b-when');
+                    if (!isAirportReturn() && isAirportPickup() && whenEl && flightLandEl.value) {
+                        whenEl.value = flightLandEl.value;
+                        whenEl.dispatchEvent(new Event('change'));
+                    }
                     if (isAirportReturn() && retEl && flightLandEl.value) {
                         retEl.value = flightLandEl.value;
                         if (typeof build === 'function') { try { build(retEl); } catch (e) {} }

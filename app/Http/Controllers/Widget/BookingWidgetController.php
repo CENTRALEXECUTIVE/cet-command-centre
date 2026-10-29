@@ -395,6 +395,14 @@ class BookingWidgetController extends Controller
         );
         $pickupAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['pickup_at'], config('app.timezone'))
             ?: Carbon::parse($data['pickup_at']);
+        // Collecting FROM the airport: the pickup time IS the flight's landing time
+        // (UK-local, never converted). The flight is tracked, so the driver adjusts
+        // to delays; the customer never has to guess a separate pickup time.
+        if (! $isReturn && filled($data['flight_landing_at'] ?? null)
+            && \App\Support\AirportMatcher::isAirport($data['pickup_address'] ?? null)) {
+            $pickupAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
+                ?: Carbon::parse($data['flight_landing_at'], config('app.timezone'));
+        }
 
         // A guide price from the existing engine, stored for the office. Hourly
         // hire has no fixed route — the office confirms the price.

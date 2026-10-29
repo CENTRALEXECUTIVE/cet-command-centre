@@ -950,6 +950,26 @@ class BookingWidgetTest extends TestCase
         $this->assertNull($booking->quoted_price);
     }
 
+    public function test_an_airport_pickup_time_is_the_flight_landing_time(): void
+    {
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $day = now()->addDays(3)->format('Y-m-d');
+
+        // The customer typed 10:00 for pickup but the flight lands at 11:20 — the
+        // pickup is the landing time (UK-local, not shifted).
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield S1 2HH',
+            'pickup_at' => $day.'T10:00',
+            'vehicle_type_id' => $exec->id, 'passengers' => 1,
+            'customer_name' => 'Landing Lucy', 'customer_phone' => '07464905385',
+            'customer_email' => 'lucy@example.com',
+            'flight_number' => 'BA1368', 'flight_landing_at' => $day.'T11:20',
+        ])->assertOk();
+
+        $b = \App\Models\Booking::firstWhere('source', 'web');
+        $this->assertSame($day.' 11:20', $b->pickup_at->timezone(config('app.timezone'))->format('Y-m-d H:i'));
+    }
+
     public function test_a_one_way_airport_pickup_forces_meet_and_greet_into_the_fare(): void
     {
         // Meet & greet is mandatory on an airport arrival and baked into the price —

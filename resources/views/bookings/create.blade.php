@@ -821,6 +821,29 @@
                     syncMeetingDetails();
                 }
                 if (meet) meet.addEventListener('change', function () { mgAuto = false; syncMeetingDetails(); });
+
+                // Collecting FROM the airport: the pickup time IS the flight landing
+                // time. Keep the two in step both ways (the flight is tracked, so the
+                // driver adjusts to delays). Departures and other jobs are untouched.
+                var pickupAtEl = document.getElementById('pickup_at');
+                var landingEl = document.getElementById('flight_landing_at');
+                function isAirportArrival() {
+                    // The outbound leg's pickup (one-way or return): its landing time is the outbound flight.
+                    return pickupIsAirport();
+                }
+                if (pickupAtEl && landingEl) {
+                    landingEl.addEventListener('change', function () {
+                        if (isAirportArrival() && landingEl.value && pickupAtEl.value !== landingEl.value) {
+                            pickupAtEl.value = landingEl.value;
+                            pickupAtEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
+                    pickupAtEl.addEventListener('change', function () {
+                        if (isAirportArrival() && pickupAtEl.value && landingEl.value !== pickupAtEl.value) {
+                            landingEl.value = pickupAtEl.value;
+                        }
+                    });
+                }
                 [airportSel, pickup, dest].forEach(function (el) {
                     if (!el) return;
                     el.addEventListener('change', apply);

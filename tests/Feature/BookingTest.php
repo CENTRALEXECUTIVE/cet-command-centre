@@ -88,6 +88,31 @@ class BookingTest extends TestCase
         $this->assertStringNotContainsString('name board', view('emails._journey', ['leg' => $booking, 'row' => fn ($l, $v) => '<tr><td>'.$l.'</td><td>'.e((string) $v).'</td></tr>'])->render());
     }
 
+    public function test_admin_airport_pickup_time_is_the_flight_landing_time(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $day = now()->addDays(3)->format('Y-m-d');
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'pickup_address' => 'East Midlands Airport (EMA), Castle Donington, Derby, UK',
+            'destination_address' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'pickup_at' => $day.'T10:00',
+            'flight_landing_at' => $day.'T11:20',
+        ]))->assertRedirect();
+
+        $this->assertSame($day.' 11:20', Booking::latest('id')->first()->pickup_at->timezone(config('app.timezone'))->format('Y-m-d H:i'));
+
+        // A drop-off TO the airport keeps the time the office typed.
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'pickup_address' => '28a Park Drive, Sprotbrough, Doncaster DN5 7LA, UK',
+            'destination_address' => 'East Midlands Airport (EMA), Castle Donington, Derby, UK',
+            'pickup_at' => $day.'T07:00',
+            'flight_landing_at' => $day.'T11:20',
+        ]))->assertRedirect();
+
+        $this->assertSame($day.' 07:00', Booking::latest('id')->first()->pickup_at->timezone(config('app.timezone'))->format('Y-m-d H:i'));
+    }
+
     public function test_admin_create_captures_extras(): void
     {
         $admin = User::factory()->admin()->create();

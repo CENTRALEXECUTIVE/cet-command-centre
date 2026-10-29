@@ -542,6 +542,14 @@ class BookingService
                 ? (($data['return_destination_address'] ?? null) ?: $data['pickup_address'])
                 : $data['destination_address']);
 
+        // Collecting FROM the airport on the outbound leg: the pickup time IS the
+        // flight landing time (UK-local, never converted) — the flight is tracked,
+        // so the driver adjusts to any delay.
+        if (! $isReturn && ! empty($data['flight_landing_at'])
+            && \App\Support\AirportMatcher::isAirport($pickupAddress)) {
+            $pickupAt = \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->format('Y-m-d H:i:s');
+        }
+
         [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
 
         // Airport details only belong on a leg that COLLECTS from an airport: the
