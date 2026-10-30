@@ -23,7 +23,29 @@ class Payment extends Model
                 return;
             }
             $booking = Booking::find($payment->booking_id);
-            if (! $booking || $booking->onlinePaidTotal() <= 0 || $booking->payments()->exists()) {
+            if (! $booking || $booking->payments()->exists()) {
+                return;
+            }
+            // Paid but NOT online (an ETO/calendar import flagged paid, or marked paid
+            // by hand): record that the fare was settled before the ledger starts, so
+            // adding e.g. a soiling charge never turns a paid journey into "£0 paid,
+            // fare due" (CET-583A55, Oct 2026).
+            if ($booking->onlinePaidTotal() <= 0) {
+                $fare = $booking->amountPayable();
+                // Only when the new line is an UNPAID charge/request: a first line
+                // recorded as PAID is the office logging the fare itself — seeding
+                // too would count the fare twice.
+                if ($booking->payment_status === 'paid' && $payment->status !== 'paid' && $fare !== null && $fare > 0) {
+                    static::create([
+                        'booking_id' => $booking->id,
+                        'method' => $booking->payment_method?->value ?? 'card',
+                        'amount' => round($fare, 2),
+                        'status' => 'paid',
+                        'paid_at' => $booking->updated_at ?? now(),
+                        'meta' => ['name' => 'Fare (paid before)', 'online_seed' => true],
+                    ]);
+                }
+
                 return;
             }
             $amount = round(min($booking->onlinePaidTotal(), $booking->amountPayable() ?? $booking->onlinePaidTotal()), 2);

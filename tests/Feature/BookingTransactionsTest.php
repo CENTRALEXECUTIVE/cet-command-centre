@@ -172,6 +172,29 @@ class BookingTransactionsTest extends TestCase
             ->assertSee('Full amount')->assertDontSee('No transactions recorded yet');
     }
 
+    public function test_a_soiling_charge_on_a_paid_imported_booking_keeps_the_fare_paid(): void
+    {
+        // CET-583A55: an ETO booking flagged paid (no online record) got a £150
+        // soiling line as its first ledger row — the £115 journey then read
+        // "£0 paid, £115 due" and a £115 balance link was created.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'quoted_price' => 115.00,
+            'payment_status' => 'paid',
+        ]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.transactions.store', $booking), [
+            'amount' => 150, 'method' => 'card', 'status' => 'pending', 'name' => 'Soiling charge',
+        ])->assertRedirect();
+
+        $booking->refresh()->load('payments');
+        $this->assertSame(2, $booking->payments->count());
+        $this->assertEqualsWithDelta(115.0, $booking->transactionsPaidTotal(), 0.001);
+        $this->assertEqualsWithDelta(0.0, $booking->transactionsAmountDue(), 0.001);
+        $this->assertSame('Fare (paid before)', $booking->payments->firstWhere('status', 'paid')->name());
+    }
+
     public function test_a_driver_cannot_touch_the_ledger(): void
     {
         $driver = User::factory()->create(['role' => 'driver']);
