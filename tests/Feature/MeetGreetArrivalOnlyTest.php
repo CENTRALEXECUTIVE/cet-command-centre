@@ -33,6 +33,8 @@ class MeetGreetArrivalOnlyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // An ordinary weekday, so "tomorrow" never lands on a surcharge day.
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-13 10:00:00'));
         $this->seed([VehicleTypeSeeder::class, DirectorSeeder::class, AirportSeeder::class, RotationSeeder::class]);
         config(['cet.surcharges.meet_greet' => 10]);
     }

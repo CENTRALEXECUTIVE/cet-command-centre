@@ -23,6 +23,9 @@ class PublicBookingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Pin an ordinary weekday: "tomorrow" must never land on a surcharge day
+        // (31 Oct Halloween ×1.6 broke these on 30 Oct).
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-13 10:00:00'));
         $this->seed(VehicleTypeSeeder::class);
         config(['cet.vat_registered' => true, 'cet.vat_rate' => 0.20]);
     }
