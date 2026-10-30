@@ -4,6 +4,16 @@
 @section('content')
     <h1 class="page-title">Google Ads Dashboard</h1>
     <p class="page-sub">{{ $start->format('d M Y') }} – {{ $end->format('d M Y') }}</p>
+    @php
+        $gclidCount = \App\Models\Booking::whereBetween('created_at', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
+            ->whereNotIn('status', ['cancelled', 'no_show'])->get(['id', 'meta'])
+            ->filter(fn ($b) => filled($b->meta['marketing']['gclid'] ?? null))->count();
+    @endphp
+    <div class="card" style="margin:0 0 14px">
+        <strong>Real bookings from ads:</strong> {{ $gclidCount }} booking{{ $gclidCount === 1 ? '' : 's' }} in this period carry a Google click ID.
+        <a class="btn btn-light" style="margin-left:8px;padding:6px 12px" href="{{ route('reports.ads.offline-conversions', ['start' => $start->toDateString(), 'end' => $end->toDateString()]) }}">⬇ Download for Google Ads (offline conversions)</a>
+        <div class="hint" style="margin-top:6px">Upload in Google Ads → Goals → Conversions → Uploads (action “CET completed booking”, conversions from clicks). Google then shows real bookings and their fare against each keyword. No customer details are included.</div>
+    </div>
 
     <form method="GET" action="{{ route('reports.ads') }}" class="toolbar">
         <input type="date" name="start" value="{{ $start->toDateString() }}" style="width:auto">

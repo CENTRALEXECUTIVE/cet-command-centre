@@ -456,6 +456,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat');
         Route::get('businesses/{account}', [ReportController::class, 'business'])->name('reports.business');
         Route::get('reports/ads', [ReportController::class, 'ads'])->name('reports.ads');
+        Route::get('reports/ads/offline-conversions.csv', [ReportController::class, 'offlineConversions'])->name('reports.ads.offline-conversions');
         Route::get('reports/customers', [ReportController::class, 'customers'])->name('reports.customers');
 
         // Marketing — Google Ads dashboard, keywords, SEO.

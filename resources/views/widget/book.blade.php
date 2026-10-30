@@ -531,6 +531,29 @@
                     @foreach(($marketing ?? []) as $mName => $mVal)
                         <input type="hidden" name="{{ $mName }}" value="{{ $mVal }}">
                     @endforeach
+                    {{-- Most ad visitors land on another page first, so the gclid isn't in
+                         this URL. Google's Conversion Linker keeps it in the _gcl_aw cookie
+                         on .centralexecutivetransfers.co.uk, which this same-site iframe can
+                         read — so the booking still records which ad won it. --}}
+                    <script>
+                    (function () {
+                        var f = document.getElementById('cet-book');
+                        if (!f) return;
+                        function cookie(n) {
+                            var m = document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)'));
+                            return m ? decodeURIComponent(m[1]) : '';
+                        }
+                        function add(n, v) {
+                            if (!v || f.querySelector('input[name="' + n + '"]')) return;
+                            var i = document.createElement('input');
+                            i.type = 'hidden'; i.name = n; i.value = v.slice(0, 300);
+                            f.appendChild(i);
+                        }
+                        // Cookie format: GCL.<timestamp>.<click id>
+                        var aw = cookie('_gcl_aw'); if (aw) add('gclid', aw.split('.').slice(2).join('.'));
+                        var gb = cookie('_gcl_gb'); if (gb) add('gbraid', gb.split('.').slice(2).join('.'));
+                    })();
+                    </script>
 
                     {{-- STEP 1 — Journey --}}
                     <div class="cet-step" data-step="1">

@@ -114,6 +114,54 @@ class ReportController extends Controller
     }
 
     /**
+     * Google Ads OFFLINE CONVERSIONS: every real booking that carries a Google
+     * click ID (gclid), as a CSV in Google's import template, so Google Ads can
+     * credit actual bookings and their real fare to the keyword/ad that won them
+     * — not just the calls and web events it tracks itself. Upload in Google Ads:
+     * Goals → Conversions → Uploads (conversion action "CET completed booking",
+     * source "Import → conversions from clicks"). No customer details included.
+     */
+    public function offlineConversions(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        [$start, $end] = $this->range($request);
+        $tz = config('app.timezone');
+
+        $bookings = \App\Models\Booking::query()
+            ->whereBetween('created_at', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->orderBy('created_at')
+            ->get()
+            ->filter(fn ($b) => filled($b->meta['marketing']['gclid'] ?? null));
+
+        $name = 'google-ads-offline-conversions-'.$start->format('Ymd').'-'.$end->format('Ymd').'.csv';
+
+        return response()->streamDownload(function () use ($bookings, $tz) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Parameters:TimeZone='.$tz]);
+            fputcsv($out, ['Google Click ID', 'Conversion Name', 'Conversion Time', 'Conversion Value', 'Conversion Currency']);
+            foreach ($bookings as $b) {
+                $value = (float) ($b->amountPayable() ?? 0);
+                foreach ($b->tripBookings() as $leg) {
+                    if (! $leg->is($b) && $leg->is_return_leg) {
+                        $value += (float) ($leg->amountPayable() ?? 0); // the whole trip's value
+                    }
+                }
+                if ($b->is_return_leg) {
+                    continue; // counted once, on the outbound
+                }
+                fputcsv($out, [
+                    $b->meta['marketing']['gclid'],
+                    'CET completed booking',
+                    $b->created_at->copy()->timezone($tz)->format('Y-m-d H:i:s'),
+                    number_format($value, 2, '.', ''),
+                    'GBP',
+                ]);
+            }
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
      * New customers per month vs Google Ads spend — so the office can see how many
      * genuinely new customers each month brought and what the ads cost to win them.
      * Defaults to the last 12 months when no range is given.
