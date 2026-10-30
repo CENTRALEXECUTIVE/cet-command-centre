@@ -2,6 +2,8 @@
 
 File: `keywords-upload-step1-bids-pauses.csv` (133 rows). Data: Google Ads keyword report **1 Mar – 28 Oct 2026**. "Conv" are Google's conversions (mostly calls, plus web bookings until tracking broke ~25 Oct). Targets: £35–£70 per conversion depending on ad group (Manchester £35, General £40, Exec/Corporate £45, Heathrow £70).
 
+**UPDATE after checking real ETO bookings (see `2026-10-30-bookings-vs-ads.md`):** Birmingham's 11 keyword pauses are REMOVED from the file (the ad group is re-enabled at £0.90 — 14 real bookings, 0 tracked); "airport transfers chesterfield" (exact + phrase) and "airport transfers barnsley" (exact) stay ON at £0.90; "taxi sheffield to manchester airport" and "taxi from sheffield to manchester airport" (exact) stay ON at £1.00. The file now has 122 rows: 8 pauses, 114 bids.
+
 **How to read the bids:** under Manual CPC the bid is the MOST Google may charge for one click. A keyword with its own bid ignores the ad group default.
 
 ## 1. Paused (24) — spending with no or very expensive bookings

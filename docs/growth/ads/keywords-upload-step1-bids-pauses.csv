@@ -1,27 +1,16 @@
 Campaign,Ad group,Keyword,Criterion Type,Max CPC,Status
 RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport transfers,Exact,,Paused
 RT-Search-CAMP JAN26,Executive Chauffeur / Corporate,sheffield chauffeur service,Exact,,Paused
-RT-Search-CAMP JAN26,General Airport Transfers,airport transfers barnsley,Exact,,Paused
+RT-Search-CAMP JAN26,General Airport Transfers,airport transfers barnsley,Exact,0.90,Enabled
 RT-Search-CAMP JAN26,General Airport Transfers,book airport transfer,Exact,,Paused
-RT-Search-CAMP JAN26,General Airport Transfers,airport transfers chesterfield,Phrase,,Paused
-RT-Search-CAMP JAN26,Manchester Airport Transfers,taxi from sheffield to manchester airport,Exact,,Paused
-RT-Search-CAMP JAN26,General Airport Transfers,airport transfers chesterfield,Exact,,Paused
-RT-Search-CAMP JAN26,Manchester Airport Transfers,taxi sheffield to manchester airport,Exact,,Paused
+RT-Search-CAMP JAN26,General Airport Transfers,airport transfers chesterfield,Phrase,0.90,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,taxi from sheffield to manchester airport,Exact,1.00,Enabled
+RT-Search-CAMP JAN26,General Airport Transfers,airport transfers chesterfield,Exact,0.90,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,taxi sheffield to manchester airport,Exact,1.00,Enabled
 RT-Search-CAMP JAN26,Manchester Airport Transfers,chauffeur sheffield to manchester airport,Phrase,,Paused
 RT-Search-CAMP JAN26,Manchester Airport Transfers,taxi from manchester airport to sheffield,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi to birmingham airport,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi to birmingham airport,Phrase,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi to birmingham airport from sheffield,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi from birmingham airport to sheffield,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi sheffield to birmingham airport,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,sheffield to birmingham airport taxi,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,birmingham airport to sheffield taxi,Exact,,Paused
 RT-Search-CAMP JAN26,Weddings & Events Chauffeur,limousines sheffield,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi chesterfield to birmingham airport,Exact,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi from sheffield to birmingham airport,Exact,,Paused
 RT-Search-CAMP JAN26,Weddings & Events Chauffeur,limousines sheffield,Phrase,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,sheffield to birmingham airport taxi,Phrase,,Paused
-RT-Search-CAMP JAN26,Birmingham Airport Transfers,taxi from chesterfield to birmingham airport,Exact,,Paused
 RT-Search-CAMP JAN26,General Airport Transfers,airport transfers sheffield,Exact,1.33,Enabled
 RT-Search-CAMP JAN26,General Airport Transfers,airport taxi sheffield,Exact,1.12,Enabled
 RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport transfers,Phrase,1.83,Enabled
