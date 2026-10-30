@@ -53,23 +53,24 @@ hasn't applied anything since August. This keeps it that way.)
 Automatically created assets: Off.
 
 ### Step 4 — Bid strategy to Manual CPC and default bids (10 min)
-Only if Step 1 showed it isn't Manual CPC already.
-1. **Settings → Bidding → Change bid strategy** → **Manual CPC** → **Save**.
-   (If Google offers "Enhanced CPC", leave it off.)
+Confirmed 30 Oct: the campaign is on Maximise conversions, so do this step. Reasoning and sources:
+`2026-10-30-bidding-decision.md`. **The bids below were corrected on 30 Oct.**
+1. **Settings → Bidding → Change bid strategy** → tap **"Or, select a bid strategy directly (not recommended)"**
+   → **Manual CPC** → **Save**. (Enhanced CPC was retired for Search in 2025; if a tickbox appears, leave it off.)
 2. Left menu **Campaigns → Ad groups**. For each row, tap the **Default max. CPC** cell (the pencil) and
    type the value → **Save**:
 
 | Ad group | Default max CPC |
 |---|---|
 | General Airport Transfers | 1.40 |
-| Manchester Airport Transfers | 1.50 |
+| Manchester Airport Transfers | **1.20** |
 | Executive Chauffeur / Corporate | 1.60 |
 | East Midlands Airport Transfers | 1.30 |
-| Heathrow Airport Transfers | 1.80 |
+| Heathrow Airport Transfers | **2.00** |
 | Gatwick Airport Transfers | 1.50 |
 | Luton Airport Transfers | 1.50 |
-| Leeds Bradford Airport Transfers | 1.20 |
-| Weddings & Events Chauffeur | 0.90 |
+| Leeds Bradford Airport Transfers | **1.00** |
+| Weddings & Events Chauffeur | **0.80** |
 
 ✅ *You should see:* Bid strategy "Manual CPC" in Settings, and the numbers above in the Default max. CPC column.
 
