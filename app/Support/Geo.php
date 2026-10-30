@@ -13,8 +13,16 @@ class Geo
     /** Road wiggle: straight-line → typical road distance multiplier. */
     private const ROAD_FACTOR = 1.3;
 
-    /** Average door-to-door speed assumption for drive-time estimates (mph). */
-    private const AVG_MPH = 28.0;
+    /**
+     * Drive-time speeds: the first miles of any trip are town driving, the rest is
+     * mostly A-roads/motorway. One flat 28 mph made a Barnsley → Manchester Airport
+     * run (≈47 road miles) read 100 min instead of ~75, and short hops too quick.
+     */
+    private const TOWN_MILES = 10.0;
+
+    private const TOWN_MPH = 22.0;
+
+    private const OPEN_ROAD_MPH = 50.0;
 
     /** Great-circle distance between two points, in metres. */
     public static function haversineMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
@@ -38,8 +46,10 @@ class Geo
     public static function estimateDriveMinutes(float $lat1, float $lng1, float $lat2, float $lng2): int
     {
         $miles = (self::haversineMeters($lat1, $lng1, $lat2, $lng2) / 1609.34) * self::ROAD_FACTOR;
+        $town = min($miles, self::TOWN_MILES);
+        $open = max(0.0, $miles - self::TOWN_MILES);
 
-        return max(1, (int) round(($miles / self::AVG_MPH) * 60));
+        return max(1, (int) round(($town / self::TOWN_MPH + $open / self::OPEN_ROAD_MPH) * 60));
     }
 
     /** Speed between two pings in mph, from displacement over elapsed time. */

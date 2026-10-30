@@ -947,23 +947,74 @@ class StatusWatchdog
      */
     public function completeBy(Booking $booking): Carbon
     {
-        // The real pickup → drop-off drive time, then a 30-min buffer on top,
-        // so "is the job complete?" never fires until the journey should truly
-        // be finished (drop-off + settle) — not while they're still driving.
-        $drive = $this->estimatedDurationMinutes($booking);
+        // Hourly hire ("as directed"): the car is booked for N hours from pickup —
+        // never ask before that block is over (a 6-hour 14:30 job was nagged at
+        // 16:46 because "as directed" has no drop-off to measure).
+        if ($hours = $booking->hourlyHours()) {
+            $by = $booking->pickup_at->copy()->addMinutes($hours * 60 + self::HOURLY_BUFFER_MINUTES);
+
+            return $this->notBeforeCalendarEnd($booking, $by);
+        }
+
+        // The real pickup → drop-off drive time, plus time for via stops and any
+        // waiting the job includes, then a 30-min buffer, so "is the job complete?"
+        // never fires until the journey should truly be finished.
+        $drive = $this->estimatedDurationMinutes($booking) + $this->extraJobMinutes($booking);
 
         if ($pob = $this->pobAt($booking)) {
-            return $pob->copy()->addMinutes($drive + self::COMPLETE_BUFFER_MINUTES);
-        }
-
-        if ($this->isAirportPickup($booking)) {
+            $by = $pob->copy()->addMinutes($drive + self::COMPLETE_BUFFER_MINUTES);
+        } elseif ($this->isAirportPickup($booking)) {
             $landing = $this->flightLandingAt($booking);
             $anchor = ($landing && $landing->gt($booking->pickup_at)) ? $landing : $booking->pickup_at;
-
-            return $anchor->copy()->addMinutes(120 + $drive); // clear the airport + drive home
+            $by = $anchor->copy()->addMinutes(120 + $drive); // clear the airport + drive home
+        } else {
+            $by = $booking->pickup_at->copy()->addMinutes($drive + self::COMPLETE_BUFFER_MINUTES);
         }
 
-        return $booking->pickup_at->copy()->addMinutes($drive + self::COMPLETE_BUFFER_MINUTES);
+        return $this->notBeforeCalendarEnd($booking, $by);
+    }
+
+    /** Buffer after an hourly-hire block ends before asking "complete?". */
+    public const HOURLY_BUFFER_MINUTES = 15;
+
+    /** Time allowed per via stop (drop someone / pick someone up). */
+    public const STOP_MINUTES = 15;
+
+    /** Waiting mentioned only in the notes ("wait and return", "waiting included"). */
+    public const NOTED_WAIT_MINUTES = 60;
+
+    /** Via stops and waiting that make the job longer than the straight drive. */
+    private function extraJobMinutes(Booking $booking): int
+    {
+        $extra = count($booking->viaStops()) * self::STOP_MINUTES;
+
+        $wait = $booking->waitingTimeInfo();
+        if ($wait && (int) ($wait['minutes'] ?? 0) > 0) {
+            $extra += (int) $wait['minutes'];
+        } elseif ($booking->hasWaitingTime()) {
+            $extra += self::NOTED_WAIT_MINUTES;
+        }
+
+        return $extra;
+    }
+
+    /**
+     * The office stretches a job's calendar slot when it runs longer (a wedding
+     * shuttle, a day of meetings). When the slot is longer than the default hour,
+     * never ask before it ends.
+     */
+    private function notBeforeCalendarEnd(Booking $booking, Carbon $by): Carbon
+    {
+        $event = $booking->calendarEvent;
+        if ($event && $event->start_at && $event->end_at
+            && $event->end_at->diffInMinutes($event->start_at, true) > 60) {
+            $end = $event->end_at->copy()->addMinutes(self::HOURLY_BUFFER_MINUTES);
+            if ($end->gt($by)) {
+                return $end;
+            }
+        }
+
+        return $by;
     }
 
     /** Buffer added after the pickup → drop-off drive before asking "complete?". */

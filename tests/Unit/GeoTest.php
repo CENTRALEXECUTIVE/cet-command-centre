@@ -36,8 +36,8 @@ class GeoTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $near);
         $this->assertGreaterThan($near, $far);
         // Sheffield→Manchester Airport ≈ 33 straight miles → ~43 road miles →
-        // ~92 min at the conservative 28 mph average.
-        $this->assertEqualsWithDelta(92, $far, 15);
+        // 10 town miles at 22 mph + the rest at 50 mph ≈ 65–70 min (a typical run).
+        $this->assertEqualsWithDelta(67, $far, 10);
     }
 
     public function test_speed_between_pings(): void

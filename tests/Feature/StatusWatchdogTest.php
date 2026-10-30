@@ -167,10 +167,16 @@ class StatusWatchdogTest extends TestCase
     {
         $watchdog = app(StatusWatchdog::class);
 
-        // Driver hours away → clamped DOWN to the 5h (300) ceiling, NOT 2.5h — a
-        // Sheffield → London-airport run is ~3h+, so 150 would chase them too late.
-        $far = $this->job(BookingStatus::Allocated, now()->addHours(6), ['pickup' => self::PICKUP]);
-        $this->ping($far, 51.5074, -0.1278, now()->subMinutes(5));
+        // Driver in London → a real ~3½–4h lead (London → Sheffield), not chased late.
+        $london = $this->job(BookingStatus::Allocated, now()->addHours(6), ['pickup' => self::PICKUP]);
+        $this->ping($london, 51.5074, -0.1278, now()->subMinutes(5));
+        $lead = $watchdog->setOffLeadMinutes($london->fresh());
+        $this->assertGreaterThanOrEqual(200, $lead);
+        $this->assertLessThanOrEqual(300, $lead);
+
+        // Driver further still (Edinburgh) → clamped DOWN to the 5h (300) ceiling.
+        $far = $this->job(BookingStatus::Allocated, now()->addHours(8), ['pickup' => self::PICKUP]);
+        $this->ping($far, 55.9533, -3.1883, now()->subMinutes(5));
         $this->assertSame(300, $watchdog->setOffLeadMinutes($far->fresh()));
 
         // Driver already next door (couple of streets) → clamped UP to 15.
@@ -197,6 +203,42 @@ class StatusWatchdogTest extends TestCase
         // A local pickup → a short lead (base drive + the 10-min buffer).
         $near = $this->job(BookingStatus::Allocated, now()->addHours(3), ['pickup' => self::PICKUP]);
         $this->assertSame($lead(self::PICKUP), $watchdog->setOffLeadMinutes($near->fresh()));
+    }
+
+    public function test_hourly_hire_is_not_asked_to_complete_before_the_hours_are_up(): void
+    {
+        // Anshu, Oct 2026: 6-hour hire from 14:30 was nagged "job still open" at 16:46.
+        $watchdog = app(StatusWatchdog::class);
+        $pickup = now()->startOfHour();
+        $b = Booking::factory()->create([
+            'driver_id' => $this->driver()->id, 'status' => BookingStatus::Collected,
+            'pickup_at' => $pickup, 'journey_type' => 'hourly',
+            'destination_address' => 'As directed (hourly hire)',
+            'meta' => ['hourly_hours' => 6],
+        ]);
+
+        $this->assertEquals($pickup->copy()->addMinutes(6 * 60 + 15)->timestamp, $watchdog->completeBy($b->fresh())->timestamp);
+    }
+
+    public function test_stops_waiting_and_a_stretched_calendar_slot_push_the_completion_time_back(): void
+    {
+        $watchdog = app(StatusWatchdog::class);
+        $pickup = now()->startOfHour();
+        $plain = $this->job(BookingStatus::Collected, $pickup, ['pickup' => self::PICKUP, 'dropoff' => self::DROPOFF]);
+        $base = $watchdog->completeBy($plain->fresh());
+
+        // Waiting written in the notes adds an hour.
+        $waiting = $this->job(BookingStatus::Collected, $pickup, ['pickup' => self::PICKUP, 'dropoff' => self::DROPOFF]);
+        $waiting->forceFill(['special_requests' => 'Wait and return, waiting included'])->save();
+        $this->assertEquals($base->copy()->addMinutes(60)->timestamp, $watchdog->completeBy($waiting->fresh())->timestamp);
+
+        // The office stretched the calendar slot to 4 hours → never before it ends.
+        $long = $this->job(BookingStatus::Collected, $pickup, ['pickup' => self::PICKUP, 'dropoff' => self::DROPOFF]);
+        \App\Models\CalendarEvent::create([
+            'booking_id' => $long->id, 'calendar_id' => 'x', 'title' => 't',
+            'start_at' => $pickup, 'end_at' => $pickup->copy()->addHours(4), 'timezone' => 'Europe/London',
+        ]);
+        $this->assertEquals($pickup->copy()->addHours(4)->addMinutes(15)->timestamp, $watchdog->completeBy($long->fresh())->timestamp);
     }
 
     public function test_complete_by_is_anchored_to_when_the_customer_boarded(): void
