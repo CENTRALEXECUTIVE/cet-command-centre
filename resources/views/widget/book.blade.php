@@ -261,10 +261,19 @@
         .cet-banner.show { display:block; }
 
         .cet-actions { display:flex; gap:10px; margin-top:13px; }
-        /* Gentle pulse on the pay button when the automatic jump was blocked. */
-        @keyframes cetPulse { 0%,100% { box-shadow:0 0 0 0 rgba(251,186,42,.55); } 50% { box-shadow:0 0 0 10px rgba(251,186,42,0); } }
-        .cet-pulse { animation:cetPulse 1.6s ease-in-out 4; }
-        @media (prefers-reduced-motion: reduce) { .cet-pulse { animation:none; } }
+        /* Small ETO-style hand-off to the payment page. */
+        .cet-redirect { max-width:340px; margin:18px auto; padding:18px 18px 14px; text-align:center;
+            border:1px solid var(--line); border-radius:12px; background:var(--cream); }
+        .cet-redirect-t { margin:0 0 10px; font-size:15px; font-weight:600; }
+        .cet-redirect-btn { display:inline-block; padding:9px 16px; border-radius:8px; font-size:14px; font-weight:700;
+            text-decoration:none; color:#0b0b0c; background:var(--gold); }
+        .cet-redirect-btn:hover { filter:brightness(1.05); }
+        .cet-redirect-ref { margin:10px 0 0; font-size:12px; color:var(--muted); }
+        .cet-spin { width:22px; height:22px; margin:0 auto 10px; border-radius:50%;
+            border:2px solid var(--line); border-top-color:var(--gold); animation:cetSpin .8s linear infinite; }
+        .cet-spin[hidden] { display:none; }
+        @keyframes cetSpin { to { transform:rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .cet-spin { animation:none; } }
         .cet-btn { flex:1; padding:13px; border:0; border-radius:12px;
             background:linear-gradient(135deg, var(--gold), var(--gold-deep)); color:#0b0b0c;
             font-weight:800; font-size:16px; cursor:pointer; letter-spacing:.2px;
@@ -422,6 +431,18 @@
             </div>
 
         @if($done)
+        @if(!empty($payUrl) && !empty($payWanted) && empty($quoteRequest))
+            {{-- Card booking: a small ETO-style hand-off box — "taking you to payment",
+                 with a plain link to tap if the browser blocks the automatic jump. --}}
+            <div class="cet-body">
+                <div class="cet-redirect">
+                    <div class="cet-spin" id="cet-pay-spin" aria-hidden="true"></div>
+                    <p class="cet-redirect-t" id="cet-pay-status">Taking you to secure payment…</p>
+                    <a id="cet-pay-btn" href="{{ $payUrl }}" target="_top" rel="noopener" class="cet-redirect-btn">Click here to continue to payment →</a>
+                    @if(isset($ref))<p class="cet-redirect-ref">Ref {{ $ref }}{{ $payAmount ? ' · £'.number_format($payAmount, 2) : '' }}</p>@endif
+                </div>
+            </div>
+        @else
             <div class="cet-body">
                 <div class="cet-done">
                     <div class="tick">✓</div>
@@ -439,21 +460,15 @@
                     @if(!empty($quoteRequest))
                         <p class="cet-foot" style="margin-top:12px">No payment has been taken — this vehicle is quoted on request.</p>
                     @elseif(!empty($payUrl))
-                        @if(!empty($payWanted))
-                            <p id="cet-pay-status" style="color:var(--muted);margin:10px 0 2px">Taking you to secure payment…</p>
-                        @endif
-                        {{-- The button is the reliable route: a tap is always allowed to open
-                             payment in the full window, even when the booking form sits inside
-                             the website (where browsers block an automatic jump). --}}
-                        <a id="cet-pay-btn" href="{{ $payUrl }}" target="_top" rel="noopener" class="cet-btn" style="display:block;margin-top:14px;text-decoration:none;text-align:center">
-                            Continue to secure payment{{ $payAmount ? ' · £'.number_format($payAmount, 2) : '' }} →</a>
-                        <p class="cet-foot" style="margin-top:8px">Secure card payment.
-                            @if(empty($payWanted))Prefer to pay later? No problem — we'll be in touch.@else If you're not taken there automatically, tap the button above.@endif</p>
+                        <a href="{{ $payUrl }}" target="_top" rel="noopener" class="cet-btn" style="display:block;margin-top:14px;text-decoration:none;text-align:center">
+                            Pay now{{ $payAmount ? ' · £'.number_format($payAmount, 2) : '' }}</a>
+                        <p class="cet-foot" style="margin-top:8px">Secure card payment. Prefer to pay later? No problem — we'll be in touch.</p>
                     @else
                         <p class="cet-foot" style="margin-top:12px">No payment has been taken — our office will confirm your journey and price.</p>
                     @endif
                 </div>
             </div>
+        @endif
             {{-- Tell the PARENT site a booking was placed, so its Google Ads / GA4
                  conversion tag can fire on its own domain (where the ad's gclid
                  cookie lives). The embed snippet listens for this message. --}}
@@ -490,12 +505,9 @@
                         // shortly after, it didn't happen.
                         setTimeout(function () {
                             var st = document.getElementById('cet-pay-status');
-                            if (st) {
-                                st.innerHTML = '<strong>Your booking is saved.</strong> Tap the button below to pay securely.';
-                                st.style.color = 'inherit';
-                            }
-                            var btn = document.getElementById('cet-pay-btn');
-                            if (btn) { btn.classList.add('cet-pulse'); try { btn.focus(); } catch (e) {} }
+                            if (st) st.textContent = 'Your booking is saved.';
+                            var sp = document.getElementById('cet-pay-spin');
+                            if (sp) sp.hidden = true;
                         }, jumped ? 2500 : 0);
                     }, 700);
                 } catch (e) {}
