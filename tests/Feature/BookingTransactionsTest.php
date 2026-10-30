@@ -191,8 +191,60 @@ class BookingTransactionsTest extends TestCase
         $booking->refresh()->load('payments');
         $this->assertSame(2, $booking->payments->count());
         $this->assertEqualsWithDelta(115.0, $booking->transactionsPaidTotal(), 0.001);
-        $this->assertEqualsWithDelta(0.0, $booking->transactionsAmountDue(), 0.001);
+        // Only the soiling charge is owed — never the journey again.
+        $this->assertEqualsWithDelta(150.0, $booking->transactionsAmountDue(), 0.001);
+        $this->assertSame('paid', $booking->payment_status);
         $this->assertSame('Fare (paid before)', $booking->payments->firstWhere('status', 'paid')->name());
+    }
+
+    public function test_an_extra_charge_is_owed_on_top_of_a_paid_journey(): void
+    {
+        // CET-583A55: £115 journey paid, £150 soiling charge outstanding → £150 due,
+        // the journey stays paid, and paying the charge never "pays" the journey.
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'quoted_price' => 115.00, 'payment_status' => 'paid',
+        ]);
+        $booking->payments()->create(['method' => 'card', 'amount' => 115, 'status' => 'paid', 'paid_at' => now(), 'meta' => ['name' => 'Full amount']]);
+        $soil = $booking->payments()->create(['method' => 'card', 'amount' => 150, 'status' => 'pending', 'meta' => ['name' => 'Soiling charge']]);
+        $booking->load('payments');
+
+        $this->assertEqualsWithDelta(150.0, $booking->extraChargesTotal(), 0.001);
+        $this->assertEqualsWithDelta(150.0, $booking->transactionsAmountDue(), 0.001);
+        $booking->reconcilePaymentStatusFromTransactions();
+        $this->assertSame('paid', $booking->fresh()->payment_status);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk()
+            ->assertSee('£265.00')->assertSee('£150.00 in extra charges is due', false)
+            ->assertDontSee('Email payment request');
+
+        $soil->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
+        $booking->load('payments');
+        $this->assertEqualsWithDelta(0.0, $booking->transactionsAmountDue(), 0.001);
+
+        // A soiling charge PAID on an UNPAID journey never marks the journey paid.
+        $unpaid = Booking::factory()->forVehicleType($exec)->create(['quoted_price' => 115.00, 'payment_status' => 'pending']);
+        $unpaid->payments()->create(['method' => 'card', 'amount' => 150, 'status' => 'paid', 'paid_at' => now(), 'meta' => ['name' => 'Soiling charge']]);
+        $unpaid->load('payments')->reconcilePaymentStatusFromTransactions();
+        $this->assertSame('pending', $unpaid->fresh()->payment_status);
+    }
+
+    public function test_an_imported_customer_is_not_emailed_a_payment_request_unless_confirmed(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = \App\Models\Customer::create(['name' => 'Andrea L', 'email' => 'andrea@example.com', 'phone' => '07700900111']);
+        $booking = Booking::factory()->forVehicleType($exec)->create([
+            'quoted_price' => 115.00, 'payment_status' => 'pending', 'customer_id' => $customer->id, 'source_system' => 'eto',
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.email-payment-request', $booking))->assertRedirect();
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+
+        $this->actingAs($admin)->post(route('bookings.email-payment-request', $booking), ['send_anyway' => 1])->assertRedirect();
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\BookingConfirmationMail::class);
     }
 
     public function test_a_driver_cannot_touch_the_ledger(): void

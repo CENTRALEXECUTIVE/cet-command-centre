@@ -93,6 +93,21 @@ class Payment extends Model
         return (float) ($this->meta['charge'] ?? 0);
     }
 
+    /**
+     * An EXTRA charge on top of the fare (soiling/cleaning, damage, waiting,
+     * parking, tolls…) rather than a payment towards the fare. It adds to what the
+     * customer owes instead of settling the journey. Flagged by meta['extra'], or
+     * recognised from the line's name for lines added before the flag existed.
+     */
+    public function isExtraCharge(): bool
+    {
+        if (array_key_exists('extra', $this->meta ?? [])) {
+            return (bool) $this->meta['extra'];
+        }
+
+        return (bool) preg_match('/\b(soil|clean|valet|vomit|damage|smok|waiting|parking|toll|congestion|fine|penalt|extra\s+charge)/i', $this->name());
+    }
+
     public function isPaid(): bool
     {
         return $this->status === 'paid';

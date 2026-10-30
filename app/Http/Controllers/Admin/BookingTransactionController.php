@@ -23,6 +23,18 @@ class BookingTransactionController extends Controller
 {
     public function __construct(private readonly SquareBookingPaymentService $square) {}
 
+    private const IMPORTED_EMAIL_MSG = 'Not emailed — this customer was imported from ETO/calendar, so they are only emailed when you confirm "Email anyway".';
+
+    /**
+     * Imported ETO / calendar customers are never emailed unless the office says so
+     * (the rule the rest of the system follows). The page asks "Email anyway?" and
+     * sends send_anyway=1 only when the office confirms.
+     */
+    private function importedEmailBlocked(Request $request, Booking $booking): bool
+    {
+        return in_array($booking->source_system, ['eto', 'calendar'], true) && ! $request->boolean('send_anyway');
+    }
+
     private function rules(): array
     {
         return [
@@ -88,6 +100,9 @@ class BookingTransactionController extends Controller
         $email = $booking->customer?->email;
         if (! $email) {
             return back()->with('error', 'No customer email on file — copy the link and send it another way.')->with('scroll', 'transactions');
+        }
+        if ($this->importedEmailBlocked($request, $booking)) {
+            return back()->with('error', self::IMPORTED_EMAIL_MSG)->with('scroll', 'transactions');
         }
 
         $due = (float) ($booking->transactionsAmountDue() ?? $booking->amountPayable() ?? 0);
@@ -385,6 +400,9 @@ class BookingTransactionController extends Controller
             $email = $booking->customer?->email;
             if (! $email) {
                 return $redirect->with('error', 'No customer email on file — the link is created, copy it to send another way.');
+            }
+            if ($this->importedEmailBlocked(request(), $booking)) {
+                return $redirect->with('error', self::IMPORTED_EMAIL_MSG.' The link is created — copy it to send another way.');
             }
             try {
                 Mail::to($email)->send(new \App\Mail\PaymentLinkMail($booking, $amount, $link));

@@ -1863,10 +1863,30 @@
             $vatOnTop = $booking->vatInvoiceRequested() ? round(($payableTotal ?? 0) - ($fareGross ?? 0), 2) : 0.0;
             $paidTotal = $booking->transactionsPaidTotal();
             $amountDue = $booking->transactionsAmountDue();
+            $extrasTotal = $booking->extraChargesTotal();
+            $extrasDue = max(0.0, round($extrasTotal - $booking->extraChargesPaid(), 2));
             $txStatuses = ['pending' => 'Pending', 'link_sent' => 'Link sent', 'paid' => 'Paid', 'balance_remaining' => 'Balance remaining', 'failed' => 'Failed', 'refunded' => 'Refunded'];
             $badgeFor = fn ($s) => $s === 'paid' ? 'complete' : ($s === 'failed' || $s === 'refunded' ? 'cancelled' : 'pending');
         @endphp
         <div id="transactions" class="card" style="scroll-margin-top:16px">
+            @if(in_array($booking->source_system, ['eto', 'calendar'], true))
+                {{-- Imported customer: any EMAIL from this card asks first, and only
+                     sends when the office confirms (server checks send_anyway). --}}
+                <script>
+                (function () {
+                    var card = document.getElementById('transactions');
+                    card.addEventListener('submit', function (e) {
+                        var btn = e.submitter, form = e.target;
+                        var isEmail = (btn && (btn.name === 'channel' || btn.name === 'create_link') && btn.value === 'email')
+                            || !!form.querySelector('input[type=hidden][name="channel"][value="email"]')
+                            || /email-payment-request/.test(form.getAttribute('action') || '');
+                        if (!isEmail) return;
+                        if (!confirm('This customer was imported from ETO and is normally never emailed.\n\nEmail them anyway?')) { e.preventDefault(); return; }
+                        var h = document.createElement('input'); h.type = 'hidden'; h.name = 'send_anyway'; h.value = '1'; form.appendChild(h);
+                    }, true);
+                })();
+                </script>
+            @endif
             <h2 style="margin:0 0 4px">💳 Payment history</h2>
             <p class="hint" style="margin:0 0 12px">Every payment on this booking. Add a deposit or balance, send a card payment link, or mark a transaction paid.</p>
 
@@ -1911,7 +1931,8 @@
             <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px">
                 <div>
                     <div class="muted" style="font-size:12px">Total{{ $vatOnTop > 0 ? ' (incl. VAT)' : '' }}</div>
-                    <div style="font-weight:800;font-size:18px">£{{ number_format($payableTotal ?? 0, 2) }}</div>
+                    <div style="font-weight:800;font-size:18px">£{{ number_format(($payableTotal ?? 0) + $extrasTotal, 2) }}</div>
+                    @if($extrasTotal > 0)<div class="muted" style="font-size:11px">£{{ number_format($payableTotal ?? 0, 2) }} journey + £{{ number_format($extrasTotal, 2) }} extra charges</div>@endif
                     @if($vatOnTop > 0)<div class="muted" style="font-size:11px">£{{ number_format($fareGross ?? 0, 2) }} + £{{ number_format($vatOnTop, 2) }} VAT</div>@endif
                 </div>
                 <div><div class="muted" style="font-size:12px">Paid</div><div style="font-weight:800;font-size:18px;color:#1f7a44">£{{ number_format($paidTotal, 2) }}</div></div>
@@ -1925,7 +1946,9 @@
                 @php $reusable = $booking->fareIsPaid() ? null : $booking->reusableCardLink(round((float) $amountDue, 2)); @endphp
                 <div id="resend-payment-link" style="border:2px solid #1f7a44;border-radius:10px;padding:10px 14px;margin:0 0 12px;background:rgba(31,122,68,.05)">
                     <div style="font-weight:800;margin-bottom:4px">🔁 Resend payment link — £{{ number_format($amountDue, 2) }} due</div>
-                    @if($booking->fareIsPaid())
+                    @if($booking->fareIsPaid() && $extrasDue > 0.009)
+                        <p class="hint" style="margin:0">The journey is paid. £{{ number_format($extrasDue, 2) }} in extra charges is due — send it from that line below (<strong>Actions → Card link</strong>), so the customer is only asked for the extra charge.</p>
+                    @elseif($booking->fareIsPaid())
                         <p class="hint" style="margin:0;color:#b32020">This booking is marked paid but £{{ number_format($amountDue, 2) }} is still owed after a price change. A card link would overwrite the recorded payment — take the extra by hand and add it as a transaction.</p>
                     @else
                         <p class="hint" style="margin:0 0 8px">
@@ -1956,8 +1979,10 @@
                  "booking on hold" confirmation with a Complete payment button (the
                  stable link charges the current amount — the whole trip for a return,
                  from the PVT address for a non-VAT booking). WhatsApp/copy creates a
-                 card link to send by hand. No need to open "Add new transaction". --}}
-            @if(($amountDue ?? 0) > 0.009)
+                 card link to send by hand. No need to open "Add new transaction".
+                 Not when the journey is paid and only an extra charge is owed — that
+                 email is a booking confirmation; the charge goes from its own line. --}}
+            @if(($amountDue ?? 0) > 0.009 && ! ($booking->fareIsPaid() && $extrasDue > 0.009))
                 <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
                     <a href="{{ route('bookings.confirmation-email.preview', $booking) }}" target="_blank" rel="noopener"
                        class="btn btn-light" style="padding:10px 16px"

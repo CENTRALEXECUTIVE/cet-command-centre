@@ -1489,6 +1489,22 @@ class Booking extends Model
      * What's still owed against the fare after the paid transactions (£, never
      * below zero). Null when there's no fare on the job yet.
      */
+    /** Extra charges on top of the fare (soiling, damage, waiting…), £. */
+    public function extraChargesTotal(): float
+    {
+        return round((float) $this->payments
+            ->filter(fn (Payment $p) => $p->status !== 'refunded' && $p->isExtraCharge())
+            ->sum('amount'), 2);
+    }
+
+    /** The part of those extra charges already paid, £. */
+    public function extraChargesPaid(): float
+    {
+        return round((float) $this->payments
+            ->filter(fn (Payment $p) => $p->status === 'paid' && $p->isExtraCharge())
+            ->sum('amount'), 2);
+    }
+
     public function transactionsAmountDue(): ?float
     {
         // The full amount the customer owes — VAT-inclusive when a VAT invoice is
@@ -1511,6 +1527,9 @@ class Booking extends Model
             $paid += $this->depositPaidAmount();
         }
 
+        // Extra charges (soiling, damage…) are owed ON TOP of the fare.
+        $payable += $this->extraChargesTotal();
+
         return max(0.0, round($payable - min($payable, $paid), 2));
     }
 
@@ -1525,7 +1544,8 @@ class Booking extends Model
         if ($fare === null || $fare <= 0) {
             return;
         }
-        $paid = $this->transactionsPaidTotal();
+        // A paid extra charge (e.g. a cleaning fee) never pays for the journey.
+        $paid = $this->transactionsPaidTotal() - $this->extraChargesPaid();
         $status = $paid + 0.01 >= $fare ? 'paid' : 'pending';
         if ($this->payment_status !== $status) {
             $this->forceFill(['payment_status' => $status])->save();
