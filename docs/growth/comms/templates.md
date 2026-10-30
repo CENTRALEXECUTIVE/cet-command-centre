@@ -49,6 +49,7 @@ WhatsApp sign-off: `*Central Executive Transfers*`
 20. Negative review reply
 21. After-hours enquiry
 22. Wrong number / not our booking
+23. Quotation: block booking / regular runs (house style for quotes)
 
 (22 are listed because the brief's price enquiry and complaint each cover several cases. The 20 situations are all covered.)
 
@@ -886,3 +887,64 @@ Kind regards,
 {signature}
 ```
 Check before sending: search the system by name, phone and reference. Do not confirm or deny another person's booking details to someone who is not the booker.
+
+---
+
+## 23. Quotation: block booking / regular runs (house style for quotes)
+
+**The directors' preferred layout for any written quote** (approved 30 Oct 2026,
+Landmarks College runs). Use the same shape for every email quote: a warm opening,
+the dates, the arrangements laid out under headings, the prices as a short list,
+what's included, payment terms, and one clear next step. Plain text, short lines,
+no prices hidden in paragraphs.
+
+```
+Subject: Quotation: {what} ({dates})
+
+Hi {first name},
+
+Thank you for your enquiry. We'd be delighted to assist with {passenger}'s transport {to and from / for} {place or event}.
+
+We can offer a {block-booking rate / fixed price} for the following {n} dates:
+
+Week 1: {dates}
+Week 2: {dates}
+
+Daily Transport Arrangements
+
+Morning – {time}
+
+- Collect {who} from {where}.
+- Drop {who} off at {where}.
+- {Then…}
+
+Afternoon – {time}
+
+- Collect {who} from {where}.
+- {…}
+- Return {who} home.
+
+Our Quotation
+
+- Daily rate: £{x}
+- Weekly rate ({n} days): £{y}
+- Total for all {n} days: £{z}
+
+All journeys will be provided in a comfortable executive vehicle with a professional, experienced, enhanced-DBS-checked chauffeur.
+
+{One sentence that shows we understood what matters to them, e.g. consistency: we'll aim to provide the same chauffeur throughout wherever possible.}
+
+Payment Arrangements
+
+Payment is required {weekly in advance / in full before the first journey} at £{amount} {per week}, payable via a secure card payment link.
+
+If you're happy to proceed with the quotation, please let us know and we'll arrange the bookings and send over the confirmations and payment details.
+
+We look forward to looking after {passenger}.
+
+Kind regards,
+Central Executive Transfers
+0114 399 8242
+www.centralexecutivetransfers.co.uk
+```
+Check before sending: exact addresses (house number, and the right site when an organisation has several), dates against the calendar, and that the price is a director-confirmed figure.

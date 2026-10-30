@@ -17,6 +17,10 @@ answer every enquiry in minutes. Read `docs/growth/BUSINESS_FACTS.md` and
 - Email: subject line + greeting + 2–4 short paragraphs + clear next step +
   signature (name, Central Executive Transfers, 0114 399 8242, WhatsApp +44 7405
   172435, website).
+- **Quotes (any written quotation):** follow the directors' approved layout in
+  `docs/growth/comms/templates.md` §23: warm opening, dates, arrangements under
+  headings with bullet steps, "Our Quotation" as a short price list, what's
+  included, "Payment Arrangements", one clear next step, signature.
 - Business/corporate: more formal; mention VAT invoices / account options when
   relevant.
 - Complaints: acknowledge, take responsibility where due, no excuses, no blame,
