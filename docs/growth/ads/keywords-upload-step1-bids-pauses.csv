@@ -105,12 +105,12 @@ RT-Search-CAMP JAN26,General Airport Transfers,airport taxi service,Exact,1.4,En
 RT-Search-CAMP JAN26,Executive Chauffeur / Corporate,executive car hire sheffield,Exact,1.5,Enabled
 RT-Search-CAMP JAN26,East Midlands Airport Transfers,airport taxi sheffield to east midlands,Exact,1.3,Enabled
 RT-Search-CAMP JAN26,East Midlands Airport Transfers,airport taxis east midlands,Exact,1.3,Enabled
-RT-Search-CAMP JAN26,Manchester Airport Transfers,airport taxi manchester to sheffield,Exact,1.5,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,airport taxi manchester to sheffield,Exact,1.20,Enabled
 RT-Search-CAMP JAN26,General Airport Transfers,minibus airport transfers,Exact,1.4,Enabled
-RT-Search-CAMP JAN26,Manchester Airport Transfers,airport transfer sheffield to manchester,Exact,1.5,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,airport transfer sheffield to manchester,Exact,1.20,Enabled
 RT-Search-CAMP JAN26,Gatwick Airport Transfers,taxi from sheffield to gatwick airport,Exact,1.5,Enabled
-RT-Search-CAMP JAN26,Manchester Airport Transfers,sheffield to manchester taxi,Exact,1.5,Enabled
-RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport minibus,Exact,1.5,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,sheffield to manchester taxi,Exact,1.20,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,manchester airport minibus,Exact,1.20,Enabled
 RT-Search-CAMP JAN26,East Midlands Airport Transfers,east midlands taxi service,Exact,1.3,Enabled
 RT-Search-CAMP JAN26,General Airport Transfers,airport taxi transfers near me,Exact,1.4,Enabled
 RT-Search-CAMP JAN26,East Midlands Airport Transfers,taxi east midlands airport,Exact,1.3,Enabled
@@ -119,5 +119,5 @@ RT-Search-CAMP JAN26,East Midlands Airport Transfers,taxis east midlands airport
 RT-Search-CAMP JAN26,General Airport Transfers,executive airport transfers near me,Exact,1.4,Enabled
 RT-Search-CAMP JAN26,General Airport Transfers,private taxi to airport,Exact,1.4,Enabled
 RT-Search-CAMP JAN26,Leeds Bradford Airport Transfers,leeds bradford airport taxi,Exact,1.2,Enabled
-RT-Search-CAMP JAN26,Manchester Airport Transfers,chauffeur to manchester airport,Exact,1.5,Enabled
+RT-Search-CAMP JAN26,Manchester Airport Transfers,chauffeur to manchester airport,Exact,1.20,Enabled
 RT-Search-CAMP JAN26,East Midlands Airport Transfers,transfer from east midlands airport,Exact,1.3,Enabled
