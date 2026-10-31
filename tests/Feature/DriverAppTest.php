@@ -47,6 +47,24 @@ class DriverAppTest extends TestCase
             ->assertDontSee($someoneElse->reference);
     }
 
+    public function test_an_unfinished_job_from_last_night_stays_on_today_after_midnight(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-10-31 00:40:00');
+
+        $lateRun = $this->jobFor($this->driver, ['pickup_at' => '2026-10-30 23:15:00', 'status' => BookingStatus::EnRoute]);
+        $finished = $this->jobFor($this->driver, ['pickup_at' => '2026-10-30 21:00:00', 'status' => BookingStatus::Complete]);
+        $older = $this->jobFor($this->driver, ['pickup_at' => '2026-10-29 22:00:00', 'status' => BookingStatus::Allocated]);
+
+        $this->actingAs($this->driver)->get(route('driver.jobs', ['filter' => 'today']))
+            ->assertOk()
+            ->assertSee($lateRun->reference)
+            ->assertDontSee($finished->reference)
+            ->assertDontSee($older->reference);
+
+        $this->actingAs($this->driver)->get(route('driver.jobs', ['filter' => 'tomorrow']))
+            ->assertDontSee($lateRun->reference);
+    }
+
     public function test_driver_can_accept_and_go_en_route_capturing_gps(): void
     {
         $customer = Customer::factory()->create(['phone' => '07700900999']);

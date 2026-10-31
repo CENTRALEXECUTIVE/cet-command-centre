@@ -33,9 +33,21 @@ class JobController extends Controller
             default => [today()->startOfDay(), today()->endOfDay(), 'Today'],
         };
 
+        // A job that started before midnight and isn't finished yet (late-night
+        // run still on the road) must stay on Today/This Week — otherwise the
+        // driver loses it at 00:00 and can't mark Arrived/POB/Complete.
+        $carryOver = $filter !== 'tomorrow';
+        $finished = [BookingStatus::Complete->value, BookingStatus::Cancelled->value, BookingStatus::NoShow->value];
+
         $jobs = Booking::with(['customer', 'vehicleType', 'airport', 'stops'])
             ->forDriver($driverId)
-            ->whereBetween('pickup_at', [$from, $to])
+            ->where(function ($q) use ($from, $to, $carryOver, $finished) {
+                $q->whereBetween('pickup_at', [$from, $to]);
+                if ($carryOver) {
+                    $q->orWhere(fn ($o) => $o->whereBetween('pickup_at', [$from->copy()->subDay(), $from])
+                        ->whereNotIn('status', $finished));
+                }
+            })
             ->whereNotIn('status', [BookingStatus::Cancelled->value])
             ->orderBy('pickup_at')
             ->get();
