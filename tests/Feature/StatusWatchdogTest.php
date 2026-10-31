@@ -185,6 +185,17 @@ class StatusWatchdogTest extends TestCase
         $this->assertSame(15, $watchdog->setOffLeadMinutes($near->fresh()));
     }
 
+    public function test_an_old_ping_from_last_nights_far_job_does_not_set_the_alarm(): void
+    {
+        // QPU5I4, Oct 2026: a 12:15 Sheffield city-centre job got a 07:51 alarm
+        // because the driver's last ping was from a London run hours earlier.
+        $watchdog = app(StatusWatchdog::class);
+        $b = $this->job(BookingStatus::Allocated, now()->addHours(5), ['pickup' => self::PICKUP]);
+        $this->ping($b, 51.5074, -0.1278, now()->subHours(6));
+
+        $this->assertLessThan(60, $watchdog->setOffLeadMinutes($b->fresh()));
+    }
+
     public function test_without_gps_the_lead_comes_from_the_sheffield_base_plus_buffer(): void
     {
         // No live position: the lead is the Sheffield base → pickup drive plus the

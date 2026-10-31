@@ -473,6 +473,9 @@ class StatusWatchdog
     /** Be at the airport this many minutes after the flight lands (deplaning buffer). */
     private const AIRPORT_ARRIVE_AFTER_LANDING = 15;
 
+    /** A driver ping older than this is ignored for set-off/lead-time maths. */
+    public const GPS_LEAD_FRESH_MINUTES = 30;
+
     /**
      * Rule 1 lead time: drive time from the driver's last known position to the
      * pickup + a 5 min buffer, so a 30-min-away job is chased ~35 min before
@@ -622,9 +625,13 @@ class StatusWatchdog
     private function driveMinutesToPickup(Booking $booking): ?int
     {
         $pickup = $this->coords($booking, 'pickup');
+        // Only a RECENT position says where the driver is now. A ping left over
+        // from last night's far-away job must not set this morning's alarm (it
+        // once put a 12:15 city-centre job's alarm at 07:51) — older than this,
+        // fall back to the Sheffield-base estimate.
         $last = $booking->driver_id
             ? DriverLocation::where('driver_id', $booking->driver_id)
-                ->where('captured_at', '>=', now()->subHours(12))
+                ->where('captured_at', '>=', now()->subMinutes(self::GPS_LEAD_FRESH_MINUTES))
                 ->latest('captured_at')->first()
             : null;
 
