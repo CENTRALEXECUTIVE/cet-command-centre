@@ -21,6 +21,9 @@ class AdminPricingStripTest extends TestCase
     {
         parent::setUp();
         $this->seed(VehicleTypeSeeder::class);
+        // Pin to an ordinary mid-month weekday so seasonal surcharges (e.g.
+        // Halloween) and month-end rollover don't change the expected figures.
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-13 12:00:00'));
     }
 
     private function execPrice(array $options): float
