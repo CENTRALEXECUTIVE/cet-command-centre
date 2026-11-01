@@ -130,4 +130,18 @@ class RenameAndReassignFeedbackTest extends TestCase
         $this->actingAs($admin)->post(route('bookings.invoice-name', $b), ['invoice_name' => '']);
         $this->assertArrayNotHasKey('invoice_name', $b->fresh()->meta ?? []);
     }
+
+    public function test_view_pdf_link_changes_each_time_so_tablets_cannot_show_a_stale_copy(): void
+    {
+        $b = Booking::factory()->create();
+        $admin = User::factory()->admin()->create();
+
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-01 14:00:00'));
+        $first = $this->actingAs($admin)->get(route('bookings.show', $b))->assertOk()->getContent();
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-01 14:05:00'));
+        $second = $this->actingAs($admin)->get(route('bookings.show', $b))->assertOk()->getContent();
+
+        $this->assertStringContainsString('v=20261101140000', $first);
+        $this->assertStringContainsString('v=20261101140500', $second);
+    }
 }

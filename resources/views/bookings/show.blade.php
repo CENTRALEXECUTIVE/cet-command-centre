@@ -600,8 +600,11 @@
                 </div>
             @endunless
             <div class="toolbar" style="margin:0">
-                <a href="{{ route('bookings.receipt', $booking) }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 14px">👁 View PDF</a>
-                <a href="{{ route('bookings.receipt', ['booking' => $booking, 'download' => 1]) }}" class="btn btn-ghost" style="padding:8px 14px">⬇ Download</a>
+                {{-- A fresh ?v= on every page load: phone/tablet PDF viewers ignore no-store
+                     and re-open their saved copy of the same address (showed an old
+                     "Bill to" name after an edit). --}}
+                <a href="{{ route('bookings.receipt', ['booking' => $booking, 'v' => now()->format('YmdHis')]) }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 14px">👁 View PDF</a>
+                <a href="{{ route('bookings.receipt', ['booking' => $booking, 'download' => 1, 'v' => now()->format('YmdHis')]) }}" class="btn btn-ghost" style="padding:8px 14px">⬇ Download</a>
                 <form method="POST" action="{{ route('bookings.receipt.email', $booking) }}" style="margin:0"
                       onsubmit="return confirm('Email the {{ $docWord }} to {{ $recEmail ?: ($cover ? $cover['name'] : 'the customer') }}?')">
                     @csrf
