@@ -118,7 +118,29 @@ class SettingsController extends Controller
             return $respond(false, 'Test email FAILED: '.$e->getMessage());
         }
 
-        return $respond(true, 'Test email sent to '.$to.($pvt ? ' from the PVT LTD address' : '').'. Check the inbox and spam — if it doesn\'t arrive within a minute, the details are wrong.');
+        if ($pvt) {
+            // Say plainly WHICH account carried it. Without its own sender set up,
+            // the PVT test falls back to the main account — it "works", but live
+            // non-VAT bookings can't use PVT (that's why they kept arriving via the
+            // main email while the test looked fine).
+            if ($mailer === 'resend' || $mailer === 'gmail' || $mailer === 'pvt') {
+                $label = ['resend' => 'Resend', 'gmail' => 'Google (Gmail API)', 'pvt' => 'the PVT mail server (SMTP)'][$mailer];
+                $wasOn = (bool) \App\Models\Setting::get('mail_pvt_enabled', false);
+                if (! $wasOn) {
+                    // A passing test through PVT's own sender = ready: switch it on so
+                    // real non-VAT bookings use it too (the test never needed the switch).
+                    \App\Models\Setting::set('mail_pvt_enabled', '1', 'string', 'mail');
+                }
+
+                return $respond(true, 'PVT test sent to '.$to.' through '.$label.'. '
+                    .($wasOn ? 'PVT sending is ON' : 'PVT sending is now switched ON')
+                    .' — non-VAT bookings send from '.$fromAddr.' and their office copies arrive there.');
+            }
+
+            return $respond(false, 'Sent to '.$to.' — but through the MAIN email account, not PVT\'s own. PVT has no sender set up (Resend key, Google, or PVT mail server), so real non-VAT bookings will keep using the main email. Set one up above, Save, then test again.');
+        }
+
+        return $respond(true, 'Test email sent to '.$to.'. Check the inbox and spam — if it doesn\'t arrive within a minute, the details are wrong.');
     }
 
     public function update(Request $request): RedirectResponse

@@ -58,4 +58,46 @@ class PvtInboxAndVatBadgeTest extends TestCase
             ->assertSee('VAT · Ltd')
             ->assertSee('Non-VAT · PVT');
     }
+
+    public function test_a_pvt_test_through_pvts_own_sender_switches_pvt_sending_on(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.pvt' => ['transport' => 'smtp', 'host' => 'smtp.gmail.com', 'port' => 587]]);
+        Setting::set('mail_pvt_host', 'smtp.gmail.com', 'string', 'mail');
+        Mail::fake();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('settings.test-email'), ['to' => 'me@example.com', 'via' => 'pvt'])
+            ->assertRedirect()
+            ->assertSessionHas('status', fn ($m) => str_contains($m, 'now switched ON'));
+
+        $this->assertTrue((bool) Setting::get('mail_pvt_enabled', false));
+        $probe = new Booking(['meta' => ['billing_entity' => 'chauffeurs']]);
+        $this->assertSame('pvt', $probe->pvtMailer()); // real non-VAT bookings now use it
+    }
+
+    public function test_a_pvt_test_with_no_pvt_sender_says_it_went_through_the_main_account(): void
+    {
+        config(['mail.default' => 'smtp']);
+        Mail::fake();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('settings.test-email'), ['to' => 'me@example.com', 'via' => 'pvt'])
+            ->assertRedirect()
+            ->assertSessionHas('error', fn ($m) => str_contains($m, 'MAIN email account'));
+
+        $this->assertFalse((bool) Setting::get('mail_pvt_enabled', false));
+    }
+
+    public function test_settings_shows_where_non_vat_bookings_send_from(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('settings.index'))
+            ->assertOk()->assertSee('Non-VAT bookings are using the');
+
+        Setting::set('mail_pvt_enabled', '1', 'string', 'mail');
+        Setting::set('mail_pvt_host', 'smtp.gmail.com', 'string', 'mail');
+        Setting::set('mail_pvt_from_address', 'admin@centralexecutivetransferspvt.co.uk', 'string', 'mail');
+        $this->actingAs($admin)->get(route('settings.index'))
+            ->assertOk()->assertSee('Non-VAT bookings send from', false);
+    }
 }

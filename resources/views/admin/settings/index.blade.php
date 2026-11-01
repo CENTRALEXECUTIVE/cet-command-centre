@@ -295,6 +295,20 @@
                         <span class="hint" style="display:block">Keeps the two companies separate: non-VAT / Stripe bookings send from the PVT address below. Turn on only once that mailbox is set up and a test passes.</span>
                     </span>
                 </label>
+                {{-- Live status: exactly what a real non-VAT booking uses right now. --}}
+                @php
+                    $probe = new \App\Models\Booking(['meta' => ['billing_entity' => 'chauffeurs']]);
+                    $liveMailer = $probe->pvtMailer();
+                @endphp
+                <p class="hint" style="margin:8px 0 0;padding:8px 10px;border-radius:8px;{{ $liveMailer ? 'background:#d9f3e2;color:#1f7a44' : 'background:#fbe0e0;color:#b32020' }}">
+                    @if($liveMailer)
+                        ✅ Non-VAT bookings send from <strong>{{ $probe->senderAddress() }}</strong> via {{ ['resend' => 'Resend', 'gmail' => 'Google', 'pvt' => 'the PVT mail server'][$liveMailer] ?? $liveMailer }}, and their office copies arrive at <strong>{{ $probe->officeInbox() }}</strong>.
+                    @elseif(! ($mail['pvt_enabled'] ?? false))
+                        ⚠ Non-VAT bookings are using the <strong>main</strong> email — PVT sending is switched off. Tick the box and Save (or pass a PVT test).
+                    @else
+                        ⚠ Non-VAT bookings are using the <strong>main</strong> email — PVT is switched on but has no sender set up (Resend key, Google, or PVT mail server).
+                    @endif
+                </p>
                 <label style="display:block;margin-top:8px;max-width:420px">PVT LTD send-from address
                     <input type="email" name="mail_pvt_from_address" value="{{ $mail['pvt_from_address'] }}" placeholder="admin@centralexecutivetransferspvt.co.uk" autocomplete="off">
                 </label>
