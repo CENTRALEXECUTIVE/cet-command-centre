@@ -48,7 +48,7 @@ class OfficeBookingMail extends Mailable
         $fromName = $isPvt
             ? (string) config('cet.company_novat.name', 'Central Executive Transfers PVT LTD')
             : 'Central Executive Transfers';
-        $replyTo = config('cet.ops_email');
+        $replyTo = $this->booking->officeInbox();
 
         // An unpaid card booking is INCOMPLETE until the customer pays (ETO-style);
         // cash/account jobs are confirmed on creation.

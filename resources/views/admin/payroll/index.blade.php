@@ -71,7 +71,7 @@
             <div>
                 @foreach($missingPay as $b)
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.1)">
-                        <a href="{{ route('bookings.show', $b) }}#payroll" class="mono">{{ $b->external_reference ?? $b->reference }}</a>
+                        <span><a href="{{ route('bookings.show', $b) }}#payroll" class="mono">{{ $b->external_reference ?? $b->reference }}</a>@include('partials.vat-badge', ['booking' => $b])</span>
                         <span style="flex:1;min-width:180px">{{ $b->driverLabel() }} <span class="muted">· {{ $b->pickup_at->format('D d M, H:i') }} · {{ $b->displayName() }}</span></span>
                         <form method="POST" action="{{ route('bookings.payroll', $b) }}" style="display:flex;gap:6px;align-items:center;margin:0">
                             @csrf
@@ -170,7 +170,7 @@
                     @foreach($leadJobs as $b)
                         @php $rowOwed = ! $b->driverSettledByCustomer() && $b->driverPay() !== null && ($b->driverPayRemaining() ?? 0) > 0; @endphp
                         <tr class="rowlink{{ $rowOwed ? ' owed-row' : '' }}" @if($rowOwed) data-owed="1" @endif data-href="{{ route('bookings.show', $b) }}" data-airport="{{ $b->journeyFilterTag() }}">
-                            <td class="mono">{{ $b->external_reference ?? $b->reference }}</td>
+                            <td><span class="mono">{{ $b->external_reference ?? $b->reference }}</span>@include('partials.vat-badge', ['booking' => $b])</td>
                             <td>{{ $b->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $b->displayName() }}@if($b->payTo())<span class="badge" style="background:#5b2bc7;color:#fff;font-size:10px;margin-left:4px" title="Driven by {{ $b->driverLabel() }}, paid to {{ $b->payTo() }}">via {{ $b->driverLabel() }}</span>@endif</td>
                             <td>
@@ -212,7 +212,7 @@
                     @foreach($carJobs as $r)
                         @php $e = $r['entry']; $rem = max(0, (float)($e['pay'] ?? 0) - (float)($e['paid'] ?? 0)); @endphp
                         <tr class="rowlink{{ $rem > 0 ? ' owed-row' : '' }}" @if($rem > 0) data-owed="1" @endif data-href="{{ route('bookings.show', $r['booking']) }}">
-                            <td class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</td>
+                            <td><span class="mono">{{ $r['booking']->external_reference ?? $r['booking']->reference }}</span>@include('partials.vat-badge', ['booking' => $r['booking']])</td>
                             <td>{{ $r['booking']->pickup_at->format('d M, H:i') }}</td>
                             <td>{{ $r['booking']->displayName() }}</td>
                             <td>Car {{ $r['car'] }}</td>

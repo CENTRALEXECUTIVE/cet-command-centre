@@ -246,7 +246,7 @@ class BookingStatusService
      */
     public function emailOffice(Booking $booking, string $stage = 'new'): void
     {
-        $ops = config('cet.ops_email');
+        $ops = $booking->officeInbox(); // PVT inbox for non-VAT once enabled
         $flag = 'office_email_'.$stage.'_sent';
         if (blank($ops)) {
             return;

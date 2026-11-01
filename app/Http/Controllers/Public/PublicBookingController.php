@@ -223,7 +223,7 @@ class PublicBookingController extends Controller
             'info', $booking);
 
         // Email the office too (mirrors ETO's "New booking" notification).
-        if ($ops = config('cet.ops_email')) {
+        if ($ops = $booking->officeInbox()) {
             try {
                 \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail($booking->fresh()));
             } catch (\Throwable $e) {

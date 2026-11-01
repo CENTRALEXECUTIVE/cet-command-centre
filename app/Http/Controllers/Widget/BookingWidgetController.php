@@ -683,7 +683,7 @@ class BookingWidgetController extends Controller
         // Email the office too (mirrors ETO's "New booking" notification), so the
         // office is aware of every web request — paid or not — and can chase up an
         // unpaid one. The customer receipt is separate (sent on payment).
-        if ($ops = config('cet.ops_email')) {
+        if ($ops = $booking->officeInbox()) {
             try {
                 \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail($booking->fresh()));
             } catch (\Throwable $e) {

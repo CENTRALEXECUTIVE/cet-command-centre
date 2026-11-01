@@ -6032,6 +6032,25 @@ class Booking extends Model
         return $main;
     }
 
+    /**
+     * The office inbox that gets this booking's office notifications ("New
+     * booking", "Payment received"). A NON-VAT booking goes to the PVT LTD inbox
+     * once PVT email is switched on in Settings — so each company's bookings are
+     * received in its own mailbox — else the main ops inbox.
+     */
+    public function officeInbox(): ?string
+    {
+        $main = trim((string) config('cet.ops_email')) ?: null;
+
+        if ($this->billingEntity() === 'chauffeurs' && \App\Models\Setting::get('mail_pvt_enabled', false)) {
+            $pvt = trim((string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email')));
+
+            return $pvt !== '' ? $pvt : $main;
+        }
+
+        return $main;
+    }
+
     /** The display name shown to customers on emails (the brand, for both companies). */
     public function senderName(): string
     {
