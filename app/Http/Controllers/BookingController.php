@@ -273,7 +273,7 @@ class BookingController extends Controller
         return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Date', 'Time', 'Ref', 'ETO Ref', 'Customer', 'Pickup', 'Drop-off',
-                'Vehicle', 'Driver', 'Pax', 'Status', 'Fare', 'Payment']);
+                'Vehicle', 'Driver', 'Pax', 'Status', 'Fare', 'Payment', 'Booked on', 'Source']);
 
             $query->chunk(200, function ($rows) use ($out) {
                 foreach ($rows as $b) {
@@ -291,6 +291,11 @@ class BookingController extends Controller
                         $b->status->label(),
                         $b->fareAmount(),
                         $b->payment_method?->label(),
+                        $b->created_at?->timezone(config('app.timezone'))->format('Y-m-d H:i'),
+                        // Where it came from — so "did the website/ads bring it?" is answerable.
+                        filled($b->source_system) ? strtoupper((string) $b->source_system).' import'
+                            : (['web' => 'Website', 'phone' => 'Office (typed in)', 'intake' => 'Paste a booking',
+                                'portal' => 'Corporate portal'][$b->source] ?? ucfirst((string) ($b->source ?: 'unknown'))),
                     ]);
                 }
             });

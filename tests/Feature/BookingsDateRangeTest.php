@@ -46,4 +46,19 @@ class BookingsDateRangeTest extends TestCase
             ->assertDontSee($old->reference)
             ->assertSee('booked (came in)');
     }
+
+    public function test_export_says_when_each_booking_came_in_and_from_where(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-01 12:00:00'));
+        Booking::factory()->create(['pickup_at' => '2026-11-05 10:00', 'created_at' => '2026-10-28 09:15', 'source' => 'web', 'source_system' => null]);
+
+        $csv = $this->actingAs(User::factory()->admin()->create())
+            ->get(route('bookings.export', ['from' => '2026-10-22', 'by' => 'created']))
+            ->assertOk()->streamedContent();
+
+        $this->assertStringContainsString('Booked on', $csv);
+        $this->assertStringContainsString('Source', $csv);
+        $this->assertStringContainsString('2026-10-28', $csv);
+        $this->assertStringContainsString('Website', $csv);
+    }
 }
