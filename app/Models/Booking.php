@@ -43,6 +43,18 @@ class Booking extends Model
      */
     protected static function booted(): void
     {
+        // A moved pickup must move its queued reminder too (edited in the app OR
+        // changed on the calendar) — never leave it on the old day.
+        static::updated(function (self $booking) {
+            if ($booking->wasChanged('pickup_at')) {
+                try {
+                    app(\App\Services\Messaging\BookingNotifier::class)->retimeQueuedReminders($booking);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[reminders] retime failed: '.$e->getMessage());
+                }
+            }
+        });
+
         static::saving(function (self $booking) {
             if ($booking->exists && $booking->isDirty('meta')) {
                 \App\Support\BookingEmailLog::preserve($booking);

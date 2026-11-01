@@ -35,6 +35,7 @@ class PrepareReminders extends Command
             // Re-time any reminder queued before the evening-cutoff rule (or before
             // a change to it) so existing late reminders are corrected too.
             $notifier->retimeQueuedRemindersToCutoff($booking);
+            $notifier->retimeQueuedReminders($booking); // follow a moved pickup
         }
 
         // Review requests for recently-completed jobs without one (window from

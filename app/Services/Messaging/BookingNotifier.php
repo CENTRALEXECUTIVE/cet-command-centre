@@ -71,12 +71,46 @@ class BookingNotifier
         // time has already passed (e.g. a job booked/imported inside 24h), make it
         // due now so it lands on the "to send" list immediately. That's the only
         // reminder — one clean nudge, no second 2h message.
-        $at24h = $this->clampToSendWindow($booking->pickup_at->copy()->subDay());
-        // Never send a reminder late in the evening — an 11pm pickup would land its
-        // day-before reminder at 11pm, which reads as unprofessional. Pull anything
-        // past the cutoff (default 19:00) back to it.
-        $at24h = $this->capToReminderCutoff($at24h);
+        $at24h = $this->reminderTimeFor($booking);
         $this->queueReminder($booking, 'reminder_24h', $at24h->isPast() ? now() : $at24h);
+    }
+
+    /**
+     * When the day-before reminder should go for this booking's CURRENT pickup:
+     * pickup − 24h, clamped into the daytime send window and never later than the
+     * evening cutoff (an 11pm pickup's reminder at 11pm reads as unprofessional).
+     */
+    private function reminderTimeFor(Booking $booking): Carbon
+    {
+        return $this->capToReminderCutoff($this->clampToSendWindow($booking->pickup_at->copy()->subDay()));
+    }
+
+    /**
+     * Keep a still-queued reminder in step with the booking's CURRENT pickup. The
+     * send time is stamped when the reminder is queued, so moving a booking (e.g.
+     * Tue → Wed) left it on the old day (Jackie Donoghue, Nov 2026: pickup Wed
+     * 18:00, reminder still Mon 18:00). Re-run whenever the pickup changes and on
+     * every prepare pass. Sent/cancelled reminders are never touched.
+     */
+    public function retimeQueuedReminders(Booking $booking): void
+    {
+        if (! $booking->pickup_at) {
+            return;
+        }
+        $target = $this->reminderTimeFor($booking);
+        if ($target->isPast()) {
+            $target = now();
+        }
+
+        $booking->messages()
+            ->where('status', 'queued')
+            ->where('type', 'reminder_24h')
+            ->get()
+            ->each(function ($m) use ($target) {
+                if (! $m->scheduled_for || abs($m->scheduled_for->diffInMinutes($target)) >= 1) {
+                    $m->forceFill(['scheduled_for' => $target])->save();
+                }
+            });
     }
 
     /**
