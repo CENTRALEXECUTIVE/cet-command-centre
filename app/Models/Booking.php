@@ -1462,6 +1462,22 @@ class Booking extends Model
      * payment recorded on the booking, not as a ledger row) so a paid job never
      * shows £0 paid.
      */
+    /**
+     * What's been paid, WITHOUT the VAT on a VAT-invoice job — the VAT belongs to
+     * HMRC, so the office's "collected" figures show the business's money (£105
+     * on a £105 + £21 VAT job, not £126). Non-VAT jobs are unchanged.
+     */
+    public function transactionsPaidExVat(): float
+    {
+        $paid = $this->transactionsPaidTotal();
+        if (! $this->vatInvoiceRequested()) {
+            return $paid;
+        }
+        $rate = app(\App\Services\Payments\VatService::class)->rate();
+
+        return round($paid / (1 + $rate), 2);
+    }
+
     public function transactionsPaidTotal(): float
     {
         if ($this->payments->isNotEmpty()) {

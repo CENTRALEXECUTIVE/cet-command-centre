@@ -98,6 +98,27 @@ class DashboardOverviewTest extends TestCase
         $res->assertSee('Bookings taken today', false)->assertSee('Collected today', false);
     }
 
+    public function test_collected_today_leaves_out_the_vat_on_a_vat_invoice_job(): void
+    {
+        // Matt Shaw, Nov 2026: £105 + £21 VAT paid — the dashboard showed £126.
+        $this->seed(\Database\Seeders\VehicleTypeSeeder::class);
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $customer = Customer::create(['name' => 'Matthew Shaw', 'phone' => '07989605549']);
+        $b = Booking::create([
+            'reference' => Booking::generateReference(), 'customer_id' => $customer->id,
+            'vehicle_type_id' => $exec->id, 'pickup_address' => 'A', 'destination_address' => 'B',
+            'passengers' => 1, 'status' => 'pending', 'payment_method' => 'card',
+            'pickup_at' => today()->addDays(3), 'quoted_price' => 105,
+        ]);
+        $b->setVatInvoiceRequested(true);
+        $b->save();
+        \App\Models\Payment::create(['booking_id' => $b->id, 'method' => 'card', 'amount' => 126, 'status' => 'paid', 'paid_at' => now()]);
+
+        $res = $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $this->assertEquals(105.0, $res->viewData('bookedTodayRevenue'));
+    }
+
     public function test_a_cancelled_booking_is_not_in_the_review_worklist(): void
     {
         $admin = User::factory()->admin()->create();

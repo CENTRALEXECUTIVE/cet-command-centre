@@ -78,7 +78,8 @@ class DashboardController extends Controller
                     ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
                     ->with('payments')
                     ->get()
-                    ->sum(fn (Booking $b) => (float) $b->transactionsPaidTotal()),
+                    // Ex-VAT: the VAT on a VAT-invoice job is HMRC's, not takings.
+                    ->sum(fn (Booking $b) => (float) $b->transactionsPaidExVat()),
                 // The booked VALUE of today's bookings (quoted), paid or not — the
                 // pipeline that came in, shown alongside the collected figure.
                 'bookedTodayValue' => (float) Booking::whereDate('created_at', today())
