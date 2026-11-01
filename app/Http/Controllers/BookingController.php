@@ -137,9 +137,15 @@ class BookingController extends Controller
             : null;
 
         if ($rangeMode) {
-            $start = ($from ?? $to)->copy()->startOfDay();
-            $end = ($to ?? $from)->copy()->endOfDay();
-            $query->whereBetween($rangeField, [$start, $end]);
+            // A blank end is OPEN: "From 22 Oct" means 22 Oct onwards (it used to
+            // collapse to that single day and looked like bookings were missing);
+            // a blank start means everything up to the To date.
+            if ($from) {
+                $query->where($rangeField, '>=', $from->copy()->startOfDay());
+            }
+            if ($to) {
+                $query->where($rangeField, '<=', $to->copy()->endOfDay());
+            }
             if ($request->boolean('ran')) {
                 $query->where('pickup_at', '<=', now()); // only jobs that have run
             }

@@ -71,10 +71,17 @@
                     <label for="bk-to" class="muted" style="font-size:13px;display:block">To</label>
                     <input id="bk-to" type="date" name="to" value="{{ request('to') }}" style="width:auto">
                 </div>
+                <div>
+                    <label for="bk-by" class="muted" style="font-size:13px;display:block">Dates by</label>
+                    <select id="bk-by" name="by" style="width:auto">
+                        <option value="pickup" @selected(request('by') !== 'created')>Pickup date</option>
+                        <option value="created" @selected(request('by') === 'created')>Booked (came in)</option>
+                    </select>
+                </div>
                 <button class="btn btn-primary" style="padding:7px 12px;font-size:13px">Apply</button>
             </form>
             @if(auth()->user()->isAdmin())
-                @php $exportParams = array_filter(['from' => request('from'), 'to' => request('to'), 'month' => $month?->format('Y-m'), 'filter' => (empty($month) && ! request()->hasAny(['from', 'to'])) ? ($filter ?? null) : null, 'status' => $statusFilter ?: null, 'q' => $q ?: null]); @endphp
+                @php $exportParams = array_filter(['from' => request('from'), 'to' => request('to'), 'by' => request('by'), 'month' => $month?->format('Y-m'), 'filter' => (empty($month) && ! request()->hasAny(['from', 'to'])) ? ($filter ?? null) : null, 'status' => $statusFilter ?: null, 'q' => $q ?: null]); @endphp
                 <a href="{{ route('bookings.export', $exportParams) }}" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;white-space:nowrap" title="Download this view as CSV">⬇ Export</a>
             @endif
         </div>
@@ -86,7 +93,7 @@
             $lens = $byCreated ? 'booked (came in)' : (request()->boolean('ran') ? 'completed' : 'with pickup');
             $payTag = request('payment') === 'paid' ? ' · paid' : (request('payment') === 'unpaid' ? ' · owing' : '');
         @endphp
-        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} <strong>{{ $lens }}</strong> between <strong>{{ \Illuminate\Support\Carbon::parse($rf ?: $rt)->format('D d M Y') }}</strong> and <strong>{{ \Illuminate\Support\Carbon::parse($rt ?: $rf)->format('D d M Y') }}</strong>{{ $payTag }} — <a href="{{ route('bookings.index') }}">clear range</a></p>
+        <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} <strong>{{ $lens }}</strong> @if($rf && $rt)between <strong>{{ \Illuminate\Support\Carbon::parse($rf)->format('D d M Y') }}</strong> and <strong>{{ \Illuminate\Support\Carbon::parse($rt)->format('D d M Y') }}</strong>@elseif($rf)from <strong>{{ \Illuminate\Support\Carbon::parse($rf)->format('D d M Y') }}</strong> onwards @else up to <strong>{{ \Illuminate\Support\Carbon::parse($rt)->format('D d M Y') }}</strong>@endif{{ $payTag }} — <a href="{{ route('bookings.index') }}">clear range</a></p>
     @elseif(!empty($month))
         <p class="page-sub" style="margin:8px 0 0">Showing <strong>{{ $bookings->total() }}</strong> booking{{ $bookings->total() === 1 ? '' : 's' }} in <strong>{{ $month->format('F Y') }}</strong> — <a href="{{ route('bookings.index') }}">back to upcoming</a></p>
     @elseif(($filter ?? '') === 'booked-today')
