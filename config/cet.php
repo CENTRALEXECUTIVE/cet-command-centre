@@ -28,6 +28,10 @@ return [
     // in place of the VAT-registered Ltd. Number/address best set in Settings →
     // Company & invoice details (they override these). No VAT number (not VAT
     // registered).
+    // The day PVT LTD's Stripe account took its first payment. Non-VAT jobs booked
+    // before this were paid into the Ltd (Tide); after it into PVT LTD.
+    'pvt_live_from' => env('CET_PVT_LIVE_FROM', '2026-10-25'),
+
     'company_novat' => [
         'name' => env('CET_NOVAT_COMPANY_NAME', 'Central Executive Transfers PVT LTD'),
         'number' => env('CET_NOVAT_COMPANY_NUMBER', ''),

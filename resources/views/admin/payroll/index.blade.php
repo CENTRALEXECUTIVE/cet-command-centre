@@ -151,6 +151,28 @@
                 <span class="copy-statement-done hint" style="color:#1f8b4c"></span>
             </div>
 
+            {{-- Which account to pay this driver FROM: what's still owed, split by
+                 where each job's money actually landed (Booking::moneyAccount). --}}
+            @php
+                $fromAcct = ['ltd' => 0.0, 'pvt' => 0.0];
+                foreach ($leadJobs as $j) {
+                    $rem = $j->driverSettledByCustomer() ? 0 : (float) ($j->driverPayRemaining() ?? 0);
+                    $k = $j->moneyAccount()['key'];
+                    if ($rem > 0 && isset($fromAcct[$k])) { $fromAcct[$k] += $rem; }
+                }
+                foreach ($carJobs as $r) {
+                    $rem = max(0, (float) ($r['entry']['pay'] ?? 0) - (float) ($r['entry']['paid'] ?? 0));
+                    $k = $r['booking']->moneyAccount()['key'];
+                    if ($rem > 0 && isset($fromAcct[$k])) { $fromAcct[$k] += $rem; }
+                }
+            @endphp
+            @if($fromAcct['ltd'] > 0 || $fromAcct['pvt'] > 0)
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    @if($fromAcct['ltd'] > 0)<span class="badge" style="background:#FBBA2A;color:#111;padding:5px 10px">Pay from Ltd (Tide): <strong>£{{ number_format($fromAcct['ltd'], 2) }}</strong></span>@endif
+                    @if($fromAcct['pvt'] > 0)<span class="badge" style="background:#1f3a8a;color:#fff;padding:5px 10px">Pay from PVT LTD: <strong>£{{ number_format($fromAcct['pvt'], 2) }}</strong></span>@endif
+                </div>
+            @endif
+
             @if($leadJobs->isNotEmpty())
                 @php $journeyCounts = $leadJobs->map(fn ($b) => $b->journeyFilterTag())->filter()->countBy()->sortDesc(); @endphp
                 @if($journeyCounts->isNotEmpty())

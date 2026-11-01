@@ -41,22 +41,26 @@ class PvtInboxAndVatBadgeTest extends TestCase
 
     public function test_payroll_shows_vat_or_non_vat_under_each_reference(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-15 12:00:00'));
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-28 12:00:00'));
         $driver = User::factory()->driver()->create();
         Booking::factory()->create([
-            'driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => now()->subDay(),
+            'driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => now()->subDay(), 'payment_method' => 'card',
             'meta' => ['vat_invoice_requested' => true, 'billing_entity' => 'transfers', 'payroll' => ['pay' => 50, 'paid' => 0, 'history' => []]],
         ]);
         Booking::factory()->create([
-            'driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => now()->subDay(),
+            'driver_id' => $driver->id, 'status' => BookingStatus::Complete, 'pickup_at' => now()->subDay(), 'payment_method' => 'card',
             'meta' => ['billing_entity' => 'chauffeurs', 'payroll' => ['pay' => 40, 'paid' => 0, 'history' => []]],
         ]);
 
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->get(route('payroll.index', ['driver' => $driver->id]))
             ->assertOk()
-            ->assertSee('VAT · Ltd')
-            ->assertSee('Non-VAT · PVT');
+            ->assertSee('Paid into Ltd (Tide)')
+            ->assertSee('Paid into PVT LTD')
+            ->assertSee('Pay from Ltd (Tide):')
+            ->assertSee('£50.00')
+            ->assertSee('Pay from PVT LTD:')
+            ->assertSee('£40.00');
     }
 
     public function test_a_pvt_test_through_pvts_own_sender_switches_pvt_sending_on(): void
@@ -99,5 +103,23 @@ class PvtInboxAndVatBadgeTest extends TestCase
         Setting::set('mail_pvt_from_address', 'admin@centralexecutivetransferspvt.co.uk', 'string', 'mail');
         $this->actingAs($admin)->get(route('settings.index'))
             ->assertOk()->assertSee('Non-VAT bookings send from', false);
+    }
+
+    public function test_money_account_follows_the_payment_then_the_pvt_go_live_date(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-02 12:00:00'));
+        $mk = fn (array $a) => Booking::factory()->create(array_merge(['payment_method' => 'card', 'source_system' => null], $a));
+
+        // A real Stripe payment → PVT, whenever it was booked.
+        $this->assertSame('pvt', $mk(['created_at' => '2026-10-20 10:00', 'meta' => ['square_payment' => ['id' => 'cs_live_1', 'amount' => 90, 'entity' => 'chauffeurs']]])->moneyAccount()['key']);
+        // A real Square payment → Ltd.
+        $this->assertSame('ltd', $mk(['created_at' => '2026-10-28 10:00', 'meta' => ['square_payment' => ['id' => 'sq_123', 'amount' => 90, 'entity' => 'transfers']]])->moneyAccount()['key']);
+        // Hand-marked paid, non-VAT: by booked date around 25 Oct.
+        $this->assertSame('ltd', $mk(['created_at' => '2026-10-24 23:00', 'meta' => ['square_payment' => ['id' => 'MANUAL-1-1', 'amount' => 90, 'entity' => 'chauffeurs']]])->moneyAccount()['key']);
+        $this->assertSame('pvt', $mk(['created_at' => '2026-10-25 09:00', 'meta' => []])->moneyAccount()['key']);
+        // VAT / account → Ltd; cash → driver; ETO-taken → Ltd.
+        $this->assertSame('ltd', $mk(['created_at' => '2026-10-30 09:00', 'meta' => ['vat_invoice_requested' => true]])->moneyAccount()['key']);
+        $this->assertSame('cash', $mk(['created_at' => '2026-10-30 09:00', 'payment_method' => 'cash'])->moneyAccount()['key']);
+        $this->assertSame('ltd', $mk(['created_at' => '2026-10-30 09:00', 'source_system' => 'eto'])->moneyAccount()['key']);
     }
 }

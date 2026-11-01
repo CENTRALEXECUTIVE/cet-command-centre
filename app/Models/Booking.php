@@ -6045,6 +6045,53 @@ class Booking extends Model
     }
 
     /**
+     * Which bank account this job's money ACTUALLY landed in — for paying drivers
+     * from the right account. PVT LTD/Stripe only went live on
+     * config('cet.pvt_live_from') (25 Oct 2026), so:
+     *  1. a real online payment decides it: Stripe → PVT LTD, Square → Ltd (Tide);
+     *  2. else cash → the driver holds it; account/VAT → Ltd;
+     *  3. else ETO-taken, or booked before PVT went live → Ltd; booked after → PVT.
+     *
+     * @return array{key: string, label: string, why: string}
+     */
+    public function moneyAccount(): array
+    {
+        $ltd = fn (string $why) => ['key' => 'ltd', 'label' => 'Ltd (Tide)', 'why' => $why];
+        $pvt = fn (string $why) => ['key' => 'pvt', 'label' => 'PVT LTD', 'why' => $why];
+
+        // 1. A real (not hand-marked) online payment: where it went is a fact.
+        $history = $this->meta['square_payment']['history'] ?? (isset($this->meta['square_payment']['id']) ? [$this->meta['square_payment']] : []);
+        $real = array_values(array_filter((array) $history, fn ($h) => ! str_starts_with((string) ($h['id'] ?? ''), 'MANUAL-')));
+        if ($real !== []) {
+            $last = end($real);
+            $id = (string) ($last['id'] ?? '');
+            $isStripe = ($last['entity'] ?? null) === 'chauffeurs' || str_starts_with($id, 'cs_') || str_starts_with($id, 'pi_');
+
+            return $isStripe ? $pvt('paid by Stripe') : $ltd('paid by Square');
+        }
+
+        // 2. No online payment.
+        $method = $this->payment_method?->value ?? null;
+        if ($method === \App\Enums\PaymentMethod::Cash->value) {
+            return ['key' => 'cash', 'label' => 'Cash', 'why' => 'customer paid the driver in cash'];
+        }
+        if ($method === \App\Enums\PaymentMethod::Account->value || $this->vatInvoiceRequested()) {
+            return $ltd('VAT / account job');
+        }
+
+        // 3. By when it was booked.
+        if (filled($this->source_system)) {
+            return $ltd('taken through '.strtoupper((string) $this->source_system));
+        }
+        $liveFrom = \Illuminate\Support\Carbon::parse((string) config('cet.pvt_live_from', '2026-10-25'), config('app.timezone'))->startOfDay();
+        if ($this->created_at && $this->created_at->lt($liveFrom)) {
+            return $ltd('booked before PVT/Stripe went live ('.$liveFrom->format('j M').')');
+        }
+
+        return $pvt('non-VAT, booked after '.$liveFrom->format('j M'));
+    }
+
+    /**
      * The office inbox that gets this booking's office notifications ("New
      * booking", "Payment received"). A NON-VAT booking goes to the PVT LTD inbox
      * once PVT email is switched on in Settings — so each company's bookings are
