@@ -562,6 +562,16 @@
                             </button>
                         </form>
                     </div>
+                    {{-- Name on invoice — the office's final say on "Bill to" (e.g. a
+                         shared phone saved under a spouse, or bill a company). --}}
+                    <form method="POST" action="{{ route('bookings.invoice-name', $booking) }}" style="margin:10px 0 0;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                        @csrf
+                        <div class="field" style="margin:0">
+                            <label style="font-size:12px">Name on invoice (Bill to)</label>
+                            <input name="invoice_name" value="{{ $booking->meta['invoice_name'] ?? '' }}" placeholder="{{ $booking->bookerName() }}" maxlength="120" style="min-width:220px">
+                        </div>
+                        <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">Save name</button>
+                    </form>
                     <p class="hint" style="margin:6px 0 0">
                         @if($isVatReq)
                             Billed by <strong>Central Executive Transfers Ltd</strong> (VAT) · card via <strong>Square</strong>.

@@ -1882,6 +1882,31 @@ class BookingController extends Controller
             : 'No VAT — billed by Central Executive Transfers PVT LTD (card via Stripe), standard price.');
     }
 
+    /**
+     * Set (or clear, with blank) the name printed as "Bill to" on this booking's
+     * invoice — the office's final say when the stored booker/customer name is
+     * wrong for the invoice (e.g. a shared number saved under a spouse).
+     */
+    public function setInvoiceName(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate(['invoice_name' => ['nullable', 'string', 'max:120']]);
+        $name = trim((string) ($data['invoice_name'] ?? ''));
+
+        $meta = $booking->meta ?? [];
+        if ($name === '') {
+            unset($meta['invoice_name']);
+        } else {
+            $meta['invoice_name'] = $name;
+        }
+        $booking->forceFill(['meta' => $meta])->save();
+
+        return back()->with('status', $name === ''
+            ? 'Invoice name cleared — it uses the booking\'s customer again.'
+            : "Invoice will be billed to {$name}.");
+    }
+
     public function setPrice(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);

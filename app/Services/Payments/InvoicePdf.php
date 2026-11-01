@@ -234,6 +234,10 @@ class InvoicePdf
             $billToAddress = trim((string) ($vd['address'] ?? '')) ?: null;
             $billToVat = trim((string) ($vd['vat_number'] ?? '')) ?: null;
         }
+        // The office's "Name on invoice" wins over every stored name.
+        if (! $cover && filled($booking->meta['invoice_name'] ?? null)) {
+            $billedTo = trim((string) $booking->meta['invoice_name']);
+        }
 
         $dompdf = $this->makeDompdf();
         $dompdf->setPaper('A4');

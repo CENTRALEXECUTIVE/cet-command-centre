@@ -199,6 +199,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/cover-for', [BookingController::class, 'setCoverFor'])->middleware('throttle:30,1')->name('bookings.cover-for');
         // VAT invoice toggle — add 20% VAT on top of the standard price for this booking.
         Route::post('bookings/{booking}/vat-invoice', [BookingController::class, 'setVatInvoice'])->middleware('throttle:30,1')->name('bookings.vat-invoice');
+        // Name on invoice — overrides the "Bill to" name for this booking.
+        Route::post('bookings/{booking}/invoice-name', [BookingController::class, 'setInvoiceName'])->middleware('throttle:30,1')->name('bookings.invoice-name');
         // Quick edits from the booking page: the job price, and the waiting minutes.
         Route::post('bookings/{booking}/price', [BookingController::class, 'setPrice'])->middleware('throttle:30,1')->name('bookings.price');
         Route::post('bookings/{booking}/waiting', [BookingController::class, 'setWaiting'])->middleware('throttle:30,1')->name('bookings.waiting');

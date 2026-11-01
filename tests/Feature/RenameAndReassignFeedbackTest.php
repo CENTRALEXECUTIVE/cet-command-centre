@@ -109,4 +109,25 @@ class RenameAndReassignFeedbackTest extends TestCase
 
         $this->assertSame($abdi->id, $b->fresh()->driver_id);
     }
+
+    public function test_name_on_invoice_overrides_the_bill_to_name(): void
+    {
+        $customer = Customer::create(['name' => 'Jane Shaw', 'phone' => '07989605549']);
+        $b = Booking::factory()->create(['customer_id' => $customer->id, 'status' => BookingStatus::Pending]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('bookings.invoice-name', $b), ['invoice_name' => 'Matthew Shaw'])
+            ->assertRedirect()->assertSessionHas('status');
+
+        $billedTo = null;
+        \Illuminate\Support\Facades\View::composer('pdf.receipt', function ($view) use (&$billedTo) {
+            $billedTo = $view->getData()['billedTo'] ?? null;
+        });
+        app(\App\Services\Payments\InvoicePdf::class)->renderReceipt($b->fresh());
+        $this->assertSame('Matthew Shaw', $billedTo);
+
+        // Blank clears it — back to the customer on the booking.
+        $this->actingAs($admin)->post(route('bookings.invoice-name', $b), ['invoice_name' => '']);
+        $this->assertArrayNotHasKey('invoice_name', $b->fresh()->meta ?? []);
+    }
 }
