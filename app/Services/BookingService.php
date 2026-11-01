@@ -161,6 +161,9 @@ class BookingService
             // "Contact No" → customer phone). We compare the office's edit against
             // this so a genuinely changed number sticks — see the override below.
             $priorContact = $booking->customerContactNumber();
+            // The names the booking CURRENTLY shows — an edited name replaces them in
+            // the stored booker field too, so the invoice "Bill to" follows the edit.
+            $priorNames = array_unique([$booking->displayName(), $booking->bookerName()]);
 
             // Keep the customer's contact details current — but NEVER corrupt a
             // record that OTHER bookings share. If the office changes the name or
@@ -283,6 +286,12 @@ class BookingService
             $editedFields = array_values(array_unique(array_merge(
                 (array) ($booking->meta['edited_fields'] ?? []), $editedFields,
             )));
+
+            if (filled($data['customer_name'] ?? null)) {
+                foreach ($priorNames as $old) {
+                    $booking->replaceStoredName($old, $data['customer_name']);
+                }
+            }
 
             $booking->fill([
                 'vehicle_type_id' => $data['vehicle_type_id'],

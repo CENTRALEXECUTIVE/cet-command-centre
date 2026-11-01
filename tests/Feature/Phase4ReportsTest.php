@@ -233,6 +233,8 @@ class Phase4ReportsTest extends TestCase
 
     public function test_money_owed_totals_driver_pay_still_due(): void
     {
+        // Mid-month clock: on the 1st, "start of month + 1 day" is still in the future.
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-15 12:00:00'));
         $driver = User::factory()->driver()->create(['name' => 'Owed Olly']);
         $when = now()->startOfMonth()->addDay();
 

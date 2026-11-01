@@ -188,6 +188,13 @@
             @if(session('error'))
                 <div class="alert alert-error">{{ session('error') }}</div>
             @endif
+            {{-- A refused action (e.g. a driver change blocked by an expired document)
+                 must say why — otherwise it just looks like it "didn't save". --}}
+            @if(isset($errors) && $errors->any())
+                <div class="alert alert-error">
+                    @foreach(array_slice($errors->all(), 0, 3) as $msg)<div>{{ $msg }}</div>@endforeach
+                </div>
+            @endif
 
             @yield('content')
 

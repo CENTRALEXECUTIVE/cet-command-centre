@@ -128,6 +128,8 @@ class CustomerController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $oldName = (string) $customer->name;
+
         $customer->fill([
             'name' => $data['name'],
             'phone' => $data['phone'] ?? null,
@@ -143,6 +145,21 @@ class CustomerController extends Controller
         }
         $customer->marketing_consent = $consent;
         $customer->save();
+
+        // Carry a rename onto this customer's UPCOMING bookings, so invoices and
+        // driver sheets stop showing the old name (Matt Shaw, Nov 2026: renamed from
+        // "Jane Shaw" but the invoice still said Jane). Finished jobs keep their
+        // history, and a different passenger/booker name is never touched.
+        if (strcasecmp(trim($oldName), trim($customer->name)) !== 0) {
+            $customer->bookings()
+                ->whereNotIn('status', [
+                    \App\Enums\BookingStatus::Complete->value,
+                    \App\Enums\BookingStatus::Cancelled->value,
+                    \App\Enums\BookingStatus::NoShow->value,
+                ])
+                ->get()
+                ->each(fn ($b) => $b->replaceStoredName($oldName, $customer->name) && $b->save());
+        }
 
         return redirect()->route('customers.show', $customer)->with('status', 'Customer updated.');
     }

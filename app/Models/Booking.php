@@ -2936,6 +2936,35 @@ class Booking extends Model
         return $this->customer?->name ?? 'Customer';
     }
 
+    /**
+     * Swap a person's name in this booking's STORED name fields (lead passenger and
+     * booker) wherever they hold $old — so a renamed customer stops showing their
+     * old name on invoices and the driver sheet. Names that belong to someone else
+     * (a different passenger or booker) are left alone. Returns true if changed.
+     */
+    public function replaceStoredName(string $old, string $new): bool
+    {
+        $old = trim($old);
+        $new = trim($new);
+        if ($old === '' || $new === '' || strcasecmp($old, $new) === 0) {
+            return false;
+        }
+
+        $meta = $this->meta ?? [];
+        $changed = false;
+        foreach (['lead_name', 'booked_by', 'booker_name'] as $key) {
+            if (isset($meta[$key]) && strcasecmp(trim((string) $meta[$key]), $old) === 0) {
+                $meta[$key] = $new;
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $this->meta = $meta;
+        }
+
+        return $changed;
+    }
+
     /** The explicitly stored booker name (widget or ETO ingest), or '' if none. */
     private function storedBookerName(): string
     {
