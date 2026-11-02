@@ -21,24 +21,26 @@ return [
 
     // Follow-ups follow docs/growth/sales/kit/email-style-guide.md: short, about
     // the reader, one easy question, no feature lists.
+    // Follow-ups follow docs/growth/sales/kit/cold-email-rules-v2.md: short, about
+    // the reader, a NEW angle each time (never "just following up"), one easy
+    // question, no service lists, no em dashes.
     'follow_ups' => [
         'corporate' => [
             'day_4' => [
                 'label' => 'Day-4 follow-up',
                 'subject' => 'Re: {original_subject}',
                 'body' => "Hello {first_name},\n\n"
-                    ."Just following up on our note last week, in case it was buried.\n\n"
-                    ."When a visitor, client or senior colleague needs collecting, the person arranging it usually wants one thing: to know it's handled. That's what we do, whether it's an airport or station pickup, a day of meetings with the car waiting, or a run to London and back.\n\n"
-                    ."If it would help, we could set {company} up with an account so it's ready the next time something comes up. Would that be useful?\n\n"
+                    ."When a flight lands early or a meeting runs over, it's usually the PA left chasing the car.\n\n"
+                    ."We track every flight and the two of us answer the phone ourselves, day or night, so there's nobody to chase.\n\n"
+                    ."Would it help to have an account set up for {company}, ready for next time?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
             'day_10' => [
                 'label' => 'Day-10 follow-up',
-                'subject' => 'Chauffeur account for {company}',
+                'subject' => 'Re: {original_subject}',
                 'body' => "Hello {first_name},\n\n"
-                    ."A last note from us, and then we'll leave you in peace.\n\n"
-                    ."If {company} ever needs a dependable chauffeur in South Yorkshire, for executives, visitors or events, we'd be glad to help. Everything runs on one account with a single monthly VAT invoice, and you'll always deal with one of the two of us directly.\n\n"
-                    ."Shall we send our account details over so you have them on file?\n\n"
+                    ."We'll leave it here so we don't clutter your inbox.\n\n"
+                    ."If a visitor or colleague ever needs collecting in South Yorkshire, reply to this email and we'll take it from there.\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
         ],
@@ -47,17 +49,15 @@ return [
                 'label' => 'Day-4 follow-up',
                 'subject' => 'Re: {original_subject}',
                 'body' => "Hello {first_name},\n\n"
-                    ."Just following up on our note last week.\n\n"
-                    ."If you ever have a passenger starting or finishing in Sheffield, South Yorkshire or the East Midlands, we'd be glad to look after them for you: experienced chauffeurs, an unbranded service so your client stays yours, and someone available 24/7.\n\n"
-                    ."We're happy to start with a single job so you can see how we work. Would that be worth a quick call?\n\n"
+                    ."Happy to start small. If a single Sheffield, Manchester Airport or East Midlands job comes up that you'd rather not send a car 100 miles for, give it to us and judge us on that one.\n\n"
+                    ."Is there a job coming up we could take off your hands?\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
             'day_10' => [
                 'label' => 'Day-10 follow-up',
-                'subject' => 'South Yorkshire cover for {company}',
+                'subject' => 'Re: {original_subject}',
                 'body' => "Hello {first_name},\n\n"
-                    ."A last note from us. If South Yorkshire or the East Midlands ever comes up for {company}, we'd like to be the partner you call, and any work in your area that comes our way would go to you.\n\n"
-                    ."Shall we send our trade details over so you have them on file?\n\n"
+                    ."Last one from us. If South Yorkshire or the East Midlands ever comes up for {company}, reply here and we'll pick it up straight away.\n\n"
                     ."[Signature]\n\n[Opt-out line]",
             ],
         ],
