@@ -174,7 +174,7 @@ class QuoteService
 
         // Which end is the special destination, and which is the local (zoned) end.
         [$destKey, $localText] = $this->detectDestination($pickup, $destination);
-        if ($destKey !== null && ! $this->guessedZoneIsOutOfArea($localText)) {
+        if ($destKey !== null && ! $this->localEndIsOutOfArea($localText)) {
             $price = $this->fixedPrice($destKey, $this->zonesFor($localText), $slug);
             if ($price !== null) {
                 return $this->withTimeSurcharge(
@@ -475,7 +475,10 @@ class QuoteService
             if (preg_match('/^S8[01]$/', $outward)) {   // Worksop (S80/S81)
                 return ['worksop'];
             }
-            if (str_starts_with($outward, 'DN')) {       // Doncaster
+            // Doncaster is DN1–DN12 ONLY. The rest of the DN area is far away — Goole
+            // (DN14), Scunthorpe/Brigg (DN15–20), Gainsborough (DN21), Retford (DN22),
+            // Grimsby/Immingham (DN31–41) — and must NOT get the Doncaster fixed fare.
+            if (preg_match('/^DN([1-9]|1[0-2])$/', $outward)) {
                 return ['doncaster'];
             }
             if (preg_match('/^NG(1[89]|2[01])$/', $outward)) { // Mansfield (NG18–21)
@@ -512,40 +515,39 @@ class QuoteService
     }
 
     /**
-     * Safety net for the Sheffield DEFAULT zone. When the local end has no postcode and
-     * no known town, the zone is only a guess ("sheffield"). Before handing out a cheap
-     * local fixed fare on a guess, check how far that address really is from base: if
-     * it's beyond the local catchment, treat it as out of area so it's distance-priced
-     * with the dead-mileage charge instead. Uses the same cached distance lookup as the
-     * dead-mileage charge; with no Maps key it can't tell, so it keeps the old default.
+     * DISTANCE BACKSTOP for every local fixed fare. Fixed airport fares are only for
+     * pickups (or drop-offs) in our home catchment, and they skip the out-of-area
+     * dead-mileage charge — so a far address wrongly matched to a local zone gets a
+     * badly under-priced job (Kidderminster → Manchester Airport was quoted the Sheffield
+     * £105). Whatever the address text says (postcode, a town name in a street like
+     * "Sheffield Road, Birmingham", a stray "S3", or the default guess), check the REAL
+     * distance from base: beyond cet.fixed_zone_max_miles (default 35) it is out of area
+     * and gets distance pricing + dead mileage instead. One cached Maps lookup per
+     * address per day; with no Maps key it can't tell and the zone rules alone decide.
      */
-    private function guessedZoneIsOutOfArea(string $text): bool
+    private function localEndIsOutOfArea(string $text): bool
     {
-        if ($this->outward($text) !== null) {
-            return false; // a real postcode decides the zone (out-of-area codes get no zone)
-        }
-        $t = strtolower($text);
-        foreach (['sheffield', 'chesterfield', 'rotherham', 'barnsley', 'worksop', 'doncaster', 'mansfield', 'matlock'] as $town) {
-            if (str_contains($t, $town)) {
-                return false; // a known town decides the zone
-            }
-        }
         $base = (string) config('cet.base.address');
         if ($base === '' || trim($text) === '') {
             return false;
         }
 
-        // One cached lookup per address per day (keeps the Maps bill down).
-        $d = \Illuminate\Support\Facades\Cache::remember(
-            'zoneguess:'.md5(strtolower(trim($text))),
-            now()->addDay(),
-            fn () => $this->distance->resolve($base, $text),
-        );
+        // One cached lookup per address per day (keeps the Maps bill down). A Maps/DNS
+        // failure must never break quoting — fall back to the zone rules alone.
+        try {
+            $d = \Illuminate\Support\Facades\Cache::remember(
+                'zoneguard:'.md5(strtolower(trim($text))),
+                now()->addDay(),
+                fn () => $this->distance->resolve($base, $text),
+            );
+        } catch (\Throwable) {
+            return false;
+        }
         if (($d['source'] ?? null) === 'estimate' || ! isset($d['miles'])) {
-            return false; // no real distance available — can't tell, keep the default
+            return false; // no real distance available — can't tell, keep the zone rules
         }
 
-        return (float) $d['miles'] > (float) config('cet.fixed_zone_max_miles', 30);
+        return (float) $d['miles'] > (float) config('cet.fixed_zone_max_miles', 35);
     }
 
     /** The outward code (e.g. "S20") from an address, if present. */

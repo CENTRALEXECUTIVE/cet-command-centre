@@ -388,6 +388,15 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   driver accounts are `abdi@`/`maj@`, NOT `admin@`). Per-driver routing via
   `checkpoint.office_call_drivers` (`Booking::emergencyCallTarget()`): the owner's
   jobs ring the business line (forwards to on-call), other directors ring direct.
+- **Out-of-area pricing ("drag") — Nov 2026 misquote.** Local fixed airport fares are
+  ONLY for the home catchment; they skip the drag. A far pickup must be distance-priced
+  + drag: inside the free radius (15 mi) no drag, beyond it **EVERY mile** base→pickup
+  at £1, rounded to £5 (directors confirmed: Kidderminster→MAN = £215 + £115 = £330).
+  Zone rules: an unknown postcode gets NO zone (never the old "Sheffield" default);
+  Doncaster = **DN1–DN12 only** (Grimsby/Scunthorpe/Goole are out of area); and a
+  distance backstop (`QuoteService::localEndIsOutOfArea`, `cet.fixed_zone_max_miles`
+  = 35) refuses any local fixed fare to an address >35 mi from base. Guarded by
+  `PricingAccuracySweepTest` — keep it green.
 - **Paste-a-booking (`/intake`)** captures the **price** (£ figure), accessibility/
   "Additional" notes, and multi-type bag lists — none silently dropped.
 
