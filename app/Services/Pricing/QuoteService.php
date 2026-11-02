@@ -174,7 +174,13 @@ class QuoteService
 
         // Which end is the special destination, and which is the local (zoned) end.
         [$destKey, $localText] = $this->detectDestination($pickup, $destination);
-        if ($destKey !== null && ! $this->localEndIsOutOfArea($localText)) {
+        $localFar = $destKey !== null ? $this->localEndIsOutOfArea($localText) : false;
+        // No full postcode, so the zone is only a town-word / default guess, AND Google
+        // couldn't measure how far it really is → don't guess a price: office confirms.
+        if ($destKey !== null && $localFar === null && ! $this->hasFullPostcode($localText) && $this->distance->configured()) {
+            return $this->officeToConfirm();
+        }
+        if ($destKey !== null && $localFar !== true) {
             $price = $this->fixedPrice($destKey, $this->zonesFor($localText), $slug);
             if ($price !== null) {
                 return $this->withTimeSurcharge(
@@ -189,6 +195,11 @@ class QuoteService
             return ['price' => null, 'price_with_vat' => null, 'basis' => 'Price on request', 'miles' => null, 'fixed' => false];
         }
         $d = $this->distance->resolve($pickup, $destination);
+        // Google is set up but couldn't measure this journey (outage, unknown address):
+        // never auto-price on the 10-mile fallback guess — the office confirms it.
+        if (($d['source'] ?? null) === 'estimate' && $this->distance->configured()) {
+            return $this->officeToConfirm();
+        }
         $price = $this->freeRoam->price($slug, $d['miles']);
 
         // Out-of-area dead mileage: the empty run from base out to a far pickup is
@@ -199,11 +210,17 @@ class QuoteService
         if ($price !== null && filled($base = (string) config('cet.base.address'))) {
             // Base is fixed, so cache base→pickup per pickup to avoid a second
             // Google call on every quote (the instant-quote widget re-quotes often).
-            $deadMiles = \Illuminate\Support\Facades\Cache::remember(
-                'deadmiles:'.md5(strtolower(trim($pickup))),
+            $deadLeg = \Illuminate\Support\Facades\Cache::remember(
+                'deadleg:'.md5(strtolower(trim($pickup))),
                 now()->addDay(),
-                fn () => $this->distance->resolve($base, $pickup)['miles'] ?? null,
+                fn () => $this->distance->resolve($base, $pickup),
             );
+            // Couldn't measure the empty run out → the drag would silently be £0 on a
+            // possibly far pickup. Office confirms instead.
+            if (($deadLeg['source'] ?? null) === 'estimate' && $this->distance->configured()) {
+                return $this->officeToConfirm();
+            }
+            $deadMiles = $deadLeg['miles'] ?? null;
             $dead = $this->freeRoam->deadMileageCharge($deadMiles);
             $price += $dead;
         }
@@ -525,11 +542,31 @@ class QuoteService
      * and gets distance pricing + dead mileage instead. One cached Maps lookup per
      * address per day; with no Maps key it can't tell and the zone rules alone decide.
      */
-    private function localEndIsOutOfArea(string $text): bool
+    /**
+     * "Price on request" because the distance couldn't be measured — the widget turns
+     * a null price into a quote request the office prices by hand (never a guess).
+     */
+    private function officeToConfirm(): array
+    {
+        return [
+            'price' => null, 'price_with_vat' => null,
+            'basis' => 'Price on request — our office will confirm the price',
+            'miles' => null, 'fixed' => false, 'unmeasured' => true,
+        ];
+    }
+
+    /** True when the text holds a full UK postcode (e.g. "DY11 7RA"), not just "S3". */
+    private function hasFullPostcode(string $text): bool
+    {
+        return (bool) preg_match('/\b[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}\b/i', $text);
+    }
+
+    /** @return bool|null true = far, false = local, null = couldn't measure */
+    private function localEndIsOutOfArea(string $text): ?bool
     {
         $base = (string) config('cet.base.address');
         if ($base === '' || trim($text) === '') {
-            return false;
+            return null;
         }
 
         // One cached lookup per address per day (keeps the Maps bill down). A Maps/DNS
@@ -541,10 +578,10 @@ class QuoteService
                 fn () => $this->distance->resolve($base, $text),
             );
         } catch (\Throwable) {
-            return false;
+            return null;
         }
         if (($d['source'] ?? null) === 'estimate' || ! isset($d['miles'])) {
-            return false; // no real distance available — can't tell, keep the zone rules
+            return null; // couldn't measure — the zone rules decide (or the office, if it's only a guess)
         }
 
         return (float) $d['miles'] > (float) config('cet.fixed_zone_max_miles', 35);

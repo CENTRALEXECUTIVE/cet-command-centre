@@ -213,19 +213,65 @@ class PricingAccuracySweepTest extends TestCase
 
     public function test_quoting_never_breaks_when_maps_is_down(): void
     {
-        // A real outage: DistanceService catches the failure and falls back to its
-        // 'estimate' (it never throws), so the backstop can't measure anything.
-        $distance = \Mockery::mock(DistanceService::class);
-        $distance->shouldReceive('resolve')->andReturn(['miles' => 10.0, 'minutes' => 25, 'source' => 'estimate']);
-        $this->app->instance(DistanceService::class, $distance);
+        $this->mapsDown();
+        $quotes = app(QuoteService::class);
 
-        // Local fixed fares still work off the zone rules alone.
-        $q = app(QuoteService::class)->quote('Sheffield S1 2HH', 'Manchester Airport', $this->exec());
+        // Local fixed fares (full in-area postcode) still work off the zone rules alone.
+        $q = $quotes->quote('Sheffield S1 2HH', 'Manchester Airport', $this->exec());
         $this->assertTrue($q['fixed']);
         $this->assertEqualsWithDelta(105.0, $q['price'], 0.01);
 
-        // Far POSTCODES are still caught without Maps (no local zone at all).
-        $far = app(QuoteService::class)->quote('Grimsby DN32 9AA', 'Manchester Airport', $this->exec());
-        $this->assertFalse($far['fixed'], 'Grimsby must not get the Doncaster fare even with Maps down');
+        // Anything that needs a distance is NEVER guessed — it goes to the office.
+        foreach ([
+            ['Grimsby DN32 9AA', 'Manchester Airport'],            // far postcode → needs distance
+            ['Sheffield Road, Birmingham', 'Manchester Airport'],  // no postcode → zone is a guess
+            ['Meadowhall Centre', 'Manchester Airport'],           // no postcode → can't confirm it's local
+            ['Sheffield S1 2HH', 'Leeds LS1 1AA'],                 // ordinary free-roam journey
+        ] as [$from, $to]) {
+            $r = $quotes->quote($from, $to, $this->exec());
+            $this->assertNull($r['price'], "{$from} → {$to}: Maps down must send it to the office, not guess £{$r['price']}");
+            $this->assertTrue($r['unmeasured'] ?? false);
+        }
+    }
+
+    /** Google is set up but every lookup fails — DistanceService then returns its 10-mile 'estimate'. */
+    private function mapsDown(): void
+    {
+        $distance = \Mockery::mock(DistanceService::class);
+        $distance->shouldReceive('resolve')->andReturn(['miles' => 10.0, 'minutes' => 25, 'source' => 'estimate']);
+        $distance->shouldReceive('configured')->andReturn(true);
+        $this->app->instance(DistanceService::class, $distance);
+    }
+
+    public function test_a_customer_booking_with_maps_down_goes_to_the_office_not_a_guessed_price(): void
+    {
+        Mail::fake();
+        $this->mapsDown();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Avensys Training Academy, Frederick Road, Kidderminster, UK',
+            'pickup_postcode' => 'DY11 7RA',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $this->exec()->id,
+            'passengers' => 1,
+            'customer_name' => 'Far Away', 'customer_phone' => '07700900777', 'customer_email' => 'far@example.com',
+        ])->assertOk()->assertSee('Quote request received');
+
+        $booking = Booking::firstWhere('source', 'web');
+        $this->assertNull($booking->quoted_price, 'no guessed price is stored or charged');
+        $this->assertTrue((bool) ($booking->meta['quote_request'] ?? false), 'the office is asked to price it');
+    }
+
+    public function test_without_any_maps_key_dev_quoting_still_estimates(): void
+    {
+        // No Maps key at all (local dev / tests): nothing to "fail", keep the estimate.
+        $distance = \Mockery::mock(DistanceService::class);
+        $distance->shouldReceive('resolve')->andReturn(['miles' => 10.0, 'minutes' => 25, 'source' => 'estimate']);
+        $distance->shouldReceive('configured')->andReturn(false);
+        $this->app->instance(DistanceService::class, $distance);
+
+        $q = app(QuoteService::class)->quote('Sheffield S1 2HH', 'Leeds LS1 1AA', $this->exec());
+        $this->assertNotNull($q['price']);
     }
 }
