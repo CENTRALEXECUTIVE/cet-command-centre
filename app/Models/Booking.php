@@ -63,6 +63,17 @@ class Booking extends Model
             // Re-priced (or VAT toggled) after an online payment: the headline must
             // follow what's actually owed now — a £55-paid job raised to £100 is
             // part-paid (pending, £45 due), and lowering it back reads paid again.
+            // A "VAT received" tick belongs to the OLD price's VAT. Once the job is
+            // re-priced it's stale — keeping it credits VAT that was never taken on
+            // the new price (CET-007A2C: £216 due, £151.20 paid, read £28.80 not
+            // £64.80). The office re-ticks it if the new VAT really came in.
+            if ($booking->exists && $booking->isDirty(['final_price', 'quoted_price'])
+                && ! empty($booking->meta['vat_paid'])) {
+                $meta = $booking->meta;
+                unset($meta['vat_paid']);
+                $booking->meta = $meta;
+            }
+
             if ($booking->exists && $booking->onlinePaidTotal() > 0
                 && in_array($booking->payment_status, ['paid', 'pending'], true)) {
                 $vatBefore = (bool) (($booking->getOriginal('meta') ?? [])['vat_invoice_requested'] ?? false);

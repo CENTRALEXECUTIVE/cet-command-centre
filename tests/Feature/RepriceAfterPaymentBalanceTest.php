@@ -27,7 +27,7 @@ class RepriceAfterPaymentBalanceTest extends TestCase
         return Booking::factory()->create([
             'customer_id' => $c->id, 'source' => 'web', 'payment_method' => 'card', 'payment_status' => 'paid',
             'quoted_price' => 126, 'pickup_at' => now()->addDays(10),
-            'meta' => ['vat_invoice_requested' => true, 'billing_entity' => 'transfers',
+            'meta' => ['vat_invoice_requested' => true, 'billing_entity' => 'transfers', 'vat_paid' => true, // the old webhook ticked this — must not count the VAT twice
                 'square_payment' => ['id' => 'sq_1', 'amount' => 151.20, 'entity' => 'transfers', 'at' => now()->subDay()->toIso8601String()]],
         ]);
     }

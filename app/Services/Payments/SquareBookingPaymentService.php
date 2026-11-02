@@ -264,12 +264,10 @@ class SquareBookingPaymentService
             return null;
         }
 
-        // If this is the VAT top-up on a VAT invoice (the payment covers the VAT
-        // added on top), mark the VAT received so the invoice reads paid in full.
-        $vatOnTop = $booking->vatOnTopAmount();
-        if ($vatOnTop > 0 && ($amount / 100) + 0.01 >= $vatOnTop) {
-            $booking->markVatReceived(true);
-        }
+        // NB: never tick "VAT received" here. The card payment (VAT included) is
+        // already counted in what's been paid; ticking VAT as well counted the VAT
+        // TWICE and under-stated the balance after a re-price. "VAT received" is
+        // only for VAT the office took outside the card link.
 
         return $booking;
     }
