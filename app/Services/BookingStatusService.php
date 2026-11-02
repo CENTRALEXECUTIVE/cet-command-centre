@@ -80,7 +80,7 @@ class BookingStatusService
      * tell the office. Idempotent — safe to call again on a repeated webhook, and
      * a no-op for anything that isn't a still-pending paid web booking.
      */
-    public function confirmPaidWebBooking(Booking $booking, ?User $actor = null): Booking
+    public function confirmPaidWebBooking(Booking $booking, ?User $actor = null, bool $emailCustomer = true): Booking
     {
         if ($booking->source !== 'web'
             || ($booking->payment_status ?? null) !== 'paid'
@@ -88,7 +88,7 @@ class BookingStatusService
             return $booking;
         }
 
-        return DB::transaction(function () use ($booking, $actor) {
+        return DB::transaction(function () use ($booking, $actor, $emailCustomer) {
             // Freeze the VAT split at the moment of payment for the receipt.
             if ($vat = $booking->fareVatBreakdown()) {
                 $booking->forceFill(['meta' => array_merge($booking->meta ?? [], [
@@ -134,8 +134,11 @@ class BookingStatusService
 
             $fresh = $booking->fresh();
 
-            // Email the customer the PAID confirmation + invoice (once).
-            $this->emailPaidConfirmation($fresh);
+            // Email the customer the PAID confirmation + invoice (once) — unless the office
+            // marked it paid by hand: then the office sends it themselves (never automatic).
+            if ($emailCustomer) {
+                $this->emailPaidConfirmation($fresh);
+            }
             $fresh = $fresh->fresh();
 
             $name = $fresh->customer?->name ?? 'Web customer';
@@ -285,18 +288,22 @@ class BookingStatusService
      *  4. Email the OFFICE the "payment received" confirmation (once) — so admins
      *     always get the second email when a customer pays.
      */
-    public function onFarePaid(Booking $booking): Booking
+    public function onFarePaid(Booking $booking, bool $emailCustomer = true): Booking
     {
         $booking->reconcilePaidStatus();
         $fresh = $booking->fresh();
 
         // Web bookings: allocation + calendar + web-paid alert (internally guarded
         // to source=web, paid, still pending).
-        $this->confirmPaidWebBooking($fresh);
+        $this->confirmPaidWebBooking($fresh, null, $emailCustomer);
         $fresh = $fresh->fresh();
 
-        // The two confirmation emails, each sent at most once.
-        $this->emailPaidConfirmation($fresh);
+        // The two confirmation emails, each sent at most once. A payment the OFFICE
+        // recorded by hand ($emailCustomer = false) notifies the office only — the
+        // customer copy is sent with the 'Send confirmation to customer' button.
+        if ($emailCustomer) {
+            $this->emailPaidConfirmation($fresh);
+        }
         $this->emailOffice($fresh->fresh(), 'paid');
 
         // A return CAN be paid in one go (the combined pay link charges the whole
@@ -326,7 +333,7 @@ class BookingStatusService
                     $leg->fresh()->reconcilePaidStatus();
                     // Mark it paid + confirm the web booking, but DON'T send a second
                     // customer email — this one payment already got one confirmation.
-                    $this->confirmPaidWebBooking($leg->fresh());
+                    $this->confirmPaidWebBooking($leg->fresh(), null, $emailCustomer);
                 }
             }
         }

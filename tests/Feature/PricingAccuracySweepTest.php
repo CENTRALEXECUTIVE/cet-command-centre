@@ -132,6 +132,16 @@ class PricingAccuracySweepTest extends TestCase
         }
     }
 
+    public function test_a_far_journey_costs_the_same_in_both_directions(): void
+    {
+        $quotes = app(QuoteService::class);
+        foreach (self::OUT_OF_AREA as $address) {
+            $there = $quotes->quote($address, 'Manchester Airport', $this->exec());
+            $back = $quotes->quote('Manchester Airport', $address, $this->exec());
+            $this->assertEqualsWithDelta($there['price'], $back['price'], 0.01, "{$address}: there £{$there['price']} vs back £{$back['price']}");
+        }
+    }
+
     public function test_arrivals_are_priced_the_same_way_as_departures(): void
     {
         $quotes = app(QuoteService::class);
@@ -152,8 +162,9 @@ class PricingAccuracySweepTest extends TestCase
         $pricer = app(FreeRoamPricer::class);
         foreach (self::OUT_OF_AREA as $address) {
             $q = $quotes->quote($address, 'Manchester Airport', $this->exec());
-            $miles = $this->miles($address);
-            // Every mile (not just the miles past the radius), at £1, rounded to £5.
+            // Drag to the FAR end of the journey (same price both ways): the far address or
+            // the airport (stubbed at 40 mi), whichever is further. Every mile, £1, to £5.
+            $miles = max($this->miles($address), 40.0);
             $this->assertEqualsWithDelta($pricer->deadMileageCharge($miles), $q['dead_mileage'], 0.01, "drag for {$address}");
             $this->assertEqualsWithDelta($q['dead_mileage'], round($miles / 5) * 5, 0.01, "{$address}: drag must be the WHOLE {$miles} mi");
             $this->assertEqualsWithDelta($pricer->price('executive', 90.0) + $q['dead_mileage'], $q['price'], 0.01, "total for {$address}");

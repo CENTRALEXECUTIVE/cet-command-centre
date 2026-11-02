@@ -212,25 +212,28 @@ class QuoteService
         }
         $price = $this->freeRoam->price($slug, $d['miles']);
 
-        // Out-of-area dead mileage: the empty run from base out to a far pickup is
-        // added on top of the booked journey. Only when we can price the journey
-        // and have a base address to measure from.
+        // Out-of-area dead mileage ("drag"), measured to whichever end of the journey is
+        // FURTHEST from base. The driver runs empty out to the pickup AND home from the
+        // drop-off, so A→B and B→A cost the same real miles — the directors chose the
+        // SAME price both ways (Nov 2026): Kidderminster→MAN and MAN→Kidderminster both
+        // carry the 113.9 mi drag. Only when we can price the journey and have a base.
         $dead = 0.0;
         $deadMiles = null;
         if ($price !== null && filled($base = (string) config('cet.base.address'))) {
-            // Base is fixed, so cache base→pickup per pickup to avoid a second
-            // Google call on every quote (the instant-quote widget re-quotes often).
-            $deadLeg = \Illuminate\Support\Facades\Cache::remember(
-                'deadleg:'.md5(strtolower(trim($pickup))),
-                now()->addDay(),
-                fn () => $this->distance->resolve($base, $pickup),
-            );
-            // Couldn't measure the empty run out → the drag would silently be £0 on a
-            // possibly far pickup. Office confirms instead.
-            if (($deadLeg['source'] ?? null) === 'estimate' && $this->distance->configured()) {
-                return $this->officeToConfirm();
+            $deadMiles = 0.0;
+            foreach ([$pickup, $destination] as $end) {
+                // Cached per address per day (base is fixed; the widget re-quotes often).
+                $leg = \Illuminate\Support\Facades\Cache::remember(
+                    'deadleg:'.md5(strtolower(trim($end))),
+                    now()->addDay(),
+                    fn () => $this->distance->resolve($base, $end),
+                );
+                // Couldn't measure → the drag could silently be £0 on a far job. Office confirms.
+                if (($leg['source'] ?? null) === 'estimate' && $this->distance->configured()) {
+                    return $this->officeToConfirm();
+                }
+                $deadMiles = max($deadMiles, (float) ($leg['miles'] ?? 0));
             }
-            $deadMiles = $deadLeg['miles'] ?? null;
             $dead = $this->freeRoam->deadMileageCharge($deadMiles);
             $price += $dead;
         }

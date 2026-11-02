@@ -68,11 +68,11 @@ class PaymentController extends Controller
         $booking->payments()->where('status', '!=', 'paid')
             ->update(['status' => 'paid', 'paid_at' => now()]);
 
-        // Run the same paid flow a provider webhook would: confirm the booking, email
-        // the customer the paid receipt + invoice, and the office the "payment received"
-        // notice. Idempotent (guarded flags), so it never double-sends.
-        app(\App\Services\BookingStatusService::class)->onFarePaid($booking->fresh());
+        // Run the paid flow (confirm the booking + the office's "payment received"
+        // notice) but NOT the customer email: nothing auto-sends to customers from a
+        // manual mark-paid — the office sends it with 'Send confirmation to customer'.
+        app(\App\Services\BookingStatusService::class)->onFarePaid($booking->fresh(), emailCustomer: false);
 
-        return back()->with('status', "Booking {$booking->reference} marked as paid.");
+        return back()->with('status', "Booking {$booking->reference} marked as paid — the office has been notified. Use 'Send confirmation to customer' in Payment history to email the customer.");
     }
 }

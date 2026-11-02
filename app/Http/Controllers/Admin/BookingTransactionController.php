@@ -250,7 +250,8 @@ class BookingTransactionController extends Controller
     private function settleIfPaid(Booking $booking): void
     {
         if ($booking->fresh()->fareIsPaid()) {
-            app(\App\Services\BookingStatusService::class)->onFarePaid($booking->fresh());
+            // Office-recorded payment: notify the office only; the customer copy is sent by hand.
+            app(\App\Services\BookingStatusService::class)->onFarePaid($booking->fresh(), emailCustomer: false);
         }
     }
 

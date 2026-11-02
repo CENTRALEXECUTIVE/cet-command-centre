@@ -2035,7 +2035,7 @@
                     <a href="{{ route('bookings.confirmation-email.preview', $booking) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px;font-size:13px">👁 Preview confirmation</a>
                     @if($booking->customer?->email)
                         <form method="POST" action="{{ route('bookings.confirmation-email.resend', $booking) }}" onsubmit="return confirm('Re-send the booking confirmation to {{ $booking->customer->email }}?')" style="margin:0">@csrf
-                            <button class="btn btn-dark" style="padding:8px 14px;font-size:13px">✉ Resend confirmation</button>
+                            <button class="btn btn-dark" style="padding:8px 14px;font-size:13px">✉ Send confirmation to customer</button>
                         </form>
                     @else
                         <span class="hint">No customer email on file to send to.</span>

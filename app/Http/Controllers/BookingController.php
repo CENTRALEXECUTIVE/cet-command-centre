@@ -591,6 +591,8 @@ class BookingController extends Controller
         // customer about an old booking that was taken elsewhere. Idempotent.
         if ($request->user()->isAdmin()
             && filled($booking->meta['square_payment'] ?? null)
+            // A payment the OFFICE marked by hand never auto-emails the customer here.
+            && ! str_starts_with((string) ($booking->meta['square_payment']['id'] ?? ''), 'MANUAL-')
             && ($booking->payment_status !== 'paid'
                 || empty($booking->meta['paid_email_sent'])
                 || empty($booking->meta['office_email_paid_sent']))) {

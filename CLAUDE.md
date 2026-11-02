@@ -390,8 +390,11 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   jobs ring the business line (forwards to on-call), other directors ring direct.
 - **Out-of-area pricing ("drag") — Nov 2026 misquote.** Local fixed airport fares are
   ONLY for the home catchment; they skip the drag. A far pickup must be distance-priced
-  + drag: inside the free radius (15 mi) no drag, beyond it **EVERY mile** base→pickup
-  at £1, rounded to £5 (directors confirmed: Kidderminster→MAN = £215 + £115 = £330).
+  + drag: measured from base to whichever END of the journey is furthest (same price both
+  ways — directors, Nov 2026); inside the free radius (15 mi) no drag, beyond it **EVERY
+  mile** at £1, rounded to £5. Kidderminster→MAN and MAN→Kidderminster both = £215 +
+  £115 = £330 (+£10 meet & greet on the airport pickup). Manual "Mark paid" emails the
+  OFFICE only; the customer copy goes via 'Send confirmation to customer' (never auto).
   Zone rules: an unknown postcode gets NO zone (never the old "Sheffield" default);
   Doncaster = **DN1–DN12 only** (Grimsby/Scunthorpe/Goole are out of area); and a
   distance backstop (`QuoteService::localEndIsOutOfArea`, `cet.fixed_zone_max_miles`

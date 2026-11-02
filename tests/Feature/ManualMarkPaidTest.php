@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
- * When a provider webhook is missed, the office can record the payment by hand and
- * it must behave like a real payment: switch the booking to paid AND send the
- * customer the paid receipt + the office the "payment received" notice.
+ * When the office records a payment by hand it switches the booking to paid and
+ * notifies the OFFICE only. Nothing auto-sends to the customer (directors' rule):
+ * the customer's paid confirmation goes only when the office presses 'Send
+ * confirmation to customer' (preview first) in Payment history.
  */
 class ManualMarkPaidTest extends TestCase
 {
@@ -43,8 +44,7 @@ class ManualMarkPaidTest extends TestCase
 
         $this->assertTrue($booking->fresh()->fareIsPaid());
         $this->assertSame('paid', $booking->fresh()->payment_status);
-        // The customer gets the PAID confirmation, just like a webhook payment.
-        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($booking) && $m->paid === true);
+        $this->assertOfficeOnly($booking);
     }
 
     public function test_marking_an_existing_transaction_paid_settles_and_emails(): void
@@ -60,7 +60,7 @@ class ManualMarkPaidTest extends TestCase
             ->assertRedirect();
 
         $this->assertTrue($booking->fresh()->fareIsPaid());
-        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($booking) && $m->paid === true);
+        $this->assertOfficeOnly($booking);
     }
 
     public function test_the_main_mark_paid_button_settles_and_emails(): void
@@ -73,6 +73,42 @@ class ManualMarkPaidTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame('paid', $booking->fresh()->payment_status);
+        $this->assertOfficeOnly($booking);
+    }
+
+    /** Office told it's paid; the customer NOT emailed. */
+    private function assertOfficeOnly(Booking $booking): void
+    {
+        Mail::assertNotSent(BookingConfirmationMail::class);
+        Mail::assertSent(\App\Mail\OfficeBookingMail::class, fn ($m) => $m->booking->is($booking) && $m->stage === 'paid');
+    }
+
+    public function test_the_customer_gets_it_only_when_the_office_presses_send(): void
+    {
+        Mail::fake();
+        $booking = $this->unpaidCardBooking();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('payments.paid', $booking))->assertRedirect();
+        Mail::assertNotSent(BookingConfirmationMail::class);
+
+        // Opening the booking page must not "self-heal" it out to the customer either.
+        $this->actingAs($admin)->get(route('bookings.show', $booking))->assertOk();
+        Mail::assertNotSent(BookingConfirmationMail::class);
+
+        // Preview, then the office sends it: the PAID confirmation goes to the customer.
+        $this->actingAs($admin)->get(route('bookings.confirmation-email.preview', $booking))->assertOk();
+        $this->actingAs($admin)->post(route('bookings.confirmation-email.resend', $booking))->assertRedirect();
+        Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($booking) && $m->paid === true);
+    }
+
+    public function test_a_real_online_payment_still_emails_the_customer(): void
+    {
+        Mail::fake();
+        $booking = $this->unpaidCardBooking();
+        $booking->markFarePaid('pi_live_1', 120.0, 'chauffeurs'); // a Stripe/Square webhook
+        app(\App\Services\BookingStatusService::class)->onFarePaid($booking->fresh());
+
         Mail::assertSent(BookingConfirmationMail::class, fn ($m) => $m->booking->is($booking) && $m->paid === true);
     }
 

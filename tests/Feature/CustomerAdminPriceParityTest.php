@@ -388,9 +388,11 @@ class CustomerAdminPriceParityTest extends TestCase
         $this->assertEqualsWithDelta(298.75, $r['cust_pay'], 0.001);
 
         // Out on Christmas Day, back on an ordinary day → only the outbound is uplifted.
+        // Same price both ways: each leg carries the drag to Leeds (the far end), so the
+        // standard fare is £140 per leg; Christmas +50% on the outbound → £210.
         $r = $this->compare('Sheffield S1 2HH', 'Leeds LS1 4DY', 'return', $exec, [], false, null, '2026-12-25T10:00', '2027-01-05T10:00');
         $this->assertTrue($r['match'], $this->row($r));
-        $this->assertEqualsWithDelta(157.50, $r['cust_out'], 0.001);
+        $this->assertEqualsWithDelta(210.00, $r['cust_out'], 0.001);
         $this->assertEqualsWithDelta(140.00, $r['cust_ret'], 0.001);
     }
 
@@ -427,18 +429,19 @@ class CustomerAdminPriceParityTest extends TestCase
     public function test_parity_admin_stores_each_return_leg_at_its_own_quoted_fare(): void
     {
         // Kidderminster round trip through bookings.store: outbound £215 + £115 drag =
-        // £330; return Premier Inn MAN → Kidderminster: £215 + £40 drag (base → MAN) +
-        // £10 airport pickup = £265. The customer side now stores the same two legs.
+        // £330; return Premier Inn MAN → Kidderminster: SAME price both ways (drag to
+        // the far end, Kidderminster, 113.9 mi → £115) = £215 + £115 + £10 airport
+        // pickup = £340. The customer side stores the same two legs.
         $exec = $this->vt('executive');
         $adm = $this->adminStore(self::KIDDY, self::PREMIER_INN, 'return', $exec);
         $cust = $this->customer(self::KIDDY, self::PREMIER_INN, 'return', $exec);
         $this->assertEqualsWithDelta(330.0, $adm['out'], 0.01);
-        $this->assertEqualsWithDelta(265.0, $adm['ret'], 0.01);
-        $this->assertEqualsWithDelta(595.0, $adm['pays'], 0.01);
+        $this->assertEqualsWithDelta(340.0, $adm['ret'], 0.01);
+        $this->assertEqualsWithDelta(670.0, $adm['pays'], 0.01);
         $this->assertEqualsWithDelta(330.0, $cust['out'], 0.01);
-        $this->assertEqualsWithDelta(265.0, $cust['ret'], 0.01);
-        $this->assertEqualsWithDelta(595.0, $cust['shown'], 0.01);
-        $this->assertEqualsWithDelta(595.0, $cust['pay'], 0.01);
+        $this->assertEqualsWithDelta(340.0, $cust['ret'], 0.01);
+        $this->assertEqualsWithDelta(670.0, $cust['shown'], 0.01);
+        $this->assertEqualsWithDelta(670.0, $cust['pay'], 0.01);
     }
 
     public function test_via_stops_are_saved_on_both_legs_because_both_legs_are_charged(): void
