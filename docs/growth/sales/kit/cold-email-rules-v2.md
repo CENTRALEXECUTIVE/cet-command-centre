@@ -1,4 +1,4 @@
-# Cold email rules v2 (Nov 2026)
+# Cold email rules v2 (Nov 2026) — SUPERSEDED: see house-email-style.md (directors rejected this approach)
 
 Why v2: the first drafts read as promotional. They opened with who we are, listed
 services, and used vendor words. These rules come from the `cold-email` and

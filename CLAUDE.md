@@ -77,9 +77,12 @@ There were no server backups. This must never happen again.
 
 ## How to work here
 
-- **Branch:** develop on `claude/cet-command-centre-phase-1-e0jtio`. Commit with
-  clear messages and push (`git push -u origin <branch>`). Never push elsewhere
-  without permission. Only open a PR if explicitly asked.
+- **Branch:** develop on `claude/cet-command-centre-guide-r1azew` — this is the
+  branch staging auto-deploys (`CET_DEPLOY_BRANCH` in `AutoDeploy.php`), so **a push
+  IS a deploy**. The directors' rule: say what a change is, wait for them to say
+  "deploy", then push. Commit with clear messages (`git push -u origin <branch>`).
+  Never push elsewhere without permission. Only open a PR if explicitly asked.
+  (The older `claude/cet-command-centre-phase-1-e0jtio` branch is history.)
 - **Tests:** `php artisan test`. Every feature gets a PHPUnit feature test
   (`RefreshDatabase`). Keep the suite green before committing.
 - **Deploy — to `~/cet-staging` ONLY** (see the production-off-limits rule above;
@@ -403,9 +406,21 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   + opcache reset). The whole watchdog/nudge/call layer needs the `schedule:run` cron
   to actually be running — verify it if alerts/calls go silent.
 
+## Outreach / business emails — the directors' house style (Nov 2026)
+
+**Every prospecting or business email follows
+`docs/growth/sales/kit/house-email-style.md`** (two approved emails: businesses
+and chauffeur operators). In short: formal ("Dear [Name]," / "Dear Sir or
+Madam,"), about OUR service and how it helps, a short benefit bullet list, one
+polite closing question, signed "Kind regards, Central Executive Transfers". Do
+NOT open with observations about the prospect's site/news/industry, do NOT sign
+with Abdi's or Maj's name, and do NOT mention "unbranded" or driver links to
+partner operators (they expect it). The personalised-opener drafts were rejected.
+
 ## Handover to another Claude account
 
 Everything is in Git — nothing lives only in a chat. To continue elsewhere:
 point Claude Code at the same repo (`centralexecutive/cet-command-centre`) and
 the same branch, and it inherits this file. Brief it: "CET Command Centre,
-Laravel 11, continue on branch `claude/cet-command-centre-phase-1-e0jtio`."
+Laravel 11, continue on branch `claude/cet-command-centre-guide-r1azew`."
+Read `docs/HANDOVER.md` for what was built most recently and what's still open.

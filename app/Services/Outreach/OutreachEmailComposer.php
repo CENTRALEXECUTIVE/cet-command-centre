@@ -48,6 +48,12 @@ class OutreachEmailComposer
 
         $text = self::normaliseBody($text);
 
+        // House style opens "Dear [Name],". With no contact name, a formal
+        // "Dear Sir or Madam," reads properly (never "Dear there,").
+        if ($first === '') {
+            $text = str_replace(['Dear [Name],', 'Dear {first_name},'], 'Dear Sir or Madam,', $text);
+        }
+
         // Placeholders from the sales kit ("[Signature] · [Opt-out line]" on one line).
         $text = str_replace('[Signature] · [Opt-out line]', "[Signature]\n\n[Opt-out line]", $text);
         $text = strtr($text, [

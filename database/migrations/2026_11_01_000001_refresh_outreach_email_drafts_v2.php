@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * ONE-OFF data refresh, applied by auto-deploy's `migrate --force`. The first
- * emails in docs/growth/sales were rewritten again (v2) to read like a person,
- * not a brochure (docs/growth/sales/kit/cold-email-rules-v2.md). This replaces the drafted
+ * emails in docs/growth/sales were rewritten to the directors' approved house style
+ * (docs/growth/sales/kit/house-email-style.md). This replaces the drafted
  * subject + body ONLY on prospects still 'new' (never emailed) whose email the
  * directors haven't edited by hand. Status, notes, owner and dates are never
  * touched; do-not-contact is never touched. Guarded to a no-op in tests.

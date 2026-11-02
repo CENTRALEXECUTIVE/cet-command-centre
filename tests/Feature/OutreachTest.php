@@ -192,6 +192,21 @@ class OutreachTest extends TestCase
         $this->assertStringNotContainsString('+', $url);
     }
 
+    public function test_house_style_greets_sir_or_madam_when_there_is_no_contact_name(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $named = $this->prospect(['email_body' => "Dear [Name],\n\nBody.\n\nKind regards,\n[Signature]\n\n[Opt-out line]"]);
+        $unnamed = $this->prospect(['company' => 'Nameless Ltd', 'contact_name' => null, 'contact_email' => 'info@nameless.test',
+            'email_body' => "Dear [Name],\n\nBody.\n\nKind regards,\n[Signature]\n\n[Opt-out line]"]);
+
+        $c = app(OutreachEmailComposer::class);
+        $this->assertStringStartsWith('Dear Jane,', $c->firstEmail($named->fresh(), $admin)['body']);
+        $body = $c->firstEmail($unnamed->fresh(), $admin)['body'];
+        $this->assertStringStartsWith('Dear Sir or Madam,', $body);
+        $this->assertStringContainsString("Kind regards,\nCentral Executive Transfers", $body);
+        $this->assertStringNotContainsString('Abdi', $body);
+    }
+
     public function test_prospect_page_shows_mailto_and_hides_it_for_do_not_contact(): void
     {
         $admin = User::factory()->admin()->create(['name' => 'Maj']);
@@ -205,11 +220,11 @@ class OutreachTest extends TestCase
             ->assertSee('Mark emailed')
             ->assertSee('Day-4 follow-up')
             ->assertSee('Day-10 follow-up')
-            ->assertSee('Directors, Central Executive Transfers');
+            ->assertSee('0114 399 8242');
 
         // The merged draft expands the kit placeholders (the raw text stays editable).
         $merged = app(OutreachEmailComposer::class)->firstEmail($p->fresh(), $admin)['body'];
-        $this->assertStringStartsWith("Hello Jane,\n\nHi.\n\nAbdi & Maj\nDirectors", $merged);
+        $this->assertStringStartsWith("Hello Jane,\n\nHi.\n\nCentral Executive Transfers\n0114", $merged);
         $this->assertStringNotContainsString('[', $merged);
         $this->assertStringContainsString('just let us know', $merged);
 
