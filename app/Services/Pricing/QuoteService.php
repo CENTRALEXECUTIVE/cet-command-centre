@@ -504,7 +504,9 @@ class QuoteService
             if (str_starts_with($outward, 'DE4')) {      // Matlock (DE4)
                 return ['matlock'];
             }
-            if (str_starts_with($outward, 'S')) {
+            // Sheffield is "S" + digits (S1–S99). NOT any code that merely starts with S —
+            // ST (Stoke), SO (Southampton), SA (Swansea), SE (London), SK (Stockport)…
+            if (preg_match('/^S\d{1,2}$/', $outward)) {
                 return ['sheffield'];
             }
 

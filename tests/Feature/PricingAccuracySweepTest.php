@@ -243,6 +243,20 @@ class PricingAccuracySweepTest extends TestCase
         $this->app->instance(DistanceService::class, $distance);
     }
 
+    public function test_postcodes_that_merely_start_with_s_are_not_sheffield_even_with_maps_down(): void
+    {
+        $this->mapsDown(); // no distance backstop — the postcode rules alone must be right
+        $quotes = app(QuoteService::class);
+        foreach (['Stoke-on-Trent ST4 1AA', 'Southampton SO14 2AA', 'Swansea SA1 1AA', 'London SE1 7PB', 'Stockport SK1 1AA', 'Salisbury SP1 1AA'] as $address) {
+            $q = $quotes->quote($address, 'Manchester Airport', $this->exec());
+            $this->assertFalse($q['fixed'] ?? false, "MISQUOTE: {$address} got the Sheffield fixed fare (£{$q['price']})");
+        }
+        // Real Sheffield postcodes still do.
+        foreach (['Sheffield S1 2HH', 'Sheffield S10 2TN', 'Sheffield S35 2PH'] as $address) {
+            $this->assertTrue($quotes->quote($address, 'Manchester Airport', $this->exec())['fixed'], "{$address} should be fixed");
+        }
+    }
+
     public function test_a_customer_booking_with_maps_down_goes_to_the_office_not_a_guessed_price(): void
     {
         Mail::fake();
