@@ -674,6 +674,9 @@ class BookingWidgetController extends Controller
             $return = Booking::create([
                 'reference' => $returnRef,
                 'customer_id' => $customer->id,
+                // An account trip bills BOTH legs to the account (the monthly invoice
+                // picks legs up by corporate_account_id) — never a card job.
+                'corporate_account_id' => $account?->id,
                 'vehicle_type_id' => $vehicleType->id,
                 'journey_type' => 'return',
                 'is_return_leg' => true,
@@ -687,8 +690,9 @@ class BookingWidgetController extends Controller
                 'status' => BookingStatus::Pending->value,
                 // A return leg never collects cash on the day (returns are card-only),
                 // so it's a card job — but it carries its OWN fare so the round trip
-                // is charged in full and the invoice shows the return priced.
-                'payment_method' => 'card',
+                // is charged in full and the invoice shows the return priced. On an
+                // account trip it's billed on the account like the outbound.
+                'payment_method' => $isAccount ? 'account' : 'card',
                 'payment_status' => 'pending',
                 'source' => 'web',
                 'quoted_price' => $returnQuoted,
@@ -711,6 +715,10 @@ class BookingWidgetController extends Controller
                     'vat_invoice_requested' => $needsInvoice,
                     'price_ex_vat' => $needsInvoice ?: null,
                     'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
+                    'payment_preference' => $isAccount ? 'account' : null,
+                    'account_booking' => $isAccount ?: null,
+                    'account_code' => $account?->account_code,
+                    'account_name' => $account?->name,
                 ], fn ($v) => $v !== null && $v !== '' && $v !== false),
             ]);
             $booking->forceFill(['linked_booking_id' => $return->id])->save();

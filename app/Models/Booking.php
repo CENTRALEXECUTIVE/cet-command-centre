@@ -6205,6 +6205,19 @@ class Booking extends Model
     }
 
     /**
+     * Was the latest recorded payment entered by the OFFICE — a hand "Mark paid"
+     * (MANUAL-…) or a ledger payment settling a whole trip (GRP-…), including the
+     * other legs it settled (…-L{id}) — rather than taken online? The customer is
+     * never auto-emailed for these; the office sends that copy by hand.
+     */
+    public function latestPaymentIsOfficeRecorded(): bool
+    {
+        $id = (string) ($this->meta['square_payment']['id'] ?? '');
+
+        return str_starts_with($id, 'MANUAL-') || str_starts_with($id, 'GRP-');
+    }
+
+    /**
      * Fold hand "Mark paid" placeholders (MANUAL-…) into the real provider
      * payments that later confirm them. Walks the history in order: each real
      * payment absorbs earlier manual entries up to its own amount, and any

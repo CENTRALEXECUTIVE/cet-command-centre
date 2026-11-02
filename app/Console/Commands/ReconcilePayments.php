@@ -71,7 +71,8 @@ class ReconcilePayments extends Command
             ->each(function (Booking $b) use ($status, &$retried) {
                 $retried++;
                 Log::warning('[reconcile] paid emails outstanding — retrying', ['booking' => $b->reference]);
-                $status->onFarePaid($b);
+                // An office-recorded payment (Mark paid) notifies the office only.
+                $status->onFarePaid($b, emailCustomer: ! $b->latestPaymentIsOfficeRecorded());
             });
 
         $this->info(($found ? "Recorded {$found} missed payment(s)." : 'Nothing missed.').($retried ? " Retried paid emails for {$retried}." : ''));

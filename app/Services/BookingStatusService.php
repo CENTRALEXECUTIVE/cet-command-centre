@@ -235,7 +235,11 @@ class BookingStatusService
         }
         $reason = '';
 
-        return ! in_array($booking->source_system, ['eto', 'calendar'], true)
+        // A payment the OFFICE recorded by hand never auto-emails the customer — the
+        // office sends that copy itself (without this, the 5-minute sweep emailed the
+        // customer after every manual "Mark paid").
+        return ! $booking->latestPaymentIsOfficeRecorded()
+            && ! in_array($booking->source_system, ['eto', 'calendar'], true)
             && $booking->customerEmailAllowed($reason)
             && ($booking->transactionsAmountDue() ?? 0) <= 0.009
             && $this->paidEmailDue($booking, 'paid_email_sent', 'paid_email_for');
@@ -294,17 +298,10 @@ class BookingStatusService
         $fresh = $booking->fresh();
 
         // Web bookings: allocation + calendar + web-paid alert (internally guarded
-        // to source=web, paid, still pending).
-        $this->confirmPaidWebBooking($fresh, null, $emailCustomer);
+        // to source=web, paid, still pending). The customer email waits until the
+        // rest of the trip is settled below, so the one receipt reads right.
+        $this->confirmPaidWebBooking($fresh, null, false);
         $fresh = $fresh->fresh();
-
-        // The two confirmation emails, each sent at most once. A payment the OFFICE
-        // recorded by hand ($emailCustomer = false) notifies the office only — the
-        // customer copy is sent with the 'Send confirmation to customer' button.
-        if ($emailCustomer) {
-            $this->emailPaidConfirmation($fresh);
-        }
-        $this->emailOffice($fresh->fresh(), 'paid');
 
         // A return CAN be paid in one go (the combined pay link charges the whole
         // trip) — but a leg is also often paid on its OWN. Only settle the other
@@ -329,14 +326,33 @@ class BookingStatusService
                     if ($leg->is($fresh) || $leg->fareIsPaid()) {
                         continue;
                     }
-                    $leg->markFarePaid($basePaymentId.'-L'.$leg->id, (float) ($leg->amountPayable() ?? 0), $entity);
-                    $leg->fresh()->reconcilePaidStatus();
-                    // Mark it paid + confirm the web booking, but DON'T send a second
-                    // customer email — this one payment already got one confirmation.
-                    $this->confirmPaidWebBooking($leg->fresh(), null, $emailCustomer);
+                    $legPaymentId = $basePaymentId.'-L'.$leg->id;
+                    $leg->markFarePaid($legPaymentId, (float) ($leg->amountPayable() ?? 0), $entity);
+                    // ONE receipt per trip: the paying leg's confirmation lists every
+                    // journey, so count it as sent for this leg too — otherwise this
+                    // leg, the reconcile sweep or opening the booking emails the
+                    // customer a duplicate.
+                    $leg = $leg->fresh();
+                    $leg->forceFill(['meta' => array_merge($leg->meta ?? [], [
+                        'paid_email_sent' => now()->toIso8601String(),
+                        'paid_email_for' => $legPaymentId,
+                    ])])->save();
+                    $leg->reconcilePaidStatus();
+                    // Mark it paid + confirm the web booking, never a customer email.
+                    $this->confirmPaidWebBooking($leg->fresh(), null, false);
                 }
             }
         }
+        $fresh = $fresh->fresh();
+
+        // The two confirmation emails, each sent at most once, AFTER the whole trip
+        // is settled (sent before, a £220 return read "Paid £115, Remaining £105").
+        // A payment the OFFICE recorded by hand ($emailCustomer = false) notifies the
+        // office only — the customer copy is sent with 'Send confirmation to customer'.
+        if ($emailCustomer) {
+            $this->emailPaidConfirmation($fresh);
+        }
+        $this->emailOffice($fresh->fresh(), 'paid');
 
         return $fresh->fresh();
     }
