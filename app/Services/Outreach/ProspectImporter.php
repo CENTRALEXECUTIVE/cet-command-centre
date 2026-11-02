@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\DB;
  *    email address).
  *  - Do-not-contact is absolute: a DNC prospect is never touched or re-opened,
  *    and a new row whose email matches a DNC prospect's email is skipped too.
+ *  - Fill-only mode (a contacts file, docs/growth/sales/contacts.csv): rows only
+ *    fill blanks on prospects that already exist; a row that matches nothing is
+ *    skipped, never created. A file with an `email_source_url` column is always
+ *    treated as fill-only, so uploading it on /outreach is safe too. The source
+ *    URL is written to the prospect's history.
  *  - The file is only read, never stored.
  */
 class ProspectImporter
@@ -56,11 +61,13 @@ class ProspectImporter
      * existing prospect that is still 'new' (never emailed) and whose email the
      * directors haven't edited by hand. Used when the copy is rewritten centrally.
      *
-     * @return array{created:int, duplicates:int, filled:int, refreshed:int, dnc_skipped:int, invalid:int, errors:array<int,string>}
+     * $fillOnly: only fill blanks on existing prospects; never create one.
+     *
+     * @return array{created:int, duplicates:int, filled:int, refreshed:int, dnc_skipped:int, invalid:int, unmatched:int, errors:array<int,string>}
      */
-    public function import(string $path, ?int $ownerId = null, ?int $actorId = null, bool $refreshDrafts = false): array
+    public function import(string $path, ?int $ownerId = null, ?int $actorId = null, bool $refreshDrafts = false, bool $fillOnly = false): array
     {
-        $stats = ['created' => 0, 'duplicates' => 0, 'filled' => 0, 'refreshed' => 0, 'dnc_skipped' => 0, 'invalid' => 0, 'errors' => []];
+        $stats = ['created' => 0, 'duplicates' => 0, 'filled' => 0, 'refreshed' => 0, 'dnc_skipped' => 0, 'invalid' => 0, 'unmatched' => 0, 'errors' => []];
 
         $fh = @fopen($path, 'r');
         if (! $fh) {
@@ -86,6 +93,8 @@ class ProspectImporter
 
                 return $stats;
             }
+            // A contacts file (has email_source_url) only ever fills existing prospects.
+            $fillOnly = $fillOnly || in_array('email_source_url', $columns, true);
 
             $line = 1;
             while (($row = fgetcsv($fh, 0, $delimiter, '"', '')) !== false) {
@@ -99,7 +108,7 @@ class ProspectImporter
                         $assoc[$col] = isset($row[$i]) ? trim((string) $row[$i]) : '';
                     }
                 }
-                $this->importRow($assoc, $line, $ownerId, $actorId, $stats, $refreshDrafts);
+                $this->importRow($assoc, $line, $ownerId, $actorId, $stats, $refreshDrafts, $fillOnly);
             }
         } finally {
             fclose($fh);
@@ -108,7 +117,7 @@ class ProspectImporter
         return $stats;
     }
 
-    private function importRow(array $raw, int $line, ?int $ownerId, ?int $actorId, array &$stats, bool $refreshDrafts = false): void
+    private function importRow(array $raw, int $line, ?int $ownerId, ?int $actorId, array &$stats, bool $refreshDrafts = false, bool $fillOnly = false): void
     {
         $data = $this->clean($raw);
         if (($data['company'] ?? '') === '') {
@@ -127,8 +136,15 @@ class ProspectImporter
                 return;
             }
             $stats['duplicates']++;
-            $this->fillBlanks($existing, $data, $actorId) && $stats['filled']++;
+            $this->fillBlanks($existing, $data, $actorId, $this->sourceNote($raw)) && $stats['filled']++;
             $refreshDrafts && $this->refreshDraft($existing, $data, $actorId) && $stats['refreshed']++;
+
+            return;
+        }
+
+        if ($fillOnly) {
+            $stats['unmatched']++;
+            $stats['errors'][] = "Line {$line}: no existing prospect for \"{$data['company']}\" — skipped (contacts files never add prospects).";
 
             return;
         }
@@ -153,6 +169,22 @@ class ProspectImporter
             $p->log('imported', 'Imported from CSV (line '.$line.')'.($optedOut ? ' — marked do not contact' : ''), $actorId);
         });
         $stats['created']++;
+    }
+
+    /** "(general inbox; source: https://…)" from a contacts file's extra columns. */
+    private function sourceNote(array $raw): ?string
+    {
+        $type = trim((string) ($raw['email_type'] ?? ''));
+        $url = trim((string) ($raw['email_source_url'] ?? ''));
+        if ($type === '' && $url === '') {
+            return null;
+        }
+        $parts = array_filter([
+            $type !== '' ? mb_substr($type, 0, 40).' address' : null,
+            $url !== '' ? 'source: '.mb_substr($url, 0, 500) : null,
+        ]);
+
+        return ' ('.implode('; ', $parts).')';
     }
 
     /** Replace the drafted first email on a never-emailed prospect, unless a director edited it. */
@@ -181,7 +213,7 @@ class ProspectImporter
     }
 
     /** Fill only the existing prospect's blank fields. Never status/notes/owner/dates. */
-    private function fillBlanks(Prospect $p, array $data, ?int $actorId): bool
+    private function fillBlanks(Prospect $p, array $data, ?int $actorId, ?string $note = null): bool
     {
         $filled = [];
         foreach (self::FIELDS as $f) {
@@ -197,7 +229,8 @@ class ProspectImporter
             return false;
         }
         $p->save();
-        $p->log('edited', 'Re-import filled blank fields: '.implode(', ', $filled), $actorId);
+        $p->log('edited', 'Re-import filled blank fields: '.implode(', ', $filled)
+            .(in_array('contact_email', $filled, true) && $note ? $note : ''), $actorId);
 
         return true;
     }

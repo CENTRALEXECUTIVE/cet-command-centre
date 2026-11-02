@@ -12,6 +12,9 @@ use Illuminate\Console\Command;
  * never re-opened). Read-only on the file; sends nothing.
  *
  *   php artisan cet:import-prospects docs/growth/sales/2026-10-28-prospects.csv --owner=maj@…
+ *
+ * A contacts file (docs/growth/sales/contacts.csv, has an email_source_url
+ * column) only fills blank fields on existing prospects and never adds any.
  */
 class ImportProspects extends Command
 {
@@ -60,6 +63,7 @@ class ImportProspects extends Command
         return "Prospects: {$s['created']} added, {$s['duplicates']} duplicate(s) skipped"
             .($s['filled'] ? " ({$s['filled']} had blank fields filled)" : '')
             .", {$s['dnc_skipped']} do-not-contact skipped"
-            .($s['invalid'] ? ", {$s['invalid']} invalid row(s)" : '').'.';
+            .($s['invalid'] ? ", {$s['invalid']} invalid row(s)" : '')
+            .(! empty($s['unmatched']) ? ", {$s['unmatched']} unmatched contact row(s) skipped" : '').'.';
     }
 }

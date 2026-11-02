@@ -94,7 +94,7 @@
                 @forelse($prospects as $p)
                     <tr style="{{ $p->isClosed() ? 'opacity:.6' : '' }}">
                         <td data-label="Company"><a href="{{ route('outreach.show', $p) }}"><strong>{{ $p->company }}</strong></a><br><span class="muted" style="font-size:12px">{{ $p->segment }}{{ $p->town ? ' · '.$p->town : '' }}</span></td>
-                        <td data-label="Contact" style="font-size:13px">{{ $p->contact_name ?: '—' }}<br><span class="muted">{{ \Illuminate\Support\Str::limit($p->contact_role, 40) }}</span></td>
+                        <td data-label="Contact" style="font-size:13px">{{ $p->contact_name ?: '—' }}<br><span class="muted">{{ \Illuminate\Support\Str::limit($p->contact_role, 40) }}</span>@if($p->contact_email && ! $p->isDoNotContact())<br><span class="mono ox-email" style="font-size:12px">{{ $p->contact_email }}</span>@endif</td>
                         <td data-label="Fit">{{ $p->fit_score ? str_repeat('★', $p->fit_score) : '—' }}</td>
                         <td data-label="Status">@include('admin.outreach._badge', ['status' => $p->status])</td>
                         <td data-label="Next action" style="font-size:13px">{{ $p->next_action_at?->format('D j M') ?? '—' }}</td>
@@ -115,6 +115,7 @@
         <p class="muted" style="margin:0 0 10px;font-size:13px">
             Columns: <span class="mono" style="font-size:12px">company, segment, town, website, why_they_need_us, contact_role, contact_name, contact_email, contact_phone, linkedin_url, fit_score, angle, source_url, email_subject, email_body</span>.
             Duplicates (same company + town) are skipped — their status and notes are never overwritten, and do-not-contact prospects are never re-opened. New prospects are owned by you. The file is read, not stored.
+            A contacts file (with an <span class="mono" style="font-size:12px">email_source_url</span> column) only fills blank emails on existing prospects and never adds new ones.
         </p>
         <form method="POST" action="{{ route('outreach.import') }}" enctype="multipart/form-data" class="ox-import">
             @csrf

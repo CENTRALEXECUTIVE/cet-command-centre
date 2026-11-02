@@ -1,0 +1,257 @@
+ref,company,town,fit_score,contact_name,contact_email,email_type,email_source_url,note
+A01,Rolls-Royce (Advanced Blade Casting Facility),"Advanced Manufacturing Park, Rotherham",5,,,,,No site or supplier email published; switchboard 01332 242424 (rolls-royce.com/contact-us). Ask for the ABCF site office.
+A02,University of Sheffield AMRC,"Advanced Manufacturing Park, Rotherham (Catcliffe/Waverley)",5,,enquiries@amrc.co.uk,general,https://amrc.co.uk/pages/finding-us,AMRC general enquiries (0114 222 9588). NOTE the app's contact_name is Prof Ben Morgan so the draft greets 'Dear Ben' - change the greeting or the name before sending to this general inbox.
+A03,Sheffield Forgemasters,"Brightside Lane, Lower Don Valley, Sheffield",5,,sales@sfel.com,general,https://www.sheffieldforgemasters.com/about-us/meet-the-team/,Only published inbox is the sales address (listed for the whole team); ask for it to go to the CEO's PA / facilities. Switchboard 0114 244 9071.
+A04,AESSEAL plc,"Mill Close, Bradmarsh Business Park, Templeborough, Rotherham",5,,enquiries@aesseal.com,general,https://www.aesseal.com/en/locations/europe/gb/syk/aesseal-plc-headquarters,HQ general enquiries (01709 369966).
+B01,CMAC Group,Accrington HQ + Manchester Airport base (ComfortDelGro/CityFleet),5,,supplier.relations@cmacgroup.co.uk,role,https://www.route-one.net/suppliers/an_easier_way_to_manage_your_business_with_help_from_cmac_group,Supplier relations address published by CMAC in a 2019 trade article - may be dated. Current route is the Supplier Engagement Portal (https://www.cmacgroup.com/BecomeASupplier).
+MA01,ITM Power,"Bessemer Park, Shepcote Lane, Tinsley, Sheffield",5,,sales@itm-power.com,general,https://itm-power.com/contact,Only general inbox on the contact page is sales@ (others: press@ ir@ careers@ privacy@). Ask for it to go to the CEO's PA / facilities. Switchboard 0114 244 5111.
+MA02,Special Melted Products (SMP),"President Way, Grimesthorpe, Sheffield",5,,,,,No published email found. Switchboard 0114 272 0081.
+P01,Flint Bishop (Sheffield office),"Sheffield (1 Holly Street, by City Hall)",5,,enquiries@flintbishop.co.uk,general,https://flintbishop.co.uk/contact/solicitors-sheffield/,Sheffield office page; tel 0114 252 5378.
+P02,University of Sheffield (Corporate Events team),"Sheffield (The Edge, The Diamond, The Wave, Octagon)",5,,corpevents@sheffield.ac.uk,role,https://sheffield.ac.uk/corporate-events/contact-us,Corporate Events Team inbox (VIP visits and university events). Already in the app - source now confirmed.
+P03,Sheffield DocFest (International Documentary Festival Sheffield),"Sheffield (The Workstation, 15 Paternoster Row)",5,,info@sheffdocfest.com,general,https://www.sheffdocfest.com/contact,General office inbox (0114 276 5141). industry@sheffdocfest.com is the industry team. Already in the app - source now confirmed.
+D01,TBR Global Chauffeuring (Lyft),"Glasgow HQ; London (Fleetway Business Park, Wadsworth Road); Manchester",5,,res.uk@tbrglobal.com,general,https://www.tbrglobal.com/contact/,UK/EMEA desk (Glasgow) - no affiliate address published; partner applications via https://www.tbrglobal.com/work-with-us/. Ask for Affiliate Relations.
+D02,First Travel Solutions (FirstGroup),Accrington HQ (Clayton Business Park); 24/7 ops centres in Accrington and Leeds,5,,travel.solutions@firstbus.co.uk,general,https://visitwest.co.uk/business-support/suppliers/first-travel-solutions-ltd,Published general enquiries inbox (0345 528 0270); ask for supplier onboarding. (The batch file had extra text in the email cell so it never loaded - this fixes it.)
+E01,NCM UK (Neuro Case Management UK),"Kiveton Park, Sheffield S26 (head office, South Yorkshire)",5,,enquiries@ncmuk.co.uk,general,https://aspectpublishing.shorthandstories.com/neuro-case-management/index.html,Company profile (NR Times); tel 01909 770152. Already in the app - source now confirmed.
+E02,Birchwood & Co Case Management Ltd,"Campo Lane, Sheffield S1",5,,,,,No published email found; CQC lists tel 0114 400 0188 (https://cqc.org.uk/provider/1-14688830034/contact).
+F35,Frasers Group (Shirebrook HQ),"Unit A, Brook Park East, Shirebrook (Bolsover district)",5,,,,,Only a press inbox is published (not appropriate). Use the website/switchboard.
+G01,SCS (Specialist Chauffeur Services),Cheshire HQ (Feefo lists a Wrexham address); nationwide,5,,,,,No published email found; check scschauffeur.co.uk contact page.
+A05,Boeing Sheffield,"Sheffield Business Park / AMP border, Catcliffe",4,,,,,Not researched this run.
+A06,Unipart Rail,"Trax Park, White Rose Way, Doncaster",4,,enquiries@unipartrail.com,general,https://www.unipartrail.com/poweru-range/,Company general enquiries (Crewe-based desk); ask for the Doncaster MD's office.
+A07,Irwin Mitchell,"Sheffield (HQ; moving ~1,000 staff to Elshaw House, Heart of the City)",4,,,,,No office inbox published; Sheffield 0114 299 6003.
+A08,McLaren Automotive - Composites Technology Centre,"Advanced Manufacturing Park, Rotherham",4,,,,,Not researched this run.
+A09,Gripple Ltd,"Old West Gun Works, Savile Street East, Sheffield",4,,info@gripple.com,general,https://www.gripple.com/about-gripple/people-and-places/our-places/norfolk-bridge-works/,Group general inbox; HQ 0114 275 2255.
+A10,World Snooker Tour (WST),"Crucible Theatre, Sheffield (event); WST office London",4,,,,,Only ticketing@ and playsupport@ are published (not appropriate).
+A11,Howmet Aerospace (Firth Rixson Metals),"Atlas Way & Ecclesfield, Sheffield",4,,,,,No published email; Sheffield 0114 219 3000.
+A12,DLA Piper (Sheffield office),"Elshaw House, Heart of the City, Sheffield",4,Amanda Pilkington,amanda.pilkington@dlapiper.com,named,https://www.dlapiper.com/en/people/p/pilkington-amanda,Office Managing Partner Sheffield per her DLA Piper profile. The app's contact_name still says Petra Billing - change it to Amanda Pilkington before sending so the greeting is right.
+B02,Addison Lee,London (ComfortDelGro/CityFleet group),4,,,,,Partnerships page address is not readable in search; use the form at https://www.addisonlee.com/partnerships/ or +44 20 3800 0365.
+B03,EG Chauffeurs,"London HQ, UK-wide via vetted partners",4,,info@egchauffeurs.com,general,https://theflyingengineer.com/listing/eg-chauffeurs-london-uk/,Directory listing (company domain). Still check Ltd status on Companies House before emailing.
+B06,Blacklane,Berlin; operates in UK cities incl. Leeds,4,,partner@blacklane.com,role,https://partner-help.blacklane.com/en/articles/16306113-how-can-i-operate-in-another-city,Partner team inbox; applications go through https://partner-onboarding.blacklane.com/en/registration/.
+B07,Sixt ride (formerly mydriver),Sixt; UK marketplace,4,,ride-sales@sixt.com,role,https://www.sixt.com/ride/become-a-partner/B2P/,Partner page contact; register via the online form first.
+MA03,Independent Forgings and Alloys (IFA),"Livesey Street, Owlerton, Sheffield",4,,,,,Only a named sales contact in a third-party directory - not used. Switchboard 0114 234 3000.
+MA04,Marcegaglia Sheffield (stainless melt shop),"Shepcote Lane, Tinsley, Sheffield",4,,,,,Only named sales staff published on sheffield.marcegaglia.com/contacts-sales/ - not the right contact.
+MA05,Danieli UK,"Advanced Manufacturing Park, Waverley, Rotherham",4,,,,,No published email found.
+MA06,Primetals Technologies UK,"Unit S, Europa Link, Sheffield Business Park, Sheffield S9 1XU",4,,,,,No published office email; contact form on primetals.com.
+MA07,Nikken Kosakusho Europe,"Advanced Manufacturing Park (Innovation Centre) and Barbot Hall, Rotherham",4,,,,,No published email; Rotherham 01709 366306 (lyndexnikken.com worldwide offices).
+MA08,Vulcan Seals,"Troutbeck Road, Sheffield - moving to Advanced Manufacturing Park, Rotherham",4,,contact@vulcanseals.com,general,https://www.vulcanseals.com/contact,Sheffield office general inbox (0114 249 3333).
+MA09,William Cook Cast Products,"Parkway Avenue, Sheffield S9 (plus Holbrook)",4,,castproducts@william-cook.co.uk,general,https://www.castmetalsfederation.com/?p=4053,Cast Metals Federation member listing; tel 0114 273 1252.
+MA10,Cooper & Turner,"Templeborough Works, Sheffield Road, Rotherham/Sheffield",4,Dave Edwards,dave.edwards@cooperandturner.co.uk,named,https://directory.masscec.com/listing/cooper-turner-ltd-609e6314e70ca.html,General Manager UK Manufacturing (company's own directory listing). The app's contact_name says Anthony Brown - change it to Dave Edwards before sending.
+P04,CMS (Sheffield office),"Sheffield (1-3 Charter Square, Heart of the City)",4,,,,,No office inbox; firm uses an online enquiry form. Switchboard 0114 279 4000.
+P05,Freeths (Sheffield office),"Sheffield (5th Floor, 3 St Paul's Place)",4,,,,,General enquiries via form; Sheffield Office Managing Partner is Peter Crawford (email link on his profile not readable in search).
+P06,Cutlers' Hall (Company of Cutlers in Hallamshire),"Sheffield (Church Street, S1 1HG)",4,,,,,No published events inbox found; phone 0114 272 8456.
+P07,Mercure Sheffield St Paul's Hotel & Spa,"Sheffield (119 Norfolk Street, S1 2JE)",4,,,,,Only a hotel inbox on a third-party 2019 conference page - not used. Phone 0114 278 2000.
+P08,Doncaster Racecourse (Conventex / hospitality),"Doncaster (Leger Way, DN2 6BB)",4,,events@doncaster-racecourse.co.uk,role,https://www.doncaster-racecourse.co.uk/downloads/Doncaster-Racecourse-Conferences-Brochure.pdf,Events address in the official conferences brochure (already in the app). Conference bookings: conventex@doncaster-racecourse.co.uk (https://www.doncaster-racecourse.co.uk/news/local-business/conventex-more-than-racing).
+P09,Spire Claremont Hospital,"Sheffield (401 Sandygate Road, Crosspool, S10 5UB)",4,,claremontenquiries@spirehealthcare.com,general,https://www.spirehealthcare.com/media/31098/consultant-directory-2025.pdf,Hospital general enquiries (2025 consultant directory). Ask for the PA to the hospital director.
+C01,Laing O'Rourke - Explore Manufacturing,"Explore Way, Steetley, Worksop (Bassetlaw)",4,,,,,No site inbox published.
+C02,ILIOS (STEP Fusion construction partner; Kier-led JV),"STEP site, West Burton, Bassetlaw (near Retford)",4,,,,,No ILIOS contact published.
+C03,Keepmoat,"The Waterfront, Lakeside Boulevard, Doncaster DN4 5PL",4,,,,,No general inbox; head office 01302 896 800.
+C04,DFS Furniture plc,"1 Rockingham Way, Redhouse Interchange, Adwick-le-Street, Doncaster DN6 7NA",4,,,,,Corporate addresses masked; only careers/customer routes readable.
+C05,WITRON UK (automation for Home Bargains DC),"Unity, Doncaster (project site); UK office [verify]",4,,info@witron.co.uk,general,https://witron.de/en/contact,UK subsidiary (Keele) general inbox; tel 01782 641119.
+C06,Good Travel Management (John Good Group),Hull HQ; Leeds office at Thorpe Park; also Grimsby and Hagley,4,,,,,No general inbox found; tel 0330 004 0520.
+C07,Traveleads,"Millshaw, Leeds LS11 8EG; also Edinburgh and Aberdeen",4,,,,,Only accounts@ is published; corporate travel line 0113 245 7745.
+C08,Clarity Business Travel (incl. Agiito and Evolvi),"UK, multiple offices [verify nearest office]",4,,salessupport@claritybt.com,general,https://www.claritybusinesstravel.com/form/new_client_account_application_full,Sales support inbox (no supplier address published); ask for ground transport supplier relations.
+D03,Little's Chauffeur Drive,"Glasgow, Edinburgh and Aberdeen",4,,reservations@littles.co.uk,general,https://www.luxuryscotland.co.uk/partners/littles-chauffeur-drive/,Reservations inbox (0141 883 2111); ask for operations / business development.
+D04,Parkers Chauffeurs (Pneuma Group),Near Newcastle International Airport,4,,,,,No published email found.
+D05,Passenger Plus,UK [verify base],4,,info@passengerplus.co.uk,general,https://www.passengerplus.co.uk/contact-us.htm,General inbox (01737 300205); based in Ashford Kent.
+D06,Portman Chauffeurs Worldwide,London,4,,,,,No published email found.
+D07,Leicester Executive Chauffeurs Ltd (incl. East Midlands Airport Taxis),"Ratby / Groby Road, Leicester (Companies House 10925273)",4,,travel@lec.ltd,general,https://www.leicesterexecutivechauffeurs.co.uk/contact-page/,Main contact inbox (0116 3214 161).
+D08,Transferz,"Amsterdam; 151 countries, 1,200+ airports/stations",4,,transfercompanies@transferz.com,role,https://www.transferz.com/contact,Inbox for transfer companies; apply via https://www.transferz.com/become-a-partner/.
+D09,Carey International (Alliance Partner Network),US HQ; UK affiliates,4,,,,,Alliance page uses an email button not readable in search: https://www.carey.com/alliance-partner-network/.
+E03,J S Parker Ltd,"Carter Knowle Road, Sheffield S7 (verify current office)",4,,,,,No published email found (CQC lists a London address).
+E07,HCML (Health Case Management Ltd),Croydon head office; Manchester office (national coverage),4,,info@hcml.co.uk,general,https://hcml.co.uk/contact-us/,General enquiries (020 8649 8006).
+E08,Corporé Ltd,"Tithebarn House, Liverpool (nationwide)",4,,,,,info@corpore.co.uk is already in the app from batch E; not re-verified this run.
+E10,STEPS Rehabilitation Ltd (STEPS Neurological and Trauma Rehabilitation Centre),"Troutbeck Road, Sheffield S7",4,,,,,No published email found.
+E14,Park Hill Hospital (Ramsay Health Care),"Thorne Road, Doncaster",4,Joanne Bedford,,,,No email published; Hospital Director Joanne Bedford 01302 553 323 (https://www.ramsayhealth.co.uk/hospitals/park-hill-hospital/contact).
+E15,Optegra Sheffield Eye Hospital,"Carbrook Triangle, Sheffield S9 (near Meadowhall)",4,,icare@optegra.com,general,https://www.optegra.com/eye-conditions/,Patient services inbox (0800 086 1064). Already in the app - source now confirmed.
+E16,UKAT — Linwood House,Barnsley,4,,info@ukat.co.uk,general,https://www.ukat.co.uk/contact-us/,Group general inbox (admissions); no Linwood-specific address.
+E18,Switalskis Solicitors (incl. Atherton Godfrey),"Paradise Square, Sheffield; Lakeside, Doncaster",4,,,,,Only a complaints inbox is published; Sheffield 0114 349 2300.
+E27,Newmedica Eye Clinic — Barlborough,"Midland Place, Barlborough Links, Chesterfield (serves Sheffield)",4,,barlborough@newmedica.co.uk,role,https://www.newmedica.co.uk/clinics/barlborough/,Clinic inbox (01246 739005).
+F01,SHI International - Nexus Integration Centre,"Capitol Park, Dodworth, Barnsley (M1 J37)",4,,,,,No site inbox; UK contact form at https://www.uk.shi.com/customerservice/contact-us.
+F02,JTEKT Automotive England (formerly Koyo Bearings Europe),"Elmhirst Lane, Dodworth, Barnsley",4,,,,,No published email; tel 01226 733200.
+F03,Esco Pharma (Esco group),"R-evolution @ Gateway 36, Hoyland, Barnsley (M1 J36)",4,,,,,Email masked on escopharma.com; tel 01226 360799.
+F11,Bekaert (Bridon) - Doncaster ropes site and Ropes Technology Centre,Doncaster,4,,,,,No Doncaster inbox found.
+F36,ITP Aero UK,"Hucknall, Nottinghamshire (Ashfield district, M1 J27)",4,,,,,Only a press contact published.
+F37,Thorntons (Ferrero) - Alfreton factory,"Alfreton, Derbyshire (M1 J28)",4,,,,,Not researched this run.
+G02,Blacklane (partner application),Berlin HQ; operates in UK cities (incl. Leeds per earlier research),4,,partner@blacklane.com,role,https://partner-help.blacklane.com/en/articles/16306113-how-can-i-operate-in-another-city,Same partner inbox as B06 - send once only.
+G03,Drivania,Barcelona HQ; global (190+ countries via Universal JV),4,,info@drivania.com,general,https://drivania.com/contact/,General inbox; ask for supplier / network quality team.
+G04,Sunny's Worldwide UK Limited,"UK; US HQ Sterling, Virginia",4,,,,,No UK email published.
+A13,Genuit Group plc (Polypipe Building Products),"Broomhouse Lane, Edlington, Doncaster",3,,,,,No site inbox found (only product technical inboxes).
+A14,BHP Chartered Accountants,"Albert Works, Sheffield (also Chesterfield)",3,,info@bhp.co.uk,general,https://bhp.co.uk/contact-the-bhp-team/,Firm general inbox; Sheffield 0114 266 7171.
+A15,Sheffield Hallam University,"City Campus, Sheffield",3,,,,,Not researched this run.
+A16,UK Atomic Energy Authority - Fusion Technology Facility,"Advanced Manufacturing Park, Rotherham",3,,,,,Not researched this run.
+A17,Chatsworth (corporate events),"Chatsworth, Bakewell, North Derbyshire",3,,,,,Events team by web form or 01246 565366 (https://www.chatsworth.org/hospitality/corporate-events/).
+A18,Crowne Plaza Royal Victoria Sheffield,"Victoria Station Road, Sheffield",3,,stay@cpsheffield.co.uk,role,https://www.ihg.com/crowneplaza/hotels/gb/en/sheffield/emauk/hoteldetail,Front desk / reservations inbox (0114 276 8822). Events: inhouseevents@cpsheffield.co.uk (hotel banquet brochure).
+A19,Nigel Wright Group (Sheffield),Sheffield office,3,,marketingdept@nigelwright.com,general,https://www.nigelwright.com/uk/sheffield-executive-recruitment,The only inbox given on the Sheffield pages.
+B04,Reed & Mackay (Navan Group),London,3,,,,,Not researched this run.
+B05,Suntransfers (CMAC Group),Barcelona; part of CMAC Group,3,,,,,Only an affiliates (publisher) inbox found - not the supplier route.
+B08,Jayride,Sydney; global,3,,,,,Supplier sign-up via https://www.jayride.com/transport-companies (no supplier inbox).
+B09,Holiday Taxis (Hotelbeds),UK HQ; global,3,,,,,No supplier contact found.
+B10,Chauffeur Services Group (Manchester),Manchester; Manchester Airport incl. private jet terminal,3,,info@chauffeurservicesgroup.co.uk,general,https://theflyingengineer.com/listing/chauffeur-services-group-manchester/,Directory listing; the same Ducie St address is shared with another firm - check Ltd status on Companies House first.
+MA11,BAE Systems (Sheffield artillery facility),"Bessemer Park, Sheffield",3,,,,,Not researched this run (supplier route expected).
+MA12,Castings Technology International (CTI),"Brunel Way, AMP, Rotherham - moving to Shepcote Lane, Sheffield",3,,info@castingstechnology.com,general,https://www.castmetalsfederation.com/?p=4194,Cast Metals Federation member listing.
+MA13,Chesterfield Special Cylinders Holdings plc,"Meadowhall Road, Sheffield S9 1BT",3,,info@chesterfieldcylinders.com,general,https://directories.gasworld.com/listing/chesterfield-special-cylinders-2/,Industry directory listing; tel 0114 242 7500.
+MA14,Metalysis,"Advanced Manufacturing Park, Rotherham",3,,,,,No published email found.
+MA15,Iceotope Technologies,"AMP Technology Centre, Brunel Way, Rotherham (registered office)",3,,,,,Not researched this run.
+MA16,TWI Yorkshire (TWI Technology Centre),"Advanced Manufacturing Park, Rotherham",3,,twiyorkshire@twi-global.com,role,https://www.twi-global.com/contact/twi-addresses/united-kingdom,Yorkshire centre inbox (0114 269 9046).
+MA17,Technicut,"Shepcote Business Park, Sheffield",3,,,,,Email masked on technicut.co.uk; tel 0114 256 0036.
+MA18,Abbey Forged Products,Sheffield,3,Steve Savage,steve.savage@abbeyfp.co.uk,named,https://connect.f4n.namrc.co.uk/profiles/abbey-forged-products-ltd,Company contact on its Fit4Nuclear profile - job title not stated; ask him to pass to the MD's PA if not him.
+MA19,Sherwin-Williams (Chapeltown plant),"Chapeltown, Sheffield",3,,,,,Not researched this run.
+MA20,Beatson Clark,"Greasbrough Road, Rotherham",3,,sales@beatsonclark.co.uk,general,https://www.beatsonclark.co.uk/contact,Only published inbox (01709 828 141).
+MA21,Swann-Morton,"Owlerton Green, Sheffield",3,,enquiries@swann-morton.com,general,https://www.swann-morton.com/contacts.php,General enquiries inbox (0114 234 4231).
+MA22,"Leviat (formerly Ancon, CRH group)","President Park, President Way, Sheffield",3,,info.uk@leviat.com,general,https://www.leviat.com/en-gb/contact-us,UK general inbox (0114 275 5224).
+P10,Knights (Sheffield office),"Sheffield (1 St Paul's Place, 121 Norfolk Street)",3,,enquiries@knightsplc.com,general,https://www.knightsplc.com/contact-us/,Firm general enquiries; Sheffield 0114 276 5555.
+P11,Wake Smith Solicitors,"Sheffield (No.1 Velocity, 2 Tenter Street, S1 4BY)",3,,,,,No published email found.
+P12,Taylor&Emmet LLP,"Sheffield (Sheffield Central; also Sheffield SW, Rotherham, Dronfield, Bakewell, London)",3,,info@tayloremmet.co.uk,general,https://www.tayloremmet.co.uk/?p=4922,Firm contact page; 0114 218 4000.
+P13,Banner Jones Solicitors,"Chesterfield / Sheffield (3rd floor Abbey House, 11 Leopold Street; also Dronfield, Mansfield)",3,,info@bannerjones.co.uk,general,https://www.bannerjones.co.uk/pages/solicitors-in-sheffield-chesterfield-mansfield-dronfield,Firm enquiries inbox (0330 017 6303).
+P14,Hart Shaw LLP,"Sheffield (The Hart Shaw Building, Europa Link, Sheffield Business Park, S9 1XU)",3,,,,,No office inbox readable (ICAEW listing masks it).
+P15,Begbies Traynor (Sheffield office),"Sheffield (Westfield House, 60 Charter Row, S1 3FZ)",3,,sheffield@btguk.com,role,https://www.begbies-traynorgroup.com/our-people/david-mathieson,Sheffield office inbox.
+P16,Axon Moore (Sheffield office),Sheffield,3,,,,,No Sheffield office or inbox found.
+P17,Arup (Sheffield office),"Sheffield (9th Floor, 3 St Paul's Place, S1 2JE)",3,,,,,No office inbox; office leader Phil White 0114 272 8247 (arup.com UK offices page).
+P18,Grant Thornton (Sheffield office),"Sheffield (listed at 1 Holly Street, S1 2GT - VERIFY)",3,,,,,Not researched this run.
+P19,Sheffield Teaching Hospitals NHS Foundation Trust,Sheffield,3,,,,,Tender route only; no supplier-enquiry inbox published (https://www.sth.nhs.uk/about-us/procurement/).
+P20,Thornbury Hospital (Circle Health Group),Sheffield (312 Fulwood Road),3,,,,,No published email; reception 0114 266 1133.
+P21,AESSEAL New York Stadium (Rotherham United conference & events),"Rotherham (New York Way, S60 1FJ)",3,,,,,aessealnys-events@elior.co.uk is already in the app from batch B; not re-verified this run.
+P22,Barnsley FC,"Barnsley (Oakwell Stadium, Grove Street, S71 1ET)",3,,commercial@barnsleyfc.co.uk,role,https://www.barnsleyfc.co.uk/hospitality/,Commercial / hospitality team (01226 211182).
+P23,Chesterfield FC,Chesterfield (SMH Group Stadium),3,,reception@chesterfield-fc.co.uk,general,https://chesterfield-fc.co.uk/commercial/vip-matchday-hospitality,Club reception (01246 269300). NOTE the app's contact_name is Bridget Ball so the draft greets 'Dear Bridget' - change it before sending to this general inbox.
+P24,Doncaster Rovers / Club Doncaster,"Doncaster (Stadium Way, DN4 5JW)",3,,,,,No readable commercial inbox found.
+P25,Sheffield Steelers,Sheffield (home games at Utilita Arena),3,,,,,Not researched this run.
+P26,"Sheffield Theatres Trust (Crucible, Lyceum, Studio)","Sheffield (Crucible Theatre, 55 Norfolk Street, S1 1DA)",3,,customer.service@sheffieldtheatres.co.uk,general,https://www.sheffieldtheatres.co.uk/about/contact-us,General inbox; staff contacts page lists the Assistant to the Chief Executive (0114 201 3804).
+P27,Mercure Sheffield Kenwood Hall & Spa,"Sheffield (Kenwood Road, S7 1NQ)",3,,,,,Only dated third-party addresses found - not used. Phone 0114 258 3811.
+P28,Leopold Hotel Sheffield,"Sheffield (Leopold Square, S1 2GZ)",3,,,,,Only an address on third-party conference documents found - not used. Phone 0114 252 4000.
+P29,Whitley Hall Hotel,"Sheffield (Elliott Lane, Grenoside, S35 8NR)",3,,,,,Email masked in all listings; phone 0114 245 4444.
+P30,Mercure Barnsley Tankersley Manor Hotel & Spa,"Tankersley, Barnsley (near M1 J36)",3,,,,,Not researched this run.
+P31,Ringwood Hall Hotel & Spa,"Brimington, Chesterfield (S43 1DQ)",3,,reception@ringwoodhallhotel.com,general,https://ringwoodhallhotel.com/about-us/contact/,Reception (front office). Events/weddings: sales@ringwoodhallhotel.com.
+P32,Thornbridge Hall (Thornbridge Estate),"Ashford-in-the-Water, Bakewell (Peak District)",3,,info@thornbridge-estate.co.uk,general,https://www.thornbridgehall.co.uk/contactus,Listed for bookings and weddings & events (01629 640617).
+P33,Sheffield Museums (venue hire: Millennium Gallery and others),Sheffield (city centre),3,,info@sheffieldmuseums.org.uk,general,https://www.sheffieldmuseums.org.uk/venue-hire/corporate-and-conferencing/,Given for corporate venue-hire enquiries (0114 278 2600).
+P34,Sheffield Chamber of Commerce & Industry,"Sheffield (Albion House, Savile Street, S4 7UD)",3,Stacey Morris,stacey.morris@scci.org.uk,named,https://www.scci.org.uk/about/sponsorship-opportunities/events-sponsorship-opportunities/,Events Manager. Team inbox: events@scci.org.uk.
+C09,UK Industrial Fusion Solutions (STEP Fusion),"West Burton, Bassetlaw (near Retford)",3,,,,,Not researched this run.
+C10,TJ Morris (Home Bargains) - Unity distribution centre,"Unity, Doncaster",3,,,,,Not researched this run.
+C11,Sumo Digital (Tencent),Sheffield studio (HQ); also Nottingham and India,3,,info@sumo-digital.com,general,https://www.sumo-digital.com/contact-us/,HQ general enquiries (0114 242 6766).
+C12,Woodland Group,"iPort, Rossington, Doncaster",3,,,,,No published email found.
+C13,Harworth Group plc,Rotherham HQ [verify address],3,,,,,Not researched this run (on hold - offer period).
+C14,SIG plc,"Adsetts House, 16 Europa View, Sheffield Business Park S9 1XH",3,,,,,Not researched this run.
+C15,Card Factory plc,"Century House, Brunel Road, Wakefield 41 Industrial Estate, Wakefield WF2 0XG",3,,,,,Not researched this run.
+C16,Coca-Cola Europacific Partners - Wakefield site,"Wakefield, West Yorkshire",3,,,,,Not researched this run.
+C17,Gray Dawes Group,London (UK HQ); US and Canada operations,3,,,,,No supplier contact found.
+D10,Kiwitaxi,"Global; contracting entity IT Travel LP, Edinburgh",3,,,,,Portal application - not researched for an inbox.
+D11,Transfeero,Global,3,,,,,Portal application - not researched for an inbox.
+D12,HCD Chauffeur Drive,London (main office); UK-wide transfers,3,,reservations@hcdchauffeurdrive.com,general,https://www.hcdchauffeurdrive.com/services/sight-seeing-chauffeur-london/,Reservations team (020 7183 7019); ask for operations.
+D13,Driven Worldwide,London; New York; Hong Kong,3,,,,,Not researched this run (verify still trading).
+D14,National Express Transport Solutions (NXTS),UK-wide regional network,3,,,,,Partner application form at https://nxts.nationalexpress.com/work-with-us/partner-operators (01634 975289).
+D15,ETC Chauffeurs,Manchester,3,,bookings@etcchauffeur.com,general,https://theflyingengineer.com/listing/etc-chauffeurs/,Directory listing - check Ltd status on Companies House first.
+D16,Skyway Chauffeurs Ltd,"Empress Business Centre, Manchester",3,,bookings@skywaychauffeurs.co.uk,general,https://theflyingengineer.com/listing/skyway-chauffeurs/,Directory listing (0161 209 6600).
+D17,VIP Chauffeurs (Birmingham),Birmingham,3,,,,,Not researched this run.
+D18,Opulence Executive Travel,Leeds,3,,,,,No published email found.
+D19,Nottingham Chauffeurs VIP & Minibuses,Nottingham,3,,,,,Email not shown on its directory listing.
+D20,GroundSpan,US; global,3,,,,,Not researched this run.
+D21,Booking.com Taxis,Global,3,,,,,Not researched this run (dispatch-provider route).
+E04,UK Case Management Ltd,"Easingwold, North Yorkshire (clients across the North)",3,,,,,No published email found.
+E05,Circle Case Management,National; case managers covering the North of England,3,,hello@circlecm.com,general,https://www.circlecasemanagement.com/news/article/case-manager-available-for-instruction-in-yorkshire,General inbox (01297 24145). Already in the app - source now confirmed.
+E06,"CCMS (Care and Case Management Services, Active Care Group)",Darlington office; team covering Yorkshire and the North East,3,,,,,Not researched this run.
+E09,Bush & Co (Bush & Company Rehabilitation),Northamptonshire head office (national),3,,,,,care.enquiries@bushco.co.uk is already in the app from batch E; could not re-verify it this run.
+E12,Ariya Neuro Care (Choice Care),"Clifton Court, Rotherham; Ariya House, Barnsley; Elizabeth House, Holmewood (Chesterfield)",3,,,,,Not researched this run.
+E17,Eleven Recovery,"Sheffield / Hope Valley (address unclear: Sharrow or Hathersage)",3,,,,,Not researched this run.
+E19,Slater and Gordon (Sheffield office),Sheffield city centre (near City Hall),3,,,,,Not researched this run.
+E23,One Health Group plc,"Sheffield (head office); clinics across Yorkshire, Lincolnshire, Derbyshire, Nottinghamshire",3,,enquiries@onehealth.co.uk,general,https://www.onehealth.co.uk/legal/privacy-policy,General enquiries listed on onehealth.co.uk (0114 250 5510).
+E24,"Practice Plus Group Hospital, Barlborough","Lindrick Way, Barlborough, Chesterfield (North Derbyshire)",3,,,,,No published email; tel 0333 200 4066.
+E25,SpaMedica,"Sheffield; Balby, Doncaster; Barnsley CDTC; Spire Walk, Chesterfield",3,,contact@spamedica.co.uk,general,https://www.spamedica.co.uk/wp-content/uploads/2024/05/SpaMedica-Privacy-Notice-Booklet.pdf,General inbox (0330 058 4280); ask for the transport team.
+E26,CHEC (Community Health and Eyecare) — Sheffield,"Europa View, Sheffield Business Park S9",3,,,,,Not researched this run.
+E29,Derbyshire County Council — Passenger Transport DPS (PLACE059),"Matlock (county-wide, incl. Chesterfield and North East Derbyshire)",3,,,,,Tender route only (ProContract) - no outreach email.
+E33,East Midlands Ambulance Service NHS Trust — NEPTS Taxi Support (Lot 3 Derbyshire),Derbyshire (Lot 3: Derbyshire and Nottinghamshire NUTS areas),3,,,,,Tender route only - no outreach email.
+F04,Billington Holdings plc,Barnsley,3,,,,,Not researched this run.
+F05,SCC Air Compressors UK,"Marrtree Business Park, Oxspring, Penistone (Barnsley)",3,,,,,Not researched this run.
+F06,Naylor Industries,"Group HQ Wombwell; clay works Clough Green, Cawthorne, Barnsley",3,,,,,Not researched this run.
+F12,VolkerRail (head office),"Eagre House, J3 Business Park, Carr Hill, Doncaster DN4 8DE",3,,,,,Not researched this run.
+F13,Hitachi Rail - Doncaster Carr depot,"Doncaster Carr, Doncaster",3,,,,,Not researched this run.
+F14,Ardagh Glass Packaging - Doncaster,Doncaster,3,,,,,Not researched this run.
+F15,Venatu Recruitment Group,Doncaster,3,,info@venatu.co.uk,general,https://www.venatu.co.uk/cm/contact-us/doncaster-office,Doncaster office inbox (01302 590 970).
+F16,Yorkshire Wildlife Park (venue hire and Hex Connect),"Branton, Doncaster",3,,,,,No readable venue-hire inbox; use https://www.yorkshirewildlifepark.com/venue-hire/meeting-conferences/.
+F23,AMG Superalloys UK / AMG Chrome,Rotherham,3,,,,,Not researched this run.
+F24,Cepac - Rotherham,"Rotherham 2 site, Rotherham",3,,,,,Not researched this run.
+F25,Wentworth Woodhouse (events and hospitality),"Wentworth, Rotherham",3,,,,,hospitality@wentworthwoodhouse.org.uk is already in the app from batch F; not re-verified this run.
+F26,Magna Science Adventure Centre (conference and events),"Templeborough, Rotherham",3,,,,,No events inbox found; events site mymagnaevent.co.uk.
+F27,AVK UK / Bryan Donkin Valves,"Staveley, Chesterfield",3,,,,,Contact form only (careers@ is HR); tel 01246 479100.
+F28,Global Brands,Chesterfield (distribution centre at Clay Cross),3,,,,,Not researched this run.
+F29,Casa Hotel Chesterfield,Chesterfield,3,,,,,Email masked in listings; tel 01246 245999.
+F32,Greencore - Manton Wood,"Retford Road, Manton Wood Enterprise Park, Worksop",3,,,,,Not researched this run.
+F33,Worksop College,Worksop,3,,finance@wsnl.co.uk,role,https://register-of-charities.charitycommission.gov.uk/en/charity-search/-/charity-details/4007639/contact-information,Finance office (bursary route) on the school's Charity Commission entry. General: enquiries@wsnl.co.uk (https://www.wsnl.co.uk/contactus).
+F34,Harry Needle Railroad Company (HNRC),"Worksop depot (also Barrow Hill, Chesterfield)",3,,,,,Not researched this run.
+F38,Garnalex,"Mansfield Road, Annesley (Ashfield, M1 J27) - relocating from Nether Heage",3,,,,,Not researched this run.
+F39,Lithia UK (formerly Pendragon) - UK head office,"Lithia House, 2 Oakwood Court, Little Oak Drive, Annesley NG15 0DR",3,,,,,Not researched this run.
+F40,Alloga UK,"Amber Park, South Normanton and Castlewood Business Park (M1 J28)",3,,,,,Not researched this run.
+F41,Center Parcs Sherwood Forest (conference venue),"Rufford, near Ollerton, Nottinghamshire",3,,,,,Not researched this run.
+F42,Avant Homes (group head office),"Avant House, Tallys End, Barlborough, Chesterfield S43 4WP (M1 J30)",3,,,,,Not researched this run.
+G05,EmpireCLS Worldwide Chauffeured Services,"Secaucus, New Jersey; 1,000+ cities",3,,,,,Not researched this run.
+G06,Dav El | BostonCoach,"Boston, Massachusetts; 500+ cities",3,,,,,Not researched this run.
+G07,Savoya,"Dallas, Texas; 300+ markets",3,,,,,Not researched this run.
+G10,GGT Worldwise (formerly GlobalGround Transport),US; 173 countries (Paragon Aviation Group network),3,,,,,Not researched this run.
+G11,Chabé (London office),Paris HQ; London office at Stockley Park near Heathrow,3,,,,,No London inbox found; contact form on chabe.com.
+G12,iChauffeur,London; UK-wide events,3,,info@ichauffeur.co.uk,general,https://www.ichauffeur.co.uk/contact/,Office inbox (020 8400 4829).
+G13,Reliance Worldwide,London,3,,,,,No published email found.
+G14,GroundScope,UK [verify base]; 500+ cities,3,,,,,No published email found.
+G15,LimoHawk,"UK (LimoHawk Technologies Ltd); London, Manchester, Birmingham, Liverpool, Newcastle, Edinburgh, Cardiff, Dublin, Paris",3,,,,,Not researched this run.
+G17,Talixo,"Berlin; Krakow; 1,100+ cities in 130+ countries",3,,,,,Not researched this run.
+G23,Airport Transfer Portal,Global marketplace; 530+ operators,3,,,,,Portal application - not researched for an inbox.
+G26,American Express Global Business Travel (incl. CWT and Egencia),Global; UK operations [verify office],3,,,,,Not researched this run.
+G28,FCM Travel UK (Flight Centre UK Ltd),UK [verify office]; global,3,,,,,Not researched this run.
+G31,Kuoni Tumlare UK (JTB group),London,3,,,,,Not researched this run.
+G32,Cashel Travel,UK [verify base]; euromic member for Great Britain,3,,,,,No published email found.
+G34,Winged Boots,UK [verify base],3,,info@wingedboots.co.uk,general,https://www.wingedboots.co.uk/enquiry/,General inbox (020 3816 0985).
+A20,Fellowes Brands (UK HQ),"Unit IP2b, iPort, Rossington, Doncaster",2,,,,,Not researched this run (verify occupation first).
+MA23,"Parker Hannifin - President Engineering Group (Bestobell, Conflow)",Sheffield,2,,,,,Not researched this run.
+MA24,Evolution Power Tools,"Venture One Business Park, Holbrook, Sheffield S20",2,,,,,Not researched this run.
+MA25,Straaltechniek UK,"Valley Works, Shiregreen, Sheffield",2,,,,,Not researched this run.
+MA26,Rotabroach,Sheffield,2,,,,,Not researched this run.
+MA27,United Caps (UK plant),"Dinnington, Rotherham",2,,,,,Not researched this run.
+MA28,E.ON - Blackburn Meadows,"Blackburn Meadows, Tinsley, Sheffield",2,,,,,Not researched this run.
+P35,Hawsons Chartered Accountants,"Sheffield (also Doncaster, Northampton)",2,,,,,Not researched this run.
+C18,GB Eye (Abysse Corp),"Enterprise 36, Tankersley, Barnsley",2,,,,,Not researched this run.
+C19,Lontra (Doncaster smart factory),Doncaster,2,,,,,Not researched this run.
+C20,IKEA - Doncaster distribution centre,Doncaster,2,,,,,Not researched this run.
+C21,GXO Logistics (ASOS fulfilment centre),"Park Springs, Grimethorpe, Barnsley S72 7GX",2,,,,,Not researched this run.
+C22,Dusk,"iP2f and iP2g, iPort, Rossington, Doncaster",2,,,,,Not researched this run.
+C23,Gist - Markham Vale,"Markham Vale (M1 J29A), Chesterfield",2,,,,,Not researched this run.
+C24,"Kitwave Group (HB Clark, Wakefield Hub)","Wakefield Hub, M62 J30, Wakefield",2,,,,,Not researched this run.
+C25,Sky Betting & Gaming (Flutter UK & Ireland) - Sheffield hub,"Electric Works, Sheaf Street, Sheffield",2,,,,,Not researched this run.
+D22,SmartExecCars,"Wilford, Nottingham",2,,,,,Not researched this run.
+D23,Wearside Executive Limited,"Washington, Tyne and Wear",2,,,,,Not researched this run.
+D24,minicabit,London; 800+ operators UK-wide,2,,,,,Not researched this run.
+D25,AirportShuttles.com,Global,2,,,,,Not researched this run.
+E11,Cygnet Social Care — The Daley Care Centre,"Deepcar, Sheffield",2,,,,,Not researched this run.
+E13,Voyage Care — Linnet Mews,"Clowne, Chesterfield (North Derbyshire)",2,,,,,Not researched this run.
+E20,White House Medico Legal (White House Clinic),"Sandygate, Sheffield",2,,,,,Not researched this run.
+E21,Premex Services (ExamWorks),Bolton (national),2,,,,,Not researched this run.
+E22,eReporting Group (Ewitness / Medical Report Services),Leeds (multi-track and specialist claims); Redditch,2,,,,,Not researched this run.
+E28,Sheffield City Council — SEND and passenger transport,Sheffield,2,,,,,taxitransport@sheffield.gov.uk is already in the app from batch E (tender route); not re-verified this run.
+E30,Barnsley Metropolitan Borough Council — Passenger Transport DPS,Barnsley,2,,,,,Tender route only.
+E31,City of Doncaster Council — Passenger Transport DPS,Doncaster,2,,,,,supplychains@useadam.co.uk (ADAM portal) is already in the app from batch E; not re-verified this run.
+E32,Rotherham Metropolitan Borough Council — Home to School Transport,Rotherham,2,,,,,education.transport@rotherham.gov.uk is already in the app from batch E; not re-verified this run.
+E34,NHS South Yorkshire Integrated Care Board — Non-Emergency Patient Transport,"Sheffield, Barnsley, Rotherham, Doncaster",2,,,,,Tender route only.
+F07,Talurit UK,"3 Kestrel Way, R-evolution @ Gateway 36, Birdwell, Barnsley",2,,,,,Not researched this run.
+F08,Hargreaves (industrial services division),"One Capitol Court, Capitol Park, Dodworth, Barnsley",2,,,,,Not researched this run.
+F09,Evri - Barnsley parcel hub,Barnsley,2,,,,,Not researched this run.
+F10,Equi-Trek,"Former Fox Wire building, near Stocksbridge",2,,,,,Not researched this run.
+F17,DB Cargo UK (headquarters),"Carolina Way, Lakeside Business Park, Doncaster DN4 5PN",2,,,,,Not researched this run (hold - sale process).
+F18,Batt Cables - Doncaster distribution centre,Doncaster (M18/M1 corridor),2,,,,,Not researched this run.
+F19,GEODIS - Doncaster (Gateway 4),"Gateway 4, near M18 J4, Doncaster",2,,,,,Not researched this run.
+F20,DoorCo,"Thorne, Doncaster",2,,,,,Not researched this run.
+F21,Automated Analytics,Doncaster,2,,,,,Not researched this run.
+F22,Doncaster and Bassetlaw Teaching Hospitals NHS FT (procurement),"Doncaster, Bassetlaw (Worksop) and Montagu sites",2,,,,,Not researched this run (procurement route).
+F30,SMH Group (SMH Mitchells),Chesterfield,2,,,,,Not researched this run.
+F31,Post Office - Chesterfield base,"Future Walk, West Bars, Chesterfield",2,,,,,Not researched this run.
+F43,CST Industries UK,"Castlewood Court, Castlewood Business Park (Ashfield/Bolsover border, M1 J28)",2,,,,,Not researched this run.
+F44,Mansfield Building Society,Mansfield,2,,,,,Not researched this run.
+F45,Whitemeadow,"Langham Park, Sutton-in-Ashfield",2,,,,,Not researched this run.
+G08,GroundLink,New York; worldwide via affiliates,2,,,,,Not researched this run.
+G09,LimoLink,US [verify base],2,,,,,Not researched this run.
+G16,Welcome Pickups,"Athens operations; CB Insights lists Coventry, UK",2,,,,,drivers@welcomepickups.com is already in the app from batch G; not re-verified this run.
+G18,Mozio,"US HQ; 3,500+ airports in 180 countries",2,,,,,Not researched this run.
+G19,GetTransfer,Cyprus HQ (sources conflict: Nicosia/Larnaca); 180+ countries,2,,,,,Not researched this run.
+G22,Intui.travel,UK (EasyupturLLP) and Hong Kong (Fair Wind Limited),2,,,,,Not researched this run.
+G24,Daytrip,Global; 130+ countries,2,,,,,Not researched this run.
+G27,BCD Travel,Utrecht HQ; UK operations,2,,,,,Not researched this run.
+G29,Corporate Travel Management (CTM) UK & Europe,London; UK & Europe division,2,,,,,Not researched this run.
+G30,ATPI (Direct Travel),London HQ; global (acquired by Direct Travel Sept 2025),2,,,,,Not researched this run.
+G33,Real Yorkshire DMC,Leeds,2,,,,,Not researched this run.
+G20,Limos.com,US (assets bought by iCARS in 2017),1,,,,,Not researched this run.
+G21,Wheely,London; also Paris and other cities,1,,,,,Not researched this run.
+G25,Klook,Hong Kong HQ; global,1,,,,,Not researched this run.
