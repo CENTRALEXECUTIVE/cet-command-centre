@@ -505,9 +505,11 @@ class BookingWidgetController extends Controller
         }
 
         $charge = $afterDiscount === null ? null : ($needsInvoice ? round($afterDiscount * (1 + $vatRate), 2) : $afterDiscount);
-        // Account jobs store the NET fare (fareVatBreakdown adds VAT for account);
-        // card/cash store the all-in charge the customer pays.
-        $quotedPrice = $isAccount ? $afterDiscount : $charge;
+        // Prices are STORED EX-VAT everywhere (Booking::fareVatBreakdown): a VAT-invoice
+        // booking (incl. account jobs) stores the NET fare and amountPayable() adds the
+        // 20% on top. Storing the VAT-inclusive $charge here made the pay link add VAT a
+        // SECOND time (£126 shown → £151.20 charged). Non-VAT jobs store the all-in charge.
+        $quotedPrice = $needsInvoice ? $afterDiscount : $charge;
 
         // VAT-invoice bookings and returns are ALWAYS card (the driver never collects
         // cash on them). A plain one-way defaults to cash-collect UNLESS the customer
@@ -575,6 +577,8 @@ class BookingWidgetController extends Controller
                 'stops' => $stops ?: null,
                 'fare_extras_total' => round($extrasTotal - $mgMoved, 2) ?: null,
                 'vat_invoice_requested' => $needsInvoice,
+                // quoted_price is stored EX-VAT (post double-VAT fix) — cet:web-vat-audit skips these.
+                'price_ex_vat' => $needsInvoice ?: null,
                 'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
                 // Business details for the VAT invoice (name / address / VAT number).
                 'vat_details' => $needsInvoice ? array_filter([
@@ -614,7 +618,7 @@ class BookingWidgetController extends Controller
             $returnCharge = $returnNet === null
                 ? null
                 : ($needsInvoice ? round((float) $returnNet * (1 + $vatRate), 2) : (float) $returnNet);
-            $returnQuoted = $isAccount ? $returnNet : $returnCharge;
+            $returnQuoted = $needsInvoice ? $returnNet : $returnCharge; // ex-VAT when invoiced (see outbound)
 
             $return = Booking::create([
                 'reference' => $returnRef,
@@ -651,6 +655,7 @@ class BookingWidgetController extends Controller
                     'infant_seats' => $extra['infant_seats'] ?: null,
                     'extra_stops' => $extra['stopovers'] ?: null,
                     'vat_invoice_requested' => $needsInvoice,
+                    'price_ex_vat' => $needsInvoice ?: null,
                     'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
                 ], fn ($v) => $v !== null && $v !== '' && $v !== false),
             ]);

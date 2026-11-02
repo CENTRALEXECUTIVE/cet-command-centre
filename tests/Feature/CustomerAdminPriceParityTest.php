@@ -272,9 +272,13 @@ class CustomerAdminPriceParityTest extends TestCase
                         continue;
                     }
                     $r = $this->compare($p, $d, $jt, $this->vt($slug), [], vat: true);
-                    // Compares what the customer is SHOWN/STORED with what the admin says the
-                    // customer pays (strip net × 1.2). The pay link is checked separately.
-                    if (! $this->same($r['cust_shown'], $r['admin_pays']) || ! $this->same($r['cust_charged'], $r['admin_pays'])) {
+                    // Prices are STORED EX-VAT on both sides (Booking::fareVatBreakdown), so a
+                    // VAT booking stores the admin NET; the customer is SHOWN and CHARGED (pay
+                    // link) net × 1.2 — exactly what admin says they pay. (Storing the gross
+                    // made the pay link add VAT twice: £126 shown, £151.20 charged.)
+                    if (! $this->same($r['cust_shown'], $r['admin_pays'])
+                        || ! $this->same($r['cust_pay'], $r['admin_pays'])
+                        || ! $this->same($r['cust_charged'], $r['admin_strip'])) {
                         $bad[] = $this->row($r);
                     }
                 }
