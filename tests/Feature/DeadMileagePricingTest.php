@@ -136,6 +136,32 @@ class DeadMileagePricingTest extends TestCase
         $this->assertSame(105.0, $nearby['price']);
     }
 
+    public function test_the_customer_widget_prices_the_out_of_area_job_the_same_as_admin(): void
+    {
+        // Same Google distances as staging measured for the real job.
+        $this->stubDistance(baseMiles: 113.9, tripMiles: 91.7);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        // The customer widget sends "address, POSTCODE" (withPc) to widget.prices.
+        $options = $this->postJson(route('widget.prices'), [
+            'pickup' => 'Avensys Training Academy, Frederick Road, Kidderminster, UK, DY11 7RA',
+            'destination' => 'Premier Inn Manchester Airport (M56/J6) Runger Lane South hotel, Wilmslow Road, Manchester, UK, M90 5DL',
+            'pickup_at' => '2026-11-17 15:30',
+        ])->assertOk()->json('options');
+        $customer = collect($options)->firstWhere('id', $exec->id);
+
+        // The admin form's strip, same journey.
+        $admin = User::factory()->admin()->create();
+        $adminOpt = collect($this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => 'Avensys Training Academy, Frederick Road, Kidderminster, UK, DY11 7RA',
+            'destination' => 'Premier Inn Manchester Airport (M56/J6) Runger Lane South hotel, Wilmslow Road, Manchester, UK, M90 5DL',
+        ])->assertOk()->json('options'))->firstWhere('id', $exec->id);
+
+        // £215 trip + £115 drag = £330 on BOTH sides, never the Sheffield fixed £105.
+        $this->assertEqualsWithDelta(330.0, (float) $adminOpt['price'], 0.01);
+        $this->assertEqualsWithDelta(330.0, (float) $customer['price'], 0.01);
+    }
+
     public function test_a_local_free_roam_quote_has_no_dead_mileage(): void
     {
         $distance = \Mockery::mock(DistanceService::class);
