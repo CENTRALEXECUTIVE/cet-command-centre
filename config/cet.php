@@ -312,7 +312,8 @@ return [
         ['label' => 'Halloween',         'factor' => 1.60, 'from' => '10-31 00:00', 'to' => '10-31 23:59'],
         // Christmas period.
         ['label' => 'Christmas Eve',     'factor' => 1.25, 'from' => '12-24 00:00', 'to' => '12-24 23:59'],
-        ['label' => 'Christmas Day',     'factor' => 1.75, 'from' => '12-25 00:00', 'to' => '12-25 23:59'],
+        // Directors' published 2026/27 table: Christmas Day is +50% (was wrongly +75%).
+        ['label' => 'Christmas Day',     'factor' => 1.50, 'from' => '12-25 00:00', 'to' => '12-25 23:59'],
         ['label' => 'Boxing Day',        'factor' => 1.50, 'from' => '12-26 00:00', 'to' => '12-26 23:59'],
         // New Year's Eve — +25% before 6pm, +50% from 6pm to midnight.
         ["label" => "New Year's Eve",     'factor' => 1.25, 'from' => '12-31 00:00', 'to' => '12-31 17:59'],

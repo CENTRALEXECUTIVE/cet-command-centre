@@ -24,7 +24,7 @@ class FestiveSurchargeTableTest extends TestCase
     {
         $this->assertSame(1.60, $this->factorAt('2026-10-31 12:00')['factor']); // Halloween +60%
         $this->assertSame(1.25, $this->factorAt('2026-12-24 09:00')['factor']); // Christmas Eve +25%
-        $this->assertSame(1.75, $this->factorAt('2026-12-25 14:00')['factor']); // Christmas Day +75%
+        $this->assertSame(1.50, $this->factorAt('2026-12-25 14:00')['factor']); // Christmas Day +50% (directors' 2026/27 table)
         $this->assertSame(1.50, $this->factorAt('2026-12-26 08:00')['factor']); // Boxing Day +50%
 
         $this->assertSame('Halloween', $this->factorAt('2026-10-31 12:00')['label']);
@@ -59,7 +59,7 @@ class FestiveSurchargeTableTest extends TestCase
     {
         // Same table applies in any future year — no date edits needed.
         foreach (['2027', '2030', '2045'] as $year) {
-            $this->assertSame(1.75, $this->factorAt("$year-12-25 12:00")['factor'], "Christmas $year");
+            $this->assertSame(1.50, $this->factorAt("$year-12-25 12:00")['factor'], "Christmas $year");
             $this->assertSame(1.60, $this->factorAt("$year-10-31 20:00")['factor'], "Halloween $year");
             $this->assertSame(1.50, $this->factorAt("$year-12-31 19:00")['factor'], "NYE evening $year");
             $this->assertSame(1.80, $this->factorAt("$year-01-01 03:00")['factor'], "NYD early $year");
