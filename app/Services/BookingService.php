@@ -164,6 +164,7 @@ class BookingService
             // The names the booking CURRENTLY shows — an edited name replaces them in
             // the stored booker field too, so the invoice "Bill to" follows the edit.
             $priorNames = array_unique([$booking->displayName(), $booking->bookerName()]);
+            $priorDisplayName = $booking->displayName();
 
             // Keep the customer's contact details current — but NEVER corrupt a
             // record that OTHER bookings share. If the office changes the name or
@@ -387,6 +388,16 @@ class BookingService
             // hand — the system never pushes an amendment to Google. The booking's
             // own display accessors (displayPickupAddress, viaStops, …) already show
             // the edit everywhere in the app and to drivers.
+
+            // THE OFFICE IS THE BOSS: a name the office types (e.g. the passenger for the
+            // meet & greet board) is saved ON THIS BOOKING and always wins — so it sticks
+            // even for a repeat customer whose shared record isn't renamed (a name-only
+            // change used to be re-filed under the same customer and snap back).
+            $typedName = trim((string) ($data['customer_name'] ?? ''));
+            if ($typedName !== '' && $typedName !== $priorDisplayName) {
+                $fresh = $booking->fresh();
+                $fresh->forceFill(['meta' => array_merge($fresh->meta ?? [], ['name_override' => $typedName])])->save();
+            }
 
             return $booking->refresh();
         });

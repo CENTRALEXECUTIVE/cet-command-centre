@@ -2933,6 +2933,10 @@ class Booking extends Model
      */
     public function displayName(): string
     {
+        // A name the office typed on Edit booking always wins (BookingService::updateFromForm).
+        if (filled($this->meta['name_override'] ?? null)) {
+            return (string) $this->meta['name_override'];
+        }
         // THE OFFICE IS THE BOSS: a manually-edited customer name overrides the
         // stored lead_name (which comes from import). Without this, renaming a
         // booking updated the customer record — and the admin page — but the
@@ -3484,6 +3488,9 @@ class Booking extends Model
      */
     public function displayCustomerName(): ?string
     {
+        if (filled($this->meta['name_override'] ?? null)) {
+            return (string) $this->meta['name_override'];
+        }
         if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
             return $this->customer->name;
         }
