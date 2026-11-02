@@ -174,7 +174,7 @@ class QuoteService
 
         // Which end is the special destination, and which is the local (zoned) end.
         [$destKey, $localText] = $this->detectDestination($pickup, $destination);
-        if ($destKey !== null) {
+        if ($destKey !== null && ! $this->guessedZoneIsOutOfArea($localText)) {
             $price = $this->fixedPrice($destKey, $this->zonesFor($localText), $slug);
             if ($price !== null) {
                 return $this->withTimeSurcharge(
@@ -487,6 +487,13 @@ class QuoteService
             if (str_starts_with($outward, 'S')) {
                 return ['sheffield'];
             }
+
+            // A real postcode that ISN'T one of our zones (e.g. DY11 Kidderminster) is
+            // OUT OF AREA: no fixed zone at all, so the quote falls through to distance
+            // pricing + the out-of-area dead-mileage charge. (This used to fall to the
+            // Sheffield default below and get the cheap local fixed fare — a far-away
+            // Kidderminster → Manchester Airport job was quoted the Sheffield £105.)
+            return [];
         }
 
         // Fall back to a town name in the text.
@@ -502,6 +509,43 @@ class QuoteService
             str_contains($t, 'sheffield') => ['sheffield'],
             default => ['sheffield'], // sensible default for the home catchment
         };
+    }
+
+    /**
+     * Safety net for the Sheffield DEFAULT zone. When the local end has no postcode and
+     * no known town, the zone is only a guess ("sheffield"). Before handing out a cheap
+     * local fixed fare on a guess, check how far that address really is from base: if
+     * it's beyond the local catchment, treat it as out of area so it's distance-priced
+     * with the dead-mileage charge instead. Uses the same cached distance lookup as the
+     * dead-mileage charge; with no Maps key it can't tell, so it keeps the old default.
+     */
+    private function guessedZoneIsOutOfArea(string $text): bool
+    {
+        if ($this->outward($text) !== null) {
+            return false; // a real postcode decides the zone (out-of-area codes get no zone)
+        }
+        $t = strtolower($text);
+        foreach (['sheffield', 'chesterfield', 'rotherham', 'barnsley', 'worksop', 'doncaster', 'mansfield', 'matlock'] as $town) {
+            if (str_contains($t, $town)) {
+                return false; // a known town decides the zone
+            }
+        }
+        $base = (string) config('cet.base.address');
+        if ($base === '' || trim($text) === '') {
+            return false;
+        }
+
+        // One cached lookup per address per day (keeps the Maps bill down).
+        $d = \Illuminate\Support\Facades\Cache::remember(
+            'zoneguess:'.md5(strtolower(trim($text))),
+            now()->addDay(),
+            fn () => $this->distance->resolve($base, $text),
+        );
+        if (($d['source'] ?? null) === 'estimate' || ! isset($d['miles'])) {
+            return false; // no real distance available — can't tell, keep the default
+        }
+
+        return (float) $d['miles'] > (float) config('cet.fixed_zone_max_miles', 30);
     }
 
     /** The outward code (e.g. "S20") from an address, if present. */

@@ -83,6 +83,59 @@ class DeadMileagePricingTest extends TestCase
         $this->assertStringContainsString('out-of-area', $quote['basis']);
     }
 
+    /** Stub: base→X legs are $baseMiles, the booked journey is $tripMiles. */
+    private function stubDistance(float $baseMiles, float $tripMiles): void
+    {
+        $distance = \Mockery::mock(DistanceService::class);
+        $distance->shouldReceive('resolve')->andReturnUsing(
+            fn (string $from, string $to) => [
+                'miles' => str_contains(strtolower($from), 'sheffield') ? $baseMiles : $tripMiles,
+                'minutes' => 120, 'source' => 'google',
+            ]);
+        $this->app->instance(DistanceService::class, $distance);
+    }
+
+    public function test_an_out_of_area_postcode_is_not_given_the_sheffield_fixed_airport_fare(): void
+    {
+        // The real misquote: Kidderminster (DY11) → Manchester Airport got the Sheffield
+        // fixed £105. It must be distance-priced WITH the out-of-area dead mileage.
+        $this->stubDistance(baseMiles: 95.0, tripMiles: 90.0);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $quote = app(QuoteService::class)->quote(
+            'Avensys Training Academy, Frederick Road, Kidderminster, UK, DY11 7RA',
+            'Premier Inn Manchester Airport (M56/J6) Runger Lane South hotel, Wilmslow Road, Manchester, UK, M90 5DL',
+            $exec,
+        );
+
+        $this->assertFalse($quote['fixed'], 'an out-of-area pickup must not get a fixed local fare');
+        $this->assertGreaterThan(0.0, $quote['dead_mileage']);
+        $this->assertGreaterThan(105.0, $quote['price']);
+    }
+
+    public function test_an_out_of_area_address_with_no_postcode_is_caught_by_distance(): void
+    {
+        $this->stubDistance(baseMiles: 95.0, tripMiles: 90.0);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        $quote = app(QuoteService::class)->quote('Avensys Training Academy, Frederick Road', 'Manchester Airport', $exec);
+
+        $this->assertFalse($quote['fixed']);
+        $this->assertGreaterThan(0.0, $quote['dead_mileage']);
+    }
+
+    public function test_a_local_pickup_still_gets_the_fixed_airport_fare(): void
+    {
+        $this->stubDistance(baseMiles: 5.0, tripMiles: 40.0);
+        $exec = VehicleType::where('slug', 'executive')->first();
+
+        // With a postcode, and with no postcode but genuinely nearby.
+        $this->assertSame(105.0, app(QuoteService::class)->quote('Sheffield S1 2HH', 'Manchester Airport', $exec)['price']);
+        $nearby = app(QuoteService::class)->quote('Meadowhall Centre', 'Manchester Airport', $exec);
+        $this->assertTrue($nearby['fixed']);
+        $this->assertSame(105.0, $nearby['price']);
+    }
+
     public function test_a_local_free_roam_quote_has_no_dead_mileage(): void
     {
         $distance = \Mockery::mock(DistanceService::class);
