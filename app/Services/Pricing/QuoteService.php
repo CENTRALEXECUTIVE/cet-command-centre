@@ -194,7 +194,17 @@ class QuoteService
         if (! $this->freeRoam->hasRate($slug)) {
             return ['price' => null, 'price_with_vat' => null, 'basis' => 'Price on request', 'miles' => null, 'fixed' => false];
         }
-        $d = $this->distance->resolve($pickup, $destination);
+        // One Google lookup per route per day: the widget re-quotes every vehicle (and
+        // both legs of a return) as the customer changes options, and the route doesn't
+        // change. Only a MEASURED distance is cached — never the fallback estimate.
+        $routeKey = 'route:'.md5(strtolower(trim($pickup)).'|'.strtolower(trim($destination)));
+        $d = \Illuminate\Support\Facades\Cache::get($routeKey);
+        if (! is_array($d)) {
+            $d = $this->distance->resolve($pickup, $destination);
+            if (($d['source'] ?? null) !== 'estimate') {
+                \Illuminate\Support\Facades\Cache::put($routeKey, $d, now()->addDay());
+            }
+        }
         // Google is set up but couldn't measure this journey (outage, unknown address):
         // never auto-price on the 10-mile fallback guess — the office confirms it.
         if (($d['source'] ?? null) === 'estimate' && $this->distance->configured()) {
@@ -241,12 +251,19 @@ class QuoteService
         ], $pickupAt);
     }
 
-    /** Add any office-defined night / holiday surcharge for the pickup time to a quote. */
+    /**
+     * Add the time-based surcharge for the pickup time to a quote: the festive table
+     * AND the office night/date rules, on the standard fare (trip + drag), via the one
+     * shared rule (TimeSurcharges::forStandardFare). Both the customer widget and the
+     * admin form (FareCalculator) get it from here, so they can never disagree.
+     */
     private function withTimeSurcharge(array $quote, ?\Illuminate\Support\Carbon $pickupAt): array
     {
-        $surcharge = \App\Support\TimeSurcharges::surchargeFor($pickupAt, (float) ($quote['price'] ?? 0));
+        $s = \App\Support\TimeSurcharges::forStandardFare($pickupAt, (float) ($quote['price'] ?? 0));
+        $surcharge = $s['amount'];
         $quote['surcharge'] = $surcharge;
-        $quote['surcharge_label'] = $surcharge > 0 ? \App\Support\TimeSurcharges::labelFor($pickupAt) : null;
+        $quote['surcharge_label'] = $surcharge > 0 ? $s['label'] : null;
+        $quote['surcharge_factor'] = $surcharge > 0 ? $s['factor'] : null;
         if ($surcharge > 0 && $quote['price'] !== null) {
             $quote['price'] = round((float) $quote['price'] + $surcharge, 2);
         }

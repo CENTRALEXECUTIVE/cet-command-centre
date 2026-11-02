@@ -630,14 +630,19 @@ class BookingService
             'created_by' => $creator?->id,
         ]);
 
-        // Via stops apply to the outbound leg only.
-        if (! $isReturn) {
-            foreach (array_values(array_filter(Arr::get($data, 'via_stops', []) ?? [])) as $i => $address) {
-                $booking->stops()->create([
-                    'sequence' => $i + 1,
-                    'address' => $address,
-                ]);
-            }
+        // Via stops are charged on EACH leg of a return (directors, Nov 2026 — the
+        // price strip bills the stop fee on both legs), so the return leg carries them
+        // too, in reverse order as it drives back. They used to be saved on the outbound
+        // only, so the return was billed for a stop the driver never saw.
+        $via = array_values(array_filter(Arr::get($data, 'via_stops', []) ?? []));
+        if ($isReturn) {
+            $via = array_reverse($via);
+        }
+        foreach ($via as $i => $address) {
+            $booking->stops()->create([
+                'sequence' => $i + 1,
+                'address' => $address,
+            ]);
         }
 
         return $booking;

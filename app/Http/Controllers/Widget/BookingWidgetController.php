@@ -218,25 +218,77 @@ class BookingWidgetController extends Controller
             'pickup' => ['required', 'string', 'max:500'],
             'destination' => ['required', 'string', 'max:500'],
             'pickup_at' => ['nullable', 'string', 'max:40'],
+            // The rest of the customer's choices, so the card/total shown is EXACTLY
+            // what store() will charge (computed by the same TripPricer, no JS maths).
+            'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
+            'return_pickup_at' => ['nullable', 'string', 'max:40'],
+            'child_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'booster_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'infant_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'stops' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'ribbons' => ['nullable', 'boolean'],
+            'wheelchair' => ['nullable', 'boolean'],
+            'vat_invoice' => ['nullable', 'boolean'],
+            'voucher' => ['nullable', 'string', 'max:40'],
         ]);
 
         $pickupAt = $this->parsePickupAt($data['pickup_at'] ?? null);
+        $isReturn = ($data['journey_type'] ?? 'one_way') === 'return';
+        $returnAt = $isReturn ? $this->parsePickupAt($data['return_pickup_at'] ?? null) : null;
+        $seats = $this->cappedSeats($data);
+        $pricer = app(\App\Services\Pricing\TripPricer::class);
 
         $options = VehicleType::where('is_active', true)
             ->orderBy('sort_order')
             ->get(['id', 'name', 'slug'])
-            ->map(function (VehicleType $type) use ($data, $pickupAt) {
+            ->map(function (VehicleType $type) use ($data, $pickupAt, $isReturn, $returnAt, $seats, $pricer) {
+                // 'price' stays the plain one-way journey fare (incl. any time surcharge)
+                // for older callers; 'total' is the whole trip the customer pays.
                 $q = $this->quotes->quote($data['pickup'], $data['destination'], $type, $pickupAt);
+                $trip = $pricer->price($type, [
+                    'pickup' => $data['pickup'], 'destination' => $data['destination'],
+                    'pickup_at' => $pickupAt ?? now(),
+                    'journey_type' => $isReturn ? 'return' : 'one_way',
+                    // The return is priced at ITS OWN time; until the customer picks it,
+                    // the outbound time stands in (the total refreshes when they do).
+                    'return_pickup_at' => $returnAt ?? $pickupAt ?? now(),
+                    'meet_greet' => true,
+                    'stopovers' => (int) ($data['stops'] ?? 0),
+                    'ribbons' => (bool) ($data['ribbons'] ?? false),
+                    'wheelchair' => (bool) ($data['wheelchair'] ?? false),
+                    'vat' => (bool) ($data['vat_invoice'] ?? false),
+                    'voucher' => $data['voucher'] ?? null,
+                ] + $seats);
+                $poa = $q['price'] === null || $trip['poa'];
+                $labels = array_values(array_unique(array_filter([
+                    $trip['out']['surcharge']['label'] ?? null,
+                    $trip['ret']['surcharge']['label'] ?? null,
+                ])));
 
                 return [
                     'id' => $type->id,
                     'price' => $q['price'],
                     'fixed' => $q['fixed'],
-                    'poa' => $q['price'] === null,
-                    'formatted' => $q['price'] !== null ? '£'.number_format($q['price'], 0) : 'On request',
-                    // When an office night/holiday surcharge applied, so the widget can note it.
+                    'poa' => $poa,
+                    'formatted' => $poa ? 'On request' : self::money((float) $trip['total']),
+                    // The whole trip, to the penny, as store() + the pay link will charge it.
+                    'total' => $poa ? null : $trip['total'],
+                    'out' => $poa ? null : (float) $trip['out']['subtotal'],
+                    'ret' => $poa || ! $trip['ret'] ? null : (float) $trip['ret']['subtotal'],
+                    // Journey fare per leg WITHOUT extras (fare + any time surcharge), so the
+                    // summary reads fare + fare + extras − discount + VAT = total.
+                    'out_fare' => $poa ? null : round((float) $trip['out']['subtotal'] - (float) $trip['out']['extras_total'], 2),
+                    'ret_fare' => $poa || ! $trip['ret'] ? null : round((float) $trip['ret']['subtotal'] - (float) $trip['ret']['extras_total'], 2),
+                    'extras' => $poa ? null : round((float) $trip['out']['extras_total'] + (float) ($trip['ret']['extras_total'] ?? 0), 2),
+                    // Itemised extras summed over both legs (e.g. a child seat on a return
+                    // shows £20: £10 each way), for the summary lines.
+                    'extras_items' => $poa ? [] : self::mergeExtras($trip['out']['extras'], $trip['ret']['extras'] ?? []),
+                    'discount' => $trip['discount'],
+                    'voucher_valid' => $trip['voucher_valid'],
+                    'vat' => $trip['vat'],
+                    // When a festive / night / date surcharge applied, so the widget can note it.
                     'surcharge' => $q['surcharge'] ?? 0,
-                    'surcharge_label' => $q['surcharge_label'] ?? null,
+                    'surcharge_label' => $labels ? implode(' / ', $labels) : null,
                 ];
             })->values();
 
@@ -355,10 +407,10 @@ class BookingWidgetController extends Controller
         // force it on here regardless of what the form submitted. It belongs ONLY to
         // the leg that collects from the airport: on a return that's the inbound when
         // the outbound is a drop-off; on a one-way drop-off TO the airport it never
-        // applies, even if the box was ticked (charged once per trip, like the form).
+        // applies, even if the box was ticked. Each leg collected at an airport carries
+        // it (airport → airport return: both legs) — the same rule as the admin strip.
         $mgOutbound = $isAirportArrival && \App\Support\AirportMatcher::isAirport($data['pickup_address']);
-        $mgReturn = $isReturn && $isAirportArrival && ! $mgOutbound
-            && \App\Support\AirportMatcher::isAirport($data['destination_address'] ?? null);
+        $mgReturn = $isReturn && \App\Support\AirportMatcher::isAirport($data['destination_address'] ?? null);
         $data['meet_greet'] = $mgOutbound || $mgReturn;
 
         // No cash bookings on a return journey — the customer pays by card (or on
@@ -410,11 +462,33 @@ class BookingWidgetController extends Controller
             ? ['price' => null, 'basis' => 'Hourly hire — office to confirm', 'fixed' => false]
             : $this->quotes->quote($pickupFull, $destination, $vehicleType, $pickupAt);
 
+        $returnAt = $isReturn
+            ? (Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone'))
+                ?: Carbon::parse($data['return_pickup_at']))
+            : null;
+
+        // THE price: the same TripPricer the price cards use (and the same per-leg
+        // engine as the admin form) — each leg on its own route, own drag and own
+        // pickup time; extras on each leg; meet & greet on an airport-collection leg;
+        // voucher off the whole trip; VAT per leg as the pay link charges it.
+        $trip = $isHourly ? null : app(\App\Services\Pricing\TripPricer::class)->price($vehicleType, [
+            'pickup' => $pickupFull, 'destination' => $destination, 'pickup_at' => $pickupAt,
+            'journey_type' => $journeyType, 'return_pickup_at' => $returnAt,
+            'meet_greet' => true,
+            'child_seats' => (int) ($data['child_seats'] ?? 0),
+            'booster_seats' => (int) ($data['booster_seats'] ?? 0),
+            'infant_seats' => (int) ($data['infant_seats'] ?? 0),
+            'stopovers' => (int) $data['stopovers'],
+            'ribbons' => (bool) ($data['ribbons'] ?? false),
+            'wheelchair' => (bool) ($data['wheelchair'] ?? false),
+            'voucher' => $data['voucher'] ?? null,
+        ]);
+
         // "On request" vehicle (Rolls Royce / any POA class): no online price and
         // no payment method — it's a REQUEST A QUOTE. We take the full details and
         // the office emails a price back. Hourly hire is office-confirmed, not a
         // quote request in this sense (it has a payment choice).
-        $isQuoteRequest = ! $isHourly && ($quote['price'] === null);
+        $isQuoteRequest = ! $isHourly && ($quote['price'] === null || $trip['poa']);
 
         // A logged-in customer (verified in this browser session) is the booker —
         // this is what makes "book on account" possible: only a signed-in company
@@ -467,30 +541,14 @@ class BookingWidgetController extends Controller
         // Chauffeurs takes it (its Square account). Stored so billing routes right.
         $needsInvoice = (bool) ($data['vat_invoice'] ?? false);
 
-        // All-in price the customer sees: vehicle + extras, less any voucher, plus
-        // VAT when a business invoice is wanted. Null for hourly / on-request.
-        $rates = \App\Support\Surcharges::rates();
-        $extrasTotal = ($extra['meet_greet'] ? (float) ($rates['meet_greet'] ?? 0) : 0)
-            + $extra['child_seats'] * (float) ($rates['child_seat'] ?? 0)
-            + $extra['booster_seats'] * (float) ($rates['booster_seat'] ?? 0)
-            + $extra['infant_seats'] * (float) ($rates['infant_seat'] ?? 0)
-            + $extra['stopovers'] * (float) ($rates['stopover'] ?? 0)
-            + ($extra['wheelchair'] ? (float) ($rates['wheelchair'] ?? 0) : 0)
-            + ($extra['ribbons'] ? (float) ($rates['ribbons_car'] ?? 0) : 0);
-
-        $net = $quote['price'] === null ? null : round((float) $quote['price'] + $extrasTotal, 2);
-        $voucher = \App\Models\Voucher::findByCode($data['voucher'] ?? null);
-        $discount = ($voucher && $voucher->isRedeemable() && $net !== null) ? $voucher->discountOn($net) : 0.0;
-        $afterDiscount = $net === null ? null : round($net - $discount, 2);
-        // On a return whose airport pickup is the INBOUND leg, the meet & greet fee
-        // moves onto that leg (same trip total) — the outbound is a drop-off and
-        // must never carry it.
-        $mgMoved = ($mgReturn && $extra['meet_greet'] && $afterDiscount !== null)
-            ? min((float) ($rates['meet_greet'] ?? 0), $afterDiscount) : 0.0;
-        if ($afterDiscount !== null) {
-            $afterDiscount = round($afterDiscount - $mgMoved, 2);
-        }
-        $vatRate = app(\App\Services\Payments\VatService::class)->rate();
+        // Per-leg NET fares (after any voucher, which comes off the whole trip). Null
+        // for hourly / on-request. VAT is never stored — amountPayable() adds it.
+        $priced = $trip !== null && ! $trip['poa'];
+        $afterDiscount = $priced ? $trip['legs_net'][0] : null;      // outbound leg, net
+        $returnNet = ($priced && $isReturn) ? $trip['legs_net'][1] : null;
+        $outExtras = $priced ? (float) $trip['out']['extras_total'] : 0.0;
+        $retExtras = ($priced && $trip['ret']) ? (float) $trip['ret']['extras_total'] : 0.0;
+        $vatService = app(\App\Services\Payments\VatService::class);
 
         // Account (monthly invoice): ONLY for a signed-in customer whose account is
         // an active business account. No payment is taken; the fare is billed on the
@@ -504,7 +562,8 @@ class BookingWidgetController extends Controller
             $needsInvoice = true; // account fares are invoiced with VAT
         }
 
-        $charge = $afterDiscount === null ? null : ($needsInvoice ? round($afterDiscount * (1 + $vatRate), 2) : $afterDiscount);
+        // What this leg charges — exactly Booking::amountPayable() (net + VAT per leg).
+        $charge = $afterDiscount === null ? null : ($needsInvoice ? $vatService->fromNet($afterDiscount)['gross'] : $afterDiscount);
         // Prices are STORED EX-VAT everywhere (Booking::fareVatBreakdown): a VAT-invoice
         // booking (incl. account jobs) stores the NET fare and amountPayable() adds the
         // 20% on top. Storing the VAT-inclusive $charge here made the pay link add VAT a
@@ -575,7 +634,7 @@ class BookingWidgetController extends Controller
                 'infant_seats' => $extra['infant_seats'] ?: null,
                 'extra_stops' => $extra['stopovers'] ?: null,
                 'stops' => $stops ?: null,
-                'fare_extras_total' => round($extrasTotal - $mgMoved, 2) ?: null,
+                'fare_extras_total' => $outExtras ?: null,
                 'vat_invoice_requested' => $needsInvoice,
                 // quoted_price is stored EX-VAT (post double-VAT fix) — cet:web-vat-audit skips these.
                 'price_ex_vat' => $needsInvoice ?: null,
@@ -606,19 +665,11 @@ class BookingWidgetController extends Controller
         // or calendar until then). The return is its OWN priced transfer — a round
         // trip is two journeys, so the customer is charged for both legs, not one.
         if ($isReturn) {
-            $returnAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone'))
-                ?: Carbon::parse($data['return_pickup_at']);
-
-            // Price the return as its own leg (same base as the outbound, reversed
-            // route — matches the round-trip total the customer saw). VAT / account
-            // handling mirror the outbound so both legs are stored consistently.
-            $returnNet = $quote['price'] === null // null for on-request (POA) — stays unpriced
-                ? null
-                : round((float) $quote['price'] + $mgMoved, 2); // + meet & greet when THIS leg is the arrival
-            $returnCharge = $returnNet === null
-                ? null
-                : ($needsInvoice ? round((float) $returnNet * (1 + $vatRate), 2) : (float) $returnNet);
-            $returnQuoted = $needsInvoice ? $returnNet : $returnCharge; // ex-VAT when invoiced (see outbound)
+            // The return is priced on ITS OWN route (destination → pickup), its own drag
+            // (base → the return pickup) and its own pickup time — TripPricer above, the
+            // same engine as the admin form. Stored net like the outbound (amountPayable()
+            // adds VAT on an invoiced booking); null for on-request (POA).
+            $returnQuoted = $returnNet;
 
             $return = Booking::create([
                 'reference' => $returnRef,
@@ -649,11 +700,14 @@ class BookingWidgetController extends Controller
                     'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                     'driver_notes' => $returnNotes,
                     'meet_greet' => $mgReturn ?: null,
-                    'fare_extras_total' => $mgMoved ?: null,
+                    'fare_extras_total' => $retExtras ?: null,
                     'child_seats' => $extra['child_seats'] ?: null,
                     'booster_seats' => $extra['booster_seats'] ?: null,
                     'infant_seats' => $extra['infant_seats'] ?: null,
                     'extra_stops' => $extra['stopovers'] ?: null,
+                    // Via stops are charged on EACH leg (directors, Nov 2026), so the return
+                    // carries them too — in reverse order, as it drives the route back.
+                    'stops' => $stops ? array_values(array_reverse($stops)) : null,
                     'vat_invoice_requested' => $needsInvoice,
                     'price_ex_vat' => $needsInvoice ?: null,
                     'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',
@@ -721,6 +775,13 @@ class BookingWidgetController extends Controller
             + ($isReturn && isset($return) ? (float) ($return->quoted_price ?? 0) : 0.0), 2);
         $conversionEvent = $isQuoteRequest ? 'quote_request' : 'booking_request';
 
+        // "Pay now · £X" must be what the link will actually charge: the WHOLE trip on a
+        // return (widget.pay charges every unpaid leg), VAT-inclusive when invoiced —
+        // Booking::amountPayable() per leg, the very figure pay() sums.
+        $payAmount = $charge === null ? null : round(
+            (float) ($booking->fresh()->amountPayable() ?? 0)
+            + ($isReturn && isset($return) ? (float) ($return->fresh()->amountPayable() ?? 0) : 0.0), 2);
+
         return response()
             ->view('widget.book', [
                 'vehicleTypes' => collect(),
@@ -728,7 +789,7 @@ class BookingWidgetController extends Controller
                 'ref' => $booking->reference,
                 'payUrl' => $payUrl,
                 'payWanted' => $wantsCard,
-                'payAmount' => $charge,
+                'payAmount' => $payAmount,
                 'quoteRequest' => $isQuoteRequest,
                 'conversionValue' => $conversionValue,
                 'conversionEvent' => $conversionEvent,
@@ -887,6 +948,55 @@ class BookingWidgetController extends Controller
         }
 
         return $address === '' ? $postcode : $address.', '.$postcode;
+    }
+
+    /**
+     * Seat counts with the same 2-seat cap store() applies (child → booster → infant
+     * trimmed first), so the price shown never includes a seat that won't be charged.
+     *
+     * @return array{child_seats: int, booster_seats: int, infant_seats: int}
+     */
+    private function cappedSeats(array $data): array
+    {
+        $seats = [
+            'child_seats' => (int) ($data['child_seats'] ?? 0),
+            'booster_seats' => (int) ($data['booster_seats'] ?? 0),
+            'infant_seats' => (int) ($data['infant_seats'] ?? 0),
+        ];
+        foreach (array_keys($seats) as $k) {
+            $over = array_sum($seats) - 2;
+            if ($over > 0) {
+                $seats[$k] = max(0, $seats[$k] - $over);
+            }
+        }
+
+        return $seats;
+    }
+
+    /**
+     * FareCalculator extra lines from both legs, summed per label.
+     *
+     * @return list<array{label: string, amount: float, legs: int}>
+     */
+    private static function mergeExtras(array $out, array $ret): array
+    {
+        $items = [];
+        foreach ([$out, $ret] as $leg) {
+            foreach ($leg as $line) {
+                $label = $line['qty'] > 1 ? $line['qty'].' × '.$line['label'] : $line['label'];
+                $items[$label] ??= ['label' => $label, 'amount' => 0.0, 'legs' => 0];
+                $items[$label]['amount'] = round($items[$label]['amount'] + (float) $line['amount'], 2);
+                $items[$label]['legs']++;
+            }
+        }
+
+        return array_values($items);
+    }
+
+    /** "£330" for whole pounds, "£157.50" otherwise — never rounded away from the charge. */
+    public static function money(float $amount): string
+    {
+        return '£'.number_format($amount, abs($amount - round($amount)) < 0.005 ? 0 : 2);
     }
 
     /** Parse the widget's datetime-local pickup string to a UK-local Carbon, or null. */

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\VehicleType;
 use App\Models\Voucher;
 use App\Services\Payments\PaymentGateway;
+use App\Services\Payments\VatService;
 use App\Services\Pricing\DistanceService;
 use App\Services\Pricing\QuoteService;
 use App\Support\AirportMatcher;
@@ -23,23 +24,23 @@ use Tests\TestCase;
  * CUSTOMER vs ADMIN PRICE PARITY SWEEP (Nov 2026, after the Kidderminster → MAN
  * misquote). For the same journey, vehicle and options it compares:
  *
- *   CUSTOMER  widget.prices (what the card shows, combined exactly like the widget
- *             JS currentTotal(): price × legs + meet & greet + extras, × VAT),
- *             widget.book.store (quoted_price stored on BOTH legs) and the signed
- *             widget.pay link (the amount actually sent to Stripe/Square).
- *   ADMIN     pricing.strip (FareCalculator per leg, the return on its own route
- *             with its own drag) and, where it matters, bookings.store (the per-leg
- *             fares it stores and what each leg's amountPayable() charges).
+ *   CUSTOMER  widget.prices `total` (the figure the widget JS shows on the card and
+ *             in the Total band — the JS does no maths of its own), widget.book.store
+ *             (quoted_price stored, EX-VAT, on BOTH legs) and the signed widget.pay
+ *             link (the amount actually sent to Stripe/Square).
+ *   ADMIN     pricing.strip (FareCalculator per leg, each leg on its own route, own
+ *             drag, own pickup time), with VAT added per leg exactly as
+ *             Booking::amountPayable() does; and, where it matters, bookings.store.
+ *
+ * Rules (directors, Nov 2026): local fixed fares only in the home catchment; else
+ * distance + drag; a RETURN leg is priced on its own route with its own drag and its
+ * own pickup time; extras (seats, stops, ribbons) on EACH leg; ribbons at the minibus
+ * rate on minibus / V Class; a voucher comes off the WHOLE trip; the festive table
+ * and the office night/date surcharges apply on both sides, on the standard fare.
  *
  * Distances are stubbed offline: straight-line × 1.25 road factor from real
  * coordinates, with the staging-measured Kidderminster figures pinned
  * (113.9 mi base→pickup, 91.7 mi pickup→Premier Inn MAN).
- *
- * Tests named test_parity_* are CONFIRMED parity and must stay green.
- * Tests named test_MISMATCH_* document a real divergence: they markTestIncomplete
- * with the exact figures while it exists, and turn into a passing parity check by
- * themselves once the directors decide the fix and it lands. No pricing code was
- * changed for this sweep.
  */
 class CustomerAdminPriceParityTest extends TestCase
 {
@@ -144,8 +145,6 @@ class CustomerAdminPriceParityTest extends TestCase
     /** Amounts handed to the (mocked) card provider by widget.pay. */
     private array $charged = [];
 
-    private array $pricesCache = [];
-
     private array $stripCache = [];
 
     private User $admin;
@@ -171,7 +170,7 @@ class CustomerAdminPriceParityTest extends TestCase
     }
 
     // =====================================================================
-    //  CONFIRMED PARITY
+    //  Sweeps
     // =====================================================================
 
     public function test_parity_one_way_every_area_every_vehicle_no_extras(): void
@@ -180,7 +179,7 @@ class CustomerAdminPriceParityTest extends TestCase
         foreach (self::PAIRS as [$p, $d]) {
             foreach ($this->vehicles() as $vt) {
                 $r = $this->compare($p, $d, 'one_way', $vt);
-                if (! $r['match'] || ! $this->same($r['cust_shown'], $r['cust_charged']) || ! $this->same($r['cust_charged'], $r['cust_pay'])) {
+                if (! $r['match']) {
                     $bad[] = $this->row($r);
                 }
             }
@@ -189,39 +188,49 @@ class CustomerAdminPriceParityTest extends TestCase
         $this->assertSame([], $bad, "One-way customer vs admin differ:\n".implode("\n", $bad));
     }
 
-    public function test_parity_return_where_the_reverse_leg_prices_the_same_as_the_outbound(): void
+    public function test_parity_return_every_area_every_vehicle_each_leg_on_its_own_route(): void
     {
-        $checked = 0;
+        // Was 105 mismatches: the widget charged 2 × the outbound. Now the return leg is
+        // priced on its OWN route + OWN drag (base → the return pickup), like admin.
         $bad = [];
+        $q = app(QuoteService::class);
         foreach (self::PAIRS as [$p, $d]) {
             foreach ($this->vehicles() as $vt) {
-                if (! $this->symmetric($p, $d, $vt) || $this->bothAirports($p, $d)) {
-                    continue; // covered by the MISMATCH test below
-                }
-                $checked++;
                 $r = $this->compare($p, $d, 'return', $vt);
-                if (! $r['match'] || ! $this->same($r['cust_charged'], $r['cust_pay']) || ! $this->same($r['cust_shown'], $r['cust_charged'])) {
+                if (! $r['match']) {
                     $bad[] = $this->row($r);
+
+                    continue;
+                }
+                // And it IS the rule: the return leg = the reverse journey's own quote
+                // (+ £10 meet & greet when that leg is collected at an airport).
+                $rev = $q->quote($d, $p, $vt)['price'];
+                if ($rev !== null) {
+                    $expected = $rev + (AirportMatcher::isAirport($d) ? 10.0 : 0.0);
+                    if (! $this->same($expected, $r['cust_ret'])) {
+                        $bad[] = $this->row($r)." || RULE return leg £{$expected}";
+                    }
                 }
             }
         }
-        $this->assertGreaterThan(50, $checked);
-        $this->assertSame([], $bad, "Symmetric returns differ:\n".implode("\n", $bad));
+        $this->assertSame([], $this->unknown, 'stub was asked for an unknown address');
+        $this->assertSame([], $bad, "Returns differ:\n".implode("\n", $bad));
     }
 
-    public function test_parity_one_way_extras_seats_stops_and_meet_and_greet(): void
+    public function test_parity_one_way_extras_seats_stops_ribbons_and_meet_and_greet_every_vehicle(): void
     {
         $bad = [];
         foreach (self::SUBSET as [$p, $d]) {
-            foreach (['executive', 'estate', 'v-class', 'minibus-8'] as $slug) {
+            foreach (['executive', 'estate', 'v-class', 'minibus-8', 'minibus-8-xl'] as $slug) {
                 foreach ([
                     ['child_seats' => 1, 'booster_seats' => 1],
                     ['infant_seats' => 2],
                     ['stops' => 2],
-                    ['child_seats' => 1, 'stops' => 1],
+                    ['ribbons' => true],
+                    ['child_seats' => 1, 'stops' => 1, 'ribbons' => true],
                 ] as $ex) {
                     $r = $this->compare($p, $d, 'one_way', $this->vt($slug), $ex);
-                    if (! $r['match'] || ! $this->same($r['cust_shown'], $r['cust_charged'])) {
+                    if (! $r['match']) {
                         $bad[] = $this->row($r);
                     }
                 }
@@ -230,24 +239,35 @@ class CustomerAdminPriceParityTest extends TestCase
         $this->assertSame([], $bad, "One-way extras differ:\n".implode("\n", $bad));
     }
 
-    public function test_parity_wedding_ribbons_on_cars(): void
+    public function test_parity_return_extras_are_charged_on_each_leg(): void
     {
+        // Was 21 mismatches: the widget added extras once per trip. Directors: each leg.
         $bad = [];
-        foreach (self::SUBSET as [$p, $d]) {
-            foreach (['executive', 'estate'] as $slug) {
-                $r = $this->compare($p, $d, 'one_way', $this->vt($slug), ['ribbons' => true]);
-                if (! $r['match']) {
-                    $bad[] = $this->row($r);
+        foreach ([['Sheffield S1 2HH', self::MAN], [self::MAN, 'Sheffield S1 2HH'], ['Sheffield S1 2HH', 'Leeds LS1 4DY'], [self::KIDDY, self::PREMIER_INN]] as [$p, $d]) {
+            foreach (['executive', 'v-class', 'minibus-8'] as $slug) {
+                foreach ([['child_seats' => 1], ['booster_seats' => 1, 'infant_seats' => 1], ['stops' => 1], ['ribbons' => true]] as $ex) {
+                    $r = $this->compare($p, $d, 'return', $this->vt($slug), $ex);
+                    if (! $r['match']) {
+                        $bad[] = $this->row($r);
+                    }
                 }
             }
         }
-        $this->assertSame([], $bad, implode("\n", $bad));
+        $this->assertSame([], $bad, "Return extras differ:\n".implode("\n", $bad));
     }
 
-    public function test_parity_meet_and_greet_is_charged_once_on_the_arrival_leg(): void
+    public function test_parity_ribbons_use_the_minibus_rate_on_minibus_and_v_class(): void
     {
-        // Admin side ticks meet & greet (the form only AUTO-ticks it when the outbound
-        // pickup is the airport — on Sheffield → MAN return the office must tick it).
+        foreach (['executive' => 30.0, 'estate' => 30.0, 'v-class' => 50.0, 'minibus-8' => 50.0, 'minibus-8-xl' => 50.0] as $slug => $rate) {
+            $plain = $this->compare('Sheffield S1 2HH', self::MAN, 'one_way', $this->vt($slug));
+            $r = $this->compare('Sheffield S1 2HH', self::MAN, 'one_way', $this->vt($slug), ['ribbons' => true]);
+            $this->assertTrue($r['match'], $this->row($r));
+            $this->assertEqualsWithDelta($plain['cust_shown'] + $rate, $r['cust_shown'], 0.01, "{$slug} ribbons £{$rate}");
+        }
+    }
+
+    public function test_parity_meet_and_greet_on_each_leg_collected_at_an_airport(): void
+    {
         $exec = $this->vt('executive');
         foreach ([
             ['Sheffield S1 2HH', self::MAN, 'return', 105 + 105 + 10],
@@ -257,29 +277,26 @@ class CustomerAdminPriceParityTest extends TestCase
         ] as [$p, $d, $jt, $expected]) {
             $r = $this->compare($p, $d, $jt, $exec);
             $this->assertTrue($r['match'], $this->row($r));
-            $this->assertEqualsWithDelta($expected, $r['cust_charged'], 0.01, $this->row($r));
+            $this->assertEqualsWithDelta($expected, $r['cust_pay'], 0.01, $this->row($r));
             $this->assertEqualsWithDelta($expected, $r['cust_shown'], 0.01, $this->row($r));
         }
+
+        // Airport → airport return: both legs are airport collections → both carry it.
+        $r = $this->compare(self::MAN, self::LHR, 'return', $exec);
+        $this->assertTrue($r['match'], $this->row($r));
     }
 
-    public function test_parity_vat_invoice_customer_is_quoted_net_plus_20_percent_like_admin(): void
+    public function test_parity_vat_invoice_shown_equals_pay_link_equals_admin_and_stored_is_net(): void
     {
         $bad = [];
         foreach (self::SUBSET as [$p, $d]) {
             foreach (['executive', 'v-class'] as $slug) {
                 foreach (['one_way', 'return'] as $jt) {
-                    if ($jt === 'return' && ! $this->symmetric($p, $d, $this->vt($slug))) {
-                        continue;
-                    }
-                    $r = $this->compare($p, $d, $jt, $this->vt($slug), [], vat: true);
-                    // Prices are STORED EX-VAT on both sides (Booking::fareVatBreakdown), so a
-                    // VAT booking stores the admin NET; the customer is SHOWN and CHARGED (pay
-                    // link) net × 1.2 — exactly what admin says they pay. (Storing the gross
-                    // made the pay link add VAT twice: £126 shown, £151.20 charged.)
-                    if (! $this->same($r['cust_shown'], $r['admin_pays'])
-                        || ! $this->same($r['cust_pay'], $r['admin_pays'])
-                        || ! $this->same($r['cust_charged'], $r['admin_strip'])) {
-                        $bad[] = $this->row($r);
+                    foreach ([[], ['child_seats' => 1, 'ribbons' => true]] as $ex) {
+                        $r = $this->compare($p, $d, $jt, $this->vt($slug), $ex, vat: true);
+                        if (! $r['match']) {
+                            $bad[] = $this->row($r);
+                        }
                     }
                 }
             }
@@ -287,34 +304,167 @@ class CustomerAdminPriceParityTest extends TestCase
         $this->assertSame([], $bad, implode("\n", $bad));
     }
 
-    public function test_parity_fixed_and_percent_voucher_on_a_one_way(): void
+    public function test_parity_vouchers_come_off_the_whole_trip(): void
     {
         Voucher::create(['code' => 'FIVER', 'type' => 'fixed', 'value' => 5, 'is_active' => true]);
         Voucher::create(['code' => 'TEN', 'type' => 'percent', 'value' => 10, 'is_active' => true]);
         $exec = $this->vt('executive');
 
         foreach (['FIVER', 'TEN'] as $code) {
-            foreach ([['Sheffield S1 2HH', self::MAN], [self::KIDDY, self::PREMIER_INN]] as [$p, $d]) {
-                $cust = $this->customer($p, $d, 'one_way', $exec, [], false, $code);
-                $adm = $this->adminStore($p, $d, 'one_way', $exec, [], false, $code);
-                $this->assertEqualsWithDelta($adm['pays'], $cust['charged'], 0.01, "{$code} {$p} → {$d}: customer £{$cust['charged']} vs admin £{$adm['pays']}");
-                $this->assertEqualsWithDelta($adm['pays'], $cust['pay'], 0.01, "{$code} pay link");
+            foreach ([['Sheffield S1 2HH', self::MAN], [self::MAN, 'Sheffield S1 2HH'], [self::KIDDY, self::PREMIER_INN], ['Sheffield S1 2HH', 'Leeds LS1 4DY']] as [$p, $d]) {
+                foreach (['one_way', 'return'] as $jt) {
+                    foreach ([false, true] as $vat) {
+                        $label = "{$code} {$p} → {$d} {$jt}".($vat ? ' VAT' : '');
+                        $cust = $this->customer($p, $d, $jt, $exec, ['child_seats' => 1], $vat, $code);
+                        $adm = $this->adminStore($p, $d, $jt, $exec, ['child_seats' => 1], $vat, $code);
+                        $this->assertEqualsWithDelta($adm['pays'], $cust['pay'], 0.01, "{$label}: pay link £{$cust['pay']} vs admin £{$adm['pays']}");
+                        $this->assertEqualsWithDelta($adm['pays'], $cust['shown'], 0.01, "{$label}: shown £{$cust['shown']} vs admin £{$adm['pays']}");
+                        $this->assertEqualsWithDelta($adm['out'], $cust['out'], 0.01, "{$label}: outbound leg");
+                        if ($jt === 'return') {
+                            $this->assertEqualsWithDelta($adm['ret'], $cust['ret'], 0.01, "{$label}: return leg");
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    /**
+     * The directors' official 2026/27 festive table, on the standard fare, the SAME on
+     * the customer side (shown, stored, pay link) and the admin strip — boundaries too.
+     */
+    public function test_parity_official_festive_table_sheffield_to_manchester_executive(): void
+    {
+        $exec = $this->vt('executive');
+        foreach ([
+            '2027-10-31T12:00' => 168.00,  // Halloween +60%
+            '2026-12-20T12:00' => 105.00,  // 18–23 Dec normal
+            '2026-12-24T12:00' => 131.25,  // Christmas Eve +25%
+            '2026-12-25T12:00' => 157.50,  // Christmas Day +50%
+            '2026-12-26T12:00' => 157.50,  // Boxing Day +50%
+            '2026-12-27T12:00' => 105.00,  // 27–30 Dec normal
+            '2026-12-31T17:00' => 131.25,  // NYE before 18:00 +25%
+            '2026-12-31T17:59' => 131.25,
+            '2026-12-31T18:00' => 157.50,  // NYE 18:00–23:59 +50%
+            '2026-12-31T19:00' => 157.50,
+            '2027-01-01T03:00' => 189.00,  // NYD 00:00–05:59 +80%
+            '2027-01-01T05:59' => 189.00,
+            '2027-01-01T06:00' => 157.50,  // NYD 06:00 onwards +50%
+            '2027-01-01T09:00' => 157.50,
+            '2027-01-02T12:00' => 105.00,  // 2 Jan onwards normal
+        ] as $when => $expected) {
+            $r = $this->compare('Sheffield S1 2HH', self::MAN, 'one_way', $exec, [], false, null, $when);
+            $this->assertTrue($r['match'], $this->row($r));
+            $this->assertEqualsWithDelta($expected, $r['admin_pays'], 0.001, "admin {$when}");
+            $this->assertEqualsWithDelta($expected, $r['cust_shown'], 0.001, "customer shown {$when}");
+            $this->assertEqualsWithDelta($expected, $r['cust_pay'], 0.001, "customer pay link {$when}");
+        }
+    }
+
+    public function test_parity_festive_on_the_standard_fare_only_never_on_extras_every_vehicle(): void
+    {
+        foreach ($this->vehicles() as $vt) {
+            foreach ([['Sheffield S1 2HH', self::MAN], [self::KIDDY, self::PREMIER_INN], ['Sheffield S1 2HH', 'Leeds LS1 4DY']] as [$p, $d]) {
+                $r = $this->compare($p, $d, 'one_way', $vt, ['child_seats' => 1, 'ribbons' => true], false, null, '2026-12-25T12:00');
+                $this->assertTrue($r['match'], $this->row($r));
+                if ($r['admin_pays'] === null) {
+                    continue; // price on request
+                }
+                $fare = app(QuoteService::class)->quote($p, $d, $vt)['price'];
+                $ribbon = in_array($vt->slug, ['v-class', 'minibus-8', 'minibus-8-xl'], true) ? 50.0 : 30.0;
+                $this->assertEqualsWithDelta(round($fare * 1.5, 2) + 10 + $ribbon, $r['cust_pay'], 0.01, "{$vt->name} {$p}: +50% on the fare, extras unchanged");
+            }
+        }
+    }
+
+    public function test_parity_each_return_leg_uses_its_own_collection_time(): void
+    {
+        $exec = $this->vt('executive');
+        // Out 24 Dec (+25%) → £131.25; back on Boxing Day (+50%) from the airport → £157.50 + £10 meet & greet.
+        $r = $this->compare('Sheffield S1 2HH', self::MAN, 'return', $exec, [], false, null, '2026-12-24T10:00', '2026-12-26T15:00');
+        $this->assertTrue($r['match'], $this->row($r));
+        $this->assertEqualsWithDelta(131.25, $r['cust_out'], 0.001);
+        $this->assertEqualsWithDelta(167.50, $r['cust_ret'], 0.001);
+        $this->assertEqualsWithDelta(298.75, $r['cust_pay'], 0.001);
+
+        // Out on Christmas Day, back on an ordinary day → only the outbound is uplifted.
+        $r = $this->compare('Sheffield S1 2HH', 'Leeds LS1 4DY', 'return', $exec, [], false, null, '2026-12-25T10:00', '2027-01-05T10:00');
+        $this->assertTrue($r['match'], $this->row($r));
+        $this->assertEqualsWithDelta(157.50, $r['cust_out'], 0.001);
+        $this->assertEqualsWithDelta(140.00, $r['cust_ret'], 0.001);
+    }
+
+    public function test_parity_office_night_and_date_surcharges_apply_on_both_sides(): void
+    {
+        TimeSurcharges::save(['enabled' => true, 'from' => '22:00', 'to' => '06:00', 'type' => 'percent', 'value' => 20], [
+            ['date' => '2026-11-18', 'label' => 'Test date uplift', 'type' => 'fixed', 'value' => 25],
+            ['date' => '2026-12-25', 'label' => 'Office Xmas', 'type' => 'fixed', 'value' => 40],
+        ]);
+        $exec = $this->vt('executive');
+        foreach ([
+            ['2026-11-17T23:30', 'one_way', null, 126.0],          // night +20%
+            ['2026-11-18T12:00', 'one_way', null, 130.0],          // office date +£25
+            ['2026-12-25T12:00', 'one_way', null, 157.5],          // festive wins over the office date (+£40 NOT added)
+            ['2026-12-31T23:30', 'one_way', null, 178.5],          // NYE evening +50% + night +20%, both on £105
+            ['2026-11-17T23:30', 'return', '2026-11-20T11:00', 241.0], // 126 out + (105 + 10 m&g) back at 11:00
+        ] as [$when, $jt, $ret, $expected]) {
+            $r = $this->compare('Sheffield S1 2HH', self::MAN, $jt, $exec, [], false, null, $when, $ret ?? self::RET_AT);
+            $this->assertTrue($r['match'], $this->row($r));
+            $this->assertEqualsWithDelta($expected, $r['cust_pay'], 0.001, $this->row($r));
+        }
+    }
+
+    public function test_parity_the_thank_you_page_shows_what_the_pay_link_charges(): void
+    {
+        $exec = $this->vt('executive');
+        foreach ([['return', false], ['return', true], ['one_way', true]] as [$jt, $vat]) {
+            $res = $this->post(route('widget.book.store'), $this->widgetPayload('Sheffield S1 2HH', 'Leeds LS1 4DY', $jt, $exec, ['child_seats' => 1], $vat))->assertOk();
+            $out = Booking::where('source', 'web')->where('is_return_leg', false)->latest('id')->first();
+            $this->assertEqualsWithDelta($this->payFor($out), (float) $res->viewData('payAmount'), 0.001, "{$jt}".($vat ? ' VAT' : ''));
         }
     }
 
     public function test_parity_admin_stores_each_return_leg_at_its_own_quoted_fare(): void
     {
-        // Admin side of the Kidderminster round trip, end to end through bookings.store:
-        // outbound £215 + £115 drag = £330; return Premier Inn MAN → Kidderminster is its
-        // own leg: £215 trip + £40 drag (base → Manchester Airport) + £10 airport pickup
-        // (meet & greet on the leg collected at the airport hotel) = £265.
+        // Kidderminster round trip through bookings.store: outbound £215 + £115 drag =
+        // £330; return Premier Inn MAN → Kidderminster: £215 + £40 drag (base → MAN) +
+        // £10 airport pickup = £265. The customer side now stores the same two legs.
         $exec = $this->vt('executive');
         $adm = $this->adminStore(self::KIDDY, self::PREMIER_INN, 'return', $exec);
+        $cust = $this->customer(self::KIDDY, self::PREMIER_INN, 'return', $exec);
         $this->assertEqualsWithDelta(330.0, $adm['out'], 0.01);
         $this->assertEqualsWithDelta(265.0, $adm['ret'], 0.01);
         $this->assertEqualsWithDelta(595.0, $adm['pays'], 0.01);
-        $this->assertEqualsWithDelta($this->strip(self::KIDDY, self::PREMIER_INN, 'return', $exec), $adm['pays'], 0.01);
+        $this->assertEqualsWithDelta(330.0, $cust['out'], 0.01);
+        $this->assertEqualsWithDelta(265.0, $cust['ret'], 0.01);
+        $this->assertEqualsWithDelta(595.0, $cust['shown'], 0.01);
+        $this->assertEqualsWithDelta(595.0, $cust['pay'], 0.01);
+    }
+
+    public function test_via_stops_are_saved_on_both_legs_because_both_legs_are_charged(): void
+    {
+        $exec = $this->vt('executive');
+
+        // Admin form: the return leg gets the stops too (reversed), like its price.
+        $this->actingAs($this->admin)->post(route('bookings.store'), [
+            'customer_name' => 'Stops', 'customer_phone' => '07700900333', 'vehicle_type_id' => $exec->id,
+            'journey_type' => 'return', 'pickup_at' => self::OUT_AT, 'return_pickup_at' => self::RET_AT,
+            'pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Leeds LS1 4DY',
+            'via_stops' => ['Stop A, Sheffield S2 4SU', 'Stop B, Barnsley S70 2TA'],
+            'passengers' => 2, 'payment_method' => 'card', 'privacy_consent' => '1', 'quoted_price' => 265,
+        ])->assertSessionHasNoErrors();
+        $ret = Booking::where('is_return_leg', true)->latest('id')->firstOrFail();
+        $out = Booking::where('is_return_leg', false)->latest('id')->firstOrFail();
+        $this->assertSame(['Stop A, Sheffield S2 4SU', 'Stop B, Barnsley S70 2TA'], $out->viaStops());
+        $this->assertSame(['Stop B, Barnsley S70 2TA', 'Stop A, Sheffield S2 4SU'], $ret->viaStops());
+
+        // Website: the same.
+        $this->post(route('widget.book.store'), array_merge(
+            $this->widgetPayload('Sheffield S1 2HH', 'Leeds LS1 4DY', 'return', $exec),
+            ['stops' => ['Stop A, Sheffield S2 4SU', 'Stop B, Barnsley S70 2TA']],
+        ))->assertOk();
+        $wret = Booking::where('source', 'web')->where('is_return_leg', true)->latest('id')->firstOrFail();
+        $this->assertSame(['Stop B, Barnsley S70 2TA', 'Stop A, Sheffield S2 4SU'], $wret->viaStops());
     }
 
     public function test_parity_hourly_hire_is_never_auto_priced_for_the_customer(): void
@@ -324,194 +474,17 @@ class CustomerAdminPriceParityTest extends TestCase
         $this->assertNull(Booking::where('source', 'web')->latest('id')->first()->quoted_price);
     }
 
-    // =====================================================================
-    //  DOCUMENTED MISMATCHES (incomplete until the directors pick the fix)
-    // =====================================================================
-
-    /**
-     * Customer return leg = a COPY of the outbound quote (BookingWidgetController
-     * store(): $returnNet = $quote['price'] + $mgMoved; widget JS legs() × 2), but the
-     * admin strip prices the return on its own reverse route with its own drag
-     * (base → return pickup). Every out-of-area / asymmetric return differs.
-     */
-    public function test_MISMATCH_return_leg_is_a_copy_of_the_outbound_on_the_customer_side(): void
-    {
-        $rows = [];
-        foreach (self::PAIRS as [$p, $d]) {
-            foreach ($this->vehicles() as $vt) {
-                if ($this->symmetric($p, $d, $vt) && ! $this->bothAirports($p, $d)) {
-                    continue;
-                }
-                $r = $this->compare($p, $d, 'return', $vt);
-                if (! $r['match']) {
-                    $rows[] = $this->row($r);
-                }
-            }
-        }
-        $this->document($rows, 'RETURN: customer charges 2 × outbound; admin prices the reverse leg on its own (own drag; meet & greet on each airport-pickup leg)');
-    }
-
-    /** Widget always charges ribbons_car (£30); admin FareCalculator charges ribbons_minibus (£50) on minibus/V Class. */
-    public function test_MISMATCH_wedding_ribbons_on_minibus_and_v_class(): void
-    {
-        $rows = [];
-        foreach (self::SUBSET as [$p, $d]) {
-            foreach (['v-class', 'minibus-8', 'minibus-8-xl'] as $slug) {
-                $r = $this->compare($p, $d, 'one_way', $this->vt($slug), ['ribbons' => true]);
-                if (! $r['match']) {
-                    $rows[] = $this->row($r);
-                }
-            }
-        }
-        $this->document($rows, 'RIBBONS: widget uses ribbons_car for every vehicle; admin uses ribbons_minibus for minibus/V Class');
-    }
-
-    /** Widget charges extras once per trip (outbound only); admin strip charges them on BOTH legs. */
-    public function test_MISMATCH_return_extras_once_per_trip_vs_per_leg(): void
-    {
-        $rows = [];
-        // Symmetric pairs only, so the extras are the ONLY difference.
-        $sym = [['Sheffield S1 2HH', self::MAN], [self::MAN, 'Sheffield S1 2HH'], ['Sheffield S1 2HH', 'Rotherham S60 1QY']];
-        foreach ($sym as [$p, $d]) {
-            foreach (['executive', 'v-class'] as $slug) {
-                foreach ([['child_seats' => 1], ['booster_seats' => 1, 'infant_seats' => 1], ['stops' => 1], ['ribbons' => true]] as $ex) {
-                    if ($slug === 'v-class' && ! empty($ex['ribbons'])) {
-                        continue; // ribbon rate mismatch documented separately
-                    }
-                    $r = $this->compare($p, $d, 'return', $this->vt($slug), $ex);
-                    if (! $r['match']) {
-                        $rows[] = $this->row($r);
-                    }
-                }
-            }
-        }
-        $this->document($rows, 'RETURN EXTRAS: widget adds seats/stops/ribbons once; admin strip adds them on outbound AND return (stops are only stored on the outbound leg by BookingService)');
-    }
-
-    /**
-     * Widget card one-way with a VAT invoice: quoted_price is stored VAT-INCLUSIVE
-     * (store(): $charge = net × 1.2) AND meta.vat_invoice_requested=true, so
-     * Booking::amountPayable() adds VAT a second time (fareVatBreakdown treats the
-     * stored price as NET). The pay link charges net × 1.44.
-     */
-    public function test_MISMATCH_vat_invoice_pay_link_charges_vat_twice(): void
-    {
-        $rows = [];
-        foreach (self::SUBSET as [$p, $d]) {
-            foreach (['one_way', 'return'] as $jt) {
-                $exec = $this->vt('executive');
-                if ($jt === 'return' && ! $this->symmetric($p, $d, $exec)) {
-                    continue;
-                }
-                $r = $this->compare($p, $d, $jt, $exec, [], vat: true);
-                if (! $this->same($r['cust_pay'], $r['admin_pays'])) {
-                    $rows[] = $this->row($r);
-                }
-            }
-        }
-        $this->document($rows, 'VAT: the widget pay link charges the VAT-inclusive stored price PLUS VAT again (×1.44); admin pays net × 1.2');
-    }
-
-    /**
-     * Two separate time-surcharge systems: admin FareCalculator applies the config
-     * cet.holiday_surcharges factors (Halloween ×1.6, Christmas Day ×1.75, NYE ×1.25/×1.5,
-     * NYD ×1.8/×1.5, …) but never passes the pickup time into QuoteService; the widget
-     * uses QuoteService::quote(…, $pickupAt) which applies only the office TimeSurcharges
-     * setting and never the config holiday factors.
-     */
-    public function test_MISMATCH_holiday_factor_is_admin_only(): void
-    {
-        $rows = [];
-        $exec = $this->vt('executive');
-        foreach (['2026-12-24T12:00', '2026-12-25T12:00', '2026-12-31T20:00', '2027-01-01T03:00'] as $when) {
-            foreach ([['Sheffield S1 2HH', self::MAN], [self::KIDDY, self::PREMIER_INN]] as [$p, $d]) {
-                $r = $this->compare($p, $d, 'one_way', $exec, [], false, null, $when);
-                if (! $r['match']) {
-                    $rows[] = $this->row($r);
-                }
-            }
-        }
-        $this->document($rows, 'HOLIDAY: admin applies config cet.holiday_surcharges; customer widget does not');
-    }
-
-    public function test_MISMATCH_office_night_surcharge_is_customer_only(): void
-    {
-        TimeSurcharges::save(['enabled' => true, 'from' => '22:00', 'to' => '06:00', 'type' => 'percent', 'value' => 20], [
-            ['date' => '2026-11-18', 'label' => 'Test date uplift', 'type' => 'fixed', 'value' => 25],
-        ]);
-        $rows = [];
-        $exec = $this->vt('executive');
-        foreach (['2026-11-17T23:30', '2026-11-18T12:00'] as $when) {
-            foreach ([['Sheffield S1 2HH', self::MAN], ['Sheffield S1 2HH', 'Leeds LS1 4DY']] as [$p, $d]) {
-                $r = $this->compare($p, $d, 'one_way', $exec, [], false, null, $when);
-                if (! $r['match']) {
-                    $rows[] = $this->row($r);
-                }
-            }
-        }
-        // And on a return the customer's return leg inherits the OUTBOUND time's surcharge.
-        $r = $this->compare('Sheffield S1 2HH', self::MAN, 'return', $exec, [], false, null, '2026-11-17T23:30', '2026-11-20T11:00');
-        if (! $r['match']) {
-            $rows[] = $this->row($r);
-        }
-        $this->document($rows, 'NIGHT/DATE (office TimeSurcharges): customer widget applies it; admin strip never does (FareCalculator calls quote() without the pickup time)');
-    }
-
-    /** Widget discounts only the OUTBOUND (price + extras); admin discounts the whole trip total. */
-    public function test_MISMATCH_percent_voucher_on_a_return(): void
-    {
-        Voucher::create(['code' => 'TEN', 'type' => 'percent', 'value' => 10, 'is_active' => true]);
-        $exec = $this->vt('executive');
-        $rows = [];
-        // Symmetric pairs only, so the voucher is the ONLY difference.
-        foreach ([['Sheffield S1 2HH', self::MAN], [self::MAN, 'Sheffield S1 2HH'], ['Sheffield S1 2HH', 'Rotherham S60 1QY']] as [$p, $d]) {
-            $cust = $this->customer($p, $d, 'return', $exec, [], false, 'TEN');
-            $adm = $this->adminStore($p, $d, 'return', $exec, [], false, 'TEN');
-            if (! $this->same($cust['charged'], $adm['pays'])) {
-                $rows[] = sprintf('%s → %s | return | Executive | voucher TEN 10%% | customer charged £%.2f (out £%.2f + ret £%.2f) | admin £%.2f (out £%.2f + ret £%.2f)',
-                    $p, $d, $cust['charged'], $cust['out'], $cust['ret'], $adm['pays'], $adm['out'], $adm['ret']);
-            }
-        }
-        $this->document($rows, 'VOUCHER: widget takes 10% off the outbound only; admin takes 10% off the round-trip total');
-    }
-
-    /** The thank-you page "Pay now · £X" shows the outbound leg only; the link then charges both legs. */
-    public function test_MISMATCH_thank_you_page_shows_only_the_outbound_amount_on_a_return(): void
-    {
-        $exec = $this->vt('executive');
-        $res = $this->post(route('widget.book.store'), $this->widgetPayload('Sheffield S1 2HH', 'Leeds LS1 4DY', 'return', $exec))->assertOk();
-        $out = Booking::where('source', 'web')->where('is_return_leg', false)->latest('id')->first();
-        $charged = $this->payFor($out);
-        $shown = (float) $res->viewData('payAmount');
-
-        if (! $this->same($shown, $charged)) {
-            $this->markTestIncomplete(sprintf('MISMATCH (display): Sheffield → Leeds return, Executive — thank-you page "Pay now · £%.2f" but the pay link charges £%.2f (both legs). BookingWidgetController::store() passes payAmount => $charge (outbound leg only).', $shown, $charged));
-        }
-        $this->assertEqualsWithDelta($charged, $shown, 0.01);
-    }
-
-    /**
-     * Not a widget/admin split, but found on the way: builtinZonesFor() maps ANY
-     * outward code starting with "S" to the Sheffield zone (SE, SW, ST, SK, SO, SN…).
-     * With Maps up the 35-mile backstop catches it; when Google can't measure the
-     * address, a full postcode skips the "office confirms" guard and the far address
-     * gets the Sheffield fixed fare (Stoke-on-Trent → MAN = £105).
-     */
-    public function test_MISMATCH_non_sheffield_s_postcodes_get_the_sheffield_fare_when_maps_cannot_measure(): void
+    public function test_non_sheffield_s_postcodes_never_get_the_sheffield_fare_when_maps_cannot_measure(): void
     {
         $distance = \Mockery::mock(DistanceService::class);
         $distance->shouldReceive('resolve')->andReturn(['miles' => 10.0, 'minutes' => 25, 'source' => 'estimate']);
         $distance->shouldReceive('configured')->andReturn(true);
         $this->app->instance(DistanceService::class, $distance);
 
-        $rows = [];
         foreach (['Stoke-on-Trent ST4 4EG', 'Southampton SO14 3TJ', 'Swansea SA1 1NW', 'London SE1 7PB'] as $far) {
             $q = app(QuoteService::class)->quote($far, self::MAN, $this->vt('executive'));
-            if ($q['price'] !== null) {
-                $rows[] = sprintf('%s → Manchester Airport (Maps unable to measure) | Executive | quoted £%.2f (%s) — should be office-to-confirm', $far, $q['price'], $q['basis']);
-            }
+            $this->assertNull($q['price'], "{$far} → MAN with Maps unable to measure must go to the office, not £{$q['price']}");
         }
-        $this->document($rows, 'ZONE: any S-prefixed postcode is treated as Sheffield (QuoteService::builtinZonesFor, `str_starts_with($outward, \'S\')`)');
     }
 
     // =====================================================================
@@ -527,11 +500,15 @@ class CustomerAdminPriceParityTest extends TestCase
     {
         $cust = $this->customer($p, $d, $jt, $vt, $ex, $vat, $voucher, $when, $retWhen);
         $strip = $this->strip($p, $d, $jt, $vt, $ex, $when, $retWhen);
-        $adminPays = $strip === null ? null : ($vat ? round($strip * 1.2, 2) : $strip);
+        $legs = $this->stripLegs($p, $d, $jt, $vt, $ex, $when, $retWhen);
+        // What admin's pay link charges: amountPayable() per leg (net + VAT per leg).
+        $payable = fn (?float $net) => $net === null ? 0.0 : ($vat ? app(VatService::class)->fromNet($net)['gross'] : $net);
+        $adminPays = $strip === null ? null
+            : round($legs ? $payable($legs[0]) + $payable($legs[1]) : $payable($strip), 2);
 
         return [
-            'label' => sprintf('%s → %s | %s | %s%s%s', $p, $d, $jt === 'return' ? 'return' : 'one-way', $vt->name,
-                $ex ? ' | '.$this->exLabel($ex) : '', $vat ? ' | VAT' : ''),
+            'label' => sprintf('%s → %s | %s | %s%s%s | %s', $p, $d, $jt === 'return' ? 'return' : 'one-way', $vt->name,
+                $ex ? ' | '.$this->exLabel($ex) : '', $vat ? ' | VAT' : '', $when.($jt === 'return' ? ' / '.$retWhen : '')),
             'cust_shown' => $cust['shown'],
             'cust_charged' => $cust['charged'],
             'cust_out' => $cust['out'],
@@ -539,24 +516,29 @@ class CustomerAdminPriceParityTest extends TestCase
             'cust_pay' => $cust['pay'],
             'admin_strip' => $strip,
             'admin_pays' => $adminPays,
-            'admin_legs' => $this->stripLegs($p, $d, $jt, $vt, $ex, $when, $retWhen),
-            'match' => $this->same($cust['charged'], $adminPays) && $this->same($cust['shown'], $adminPays),
+            'admin_legs' => $legs,
+            // Shown = pay link = admin's payable; stored (net) = admin net, per leg.
+            'match' => $this->same($cust['shown'], $adminPays)
+                && $this->same($cust['pay'], $adminPays)
+                && $this->same($cust['charged'], $strip)
+                && (! $legs || ($this->same($cust['out'], $legs[0]) && $this->same($cust['ret'], $legs[1]))),
         ];
     }
 
     /** @return array{shown: float|null, charged: float|null, out: float|null, ret: float|null, pay: float|null} */
     private function customer(string $p, string $d, string $jt, VehicleType $vt, array $ex = [], bool $vat = false, ?string $voucher = null, string $when = self::OUT_AT, string $retWhen = self::RET_AT): array
     {
-        // 1) What the customer SEES: widget.prices × the widget JS currentTotal() formula.
-        $opt = collect($this->widgetPrices($p, $d, $when))->firstWhere('id', $vt->id);
-        $rates = \App\Support\Surcharges::rates();
-        $legs = $jt === 'return' ? 2 : 1;
-        $mg = $this->mgApplies($p, $d, $jt) ? (float) $rates['meet_greet'] : 0.0;
-        $extras = ((int) ($ex['child_seats'] ?? 0) + (int) ($ex['booster_seats'] ?? 0) + (int) ($ex['infant_seats'] ?? 0)) * (float) $rates['child_seat']
-            + (int) ($ex['stops'] ?? 0) * (float) $rates['stopover']
-            + (! empty($ex['ribbons']) ? (float) $rates['ribbons_car'] : 0.0);
-        $shown = ($opt['price'] ?? null) === null ? null
-            : (float) round(((float) $opt['price'] * $legs + $mg + $extras) * ($vat ? 1.2 : 1)); // JS Math.round
+        // 1) What the customer SEES: widget.prices `total` with every choice the widget
+        //    JS sends (the JS displays this figure as-is — no client-side maths).
+        $opt = collect($this->postJson(route('widget.prices'), array_filter([
+            'pickup' => $p, 'destination' => $d, 'pickup_at' => $when,
+            'journey_type' => $jt, 'return_pickup_at' => $jt === 'return' ? $retWhen : null,
+            'child_seats' => $ex['child_seats'] ?? 0, 'booster_seats' => $ex['booster_seats'] ?? 0,
+            'infant_seats' => $ex['infant_seats'] ?? 0, 'stops' => $ex['stops'] ?? 0,
+            'ribbons' => ! empty($ex['ribbons']) ? 1 : 0, 'vat_invoice' => $vat ? 1 : 0,
+            'voucher' => $voucher,
+        ], fn ($v) => $v !== null))->assertOk()->json('options'))->firstWhere('id', $vt->id);
+        $shown = ($opt['total'] ?? null) === null ? null : (float) $opt['total'];
 
         // 2) What is STORED on each leg, and 3) what the signed pay link charges.
         $before = (int) Booking::max('id');
@@ -615,22 +597,13 @@ class CustomerAdminPriceParityTest extends TestCase
         return $this->charged ? round((float) end($this->charged), 2) : null;
     }
 
-    private function widgetPrices(string $p, string $d, string $when): array
-    {
-        $key = $p.'|'.$d.'|'.$when;
-
-        return $this->pricesCache[$key] ??= $this->postJson(route('widget.prices'), [
-            'pickup' => $p, 'destination' => $d, 'pickup_at' => $when,
-        ])->assertOk()->json('options');
-    }
-
     private function stripOptions(string $p, string $d, string $jt, array $ex, string $when, string $retWhen): array
     {
         $body = [
             'pickup' => $p, 'destination' => $d, 'pickup_at' => $when, 'journey_type' => $jt,
             'return_pickup_at' => $jt === 'return' ? $retWhen : null,
             'stops' => (int) ($ex['stops'] ?? 0),
-            // The office ticks meet & greet whenever the customer widget would apply it.
+            // The office ticks meet & greet on an airport job (charged per airport-collection leg).
             'meet_greet' => $this->mgApplies($p, $d, $jt) ? 1 : 0,
             'child_seats' => (int) ($ex['child_seats'] ?? 0),
             'booster_seats' => (int) ($ex['booster_seats'] ?? 0),
@@ -657,9 +630,12 @@ class CustomerAdminPriceParityTest extends TestCase
             return null;
         }
         $o = collect($this->stripOptions($p, $d, $jt, $ex, $when, $retWhen))->firstWhere('id', $vt->id);
+        if ($o['price'] === null) {
+            return null;
+        }
         $legs = collect($o['breakdown'] ?? [])->pluck('amount', 'label');
 
-        return [$legs['Outbound leg'] ?? null, $legs['Return leg'] ?? null];
+        return [(float) $legs['Outbound leg'], (float) $legs['Return leg']];
     }
 
     /**
@@ -684,6 +660,7 @@ class CustomerAdminPriceParityTest extends TestCase
             'passengers' => 2, 'payment_method' => 'card', 'privacy_consent' => '1',
             'flight_number' => $airport ? 'BA1234' : null,
             'meet_greet' => $this->mgApplies($p, $d, $jt) ? '1' : null,
+            'child_seats' => $ex['child_seats'] ?? null,
             'quoted_price' => $total,
             'leg_price_out' => $legs[0] ?? null, 'leg_price_return' => $legs[1] ?? null,
             'vat_invoice' => $vat ? '1' : null, 'vat_company' => $vat ? 'Acme Ltd' : null,
@@ -701,20 +678,7 @@ class CustomerAdminPriceParityTest extends TestCase
         ];
     }
 
-    /** Does each leg of the return price the same in QuoteService (so a copy is right)? */
-    private function symmetric(string $p, string $d, VehicleType $vt): bool
-    {
-        $q = app(QuoteService::class);
-
-        return $this->same($q->quote($p, $d, $vt)['price'], $q->quote($d, $p, $vt)['price']);
-    }
-
-    private function bothAirports(string $p, string $d): bool
-    {
-        return AirportMatcher::isAirport($p) && AirportMatcher::isAirport($d);
-    }
-
-    /** Widget rule: meet & greet on an airport arrival (one-way airport pickup, or a return touching an airport). */
+    /** Meet & greet applies to the trip (charged per airport-collection leg by both sides). */
     private function mgApplies(string $p, string $d, string $jt): bool
     {
         return AirportMatcher::isAirport($p) || ($jt === 'return' && AirportMatcher::isAirport($d));
@@ -732,7 +696,7 @@ class CustomerAdminPriceParityTest extends TestCase
 
     private function same(?float $a, ?float $b): bool
     {
-        return ($a === null && $b === null) || ($a !== null && $b !== null && abs($a - $b) < 0.01);
+        return ($a === null && $b === null) || ($a !== null && $b !== null && abs($a - $b) < 0.005);
     }
 
     private function exLabel(array $ex): string
@@ -749,16 +713,6 @@ class CustomerAdminPriceParityTest extends TestCase
         return sprintf('%s || CUSTOMER shown %s, stored %s%s, pay link %s || ADMIN strip %s%s, customer pays %s',
             $r['label'], $m($r['cust_shown']), $m($r['cust_charged']), $custLegs, $m($r['cust_pay']),
             $m($r['admin_strip']), $legs, $m($r['admin_pays']));
-    }
-
-    /** Mark the test incomplete with every mismatch row, or pass when there are none. */
-    private function document(array $rows, string $what): void
-    {
-        $this->assertSame([], $this->unknown, 'stub was asked for an unknown address');
-        if ($rows) {
-            $this->markTestIncomplete("MISMATCH — {$what}\n".count($rows)." case(s):\n".implode("\n", $rows));
-        }
-        $this->assertSame([], $rows);
     }
 
     // ---------------------------------------------------------------------

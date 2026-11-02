@@ -824,7 +824,8 @@
                             <label class="cet-check cet-check-sm">
                                 <input type="checkbox" id="b-ribbons" name="ribbons" value="1" data-extra="{{ (float) ($sc['ribbons_car'] ?? 0) }}">
                                 <span>Wedding ribbons</span>
-                                @if(($sc['ribbons_car'] ?? 0) > 0)<span class="px">+£{{ (int) ($sc['ribbons_car']) }}</span>@endif
+                                {{-- Priced by vehicle class (car vs minibus/V Class), per leg, on the server. --}}
+                                @if(($sc['ribbons_car'] ?? 0) > 0)<span class="px">+£{{ (int) ($sc['ribbons_car']) }}@if(($sc['ribbons_minibus'] ?? 0) > 0 && ($sc['ribbons_minibus'] ?? 0) != ($sc['ribbons_car'] ?? 0)) car · £{{ (int) $sc['ribbons_minibus'] }} minibus / V Class @endif</span>@endif
                             </label>
                         </div>
 
@@ -1308,7 +1309,15 @@
 
             // Vehicle card selection + per-card pricing.
             var priceById = {};   // vehicle id -> { formatted, price, poa }
-            var pricesFor = '';   // the pickup|dropoff we last priced, to avoid refetch
+            var pricesFor = '';   // the exact request we last priced, to avoid refetch
+            var pricesInFlight = '';
+            var requoteTimer = null;
+            // Re-price on the server shortly after any change (debounced). A no-op when
+            // nothing that affects the price has changed (loadPrices short-circuits).
+            function requote() {
+                clearTimeout(requoteTimer);
+                requoteTimer = setTimeout(function () { if (typeof loadPrices === 'function') loadPrices(); }, 250);
+            }
             var lastQuote = null; // the selected vehicle's quote (for the summary)
 
             // Fill the booking summary shown on the details step (all info + luggage).
@@ -1345,14 +1354,28 @@
                     html += row('Lands', isNaN(ld) ? val('b-flight-landing')
                         : ld.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+ld.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
                 }
-                var items = extrasList();
-                items.forEach(function (i) { html += row(i.label, i.amount > 0 ? money(i.amount) : 'included'); });
                 var vat = vatOn();
-                if (lastQuote && !lastQuote.poa && lastQuote.price != null) {
-                    // Show the return as its own line so the round-trip total is clear.
-                    if (legs() === 2) html += row('Return journey (2 legs)', money(Number(lastQuote.price) * 2));
-                    var net = Number(lastQuote.price) * legs() + mgFee() + extrasTotal();
-                    if (vat) html += row('VAT (' + vatPercent + '%)', money(net * vatPercent / 100));
+                requote(); // any change to the journey/extras/VAT/code re-prices on the server
+                var priced = lastQuote && !lastQuote.poa && lastQuote.total != null;
+                if (priced) {
+                    // Every figure below comes from the server (TripPricer) — the same
+                    // numbers store() charges — so the screen can never drift from the bill:
+                    // fare(s) + extras − discount + VAT = Total.
+                    if (legs() === 2 && lastQuote.retFare != null) {
+                        html += row('Outbound journey', money(lastQuote.outFare));
+                        html += row('Return journey', money(lastQuote.retFare));
+                    } else {
+                        html += row('Journey', money(lastQuote.outFare));
+                    }
+                    (lastQuote.extrasItems || []).forEach(function (i) {
+                        html += row(i.label + (i.legs > 1 ? ' (both legs)' : ''), i.amount > 0 ? money(i.amount) : 'included');
+                    });
+                } else {
+                    extrasList().forEach(function (i) { html += row(i.label, 'requested'); });
+                }
+                if (priced) {
+                    if (lastQuote.discount > 0) html += row('Discount code', '−' + money(lastQuote.discount));
+                    if (vat && lastQuote.vat > 0) html += row('VAT (' + vatPercent + '%)', money(lastQuote.vat));
                     var totNotes = [];
                     if (legs() === 2) totNotes.push('return — both legs');
                     if (vat) totNotes.push('inc. VAT');
@@ -1412,14 +1435,25 @@
                 card.classList.add('sel');
                 var input = card.querySelector('input'); if (input) input.checked = true;
                 var q = priceById[card.dataset.id];
-                lastQuote = q ? { formatted: q.poa ? 'On request' : q.formatted, price: q.price, poa: !!q.poa, surchargeLabel: q.surcharge_label || null } : null;
+                lastQuote = q ? {
+                    formatted: q.poa ? 'On request' : q.formatted, price: q.price, poa: !!q.poa,
+                    total: q.total, out: q.out, ret: q.ret, extras: q.extras,
+                    outFare: q.out_fare, retFare: q.ret_fare, extrasItems: q.extras_items || [],
+                    discount: Number(q.discount || 0), vat: Number(q.vat || 0),
+                    surchargeLabel: q.surcharge_label || null
+                } : null;
             }
 
             // ETO-style extras: +/- steppers, the meet & greet toggle, and a live
             // total (vehicle + extras + VAT when a business invoice is wanted).
-            function money(n){ return '£' + Number(n).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+            // Whole pounds as "£330"; anything with pence as "£157.50" — never rounded, so
+            // the screen shows exactly what the card is charged.
+            function money(n){
+                n = Math.round(Number(n) * 100) / 100;
+                var pence = Math.abs(n - Math.round(n)) > 0.004;
+                return '£' + n.toLocaleString('en-GB',{minimumFractionDigits: pence ? 2 : 0, maximumFractionDigits: pence ? 2 : 0});
+            }
             function vatOn(){ var y = document.getElementById('b-vat-yes'); return !!(y && y.checked); }
-            function withVat(base){ return vatOn() ? Math.round(base * (1 + vatPercent / 100)) : Math.round(base); }
             // Meet & greet is MANDATORY on an airport arrival (a one-way airport pickup,
             // or any return touching an airport) — the driver waits in arrivals with a
             // name board. It's baked into the price (shown on the vehicle cards and the
@@ -1432,13 +1466,14 @@
             function mgFee() {
                 return (mgApplies() && mg) ? (parseFloat(mg.dataset.extra) || 0) : 0;
             }
-            // A return is two journeys — price both legs (the return costs the same
-            // as the outbound), so the customer sees the real round-trip total.
+            // A return is two journeys, each priced on its OWN route, drag and time by
+            // the server (the return is not a copy of the outbound).
             function legs() { return (journeyEl && journeyEl.value === 'return') ? 2 : 1; }
-            // The all-in total for the selected vehicle, or null when it's on request.
+            // The all-in total for the selected vehicle (server-computed: both legs,
+            // extras on each leg, voucher off the whole trip, VAT per leg), or null.
             function currentTotal() {
-                if (!lastQuote || lastQuote.poa || lastQuote.price == null) return null;
-                return withVat(Number(lastQuote.price) * legs() + mgFee() + extrasTotal());
+                if (!lastQuote || lastQuote.poa || lastQuote.total == null) return null;
+                return Number(lastQuote.total);
             }
             // The prominent Total-price band on the details step.
             function updateTotal() {
@@ -1451,19 +1486,18 @@
                 if (mgFee() > 0) notes.push('incl. meet &amp; greet');
                 el.innerHTML = money(t) + (notes.length ? ' <small>' + notes.join(' · ') + '</small>' : '');
             }
-            // Put the current price on each vehicle card (VAT added when wanted). A
-            // RETURN shows the WHOLE trip (both legs), so the customer never sees a
-            // one-way price for a return. Airport arrivals include the mandatory meet
-            // & greet once.
+            // Put the current price on each vehicle card: the server's whole-trip total
+            // (both legs of a return, extras, any voucher, VAT when wanted) — the same
+            // figure store() and the pay link charge, to the penny.
             function renderPrices() {
                 if (!priceById) return; // not fetched yet (e.g. on first load) — nothing to paint
                 form.querySelectorAll('.cet-veh').forEach(function (card) {
                     var el = card.querySelector('[data-price]'); if (!el) return;
                     var o = priceById[card.dataset.id];
                     if (!o) { el.textContent = ''; el.classList.remove('poa'); return; }
-                    if (o.poa || o.price == null) { el.classList.add('poa'); el.textContent = 'On request'; return; }
+                    if (o.poa || o.total == null) { el.classList.add('poa'); el.textContent = 'On request'; return; }
                     el.classList.remove('poa');
-                    el.textContent = money(withVat(o.price * legs() + mgFee()));
+                    el.textContent = money(o.total);
                 });
             }
             // Total child/booster/infant seats we can carry across all three types.
@@ -1678,6 +1712,13 @@
                 });
             }
             [vatYes, vatNo].forEach(function (r) { if (r) r.addEventListener('change', syncVat); });
+            // The discount code, the return time and the pickup time all change the price
+            // (voucher off the whole trip; each leg's own festive/night surcharge) — re-price.
+            ['b-voucher', 'b-return', 'b-when'].forEach(function (id) {
+                var el = document.getElementById(id); if (!el) return;
+                el.addEventListener('change', fillSummary);
+                el.addEventListener('input', fillSummary);
+            });
 
             // Payment method (card / cash / account) — ETO-style.
             var payCard = document.getElementById('b-pay-card'), payCash = document.getElementById('b-pay-cash'),
@@ -1863,25 +1904,42 @@
                 function withPc(addr, pcId){ var pc=(document.getElementById(pcId)||{}).value||''; pc=pc.trim();
                     return (pc && addr.toUpperCase().indexOf(pc.toUpperCase())===-1) ? addr+', '+pc : addr; }
                 var pickup = withPc(pu.value, 'b-pickup-pc'), dest = withPc(dp.value, 'b-dropoff-pc');
-                var pickupAt = (document.getElementById('b-when') || {}).value || '';
-                var key = pickup + '|' + dest + '|' + pickupAt; // time can change night/holiday pricing
+                function v(id){ return (document.getElementById(id) || {}).value || ''; }
+                function n(id){ return parseInt(v(id), 10) || 0; }
+                function on(id){ var el = document.getElementById(id); return !!(el && el.checked); }
+                // EVERY choice that changes the price goes to the server, which prices the
+                // whole trip with the same engine store() uses — no maths in the browser.
+                var body = {
+                    pickup: pickup, destination: dest, pickup_at: v('b-when'),
+                    journey_type: jt, return_pickup_at: jt === 'return' ? v('b-return') : '',
+                    child_seats: n('b-child_seats'), booster_seats: n('b-booster_seats'), infant_seats: n('b-infant_seats'),
+                    stops: window.__cetCountStops ? window.__cetCountStops() : 0,
+                    ribbons: on('b-ribbons') ? 1 : 0, wheelchair: on('b-wheelchair') ? 1 : 0,
+                    vat_invoice: vatOn() ? 1 : 0, voucher: v('b-voucher').trim()
+                };
+                var key = JSON.stringify(body);
                 if (key === pricesFor && Object.keys(priceById).length) { renderPrices(); reportHeight(); return; }
+                if (key === pricesInFlight) return;
+                pricesInFlight = key;
                 form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) { el.textContent = '…'; });
                 fetch('{{ route('widget.prices') }}', {
                     method:'POST',
                     headers:{ 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN':token },
-                    body:JSON.stringify({ pickup:pickup, destination:dest, pickup_at:pickupAt })
+                    body:key
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
+                    if (pricesInFlight === key) pricesInFlight = '';
                     pricesFor = key; priceById = {};
                     (d.options || []).forEach(function (o) { priceById[o.id] = o; });
                     renderPrices();
-                    // Refresh the selected card's summary price.
+                    // Refresh the selected card's summary price + the total band.
                     var sel = form.querySelector('.cet-veh.sel'); if (sel) selectCard(sel);
+                    if (typeof fillSummary === 'function') fillSummary();
                     reportHeight();
                 })
                 .catch(function () {
+                    pricesInFlight = '';
                     form.querySelectorAll('.cet-veh [data-price]').forEach(function (el) {
                         el.textContent = ''; el.classList.remove('poa');
                     });
