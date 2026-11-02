@@ -798,6 +798,46 @@ class BookingController extends Controller
      * email before confirming (and before anything is sent to the customer).
      * Lenient (no full validation) and read-only: nothing is created or sent.
      */
+    /**
+     * Resend the CUSTOMER their booking confirmation on demand (office action from the
+     * payment history). Sends the PAID receipt + invoice when the fare is paid,
+     * otherwise the "complete payment" confirmation with the pay link — matching the
+     * preview. A deliberate resend, so the once-only guards don't block it; but it
+     * never emails an imported ETO/calendar customer, needs a customer email, and won't
+     * send a "confirmation" for a cancelled/no-show booking.
+     */
+    public function resendConfirmationEmail(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        if (blank($booking->customer?->email)) {
+            return back()->with('error', 'No customer email on file to send to.')->with('scroll', 'transactions');
+        }
+        if (in_array($booking->source_system, ['eto', 'calendar'], true)) {
+            return back()->with('error', 'This is an imported booking — imported customers are never emailed.')->with('scroll', 'transactions');
+        }
+        if ($booking->status->isTerminal()) {
+            return back()->with('error', 'This booking is '.$booking->status->value.' — use the cancellation email instead.')->with('scroll', 'transactions');
+        }
+
+        $fresh = $booking->fresh();
+        $paid = $fresh->fareIsPaid();
+        $payUrl = $paid ? null : $this->customerPayLink($fresh);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($fresh->customer->email)
+                ->send(new \App\Mail\BookingConfirmationMail($fresh, paid: $paid, payUrl: $payUrl));
+        } catch (\Throwable $e) {
+            \App\Support\MailFailure::report('resend booking confirmation', $e, $fresh);
+
+            return back()->with('error', 'Could not send the confirmation — '.$e->getMessage())->with('scroll', 'transactions');
+        }
+
+        return back()
+            ->with('status', ($paid ? 'Paid confirmation' : 'Booking confirmation').' re-sent to '.$fresh->customer->email.'.')
+            ->with('scroll', 'transactions');
+    }
+
     /** Does an address read like an airport? (meet & greet only applies to airport pickups). */
     private function looksLikeAirport(?string $address): bool
     {

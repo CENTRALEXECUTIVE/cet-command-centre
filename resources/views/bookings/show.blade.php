@@ -2027,6 +2027,22 @@
                 @endunless
             @endif
 
+            {{-- Resend the customer their booking confirmation — the PAID receipt +
+                 invoice if it's paid, otherwise the "complete payment" confirmation with
+                 the pay link. Preview it first, then send. --}}
+            @if(auth()->user()->isAdmin() && ! $booking->status->isTerminal())
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
+                    <a href="{{ route('bookings.confirmation-email.preview', $booking) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px;font-size:13px">👁 Preview confirmation</a>
+                    @if($booking->customer?->email)
+                        <form method="POST" action="{{ route('bookings.confirmation-email.resend', $booking) }}" onsubmit="return confirm('Re-send the booking confirmation to {{ $booking->customer->email }}?')" style="margin:0">@csrf
+                            <button class="btn btn-dark" style="padding:8px 14px;font-size:13px">✉ Resend confirmation</button>
+                        </form>
+                    @else
+                        <span class="hint">No customer email on file to send to.</span>
+                    @endif
+                </div>
+            @endif
+
             @if($txns->isNotEmpty())
                 <div style="overflow-x:auto">
                 <table style="width:100%">
