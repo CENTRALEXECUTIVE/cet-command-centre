@@ -1,69 +1,89 @@
-# CET house email style (approved by the directors, Nov 2026)
+# CET house email style (approved by the directors, updated 3 Nov 2026)
 
-**This is the standard for every outreach and business email.** It replaces the
-earlier "personalised opener" drafts (cold-email-rules-v2.md), which the directors
-rejected. When asked to write any prospecting or business email, copy this tone.
+**This is the standard for every outreach and business email.** The two emails
+below (SCS and Rolls-Royce) are the directors' chosen examples and replace the
+earlier approved emails. Copy their tone, length and shape exactly.
 
 ## The tone
-- **Formal and confident.** "Dear [Name]," (or "Dear Sir or Madam," with no name).
-  "Kind regards, Central Executive Transfers". Never sign with Abdi's or Maj's name.
-- **About the service, not about them.** Do NOT open with observations about the
-  prospect's site, news, projects or industry. It reads as odd. Say what we do and
-  how we help.
-- **Professional and premium**, plain British English. No slang, no hype words, no
-  em dashes.
-- **Structure:** one strong opening line about the value → one line saying who we
-  are → "With a corporate account, you benefit from:" + a short bullet list of
-  concrete benefits → one line on an extra service → one polite closing question.
+- **Formal, warm and confident.** "Dear [Name]," — or "Dear [Company] Team," when
+  writing to a company without a named contact. Plain British English, no slang,
+  no hype words, no em dashes.
+- **Open with who we are:** "I'm reaching out from Central Executive Transfers, a
+  Sheffield-based [council-licensed] executive transport [operator/company] ..."
+- **Then ONE short line linking us to them**, built on a plain, checkable fact
+  about the prospect (their site/office location, or that they're expanding),
+  framed around how WE can support them. E.g. "With your Advanced Blade Casting
+  Facility based in Rotherham, we'd welcome the opportunity to support your team
+  with ...". One line only, factual, never flattery or commentary on their news.
+- **A short bullet list** ("Our corporate service includes:" / "We can offer:") of
+  concrete benefits: fleet, coverage, airports, 24/7, licensed chauffeurs, fixed
+  fares, flight monitoring, meet and greet, payment terms, VAT invoices with PO refs.
+- **One extra line** (hourly hire for businesses; referring work back for operators).
+- **One polite closing question**, a single clear ask: exchange operator details,
+  or "Could you kindly direct me to the person responsible for corporate travel
+  arrangements or transport suppliers at ...?" when writing to a general inbox.
+- **Sign off** "Kind regards," then the company signature (name, phone, email,
+  website). Never sign with Abdi's or Maj's name.
 - **Partners (chauffeur/transfer operators):** do NOT mention unbranded service or
   driver links. They expect it. Focus on coverage, fleet, standards and reciprocal work.
 - Facts only from `docs/growth/BUSINESS_FACTS.md`.
 
-## Approved email 1: businesses (subject: `Corporate chauffeur account`)
-Dear [Name],
+## Approved email 1: chauffeur operator (SCS)
+Subject: `Regional partner: South Yorkshire and North Derbyshire`
 
-Your executives and visiting clients deserve transport that's professionally managed from booking through to arrival.
+Dear Garry,
 
-We're Central Executive Transfers, a Sheffield-based operator providing executive chauffeur services nationwide, 24/7.
+I'm reaching out from Central Executive Transfers, a Sheffield-based, council-licensed executive transport operator.
 
-With a corporate account, you benefit from:
+With SCS expanding its national presence, we'd welcome the opportunity to become a trusted regional partner, supporting your corporate and airport transfer bookings across South Yorkshire and North Derbyshire.
 
-- Executive cars, Mercedes V-Class and minibuses
-- Reliable airport, rail and business transfers
-- Flight monitoring and driver details ahead of collection
-- Fixed fares, agreed in advance
-- One monthly VAT invoice with PO references or cost codes
-- Convenient 30-day payment terms
+We can offer:
 
-We also provide hourly chauffeur hire, keeping the vehicle available throughout meetings, roadshows and business events.
+- A fleet of Mercedes-Benz executive saloons, estates, V-Class vehicles and minibuses
+- Reliable coverage across Sheffield, Rotherham, Doncaster, Barnsley and Chesterfield
+- Manchester, East Midlands and Leeds Bradford Airport transfers
+- 24/7 operational support and professional, licensed chauffeurs
+- Fixed trade rates, flight monitoring and clear booking communication
 
-Could we send you a brief overview of our corporate account service for future travel requirements?
+We also work with operators across the UK and would be happy to refer suitable bookings in your area, building a mutually beneficial relationship.
 
-Kind regards,
-Central Executive Transfers
-
-## Approved email 2: chauffeur operators (subject: `Reciprocal partnership: Sheffield chauffeur operator`)
-Dear [Name],
-
-We're looking to establish relationships with professional chauffeur operators who value reliable regional coverage and reciprocal work.
-
-Central Executive Transfers is a Sheffield-based, council-licensed private hire operator, trading since 2024.
-
-We can support your bookings with:
-
-- Coverage across Sheffield, South Yorkshire and nationwide
-- Executive saloons, estates, Mercedes V-Class and minibuses
-- Airport transfers, corporate journeys, events and hourly hire
-- 24/7 availability and fixed prices agreed in advance
-- Council-licensed, enhanced-DBS-checked chauffeurs
-- Flight tracking and driver details before every pickup
-
-We're equally interested in building relationships with operators elsewhere in the UK to whom we can refer work in their respective areas.
-
-Would you be interested in exchanging operator details and discussing a reciprocal partnership?
+Would you be open to exchanging operator details and discussing how we could support each other's bookings?
 
 Kind regards,
+
 Central Executive Transfers
+0114 399 8242
+admin@centralexecutivetransfers.co.uk
+www.centralexecutivetransfers.co.uk
+
+## Approved email 2: business (Rolls-Royce)
+Subject: `Executive travel for your Rotherham team`
+
+Dear Rolls-Royce Team,
+
+I'm reaching out from Central Executive Transfers, a Sheffield-based executive transport company supporting businesses across South Yorkshire and nationwide.
+
+With your Advanced Blade Casting Facility based in Rotherham, we'd welcome the opportunity to support your team with reliable executive travel, airport transfers and transport for visiting clients.
+
+Our corporate service includes:
+
+- Mercedes-Benz executive cars, V-Class vehicles and minibuses
+- 24/7 availability for business and airport transfers
+- Professional, licensed chauffeurs and fixed, pre-agreed fares
+- Flight monitoring and meet-and-greet services
+- Flexible payment options, including payment on booking or monthly invoicing with 30-day terms
+- VAT invoices with PO references where required
+
+We also offer dedicated hourly chauffeur hire for meetings, site visits and business events.
+
+Could you kindly direct me to the person responsible for corporate travel arrangements or transport suppliers at your Rotherham facility?
+
+Kind regards,
+
+Central Executive Transfers
+0114 399 8242
+admin@centralexecutivetransfers.co.uk
+www.centralexecutivetransfers.co.uk
 
 ## Where it lives in the app
 - First emails: `email_subject` / `email_body` in `docs/growth/sales/*.csv`, loaded by

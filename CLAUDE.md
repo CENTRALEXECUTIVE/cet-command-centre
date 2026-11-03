@@ -421,13 +421,15 @@ Hard-won from live incidents. Each has a regression test; keep them green.
 ## Outreach / business emails — the directors' house style (Nov 2026)
 
 **Every prospecting or business email follows
-`docs/growth/sales/kit/house-email-style.md`** (two approved emails: businesses
-and chauffeur operators). In short: formal ("Dear [Name]," / "Dear Sir or
-Madam,"), about OUR service and how it helps, a short benefit bullet list, one
-polite closing question, signed "Kind regards, Central Executive Transfers". Do
-NOT open with observations about the prospect's site/news/industry, do NOT sign
-with Abdi's or Maj's name, and do NOT mention "unbranded" or driver links to
-partner operators (they expect it). The personalised-opener drafts were rejected.
+`docs/growth/sales/kit/house-email-style.md`** (updated 3 Nov 2026 to the
+directors' chosen SCS + Rolls-Royce emails). In short: "Dear [Name]," / "Dear
+[Company] Team,", open "I'm reaching out from Central Executive Transfers, a
+Sheffield-based ...", then ONE factual line linking us to them (their site/
+location or expansion, framed as how we can support them), a short benefit
+bullet list, one extra-service line, one polite closing question, "Kind regards,"
++ the company signature with phone/email/web. Never sign with Abdi's or Maj's
+name, no flattery or commentary on their news, and do NOT mention "unbranded" or
+driver links to partner operators (they expect it).
 
 ## Handover to another Claude account
 
