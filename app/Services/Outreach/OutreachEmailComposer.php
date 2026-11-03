@@ -34,8 +34,11 @@ class OutreachEmailComposer
         $to = preg_replace('/\s+/', '', (string) $prospect->contact_email);
         $enc = fn (string $s) => str_replace('%0A', '%0D%0A', rawurlencode(self::normaliseBody($s)));
 
+        $cc = preg_replace('/\s+/', '', (string) $prospect->cc_email);
+        $cc = ($cc !== '' && strcasecmp($cc, $to) !== 0) ? '&cc='.str_replace('%40', '@', rawurlencode($cc)) : '';
+
         return 'mailto:'.str_replace('%40', '@', rawurlencode($to))
-            .'?subject='.$enc($subject)
+            .'?subject='.$enc($subject).$cc
             .'&body='.$enc($body);
     }
 

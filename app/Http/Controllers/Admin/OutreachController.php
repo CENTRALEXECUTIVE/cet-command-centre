@@ -116,6 +116,8 @@ class OutreachController extends Controller
             'contact_role' => ['nullable', 'string', 'max:200'],
             'contact_name' => ['nullable', 'string', 'max:200'],
             'contact_email' => ['nullable', 'email', 'max:255'],
+            'cc_email' => ['nullable', 'email', 'max:255'],
+            'cc_name' => ['nullable', 'string', 'max:200'],
             'contact_phone' => ['nullable', 'string', 'max:60'],
             'linkedin_url' => ['nullable', 'string', 'max:500'],
             'fit_score' => ['nullable', 'integer', 'between:1,5'],

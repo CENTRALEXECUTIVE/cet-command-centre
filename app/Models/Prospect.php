@@ -50,7 +50,7 @@ class Prospect extends Model
 
     protected $fillable = [
         'company', 'segment', 'town', 'website', 'why_they_need_us', 'contact_role',
-        'contact_name', 'contact_email', 'contact_phone', 'linkedin_url', 'fit_score',
+        'contact_name', 'contact_email', 'cc_email', 'cc_name', 'contact_phone', 'linkedin_url', 'fit_score',
         'angle', 'source_url', 'email_subject', 'email_body', 'status', 'owner_id',
         'next_action_at', 'last_contacted_at', 'replied_at', 'notes',
     ];

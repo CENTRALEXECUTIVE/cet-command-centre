@@ -80,6 +80,9 @@
                 <dd>{{ $p->contact_name ?: '—' }}{{ $p->contact_role ? ' · '.$p->contact_role : '' }}</dd>
                 <dt>Email / phone</dt>
                 <dd>{{ $dnc ? '—' : ($p->contact_email ?: '—') }}{{ $p->contact_phone ? ' · '.$p->contact_phone : '' }}</dd>
+                @if(! $dnc && $p->cc_email)
+                    <dt>CC</dt><dd>{{ $p->cc_name ? $p->cc_name.' · ' : '' }}{{ $p->cc_email }}</dd>
+                @endif
                 <dt>Why they need us</dt><dd>{{ $p->why_they_need_us ?: '—' }}</dd>
                 <dt>Angle</dt><dd>{{ $p->angle ?: '—' }}</dd>
                 <dt>Links</dt>
@@ -161,10 +164,11 @@
                         'company' => 'Company', 'town' => 'Town', 'segment' => 'Segment', 'website' => 'Website',
                         'contact_name' => 'Contact name', 'contact_role' => 'Contact role',
                         'contact_email' => 'Contact email', 'contact_phone' => 'Contact phone',
+                        'cc_email' => 'CC email', 'cc_name' => 'CC name',
                         'linkedin_url' => 'LinkedIn URL', 'source_url' => 'Source URL',
                     ] as $f => $label)
                         <div class="field"><label>{{ $label }}</label>
-                            <input name="{{ $f }}" value="{{ old($f, $p->{$f}) }}" @if($f === 'company') required @endif @if($f === 'contact_email') type="email" @endif>
+                            <input name="{{ $f }}" value="{{ old($f, $p->{$f}) }}" @if($f === 'company') required @endif @if(in_array($f, ['contact_email', 'cc_email'], true)) type="email" @endif>
                         </div>
                     @endforeach
                     <div class="field"><label>Fit (1–5)</label>
