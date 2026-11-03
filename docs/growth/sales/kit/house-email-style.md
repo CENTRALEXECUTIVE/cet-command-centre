@@ -1,7 +1,7 @@
 # CET house email style (approved by the directors, updated 3 Nov 2026)
 
 **This is the standard for every outreach and business email.** The two emails
-below (SCS and Rolls-Royce) are the directors' chosen examples and replace the
+below (SCS, Rolls-Royce and Sheffield DocFest) are the directors' chosen examples and replace the
 earlier approved emails. Copy their tone, length and shape exactly.
 
 ## The tone
@@ -85,8 +85,39 @@ Central Executive Transfers
 admin@centralexecutivetransfers.co.uk
 www.centralexecutivetransfers.co.uk
 
+## Approved email 3: events organisation (Sheffield DocFest)
+Subject: `Transport for DocFest guests and speakers`
+
+Dear Sheffield DocFest Team,
+
+I'm reaching out from Central Executive Transfers, a Sheffield-based executive chauffeur company providing professional transport services across the UK.
+
+As one of Sheffield's major international events, DocFest welcomes filmmakers, industry professionals and guests from around the world. We'd welcome the opportunity to support your team with their transport arrangements.
+
+Our services include:
+
+- Executive Mercedes-Benz cars, V-Class vehicles and minibuses
+- Airport and railway station transfers for visiting guests
+- VIP, speaker and delegate transportation
+- Dedicated chauffeurs for festival events and multi-day bookings
+- 24/7 availability, flight monitoring and fixed, pre-agreed fares
+- Flexible payment options, including payment on booking or monthly VAT invoicing with 30-day terms
+
+Being based locally, we're well positioned to provide reliable transport throughout the festival and for events held during the year.
+
+We'd be pleased to discuss becoming one of your trusted transport partners for future events.
+
+Could you kindly direct me to the person responsible for festival transport and logistics?
+
+Kind regards,
+
+Central Executive Transfers
+0114 399 8242
+www.centralexecutivetransfers.co.uk
+
 ## Where it lives in the app
 - First emails: `email_subject` / `email_body` in `docs/growth/sales/*.csv`, loaded by
   the draft-refresh migration (only never-emailed, unedited prospects).
 - Follow-ups, signature, opt-out: `config/outreach.php`.
-- `[Name]` → contact first name, else "Dear Sir or Madam," (`OutreachEmailComposer`).
+- `[Name]` → contact first name, else "Dear [Company] Team," (`OutreachEmailComposer::teamName`
+  strips "(Sheffield office)" etc.); "Dear Sir or Madam," only with no company name.

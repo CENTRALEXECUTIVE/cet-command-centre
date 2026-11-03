@@ -31,7 +31,7 @@ class OutreachContactNameCorrectionsTest extends TestCase
         return ['company' => $company, 'town' => $town, 'old_prefix' => $old, 'new_name' => $new, 'reason' => 'test'];
     }
 
-    public function test_stale_name_is_cleared_so_a_general_inbox_gets_dear_sir_or_madam(): void
+    public function test_stale_name_is_cleared_so_a_general_inbox_greets_the_company_team(): void
     {
         $p = $this->prospect(['company' => 'Acme AMRC', 'town' => 'Rotherham', 'contact_name' => 'Prof Ben Morgan (CEO - target his PA)']);
 
@@ -41,7 +41,7 @@ class OutreachContactNameCorrectionsTest extends TestCase
         $this->assertSame(1, $stats['changed']);
         $this->assertNull($p->contact_name);
         $this->assertSame('new', $p->status, 'status untouched');
-        $this->assertStringContainsString('Dear Sir or Madam,', app(OutreachEmailComposer::class)->merge($p->email_body, $p, User::factory()->admin()->create()));
+        $this->assertStringContainsString('Dear Acme AMRC Team,', app(OutreachEmailComposer::class)->merge($p->email_body, $p, User::factory()->admin()->create()));
         $this->assertStringContainsString('Greeting fix', $p->activities()->first()->body);
     }
 

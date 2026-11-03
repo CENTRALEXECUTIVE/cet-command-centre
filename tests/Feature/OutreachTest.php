@@ -192,7 +192,7 @@ class OutreachTest extends TestCase
         $this->assertStringNotContainsString('+', $url);
     }
 
-    public function test_house_style_greets_sir_or_madam_when_there_is_no_contact_name(): void
+    public function test_house_style_greets_the_company_team_when_there_is_no_contact_name(): void
     {
         $admin = User::factory()->admin()->create();
         $named = $this->prospect(['email_body' => "Dear [Name],\n\nBody.\n\nKind regards,\n[Signature]\n\n[Opt-out line]"]);
@@ -202,7 +202,11 @@ class OutreachTest extends TestCase
         $c = app(OutreachEmailComposer::class);
         $this->assertStringStartsWith('Dear Jane,', $c->firstEmail($named->fresh(), $admin)['body']);
         $body = $c->firstEmail($unnamed->fresh(), $admin)['body'];
-        $this->assertStringStartsWith('Dear Sir or Madam,', $body);
+        $this->assertStringStartsWith('Dear Nameless Team,', $body);
+        $this->assertSame('DLA Piper', OutreachEmailComposer::teamName('DLA Piper (Sheffield office)'));
+        $this->assertSame('Sheffield DocFest', OutreachEmailComposer::teamName('Sheffield DocFest'));
+        $nocompany = $this->prospect(['company' => '', 'contact_name' => null, 'email_body' => "Dear [Name],\n\nBody."]);
+        $this->assertStringStartsWith('Dear Sir or Madam,', $c->merge("Dear [Name],\n\nBody.", $nocompany->fresh(), $admin));
         $this->assertStringContainsString("Kind regards,\nCentral Executive Transfers", $body);
         $this->assertStringNotContainsString('Abdi', $body);
     }

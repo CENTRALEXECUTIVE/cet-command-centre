@@ -422,7 +422,7 @@ Hard-won from live incidents. Each has a regression test; keep them green.
 
 **Every prospecting or business email follows
 `docs/growth/sales/kit/house-email-style.md`** (updated 3 Nov 2026 to the
-directors' chosen SCS + Rolls-Royce emails). In short: "Dear [Name]," / "Dear
+directors' chosen SCS, Rolls-Royce and Sheffield DocFest emails). In short: "Dear [Name]," / "Dear
 [Company] Team,", open "I'm reaching out from Central Executive Transfers, a
 Sheffield-based ...", then ONE factual line linking us to them (their site/
 location or expansion, framed as how we can support them), a short benefit

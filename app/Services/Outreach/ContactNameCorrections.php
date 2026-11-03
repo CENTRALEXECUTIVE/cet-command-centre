@@ -13,7 +13,7 @@ use App\Models\Prospect;
  * Each correction only applies when the prospect's CURRENT name still starts
  * with the old researched value — a name a director has since edited is never
  * touched. Do-not-contact prospects are never touched. Status, notes, owner and
- * dates are never changed. A null new name means "Dear Sir or Madam," (house
+ * dates are never changed. A null new name means "Dear [Company] Team," (house
  * style for a general inbox). Each change is written to the prospect's history.
  */
 class ContactNameCorrections
@@ -41,7 +41,7 @@ class ContactNameCorrections
             $p->contact_name = $new;
             $p->save();
             $p->log('edited', 'Greeting fix: contact_name changed from "'.$current.'" to '
-                .($new ? '"'.$new.'"' : '(blank, so the email opens "Dear Sir or Madam,")')
+                .($new ? '"'.$new.'"' : '(blank, so the email greets the company team)')
                 .' - '.$row['reason'], $actorId);
             $stats['changed']++;
         }

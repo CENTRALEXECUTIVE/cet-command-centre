@@ -48,10 +48,12 @@ class OutreachEmailComposer
 
         $text = self::normaliseBody($text);
 
-        // House style opens "Dear [Name],". With no contact name, a formal
-        // "Dear Sir or Madam," reads properly (never "Dear there,").
+        // House style opens "Dear [Name],". With no contact name it greets the
+        // company ("Dear Rolls-Royce Team,", directors' style Nov 2026), falling
+        // back to "Dear Sir or Madam," only when there's no company name either.
         if ($first === '') {
-            $text = str_replace(['Dear [Name],', 'Dear {first_name},'], 'Dear Sir or Madam,', $text);
+            $team = self::teamName((string) $prospect->company);
+            $text = str_replace(['Dear [Name],', 'Dear {first_name},'], $team !== '' ? 'Dear '.$team.' Team,' : 'Dear Sir or Madam,', $text);
         }
 
         // Placeholders from the sales kit ("[Signature] · [Opt-out line]" on one line).
@@ -69,6 +71,15 @@ class OutreachEmailComposer
             '{original_subject}' => (string) ($prospect->email_subject ?: 'Executive travel for '.$prospect->company),
             '{sender}' => $senderName,
         ]);
+    }
+
+    /** "DLA Piper (Sheffield office)" → "DLA Piper"; drops a trailing "Team"/"Ltd". */
+    public static function teamName(string $company): string
+    {
+        $name = trim((string) preg_replace('/\s*\(.*?\)\s*/', ' ', $company));
+        $name = trim((string) preg_replace('/\s+(team|ltd\.?|limited|plc|llp)$/i', '', $name));
+
+        return $name;
     }
 
     /** The drafted first email, merged: ['subject' => …, 'body' => …]. */
