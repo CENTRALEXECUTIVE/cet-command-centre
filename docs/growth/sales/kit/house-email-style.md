@@ -26,6 +26,8 @@ earlier approved emails. Copy their tone, length and shape exactly.
   website). Never sign with Abdi's or Maj's name.
 - **Partners (chauffeur/transfer operators):** do NOT mention unbranded service or
   driver links. They expect it. Focus on coverage, fleet, standards and reciprocal work.
+- **Medical, care, school and council prospects:** say the chauffeurs are licensed and
+  enhanced DBS-checked. **Wedding venues:** add the Rolls-Royce Ghost (on request).
 - Facts only from `docs/growth/BUSINESS_FACTS.md`.
 
 ## Approved email 1: chauffeur operator (SCS)
