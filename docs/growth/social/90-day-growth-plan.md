@@ -467,10 +467,12 @@ or flight details. Never repost a business customer without written permission f
 that business. Stories tagging us are fine to reshare once the person is tagged and
 nothing identifies a journey.
 
-### 5.6 Paid boosts (optional, Month 3 only)
+### 5.6 Paid boosts: ON HOLD (directors, 4 Nov 2026)
 
-Decision for the directors because it costs money. Google Ads already runs separately
-(about £30 a day); do not compare organic social to it and do not move budget from it.
+**No paid spend.** On 4 Nov 2026 the directors stopped Google Ads completely (cost) and
+chose free social media plus winning corporate accounts instead. Skip the boost tasks in
+weeks 10 to 12 and keep everything organic. The table below stays only as a reference in
+case the directors later decide to spend; do not suggest it unless they ask.
 
 | Item | Plan |
 |---|---|

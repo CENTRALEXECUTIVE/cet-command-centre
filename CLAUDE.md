@@ -4,6 +4,17 @@ This file is read automatically by Claude Code. It carries the context and the
 rules any Claude account needs to continue this project safely. **Read it before
 making changes.** Keep it up to date.
 
+## SHARED MEMORY: more than one Claude account works on this project
+
+**`docs/HANDOVER.md` is the shared memory.** At the start of every session, fetch
+and pull this branch, then read its **Session log**. With every deploy, add a
+dated line to that log (what changed, what the directors decided, what's open)
+and commit it with the work. Decisions made only in chat go in too. Fetch right
+before pushing so two sessions never overwrite each other.
+
+**Current direction (4 Nov 2026):** Google Ads STOPPED (cost). No paid spend.
+Growth = free social media + winning corporate and partner accounts.
+
 ## STATUS: THE LIVE WEBSITE IS SORTED. DO NOT TOUCH IT.
 
 The live site at **centralexecutivetransfers.co.uk** is fully restored and working.

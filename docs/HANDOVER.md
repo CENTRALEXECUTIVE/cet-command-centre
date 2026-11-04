@@ -1,8 +1,25 @@
-# Handover — what was built recently and what's still open
+# Handover — the shared memory for every Claude session
 
 Read with `CLAUDE.md` (rules) and `docs/growth/BUSINESS_FACTS.md` (facts). Branch:
 `claude/cet-command-centre-guide-r1azew` (staging auto-deploys it; push = deploy;
-the directors approve every deploy by saying "deploy"). Updated 3 Nov 2026.
+the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
+
+**The directors run more than one Claude account. This file is how they stay in sync.**
+- At the START of a session: `git fetch origin claude/cet-command-centre-guide-r1azew`,
+  pull/rebase onto it, then read the Session log below before doing anything.
+- With EVERY deploy (push): add a dated line to the Session log (what changed, what the
+  directors decided, what's still open) and update "Still open". Commit it with the work.
+- Decisions made only in chat (no code) still go in the log, e.g. "stopped ads".
+- Only one session should push at a time; fetch right before pushing.
+
+## Session log (newest first, one line each)
+- **4 Nov 2026** — DECISION: Google Ads stopped completely (can't afford it). Pause the
+  campaign (don't delete; GTM + "CET web booking" conversion stay, they're free). Focus now
+  = free social media + winning corporate/partner accounts. 90-day social plan deployed
+  (`docs/growth/social/90-day-growth-plan.md`); its £60 paid boost is ON HOLD (no paid
+  spend). Shared-memory rule added (this section).
+- **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
+  style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
 ## Working rules the directors set (don't relearn these the hard way)
 - Explain a change, wait for "deploy", then push. Never push unapproved work.
@@ -112,8 +129,10 @@ the directors approve every deploy by saying "deploy"). Updated 3 Nov 2026.
 ## Still open
 - Search Console indexing batch 2 (Gatwick, Stansted, Luton, Liverpool, Newcastle, the
   four town pages, /booking).
-- Google Ads review ~9–10 Nov; set "Booking payment" to Secondary once "CET web booking"
-  records; optional negatives: connect cars, hinckley, derby to birmingham, liverpool.
+- Google Ads: STOPPED 4 Nov (directors). Confirm the campaign shows "Paused" and no new
+  charges. The ~9–10 Nov review is cancelled.
+- Accounts push (free): send the house-style outreach 10–15/day (83 with published
+  emails first), partner operators first; ask existing account clients for referrals.
 - Stripe (PVT) verification: upload the PVT Tide statement; payouts held until done.
 - ETO cancellation: export everything, run the ETO audit, check no "eto2.taxi" links remain,
   then email support@easytaxioffice.co.uk.
@@ -131,6 +150,6 @@ the directors approve every deploy by saying "deploy"). Updated 3 Nov 2026.
   go (customer unaffected) — directors to decide if it should go.
 - Better outreach contacts: widen this environment's network access, then rerun the
   contact research into contacts-upgrade.csv (published addresses only).
-- Social: set up the free schedulers, film the shot list, write the growth plan doc.
+- Social: set up the free schedulers, film the shot list (growth plan doc now written).
 - Known small gaps: admin "Customer pays (incl. VAT)" can be 1p off on VAT returns; the
   mini quick-price widget has no pickup time so shows no holiday rate.
