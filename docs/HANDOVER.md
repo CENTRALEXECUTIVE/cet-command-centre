@@ -18,6 +18,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   = free social media + winning corporate/partner accounts. 90-day social plan deployed
   (`docs/growth/social/90-day-growth-plan.md`); its £60 paid boost is ON HOLD (no paid
   spend). Shared-memory rule added (this section).
+- **4 Nov 2026** — Favicon (done by the directors by hand on the live site): Google showed
+  the old "CENTRAL" logo because the live layout's icon links point to
+  `public/assets/favicons/favicon.jpg` and line 20 to `assets/images/logo.png` (not
+  favicon.ico). They uploaded a circle-C `favicon.jpg` (192px) and changed line 20 of
+  `resources/views/layouts/app.blade.php` to favicon.jpg. `app.blade (3).php` there is an
+  unused 11 July backup copy; leave it. Google refreshes the icon in days to ~3 weeks.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
