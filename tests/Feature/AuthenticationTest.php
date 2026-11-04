@@ -83,19 +83,17 @@ class AuthenticationTest extends TestCase
         $this->assertSame(1, $active, 'only the in-progress job counts as active now');
     }
 
-    public function test_monthly_review_reminder_shows_after_the_4th_and_clears_on_import(): void
+    public function test_monthly_eto_review_banner_is_gone(): void
     {
+        // ETO is no longer used and Google Ads is stopped (Nov 2026), so the
+        // dashboard must not ask the office to export from them, even with no import.
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-07-10 09:00:00')); // after the 4th
         $admin = User::factory()->admin()->create();
 
-        // No ETO import recorded this cycle → reminder is due.
         $this->actingAs($admin)->get(route('dashboard'))
-            ->assertOk()->assertSee('Monthly review due', false);
-
-        // A fresh import this month clears it.
-        \App\Models\Setting::set('last_eto_import_at', now()->toDateTimeString(), 'string', 'eto');
-        $this->actingAs($admin)->get(route('dashboard'))
-            ->assertOk()->assertDontSee('Monthly review due', false);
+            ->assertOk()
+            ->assertDontSee('Monthly review due', false)
+            ->assertDontSee('Export the latest bookings from EasyTaxiOffice', false);
     }
 
     public function test_login_tolerates_a_capitalised_or_padded_email(): void

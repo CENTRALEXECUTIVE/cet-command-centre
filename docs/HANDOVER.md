@@ -31,6 +31,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   VAT double-charge audit/refunds done, Stripe PVT verification uploaded, Stripe webhook
   registered, Google Ads paused (no new charges). Google reviews are already requested
   from every completed customer (standing practice, not a to-do).
+- **4 Nov 2026** — ETO is no longer used (directors). Removed the dashboard's monthly
+  "export from EasyTaxiOffice / Google Ads" banner (test updated). Do not suggest ETO
+  imports/audits as routine work any more.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
@@ -142,8 +145,6 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 ## Still open
 - Accounts push (free): send the house-style outreach 10–15/day (83 with published
   emails first), partner operators first; ask existing account clients for referrals.
-- ETO cancellation: export everything, run the ETO audit, check no "eto2.taxi" links remain,
-  then email support@easytaxioffice.co.uk.
 - Driver rotation: MAN jobs went to Majid four times running — check the rotation page.
 - Decide: "no contract / no minimum spend" for accounts; client names (JELD-WEN, LB Foster,
   Forged Solutions) only with permission; trade rates for partners.

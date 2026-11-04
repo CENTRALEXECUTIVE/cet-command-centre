@@ -116,13 +116,8 @@
         <div id="alerts-list" style="margin-top:10px"><p class="muted mb-0" style="font-size:13px">Loading…</p></div>
     </div>
 
-    @if(!empty($reviewReminder))
-        <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.08);margin-bottom:16px">
-            <strong>🗓️ Monthly review due (4th–4th).</strong>
-            Export the latest bookings from EasyTaxiOffice (and your Google Ads report), then drop them in.
-            <a href="{{ route('imports.index') }}" style="margin-left:6px">Go to Imports →</a>
-        </div>
-    @endif
+    {{-- The monthly "export from EasyTaxiOffice / Google Ads" banner was removed in
+         Nov 2026: ETO is no longer used and Google Ads is stopped. --}}
 
     @if(!empty($remindersToSend))
         @php $dueCount = collect($remindersToSend)->where('is_due', true)->count(); @endphp
