@@ -27,6 +27,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Search Console: batch 2 (~2 Nov) and batch 3 (4 Nov: airport-transfer-company, corporate
   travel, VIP, event, long distance, V-Class, minibus, prom/wedding, open-account, gallery)
   DONE. Every sitemap page has been requested; legal pages left to the sitemap.
+- **4 Nov 2026** — Directors confirmed DONE: Kidderminster £64.80 balance link sent, web
+  VAT double-charge audit/refunds done, Stripe PVT verification uploaded, Stripe webhook
+  registered, Google Ads paused (no new charges). Google reviews are already requested
+  from every completed customer (standing practice, not a to-do).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
@@ -136,23 +140,16 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   90-day targets: ~1,000 local followers, one 10k-view video, 5 bookings/month from social.
 
 ## Still open
-- Google Ads: STOPPED 4 Nov (directors). Confirm the campaign shows "Paused" and no new
-  charges. The ~9–10 Nov review is cancelled.
 - Accounts push (free): send the house-style outreach 10–15/day (83 with published
   emails first), partner operators first; ask existing account clients for referrals.
-- Stripe (PVT) verification: upload the PVT Tide statement; payouts held until done.
 - ETO cancellation: export everything, run the ETO audit, check no "eto2.taxi" links remain,
   then email support@easytaxioffice.co.uk.
 - Driver rotation: MAN jobs went to Majid four times running — check the rotation page.
 - Decide: "no contract / no minimum spend" for accounts; client names (JELD-WEN, LB Foster,
   Forged Solutions) only with permission; trade rates for partners.
-- Festive surcharges: suggested Halloween lower/evening-only and a "pickup / landing time"
-  line; Time surcharges page must match the published table.
-- Kidderminster customer: send the £64.80 balance link (not the old £28.80 one) or
-  cancel and refund; re-type the passenger name once.
-- Run `php artisan cet:web-vat-audit` and refund any web customer charged VAT twice.
-- Register the Stripe webhook (`/webhooks/stripe`, checkout.session.completed; signing
-  secret in Settings → payments). Rotate the Google Maps key.
+- Festive surcharges (Halloween now past): add a "pickup / landing time" line; Time
+  surcharges page must match the published table for Christmas/NYE/NYD.
+- Rotate the Google Maps key.
 - Office still gets a second internal "Payment received" email for a return paid in one
   go (customer unaffected) — directors to decide if it should go.
 - Better outreach contacts: widen this environment's network access, then rerun the
