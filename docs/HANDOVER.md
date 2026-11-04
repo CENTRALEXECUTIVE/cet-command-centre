@@ -24,7 +24,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   favicon.ico). They uploaded a circle-C `favicon.jpg` (192px) and changed line 20 of
   `resources/views/layouts/app.blade.php` to favicon.jpg. `app.blade (3).php` there is an
   unused 11 July backup copy; leave it. Google refreshes the icon in days to ~3 weeks.
-  Search Console: batch 2 indexing DONE (~2 Nov); all indexing requests complete.
+  Search Console: batch 2 (~2 Nov) and batch 3 (4 Nov: airport-transfer-company, corporate
+  travel, VIP, event, long distance, V-Class, minibus, prom/wedding, open-account, gallery)
+  DONE. Every sitemap page has been requested; legal pages left to the sitemap.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
