@@ -34,6 +34,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **4 Nov 2026** — ETO is no longer used (directors). Removed the dashboard's monthly
   "export from EasyTaxiOffice / Google Ads" banner (test updated). Do not suggest ETO
   imports/audits as routine work any more.
+- **5 Nov 2026** — Outreach: added B. Braun (Sheffield UK head office, Thorncliffe Park)
+  from `docs/growth/sales/batch-H-direct.csv` via migration 2026_11_05_000001; email
+  customercare.bbmuk@bbraun.co.uk was given to us by B. Braun. Greeting "Dear B. Braun
+  Team,"; house-style business email with the enhanced-DBS line (medical).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
