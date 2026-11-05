@@ -68,6 +68,10 @@ class OutreachEmailComposer
             '[original subject]' => (string) $prospect->email_subject,
         ]);
 
+        // An empty signature/opt-out (the mail app adds the signature) must not
+        // leave a run of blank lines at the end.
+        $text = rtrim((string) preg_replace("/\n{3,}/", "\n\n", $text));
+
         return strtr($text, [
             '{first_name}' => $first !== '' ? $first : 'there',
             '{company}' => (string) $prospect->company,

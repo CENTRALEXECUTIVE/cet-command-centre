@@ -438,7 +438,8 @@ directors' chosen SCS, Rolls-Royce and Sheffield DocFest emails). In short: "Dea
 Sheffield-based ...", then ONE factual line linking us to them (their site/
 location or expansion, framed as how we can support them), a short benefit
 bullet list, one extra-service line, one polite closing question, "Kind regards,"
-+ the company signature with phone/email/web. Never sign with Abdi's or Maj's
++ the mail app's own signature (Matthew Green, Central Executive Transfers, phone,
+web, logo; drafts end at "Kind regards,"). Never sign with Abdi's or Maj's
 name, no flattery or commentary on their news, and do NOT mention "unbranded" or
 driver links to partner operators (they expect it).
 

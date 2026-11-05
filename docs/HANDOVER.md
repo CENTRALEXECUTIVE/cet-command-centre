@@ -62,6 +62,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   pool cars; VIP visits arranged by their Westminster office). Mark "Not interested" (not
   DNC). Second reply in a day addressed "Hi Matthew"; not from our templates (checked), so
   it's the mail app/account name or a signature: directors to check.
+- **5 Nov 2026** — Solved: the directors sign outreach as **Matthew Green** (mail app
+  signature + CENTRAL logo), hence "Hi Matthew". Drafts now end at "Kind regards," with no
+  signature block or opt-out line (`config/outreach.php` signature/opt_out = ''); house
+  style doc and CLAUDE.md updated.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

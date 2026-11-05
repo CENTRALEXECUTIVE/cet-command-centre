@@ -15,9 +15,13 @@ return [
     // (operator-to-operator) follow-ups; everyone else gets the CORPORATE ones.
     'partner_keywords' => ['partner', 'operator', 'chauffeur', 'travel management', 'tmc', 'trade'],
 
-    'signature' => "Central Executive Transfers\n0114 399 8242 · admin@centralexecutivetransfers.co.uk · centralexecutivetransfers.co.uk",
+    // Directors' choice (5 Nov 2026): drafts end at "Kind regards," and the mail
+    // app adds their own signature (Matthew Green, Central Executive Transfers,
+    // 0114 399 8242, website, logo). No opt-out line. Put text back here to
+    // bring either back.
+    'signature' => '',
 
-    'opt_out' => "If this isn't relevant, just let us know and we won't contact you again.",
+    'opt_out' => '',
 
     // Follow-ups follow docs/growth/sales/kit/email-style-guide.md: short, about
     // the reader, one easy question, no feature lists.

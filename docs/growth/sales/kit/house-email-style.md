@@ -22,8 +22,11 @@ earlier approved emails. Copy their tone, length and shape exactly.
 - **One polite closing question**, a single clear ask: exchange operator details,
   or "Could you kindly direct me to the person responsible for corporate travel
   arrangements or transport suppliers at ...?" when writing to a general inbox.
-- **Sign off** "Kind regards," then the company signature (name, phone, email,
-  website). Never sign with Abdi's or Maj's name.
+- **Sign off** "Kind regards," and stop. The directors' mail app adds the signature
+  (updated 5 Nov 2026): **Matthew Green / Central Executive Transfers / 0114 399 8242 /
+  www.centralexecutivetransfers.co.uk** + the CENTRAL logo. Drafts therefore carry no
+  signature block and no opt-out line (`config/outreach.php`). Never sign with Abdi's or
+  Maj's name. Replies may come back addressed "Hi Matthew"; that's expected.
 - **Partners (chauffeur/transfer operators):** do NOT mention unbranded service or
   driver links. They expect it. Focus on coverage, fleet, standards and reciprocal work.
 - **Medical, care, school and council prospects:** say the chauffeurs are licensed and

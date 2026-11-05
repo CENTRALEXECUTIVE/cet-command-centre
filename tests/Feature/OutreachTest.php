@@ -207,7 +207,9 @@ class OutreachTest extends TestCase
         $this->assertSame('Sheffield DocFest', OutreachEmailComposer::teamName('Sheffield DocFest'));
         $nocompany = $this->prospect(['company' => '', 'contact_name' => null, 'email_body' => "Dear [Name],\n\nBody."]);
         $this->assertStringStartsWith('Dear Sir or Madam,', $c->merge("Dear [Name],\n\nBody.", $nocompany->fresh(), $admin));
-        $this->assertStringContainsString("Kind regards,\nCentral Executive Transfers", $body);
+        // Directors' style (5 Nov 2026): the draft ends at "Kind regards," and the
+        // mail app adds the signature, so no company block and no trailing blank lines.
+        $this->assertStringEndsWith("Body.\n\nKind regards,", $body);
         $this->assertStringNotContainsString('Abdi', $body);
     }
 
@@ -223,14 +225,12 @@ class OutreachTest extends TestCase
             ->assertSee('Copy email')
             ->assertSee('Mark emailed')
             ->assertSee('Day-4 follow-up')
-            ->assertSee('Day-10 follow-up')
-            ->assertSee('0114 399 8242');
+            ->assertSee('Day-10 follow-up');
 
         // The merged draft expands the kit placeholders (the raw text stays editable).
         $merged = app(OutreachEmailComposer::class)->firstEmail($p->fresh(), $admin)['body'];
-        $this->assertStringStartsWith("Hello Jane,\n\nHi.\n\nCentral Executive Transfers\n0114", $merged);
+        $this->assertSame("Hello Jane,\n\nHi.", $merged);
         $this->assertStringNotContainsString('[', $merged);
-        $this->assertStringContainsString('just let us know', $merged);
 
         $p->update(['status' => 'do_not_contact']);
         $this->actingAs($admin)->get(route('outreach.show', $p))
