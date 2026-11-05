@@ -58,6 +58,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   application the same day (1–3 years trading). Prospect should be set to "Replied" so no
   follow-up goes; wait for TBR's vetting contact. Their reply opened "Hi Matthew": check the
   display name on the sending mailbox.
+- **5 Nov 2026** — Boeing Sheffield replied: no executive transport needed (staff use hire/
+  pool cars; VIP visits arranged by their Westminster office). Mark "Not interested" (not
+  DNC). Second reply in a day addressed "Hi Matthew"; not from our templates (checked), so
+  it's the mail app/account name or a signature: directors to check.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
