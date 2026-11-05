@@ -42,6 +42,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   + `.csv`): 10 organic posts, B2B/LinkedIn-weighted plus festive build-up; Sunday 8 Nov
   14:00 shoot list. Raw video editing waits on the environment allowing WeTransfer
   (wetransfer.com, *.wetransfer.com, we.tl, *.wetransfer.net) and huggingface.co.
+- **5 Nov 2026** — Week pack revised (festive wording, no directors). New **Growth
+  dashboard** (Marketing & reports → Growth dashboard, `/marketing/growth`,
+  `Services\Growth\GrowthDashboard`): bookings by channel per week (social = web booking
+  with utm_source facebook/instagram/linkedin/tiktok/gbp; ads = gclid), new vs returning,
+  outreach emailed/replies/accounts, review requests, and a hand-typed weekly social/reviews
+  log stored in the `growth_social_log` setting (no migration). No-ads growth plan with
+  projections: `docs/growth/GROWTH-PLAN-NO-ADS.md`.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
@@ -55,6 +62,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - The office is the boss: anything they change on the Command Centre (names, prices,
   contacts) must stick. Never let a sync/re-import/self-heal overwrite it.
 - Be efficient with usage; give short plain answers; say what's deployed vs not.
+- Social posts (directors, 5 Nov 2026): no prices or surcharges; say we work through the
+  festive period; never say directors drive. Say licensed drivers / professional chauffeurs.
 
 ## Built in Oct/Nov 2026 (all tested; see git log for detail)
 **Bookings & money**
