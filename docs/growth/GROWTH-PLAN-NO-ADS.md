@@ -23,17 +23,22 @@ posts. Marketing copy never says the directors drive the cars.
 
 ## Summary
 
-Stopping ads removes about 12 to 20 real bookings a month at most, and some of those
-people will still find us through Google Maps and the normal search results. Our
-business is mostly repeat customers (69% of bookings), and those keep coming without ads.
-The plan fills the gap with four free sources that start at different speeds: account and
-partner work (first jobs in 2 to 8 weeks), Google Business Profile and reviews (weeks), the
-SEO pages already live (32 URLs in the sitemap; 3 to 6 months to rank well) and social media (2 to 3 months).
-In the expected case bookings run about 6% to 10% below the with-ads level in November
-and December, get back to it in late January, and run above it from February as accounts,
-partners and SEO add up. The biggest risk is outreach not being sent every day. Daily
-outreach, a review ask on every completed job and a reply to every enquiry within 5
-minutes matter more than anything else in this plan.
+**Reality check added 5 Nov 2026. Read section 3.0 first: it replaces the old EXPECTED case.**
+
+The first draft was too optimistic. Our own booking history shows bookings jumped from about
+12 to 18 journeys a month (Oct 2025 to Feb 2026) to 80 to 110 a month from April 2026, the
+same time the ads started. Summer, the new SEO pages and a growing repeat base helped too,
+but the ads were a bigger engine than "12 to 20 bookings a month" suggests, because the new
+customers they brought became the repeat customers who now make up 69% of bookings.
+
+Realistic planning case: about **20% fewer bookings than with ads through the winter**
+(roughly 55 to 70 journeys a month instead of 70 to 86), getting back to the with-ads level
+around **late spring or summer 2027**, sooner only if we land one or two accounts or partner
+operators (each can add 5 to 15 jobs a month). SEO will not replace the ads this winter:
+aggregators (Holiday Extras, Suntransfers, Transfeero and others) hold the generic
+"Sheffield airport transfer" results, so the winnable free spots are the Google Maps listing
+and the specific route and town pages. The biggest levers are accounts, partner cover work,
+reviews and replying fast, in that order.
 
 ---
 
@@ -158,6 +163,48 @@ the map pack, an organic result or a recommendation. This is used in section 3.
 
 ## 3. Projections, Nov 2026 to Apr 2027
 
+### 3.0 Reality check (5 Nov 2026): the planning case from now on
+
+**Why the first projection was too rosy**
+1. **Our own history.** Journeys a month (return trips counted once, from the ETO export):
+   Oct 2025 16, Nov 12, Dec 12, Jan 2026 16, Feb 18, then ads started: Mar 42, Apr 79,
+   May 76, Jun 112, Jul 110, Aug 101, Sep 105, Oct 78. Not all of that jump was the ads
+   (summer peak, new SEO pages, ETO used for everything), but the timing points to the ads
+   as the main source of NEW customers.
+2. **New customers feed the repeat base.** About 27 to 29 new web customers a month came in
+   while ads ran. If that falls to roughly 10 to 15, the repeat base stops growing and slowly
+   shrinks, so "repeat stays at 69% of 90" was too generous.
+3. **SEO is slow and the generic results are crowded.** Typical local SEO: map listing
+   movement in 1 to 3 months, service pages 3 to 6 months, competitive terms 6 to 12 months.
+   The generic airport-transfer results are dominated by national aggregators.
+4. **B2B is slow.** Account decisions usually take 1 to 3 months, and a 5% to 8% reply rate
+   is optimistic for cold email; plan on 2% to 5%.
+
+**REALISTIC (use this for cash planning)**
+
+| Journeys per month | Nov | Dec | Jan | Feb | Mar | Apr |
+|---|---|---|---|---|---|---|
+| Repeat and existing accounts | 55 | 57 | 42 | 47 | 50 | 58 |
+| Website organic + Google Maps (new) | 10 | 10 | 8 | 9 | 11 | 13 |
+| Outreach accounts (new) | 0 | 0 | 1 | 2 | 3 | 4 |
+| Partner cover | 0 | 1 | 2 | 2 | 3 | 4 |
+| Social (new) | 0 | 1 | 1 | 2 | 2 | 3 |
+| **Total** | **65** | **69** | **54** | **62** | **69** | **82** |
+| With-ads line (sec. 3.2) | 81 | 86 | 68 | 76 | 86 | 103 |
+| Difference | -20% | -20% | -21% | -18% | -20% | -20% |
+| Value at about £155 | ~£10.1k | ~£10.7k | ~£8.4k | ~£9.6k | ~£10.7k | ~£12.7k |
+
+- Roughly **15 to 20 fewer journeys a month** than with ads, about £2.3k to £3k of fares,
+  against about £1.8k a month of ad spend saved. Close to break-even in cash, but the
+  business stops growing unless the free channels are worked hard.
+- **What changes the picture fastest:** one account or partner operator booking weekly adds
+  5 to 15 jobs a month. Two of those by February closes most of the gap.
+- **Watch it weekly** on the Growth dashboard. If total journeys run 25% or more below the
+  with-ads line for 4 weeks in a row (section 5.3), consider a small, tightly capped ads
+  test on the proven routes only (Manchester, Heathrow, brand). Directors' decision.
+- Tables 3.3 to 3.5 below are kept for reference only. 3.3 and 3.5 are best cases.
+
+
 ### 3.1 The numbers this is built on
 
 | Figure | Value | Source |
@@ -195,7 +242,7 @@ the map pack, an organic result or a recommendation. This is used in section 3.
 recaptured, leaves about 10 a month lost, roughly 11% of November's with-ads line. The
 EXPECTED table shows -10% in November because partner and social work have barely started.
 
-### 3.3 EXPECTED (the planning case)
+### 3.3 First-draft EXPECTED (optimistic; superseded by 3.0)
 
 | Bookings per month | Nov | Dec | Jan | Feb | Mar | Apr |
 |---|---|---|---|---|---|---|
@@ -213,7 +260,7 @@ EXPECTED table shows -10% in November because partner and social work have barel
 Expected: the dip is about 5 to 8 bookings a month in Nov and Dec, and it is **recovered in
 late January**. From February the free channels add more than the ads did.
 
-### 3.4 LOW (outreach slips, reviews slow, SEO takes the full 6 months)
+### 3.4 First-draft LOW (close to the realistic case in 3.0)
 
 | Bookings per month | Nov | Dec | Jan | Feb | Mar | Apr |
 |---|---|---|---|---|---|---|

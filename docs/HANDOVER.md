@@ -49,6 +49,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   outreach emailed/replies/accounts, review requests, and a hand-typed weekly social/reviews
   log stored in the `growth_social_log` setting (no migration). No-ads growth plan with
   projections: `docs/growth/GROWTH-PLAN-NO-ADS.md`.
+- **5 Nov 2026** — Directors said the projections looked too extreme. Reality check added
+  (section 3.0): ETO history shows ~12–18 journeys/month before ads (Oct 25–Feb 26) vs
+  80–110 after ads started (Mar 26). Planning case now ~20% below the with-ads line all
+  winter (Nov 65, Dec 69, Jan 54, Feb 62, Mar 69, Apr 82); accounts/partners are the lever.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
