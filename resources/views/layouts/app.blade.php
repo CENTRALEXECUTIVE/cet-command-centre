@@ -90,6 +90,7 @@
 
                 <details class="nav-fold" @if($inMarketing) open @endif>
                     <summary>Marketing &amp; reports</summary>
+                    <a href="{{ route('marketing.growth') }}" class="{{ request()->routeIs('marketing.growth*') ? 'active' : '' }}">📈 Growth dashboard</a>
                     <a href="{{ route('marketing.studio') }}" class="{{ request()->routeIs('marketing.studio*') ? 'active' : '' }}">🎨 Marketing Studio</a>
                     <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') || request()->routeIs('reports.business') ? 'active' : '' }}">Review</a>
                     <a href="{{ route('marketing.ads') }}" class="{{ request()->routeIs('marketing.ads') ? 'active' : '' }}">Google Ads</a>

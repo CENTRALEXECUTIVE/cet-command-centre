@@ -466,6 +466,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('marketing/studio', [\App\Http\Controllers\MarketingStudioController::class, 'index'])->name('marketing.studio');
         Route::post('marketing/studio', [\App\Http\Controllers\MarketingStudioController::class, 'generate'])->middleware('throttle:20,1')->name('marketing.studio.generate');
         Route::get('marketing/ads', [ReportController::class, 'ads'])->name('marketing.ads');
+        // Growth dashboard: bookings by channel, outreach, reviews, social log.
+        Route::get('marketing/growth', [\App\Http\Controllers\Admin\GrowthController::class, 'index'])->name('marketing.growth');
+        Route::post('marketing/growth/social', [\App\Http\Controllers\Admin\GrowthController::class, 'saveSocial'])
+            ->middleware('throttle:30,1')->name('marketing.growth.social');
         Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
         Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');
         Route::post('marketing/keywords/import', [MarketingController::class, 'importKeywords'])->middleware('throttle:20,1')->name('marketing.keywords.import');
