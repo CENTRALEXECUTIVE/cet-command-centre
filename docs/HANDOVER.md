@@ -38,6 +38,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   from `docs/growth/sales/batch-H-direct.csv` via migration 2026_11_05_000001; email
   customercare.bbmuk@bbraun.co.uk was given to us by B. Braun. Greeting "Dear B. Braun
   Team,"; house-style business email with the enhanced-DBS line (medical).
+- **5 Nov 2026** — Social pack for 9–15 Nov written (`docs/growth/social/2026-11-09-week.md`
+  + `.csv`): 10 organic posts, B2B/LinkedIn-weighted plus festive build-up; Sunday 8 Nov
+  14:00 shoot list. Raw video editing waits on the environment allowing WeTransfer
+  (wetransfer.com, *.wetransfer.com, we.tl, *.wetransfer.net) and huggingface.co.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
