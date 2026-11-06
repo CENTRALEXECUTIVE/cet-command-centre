@@ -30,13 +30,18 @@ class BookingReviewExport
     ];
 
     /** @return iterable<array<int, mixed>> rows matching COLUMNS */
-    public function rows(Carbon $from, Carbon $to): iterable
+    /**
+     * $by = 'booked' (default): bookings that CAME IN between the dates.
+     * $by = 'pickup': bookings whose PICKUP falls between the dates, e.g. every
+     * future job already in the books (for the prepaid-jobs cash check).
+     */
+    public function rows(Carbon $from, Carbon $to, string $by = 'booked'): iterable
     {
         $tz = config('app.timezone', 'Europe/London');
 
         $bookings = Booking::query()
             ->with(['vehicleType', 'airport', 'corporateAccount', 'driver', 'payments'])
-            ->whereBetween('created_at', [$from->copy()->utc(), $to->copy()->utc()])
+            ->whereBetween($by === 'pickup' ? 'pickup_at' : 'created_at', [$from->copy()->utc(), $to->copy()->utc()])
             ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', 'demo'))
             ->orderBy('created_at')->orderBy('id')
             ->get();

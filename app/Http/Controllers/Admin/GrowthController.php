@@ -43,7 +43,9 @@ class GrowthController extends Controller
         $request->validate([
             'from' => ['nullable', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d'],
+            'by' => ['nullable', 'in:booked,pickup'],
         ]);
+        $by = $request->query('by') === 'pickup' ? 'pickup' : 'booked';
         $tz = config('app.timezone', 'Europe/London');
         $from = $request->filled('from')
             ? Carbon::parse($request->query('from'), $tz)->startOfDay()
@@ -52,12 +54,12 @@ class GrowthController extends Controller
             ? Carbon::parse($request->query('to'), $tz)->endOfDay()
             : now($tz)->endOfDay();
 
-        $filename = 'cet-bookings-review-'.$from->format('Ymd').'-'.$to->format('Ymd').'.csv';
+        $filename = 'cet-bookings-'.($by === 'pickup' ? 'by-pickup-' : 'review-').$from->format('Ymd').'-'.$to->format('Ymd').'.csv';
 
-        return response()->streamDownload(function () use ($export, $from, $to) {
+        return response()->streamDownload(function () use ($export, $from, $to, $by) {
             $out = fopen('php://output', 'w');
             fputcsv($out, BookingReviewExport::COLUMNS);
-            foreach ($export->rows($from, $to) as $row) {
+            foreach ($export->rows($from, $to, $by) as $row) {
                 fputcsv($out, $row);
             }
             fclose($out);

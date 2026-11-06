@@ -11,5 +11,12 @@
     <label style="font-size:13px">To
         <input type="date" name="to" class="form-control" value="{{ now(config('app.timezone'))->format('Y-m-d') }}">
     </label>
+    <label style="font-size:13px">Dates are
+        <select name="by" class="form-control">
+            <option value="booked">when booked (came in)</option>
+            <option value="pickup">pickup date (jobs in the diary)</option>
+        </select>
+    </label>
     <button type="submit" class="btn btn-primary">Export for review</button>
+    <a class="btn btn-ghost" href="{{ route('marketing.growth.export', ['by' => 'pickup', 'from' => now(config('app.timezone'))->format('Y-m-d'), 'to' => now(config('app.timezone'))->addYears(2)->format('Y-m-d')]) }}">⬇ All future jobs</a>
 </form>

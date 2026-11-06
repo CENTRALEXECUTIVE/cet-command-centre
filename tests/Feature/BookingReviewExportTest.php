@@ -54,6 +54,22 @@ class BookingReviewExportTest extends TestCase
         }
     }
 
+    public function test_export_by_pickup_date_lists_future_jobs_booked_earlier(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-06 12:00:00'));
+        $admin = User::factory()->admin()->create();
+        Booking::factory()->create(['final_price' => 175, 'created_at' => '2026-08-01 10:00:00', 'pickup_at' => '2026-12-10 01:00:00']);
+        Booking::factory()->create(['final_price' => 50, 'created_at' => '2026-10-01 10:00:00', 'pickup_at' => '2026-10-05 10:00:00']);
+
+        $csv = $this->actingAs($admin)->get(route('marketing.growth.export', ['by' => 'pickup', 'from' => '2026-11-06', 'to' => '2028-11-06']))
+            ->assertOk()->streamedContent();
+        $lines = array_values(array_filter(explode("\n", trim($csv))));
+        $this->assertCount(2, $lines, 'header + the one future job, even though it was booked in August');
+        $this->assertStringContainsString('2026-12-10', $lines[1]);
+
+        $this->actingAs($admin)->get(route('marketing.growth'))->assertSee('All future jobs');
+    }
+
     public function test_buttons_show_and_drivers_are_blocked(): void
     {
         $admin = User::factory()->admin()->create();
