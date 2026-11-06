@@ -45,6 +45,7 @@
                     <a href="{{ route('bookings.create') }}" class="{{ request()->routeIs('bookings.create') ? 'active' : '' }}">➕ New booking</a>
                 @endif
                 @if($u->isAdmin())
+                    <a href="{{ route('assistant.index') }}" class="{{ request()->routeIs('assistant.*') ? 'active' : '' }}">🧑‍💼 My assistant</a>
                     <a href="{{ route('intake.index') }}" class="{{ request()->routeIs('intake.*') ? 'active' : '' }}">📥 Paste a booking</a>
                 @endif
                 @if($u->isAdmin() || $u->isDriver())

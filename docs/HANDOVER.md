@@ -127,6 +127,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   weekends, never DNC/closed, daily cap counted across the day. Replies land in admin@; mark them
   "Replied" so follow-ups stop. Hawsons warm lead: Matt Bruce (MD, Hawsons Data Protection &
   Cyber Security); personal follow-up drafted in chat, his direct email isn't in the page source.
+- **6 Nov 2026** — **My assistant** page in the Command Centre (`/assistant`, top of the menu,
+  `Services\Assistant\AssistantBoard`): today/tomorrow jobs, no-driver jobs (7 days), prepaid
+  future jobs with external vs directors' driver share (live) against typed-in cash, outreach today,
+  money board (Ltd/PVT/incoming, owed to us, we owe; settings `pa_money`) and a shared to-do list
+  (`pa_todos`). Pre-filled once by migration 2026_11_06_000004 only if empty. The Claude `/pa`
+  agent still works for drafting and planning.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

@@ -423,6 +423,13 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
 
         // Outreach — B2B prospecting. Emails open in the director's own mail app
         // (mailto:); the server never sends anything to a prospect.
+        // My assistant: today's jobs, money board, prepaid jobs, outreach, to-dos.
+        Route::get('assistant', [\App\Http\Controllers\Admin\AssistantController::class, 'index'])->name('assistant.index');
+        Route::post('assistant/money', [\App\Http\Controllers\Admin\AssistantController::class, 'saveMoney'])->middleware('throttle:30,1')->name('assistant.money');
+        Route::post('assistant/todos', [\App\Http\Controllers\Admin\AssistantController::class, 'addTodo'])->middleware('throttle:60,1')->name('assistant.todos.add');
+        Route::post('assistant/todos/{id}/toggle', [\App\Http\Controllers\Admin\AssistantController::class, 'toggleTodo'])->middleware('throttle:60,1')->name('assistant.todos.toggle');
+        Route::post('assistant/todos/{id}/delete', [\App\Http\Controllers\Admin\AssistantController::class, 'deleteTodo'])->middleware('throttle:60,1')->name('assistant.todos.delete');
+
         Route::get('outreach', [\App\Http\Controllers\Admin\OutreachController::class, 'index'])->name('outreach.index');
         // Approved daily batch: review, then Approve & send (weekdays, capped). Never on a timer.
         Route::get('outreach/batch', [\App\Http\Controllers\Admin\OutreachController::class, 'batch'])->name('outreach.batch');
