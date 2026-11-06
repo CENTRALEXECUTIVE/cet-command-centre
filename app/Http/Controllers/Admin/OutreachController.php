@@ -167,7 +167,7 @@ class OutreachController extends Controller
 
         [$to, $days] = $next;
         $label = $prospect->markEmailedLabel();
-        $nextDate = Carbon::today()->addDays($days);
+        $nextDate = Prospect::workingDay(Carbon::today()->addDays($days)); // never a Sat/Sun
 
         $prospect->forceFill([
             'status' => $to,

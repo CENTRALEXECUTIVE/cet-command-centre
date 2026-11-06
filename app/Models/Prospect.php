@@ -99,6 +99,23 @@ class Prospect extends Model
         ]);
     }
 
+    /**
+     * Follow-ups never fall on a weekend (directors, Nov 2026): a Saturday or
+     * Sunday date moves to the following Monday, because nobody reads business
+     * email then.
+     */
+    public static function workingDay(Carbon $date): Carbon
+    {
+        $d = $date->copy();
+        if ($d->isSaturday()) {
+            $d->addDays(2);
+        } elseif ($d->isSunday()) {
+            $d->addDay();
+        }
+
+        return $d;
+    }
+
     /** next_action_at on or before today, and not closed. */
     public function scopeFollowUpsDue(Builder $q): Builder
     {

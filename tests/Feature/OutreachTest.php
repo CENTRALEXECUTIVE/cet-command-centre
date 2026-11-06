@@ -243,6 +243,20 @@ class OutreachTest extends TestCase
 
     // ── Mark emailed / status ────────────────────────────────────────────
 
+    public function test_follow_up_dates_never_land_on_a_weekend(): void
+    {
+        $this->assertSame('2026-11-09', Prospect::workingDay(Carbon::parse('2026-11-07'))->toDateString()); // Sat
+        $this->assertSame('2026-11-09', Prospect::workingDay(Carbon::parse('2026-11-08'))->toDateString()); // Sun
+        $this->assertSame('2026-11-10', Prospect::workingDay(Carbon::parse('2026-11-10'))->toDateString()); // Tue stays
+
+        // Sent on a Tuesday: +4 days is Saturday, so the follow-up is due Monday.
+        $admin = User::factory()->admin()->create();
+        $p = $this->prospect();
+        $this->travelTo(Carbon::parse('2026-11-10 10:00'));
+        $this->actingAs($admin)->post(route('outreach.emailed', $p));
+        $this->assertSame('2026-11-16', $p->fresh()->next_action_at->toDateString());
+    }
+
     public function test_mark_emailed_walks_the_sequence_and_sets_dates(): void
     {
         $admin = User::factory()->admin()->create();
@@ -252,21 +266,24 @@ class OutreachTest extends TestCase
         $p->refresh();
         $this->assertSame('emailed', $p->status);
         $this->assertSame('2026-10-28 10:00', $p->last_contacted_at->format('Y-m-d H:i'));
-        $this->assertSame('2026-11-01', $p->next_action_at->toDateString());
+        // Wed 28 Oct + 4 days = Sun 1 Nov, so it moves to Mon 2 Nov (no weekends).
+        $this->assertSame('2026-11-02', $p->next_action_at->toDateString());
         $this->assertSame($admin->id, $p->owner_id, 'whoever sends owns the follow-ups');
         $this->assertSame('emailed', $p->activities()->first()->type);
 
-        $this->travelTo(Carbon::parse('2026-11-01 09:00'));
+        $this->travelTo(Carbon::parse('2026-11-02 09:00'));
         $this->actingAs($admin)->post(route('outreach.emailed', $p));
         $p->refresh();
         $this->assertSame('follow_up_1', $p->status);
-        $this->assertSame('2026-11-07', $p->next_action_at->toDateString());
+        // Mon 2 Nov + 6 = Sun 8 Nov, so Mon 9 Nov.
+        $this->assertSame('2026-11-09', $p->next_action_at->toDateString());
+        $this->assertTrue($p->next_action_at->isWeekday());
 
-        $this->travelTo(Carbon::parse('2026-11-07 09:00'));
+        $this->travelTo(Carbon::parse('2026-11-09 09:00'));
         $this->actingAs($admin)->post(route('outreach.emailed', $p));
         $p->refresh();
         $this->assertSame('follow_up_2', $p->status);
-        $this->assertSame('2026-11-15', $p->next_action_at->toDateString());
+        $this->assertSame('2026-11-17', $p->next_action_at->toDateString());
         $this->assertFalse($p->suggestCloseNoReply());
 
         // Sequence finished — nothing more to mark.
@@ -274,7 +291,7 @@ class OutreachTest extends TestCase
         $this->assertSame('follow_up_2', $p->fresh()->status);
 
         // 8 quiet days later → suggest closing as no reply.
-        $this->travelTo(Carbon::parse('2026-11-15 09:00'));
+        $this->travelTo(Carbon::parse('2026-11-17 09:00'));
         $this->assertTrue($p->fresh()->suggestCloseNoReply());
         $this->actingAs($admin)->get(route('outreach.show', $p))->assertSee('Close — no reply');
         $this->actingAs($admin)->post(route('outreach.status', $p), ['status' => 'closed_no_reply']);
