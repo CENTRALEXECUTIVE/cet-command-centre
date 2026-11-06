@@ -81,6 +81,14 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Sat/Sun to Monday when "Mark emailed" sets the next date; migration 2026_11_06_000001 moved
   existing weekend dates. Contact-email research for the 166 prospects with no email running
   (published addresses only, with source URL).
+- **6 Nov 2026** — Contact research pass 3 done (4 agents, search-snippet sources; company
+  sites themselves are blocked by this environment's network): +65 published emails and 103
+  phone numbers written into `docs/growth/sales/contacts.csv` (new `phone` column), loaded
+  fill-only by migration 2026_11_06_000002. Now 148 of 256 prospects have an email (+ B. Braun,
+  TBR in the app). 10 found addresses deliberately NOT loaded (investor relations, press,
+  consumer care, affiliate inboxes; GetTransfer and Jayride have supplier-payment warnings);
+  reasons are in each row's note. 54 more have a phone number only. Several "general" inboxes
+  come from third-party pages; the note column says which to double-check.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
