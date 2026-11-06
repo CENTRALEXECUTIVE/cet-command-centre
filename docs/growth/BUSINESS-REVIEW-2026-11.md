@@ -1,5 +1,40 @@
 # Central Executive Transfers: business review, November 2026
 
+## UPDATE 6 Nov 2026 (later): every future job in the diary, from the full export
+
+Source: Command Centre export of all 897 bookings made 3 Jan to 5 Nov 2026, filtered to
+jobs with a pickup from 6 Nov onwards that are not complete or cancelled. Totals only.
+
+| Pickup month | Nov | Dec | Jan | Feb | Apr | May | Jun 2027 | Total |
+|---|---|---|---|---|---|---|---|---|
+| Jobs (legs) | 11 | 4 | 2 | 1 | 1 | 1 | 3 | 23 |
+| Fares ex-VAT | £1,810 | £750 | £500 | £168 | £130 | £105 | £335 | £3,797 |
+
+- **Already paid by card: £3,552** (+ £130 part-paid; £115 is cash to collect on the day).
+  Almost all were booked through ETO and paid into Ltd earlier in the year.
+- **Driver share still to pay out on those prepaid jobs (90%): about £3,200.**
+  - Director A's jobs: £1,135 of fares (his own pay, about £1,020).
+  - Director M's jobs: £335 of fares (about £300).
+  - Not yet allocated: £2,328 of fares (about £2,095 if all go to external drivers).
+- **Weeks ahead (fares due to be driven):** w/c 9 Nov £690, 16 Nov £515, 23 Nov £425,
+  7 Dec £225, 14 Dec £525, 28 Dec £350, then small amounts into 2027.
+
+**The real position**
+- Cash £890 + £177 (Stripe 10 Nov) + £620 (debtor) = **£1,687**.
+- Owed out: driver share of prepaid jobs **~£3,200** + Director A's **£1,900** = **~£5,100**.
+- **Gap: about £3,400.** That is the prepaid money (and more) already spent, mainly on
+  Google Ads (£9,490 Jun to 4 Nov) and paying drivers' 90% on earlier jobs.
+- **Can external drivers still be paid?** Yes, week by week, IF new bookings keep coming in:
+  each week's new prepayments (about £870 to £1,150 a week at 5 to 7 trips) cover that
+  week's external driver pay on the prepaid jobs (about £300 to £600 a week). The directors'
+  own pay on their prepaid jobs (~£1,320) and the £1,900 owed to Director A wait until the
+  float is rebuilt. If bookings dried up completely, the business could not cover all the
+  prepaid jobs from cash alone; the directors would have to drive them unpaid or fund them.
+- **Rule from today:** treat new prepayments as the drivers' money first. Pay external drivers
+  for each job as it is driven, then running costs, then directors. Rebuild a float equal to the
+  external driver share of all future prepaid jobs (target ~£2,100) before any director back pay.
+
+
 Prepared 6 Nov 2026 for Director A and Director M. Source of truth: the 6 Nov data pack
 (bank statements Jun to 4 Nov, cash today, prepaid jobs, Command Centre bookings export),
 plus `BUSINESS_FACTS.md`, `GROWTH-PLAN-NO-ADS.md` (section 3.00) and `HANDOVER.md`.

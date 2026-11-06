@@ -20,11 +20,15 @@ UK dates. No customer names or numbers in this file.
 | Director A, older | £1,000 | can wait | no date |
 | External drivers, this week | ? | FIRST | confirm the figure |
 
-| Ring-fenced (prepaid future jobs; do not spend) | Fares | Driver share at 90% |
+| Prepaid future jobs (all, from full export 6 Nov) | Fares | Driver share at 90% |
 |---|---|---|
-| Unallocated V-Class/minibus jobs, 7 Nov to 14 Dec | £700 | ~£630 |
-| Director A's prepaid jobs (Nov to Jun 2027) | £1,005 | Director A's own pay, paid when driven |
-| Prepaid jobs booked before 1 Oct | not yet counted | export bookings by pickup date to add |
+| Not yet allocated (likely external drivers) | £2,328 | ~£2,095 |
+| Director A's jobs | £1,135 | ~£1,020 (his own pay, waits) |
+| Director M's jobs | £335 | ~£300 (his own pay, waits) |
+| Total (23 legs, Nov 2026 to Jun 2027) | £3,797 | ~£3,200 (£3,552 already card-paid) |
+
+Target float to rebuild before any director back pay: ~£2,100 (external driver share).
+Next weeks' fares to be driven: w/c 9 Nov £690, 16 Nov £515, 23 Nov £425, 7 Dec £225, 14 Dec £525, 28 Dec £350.
 
 ## To-do
 - [ ] Confirm this week's external driver pay total (PA needs it for the pay plan)

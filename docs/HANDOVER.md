@@ -99,6 +99,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   accountant. New **PA** (`pa` agent, `/pa`, `docs/pa/todo.md` money board + to-dos).
   Auto-sending outreach: proposed a one-tap daily batch via Workspace (weekdays, capped),
   ideally from a separate sending address; awaiting directors' answer.
+- **6 Nov 2026** — Full future-jobs check (all bookings since Jan): 23 future legs, £3,797 fares,
+  £3,552 already card-paid; driver share ~£3,200 (unallocated ~£2,095, Director A ~£1,020,
+  Director M ~£300). Cash + due in = £1,687 → gap ~£3,400 (prepaid money spent, mainly ads).
+  Plan: pay external drivers per job from new prepayments, rebuild a ~£2,100 float before any
+  director back pay. Export now has "by pickup date" + "All future jobs" button.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
