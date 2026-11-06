@@ -93,7 +93,7 @@ specific car model/colour in ads.
 
 ## Hard rules for all agents
 
-1. **Nothing sends itself.** Agents draft; a director sends every customer
+1. **Nothing sends itself.** (Exception, 6 Nov 2026: B2B outreach can go out in the approved daily batch on /outreach/batch, which a director reviews and approves.) Agents draft; a director sends every customer
    message, email, LinkedIn note and review reply.
 2. **Never touch the live website** (`public_html`). Website changes are delivered
    as files for the directors to upload. App code changes go to staging only.

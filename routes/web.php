@@ -424,6 +424,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Outreach — B2B prospecting. Emails open in the director's own mail app
         // (mailto:); the server never sends anything to a prospect.
         Route::get('outreach', [\App\Http\Controllers\Admin\OutreachController::class, 'index'])->name('outreach.index');
+        // Approved daily batch: review, then Approve & send (weekdays, capped). Never on a timer.
+        Route::get('outreach/batch', [\App\Http\Controllers\Admin\OutreachController::class, 'batch'])->name('outreach.batch');
+        Route::post('outreach/batch', [\App\Http\Controllers\Admin\OutreachController::class, 'sendBatch'])
+            ->middleware('throttle:6,1')->name('outreach.batch.send');
         Route::post('outreach/import', [\App\Http\Controllers\Admin\OutreachController::class, 'import'])
             ->middleware('throttle:20,1')->name('outreach.import');
         Route::get('outreach/{prospect}', [\App\Http\Controllers\Admin\OutreachController::class, 'show'])->name('outreach.show');

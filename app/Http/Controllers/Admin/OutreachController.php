@@ -20,7 +20,8 @@ use Illuminate\View\View;
 /**
  * Outreach — B2B prospecting for the directors (/outreach, admin only).
  *
- * The server NEVER emails a prospect. "Open email" is a mailto: link that opens
+ * The server only emails a prospect from an APPROVED daily batch (/outreach/batch,
+ * a director ticks and taps Approve). Otherwise "Open email" is a mailto: link that opens
  * the director's own mail app with the draft filled in; "Mark emailed" just
  * records that they sent it and schedules the next follow-up.
  */
@@ -151,6 +152,45 @@ class OutreachController extends Controller
         }
 
         return redirect()->route('outreach.show', $prospect)->with('status', 'Saved.');
+    }
+
+    /** Today's approved-batch page: review up to the daily limit, then Approve & send. */
+    public function batch(Request $request, \App\Services\Outreach\OutreachBatch $batch): View
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $items = $batch->candidates()->map(fn (Prospect $p) => ['prospect' => $p, 'mail' => $batch->compose($p, $request->user())])
+            ->filter(fn ($i) => $i['mail'] !== null)->values();
+
+        return view('admin.outreach.batch', [
+            'items' => $items,
+            'limit' => \App\Services\Outreach\OutreachBatch::limit(),
+            'sentToday' => $batch->sentToday(),
+            'weekend' => \App\Services\Outreach\OutreachBatch::isWeekend(),
+        ]);
+    }
+
+    /** A director approved today's batch: send the ticked emails now. */
+    public function sendBatch(Request $request, \App\Services\Outreach\OutreachBatch $batch): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'max:50'],
+            'ids.*' => ['integer'],
+            'confirm' => ['accepted'],
+        ], ['confirm.accepted' => 'Tick "I have checked these emails" to send.']);
+
+        $r = $batch->send($data['ids'], $request->user());
+        $msg = $r['sent'].' email'.($r['sent'] === 1 ? '' : 's').' sent from admin@.';
+        if ($r['skipped']) {
+            $msg .= ' '.$r['skipped'].' skipped (no longer due, or the daily limit was reached).';
+        }
+        $redirect = redirect()->route('outreach.batch')->with('status', $msg);
+        if ($r['failed']) {
+            $redirect->withErrors(['batch' => collect($r['failed'])->map(fn ($why, $co) => $co.': '.$why)->implode(' · ')]);
+        }
+
+        return $redirect;
     }
 
     /** Record that the director sent the next email in the sequence. Sends nothing. */

@@ -117,6 +117,16 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Agent Reach skill (panniantong/agent-reach) NOT installed: needs the directors' own
   LinkedIn/X session cookies (account-ban risk, LinkedIn forbids scraping) and a mirror was
   flagged suspicious; revisit only if the directors accept that.
+- **6 Nov 2026** — **Approved daily outreach batch** (directors asked): Outreach → "📨 Today's
+  batch" (`/outreach/batch`, `Services\Outreach\OutreachBatch`, `Mail\OutreachMail`). Lines up
+  to 10 a weekday (due follow-ups first, then best-fit new prospects with an email); a director
+  ticks "I have checked these emails" and taps Approve; sent from admin@ (directors' choice,
+  warned about sharing reputation with customer mail) as "Matthew Green | Central Executive
+  Transfers" with the signature + CENTRAL logo (`public/images/cet-email-signature.png`). Each
+  send advances the sequence like "Mark emailed" (weekday follow-ups). Never on a timer, never at
+  weekends, never DNC/closed, daily cap counted across the day. Replies land in admin@; mark them
+  "Replied" so follow-ups stop. Hawsons warm lead: Matt Bruce (MD, Hawsons Data Protection &
+  Cyber Security); personal follow-up drafted in chat, his direct email isn't in the page source.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

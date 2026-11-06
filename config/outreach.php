@@ -23,6 +23,22 @@ return [
 
     'opt_out' => '',
 
+    // Approved daily batches (/outreach/batch): weekdays only, a director reviews
+    // and taps Approve; nothing is ever sent on a timer. Sent from the app's normal
+    // mailer (admin@, directors' choice 6 Nov 2026) with the signature below.
+    'batch' => [
+        'daily_limit' => (int) env('OUTREACH_DAILY_LIMIT', 10),
+        'from_name' => 'Matthew Green | Central Executive Transfers',
+        'signature' => [
+            'name' => 'Matthew Green',
+            'company' => 'Central Executive Transfers',
+            'phone' => '0114 399 8242',
+            'website' => 'www.centralexecutivetransfers.co.uk',
+            'website_url' => 'https://www.centralexecutivetransfers.co.uk',
+            'logo_url' => env('OUTREACH_LOGO_URL'),
+        ],
+    ],
+
     // Follow-ups follow docs/growth/sales/kit/email-style-guide.md: short, about
     // the reader, one easy question, no feature lists.
     // Follow-ups in the house style (docs/growth/sales/kit/house-email-style.md):

@@ -9,8 +9,9 @@
             <div class="form-hero-glow"></div>
             <div class="fh-eyebrow">Sales · Outreach</div>
             <div class="fh-title">Outreach</div>
-            <div class="fh-sub">Business prospects and follow-ups. Emails open in your own mail app — nothing is sent from here.</div>
+            <div class="fh-sub">Business prospects and follow-ups. Open emails in your own mail app, or send today's approved batch from here.</div>
         </div>
+        <a href="{{ route('outreach.batch') }}" class="btn btn-primary" style="margin-left:12px">📨 Today's batch</a>
     </div>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
