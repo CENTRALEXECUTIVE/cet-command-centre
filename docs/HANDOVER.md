@@ -72,6 +72,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   time, vehicle, airport, postcode DISTRICT only, fare ex-VAT, VAT, payment, account, new vs
   returning + booking number. No names/phones/emails/full addresses, so the directors can
   send it to Claude for analysis. ETO-imported rows carry the IMPORT date as booked date.
+- **6 Nov 2026** — First review export analysed (1 Oct to 6 Nov): ~12 trips booked/week in Oct
+  with ads (~£9–10k/month), 57% new customers; week of 2 Nov (after ads stopped) = 2 trips.
+  Plan section 3.00 rebuilt: no-ads realistic ~29 trips Nov, 33 Dec, 26 Jan (~£5–6k/month).
+  Lean £10/day ads restart (brand, Sheffield to MAN exact, Heathrow) offered as a directors'
+  option, decide after the week of 9 Nov.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

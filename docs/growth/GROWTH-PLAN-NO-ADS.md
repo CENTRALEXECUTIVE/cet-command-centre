@@ -163,7 +163,55 @@ the map pack, an organic result or a recommendation. This is used in section 3.
 
 ## 3. Projections, Nov 2026 to Apr 2027
 
-### 3.0 Reality check (5 Nov 2026): the planning case from now on
+### 3.00 Update 6 Nov 2026 from the real Command Centre export (USE THIS FIRST)
+
+Source: "Export for review", bookings that CAME IN 1 Oct to 6 Nov 2026 (63 trips, return
+legs not double-counted, 4 cancelled legs excluded). Totals only; no customer data here.
+
+| Week booked (Mon) | 28 Sep* | 5 Oct | 12 Oct | 19 Oct | 26 Oct | 2 Nov (Mon to Fri) |
+|---|---|---|---|---|---|---|
+| Trips booked | 10 | 20 | 12 | 8 | 11 | 2 |
+| New customers | 7 | 11 | 7 | 3 | 7 | 1 |
+| Returning | 3 | 9 | 5 | 5 | 4 | 1 |
+| Value booked (ex-VAT, all legs) | £1,840 | £3,319 | £2,135 | £1,132 | £2,160 | £360 |
+
+\* 1 to 4 Oct only.
+
+- With ads, October ran at about **12 trips booked a week (about 50 a month), worth about
+  £9k to £10k a month**. Average about £174 per trip including return legs.
+- **57% of October's trips were NEW customers** (36 of 63). That is the part the ads fed.
+  Returning customers ran steadily at about 5 a week.
+- Median booking is made **4.4 days before pickup**, so stopping ads shows within 1 to 2
+  weeks. The first week after the stop (2 to 6 Nov) brought **2 trips**. One week is not a
+  trend, but it is a warning.
+- Mix: Manchester 26 of 63 trips; Executive saloon 51 of 63; V-Class 7; minibus 4.
+  Most bookings come in Monday to Thursday, midday to evening.
+- A few loyal customers matter a lot (one has 22 bookings, two have 11, one has 9). Look
+  after them personally.
+
+**Rebuilt projection (trips BOOKED per month, no ads):**
+
+| | Nov | Dec | Jan | Feb | Mar | Apr |
+|---|---|---|---|---|---|---|
+| Returning customers | 20 | 22 | 16 | 18 | 20 | 24 |
+| New (website, Google Maps, word of mouth) | 8 | 9 | 7 | 9 | 11 | 13 |
+| Outreach accounts + partner cover | 1 | 2 | 3 | 4 | 5 | 6 |
+| **Total (realistic)** | **29** | **33** | **26** | **31** | **36** | **43** |
+| Value at ~£174 | ~£5.0k | ~£5.7k | ~£4.5k | ~£5.4k | ~£6.3k | ~£7.5k |
+| October with ads, for comparison | 50 | | | | | |
+
+Low case (week of 9 Nov also under 5 trips): about 20 to 25 trips a month this winter.
+
+**What this means:** without ads, booked value looks like falling from about £9k to £10k a
+month to about £5k to £6k, roughly £3k to £4.5k a month less, against £1.8k a month of ad
+spend saved. The free channels need months to close that gap.
+
+**Option for the directors (not a recommendation to spend):** a lean restart of about £10 a
+day (about £300 a month) on what the data says worked, which is the brand name, Sheffield to
+Manchester Airport exact terms and Heathrow. That would cost about a sixth of before and aim
+to keep most of the new-customer flow. Decide after the week of 9 Nov: if it brings 5 trips
+or fewer again, the drop is real.
+
 
 **Why the first projection was too rosy**
 1. **Our own history.** Journeys a month (return trips counted once, from the ETO export):
