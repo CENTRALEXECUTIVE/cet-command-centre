@@ -89,6 +89,16 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   consumer care, affiliate inboxes; GetTransfer and Jayride have supplier-payment warnings);
   reasons are in each row's note. 54 more have a phone number only. Several "general" inboxes
   come from third-party pages; the note column says which to double-check.
+- **6 Nov 2026** — Cash crunch review: `docs/growth/BUSINESS-REVIEW-2026-11.md` (business-analyst
+  agent from wshobson/agents, MIT, installed with finance skills; see .claude/THIRD_PARTY.md).
+  Cash £890 + £797 due vs ~£3.4k owed/committed (mostly to Director A). Ads were 12.7% of
+  card income vs a 10% company cut. Pay order: external drivers first, directors last;
+  ring-fence prepaid driver share in Tide Budgets. Suggested (directors decide): 15% company
+  share on external-driver jobs from 1 Dec, a company-kept booking fee, ads off unless weeks of
+  9 and 16 Nov are both <=5 trips. OPEN: no VAT payments seen from Ltd Jun-Oct, ask the
+  accountant. New **PA** (`pa` agent, `/pa`, `docs/pa/todo.md` money board + to-dos).
+  Auto-sending outreach: proposed a one-tap daily batch via Workspace (weekdays, capped),
+  ideally from a separate sending address; awaiting directors' answer.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
