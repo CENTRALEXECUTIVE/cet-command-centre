@@ -106,6 +106,17 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   director back pay. Export now has "by pickup date" + "All future jobs" button.
 - **6 Nov 2026** — PVT Stripe payouts 20 Oct to 3 Nov = £1,983.72 (+£177.10 on 10 Nov); PVT
   paid Director M £927 + ~£463 other, balance £593.72. Directors said "deploy everything".
+- **6 Nov 2026** — Default environment network set to UNRESTRICTED (directors approved) so
+  company websites and WeTransfer load. Website scan (`scratchpad sitescan`, own-site pages
+  only, source saved): +16 emails for existing prospects (contacts.csv) and +8 for the new
+  **batch I** (30 owner-managed professional/manufacturing firms whose directors travel,
+  after a Hawsons director met in a cab said he flies from Heathrow 7-8x a year). Loaded by
+  migration 2026_11_06_000003. 11 scanned addresses rejected (press, IR, product safety,
+  safeguarding, random staff). Hawsons was ALREADY a prospect (batch B, Sheffield@hawsons.co.uk):
+  treat as a warm lead, personal follow-up to the director, not the cold template.
+  Agent Reach skill (panniantong/agent-reach) NOT installed: needs the directors' own
+  LinkedIn/X session cookies (account-ban risk, LinkedIn forbids scraping) and a mirror was
+  flagged suspicious; revisit only if the directors accept that.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
