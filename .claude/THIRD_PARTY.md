@@ -13,3 +13,9 @@ reviewed: local ffmpeg/whisper only, no network calls of their own).
 Local changes: evals removed from marketing skills; "Use PROACTIVELY" removed from the
 ui-design agents so they only run when asked. All CLAUDE.md safety rules still apply
 (never touch public_html, nothing auto-sends).
+
+## wshobson/agents (MIT), commit 4bde316, added 6 Nov 2026
+- `.claude/agents/business-analyst.md` (plugins/business-analytics)
+- `.claude/agents/startup-analyst.md` (plugins/startup-business-analyst)
+- `.claude/skills/startup-financial-modeling/`, `.claude/skills/startup-metrics-framework/`
+Source: https://github.com/wshobson/agents (MIT License, Copyright (c) Seth Hobson).
