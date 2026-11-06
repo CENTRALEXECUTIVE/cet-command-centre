@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Growth\BookingReviewExport;
 use App\Services\Growth\GrowthDashboard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,39 @@ class GrowthController extends Controller
             'channels' => GrowthDashboard::CHANNELS,
             'socialFields' => GrowthDashboard::SOCIAL_FIELDS,
         ]);
+    }
+
+    /**
+     * Detailed bookings CSV for a business review. No names, phones, emails or
+     * full addresses (see BookingReviewExport), so it can be shared for analysis.
+     * Defaults to the last 6 months by the date bookings came in.
+     */
+    public function export(Request $request, BookingReviewExport $export): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        $tz = config('app.timezone', 'Europe/London');
+        $from = $request->filled('from')
+            ? Carbon::parse($request->query('from'), $tz)->startOfDay()
+            : now($tz)->subMonthsNoOverflow(6)->startOfDay();
+        $to = $request->filled('to')
+            ? Carbon::parse($request->query('to'), $tz)->endOfDay()
+            : now($tz)->endOfDay();
+
+        $filename = 'cet-bookings-review-'.$from->format('Ymd').'-'.$to->format('Ymd').'.csv';
+
+        return response()->streamDownload(function () use ($export, $from, $to) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, BookingReviewExport::COLUMNS);
+            foreach ($export->rows($from, $to) as $row) {
+                fputcsv($out, $row);
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function saveSocial(Request $request): RedirectResponse

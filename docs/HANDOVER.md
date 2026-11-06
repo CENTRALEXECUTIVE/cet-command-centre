@@ -66,6 +66,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   signature + CENTRAL logo), hence "Hi Matthew". Drafts now end at "Kind regards," with no
   signature block or opt-out line (`config/outreach.php` signature/opt_out = ''); house
   style doc and CLAUDE.md updated.
+- **6 Nov 2026** — "Export for review" button (Growth dashboard + Review page,
+  `marketing.growth.export`, `Services\Growth\BookingReviewExport`): detailed bookings CSV
+  by date came in (default last 6 months) with channel/UTM/ad click, dates, weekday, lead
+  time, vehicle, airport, postcode DISTRICT only, fare ex-VAT, VAT, payment, account, new vs
+  returning + booking number. No names/phones/emails/full addresses, so the directors can
+  send it to Claude for analysis. ETO-imported rows carry the IMPORT date as booked date.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

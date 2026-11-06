@@ -34,11 +34,13 @@
         <div class="card" style="border-left:4px solid #1f9d55;margin-bottom:12px">{{ session('status') }}</div>
     @endif
 
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center">
         @foreach([4, 8, 13] as $w)
             <a href="{{ route('marketing.growth', ['weeks' => $w]) }}" class="btn {{ $weeksShown === $w ? 'btn-primary' : 'btn-ghost' }}">{{ $w }} weeks</a>
         @endforeach
     </div>
+
+    @include('admin.growth.partials.export-form')
 
     {{-- This week at a glance --}}
     <div class="grid grid-3" style="gap:12px;margin-bottom:14px">

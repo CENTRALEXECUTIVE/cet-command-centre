@@ -8,6 +8,8 @@
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
+    @include('admin.growth.partials.export-form')
+
 
     @php
         $presets = ['last30' => 'Last 30 days', 'last90' => 'Last 90 days', 'this_year' => 'This year', 'last_month' => 'Last month', 'all' => 'All time'];
