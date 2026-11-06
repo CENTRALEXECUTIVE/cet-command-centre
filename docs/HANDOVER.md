@@ -77,6 +77,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Plan section 3.00 rebuilt: no-ads realistic ~29 trips Nov, 33 Dec, 26 Jan (~£5–6k/month).
   Lean £10/day ads restart (brand, Sheffield to MAN exact, Heathrow) offered as a directors'
   option, decide after the week of 9 Nov.
+- **6 Nov 2026** — Outreach follow-ups never land on a weekend: `Prospect::workingDay()` moves
+  Sat/Sun to Monday when "Mark emailed" sets the next date; migration 2026_11_06_000001 moved
+  existing weekend dates. Contact-email research for the 166 prospects with no email running
+  (published addresses only, with source URL).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
