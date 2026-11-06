@@ -104,6 +104,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Director M ~£300). Cash + due in = £1,687 → gap ~£3,400 (prepaid money spent, mainly ads).
   Plan: pay external drivers per job from new prepayments, rebuild a ~£2,100 float before any
   director back pay. Export now has "by pickup date" + "All future jobs" button.
+- **6 Nov 2026** — PVT Stripe payouts 20 Oct to 3 Nov = £1,983.72 (+£177.10 on 10 Nov); PVT
+  paid Director M £927 + ~£463 other, balance £593.72. Directors said "deploy everything".
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

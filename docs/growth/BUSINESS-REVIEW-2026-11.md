@@ -34,6 +34,12 @@ jobs with a pickup from 6 Nov onwards that are not complete or cancelled. Totals
   for each job as it is driven, then running costs, then directors. Rebuild a float equal to the
   external driver share of all future prepaid jobs (target ~£2,100) before any director back pay.
 
+**PVT (Stripe) check, 6 Nov:** Stripe paid out £1,983.72 to the PVT Tide account between
+20 Oct and 3 Nov (£92.14, £1.56, £585.91, £146.60, £354.40, £803.11), with £177.10 due on
+10 Nov. Out of PVT: £927 to Director M plus about £463 of other payments, leaving £593.72.
+So about 47% of everything PVT has received so far went to one director's pay in its first
+two weeks. Same rule applies: PVT's new prepayments pay external drivers first.
+
 
 Prepared 6 Nov 2026 for Director A and Director M. Source of truth: the 6 Nov data pack
 (bank statements Jun to 4 Nov, cash today, prepaid jobs, Command Centre bookings export),
