@@ -567,8 +567,11 @@ body.driver-app .tabbar a.active { color: var(--gold); }
     .topbar .theme-toggle { width: 34px; height: 34px; padding: 0; }
     #global-search { min-width: 0; }
 }
-/* Backstop: nothing may make the page scroll sideways (clip keeps sticky headers working). */
-html, body { overflow-x: clip; }
+/* Backstop: nothing may make the page scroll sideways. `hidden` on body (it
+   applies to the viewport, so sticky headers keep working) for older iPhones that
+   ignore `clip`; `clip` where supported. */
+body { overflow-x: hidden; }
+@supports (overflow: clip) { body { overflow-x: clip; } }
 
 /* Sticky total bar */
 .total-bar {

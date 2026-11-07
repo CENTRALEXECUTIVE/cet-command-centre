@@ -86,7 +86,7 @@
        Tap the total to see the breakdown, summary, preview and cancel. */
     @media (max-width:1099px){
         .sf-booking .eto-form{ padding-bottom:84px; }
-        .sf-booking .total-bar{ position:fixed; left:10px; right:10px; z-index:45; margin:0;
+        .sf-booking .total-bar{ position:fixed; left:10px; right:10px; width:auto; max-width:calc(100vw - 20px); z-index:45; margin:0;
             bottom:calc(10px + env(safe-area-inset-bottom, 0px)); padding:10px 12px; border-radius:14px;
             display:grid !important; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 10px;
             max-height:45vh; overflow-y:auto; overflow-x:hidden; box-sizing:border-box;
@@ -108,8 +108,8 @@
         .sf-booking .total-bar .actions{ display:flex !important; gap:6px; flex-wrap:nowrap; }
         .sf-booking .total-bar .actions .btn-ghost, .sf-booking .total-bar .actions .btn-light{ display:none; }
         .sf-booking .total-bar .actions .btn-primary{ padding:12px 16px !important; font-size:14.5px; white-space:nowrap; }
-        .sf-booking .total-bar.bk-open .actions{ grid-column:1 / -1; display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; width:auto; min-width:0; }
-        .sf-booking .total-bar.bk-open .actions > *{ display:flex !important; width:100%; min-width:0; box-sizing:border-box; justify-content:center; align-items:center; text-align:center; margin:0; }
+        .sf-booking .total-bar.bk-open .actions{ grid-column:1 / -1; display:grid !important; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; width:auto; min-width:0; }
+        .sf-booking .total-bar.bk-open .actions > *{ display:flex !important; width:100%; min-width:0; box-sizing:border-box; white-space:normal; justify-content:center; align-items:center; text-align:center; margin:0; }
         .sf-booking .total-bar.bk-open .actions .btn-primary{ grid-column:1 / -1; order:-1; }
     }
     @media (max-width:900px){

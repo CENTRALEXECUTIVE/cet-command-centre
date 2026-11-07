@@ -158,6 +158,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **7 Nov 2026** — Steps now: **Outbound** (journey + vehicle cards + passengers/luggage + extras on
   ONE page) → **Return** (same again: return journey, vehicles, passengers/luggage) → Customer →
   Payment & confirm. Guard test against a fixed step index (it broke the page once in testing).
+- **7 Nov 2026** — Breakdown now labels the leg that carries meet & greet ("Return leg (Standard
+  Minibus) · incl. meet & greet £150"); the £10 was already charged, just not shown. Overflow
+  backstop changed to `body{overflow-x:hidden}` (+`clip` where supported) because older iPhones
+  ignore `clip`; mobile bar buttons wrap and the bar is capped at the screen width.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
