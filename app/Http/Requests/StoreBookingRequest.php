@@ -61,6 +61,11 @@ class StoreBookingRequest extends FormRequest
             // flight (a return collected from an airport is a different flight).
             'return_vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')->where('is_active', true)],
             'return_flight_number' => ['nullable', 'string', 'max:32'],
+            // The return leg's own passengers and luggage (blank = same as outbound),
+            // for when the party changes on the way back.
+            'return_passengers' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'return_suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'return_hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             // Hourly hire: how many hours the car + driver are booked for.
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'via_stops' => ['nullable', 'array', 'max:10'],

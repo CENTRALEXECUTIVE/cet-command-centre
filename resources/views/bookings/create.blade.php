@@ -211,6 +211,34 @@
                             <div class="hint" id="return-price-hint" style="margin-top:4px"></div>
                         </div>
                     </div>
+                    {{-- The return leg's own party and luggage. They follow the outbound
+                         automatically until the office changes one (the party sometimes
+                         changes on the way back). Blank = same as outbound. --}}
+                    <div class="field" id="return-pax-field" style="margin:12px 0 0">
+                        <label>Return passengers &amp; luggage <span class="muted">(follows the outbound unless you change it)</span></label>
+                        <div class="bk-ret-pax">
+                            <div class="stepper-field">
+                                <span class="lbl">Passengers</span>
+                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                                    <input id="return_passengers" type="number" name="return_passengers" min="1" max="60" value="{{ old('return_passengers') }}" data-follow="passengers">
+                                    <button type="button" data-inc>+</button></div>
+                            </div>
+                            <div class="stepper-field">
+                                <span class="lbl">Suitcases</span>
+                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                                    <input id="return_suitcases" type="number" name="return_suitcases" min="0" max="30" value="{{ old('return_suitcases') }}" data-follow="suitcases">
+                                    <button type="button" data-inc>+</button></div>
+                            </div>
+                            <div class="stepper-field">
+                                <span class="lbl">Cabin bags</span>
+                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                                    <input id="return_hand_luggage" type="number" name="return_hand_luggage" min="0" max="30" value="{{ old('return_hand_luggage') }}" data-follow="hand_luggage">
+                                    <button type="button" data-inc>+</button></div>
+                            </div>
+                        </div>
+                        <button type="button" class="link-btn" id="return-pax-reset" hidden style="margin-top:6px;background:none;border:0;padding:0;color:#1d4ed8;text-decoration:underline;cursor:pointer;font:inherit;font-size:13px">Match the outbound again</button>
+                        @error('return_passengers') <div class="error">{{ $message }}</div> @enderror
+                    </div>
                     <div class="field" style="margin:10px 0 0">
                         <label for="return_flight_number">Return flight number <span class="muted">(only if the return collects from an airport)</span></label>
                         <input id="return_flight_number" name="return_flight_number" value="{{ old('return_flight_number') }}" placeholder="e.g. EZY1234" style="text-transform:uppercase">

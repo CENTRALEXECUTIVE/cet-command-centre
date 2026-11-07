@@ -952,13 +952,18 @@ class BookingController extends Controller
                         : $booking->pickup_at,
                     'pickup_address' => $retPickup,
                     'destination_address' => trim((string) $request->input('return_destination_address')) ?: $request->input('pickup_address'),
-                    'passengers' => $booking->passengers,
+                    'passengers' => $request->filled('return_passengers') ? (int) $request->input('return_passengers') : $booking->passengers,
                     'flight_number' => trim((string) $request->input('return_flight_number'))
                         ?: (\App\Support\AirportMatcher::isAirport($retPickup) ? $request->input('flight_number') : null),
                     'quoted_price' => $returnPrice,
                     'payment_method' => $booking->payment_method?->value ?? 'card',
                 ]);
                 $retMeta = array_diff_key($meta, array_flip(['meet_greet', 'flight_landing_at']));
+                foreach (['suitcases', 'hand_luggage'] as $lk) {
+                    if ($request->filled('return_'.$lk)) {
+                        $retMeta[$lk] = (int) $request->input('return_'.$lk);
+                    }
+                }
                 if ($request->boolean('meet_greet') && \App\Support\AirportMatcher::isAirport($retPickup)) {
                     $retMeta['meet_greet'] = true;
                 }

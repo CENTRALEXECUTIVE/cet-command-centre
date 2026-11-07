@@ -143,6 +143,19 @@
         .sf-booking.bk-wizard:not(.bk-last) .total-bar .actions .btn-primary{ display:none !important; }
         .sf-booking.bk-wizard:not(.bk-last) .total-bar{ grid-template-columns:1fr; }
     }
+
+    /* Return step: its own vehicle cards and party/luggage. */
+    .sf-booking .bk-ret-pax{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:6px; }
+    .sf-booking .bk-ret-pax .stepper-field{ display:flex; flex-direction:column; gap:5px; border:0 !important; padding:0; }
+    .sf-booking .bk-ret-pax .stepper{ display:grid; grid-template-columns:34px 1fr 34px; height:42px; border-radius:10px;
+        border:1px solid var(--bk-line); overflow:hidden; background:var(--bk-field); max-width:none; }
+    .sf-booking .bk-ret-pax .stepper button{ border:0; background:var(--bk-soft); font-size:17px; padding:0; min-width:0; }
+    .sf-booking .bk-ret-pax .stepper input{ border:0 !important; border-radius:0 !important; min-height:40px !important; text-align:center; padding:0 !important; box-shadow:none !important; }
+    .sf-booking .bk-ret-pax input.bk-own{ background:rgba(251,186,42,.14) !important; font-weight:700; }
+    .sf-booking .bk-ret-cards .veh-price{ display:none; }
+    .sf-booking .bk-ret-cards{ margin:4px 0 2px; }
+    .sf-booking .bk-ret-cards .veh-card.bk-same .veh-photo{ font-size:20px; }
+    .sf-booking .bk-ret-vsel{ position:absolute !important; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 <script>
 (function () {
@@ -210,6 +223,81 @@
         if (sel) sel.addEventListener('change', syncRet);
         syncRet();
     }
+
+    // Return step: the party/luggage follow the outbound until changed.
+    var follows = Array.prototype.slice.call(document.querySelectorAll('[data-follow]'));
+    var resetBtn = document.getElementById('return-pax-reset');
+    function outVal(f) { var o = document.getElementById(f.dataset.follow); return o ? o.value : ''; }
+    function markOwn() {
+        var any = false;
+        follows.forEach(function (f) { var own = f.dataset.own === '1' && f.value !== outVal(f); f.classList.toggle('bk-own', own); any = any || own; });
+        if (resetBtn) resetBtn.hidden = !any;
+    }
+    function follow() {
+        follows.forEach(function (f) { if (f.dataset.own !== '1') f.value = outVal(f); });
+        markOwn();
+        if (typeof fitRet === 'function') fitRet();
+    }
+    follows.forEach(function (f) {
+        if (f.value !== '' && f.value !== outVal(f)) f.dataset.own = '1';  // kept from a failed submit
+        var mark = function () { f.dataset.own = f.value !== outVal(f) ? '1' : '0'; markOwn(); if (typeof fitRet === 'function') fitRet(); };
+        f.addEventListener('input', mark);
+        f.addEventListener('change', mark);
+        var o = document.getElementById(f.dataset.follow);
+        if (o) { o.addEventListener('input', follow); o.addEventListener('change', follow); }
+    });
+    if (resetBtn) resetBtn.addEventListener('click', function () { follows.forEach(function (f) { f.dataset.own = '0'; }); follow(); });
+
+    // Return step: vehicle cards (start on "Same as outbound").
+    var retVeh = document.getElementById('return_vehicle_type_id');
+    var outCards = document.getElementById('veh-cards');
+    var retGrid = null;
+    function fitRet() {
+        if (!retGrid) return;
+        var g = function (id) { var e = document.getElementById(id); return parseInt(e && e.value, 10) || 0; };
+        var pax = g('return_passengers') || g('passengers'), lug = g('return_suitcases'), hand = g('return_hand_luggage');
+        retGrid.querySelectorAll('.veh-card[data-id]').forEach(function (c) {
+            if (!c.dataset.id) return;
+            var fits = pax <= +c.dataset.capPax && lug <= +c.dataset.capLug && hand <= +c.dataset.capHand;
+            c.classList.toggle('unfit', !fits);
+        });
+    }
+    if (retVeh && outCards && !document.querySelector('.bk-ret-cards')) {
+        retGrid = document.createElement('div');
+        retGrid.className = 'veh-cards bk-ret-cards';
+        var same = document.createElement('button');
+        same.type = 'button';
+        same.className = 'veh-card bk-same';
+        same.dataset.id = '';
+        same.innerHTML = '<span class="veh-photo">↺</span><span class="veh-info"><span class="veh-name">Same as outbound</span><span class="veh-cap">Uses the vehicle picked for the outbound</span></span><span class="veh-tick">✓</span>';
+        retGrid.appendChild(same);
+        outCards.querySelectorAll('.veh-card').forEach(function (c) {
+            var k = c.cloneNode(true);
+            k.classList.remove('sel', 'unfit');
+            k.removeAttribute('id');
+            k.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+            retGrid.appendChild(k);
+        });
+        var vField = retVeh.closest('.field');
+        vField.insertBefore(retGrid, retVeh);
+        retVeh.classList.add('bk-ret-vsel');
+        retVeh.setAttribute('tabindex', '-1');
+        if (vField.parentNode && vField.parentNode.classList.contains('grid')) vField.style.gridColumn = '1 / -1';
+        var syncRet = function () {
+            retGrid.querySelectorAll('.veh-card').forEach(function (c) { c.classList.toggle('sel', String(c.dataset.id) === String(retVeh.value)); });
+        };
+        retGrid.addEventListener('click', function (e) {
+            var c = e.target.closest('.veh-card');
+            if (!c) return;
+            retVeh.value = c.dataset.id;
+            retVeh.dispatchEvent(new Event('change', { bubbles: true }));
+            syncRet();
+        });
+        retVeh.addEventListener('change', syncRet);
+        syncRet();
+    }
+    follow();
+    fitRet();
 
     // Step-by-step on phones/tablets: Customer → Journey → Return (only for a
     // return) → Vehicle & extras → Payment & confirm. Desktop keeps one page.

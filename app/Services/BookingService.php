@@ -570,7 +570,19 @@ class BookingService
             $pickupAt = \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->format('Y-m-d H:i:s');
         }
 
-        [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($data);
+        // The return leg can carry its own party size and luggage (the office
+        // changes them on the Return step); blank means the same as the outbound.
+        $legData = $data;
+        if ($isReturn) {
+            foreach (['passengers', 'suitcases', 'hand_luggage'] as $k) {
+                $v = $data['return_'.$k] ?? null;
+                if ($v !== null && $v !== '') {
+                    $legData[$k] = (int) $v;
+                }
+            }
+        }
+        [$suitcases, $handLuggage, $luggage] = $this->luggageFrom($legData);
+        $legPassengers = (int) ($legData['passengers'] ?? $data['passengers']);
 
         // Airport details only belong on a leg that COLLECTS from an airport: the
         // outbound's arrival flight, landing time and meet & greet must not be
@@ -597,7 +609,7 @@ class BookingService
             'destination_address' => $destinationAddress,
             'destination_postcode' => $isReturn ? (($data['return_destination_postcode'] ?? null) ?: ($data['pickup_postcode'] ?? null)) : ($data['destination_postcode'] ?? null),
             'flight_number' => $flightNumber ? strtoupper($flightNumber) : null,
-            'passengers' => $data['passengers'],
+            'passengers' => $legPassengers,
             'luggage' => $luggage,
             'meta' => array_filter([
                 'suitcases' => $suitcases,
@@ -620,9 +632,9 @@ class BookingService
                 'flight_landing_at' => (! empty($data['flight_landing_at']) && ! $isReturn)
                     ? \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->toDateTimeString()
                     : null,
-                'child_seats' => min((int) ($data['child_seats'] ?? 0), (int) $data['passengers']) ?: null,
-                'booster_seats' => min((int) ($data['booster_seats'] ?? 0), (int) $data['passengers']) ?: null,
-                'infant_seats' => min((int) ($data['infant_seats'] ?? 0), (int) $data['passengers']) ?: null,
+                'child_seats' => min((int) ($data['child_seats'] ?? 0), $legPassengers) ?: null,
+                'booster_seats' => min((int) ($data['booster_seats'] ?? 0), $legPassengers) ?: null,
+                'infant_seats' => min((int) ($data['infant_seats'] ?? 0), $legPassengers) ?: null,
                 'child_seat' => (((int) ($data['child_seats'] ?? 0)) + ((int) ($data['booster_seats'] ?? 0)) + ((int) ($data['infant_seats'] ?? 0))) > 0 ?: null,
                 'ribbon' => ! empty($data['ribbon']) ?: null,
                 'wheelchair' => ! empty($data['wheelchair']) ?: null,

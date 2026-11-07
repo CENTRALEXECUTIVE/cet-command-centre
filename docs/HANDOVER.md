@@ -145,6 +145,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   booking: Customer → Journey → Return (own card, only for returns) → Vehicle & extras →
   Payment & confirm; Next checks the step's required fields; a blocked submit jumps to the step
   with the problem; Confirm shows on the last step. Desktop stays one page with the sticky panel.
+- **7 Nov 2026** — Return step now has its own **vehicle cards** (starts on "Same as outbound",
+  greys out vehicles too small for the return party) and its own **passengers / suitcases / cabin
+  bags** (`return_passengers|suitcases|hand_luggage`, validated in StoreBookingRequest, saved by
+  `BookingService::buildLeg`, shown in the email preview). They follow the outbound until changed;
+  "Match the outbound again" resets. Tested end to end in a phone browser (one way → return,
+  return party 4/5 + V Class: saved OUT Exec 2 pax £105 / RET V Class 4 pax 5 cases £175 with
+  meet & greet) + AdminReturnPartyAndVehicleTest.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
