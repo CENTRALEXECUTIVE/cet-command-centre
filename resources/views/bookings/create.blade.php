@@ -1136,7 +1136,12 @@
 
                 function refresh() {
                     var p = pickup.value.trim(), d = dest.value.trim();
-                    if (p.length < 4 || d.length < 4) { strip.hidden = true; return; }
+                    // The vehicle cards ALWAYS stay visible so a vehicle can be picked first;
+                    // prices just wait until both addresses are in. (Hiding them here was
+                    // harmless while a CSS rule overrode [hidden], and made them vanish once
+                    // that was fixed, 7 Nov 2026.)
+                    strip.hidden = false;
+                    if (p.length < 4 || d.length < 4) { return; }
                     var when = whenEl ? (whenEl.value || '') : '';
                     var journey = journeyEl ? (journeyEl.value || 'one_way') : 'one_way';
                     var returnAt = (journey === 'return' && returnEl) ? (returnEl.value || '') : '';

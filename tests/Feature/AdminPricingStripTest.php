@@ -127,7 +127,9 @@ class AdminPricingStripTest extends TestCase
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->get(route('bookings.create'))->assertOk()
             ->assertSee('returnPickupIsAirport', false)
-            ->assertSee('charged on each leg that picks up at an airport', false);
+            ->assertSee('charged on each leg that picks up at an airport', false)
+            ->assertDontSee('{ strip.hidden = true; return; }', false)
+            ->assertSee('#veh-cards[hidden]{ display:grid !important; }', false);
     }
 
     public function test_meet_and_greet_is_never_charged_on_a_one_way_drop_off_to_the_airport(): void

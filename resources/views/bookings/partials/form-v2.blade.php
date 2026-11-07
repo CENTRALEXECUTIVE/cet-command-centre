@@ -10,6 +10,8 @@
     /* Anything marked hidden stays hidden, even inside .grid (fixes the VAT
        company fields showing when VAT isn't ticked). */
     .sf-booking [hidden]{ display:none !important; }
+    /* …except the vehicle cards, which must always be visible to choose from. */
+    .sf-booking #veh-cards[hidden]{ display:grid !important; }
 
     /* Header: slim on phones (the top bar already says "New Booking"). */
     @media (max-width:900px){ .sf-booking .smart-hero.sf-compact{ display:none; } }
