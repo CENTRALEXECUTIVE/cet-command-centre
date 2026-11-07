@@ -1407,4 +1407,5 @@
         render();
     })();
     </script>
+    @include('bookings.partials.form-v2')
 @endsection

@@ -133,6 +133,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   money board (Ltd/PVT/incoming, owed to us, we owe; settings `pa_money`) and a shared to-do list
   (`pa_todos`). Pre-filled once by migration 2026_11_06_000004 only if empty. The Claude `/pa`
   agent still works for drafting and planning.
+- **7 Nov 2026** — Booking form: meet & greet now auto-ticks when the RETURN leg picks up at an
+  airport (S10 <-> MAN = £105 + £115; test in AdminPricingStripTest). Form redesign v2
+  (`bookings/partials/form-v2.blade.php`, presentation only, all field ids/names/JS hooks
+  unchanged): segmented journey type, compact inputs/vehicle rows, passengers/bags in one row,
+  hints hidden, VAT company fields really hidden until ticked ([hidden] fix), slim fixed total
+  bar on phones (tap for breakdown/preview/cancel). Global fix: the mobile header "Sign out"
+  made every page ~25-35px wider than the phone (app.css, + overflow-x clip backstop).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

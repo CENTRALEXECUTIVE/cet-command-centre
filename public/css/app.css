@@ -557,6 +557,19 @@ body.driver-app .tabbar a.active { color: var(--gold); }
     .page-title { font-size: 20px; }
 }
 
+/* ----- Phones: the header must fit the screen (Nov 2026). "Sign out" was pushing
+   every page ~25-35px wider than the phone, so pages slid sideways. ----- */
+@media (max-width: 520px) {
+    .topbar { padding: 0 10px; gap: 8px; }
+    .topbar > * { min-width: 0; }
+    .topbar-user { gap: 6px; flex: 0 0 auto; }
+    .topbar-user .btn { padding: 6px 9px !important; font-size: 12px !important; white-space: nowrap; }
+    .topbar .theme-toggle { width: 34px; height: 34px; padding: 0; }
+    #global-search { min-width: 0; }
+}
+/* Backstop: nothing may make the page scroll sideways (clip keeps sticky headers working). */
+html, body { overflow-x: clip; }
+
 /* Sticky total bar */
 .total-bar {
     position: sticky; bottom: 0;
