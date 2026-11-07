@@ -83,11 +83,16 @@
     /* Phones and tablets: a slim total bar fixed above the tab bar.
        Tap the total to see the breakdown, summary, preview and cancel. */
     @media (max-width:1099px){
-        .sf-booking .eto-form{ padding-bottom:96px; }
+        .sf-booking .eto-form{ padding-bottom:84px; }
         .sf-booking .total-bar{ position:fixed; left:10px; right:10px; z-index:45; margin:0;
             bottom:calc(10px + env(safe-area-inset-bottom, 0px)); padding:10px 12px; border-radius:14px;
             display:grid !important; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 10px;
-            max-height:70vh; overflow-y:auto; overflow-x:hidden; box-sizing:border-box; }
+            max-height:45vh; overflow-y:auto; overflow-x:hidden; box-sizing:border-box;
+            transition:transform .18s ease, opacity .18s ease; }
+        /* While a field has focus (phone keyboard up) the bar gets out of the way. */
+        .sf-booking .total-bar.bk-hide{ transform:translateY(160%); opacity:0; pointer-events:none; }
+        .sf-booking .total-bar:not(.bk-open) .total-amount .basis{ display:none; }
+        .sf-booking .total-bar:not(.bk-open){ padding:8px 10px 8px 14px; }
         .sf-booking .total-bar .total-main{ cursor:pointer; min-width:0; }
         .sf-booking .total-bar .total-label{ font-size:10px; }
         .sf-booking .total-bar .total-label::after{ content:" ▴ price breakdown"; letter-spacing:0; text-transform:none; color:#8d8c86; }
@@ -167,6 +172,31 @@
         var toggle = function () { bar.classList.toggle('bk-open'); };
         main.addEventListener('click', toggle);
         main.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+
+        // Close the breakdown when tapping elsewhere or scrolling the form.
+        document.addEventListener('click', function (e) { if (!bar.contains(e.target)) bar.classList.remove('bk-open'); });
+        var lastY = window.scrollY;
+        window.addEventListener('scroll', function () {
+            if (Math.abs(window.scrollY - lastY) > 40) { bar.classList.remove('bk-open'); lastY = window.scrollY; }
+        }, { passive: true });
+
+        // Phones: hide the bar while typing in a field so it never covers it.
+        var small = window.matchMedia('(max-width: 1099px)');
+        var hideTimer;
+        form.addEventListener('focusin', function (e) {
+            if (!small.matches || bar.contains(e.target)) return;
+            if (!/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || /checkbox|radio|button|submit/.test(e.target.type || '')) return;
+            clearTimeout(hideTimer);
+            bar.classList.remove('bk-open');
+            bar.classList.add('bk-hide');
+        });
+        form.addEventListener('focusout', function () {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(function () {
+                var a = document.activeElement;
+                if (!a || !form.contains(a) || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) bar.classList.remove('bk-hide');
+            }, 150);
+        });
     }
 })();
 </script>
