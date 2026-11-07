@@ -350,7 +350,7 @@
             <div class="body" {{ $extrasOpen ? '' : 'hidden' }}>
                 <div class="checkbox-row" style="margin-bottom:12px">
                     <input id="meet_greet" type="checkbox" name="meet_greet" value="1" {{ old('meet_greet') ? 'checked' : '' }}>
-                    <label for="meet_greet">Meet &amp; greet <span class="muted">(driver waits in arrivals with a name board)</span></label>
+                    <label for="meet_greet">Meet &amp; greet <span class="muted">(charged on each leg that picks up at an airport, outbound or return)</span></label>
                 </div>
                 {{-- ETO-style meeting details — the name the driver holds up and where
                      to meet. Revealed when meet & greet is ticked. --}}
@@ -792,6 +792,15 @@
                 // NOT mean the PICKUP is the airport. Meet & greet is an ARRIVALS thing, so
                 // it must key off the pickup address only, never the dropdown or the dropoff.
                 function pickupIsAirport() { return looksAirport(pickup && pickup.value); }
+                // The RETURN leg of a return trip is often the airport pickup (out to
+                // Manchester, back from it). Meet & greet is charged on that leg too.
+                var journeySel = document.getElementById('journey_type');
+                var retPickupEl = document.getElementById('return_pickup_address');
+                function returnPickupIsAirport() {
+                    if (!journeySel || journeySel.value !== 'return') return false;
+                    var rp = retPickupEl && retPickupEl.value.trim() ? retPickupEl.value : (dest && dest.value);
+                    return looksAirport(rp);
+                }
                 function isAnyAirport() { return pickupIsAirport() || looksAirport(dest && dest.value) || (airportSel && airportSel.value !== ''); }
 
                 function apply() {
@@ -814,9 +823,13 @@
                         : 'Add the flight number and landing time below so the office can track the flight.';
                     // Pre-tick meet & greet for an ARRIVAL (airport pickup); untick the
                     // auto-tick if it stops being an arrival, but never fight a manual tick.
+                    // Meet & greet applies to whichever leg PICKS UP at the airport
+                    // (outbound and/or the return). Pricing and the saved booking only
+                    // charge it on those legs.
+                    var mgDue = arrival || returnPickupIsAirport();
                     if (meet) {
-                        if (arrival && !meet.checked) { meet.checked = true; mgAuto = true; }
-                        else if (!arrival && mgAuto && meet.checked) { meet.checked = false; mgAuto = false; }
+                        if (mgDue && !meet.checked) { meet.checked = true; mgAuto = true; meet.dispatchEvent(new Event('change')); mgAuto = true; }
+                        else if (!mgDue && mgAuto && meet.checked) { meet.checked = false; mgAuto = false; meet.dispatchEvent(new Event('change')); }
                     }
                     syncMeetingDetails();
                 }
@@ -844,7 +857,7 @@
                         }
                     });
                 }
-                [airportSel, pickup, dest].forEach(function (el) {
+                [airportSel, pickup, dest, journeySel, retPickupEl].forEach(function (el) {
                     if (!el) return;
                     el.addEventListener('change', apply);
                     el.addEventListener('blur', apply);

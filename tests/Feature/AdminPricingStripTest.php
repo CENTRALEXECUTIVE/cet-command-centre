@@ -104,6 +104,32 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta(150.0, (float) $legs['Return leg'], 0.001); // Sheffield → Birmingham Airport
     }
 
+    public function test_meet_and_greet_is_charged_on_the_return_leg_when_the_return_picks_up_at_the_airport(): void
+    {
+        // 7 Nov 2026: S10 → Manchester Airport and back showed £105 + £105 = £210.
+        // The return collects from the airport, so it must carry the £10 meet & greet.
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        $options = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => '41 Westbourne Road, Broomhall, Sheffield S10 2QT', 'destination' => 'Manchester Airport, Manchester, UK',
+            'journey_type' => 'return', 'meet_greet' => true,
+        ])->assertOk()->json('options');
+
+        $legs = collect(collect($options)->firstWhere('id', $exec->id)['breakdown'])->pluck('amount', 'label');
+        $this->assertEqualsWithDelta(105.0, (float) $legs['Outbound leg'], 0.001, 'drop-off at the airport: no meet & greet');
+        $this->assertEqualsWithDelta(115.0, (float) $legs['Return leg'], 0.001, 'airport pickup: + £10 meet & greet');
+        $this->assertEqualsWithDelta(220.0, $this->execPrice($options), 0.001);
+    }
+
+    public function test_the_form_ticks_meet_and_greet_for_a_return_that_picks_up_at_the_airport(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.create'))->assertOk()
+            ->assertSee('returnPickupIsAirport', false)
+            ->assertSee('charged on each leg that picks up at an airport', false);
+    }
+
     public function test_meet_and_greet_is_never_charged_on_a_one_way_drop_off_to_the_airport(): void
     {
         $admin = User::factory()->admin()->create();
