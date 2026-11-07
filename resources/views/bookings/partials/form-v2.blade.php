@@ -310,16 +310,17 @@
     var vehSec = by('vehicle_type_id'), extrasSec = by('meet_greet'), paySec = by('payment_method'), custSec = by('customer_name');
     // Journey first so a caller can be quoted before any details are taken
     // (directors, 7 Nov 2026); the customer is only needed if they book.
+    // Outbound on one page (journey + vehicle + passengers/luggage + extras),
+    // then the return the same way (directors, 7 Nov 2026).
     var steps = [
-        { title: 'Journey', els: [locSec] },
-        { title: 'Return journey', els: [retSec], onlyReturn: true },
-        { title: 'Vehicle & price', els: [vehSec, extrasSec] },
+        { title: 'Outbound', els: [locSec, vehSec, extrasSec] },
+        { title: 'Return', els: [retSec], onlyReturn: true },
         { title: 'Customer', els: [custSec] },
         { title: 'Payment & confirm', els: [] },
     ];
     var used = [];
     steps.forEach(function (st) { st.els = st.els.filter(Boolean); used = used.concat(st.els); });
-    secs.forEach(function (sec) { if (used.indexOf(sec) === -1) steps[4].els.push(sec); });
+    secs.forEach(function (sec) { if (used.indexOf(sec) === -1) steps[steps.length - 1].els.push(sec); });
     var small = window.matchMedia('(max-width: 1099px)');
     var cur = 0;
     var head = document.createElement('div');

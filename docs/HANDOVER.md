@@ -155,6 +155,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **7 Nov 2026** — Phone steps reordered for quoting a caller: Journey → Return → Vehicle & price →
   Customer → Payment & confirm; tap the progress bar to jump to any step (Confirm still checks all
   required fields and jumps to the step that's missing something).
+- **7 Nov 2026** — Steps now: **Outbound** (journey + vehicle cards + passengers/luggage + extras on
+  ONE page) → **Return** (same again: return journey, vehicles, passengers/luggage) → Customer →
+  Payment & confirm. Guard test against a fixed step index (it broke the page once in testing).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

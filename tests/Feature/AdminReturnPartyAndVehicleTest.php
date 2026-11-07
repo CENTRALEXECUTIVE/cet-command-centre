@@ -108,6 +108,11 @@ class AdminReturnPartyAndVehicleTest extends TestCase
             ->assertSee('name="return_passengers"', false)
             ->assertSee('name="return_suitcases"', false)
             ->assertSee('name="return_hand_luggage"', false)
-            ->assertSee('bk-ret-cards', false);
+            ->assertSee('bk-ret-cards', false)
+            // Step list: Outbound (journey + vehicle + luggage) then Return, and the
+            // catch-all step is always the LAST one (a fixed index broke the page once).
+            ->assertSee("{ title: 'Outbound', els: [locSec, vehSec, extrasSec] }", false)
+            ->assertSee('steps[steps.length - 1].els.push(sec)', false)
+            ->assertDontSee('steps[4].els', false);
     }
 }
