@@ -90,13 +90,14 @@
             max-height:70vh; overflow-y:auto; overflow-x:hidden; box-sizing:border-box; }
         .sf-booking .total-bar .total-main{ cursor:pointer; min-width:0; }
         .sf-booking .total-bar .total-label{ font-size:10px; }
-        .sf-booking .total-bar .total-label::after{ content:" ▴ details"; letter-spacing:0; text-transform:none; color:#8d8c86; }
+        .sf-booking .total-bar .total-label::after{ content:" ▴ price breakdown"; letter-spacing:0; text-transform:none; color:#8d8c86; }
         .sf-booking .total-bar.bk-open .total-label::after{ content:" ▾ hide"; }
         .sf-booking .total-bar .total-amount{ font-size:22px !important; }
         .sf-booking .total-bar .total-amount .basis{ font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .sf-booking .total-bar:not(.bk-open) .total-breakdown,
-        .sf-booking .total-bar:not(.bk-open) .sf-summary{ display:none !important; }
-        .sf-booking .total-bar.bk-open .sf-summary{ display:block; grid-column:1 / -1; }
+        /* Phones: the bar is for the price only, never a repeat of the booking details. */
+        .sf-booking .total-bar .sf-summary{ display:none !important; }
+        .sf-booking .total-bar.bk-open .total-breakdown:not([hidden]){ display:block; grid-column:1 / -1; }
         .sf-booking .total-bar .actions{ display:flex !important; gap:6px; flex-wrap:nowrap; }
         .sf-booking .total-bar .actions .btn-ghost, .sf-booking .total-bar .actions .btn-light{ display:none; }
         .sf-booking .total-bar .actions .btn-primary{ padding:12px 16px !important; font-size:14.5px; white-space:nowrap; }
