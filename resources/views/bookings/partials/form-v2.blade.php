@@ -115,6 +115,34 @@
     @media (max-width:900px){
         .sf-booking .total-bar{ bottom:calc(66px + env(safe-area-inset-bottom, 0px)); }
     }
+
+    /* Return journey on its own card (and its own step on phones). */
+    .sf-booking .bk-return-sec[hidden]{ display:none !important; }
+    .sf-booking .bk-return-sec #return_locations{ border:0 !important; padding:0 !important; margin:0 !important; }
+    .sf-booking .bk-return-sec #return_locations > div:first-child{ display:none; }
+
+    /* Step-by-step booking on phones/tablets: one step at a time. */
+    .sf-booking .bk-steps-head, .sf-booking .bk-step-nav{ display:none; }
+    @media (max-width:1099px){
+        .sf-booking.bk-wizard .bk-off{ display:none !important; }
+        .sf-booking.bk-wizard .eto-section > .head::before{ display:none; }
+        .sf-booking.bk-wizard .bk-steps-head{ display:block; margin:0 0 10px; }
+        .sf-booking .bk-steps-head .bk-dots{ display:flex; gap:6px; margin-bottom:6px; }
+        .sf-booking .bk-steps-head .bk-dots span{ flex:1; height:4px; border-radius:4px; background:var(--bk-line); }
+        .sf-booking .bk-steps-head .bk-dots span.on{ background:var(--bk-gold); }
+        .sf-booking .bk-steps-head .bk-title{ font-size:13px; font-weight:700; color:var(--bk-ink); }
+        .sf-booking .bk-steps-head .bk-title small{ color:var(--bk-muted); font-weight:600; }
+        .sf-booking.bk-wizard .bk-step-nav{ display:grid; grid-template-columns:1fr 2fr; gap:8px; margin:4px 0 14px; }
+        .sf-booking .bk-step-nav button{ border-radius:12px; padding:13px 14px; font:inherit; font-weight:750; font-size:15px; cursor:pointer; }
+        .sf-booking .bk-step-nav .bk-back{ background:var(--bk-soft); border:1px solid var(--bk-line); color:var(--bk-ink); }
+        .sf-booking .bk-step-nav .bk-next{ background:#0b0b0c; color:var(--bk-gold); border:0; }
+        .sf-booking .bk-step-nav .bk-back[disabled]{ visibility:hidden; }
+        /* The Confirm button lives in the price bar; on the last step "Next" is hidden. */
+        .sf-booking.bk-wizard.bk-last .bk-step-nav .bk-next{ display:none; }
+        .sf-booking.bk-wizard.bk-last .bk-step-nav{ grid-template-columns:1fr; }
+        .sf-booking.bk-wizard:not(.bk-last) .total-bar .actions .btn-primary{ display:none !important; }
+        .sf-booking.bk-wizard:not(.bk-last) .total-bar{ grid-template-columns:1fr; }
+    }
 </style>
 <script>
 (function () {
@@ -163,6 +191,109 @@
         pax[0].parentNode.insertBefore(row, pax[0]);
         pax.forEach(function (f) { row.appendChild(f); });
     }
+
+    // Return journey: its own card, shown only for a return. The existing script
+    // still controls the fields inside (reverse pre-fill, return price, etc.).
+    var retDate = document.getElementById('return_field');
+    var retLocs = document.getElementById('return_locations');
+    var locSec = document.getElementById('pickup_address') && document.getElementById('pickup_address').closest('.eto-section');
+    var retSec = null;
+    if (retDate && retLocs && locSec && !document.querySelector('.bk-return-sec')) {
+        retSec = document.createElement('div');
+        retSec.className = 'eto-section bk-return-sec';
+        retSec.innerHTML = '<div class="head"><span class="ico">↩</span> Return journey <span class="muted" style="font-weight:500;text-transform:none;letter-spacing:0">(defaults to the reverse)</span></div><div class="body"></div>';
+        var rb = retSec.querySelector('.body');
+        rb.appendChild(retDate);
+        rb.appendChild(retLocs);
+        locSec.parentNode.insertBefore(retSec, locSec.nextSibling);
+        var syncRet = function () { retSec.hidden = !(sel && sel.value === 'return'); };
+        if (sel) sel.addEventListener('change', syncRet);
+        syncRet();
+    }
+
+    // Step-by-step on phones/tablets: Customer → Journey → Return (only for a
+    // return) → Vehicle & extras → Payment & confirm. Desktop keeps one page.
+    var root = form.closest('.sf-booking');
+    var secs = Array.prototype.slice.call(form.querySelectorAll(':scope > .eto-section'));
+    var by = function (id) { var e = document.getElementById(id); return e ? e.closest('.eto-section') : null; };
+    var vehSec = by('vehicle_type_id'), extrasSec = by('meet_greet'), paySec = by('payment_method'), custSec = by('customer_name');
+    var steps = [
+        { title: 'Customer', els: [custSec] },
+        { title: 'Journey', els: [locSec] },
+        { title: 'Return journey', els: [retSec], onlyReturn: true },
+        { title: 'Vehicle & extras', els: [vehSec, extrasSec] },
+        { title: 'Payment & confirm', els: [] },
+    ];
+    var used = [];
+    steps.forEach(function (st) { st.els = st.els.filter(Boolean); used = used.concat(st.els); });
+    secs.forEach(function (sec) { if (used.indexOf(sec) === -1) steps[4].els.push(sec); });
+    var small = window.matchMedia('(max-width: 1099px)');
+    var cur = 0;
+    var head = document.createElement('div');
+    head.className = 'bk-steps-head';
+    form.insertBefore(head, form.firstChild);
+    var nav = document.createElement('div');
+    nav.className = 'bk-step-nav';
+    nav.innerHTML = '<button type="button" class="bk-back">← Back</button><button type="button" class="bk-next">Next →</button>';
+    var bar = form.querySelector('.total-bar');
+    form.insertBefore(nav, bar);
+
+    function active() { return steps.filter(function (st) { return !st.onlyReturn || (sel && sel.value === 'return'); }); }
+    function stepValid(st) {
+        var bad = null;
+        st.els.forEach(function (sec) {
+            if (bad) return;
+            sec.querySelectorAll('input, select, textarea').forEach(function (el) {
+                if (!bad && !el.disabled && el.willValidate && !el.checkValidity()) bad = el;
+            });
+        });
+        if (bad) { bad.reportValidity && bad.reportValidity(); try { bad.focus(); } catch (e) {} }
+        return !bad;
+    }
+    function show(i, scroll) {
+        var list = active();
+        cur = Math.max(0, Math.min(i, list.length - 1));
+        if (!small.matches) {
+            root.classList.remove('bk-wizard', 'bk-last');
+            secs.concat(retSec ? [retSec] : []).forEach(function (s) { s.classList.remove('bk-off'); });
+            return;
+        }
+        root.classList.add('bk-wizard');
+        root.classList.toggle('bk-last', cur === list.length - 1);
+        steps.forEach(function (st) { st.els.forEach(function (s) { s.classList.add('bk-off'); }); });
+        list[cur].els.forEach(function (s) { s.classList.remove('bk-off'); });
+        head.innerHTML = '<div class="bk-dots">' + list.map(function (_, k) { return '<span class="' + (k <= cur ? 'on' : '') + '"></span>'; }).join('')
+            + '</div><div class="bk-title">Step ' + (cur + 1) + ' of ' + list.length + ' · ' + list[cur].title
+            + (cur < list.length - 1 ? ' <small>· next: ' + list[cur + 1].title + '</small>' : '') + '</div>';
+        nav.querySelector('.bk-back').disabled = cur === 0;
+        if (scroll) window.scrollTo({ top: Math.max(0, form.getBoundingClientRect().top + window.scrollY - 70), behavior: 'smooth' });
+    }
+    nav.querySelector('.bk-next').addEventListener('click', function () {
+        var list = active();
+        if (stepValid(list[cur])) show(cur + 1, true);
+    });
+    nav.querySelector('.bk-back').addEventListener('click', function () { show(cur - 1, true); });
+    if (sel) sel.addEventListener('change', function () { show(cur, false); });
+    // If the browser blocks submit on a field in another step, jump to that step.
+    form.addEventListener('invalid', function (e) {
+        if (!small.matches) return;
+        var list = active();
+        for (var k = 0; k < list.length; k++) {
+            if (list[k].els.some(function (s) { return s.contains(e.target); })) {
+                if (k !== cur) { show(k, true); setTimeout(function () { e.target.reportValidity && e.target.reportValidity(); }, 350); }
+                break;
+            }
+        }
+    }, true);
+    // Server-side errors: open the step with the first error.
+    var firstErr = form.querySelector('.error');
+    var startAt = 0;
+    if (firstErr) {
+        var l = active();
+        for (var k2 = 0; k2 < l.length; k2++) { if (l[k2].els.some(function (s) { return s.contains(firstErr); })) { startAt = k2; break; } }
+    }
+    (small.addEventListener ? small.addEventListener('change', function () { show(cur, false); }) : small.addListener(function () { show(cur, false); }));
+    show(startAt, false);
 
     // Mobile total bar: tap the total for details.
     var bar = form.querySelector('.total-bar');

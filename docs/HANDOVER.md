@@ -140,6 +140,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   hints hidden, VAT company fields really hidden until ticked ([hidden] fix), slim fixed total
   bar on phones (tap for breakdown/preview/cancel). Global fix: the mobile header "Sign out"
   made every page ~25-35px wider than the phone (app.css, + overflow-x clip backstop).
+- **7 Nov 2026** — Vehicle cards had vanished after the [hidden] fix (an old `strip.hidden = true`
+  with no un-hide); now always visible + guard test. Phones/tablets (<1100px) get a STEP-BY-STEP
+  booking: Customer → Journey → Return (own card, only for returns) → Vehicle & extras →
+  Payment & confirm; Next checks the step's required fields; a blocked submit jumps to the step
+  with the problem; Confirm shows on the last step. Desktop stays one page with the sticky panel.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
