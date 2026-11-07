@@ -128,8 +128,11 @@
         .sf-booking.bk-wizard .eto-section > .head::before{ display:none; }
         .sf-booking.bk-wizard .bk-steps-head{ display:block; margin:0 0 10px; }
         .sf-booking .bk-steps-head .bk-dots{ display:flex; gap:6px; margin-bottom:6px; }
-        .sf-booking .bk-steps-head .bk-dots span{ flex:1; height:4px; border-radius:4px; background:var(--bk-line); }
-        .sf-booking .bk-steps-head .bk-dots span.on{ background:var(--bk-gold); }
+        .sf-booking .bk-steps-head .bk-dots span{ flex:1; height:22px; box-sizing:border-box; border-radius:4px; background:var(--bk-line); cursor:pointer;
+            background-color:#cfcfc9; background-clip:content-box; padding:8px 0; }
+        html[data-theme="dark"] .sf-booking .bk-steps-head .bk-dots span{ background-color:rgba(255,255,255,.18); }
+        .sf-booking .bk-steps-head .bk-dots{ margin-top:-8px; }
+        .sf-booking .bk-steps-head .bk-dots span.on{ background-color:var(--bk-gold); }
         .sf-booking .bk-steps-head .bk-title{ font-size:13px; font-weight:700; color:var(--bk-ink); }
         .sf-booking .bk-steps-head .bk-title small{ color:var(--bk-muted); font-weight:600; }
         .sf-booking.bk-wizard .bk-step-nav{ display:grid; grid-template-columns:1fr 2fr; gap:8px; margin:4px 0 14px; }
@@ -305,11 +308,13 @@
     var secs = Array.prototype.slice.call(form.querySelectorAll(':scope > .eto-section'));
     var by = function (id) { var e = document.getElementById(id); return e ? e.closest('.eto-section') : null; };
     var vehSec = by('vehicle_type_id'), extrasSec = by('meet_greet'), paySec = by('payment_method'), custSec = by('customer_name');
+    // Journey first so a caller can be quoted before any details are taken
+    // (directors, 7 Nov 2026); the customer is only needed if they book.
     var steps = [
-        { title: 'Customer', els: [custSec] },
         { title: 'Journey', els: [locSec] },
         { title: 'Return journey', els: [retSec], onlyReturn: true },
-        { title: 'Vehicle & extras', els: [vehSec, extrasSec] },
+        { title: 'Vehicle & price', els: [vehSec, extrasSec] },
+        { title: 'Customer', els: [custSec] },
         { title: 'Payment & confirm', els: [] },
     ];
     var used = [];
@@ -350,7 +355,7 @@
         root.classList.toggle('bk-last', cur === list.length - 1);
         steps.forEach(function (st) { st.els.forEach(function (s) { s.classList.add('bk-off'); }); });
         list[cur].els.forEach(function (s) { s.classList.remove('bk-off'); });
-        head.innerHTML = '<div class="bk-dots">' + list.map(function (_, k) { return '<span class="' + (k <= cur ? 'on' : '') + '"></span>'; }).join('')
+        head.innerHTML = '<div class="bk-dots">' + list.map(function (st, k) { return '<span role="button" tabindex="0" data-step="' + k + '" title="' + st.title + '" class="' + (k <= cur ? 'on' : '') + '"></span>'; }).join('')
             + '</div><div class="bk-title">Step ' + (cur + 1) + ' of ' + list.length + ' · ' + list[cur].title
             + (cur < list.length - 1 ? ' <small>· next: ' + list[cur + 1].title + '</small>' : '') + '</div>';
         nav.querySelector('.bk-back').disabled = cur === 0;
@@ -361,6 +366,15 @@
         if (stepValid(list[cur])) show(cur + 1, true);
     });
     nav.querySelector('.bk-back').addEventListener('click', function () { show(cur - 1, true); });
+    // Tap the progress bar to jump to any step (no checks; Confirm still checks everything).
+    head.addEventListener('click', function (e) {
+        var d = e.target.closest('[data-step]');
+        if (d) show(parseInt(d.dataset.step, 10), true);
+    });
+    head.addEventListener('keydown', function (e) {
+        var d = e.target.closest('[data-step]');
+        if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); show(parseInt(d.dataset.step, 10), true); }
+    });
     if (sel) sel.addEventListener('change', function () { show(cur, false); });
     // If the browser blocks submit on a field in another step, jump to that step.
     form.addEventListener('invalid', function (e) {

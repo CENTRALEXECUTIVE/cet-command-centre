@@ -152,6 +152,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "Match the outbound again" resets. Tested end to end in a phone browser (one way → return,
   return party 4/5 + V Class: saved OUT Exec 2 pax £105 / RET V Class 4 pax 5 cases £175 with
   meet & greet) + AdminReturnPartyAndVehicleTest.
+- **7 Nov 2026** — Phone steps reordered for quoting a caller: Journey → Return → Vehicle & price →
+  Customer → Payment & confirm; tap the progress bar to jump to any step (Confirm still checks all
+  required fields and jumps to the step that's missing something).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
