@@ -81,86 +81,14 @@ class PayrollController extends Controller
     }
 
     /**
-     * Resolve the payroll period as a DATE RANGE. A from+to range wins; a legacy
-     * ?month= is accepted and converted to that month's range; otherwise it defaults
-     * to the current month shown as a from/to range. Always returns a range — the
-     * payroll view only offers a date range, never a bare month.
+     * Payroll for a period: the jobs in it and ONE row per payee (driver name),
+     * extra-car pay folded in. Shared by the page and the CSV export so the two
+     * can never disagree.
      *
-     * @return array{0: Carbon, 1: Carbon, 2: array<string,string>, 3: string}
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
      */
-    private function resolvePeriod(Request $request): array
+    private function payrollFor(Carbon $start, Carbon $end): array
     {
-        $tz = config('app.timezone');
-        $from = $request->input('from');
-        $to = $request->input('to');
-        $month = $request->input('month');
-
-        if ($from && $to) {
-            try {
-                $start = Carbon::createFromFormat('Y-m-d', $from, $tz)->startOfDay();
-                $end = Carbon::createFromFormat('Y-m-d', $to, $tz)->endOfDay();
-            } catch (\Throwable) {
-                $start = now($tz)->startOfMonth();
-                $end = $start->copy()->endOfMonth();
-            }
-        } else {
-            // Legacy ?month=, or the default — expressed as that month's range.
-            $start = ($month ? rescue(fn () => Carbon::createFromFormat('Y-m', $month, $tz), now($tz)) : now($tz))->startOfMonth();
-            $end = $start->copy()->endOfMonth();
-        }
-        if ($end->lt($start)) {
-            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
-        }
-
-        return [
-            $start, $end,
-            ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')],
-            $start->format('d M Y').' – '.$end->format('d M Y'),
-        ];
-    }
-
-    /**
-     * Mark EVERY job owed to one driver (payee) in the period as paid, in a single
-     * click — settles each job's pay remaining + any card tip owed. Saves the office
-     * clicking each booking individually.
-     */
-    public function markDriverPaid(Request $request): RedirectResponse
-    {
-        abort_unless($request->user()->isAdmin(), 403);
-
-        $data = $request->validate([
-            'payee' => ['required', 'string', 'max:120'],
-            'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'], 'month' => ['nullable', 'string', 'max:7'],
-        ]);
-        [$start, $end, $periodParam] = $this->resolvePeriod($request);
-
-        $jobs = Booking::whereBetween('pickup_at', [$start, $end])
-            ->where(fn ($q) => $q->whereNotIn('status', [BookingStatus::Cancelled->value])->orWhereNotNull('meta->cancellation->fee'))
-            ->get()
-            ->filter(fn (Booking $b) => $b->payrollPayeeName() === $data['payee']);
-
-        $count = 0;
-        $total = 0.0;
-        foreach ($jobs as $job) {
-            $settled = $job->settleDriverPayOwed($request->user()->name);
-            if ($settled > 0) {
-                $count++;
-                $total += $settled;
-            }
-        }
-
-        return redirect()->to(route('payroll.index', $periodParam).'#driver-'.\Illuminate\Support\Str::slug($data['payee']))
-            ->with('status', $count === 0
-                ? "Nothing outstanding for {$data['payee']} in this period."
-                : 'Marked £'.number_format($total, 2)." paid across {$count} job(s) for {$data['payee']}.");
-    }
-
-    public function index(Request $request): View
-    {
-        abort_unless($request->user()->isAdmin(), 403);
-
-        // Always a DATE RANGE — the payroll view no longer offers a bare month.
-        [$start, $end, $periodParam, $rangeLabel] = $this->resolvePeriod($request);
 
         $bookings = Booking::with(['driver.driverProfile.defaultVehicle', 'customer', 'airport'])
             ->whereBetween('pickup_at', [$start, $end])
@@ -242,6 +170,151 @@ class PayrollController extends Controller
         }
 
         $drivers = collect(array_values($rows))->sortByDesc('remaining')->values();
+
+        return [$bookings, $drivers];
+    }
+
+    /**
+     * Resolve the payroll period as a DATE RANGE. A from+to range wins; a legacy
+     * ?month= is accepted and converted to that month's range; otherwise it defaults
+     * to the current month shown as a from/to range. Always returns a range — the
+     * payroll view only offers a date range, never a bare month.
+     *
+     * @return array{0: Carbon, 1: Carbon, 2: array<string,string>, 3: string}
+     */
+    private function resolvePeriod(Request $request): array
+    {
+        $tz = config('app.timezone');
+        $from = $request->input('from');
+        $to = $request->input('to');
+        $month = $request->input('month');
+
+        if ($from && $to) {
+            try {
+                $start = Carbon::createFromFormat('Y-m-d', $from, $tz)->startOfDay();
+                $end = Carbon::createFromFormat('Y-m-d', $to, $tz)->endOfDay();
+            } catch (\Throwable) {
+                $start = now($tz)->startOfMonth();
+                $end = $start->copy()->endOfMonth();
+            }
+        } else {
+            if ($month) {
+                // Legacy ?month= links still open that month's range.
+                $start = rescue(fn () => Carbon::createFromFormat('Y-m', $month, $tz), now($tz))->startOfMonth();
+                $end = $start->copy()->endOfMonth();
+            } else {
+                // Default (directors, 8 Nov 2026): THIS week, Monday to Sunday (UK).
+                // Change the dates on the page for any other range.
+                $start = now($tz)->startOfWeek(Carbon::MONDAY)->startOfDay();
+                $end = $start->copy()->addDays(6)->endOfDay();
+            }
+        }
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        return [
+            $start, $end,
+            ['from' => $start->format('Y-m-d'), 'to' => $end->format('Y-m-d')],
+            $start->format('d M Y').' – '.$end->format('d M Y'),
+        ];
+    }
+
+    /**
+     * Mark EVERY job owed to one driver (payee) in the period as paid, in a single
+     * click — settles each job's pay remaining + any card tip owed. Saves the office
+     * clicking each booking individually.
+     */
+    public function markDriverPaid(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'payee' => ['required', 'string', 'max:120'],
+            'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'], 'month' => ['nullable', 'string', 'max:7'],
+        ]);
+        [$start, $end, $periodParam] = $this->resolvePeriod($request);
+
+        $jobs = Booking::whereBetween('pickup_at', [$start, $end])
+            ->where(fn ($q) => $q->whereNotIn('status', [BookingStatus::Cancelled->value])->orWhereNotNull('meta->cancellation->fee'))
+            ->get()
+            ->filter(fn (Booking $b) => $b->payrollPayeeName() === $data['payee']);
+
+        $count = 0;
+        $total = 0.0;
+        foreach ($jobs as $job) {
+            $settled = $job->settleDriverPayOwed($request->user()->name);
+            if ($settled > 0) {
+                $count++;
+                $total += $settled;
+            }
+        }
+
+        return redirect()->to(route('payroll.index', $periodParam).'#driver-'.\Illuminate\Support\Str::slug($data['payee']))
+            ->with('status', $count === 0
+                ? "Nothing outstanding for {$data['payee']} in this period."
+                : 'Marked £'.number_format($total, 2)." paid across {$count} job(s) for {$data['payee']}.");
+    }
+
+    /**
+     * CSV of the payroll for the chosen period (same figures as the page): one
+     * line per job per payee, then a totals line per driver and a grand total.
+     */
+    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        [$start, $end, $periodParam] = $this->resolvePeriod($request);
+        [, $drivers] = $this->payrollFor($start, $end);
+        $tz = config('app.timezone');
+        $money = fn ($v) => $v === null ? '' : number_format((float) $v, 2, '.', '');
+        $filename = 'cet-payroll-'.$periodParam['from'].'-to-'.$periodParam['to'].'.csv';
+
+        return response()->streamDownload(function () use ($drivers, $tz, $money) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Driver', 'Date', 'Time', 'Ref', 'From', 'To', 'Vehicle', 'Status', 'Fare', 'Paid into', 'Driver pay', 'Paid', 'Remaining', 'Tips']);
+            foreach ($drivers as $d) {
+                foreach ($d['jobs'] as $b) {
+                    $at = $b->pickup_at?->copy()->setTimezone($tz);
+                    fputcsv($out, [
+                        $d['name'], $at?->format('Y-m-d'), $at?->format('H:i'),
+                        $b->external_reference ?: $b->reference,
+                        $b->pickup_address, $b->destination_address,
+                        $b->displayVehicleType(), $b->status?->label(),
+                        $money($b->fareAmount()), $b->moneyAccount()['label'] ?? '',
+                        $money($b->driverPay()), $money($b->driverPaidAmount() + $b->cardTipsPaid()),
+                        $money(($b->driverPayRemaining() ?? 0) + $b->cardTipsRemaining()), $money($b->tipsTotal()),
+                    ]);
+                }
+                foreach ($d['car_jobs'] as $c) {
+                    $b = $c['booking'];
+                    $e = $c['entry'];
+                    $at = $b->pickup_at?->copy()->setTimezone($tz);
+                    $pay = (float) ($e['pay'] ?? 0);
+                    $paid = (float) ($e['paid'] ?? 0);
+                    fputcsv($out, [
+                        $d['name'], $at?->format('Y-m-d'), $at?->format('H:i'),
+                        ($b->external_reference ?: $b->reference).' (extra car '.($c['car'] ?? '').')',
+                        $b->pickup_address, $b->destination_address, $b->displayVehicleType(), $b->status?->label(),
+                        '', $b->moneyAccount()['label'] ?? '',
+                        $money($pay), $money($paid), $money(max(0, $pay - $paid)), '',
+                    ]);
+                }
+                fputcsv($out, [$d['name'].' TOTAL', '', '', '', '', '', '', '', '', '',
+                    $money($d['pay']), $money($d['paid']), $money($d['remaining']), $money($d['tips'])]);
+            }
+            fputcsv($out, ['ALL DRIVERS TOTAL', '', '', '', '', '', '', '', '', '',
+                $money($drivers->sum('pay')), $money($drivers->sum('paid')), $money($drivers->sum('remaining')), $money($drivers->sum('tips'))]);
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function index(Request $request): View
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        // Always a DATE RANGE — the payroll view no longer offers a bare month.
+        [$start, $end, $periodParam, $rangeLabel] = $this->resolvePeriod($request);
+        [$bookings, $drivers] = $this->payrollFor($start, $end);
 
         // Totals come from ALL drivers (the tiles always show the full picture).
         $totals = [

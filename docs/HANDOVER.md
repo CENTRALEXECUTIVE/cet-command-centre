@@ -175,6 +175,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **8 Nov 2026** — Office booking email (`OfficeBookingMail`) now shows the WHOLE trip for a return:
   total for both journeys, each leg's details + fare + reference, paid/remaining, and "Take payment"
   for the whole trip (it showed only the outbound's £105 on a £290 return). One-way unchanged.
+- **8 Nov 2026** — Payroll (`/payroll`) now opens on THIS week, Monday–Sunday (director's choice;
+  dates still editable, `?month=` still works). New "⬇ Export" button downloads a CSV of the
+  chosen dates (`payroll.export`): one row per job, a TOTAL row per driver, ALL DRIVERS TOTAL;
+  same figures as the page. Admin only. No migration.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

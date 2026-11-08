@@ -156,6 +156,49 @@ class PayrollTest extends TestCase
             ->assertSee('£50.00 owed');
     }
 
+    public function test_payroll_opens_on_this_week_monday_to_sunday_by_default(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-11-11 12:00:00'); // a Wednesday
+        $admin = User::factory()->admin()->create();
+        $d = User::factory()->driver()->create(['name' => 'Week Driver']);
+        Booking::factory()->create(['driver_id' => $d->id, 'pickup_at' => '2026-11-09 08:00']) // Monday
+            ->forceFill(['meta' => ['payroll' => ['pay' => 50, 'paid' => 0, 'history' => []]]])->save();
+        Booking::factory()->create(['driver_id' => $d->id, 'pickup_at' => '2026-11-15 22:00']) // Sunday night
+            ->forceFill(['meta' => ['payroll' => ['pay' => 40, 'paid' => 0, 'history' => []]]])->save();
+        Booking::factory()->create(['driver_id' => $d->id, 'pickup_at' => '2026-11-08 20:00']) // last Sunday: excluded
+            ->forceFill(['meta' => ['payroll' => ['pay' => 999, 'paid' => 0, 'history' => []]]])->save();
+
+        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $this->assertSame(['from' => '2026-11-09', 'to' => '2026-11-15'], $res->viewData('periodParam'));
+        $res->assertSee('£90.00 owed')->assertDontSee('£999');
+
+        // Any range can still be chosen.
+        $this->actingAs($admin)->get(route('payroll.index', ['from' => '2026-11-01', 'to' => '2026-11-30']))
+            ->assertOk()->assertSee('£1,089.00');
+    }
+
+    public function test_payroll_export_matches_the_page_for_the_chosen_dates(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-11-11 12:00:00');
+        $admin = User::factory()->admin()->create();
+        $d = User::factory()->driver()->create(['name' => 'Export Driver']);
+        Booking::factory()->create(['driver_id' => $d->id, 'pickup_at' => '2026-11-10 08:00', 'final_price' => 100])
+            ->forceFill(['meta' => ['payroll' => ['pay' => 90, 'paid' => 40, 'history' => []]]])->save();
+
+        $this->actingAs($admin)->get(route('payroll.index'))->assertSee('⬇ Export', false)
+            ->assertSee('payroll/export?from=2026-11-09&amp;to=2026-11-15', false);
+
+        $csv = $this->actingAs($admin)->get(route('payroll.export', ['from' => '2026-11-09', 'to' => '2026-11-15']))
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('Driver,Date,Time,Ref', $csv);
+        $this->assertStringContainsString('"Export Driver",2026-11-10,08:00', $csv);
+        $this->assertStringContainsString('"Export Driver TOTAL",,,,,,,,,,90.00,40.00,50.00', $csv);
+        $this->assertStringContainsString('"ALL DRIVERS TOTAL",,,,,,,,,,90.00,40.00,50.00', $csv);
+
+        $driver = User::factory()->driver()->create();
+        $this->actingAs($driver)->get(route('payroll.export'))->assertStatus(403);
+    }
+
     public function test_payroll_page_totals_per_driver_and_flags_missing_pay(): void
     {
         \Illuminate\Support\Carbon::setTestNow('2026-07-20 12:00:00');
@@ -172,7 +215,7 @@ class PayrollTest extends TestCase
         // Abdi: a job that has already RUN with NO pay set → flagged, not totalled.
         Booking::factory()->create(['driver_id' => $abdi->id, 'pickup_at' => '2026-07-06 09:00']);
 
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('Maj Khan')
             ->assertSee('£45.00 owed')                       // Maj's remaining
@@ -206,7 +249,7 @@ class PayrollTest extends TestCase
             'final_price' => null,
         ]);
 
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('completed job(s) have no driver pay set')
             ->assertSee('value="90.00"', false); // the £100 job pre-fills 90%
@@ -227,7 +270,7 @@ class PayrollTest extends TestCase
             'pickup_at' => '2026-07-06 09:00',
         ]);
 
-        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))->assertOk();
         $this->assertSame(1, $res->viewData('missingPay')->count());
         $res->assertSee('Sam Jones');
 
@@ -276,7 +319,7 @@ class PayrollTest extends TestCase
         Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => now()->startOfMonth()->addDays(2)->setTime(9, 0)])
             ->logTip(8.0, 'card', loggedBy: 'Abdi');
 
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('Tip Only Tom')
             ->assertSee('£8.00 tips');
@@ -296,7 +339,7 @@ class PayrollTest extends TestCase
         $month = now()->format('Y-m');
 
         // Starts on the missing-pay list.
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertSee('completed job(s) have no driver pay set');
 
         // Inline set from the list → lands back on the list, not the booking page.
@@ -309,7 +352,7 @@ class PayrollTest extends TestCase
         $this->assertSame(50.0, $booking->fresh()->driverPay());
 
         // …and the job is gone from the list (fresh render).
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertDontSee('completed job(s) have no driver pay set');
 
         \Illuminate\Support\Carbon::setTestNow();
@@ -342,7 +385,7 @@ class PayrollTest extends TestCase
         // A cancelled job this month — must NOT count.
         Booking::factory()->create(['driver_id' => $driver->id, 'pickup_at' => '2026-07-06 09:00', 'status' => BookingStatus::Cancelled]);
 
-        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))->assertOk();
 
         $this->assertSame(2, $res->viewData('completedCount')); // only the two that ran
         $this->assertSame(1, $res->viewData('paidCount'));      // one of them fully paid
@@ -505,7 +548,7 @@ class PayrollTest extends TestCase
             ->assertDontSee('No driver pay set for this job yet.');
 
         // Payroll page: NOT on the "still to pay" list, and counted as paid.
-        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))->assertOk();
         $this->assertSame(0, $res->viewData('missingPay')->count());
         $this->assertSame(1, $res->viewData('completedCount'));
         $this->assertSame(1, $res->viewData('paidCount'));
@@ -617,7 +660,7 @@ class PayrollTest extends TestCase
             'payment_method' => \App\Enums\PaymentMethod::Card->value,
         ]);
 
-        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))->assertOk();
         $this->assertSame(1, $res->viewData('missingPay')->count());
         // Header count matches the list exactly.
         $res->assertSee('1 still need pay set');
@@ -644,7 +687,7 @@ class PayrollTest extends TestCase
         // The manual job resolves to the full name, so both land in one group.
         $this->assertSame('Abdirazak Hassan', Booking::resolveDriverFullName('Abdi'));
 
-        $res = $this->actingAs($admin)->get(route('payroll.index'))->assertOk();
+        $res = $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))->assertOk();
         $drivers = $res->viewData('drivers');
         $abdiRow = $drivers->firstWhere('name', 'Abdirazak Hassan');
 
@@ -900,7 +943,7 @@ class PayrollTest extends TestCase
         $this->actingAs($driver)
             ->post(route('bookings.payroll', $booking), ['action' => 'set', 'amount' => '45'])
             ->assertForbidden();
-        $this->actingAs($driver)->get(route('payroll.index'))->assertForbidden();
+        $this->actingAs($driver)->get(route('payroll.index', ['month' => now()->format('Y-m')]))->assertForbidden();
     }
 
     public function test_card_tip_is_part_of_what_is_owed_and_mark_paid_settles_it(): void
@@ -987,7 +1030,7 @@ class PayrollTest extends TestCase
         config(['services.square.access_token' => null, 'services.square.location_id' => null]);
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('Square not set up');
     }
@@ -1001,7 +1044,7 @@ class PayrollTest extends TestCase
         \App\Models\Setting::set(\App\Services\Payments\SquareTipService::LAST_WEBHOOK_SETTING, now()->toIso8601String(), 'string', 'square');
 
         $admin = User::factory()->admin()->create();
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('Square connected')
             ->assertSee('Webhook last received');
@@ -1016,7 +1059,7 @@ class PayrollTest extends TestCase
         // No webhook stamped yet.
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)->get(route('payroll.index'))
+        $this->actingAs($admin)->get(route('payroll.index', ['month' => now()->format('Y-m')]))
             ->assertOk()
             ->assertSee('no webhook received yet');
     }

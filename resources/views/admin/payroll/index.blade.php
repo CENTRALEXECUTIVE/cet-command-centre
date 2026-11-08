@@ -26,7 +26,9 @@
                     <input type="date" name="to" value="{{ $periodParam['to'] ?? '' }}" style="width:auto" aria-label="To date">
                 </div>
                 <button class="btn btn-primary" style="padding:8px 14px;font-size:13px">Apply</button>
+                <a href="{{ route('payroll.export', $periodParam) }}" class="btn btn-ghost" style="padding:8px 14px;font-size:13px">⬇ Export</a>
             </form>
+            <div class="hint" style="margin:0">Opens on this week (Mon–Sun). Change the dates for any other range.</div>
         </div>
     </div>
 
