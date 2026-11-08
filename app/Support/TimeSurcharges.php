@@ -107,6 +107,14 @@ class TimeSurcharges
 
         $total = round($total, 2);
 
+        // Directors (8 Nov 2026): a fare with a holiday/time rate is rounded UP to the
+        // next £5 (£131.25 → £135), so quotes are round figures and never under-charge.
+        // The surcharge absorbs the rounding; flat extras (meet & greet, seats) are
+        // added afterwards and stay as they are. Website and admin share this rule.
+        if ($total > 0) {
+            $total = round(ceil(round($base + $total, 2) / 5) * 5 - $base, 2);
+        }
+
         return [
             'amount' => $total,
             'label' => $total > 0 && $labels ? implode(' + ', $labels) : null,

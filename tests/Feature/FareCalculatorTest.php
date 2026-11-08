@@ -55,8 +55,9 @@ class FareCalculatorTest extends TestCase
             Carbon::parse('2026-12-25 10:00'));
 
         $this->assertSame('Christmas Day', $fare['surcharge']['label']);
-        $this->assertSame(31.5, $fare['surcharge']['amount']); // 105 × 0.3
-        $this->assertSame(136.5, $fare['subtotal']);           // 105 + 31.5
+        // 105 × 0.3 = 31.50 → £136.50, rounded UP to £140 (directors, Nov 2026).
+        $this->assertEquals(35.0, $fare['surcharge']['amount']);
+        $this->assertEquals(140.0, $fare['subtotal']);
     }
 
     public function test_extras_are_itemised_and_added(): void

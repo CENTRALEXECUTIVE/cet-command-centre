@@ -167,6 +167,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   EveryPageLoadsTest (all GET pages, no 5xx) green, and a phone-browser crawl of all 59 menu pages +
   booking/edit/assistant/growth/batch with every fold opened: no JS errors. Christmas Eve check:
   minibus MAN→Sheffield 24 Dec = £140 × 1.25 + £10 meet & greet = £185 (correct per cet.php).
+- **8 Nov 2026** — DECISION: any fare with a holiday/time rate (festive table, night rate, office
+  dated uplift) is rounded UP to the next £5 (`TimeSurcharges::forStandardFare`), e.g. Exec MAN
+  24 Dec £131.25 → £135, Christmas Day £157.50 → £160, NYD early £189 → £190. Flat extras (meet &
+  greet, seats, ribbons) added after, unrounded. Shared by the website and the admin form (parity
+  tests updated).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

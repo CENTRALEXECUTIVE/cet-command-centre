@@ -337,20 +337,20 @@ class CustomerAdminPriceParityTest extends TestCase
     {
         $exec = $this->vt('executive');
         foreach ([
-            '2027-10-31T12:00' => 168.00,  // Halloween +60%
+            '2027-10-31T12:00' => 170.00,  // Halloween +60% (168 → rounded up to £5)
             '2026-12-20T12:00' => 105.00,  // 18–23 Dec normal
-            '2026-12-24T12:00' => 131.25,  // Christmas Eve +25%
-            '2026-12-25T12:00' => 157.50,  // Christmas Day +50%
-            '2026-12-26T12:00' => 157.50,  // Boxing Day +50%
+            '2026-12-24T12:00' => 135.00,  // Christmas Eve +25% (131.25 → £135)
+            '2026-12-25T12:00' => 160.00,  // Christmas Day +50% (157.50 → £160)
+            '2026-12-26T12:00' => 160.00,  // Boxing Day +50%
             '2026-12-27T12:00' => 105.00,  // 27–30 Dec normal
-            '2026-12-31T17:00' => 131.25,  // NYE before 18:00 +25%
-            '2026-12-31T17:59' => 131.25,
-            '2026-12-31T18:00' => 157.50,  // NYE 18:00–23:59 +50%
-            '2026-12-31T19:00' => 157.50,
-            '2027-01-01T03:00' => 189.00,  // NYD 00:00–05:59 +80%
-            '2027-01-01T05:59' => 189.00,
-            '2027-01-01T06:00' => 157.50,  // NYD 06:00 onwards +50%
-            '2027-01-01T09:00' => 157.50,
+            '2026-12-31T17:00' => 135.00,  // NYE before 18:00 +25%
+            '2026-12-31T17:59' => 135.00,
+            '2026-12-31T18:00' => 160.00,  // NYE 18:00–23:59 +50%
+            '2026-12-31T19:00' => 160.00,
+            '2027-01-01T03:00' => 190.00,  // NYD 00:00–05:59 +80% (189 → £190)
+            '2027-01-01T05:59' => 190.00,
+            '2027-01-01T06:00' => 160.00,  // NYD 06:00 onwards +50%
+            '2027-01-01T09:00' => 160.00,
             '2027-01-02T12:00' => 105.00,  // 2 Jan onwards normal
         ] as $when => $expected) {
             $r = $this->compare('Sheffield S1 2HH', self::MAN, 'one_way', $exec, [], false, null, $when);
@@ -372,7 +372,7 @@ class CustomerAdminPriceParityTest extends TestCase
                 }
                 $fare = app(QuoteService::class)->quote($p, $d, $vt)['price'];
                 $ribbon = in_array($vt->slug, ['v-class', 'minibus-8', 'minibus-8-xl'], true) ? 50.0 : 30.0;
-                $this->assertEqualsWithDelta(round($fare * 1.5, 2) + 10 + $ribbon, $r['cust_pay'], 0.01, "{$vt->name} {$p}: +50% on the fare, extras unchanged");
+                $this->assertEqualsWithDelta(ceil(round($fare * 1.5, 2) / 5) * 5 + 10 + $ribbon, $r['cust_pay'], 0.01, "{$vt->name} {$p}: +50% on the fare (rounded up to £5), extras unchanged");
             }
         }
     }
@@ -380,12 +380,12 @@ class CustomerAdminPriceParityTest extends TestCase
     public function test_parity_each_return_leg_uses_its_own_collection_time(): void
     {
         $exec = $this->vt('executive');
-        // Out 24 Dec (+25%) → £131.25; back on Boxing Day (+50%) from the airport → £157.50 + £10 meet & greet.
+        // Out 24 Dec (+25%) → £131.25 → £135; back on Boxing Day (+50%) from the airport → £157.50 → £160 + £10 meet & greet.
         $r = $this->compare('Sheffield S1 2HH', self::MAN, 'return', $exec, [], false, null, '2026-12-24T10:00', '2026-12-26T15:00');
         $this->assertTrue($r['match'], $this->row($r));
-        $this->assertEqualsWithDelta(131.25, $r['cust_out'], 0.001);
-        $this->assertEqualsWithDelta(167.50, $r['cust_ret'], 0.001);
-        $this->assertEqualsWithDelta(298.75, $r['cust_pay'], 0.001);
+        $this->assertEqualsWithDelta(135.00, $r['cust_out'], 0.001);
+        $this->assertEqualsWithDelta(170.00, $r['cust_ret'], 0.001);
+        $this->assertEqualsWithDelta(305.00, $r['cust_pay'], 0.001);
 
         // Out on Christmas Day, back on an ordinary day → only the outbound is uplifted.
         // Same price both ways: each leg carries the drag to Leeds (the far end), so the
@@ -404,11 +404,11 @@ class CustomerAdminPriceParityTest extends TestCase
         ]);
         $exec = $this->vt('executive');
         foreach ([
-            ['2026-11-17T23:30', 'one_way', null, 126.0],          // night +20%
+            ['2026-11-17T23:30', 'one_way', null, 130.0],          // night +20% (126 → £130)
             ['2026-11-18T12:00', 'one_way', null, 130.0],          // office date +£25
-            ['2026-12-25T12:00', 'one_way', null, 157.5],          // festive wins over the office date (+£40 NOT added)
-            ['2026-12-31T23:30', 'one_way', null, 178.5],          // NYE evening +50% + night +20%, both on £105
-            ['2026-11-17T23:30', 'return', '2026-11-20T11:00', 241.0], // 126 out + (105 + 10 m&g) back at 11:00
+            ['2026-12-25T12:00', 'one_way', null, 160.0],          // festive wins over the office date (+£40 NOT added); 157.50 → £160
+            ['2026-12-31T23:30', 'one_way', null, 180.0],          // NYE evening +50% + night +20%, both on £105 (178.50 → £180)
+            ['2026-11-17T23:30', 'return', '2026-11-20T11:00', 245.0], // 130 out + (105 + 10 m&g) back at 11:00
         ] as [$when, $jt, $ret, $expected]) {
             $r = $this->compare('Sheffield S1 2HH', self::MAN, $jt, $exec, [], false, null, $when, $ret ?? self::RET_AT);
             $this->assertTrue($r['match'], $this->row($r));

@@ -44,8 +44,8 @@ class TimeSurchargeTest extends TestCase
             [],
         );
 
-        // 03:00 is in the window → £105 + 20% = £126.
-        $this->assertEqualsWithDelta(126.0, $this->quote(Carbon::parse('2026-10-05 03:00')), 0.01);
+        // 03:00 is in the window → £105 + 20% = £126 → rounded up to £130.
+        $this->assertEqualsWithDelta(130.0, $this->quote(Carbon::parse('2026-10-05 03:00')), 0.01);
         // 14:00 is outside → unchanged £105.
         $this->assertEqualsWithDelta(105.0, $this->quote(Carbon::parse('2026-10-05 14:00')), 0.01);
     }
@@ -62,6 +62,15 @@ class TimeSurchargeTest extends TestCase
         $this->assertEqualsWithDelta(105.0, $this->quote(Carbon::parse('2026-11-19 11:00')), 0.01); // day before, none
     }
 
+    public function test_a_surcharged_fare_is_rounded_up_to_the_next_five_pounds(): void
+    {
+        // Directors, 8 Nov 2026: £131.25 → £135, £157.50 → £160, never down.
+        $this->assertEqualsWithDelta(135.0, $this->quote(Carbon::parse('2026-12-24 11:00')), 0.01);
+        $this->assertEqualsWithDelta(160.0, $this->quote(Carbon::parse('2026-12-26 11:00')), 0.01);
+        // A normal day is untouched.
+        $this->assertEqualsWithDelta(105.0, $this->quote(Carbon::parse('2026-12-20 11:00')), 0.01);
+    }
+
     public function test_the_festive_table_wins_over_an_office_date_uplift_on_the_same_day(): void
     {
         // Directors: never charge both festive-style surcharges for one moment.
@@ -70,8 +79,8 @@ class TimeSurchargeTest extends TestCase
             [['date' => '2026-12-25', 'label' => 'Christmas Day', 'type' => 'fixed', 'value' => 40]],
         );
 
-        // Christmas Day +50% on £105 = £157.50 — NOT also +£40.
-        $this->assertEqualsWithDelta(157.5, $this->quote(Carbon::parse('2026-12-25 11:00')), 0.01);
+        // Christmas Day +50% on £105 = £157.50 → £160 (rounded up) — NOT also +£40.
+        $this->assertEqualsWithDelta(160.0, $this->quote(Carbon::parse('2026-12-25 11:00')), 0.01);
     }
 
     public function test_night_rate_and_festive_are_both_on_the_standard_fare_never_compounded(): void
