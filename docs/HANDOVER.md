@@ -183,7 +183,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   a "£10 deposit" with "the remaining £95 is paid in cash to your driver on the day" (cash job) or "is
   due before your journey, we'll send a link" (card job); clearing the fare after a deposit = "the
   balance"; otherwise "pay for it". Adds a Your journey block (pick-up, from, to, vehicle; both legs
-  on a return). Still record the deposit on Edit booking once paid so the driver collects £95.
+  on a return).
+- **8 Nov 2026** — Card deposit on a CASH job is now automatic: when a card payment (Stripe/Square
+  webhook or a card line marked paid) covers PART of the fare, it's recorded as the paid deposit
+  (`Booking::syncCardDepositOnCashJob`, meta deposit `auto`), so the driver collects fare − deposit
+  (£105 − £10 = £95) with no office edit. An office-typed deposit is never changed (only ticked paid).
+  BUG FIXED: any online payment on a cash job used to make the driver collect £0
+  (`businessCollectedCash`); now only when the card covers the fare. CardDepositOnCashJobTest.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

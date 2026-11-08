@@ -1589,6 +1589,60 @@ class Booking extends Model
         if ($this->payment_status !== $status) {
             $this->forceFill(['payment_status' => $status])->save();
         }
+
+        $this->syncCardDepositOnCashJob();
+    }
+
+    /**
+     * A CASH job where the customer has paid part of the fare by CARD (a deposit
+     * link): record that card money as the booking's paid deposit automatically,
+     * so the driver collects only the balance (fare − deposit) without the office
+     * having to edit the booking. Card money only — cash rows are what the driver
+     * collects. A deposit the office typed in by hand is never changed, except to
+     * tick it paid once the card has covered it. An automatic deposit follows the
+     * card total (and is removed if that drops to nothing, e.g. a reset).
+     */
+    public function syncCardDepositOnCashJob(): void
+    {
+        if (($this->payment_method?->value ?? null) !== 'cash') {
+            return;
+        }
+        $fare = $this->final_price ?? $this->quoted_price;
+        if ($fare === null || (float) $fare <= 0) {
+            return;
+        }
+
+        $ledgerCard = (float) $this->payments()->where('status', 'paid')->where('method', 'card')->get()
+            ->reject(fn (Payment $p) => $p->isExtraCharge())->sum('amount');
+        $card = round(min((float) $fare, max($ledgerCard, $this->onlinePaidTotal())), 2);
+
+        $meta = $this->meta ?? [];
+        $existing = is_array($meta['deposit'] ?? null) ? $meta['deposit'] : null;
+
+        // Office-entered deposit: theirs to manage. Only tick it paid once covered.
+        if ($existing && empty($existing['auto']) && (float) ($existing['amount'] ?? 0) > 0) {
+            if (empty($existing['paid']) && $card + 0.01 >= (float) $existing['amount']) {
+                $meta['deposit']['paid'] = true;
+                $this->forceFill(['meta' => $meta])->save();
+            }
+
+            return;
+        }
+
+        if ($card <= 0.009) {
+            if ($existing) { // an automatic deposit with the card money gone
+                unset($meta['deposit']);
+                $this->forceFill(['meta' => $meta])->save();
+            }
+
+            return;
+        }
+
+        if ($existing && abs((float) ($existing['amount'] ?? 0) - $card) < 0.005 && ! empty($existing['paid'])) {
+            return;
+        }
+        $meta['deposit'] = ['amount' => $card, 'paid' => true, 'auto' => true];
+        $this->forceFill(['meta' => $meta])->save();
     }
 
     /**
@@ -5762,9 +5816,11 @@ class Booking extends Model
         // A fare paid online via Square went straight to the business, so the
         // driver must NOT also collect it in the car (that would double-charge the
         // customer). The business holds the money and settles the driver via
-        // payroll — exactly the "company collected" case.
+        // payroll — exactly the "company collected" case. Only when the card has
+        // covered the fare: a part payment (a £10 deposit link on a £105 cash job)
+        // leaves the balance for the driver to collect (fare − deposit), never £0.
         return (bool) ($this->meta['payroll']['company_collected'] ?? false)
-            || filled($this->meta['square_payment'] ?? null);
+            || (filled($this->meta['square_payment'] ?? null) && $this->onlinePaymentCoversFare());
     }
 
     /** The office has eyeballed/confirmed the cash the driver collects. */
@@ -6307,6 +6363,9 @@ class Booking extends Model
             && ($this->transactionsAmountDue() ?? 1) <= 0.009) {
             $this->forceFill(['payment_status' => 'paid'])->save();
         }
+
+        // A card deposit on a cash job: the driver collects only the balance.
+        $this->syncCardDepositOnCashJob();
 
         // More taken online than the whole trip is worth → very likely a double
         // payment (two links paid). Flag it so the office can refund the extra.
