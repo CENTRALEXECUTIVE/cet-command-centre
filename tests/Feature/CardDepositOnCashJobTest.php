@@ -105,4 +105,19 @@ class CardDepositOnCashJobTest extends TestCase
         $this->assertSame(0.0, $b->fresh()->depositAmount());
         $this->assertSame(105.0, $b->fresh()->cashDueToDriver());
     }
+
+    public function test_emails_after_a_card_deposit_say_the_cash_left_for_the_driver(): void
+    {
+        $b = $this->booking();
+        $b->customer->forceFill(['email' => 'm@example.com'])->save();
+        $b->payments()->create(['method' => 'card', 'amount' => 10, 'status' => 'paid', 'paid_at' => now(), 'meta' => ['name' => 'Deposit']]);
+        $b->fresh()->reconcilePaymentStatusFromTransactions();
+        $b = $b->fresh();
+
+        $office = (new \App\Mail\OfficeBookingMail($b, 'paid'))->render();
+        $this->assertStringContainsString('£95.00 cash to driver', $office);
+
+        $customer = (new \App\Mail\BookingConfirmationMail($b, paid: false))->render();
+        $this->assertStringContainsString('Pay the driver £95.00 in cash on the day', $customer);
+    }
 }

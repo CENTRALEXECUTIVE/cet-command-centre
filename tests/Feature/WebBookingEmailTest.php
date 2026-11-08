@@ -128,7 +128,7 @@ class WebBookingEmailTest extends TestCase
 
         $html = (new BookingConfirmationMail($booking, paid: false))->render();
 
-        $this->assertStringContainsString('Pay the driver on the day', $html);
+        $this->assertStringContainsString('Pay the driver £105.00 in cash on the day', $html);
         $this->assertStringNotContainsString('(Square)', $html);
         $this->assertStringNotContainsString('Pay now', $html);
         // No VAT line on a non-VAT booking.

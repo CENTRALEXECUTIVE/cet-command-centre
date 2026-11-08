@@ -110,7 +110,8 @@
                     <p style="margin:0 0 10px;font-size:15px;color:#1f7a44;font-weight:700">&#10003; Payment received: £{{ number_format((float) $lastPaid->amount, 2) }}{{ $lastPaid->method === 'card' ? ' by card' : '' }}</p>
                 @endif
             @elseif($isCash)
-                <p style="margin:0 0 10px;font-size:15px;color:#b9770a;font-weight:700">Pay the driver on the day (cash)</p>
+                @php $cashLeft = ! empty($trip) ? (float) $trip['due'] : (float) ($booking->transactionsAmountDue() ?? 0); @endphp
+                <p style="margin:0 0 10px;font-size:15px;color:#b9770a;font-weight:700">{{ $cashLeft > 0.009 ? 'Pay the driver £'.number_format($cashLeft, 2).' in cash on the day' : 'Pay the driver on the day (cash)' }}</p>
             @elseif($isAccount)
                 <p style="margin:0 0 10px;font-size:15px;color:#12558c;font-weight:700">Billed to your business account</p>
             @else

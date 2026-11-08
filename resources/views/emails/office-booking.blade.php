@@ -70,7 +70,8 @@
                     @if($method === 'account')
                         <span style="display:inline-block;background:#eef3f8;color:#12558c;font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">On account · invoiced</span>
                     @elseif($method === 'cash')
-                        <span style="display:inline-block;background:#fef3e2;color:#b9770a;font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">Cash to driver</span>
+                        @php $driverCash = $booking->cashDueToDriver(); @endphp
+                        <span style="display:inline-block;background:#fef3e2;color:#b9770a;font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">{{ $driverCash !== null && $driverCash > 0.009 ? '£'.number_format($driverCash, 2).' cash to driver' : 'Cash to driver' }}</span>
                     @else
                         <span style="display:inline-block;background:{{ $paid ? '#eaf6ef' : '#fef3e2' }};color:{{ $paid ? '#1f7a44' : '#b9770a' }};font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px">Card · {{ $paid ? 'Paid' : 'Pending' }}</span>
                     @endif
