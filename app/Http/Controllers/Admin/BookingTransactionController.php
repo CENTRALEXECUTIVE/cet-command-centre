@@ -74,7 +74,7 @@ class BookingTransactionController extends Controller
             && $data['method'] === 'card' && (float) $payment->amount > 0 && $payment->status !== 'paid') {
             $link = $this->createLink($booking, $payment, (float) $payment->amount);
             if ($link) {
-                return $this->shareLink(back(), $booking, (float) $payment->amount, $link, $channel);
+                return $this->shareLink(back(), $booking, (float) $payment->amount, $link, $channel, $payment);
             }
 
             return back()->with('status', 'Transaction added.')
@@ -114,7 +114,7 @@ class BookingTransactionController extends Controller
         // line already), so the office can see a link's been sent.
         $hasOpen = $booking->payments()->whereIn('status', ['pending', 'link_sent'])->where('method', 'card')->exists();
         if (! $hasOpen) {
-            $booking->payments()->create(['method' => 'card', 'amount' => $due, 'status' => 'link_sent', 'meta' => ['name' => 'Balance']]);
+            $booking->payments()->create(['method' => 'card', 'amount' => $due, 'status' => 'link_sent', 'meta' => ['name' => 'Balance', 'sent_via' => 'email']]);
         }
 
         $payUrl = \Illuminate\Support\Facades\URL::signedRoute('widget.pay', ['booking' => $booking->id]);
@@ -154,7 +154,7 @@ class BookingTransactionController extends Controller
                 $existing->forceFill(['status' => 'link_sent'])->save();
             }
 
-            return $this->shareLink(back(), $booking, $due, (string) $existing->tide_payment_link, $data['channel'])
+            return $this->shareLink(back(), $booking, $due, (string) $existing->tide_payment_link, $data['channel'], $existing)
                 ->with('link_reused', 'Reused the existing £'.number_format($due, 2).' card link from '.$existing->created_at?->format('d/m H:i').' — no duplicate created.');
         }
 
@@ -179,7 +179,7 @@ class BookingTransactionController extends Controller
             return back()->with('error', 'Card payments aren’t set up for this booking’s company yet, so no link could be created.')->with('scroll', 'transactions');
         }
 
-        return $this->shareLink(back(), $booking, $due, $link, $data['channel']);
+        return $this->shareLink(back(), $booking, $due, $link, $data['channel'], $payment);
     }
 
     /** Edit an existing transaction (amount, method, status, name, charge). */
@@ -289,6 +289,26 @@ class BookingTransactionController extends Controller
      * it to the customer or hand the office an SMS deep link to send by hand
      * (keeping to the "no paid messaging API" rule). Card only.
      */
+    /**
+     * Show the exact "card link by email" the customer would get for this line —
+     * amount, deposit/balance wording, the journey — WITHOUT creating a card link
+     * or sending anything. The real link is made when the office taps send.
+     */
+    public function previewLink(Request $request, Booking $booking, Payment $payment)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($payment->booking_id === $booking->id, 404);
+
+        $url = $payment->tide_payment_link ?: '#preview-the-card-link-is-created-when-you-send';
+        $html = (new \App\Mail\PaymentLinkMail($booking, (float) $payment->amount, $url))->render();
+        $to = $booking->customer?->email ?: 'no email on file';
+        $banner = '<div style="background:#FBBA2A;color:#111;font:600 14px Arial,sans-serif;padding:10px 14px;text-align:center">'
+            .'PREVIEW ONLY · nothing has been sent · would go to '.e($to)
+            .' from '.e($booking->senderAddress()).'</div>';
+
+        return response($banner.$html)->header('X-Robots-Tag', 'noindex');
+    }
+
     public function sendLink(Request $request, Booking $booking, Payment $payment): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
@@ -305,7 +325,7 @@ class BookingTransactionController extends Controller
             return back()->with('error', 'Card payments aren’t set up yet, so no payment link could be created.')->with('scroll', 'transactions');
         }
 
-        return $this->shareLink(back(), $booking, $amount, $link, $data['channel']);
+        return $this->shareLink(back(), $booking, $amount, $link, $data['channel'], $payment);
     }
 
     /**
@@ -390,7 +410,7 @@ class BookingTransactionController extends Controller
      * WhatsApp / SMS deep link (keeping the "no paid messaging API" rule), or just
      * the raw link to copy. The link is always copyable from the row too.
      */
-    private function shareLink(RedirectResponse $redirect, Booking $booking, float $amount, string $link, string $channel): RedirectResponse
+    private function shareLink(RedirectResponse $redirect, Booking $booking, float $amount, string $link, string $channel, ?Payment $payment = null): RedirectResponse
     {
         $redirect->with('copy_link', $link)->with('scroll', 'transactions');
 
@@ -413,11 +433,16 @@ class BookingTransactionController extends Controller
                 return $redirect->with('error', 'Could not email the link — it’s created, copy it to send another way.');
             }
 
+            $payment?->markLinkSentVia('email');
+
             return $redirect->with('status', 'Payment link emailed to '.$email.'.');
         }
 
         if ($channel === 'whatsapp') {
             $wa = \App\Support\Phone::wa($phone);
+            if ($wa) {
+                $payment?->markLinkSentVia('WhatsApp');
+            }
 
             return $redirect
                 ->with('status', $wa ? 'WhatsApp link ready — tap to open the chat with it filled in.' : 'Link created — no mobile on file for WhatsApp, copy it to send.')
@@ -426,6 +451,9 @@ class BookingTransactionController extends Controller
 
         if ($channel === 'sms') {
             $digits = $phone ? preg_replace('/[^0-9+]/', '', $phone) : '';
+            if ($digits !== '') {
+                $payment?->markLinkSentVia('SMS');
+            }
 
             return $redirect
                 ->with('status', 'SMS link ready — tap to open your SMS app with it filled in.')

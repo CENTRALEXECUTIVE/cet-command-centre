@@ -238,6 +238,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('bookings/{booking}/transactions/{payment}/status', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'status'])->middleware('throttle:60,1')->name('bookings.transactions.status');
         Route::post('bookings/{booking}/transactions/{payment}/pay-now', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'payNow'])->middleware('throttle:60,1')->name('bookings.transactions.pay-now');
         Route::post('bookings/{booking}/transactions/{payment}/duplicate', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'duplicate'])->middleware('throttle:60,1')->name('bookings.transactions.duplicate');
+        Route::get('bookings/{booking}/transactions/{payment}/preview-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'previewLink'])->middleware('throttle:60,1')->name('bookings.transactions.preview-link');
         Route::post('bookings/{booking}/transactions/{payment}/send-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'sendLink'])->middleware('throttle:30,1')->name('bookings.transactions.send-link');
         Route::delete('bookings/{booking}/transactions/{payment}', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'destroy'])->middleware('throttle:60,1')->name('bookings.transactions.destroy');
         // £1 test card link — proves the live card flow without marking any booking paid.

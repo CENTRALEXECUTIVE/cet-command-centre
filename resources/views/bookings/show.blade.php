@@ -1878,7 +1878,7 @@
             $amountDue = $booking->transactionsAmountDue();
             $extrasTotal = $booking->extraChargesTotal();
             $extrasDue = max(0.0, round($extrasTotal - $booking->extraChargesPaid(), 2));
-            $txStatuses = ['pending' => 'Pending', 'link_sent' => 'Link sent', 'paid' => 'Paid', 'balance_remaining' => 'Balance remaining', 'failed' => 'Failed', 'refunded' => 'Refunded'];
+            $txStatuses = ['pending' => 'Pending', 'link_sent' => 'Link created / sent', 'paid' => 'Paid', 'balance_remaining' => 'Balance remaining', 'failed' => 'Failed', 'refunded' => 'Refunded'];
             $badgeFor = fn ($s) => $s === 'paid' ? 'complete' : ($s === 'failed' || $s === 'refunded' ? 'cancelled' : 'pending');
         @endphp
         <div id="transactions" class="card" style="scroll-margin-top:16px">
@@ -2072,6 +2072,9 @@
                                             <input type="hidden" name="channel" value="sms">
                                             <button class="txn-menu-item">💬 Card link via SMS</button>
                                         </form>
+                                        @if(! $payment->isPaid() && (float) $payment->amount > 0)
+                                            <a href="{{ route('bookings.transactions.preview-link', [$booking, $payment]) }}" target="_blank" rel="noopener" class="txn-menu-item" style="display:block;text-decoration:none;color:inherit">👁 Preview the email</a>
+                                        @endif
                                         <form method="POST" action="{{ route('bookings.transactions.send-link', [$booking, $payment]) }}">@csrf
                                             <input type="hidden" name="channel" value="email">
                                             <button class="txn-menu-item">✉ Card link by email</button>
@@ -2122,7 +2125,7 @@
                      paid figure and the balance (surfaced above) is what's still owed. --}}
                 @php
                     $sqRef = $booking->meta['square_payment']['id'] ?? null;
-                    $paidMethod = $sqRef ? 'Card / Square' : ucfirst($booking->payment_method?->value ?? 'card');
+                    $paidMethod = $sqRef ? 'Card / '.($booking->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square') : ucfirst($booking->payment_method?->value ?? 'card');
                     $partPaid = ($amountDue ?? 0) > 0.009;
                     $paidNote = $partPaid
                         ? 'Recorded on the booking'.($sqRef ? ' (Square/Stripe)' : '').'. The price was changed after this payment — £'.number_format($amountDue, 2).' is still outstanding (use the payment request above).'

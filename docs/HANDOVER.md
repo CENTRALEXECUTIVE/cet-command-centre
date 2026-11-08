@@ -190,6 +190,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   (£105 − £10 = £95) with no office edit. An office-typed deposit is never changed (only ticked paid).
   BUG FIXED: any online payment on a cash job used to make the driver collect £0
   (`businessCollectedCash`); now only when the card covers the fare. CardDepositOnCashJobTest.
+- **8 Nov 2026** — Payment history: a card line reads "Link created" until the link actually goes to
+  the customer ("Link sent (email / WhatsApp / SMS)", meta sent_via); status value unchanged. Method
+  shows "Card / Stripe" on PVT bookings. Row Actions → "👁 Preview the email" shows the exact card-link
+  email (deposit wording, journey, recipient) without creating a link or sending anything.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

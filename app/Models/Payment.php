@@ -117,7 +117,9 @@ class Payment extends Model
     public function methodLabel(): string
     {
         return match ($this->method) {
-            'card' => 'Card / Square',
+            // Which provider takes the card: Stripe for the non-VAT PVT LTD company,
+            // Square for Ltd (the booking's billing entity decides).
+            'card' => 'Card / '.($this->booking?->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square'),
             'cash' => 'Cash',
             'account' => 'Account',
             default => ucfirst((string) $this->method),
@@ -127,6 +129,21 @@ class Payment extends Model
     /** A short label for the status, matching the badge classes elsewhere. */
     public function statusLabel(): string
     {
+        // A card link counts as SENT only once it went to the customer (email, or
+        // the WhatsApp/SMS message opened for the office). Just creating or copying
+        // it is "Link created", so nobody thinks the customer already has it.
+        if ($this->status === 'link_sent') {
+            $via = $this->meta['sent_via'] ?? null;
+
+            return $via ? 'Link sent ('.$via.')' : 'Link created';
+        }
+
         return ucfirst(str_replace('_', ' ', (string) $this->status));
+    }
+
+    /** Record how this transaction's card link reached the customer. */
+    public function markLinkSentVia(string $via): void
+    {
+        $this->forceFill(['meta' => array_merge($this->meta ?? [], ['sent_via' => $via, 'sent_at' => now()->toIso8601String()])])->save();
     }
 }
