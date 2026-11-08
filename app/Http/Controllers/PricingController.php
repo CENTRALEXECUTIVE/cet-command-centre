@@ -134,6 +134,13 @@ class PricingController extends Controller
                     'poa' => $poa,
                     'extras_total' => $out['extras_total'],
                     'breakdown' => $lines,
+                    // Which priced extras each leg includes (meet & greet only on an
+                    // airport pickup; seats, stops and ribbons on both), so a return's
+                    // breakdown can say "incl. meet & greet, child seat" per leg.
+                    'leg_extras' => [
+                        'out' => array_map(fn ($e) => $e['qty'] > 1 ? $e['label'].' ×'.$e['qty'] : $e['label'], $out['extras'] ?? []),
+                        'ret' => $in ? array_map(fn ($e) => $e['qty'] > 1 ? $e['label'].' ×'.$e['qty'] : $e['label'], $in['extras'] ?? []) : [],
+                    ],
                     'formatted' => $poa || $total === null
                         ? 'POA'
                         : '£'.number_format((float) $total, 2),

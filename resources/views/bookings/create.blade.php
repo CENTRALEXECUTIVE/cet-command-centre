@@ -815,7 +815,6 @@
                     return /\bterminal\b/.test(t);
                 }
                 function looksAirport(v) { return airportIn(v); }
-                window.CET_isAirportText = airportIn; // shared with the price breakdown
                 // Direction is decided by WHICH END is the airport. The Airport dropdown
                 // only flags that a job involves an airport (for driver rotation) — it does
                 // NOT mean the PICKUP is the airport. Meet & greet is an ARRIVALS thing, so
@@ -1079,17 +1078,16 @@
                     if (legs) {
                         var rv = retVehSel && retVehSel.value && retVehSel.value !== vehSel.value
                             ? ' (' + retVehSel.options[retVehSel.selectedIndex].text + ')' : '';
-                        // Say where meet & greet is included, so the office can see the £10 is on
-                        // the airport-pickup leg (7 Nov 2026: "meet & greet not there").
-                        var mgOn = !!(document.getElementById('meet_greet') || {}).checked;
-                        var isAir = window.CET_isAirportText || function () { return false; };
-                        var outPick = (document.getElementById('pickup_address') || {}).value || '';
-                        var rpEl = document.getElementById('return_pickup_address');
-                        var retPick = (rpEl && rpEl.value.trim()) ? rpEl.value : ((document.getElementById('destination_address') || {}).value || '');
-                        var mgTag = ' · incl. meet & greet';
+                        // Say what each leg includes (meet & greet on an airport pickup, child /
+                        // booster / infant seats, stops, ribbons), straight from the pricer.
+                        var tag = function (o, k) {
+                            var x = o && o.leg_extras ? (o.leg_extras[k] || []) : [];
+                            return x.length ? ' · incl. ' + x.join(', ').toLowerCase().replace('meet & greet', 'meet & greet') : '';
+                        };
+                        var retOpt = optFor((retVehSel && retVehSel.value) || vehSel.value);
                         lines = [
-                            { label: 'Outbound leg' + (mgOn && isAir(outPick) ? mgTag : ''), amount: legs[0] },
-                            { label: 'Return leg' + rv + (mgOn && isAir(retPick) ? mgTag : ''), amount: legs[1] },
+                            { label: 'Outbound leg' + tag(optFor(vehSel.value), 'out'), amount: legs[0] },
+                            { label: 'Return leg' + rv + tag(retOpt, 'ret'), amount: legs[1] },
                         ];
                     }
                     var total = liveTotal(opt);

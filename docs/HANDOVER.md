@@ -162,6 +162,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Minibus) · incl. meet & greet £150"); the £10 was already charged, just not shown. Overflow
   backstop changed to `body{overflow-x:hidden}` (+`clip` where supported) because older iPhones
   ignore `clip`; mobile bar buttons wrap and the bar is capped at the screen width.
+- **8 Nov 2026** — Price strip returns `leg_extras` (out/ret) so a return's breakdown says what each
+  leg includes ("Return leg · incl. meet & greet, child seat"); one-way already itemises. Checked:
+  EveryPageLoadsTest (all GET pages, no 5xx) green, and a phone-browser crawl of all 59 menu pages +
+  booking/edit/assistant/growth/batch with every fold opened: no JS errors. Christmas Eve check:
+  minibus MAN→Sheffield 24 Dec = £140 × 1.25 + £10 meet & greet = £185 (correct per cet.php).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

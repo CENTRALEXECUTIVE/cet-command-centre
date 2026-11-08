@@ -122,6 +122,24 @@ class AdminPricingStripTest extends TestCase
         $this->assertEqualsWithDelta(220.0, $this->execPrice($options), 0.001);
     }
 
+    public function test_each_leg_lists_its_extras_so_child_seats_and_meet_greet_show(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $exec = VehicleType::where('slug', 'executive')->firstOrFail();
+
+        $options = $this->actingAs($admin)->postJson(route('pricing.strip'), [
+            'pickup' => '41 Westbourne Road, Broomhall, Sheffield S10 2QT', 'destination' => 'Manchester Airport, Manchester, UK',
+            'journey_type' => 'return', 'meet_greet' => true, 'child_seats' => 1, 'booster_seats' => 2,
+        ])->assertOk()->json('options');
+
+        $x = collect($options)->firstWhere('id', $exec->id)['leg_extras'];
+        $this->assertContains('Child seat', $x['out']);
+        $this->assertContains('Booster seat ×2', $x['out']);
+        $this->assertNotContains('Meet & greet', $x['out'], 'outbound is a drop-off');
+        $this->assertContains('Meet & greet', $x['ret'], 'return collects from the airport');
+        $this->assertContains('Child seat', $x['ret']);
+    }
+
     public function test_the_form_ticks_meet_and_greet_for_a_return_that_picks_up_at_the_airport(): void
     {
         $admin = User::factory()->admin()->create();
