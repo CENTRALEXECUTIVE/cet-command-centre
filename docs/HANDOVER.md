@@ -179,6 +179,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   dates still editable, `?month=` still works). New "⬇ Export" button downloads a CSV of the
   chosen dates (`payroll.export`): one row per job, a TOTAL row per driver, ALL DRIVERS TOTAL;
   same figures as the page. Admin only. No migration.
+- **8 Nov 2026** — Payment link email (`PaymentLinkMail`) says what the money is: a part payment is
+  a "£10 deposit" with "the remaining £95 is paid in cash to your driver on the day" (cash job) or "is
+  due before your journey, we'll send a link" (card job); clearing the fare after a deposit = "the
+  balance"; otherwise "pay for it". Adds a Your journey block (pick-up, from, to, vehicle; both legs
+  on a return). Still record the deposit on Edit booking once paid so the driver collects £95.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

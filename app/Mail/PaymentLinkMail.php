@@ -45,6 +45,34 @@ class PaymentLinkMail extends Mailable
             'booking' => $this->booking,
             'amount' => $this->amount,
             'payUrl' => $this->payUrl,
-        ]);
+        ] + $this->summary());
+    }
+
+    /**
+     * What this payment is for: the trip's legs, what's still owed after this
+     * payment, and whether the customer has paid anything before. A payment that
+     * leaves money owing is a DEPOSIT (and the email says how the rest is paid);
+     * one that clears it is "the balance" (something paid before) or the full fare.
+     *
+     * @return array{legs: \Illuminate\Support\Collection, remaining: float, paidBefore: bool, cashRest: bool}
+     */
+    public function summary(): array
+    {
+        $legs = $this->booking->tripBookings();
+        if ($legs->isEmpty()) {
+            $legs = collect([$this->booking]);
+        }
+        $legs = $legs->sortBy('pickup_at')->values();
+
+        $due = round((float) $legs->sum(fn (Booking $b) => (float) ($b->transactionsAmountDue() ?? 0)), 2);
+        $paidBefore = $legs->contains(fn (Booking $b) => $b->transactionsPaidTotal() > 0.009
+            || $b->depositPaidAmount() > 0.009 || $b->onlinePaidTotal() > 0.009);
+
+        return [
+            'legs' => $legs,
+            'remaining' => max(0.0, round($due - $this->amount, 2)),
+            'paidBefore' => $paidBefore,
+            'cashRest' => ($this->booking->payment_method?->value ?? null) === 'cash',
+        ];
     }
 }
