@@ -1,7 +1,8 @@
 @php
     $ref = $booking->external_reference ?: $booking->reference;
-    $gross = $vat['gross'] ?? ($booking->fareGross() ?? 0);
-    $paid = $booking->fareIsPaid();
+    $trip = $trip ?? null;
+    $gross = $trip ? $trip['total'] : ($vat['gross'] ?? ($booking->fareGross() ?? 0));
+    $paid = $trip ? $trip['due'] <= 0.009 : $booking->fareIsPaid();
     $stage = $stage ?? 'new';
     $isPaid = $stage === 'paid';
     $method = $booking->payment_method?->value ?? null;
@@ -62,7 +63,7 @@
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f6;border:1px solid #ece9e2;border-radius:12px">
             <tr>
                 <td style="padding:14px 18px">
-                    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#9a9a9a;font-weight:700">Total fare</div>
+                    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#9a9a9a;font-weight:700">{{ $trip ? 'Total fare · whole trip ('.count($trip['legs']).' journeys)' : 'Total fare' }}</div>
                     <div style="font-size:26px;font-weight:800;color:#141414;margin-top:2px">£{{ number_format($gross, 2) }}</div>
                 </td>
                 <td align="right" style="padding:14px 18px">
@@ -78,22 +79,26 @@
         </table>
     </td></tr>
 
-    {{-- Journey --}}
+    {{-- Journey (every leg of a return / multi-leg trip) --}}
+    @foreach(($trip ? collect($trip['legs']) : collect([['booking' => $booking, 'title' => 'Journey', 'amount' => null]])) as $leg)
+    @php $b = $leg['booking']; @endphp
     <tr><td style="padding:22px 28px 0">
-        <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:6px">Journey</div>
+        <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:6px">{{ $leg['title'] }}@if($trip) · {{ $b->external_reference ?: $b->reference }}@endif</div>
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-            {!! $row('Pick-up', $booking->pickup_at?->timezone(config('app.timezone'))->format('D d M Y · H:i')) !!}
-            {!! $row('From', $booking->pickup_address) !!}
-            @foreach($booking->viaStops() as $stop){!! $row('Via', $stop) !!}@endforeach
-            {!! $row('To', $booking->destination_address) !!}
-            {!! $row('Vehicle', $booking->vehicleType?->name) !!}
-            {!! $row('Passengers', $booking->passengers) !!}
-            {!! $row('Luggage', $booking->luggageBreakdown()) !!}
-            {!! $row('Flight', $booking->displayFlightNumber()) !!}
-            @if($booking->isMeetGreet()){!! $row('Meet &amp; greet', $booking->meetGreetLabel() ?: 'Yes') !!}@endif
-            {!! $row('Child seats', $booking->displayChildSeats()) !!}
+            {!! $row('Pick-up', $b->pickup_at?->timezone(config('app.timezone'))->format('D d M Y · H:i')) !!}
+            {!! $row('From', $b->pickup_address) !!}
+            @foreach($b->viaStops() as $stop){!! $row('Via', $stop) !!}@endforeach
+            {!! $row('To', $b->destination_address) !!}
+            {!! $row('Vehicle', $b->vehicleType?->name) !!}
+            {!! $row('Passengers', $b->passengers) !!}
+            {!! $row('Luggage', $b->luggageBreakdown()) !!}
+            {!! $row('Flight', $b->displayFlightNumber()) !!}
+            @if($b->isMeetGreet()){!! $row('Meet &amp; greet', $b->meetGreetLabel() ?: 'Yes') !!}@endif
+            {!! $row('Child seats', $b->displayChildSeats()) !!}
+            @if($trip && $leg['amount'] !== null){!! $row('Fare', '£'.number_format($leg['amount'], 2)) !!}@endif
         </table>
     </td></tr>
+    @endforeach
 
     {{-- Customer --}}
     <tr><td style="padding:20px 28px 0">
@@ -102,7 +107,7 @@
             {!! $row('Name', $booking->displayName() ?: $booking->customer?->name) !!}
             {!! $row('Phone', \App\Support\Phone::display($booking->customer?->phone)) !!}
             {!! $row('Email', $booking->customer?->email) !!}
-            {!! $row('Reference', $ref) !!}
+            {!! $row('Reference', $trip ? $trip['refs'] : $ref) !!}
             {!! $row('Booked', ($booking->created_at ?? now())->timezone(config('app.timezone'))->format('d/m/Y · H:i')) !!}
         </table>
     </td></tr>
@@ -110,7 +115,20 @@
     {{-- Payment breakdown — total / paid / remaining + a line per payment --}}
     <tr><td style="padding:20px 28px 0">
         <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#141414;font-weight:800;border-bottom:2px solid #f0ede6;padding-bottom:8px;margin-bottom:8px">Payment</div>
-        @include('emails._payments')
+        @if($trip)
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:14px">
+                @foreach($trip['legs'] as $leg)
+                    <tr><td style="padding:5px 0;color:#555">{{ $leg['title'] }} — {{ $leg['booking']->pickup_at?->timezone(config('app.timezone'))->format('D d M, H:i') }}</td>
+                        <td align="right" style="padding:5px 0;font-weight:600">£{{ number_format($leg['amount'], 2) }}</td></tr>
+                @endforeach
+                <tr><td style="padding:8px 0 4px;border-top:1px solid #eee;font-weight:800">Total (whole trip)</td>
+                    <td align="right" style="padding:8px 0 4px;border-top:1px solid #eee;font-weight:800">£{{ number_format($trip['total'], 2) }}</td></tr>
+                <tr><td style="padding:3px 0;color:#1f7a44">Paid</td><td align="right" style="padding:3px 0;color:#1f7a44;font-weight:700">£{{ number_format($trip['paid'], 2) }}</td></tr>
+                <tr><td style="padding:3px 0;color:#b9770a">Remaining</td><td align="right" style="padding:3px 0;color:#b9770a;font-weight:700">£{{ number_format($trip['due'], 2) }}</td></tr>
+            </table>
+        @else
+            @include('emails._payments')
+        @endif
     </td></tr>
 
     {{-- Notes (office / customer / calendar) — highlighted, because they matter --}}

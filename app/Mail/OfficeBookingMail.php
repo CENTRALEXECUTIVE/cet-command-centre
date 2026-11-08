@@ -78,6 +78,32 @@ class OfficeBookingMail extends Mailable
         // The OUTSTANDING balance (fare less any deposit/part-payment already taken),
         // so the office link takes the remainder, never the whole fare again.
         $outstanding = (float) ($this->booking->transactionsAmountDue() ?? $this->booking->amountPayable() ?? 0);
+
+        // A return / multi-leg trip: the office sees the WHOLE trip (every journey,
+        // the trip total and what's still owed), matching the customer's email and
+        // the pay link, which charges the whole trip in one go (8 Nov 2026: the
+        // office copy showed only the outbound's £105 on a £290 return).
+        $trip = null;
+        $group = $this->booking->tripBookings();
+        if ($group->count() > 1) {
+            $legs = $group->sortBy(fn ($b) => $b->pickup_at?->timestamp ?? 0)->values();
+            $isPair = $legs->count() === 2 && $legs->contains(fn ($b) => $b->is_return_leg);
+            $total = round($legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2);
+            $due = round($legs->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? $b->amountPayable() ?? 0)), 2);
+            $trip = [
+                'refs' => $legs->map(fn ($b) => $b->external_reference ?: $b->reference)->implode(' / '),
+                'legs' => $legs->map(fn ($b, $i) => [
+                    'booking' => $b,
+                    'title' => $isPair ? ($b->is_return_leg ? 'Return journey' : 'Outbound journey') : 'Journey '.($i + 1),
+                    'amount' => (float) ($b->amountPayable() ?? 0),
+                ])->all(),
+                'total' => $total,
+                'due' => $due,
+                'paid' => round(max(0.0, $total - $due), 2),
+            ];
+            $outstanding = $due;
+        }
+
         $payUrl = null;
         if (($this->booking->payment_method?->value ?? null) === 'card'
             && ! $this->booking->fareIsPaid()
@@ -91,6 +117,7 @@ class OfficeBookingMail extends Mailable
             'stage' => $this->stage,
             'payUrl' => $payUrl,
             'payAmount' => $outstanding,
+            'trip' => $trip,
         ]);
     }
 

@@ -172,6 +172,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   24 Dec £131.25 → £135, Christmas Day £157.50 → £160, NYD early £189 → £190. Flat extras (meet &
   greet, seats, ribbons) added after, unrounded. Shared by the website and the admin form (parity
   tests updated).
+- **8 Nov 2026** — Office booking email (`OfficeBookingMail`) now shows the WHOLE trip for a return:
+  total for both journeys, each leg's details + fare + reference, paid/remaining, and "Take payment"
+  for the whole trip (it showed only the outbound's £105 on a £290 return). One-way unchanged.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

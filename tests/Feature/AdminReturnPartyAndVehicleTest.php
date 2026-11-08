@@ -102,6 +102,27 @@ class AdminReturnPartyAndVehicleTest extends TestCase
         $this->assertSame(0, Booking::count());
     }
 
+    public function test_the_office_email_for_a_return_shows_the_whole_trip(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())->post(route('bookings.store'), $this->payload([
+            'return_passengers' => 2, 'return_suitcases' => 2, 'return_hand_luggage' => 1,
+        ]))->assertRedirect();
+
+        [$out, $ret] = $this->legs();
+        $html = (new \App\Mail\OfficeBookingMail($out->fresh()))->render();
+
+        $this->assertStringContainsString('whole trip (2 journeys)', $html);
+        $this->assertStringContainsString('£220.00', $html, 'trip total, not just the outbound £105');
+        $this->assertStringContainsString('Outbound journey', $html);
+        $this->assertStringContainsString('Return journey', $html);
+        $this->assertStringContainsString($ret->reference, $html);
+        $this->assertStringContainsString('Take payment · £220.00', $html);
+        // A one-way stays as it was.
+        $one = \App\Models\Booking::factory()->create(['final_price' => 90]);
+        $single = (new \App\Mail\OfficeBookingMail($one))->render();
+        $this->assertStringNotContainsString('whole trip', $single);
+    }
+
     public function test_the_form_shows_the_return_party_fields(): void
     {
         $this->actingAs(User::factory()->admin()->create())->get(route('bookings.create'))->assertOk()
