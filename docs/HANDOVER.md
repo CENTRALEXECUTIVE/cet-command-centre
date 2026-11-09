@@ -197,6 +197,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **8 Nov 2026** — Emails after a card deposit on a cash job: office copy pill says "£95.00 cash to
   driver" (`cashDueToDriver`, was a bare "Cash to driver" under a £105 total); customer confirmation
   says "Pay the driver £95.00 in cash on the day" (was "Pay the driver on the day (cash)").
+- **9 Nov 2026** — DECISION: ITM Power removed from outreach (financial difficulty, won't move supplier):
+  migration 2026_11_09_000001 marks it Not interested. First batch review: untick TBR (already applied
+  via their partner form 5 Nov; mark Replied), AMRC greets "Dear Ben" on a generic inbox (clear the
+  contact name), DocFest and SCS were house-style picks on 3 Nov so may have been sent by hand already.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
