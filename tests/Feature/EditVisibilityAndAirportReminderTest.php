@@ -599,4 +599,23 @@ class EditVisibilityAndAirportReminderTest extends TestCase
         $this->assertStringNotContainsString('V Class', $body);
         $this->assertStringNotContainsString('Khan', $body);
     }
+
+    public function test_the_office_can_set_luggage_to_zero_over_the_calendar_line(): void
+    {
+        $booking = Booking::factory()->create([
+            'status' => BookingStatus::Accepted, 'passengers' => 10, 'luggage' => 0,
+            'meta' => ['suitcases' => 0, 'hand_luggage' => 0, 'edited_fields' => ['luggage'],
+                'manually_edited_at' => now()->toIso8601String()],
+        ]);
+        $booking->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => '*Nicola MAGNA (2 × V CLASS)*', 'location' => 'x',
+            'description' => "• Customer Name: Nicola\n• Luggage: 1 Hand Luggage\n• Vehicle Type: 2 × V Class",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $booking = $booking->fresh();
+
+        $this->assertSame(0, $booking->displayHandLuggage());
+        $this->assertSame(0, $booking->displaySuitcases());
+        $this->assertStringNotContainsString('1 Hand', $booking->luggageBreakdown());
+    }
 }

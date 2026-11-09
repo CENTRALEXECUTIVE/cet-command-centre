@@ -3280,8 +3280,20 @@ class Booking extends Model
     /** True when the calendar's Luggage line should win for display right now. */
     private function calendarLuggageWins(): bool
     {
-        return $this->calendarLuggageLine() !== null
-            && ! ($this->fieldEdited('luggage') && $this->ownLuggageEntered());
+        // The office changing the luggage on the edit form always wins — including
+        // setting it to 0 (9 Nov 2026: "0 cabin bags" kept reverting to the calendar's
+        // "1 Hand Luggage"). An edit that leaves luggage alone never marks it edited
+        // (the form pre-fills the shown counts), so it still can't blank it.
+        if ($this->calendarLuggageLine() === null) {
+            return false;
+        }
+        $edited = $this->meta['edited_fields'] ?? null;
+        if (is_array($edited)) {
+            return ! in_array('luggage', $edited, true);
+        }
+
+        // Older edits (no per-field record): only real luggage the office entered wins.
+        return ! ($this->manuallyEdited() && $this->ownLuggageEntered());
     }
 
     /**
