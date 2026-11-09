@@ -166,6 +166,10 @@ class OutreachController extends Controller
             'items' => $items,
             'limit' => \App\Services\Outreach\OutreachBatch::limit(),
             'sentToday' => $batch->sentToday(),
+            'queued' => collect($batch->queued())->map(fn ($q) => [
+                'prospect' => Prospect::find($q['id']),
+                'at' => \Illuminate\Support\Carbon::parse($q['at'])->timezone(config('app.timezone')),
+            ])->filter(fn ($q) => $q['prospect'])->values(),
             'weekend' => \App\Services\Outreach\OutreachBatch::isWeekend(),
         ]);
     }
@@ -178,7 +182,20 @@ class OutreachController extends Controller
             'ids' => ['required', 'array', 'max:50'],
             'ids.*' => ['integer'],
             'confirm' => ['accepted'],
+            'spacing' => ['nullable', 'integer', 'in:0,5,10'],
         ], ['confirm.accepted' => 'Tick "I have checked these emails" to send.']);
+
+        // Spaced: approve once, one email every few minutes (the first straight away).
+        if (($minutes = (int) ($data['spacing'] ?? 0)) > 0) {
+            $q = $batch->queue($data['ids'], $request->user(), $minutes);
+            $msg = $q['queued'].' email'.($q['queued'] === 1 ? '' : 's').' approved to send one every '.$minutes.' minutes: '
+                .collect($q['times'])->map(fn ($t, $co) => $t.' '.$co)->implode(' · ').'.';
+            if ($q['skipped']) {
+                $msg .= ' '.$q['skipped'].' skipped (no longer due, or the daily limit was reached).';
+            }
+
+            return redirect()->route('outreach.batch')->with('status', $msg);
+        }
 
         $r = $batch->send($data['ids'], $request->user());
         $msg = $r['sent'].' email'.($r['sent'] === 1 ? '' : 's').' sent from admin@.';

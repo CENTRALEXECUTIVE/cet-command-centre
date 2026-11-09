@@ -123,4 +123,42 @@ class OutreachBatchTest extends TestCase
         $this->assertSame(3, $batch->where('status', 'emailed')->count());
         $this->assertSame(7, $batch->where('status', 'new')->count());
     }
+
+    public function test_approving_spaced_sends_one_every_five_minutes_and_rechecks_each(): void
+    {
+        Mail::fake();
+        $this->travelTo(Carbon::parse('2026-11-10 10:00')); // Tuesday
+        $admin = User::factory()->admin()->create(['name' => 'Abdi']);
+        $a = $this->prospect(['company' => 'Alpha', 'fit_score' => 5]);
+        $b = $this->prospect(['company' => 'Bravo', 'fit_score' => 4]);
+        $c = $this->prospect(['company' => 'Charlie', 'fit_score' => 3]);
+
+        $this->actingAs($admin)->post(route('outreach.batch.send'), ['ids' => [$a->id, $b->id, $c->id], 'confirm' => '1', 'spacing' => 5])
+            ->assertRedirect(route('outreach.batch'));
+        Mail::assertNothingSent();
+
+        // Queued ones leave the batch list and show as waiting.
+        $this->actingAs($admin)->get(route('outreach.batch'))->assertOk()
+            ->assertSee('Approved, sending one at a time')->assertSee('10:00')->assertSee('10:05')->assertSee('10:10');
+
+        $this->artisan('cet:outreach-send-queued')->assertSuccessful();
+        Mail::assertSent(OutreachMail::class, 1);
+        $this->assertSame('emailed', $a->fresh()->status);
+
+        $this->travelTo(Carbon::parse('2026-11-10 10:05'));
+        // Bravo was marked replied by hand meanwhile: it must NOT be sent.
+        $b->forceFill(['status' => 'replied'])->save();
+        $this->artisan('cet:outreach-send-queued');
+        Mail::assertSent(OutreachMail::class, 1);
+
+        $this->travelTo(Carbon::parse('2026-11-10 10:10'));
+        $this->artisan('cet:outreach-send-queued');
+        Mail::assertSent(OutreachMail::class, 2);
+        $this->assertSame('emailed', $c->fresh()->status);
+        $this->assertSame([], app(\App\Services\Outreach\OutreachBatch::class)->queued());
+
+        // Running again sends nothing twice.
+        $this->artisan('cet:outreach-send-queued');
+        Mail::assertSent(OutreachMail::class, 2);
+    }
 }

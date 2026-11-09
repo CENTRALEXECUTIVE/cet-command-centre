@@ -21,8 +21,19 @@
     <div class="card" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
         <div><strong>{{ $sentToday }}</strong> of {{ $limit }} sent today</div>
         <div><strong>{{ $items->count() }}</strong> ready to send</div>
+        @if($queued->isNotEmpty())<div><strong>{{ $queued->count() }}</strong> approved and waiting to send</div>@endif
         @if($weekend)<div style="color:#b32020"><strong>It's the weekend.</strong> Batches send Monday to Friday, when people read business email.</div>@endif
     </div>
+
+    @if($queued->isNotEmpty())
+        <div class="card">
+            <h3 style="margin-top:0">Approved, sending one at a time</h3>
+            @foreach($queued as $q)
+                <div style="padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06)">{{ $q['at']->format('H:i') }} · {{ $q['prospect']->company }} <span class="muted" style="font-size:12px">· {{ $q['prospect']->contact_email }}</span></div>
+            @endforeach
+            <p class="muted" style="font-size:12px;margin:8px 0 0">Each one is checked again just before it goes (still due, not opted out, weekday).</p>
+        </div>
+    @endif
 
     @if($items->isEmpty())
         <div class="card">Nothing to send right now. Either today's {{ $limit }} have gone, or no prospects with an email address are due.</div>
@@ -56,6 +67,11 @@ www.centralexecutivetransfers.co.uk
 
             <div class="card" style="position:sticky;bottom:0;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
                 <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="confirm" value="1" style="width:20px;height:20px"> I have checked these emails</label>
+                <select name="spacing" class="form-control" style="width:auto">
+                    <option value="5" selected>One every 5 minutes</option>
+                    <option value="10">One every 10 minutes</option>
+                    <option value="0">All now</option>
+                </select>
                 <button type="submit" class="btn btn-primary" @if($weekend) disabled @endif>Approve &amp; send ticked emails</button>
             </div>
         </form>

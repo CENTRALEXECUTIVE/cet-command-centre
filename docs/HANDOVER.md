@@ -13,6 +13,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **9 Nov 2026** — Outreach batch can now send SPACED: the approve bar has "One every 5 minutes" (default) /
+  10 / "All now". Approving queues the ticked emails (setting `outreach_queue`, no migration) and
+  `cet:outreach-send-queued` (every minute) sends each at its time, re-checking it's still due, not opted out,
+  a weekday and within today's limit (a prospect marked Replied meanwhile is dropped). Needs the schedule:run cron.
 - **9 Nov 2026** — Batch proof-read (QA agent + named-contact research, published sources only). Fixes in
   migration 2026_11_09_000004 + config: NCM UK head office is Todwick (not Kiveton Park); AMRC greets
   "Dear AMRC Team,"; Castle Square -> kevan.shaw@ (Managing Partner, published); IFA mcarlisle@ = Michael

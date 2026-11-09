@@ -77,21 +77,23 @@ class OutreachBatch
     /** Today's batch, in send order. */
     public function candidates(?int $limit = null): Collection
     {
-        $limit ??= $this->remainingToday();
+        $limit ??= max(0, $this->remainingToday() - count($this->queued()));
+        $queuedIds = array_column($this->queued(), 'id');
         if ($limit <= 0) {
             return collect();
         }
         $hasEmail = fn ($q) => $q->whereNotNull('contact_email')->where('contact_email', '!=', '');
 
-        $due = Prospect::query()->where($hasEmail)
+        $due = Prospect::query()->where($hasEmail)->whereNotIn('id', $queuedIds)
             ->whereIn('status', ['emailed', 'follow_up_1'])
             ->whereNotNull('next_action_at')
             ->whereDate('next_action_at', '<=', Carbon::today()->toDateString())
             ->orderBy('next_action_at')->orderByDesc('fit_score')->orderBy('id')
-            ->limit(min($limit, max(0, self::maxFollowUps() - $this->followUpsSentToday())))->get();
+            ->limit(min($limit, max(0, self::maxFollowUps() - $this->followUpsSentToday()
+                - count(array_filter($this->queued(), fn ($q) => ($q['status'] ?? '') !== 'new')))))->get();
 
         $new = $due->count() < $limit
-            ? Prospect::query()->where($hasEmail)->where('status', 'new')
+            ? Prospect::query()->where($hasEmail)->whereNotIn('id', $queuedIds)->where('status', 'new')
                 ->orderByDesc('fit_score')->orderBy('id')
                 ->limit($limit - $due->count())->get()
             : collect();
@@ -140,38 +142,131 @@ class OutreachBatch
 
                 continue;
             }
-            $mail = $this->compose($p, $approver);
-            if (! $mail || blank($mail['subject']) || blank($mail['body'])) {
-                $result['failed'][$p->company] = 'No draft to send.';
+            $why = $this->sendOne($p, $approver);
+            if ($why !== null) {
+                $result['failed'][$p->company] = $why;
 
                 continue;
             }
-
-            try {
-                $pending = Mail::to($p->contact_email);
-                if (filled($p->cc_email)) {
-                    $pending->cc($p->cc_email);
-                }
-                $pending->send(new OutreachMail($mail['subject'], $mail['body']));
-            } catch (\Throwable $e) {
-                Log::warning('Outreach batch send failed', ['prospect' => $p->id, 'error' => $e->getMessage()]);
-                $result['failed'][$p->company] = 'The mail server refused it; nothing was recorded.';
-
-                continue;
-            }
-
-            [$to, $days] = $next;
-            $nextDate = Prospect::workingDay(Carbon::today()->addDays($days));
-            $p->forceFill([
-                'status' => $to,
-                'last_contacted_at' => now(),
-                'next_action_at' => $nextDate->toDateString(),
-                'owner_id' => $p->owner_id ?? $approver->id,
-            ])->save();
-            $p->log('emailed', self::SENT_PREFIX.' ('.$mail['stage'].', approved by '.$approver->name.'). '
-                .($to === 'follow_up_2' ? 'Close as no reply if quiet by ' : 'Next follow-up due ').$nextDate->format('D j M').'.', $approver->id);
             $result['sent']++;
         }
+
+        return $result;
+    }
+
+    /** Send this prospect's next email and move the sequence on. Null = sent, else why not. */
+    private function sendOne(Prospect $p, User $approver): ?string
+    {
+        $mail = $this->compose($p, $approver);
+        if (! $mail || blank($mail['subject']) || blank($mail['body'])) {
+            return 'No draft to send.';
+        }
+
+        try {
+            $pending = Mail::to($p->contact_email);
+            if (filled($p->cc_email)) {
+                $pending->cc($p->cc_email);
+            }
+            $pending->send(new OutreachMail($mail['subject'], $mail['body']));
+        } catch (\Throwable $e) {
+            Log::warning('Outreach batch send failed', ['prospect' => $p->id, 'error' => $e->getMessage()]);
+            return 'The mail server refused it; nothing was recorded.';
+        }
+
+        [$to, $days] = $p->nextSend();
+        $nextDate = Prospect::workingDay(Carbon::today()->addDays($days));
+        $p->forceFill([
+            'status' => $to,
+            'last_contacted_at' => now(),
+            'next_action_at' => $nextDate->toDateString(),
+            'owner_id' => $p->owner_id ?? $approver->id,
+        ])->save();
+        $p->log('emailed', self::SENT_PREFIX.' ('.$mail['stage'].', approved by '.$approver->name.'). '
+            .($to === 'follow_up_2' ? 'Close as no reply if quiet by ' : 'Next follow-up due ').$nextDate->format('D j M').'.', $approver->id);
+
+        return null;
+    }
+
+    /* ---- spaced sending: approve once, one email every few minutes -------------- */
+
+    public const QUEUE_KEY = 'outreach_queue';
+
+    /** Approved emails waiting for their slot: [{id, at (ISO), approver, status}]. */
+    public function queued(): array
+    {
+        $q = \App\Models\Setting::get(self::QUEUE_KEY, []);
+        if (is_string($q)) {
+            $q = json_decode($q, true) ?: [];
+        }
+
+        return is_array($q) ? array_values($q) : [];
+    }
+
+    private function saveQueue(array $q): void
+    {
+        \App\Models\Setting::set(self::QUEUE_KEY, array_values($q), 'json', 'outreach');
+    }
+
+    /**
+     * Approve the ticked emails to go out one at a time, every $minutes, the first
+     * straight away (next scheduler minute). Only today's batch can be queued.
+     */
+    public function queue(array $ids, User $approver, int $minutes): array
+    {
+        $result = ['queued' => 0, 'skipped' => 0, 'times' => []];
+        if (self::isWeekend()) {
+            return $result;
+        }
+        $allowed = $this->candidates()->keyBy('id');
+        $q = $this->queued();
+        $at = now();
+        foreach (array_unique(array_map('intval', $ids)) as $id) {
+            $p = $allowed->get($id);
+            if (! $p || $p->isDoNotContact() || ! $p->nextSend()) {
+                $result['skipped']++;
+
+                continue;
+            }
+            $q[] = ['id' => $p->id, 'at' => $at->toIso8601String(), 'approver' => $approver->id, 'status' => $p->status];
+            $result['times'][$p->company] = $at->copy()->timezone(config('app.timezone'))->format('H:i');
+            $result['queued']++;
+            $at = $at->copy()->addMinutes($minutes);
+        }
+        $this->saveQueue($q);
+
+        return $result;
+    }
+
+    /** Send any queued emails whose time has come (run every minute). */
+    public function sendDue(): array
+    {
+        $result = ['sent' => 0, 'dropped' => 0, 'failed' => 0];
+        $keep = [];
+        foreach ($this->queued() as $item) {
+            if (\Illuminate\Support\Carbon::parse($item['at'])->isFuture()) {
+                $keep[] = $item;
+
+                continue;
+            }
+            $p = Prospect::find($item['id']);
+            $approver = User::find($item['approver']);
+            // Re-check at send time: still the same step, not opted out, weekday, within today's limit.
+            if (! $p || ! $approver || $p->status !== ($item['status'] ?? null) || $p->isDoNotContact()
+                || ! $p->nextSend() || self::isWeekend() || $this->remainingToday() <= 0
+                || \Illuminate\Support\Carbon::parse($item['at'])->lt(now()->subHours(6))) {
+                $result['dropped']++;
+
+                continue;
+            }
+            $why = $this->sendOne($p, $approver);
+            if ($why === null) {
+                $result['sent']++;
+            } else {
+                $result['failed']++;
+                Log::warning('Queued outreach email not sent', ['prospect' => $p->id, 'why' => $why]);
+            }
+        }
+        $this->saveQueue($keep);
 
         return $result;
     }

@@ -12,6 +12,8 @@ Artisan::command('inspire', function () {
 // whole background layer (deploy, calendar sync, reminders, watchdog, backups) is
 // down; the System Health page and admin banner read it to surface that at once.
 Schedule::command('cet:heartbeat')->everyMinute();
+// Approved outreach emails spaced a few minutes apart (/outreach/batch → "one every 5 minutes").
+Schedule::command('cet:outreach-send-queued')->everyMinute()->withoutOverlapping(5);
 
 // Deliver due WhatsApp reminders (24h / 2h before pickup).
 //
