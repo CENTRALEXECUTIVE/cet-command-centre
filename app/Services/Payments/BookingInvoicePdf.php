@@ -75,7 +75,7 @@ class BookingInvoicePdf
                     'Date & time' => $booking->pickup_at?->format('d/m/Y H:i'),
                     'Pickup' => $booking->pickup_address,
                     'Dropoff' => $booking->destination_address,
-                    'Vehicle type' => $booking->vehicleType?->name,
+                    'Vehicle type' => $booking->vehicleLabel(),
                     'Name' => $booking->displayName() ?: $booking->customer?->name,
                 ]),
                 'qty' => 1,

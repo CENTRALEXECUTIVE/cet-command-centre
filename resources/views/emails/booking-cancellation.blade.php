@@ -44,7 +44,7 @@
                 {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i')) !!}
                 {!! $row('Pickup:', $leg->pickup_address) !!}
                 {!! $row('Dropoff:', $leg->destination_address) !!}
-                {!! $row('Vehicle:', $leg->vehicleType?->name) !!}
+                {!! $row('Vehicle:', $leg->vehicleLabel()) !!}
             </table>
         </td></tr>
     @endforeach

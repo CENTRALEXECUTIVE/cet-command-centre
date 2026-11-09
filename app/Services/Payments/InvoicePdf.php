@@ -310,7 +310,7 @@ class InvoicePdf
         // greet detail isn't needed to bill another operator).
         $pax = (int) $b->passengerCount();
         $extras = collect([
-            $b->vehicleType?->name,
+            $b->vehicleLabel(),
             $pax > 0 ? $pax.' '.($pax === 1 ? 'passenger' : 'passengers') : null,
         ])->filter()->implode(' · ');
 

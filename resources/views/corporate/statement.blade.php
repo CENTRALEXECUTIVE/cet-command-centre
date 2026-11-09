@@ -30,7 +30,7 @@
                             <td>{{ $b->pickup_at->format('d M H:i') }}</td>
                             <td>{{ \Illuminate\Support\Str::limit($b->pickup_address, 16) }} → {{ \Illuminate\Support\Str::limit($b->destination_address, 16) }}</td>
                             <td>{{ $b->cost_code ?? '—' }}</td>
-                            <td>{{ $b->vehicleType?->name }}</td>
+                            <td>{{ $b->vehicleLabel() }}</td>
                             <td><span class="badge badge-{{ $b->status->value }}">{{ $b->status->label() }}</span></td>
                             <td class="right">{{ $b->final_price ?? $b->quoted_price ? '£'.number_format($b->final_price ?? $b->quoted_price, 2) : '—' }}</td>
                         </tr>

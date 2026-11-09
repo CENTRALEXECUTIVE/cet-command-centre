@@ -117,4 +117,15 @@ class MultiVehicleBookingTest extends TestCase
             ->post(route('bookings.confirmation-email.preview-new'), $this->payload())
             ->assertOk()->assertSee('2 × V Class', false);
     }
+
+    public function test_the_vat_invoice_and_cancellation_say_two_v_classes(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())->post(route('bookings.store'), $this->payload())->assertRedirect();
+        $b = Booking::firstOrFail();
+
+        $detail = (new \ReflectionMethod(\App\Services\Payments\InvoicePdf::class, 'legDetail'))
+            ->invoke(app(\App\Services\Payments\InvoicePdf::class), $b);
+        $this->assertStringContainsString('2 × V Class · 10 passengers', $detail);
+        $this->assertNotEmpty(app(\App\Services\Payments\InvoicePdf::class)->renderReceipt($b), 'the VAT invoice PDF still renders');
+    }
 }
