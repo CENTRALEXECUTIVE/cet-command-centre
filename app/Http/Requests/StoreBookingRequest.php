@@ -158,16 +158,8 @@ class StoreBookingRequest extends FormRequest
                 );
             }
 
-            // Mandatory cost code enforcement for corporate accounts.
-            if ($accountId = $this->input('corporate_account_id')) {
-                $account = CorporateAccount::find($accountId);
-                if ($account?->cost_code_required && blank($this->input('cost_code'))) {
-                    $validator->errors()->add(
-                        'cost_code',
-                        "A cost code is required for {$account->name} bookings."
-                    );
-                }
-            }
+            // Cost codes are optional (directors, 9 Nov 2026): never block a booking
+            // for a missing one, even on an account marked "cost code required".
         });
     }
 }

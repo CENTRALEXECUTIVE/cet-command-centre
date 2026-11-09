@@ -953,7 +953,7 @@ class BookingTest extends TestCase
         $this->assertSame(20, $booking->fresh()->passengers);
     }
 
-    public function test_cost_code_is_mandatory_for_corporate_accounts(): void
+    public function test_cost_code_is_optional_even_on_an_account_marked_required(): void
     {
         $admin = User::factory()->admin()->create();
         $account = CorporateAccount::create([
@@ -966,7 +966,7 @@ class BookingTest extends TestCase
                 'corporate_account_id' => $account->id,
                 'cost_code' => null,
             ]))
-            ->assertSessionHasErrors('cost_code');
+            ->assertSessionDoesntHaveErrors('cost_code'); // optional since 9 Nov 2026
     }
 
     public function test_pickup_must_be_in_the_future(): void
