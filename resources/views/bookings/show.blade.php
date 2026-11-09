@@ -22,7 +22,7 @@
         </div>
         <div class="bh-chips">
             @if($booking->airport)<span class="bh-chip">✈ {{ $booking->airport->code }}</span>@endif
-            @if($booking->displayVehicleType())<span class="bh-chip">🚘 {{ $booking->displayVehicleType() }}</span>@endif
+            @if($booking->displayVehicleType())<span class="bh-chip">🚘 {{ $booking->vehicleLabel($booking->displayVehicleType()) }}</span>@endif
             <span class="bh-chip">👤 {{ $booking->driver ? $booking->driver->nameWithNickname() : ($booking->meta['driver_details']['name'] ?? 'No driver yet') }}@if($booking->driverVehicleReg()) ({{ $booking->driverVehicleReg() }})@endif</span>
             <span class="bh-chip">{{ $booking->passengerCount() }} pax · {{ $booking->luggageShort() }}</span>
             @if($booking->displayPayment())
@@ -1422,7 +1422,7 @@
             <table>
                 <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->displayCustomerName() }}</a>@else{{ $booking->displayCustomerName() }}@endif</td></tr>
                 @if($booking->displayContact())<tr><th>Contact</th><td>{{ $booking->displayContact() }}</td></tr>@endif
-                <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
+                <tr><th>Vehicle</th><td>{{ $booking->vehicleLabel($booking->displayVehicleType()) }}@if($booking->vehiclesStillToAllocate() > 0) <span style="color:#b8860b;font-size:13px">· {{ $booking->vehiclesStillToAllocate() }} more {{ \Illuminate\Support\Str::plural('car', $booking->vehiclesStillToAllocate()) }} to add under 🚗 Extra cars</span>@endif</td></tr>
                 <tr><th>Driver</th><td>{{ ($booking->driver || !empty($booking->meta['driver_details']['name'])) ? $booking->driverLabel() : 'Awaiting allocation' }}</td></tr>
                 @if($booking->enquirySourceLabel())<tr><th>Source</th><td>{{ $booking->enquirySourceLabel() }}</td></tr>@endif
                 @if($booking->corporateAccount)

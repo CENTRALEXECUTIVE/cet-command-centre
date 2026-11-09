@@ -612,6 +612,8 @@ class BookingService
             'passengers' => $legPassengers,
             'luggage' => $luggage,
             'meta' => array_filter([
+                // Same vehicle × N (e.g. 2 V-Class for 10 people); price is for all of them.
+                'vehicle_count' => ($vc = (int) ($data['vehicle_count'] ?? 1)) > 1 ? min($vc, 5) : null,
                 'suitcases' => $suitcases,
                 'hand_luggage' => $handLuggage,
                 'driver_notes' => trim((string) ($data['driver_notes'] ?? '')) ?: null,

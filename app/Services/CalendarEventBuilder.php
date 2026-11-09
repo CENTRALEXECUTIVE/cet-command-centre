@@ -131,7 +131,7 @@ class CalendarEventBuilder
 
         // Not allocated yet → show the vehicle type so dispatch knows what to send;
         // becomes the driver's name on allocation. COVER only if there's no vehicle.
-        return Str::upper($booking->vehicleType?->name ?: 'COVER');
+        return Str::upper($booking->vehicleType?->name ? $booking->vehicleLabel() : 'COVER');
     }
 
     /**
@@ -258,7 +258,7 @@ class CalendarEventBuilder
             $add('Stop '.($i + 1), $stop);
         }
         $add('Drop-off Location', $booking->displayDropoffAddress() ?: $booking->destination_address);
-        $add('Vehicle Type', $booking->vehicleType?->name);
+        $add('Vehicle Type', $booking->vehicleLabel());
         // Prefer the stored payment text (it carries real detail like amounts and
         // deposits). But if the fare is genuinely paid and that text still reads as
         // unpaid/pending (a stale mirror), use the authoritative "Paid" label so a
@@ -325,7 +325,7 @@ class CalendarEventBuilder
             $add('Stop '.($i + 1), $stop);
         }
         $add('Drop-off Location', $booking->displayDropoffAddress());
-        $add('Vehicle Type', $booking->displayVehicleType() ?: $booking->vehicleType?->name);
+        $add('Vehicle Type', $booking->vehicleLabel($booking->displayVehicleType() ?: $booking->vehicleType?->name));
         if ($booking->isRibbonJob()) {
             $add('Ribbon', 'Required 🎀');
         }

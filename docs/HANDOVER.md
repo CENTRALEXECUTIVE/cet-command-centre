@@ -13,6 +13,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **9 Nov 2026** — Multi-vehicle bookings: new-booking form has **Vehicles** (1–5, next to Passengers). Price =
+  per-vehicle live quote × vehicles (cards show "£330.00 (2 cars)"), seats/luggage checks × vehicles, saved as
+  meta `vehicle_count`; `Booking::vehicleCount()/vehicleLabel()` show "2 × V Class" on the booking page, calendar
+  title/details, confirmation, office and payment-link emails; the booking page says "1 more car to add under
+  🚗 Extra cars" until the second driver is added. Editing keeps 10 pax valid. MultiVehicleBookingTest + browser
+  check (10 pax, 2 × V Class, VAT: £330 + £66 = £396). For Forged Solutions Fri 13 Nov (Nicola Wright).
 - **9 Nov 2026** — Outreach batch can now send SPACED: the approve bar has "One every 5 minutes" (default) /
   10 / "All now". Approving queues the ticked emails (setting `outreach_queue`, no migration) and
   `cet:outreach-send-queued` (every minute) sends each at its time, re-checking it's still due, not opted out,

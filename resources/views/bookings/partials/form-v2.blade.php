@@ -261,7 +261,8 @@
         var pax = g('return_passengers') || g('passengers'), lug = g('return_suitcases'), hand = g('return_hand_luggage');
         retGrid.querySelectorAll('.veh-card[data-id]').forEach(function (c) {
             if (!c.dataset.id) return;
-            var fits = pax <= +c.dataset.capPax && lug <= +c.dataset.capLug && hand <= +c.dataset.capHand;
+            var n = Math.max(1, g('vehicle_count'));
+            var fits = pax <= +c.dataset.capPax * n && lug <= +c.dataset.capLug * n && hand <= +c.dataset.capHand * n;
             c.classList.toggle('unfit', !fits);
         });
     }

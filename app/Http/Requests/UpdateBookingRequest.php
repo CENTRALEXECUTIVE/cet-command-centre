@@ -91,7 +91,7 @@ class UpdateBookingRequest extends FormRequest
             // Capacity is across ALL cars on the job (lead + extra cars), so a big
             // group split over several vehicles is allowed once the cars are added.
             $booking = $this->route('booking');
-            $cars = $booking instanceof \App\Models\Booking ? max(1, $booking->carCount()) : 1;
+            $cars = $booking instanceof \App\Models\Booking ? max(1, $booking->vehicleCount()) : 1;
             $seats = $vehicleType->passenger_capacity * $cars;
 
             if ((int) $this->input('passengers') > $seats) {

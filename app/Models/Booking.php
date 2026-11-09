@@ -1833,6 +1833,33 @@ class Booking extends Model
         return count($this->extraDrivers()) > 0;
     }
 
+    /**
+     * How many vehicles the job needs: the number booked ("Vehicles: 2" on the
+     * form, meta vehicle_count) or the cars actually added, whichever is more.
+     */
+    public function vehicleCount(): int
+    {
+        return max(1, (int) ($this->meta['vehicle_count'] ?? 1), $this->carCount());
+    }
+
+    /** "2 × V Class" on a multi-vehicle job, else just the vehicle name. */
+    public function vehicleLabel(?string $name = null): ?string
+    {
+        $name ??= $this->vehicleType?->name;
+        if ($name === null || $name === '') {
+            return $name;
+        }
+        $n = $this->vehicleCount();
+
+        return $n > 1 ? $n.' × '.$name : $name;
+    }
+
+    /** Vehicles booked but with no car (driver) added yet — 0 when all are covered. */
+    public function vehiclesStillToAllocate(): int
+    {
+        return max(0, (int) ($this->meta['vehicle_count'] ?? 1) - $this->carCount());
+    }
+
     /** Total cars on the job (lead + extras) — 1 unless it's a multi-car job. */
     public function carCount(): int
     {

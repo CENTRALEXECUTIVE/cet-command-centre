@@ -334,6 +334,16 @@
                 @error('passengers') <div class="error">{{ $message }}</div> @enderror
 
                 <div class="stepper-field" style="border-top:1px solid var(--line)">
+                    <span class="lbl">Vehicles<span class="sub">Same vehicle × this many, e.g. 2 V-Class for 10 people</span></span>
+                    <div class="stepper" data-stepper>
+                        <button type="button" data-dec>−</button>
+                        <input id="vehicle_count" type="number" name="vehicle_count" min="1" max="5" value="{{ old('vehicle_count', 1) }}">
+                        <button type="button" data-inc>+</button>
+                    </div>
+                </div>
+                @error('vehicle_count') <div class="error">{{ $message }}</div> @enderror
+
+                <div class="stepper-field" style="border-top:1px solid var(--line)">
                     <span class="lbl">Suitcases<span class="sub">Large / hold bags</span></span>
                     <div class="stepper" data-stepper>
                         <button type="button" data-dec>−</button>
@@ -965,11 +975,12 @@
                 }
 
                 // Grey out the cards for vehicles too small for the party entered.
+                function cars() { var n = num(document.getElementById('vehicle_count')); return n >= 1 ? Math.min(n, 5) : 1; }
                 function applyFit() {
-                    var pax = num(paxEl), suit = num(suitEl), hand = num(handEl);
+                    var pax = num(paxEl), suit = num(suitEl), hand = num(handEl), n = cars();
                     cards.forEach(function (card) {
                         var c = caps[card.dataset.id];
-                        var fits = !c || (pax <= c.pax && suit <= c.lug && hand <= c.hand);
+                        var fits = !c || (pax <= c.pax * n && suit <= c.lug * n && hand <= c.hand * n);
                         card.classList.toggle('unfit', !fits);
                         card.title = fits ? '' : 'Too small for ' + pax + ' passengers / ' + (suit + hand) + ' bags';
                     });
@@ -1151,8 +1162,23 @@
 
                 // Drop the live price onto each vehicle card (the cards are rendered
                 // server-side; here we just fill in / refresh their prices).
+                // Prices from the pricer are per vehicle; a multi-vehicle job is the
+                // same journey × the number of vehicles (every figure scales).
+                var rawOptions = [];
+                function scaled(o, n) {
+                    if (n <= 1 || !o) return o;
+                    var c = JSON.parse(JSON.stringify(o));
+                    var x = function (v) { return v == null || v === '' ? v : Math.round(Number(v) * n * 100) / 100; };
+                    c.price = x(c.price);
+                    if (c.extras_total != null) c.extras_total = x(c.extras_total);
+                    (c.breakdown || []).forEach(function (l) { l.amount = x(l.amount); });
+                    if (c.price != null && !c.poa) c.formatted = '£' + Number(c.price).toFixed(2) + ' (' + n + ' cars)';
+                    return c;
+                }
                 function render(options) {
-                    lastOptions = options || [];
+                    rawOptions = options || [];
+                    var n = cars();
+                    lastOptions = rawOptions.map(function (o) { return scaled(o, n); });
                     var byId = {};
                     lastOptions.forEach(function (o) { byId[String(o.id)] = o; });
                     cards.forEach(function (card) {
@@ -1214,6 +1240,9 @@
                 window.CETrequote = function () { clearTimeout(timer); timer = setTimeout(refresh, 300); };
                 // Passengers / luggage change only the FIT, not the price.
                 [paxEl, suitEl, handEl, vehSel].forEach(function (el) { if (el) el.addEventListener('change', applyFit); });
+                // More vehicles = more seats and the price × vehicles.
+                var vcEl = document.getElementById('vehicle_count');
+                if (vcEl) vcEl.addEventListener('change', function () { applyFit(); if (rawOptions.length) render(rawOptions); });
                 // Choosing a vehicle, or editing the price, re-checks the drift nudge.
                 if (vehSel) vehSel.addEventListener('change', function () { nudge(); showBreakdown(); });
                 if (priceEl) { priceEl.addEventListener('input', nudge); priceEl.addEventListener('change', nudge); }
@@ -1229,8 +1258,8 @@
                     formEl.addEventListener('submit', function (e) {
                         var c = caps[vehSel.value];
                         if (!c) return;
-                        var pax = num(paxEl), suit = num(suitEl), hand = num(handEl);
-                        if (pax <= c.pax && suit <= c.lug && hand <= c.hand) return;
+                        var pax = num(paxEl), suit = num(suitEl), hand = num(handEl), n = cars();
+                        if (pax <= c.pax * n && suit <= c.lug * n && hand <= c.hand * n) return;
                         var name = (names[vehSel.value] || 'This vehicle').replace(/\s*\(up to.*\)$/, '');
                         var why = [];
                         if (pax > c.pax) why.push(pax + ' passengers (seats ' + c.pax + ')');

@@ -57,7 +57,7 @@
                     <tr><td style="color:#666;padding:2px 0;vertical-align:top">From</td><td style="padding:2px 0">{{ $leg->displayPickupAddress() ?? $leg->pickup_address }}</td></tr>
                     <tr><td style="color:#666;padding:2px 0;vertical-align:top">To</td><td style="padding:2px 0">{{ $leg->displayDropoffAddress() ?? $leg->destination_address }}</td></tr>
                     @if($leg->displayVehicleType())
-                        <tr><td style="color:#666;padding:2px 0;vertical-align:top">Vehicle</td><td style="padding:2px 0">{{ $leg->displayVehicleType() }}</td></tr>
+                        <tr><td style="color:#666;padding:2px 0;vertical-align:top">Vehicle</td><td style="padding:2px 0">{{ $leg->vehicleLabel($leg->displayVehicleType()) }}</td></tr>
                     @endif
                 </table>
             @endforeach

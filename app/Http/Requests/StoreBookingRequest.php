@@ -73,6 +73,8 @@ class StoreBookingRequest extends FormRequest
             'flight_number' => ['nullable', 'string', 'max:32'],
             'flight_landing_at' => ['nullable', 'date'],
             'passengers' => ['required', 'integer', 'min:1', 'max:60'],
+            // Same vehicle × this many (e.g. 2 V-Class for 10 people). Price is per job.
+            'vehicle_count' => ['nullable', 'integer', 'min:1', 'max:5'],
             'luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
@@ -144,11 +146,15 @@ class StoreBookingRequest extends FormRequest
     {
         $validator->after(function (Validator $validator) {
             // Passenger count must fit the selected vehicle type.
+            // Several vehicles of the same type seat that many times more.
             $vehicleType = VehicleType::find($this->input('vehicle_type_id'));
-            if ($vehicleType && (int) $this->input('passengers') > $vehicleType->passenger_capacity) {
+            $cars = max(1, min(5, (int) ($this->input('vehicle_count') ?: 1)));
+            if ($vehicleType && (int) $this->input('passengers') > $vehicleType->passenger_capacity * $cars) {
                 $validator->errors()->add(
                     'passengers',
-                    "The {$vehicleType->name} seats up to {$vehicleType->passenger_capacity} passengers."
+                    $cars > 1
+                        ? "{$cars} × {$vehicleType->name} seat up to ".($vehicleType->passenger_capacity * $cars).' passengers.'
+                        : "The {$vehicleType->name} seats up to {$vehicleType->passenger_capacity} passengers — set Vehicles to 2 or more for a bigger group."
                 );
             }
 

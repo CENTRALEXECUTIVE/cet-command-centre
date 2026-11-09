@@ -90,7 +90,7 @@
             {!! $row('From', $b->pickup_address) !!}
             @foreach($b->viaStops() as $stop){!! $row('Via', $stop) !!}@endforeach
             {!! $row('To', $b->destination_address) !!}
-            {!! $row('Vehicle', $b->vehicleType?->name) !!}
+            {!! $row('Vehicle', $b->vehicleLabel()) !!}
             {!! $row('Passengers', $b->passengers) !!}
             {!! $row('Luggage', $b->luggageBreakdown()) !!}
             {!! $row('Flight', $b->displayFlightNumber()) !!}

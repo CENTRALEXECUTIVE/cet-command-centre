@@ -11,7 +11,7 @@
             @foreach($leg->viaStops() as $stop){!! $row('Via:', $stop) !!}@endforeach
             {!! $row('Dropoff:', $leg->destination_address) !!}
             @if(!empty($showRef)){!! $row('Reference:', $leg->external_reference ?: $leg->reference) !!}@endif
-            {!! $row('Vehicle type:', $leg->vehicleType?->name) !!}
+            {!! $row('Vehicle type:', $leg->vehicleLabel()) !!}
             {!! $row('Passengers:', $leg->passengers) !!}
             @php
                 $bags = [];
