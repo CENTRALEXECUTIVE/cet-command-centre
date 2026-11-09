@@ -906,6 +906,10 @@ class BookingController extends Controller
                 'suitcases' => (int) $request->input('suitcases', 0),
                 'hand_luggage' => (int) $request->input('hand_luggage', 0),
             ];
+            // "Vehicles: 2" → the preview says "2 × V Class", like the real email.
+            if (($vc = (int) $request->input('vehicle_count', 1)) > 1) {
+                $meta['vehicle_count'] = min($vc, 5);
+            }
             foreach (['child_seats', 'booster_seats', 'infant_seats'] as $seatKey) {
                 if ((int) $request->input($seatKey, 0) > 0) {
                     $meta[$seatKey] = (int) $request->input($seatKey);

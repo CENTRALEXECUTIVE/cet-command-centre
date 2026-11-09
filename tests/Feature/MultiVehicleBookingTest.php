@@ -110,4 +110,11 @@ class MultiVehicleBookingTest extends TestCase
         $this->assertArrayNotHasKey('vehicle_count', $b->meta ?? []);
         $this->assertSame('V Class', $b->vehicleLabel());
     }
+
+    public function test_the_new_booking_email_preview_says_two_v_classes(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('bookings.confirmation-email.preview-new'), $this->payload())
+            ->assertOk()->assertSee('2 × V Class', false);
+    }
 }
