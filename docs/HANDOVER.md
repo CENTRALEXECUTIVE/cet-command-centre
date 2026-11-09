@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   90-day targets: ~1,000 local followers, one 10k-view video, 5 bookings/month from social.
 
 ## Still open
+- DKIM is NOT set up for centralexecutivetransfers.co.uk (Microsoft 365; SPF + DMARC p=none are fine).
+  Directors to turn it on (Defender → Email authentication → DKIM, add 2 CNAMEs at the DNS host) before
+  raising outreach volume. Offered: 10 new + follow-ups capped at 20/day (not built; batch is 10 total).
 - Accounts push (free): send the house-style outreach 10–15/day (83 with published
   emails first), partner operators first; ask existing account clients for referrals.
 - Driver rotation: MAN jobs went to Majid four times running — check the rotation page.
