@@ -212,6 +212,14 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   (charles@ for contact Garry at SCS; rob.burton@ for Kevan) greet "Dear {Company} Team," (13 prospects).
   DECISION: batch mainly NEW: at most 3 follow-ups a day inside the 10 (`outreach.batch.max_follow_ups`),
   the rest wait oldest-first. TBR marked Replied (migration 2026_11_09_000002).
+- **9 Nov 2026** — Microsoft 365 connector live (Claude can read admin@ Outlook). Sent Items showed 16+ first
+  emails sent BY HAND on 3/5/6 Nov (Flint Bishop, First Travel, CMAC, Birchwood, SCS, Rolls-Royce, Uni
+  Corporate Events, Addison Lee, Bekaert, DocFest, SMP, Clarity, Cooper & Turner, Corporé, Cutlers' Hall,
+  Danieli) that the app didn't know about: today's batch would have re-sent first emails to 6 of them.
+  Migration 2026_11_09_000003 records them (status Emailed, day-4 due on a weekday, subject = the one
+  actually used so "Re:" matches) and replies: Blacklane Replied (Sheffield not on their list; apply via
+  partner portal), CMS Replied (Tanya Holt passed us to Julie Pepper: reply to Julie), Boeing Not interested.
+  Rule: send outreach from the batch page, or tap "Mark emailed" after sending by hand, or duplicates go out.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
