@@ -13,6 +13,16 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **9 Nov 2026** — Batch proof-read (QA agent + named-contact research, published sources only). Fixes in
+  migration 2026_11_09_000004 + config: NCM UK head office is Todwick (not Kiveton Park); AMRC greets
+  "Dear AMRC Team,"; Castle Square -> kevan.shaw@ (Managing Partner, published); IFA mcarlisle@ = Michael
+  Carlisle; corporate day-4 follow-up says "visiting customers… site visits and events" in the first person;
+  partner day-4 geography fixed (South Yorkshire and North Derbyshire). Scheduled Outlook sends FAILED: the
+  Microsoft 365 connector is read-only (no Mail.Send / Mail.ReadWrite), so outreach goes from the batch page.
+  Inbox 9 Nov: Forged Solutions (Nicola Wright) booking request, 10-seater minibus Fri 13 Nov 18:15 Browns
+  Brasserie S1 2JL -> Magna S60 1FD (asked about a return); CMS Julie Pepper (Senior Facilities Manager) passed
+  us to their Senior Travel & Operations Manager, use local taxis for now, keeping us on file.
+
 - **4 Nov 2026** — DECISION: Google Ads stopped completely (can't afford it). Pause the
   campaign (don't delete; GTM + "CET web booking" conversion stay, they're free). Focus now
   = free social media + winning corporate/partner accounts. 90-day social plan deployed

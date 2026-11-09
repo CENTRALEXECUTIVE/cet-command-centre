@@ -52,8 +52,8 @@ return [
                 'label' => 'Day-4 follow-up',
                 'subject' => 'Re: {original_subject}',
                 'body' => "Dear {first_name},\n\n"
-                    ."We wanted to follow up on our note about a corporate chauffeur account for {company}.\n\n"
-                    ."Many of our clients use us for the journeys that matter most: collecting visiting clients from the airport, getting senior staff to meetings on time, and keeping a car on hand throughout roadshows and events. Every journey is at a fixed fare agreed in advance, with one monthly VAT invoice.\n\n"
+                    ."I wanted to follow up on my note about a corporate chauffeur account for {company}.\n\n"
+                    ."Many of our clients use us for the journeys that matter most: collecting visiting customers from the airport, getting senior staff to meetings on time, and keeping a car on hand for site visits and events. Every journey is at a fixed fare agreed in advance, with one monthly VAT invoice.\n\n"
                     ."Would a short overview of the account service be helpful?\n\n"
                     ."Kind regards,\n[Signature]\n\n[Opt-out line]",
             ],
@@ -71,8 +71,8 @@ return [
                 'label' => 'Day-4 follow-up',
                 'subject' => 'Re: {original_subject}',
                 'body' => "Dear {first_name},\n\n"
-                    ."We wanted to follow up on our note about a reciprocal partnership.\n\n"
-                    ."We would be glad to support your bookings across Sheffield, South Yorkshire and the East Midlands, including Manchester, East Midlands and Leeds Bradford airports, and to refer work in your area to you in return. We are happy to start with a single booking so you can see how we operate.\n\n"
+                    ."I wanted to follow up on my note about a reciprocal partnership.\n\n"
+                    ."We would be glad to support your bookings across South Yorkshire and North Derbyshire, including Manchester, East Midlands and Leeds Bradford Airport transfers, and to refer work in your area to you in return. We are happy to start with a single booking so you can see how we operate.\n\n"
                     ."Would you be open to exchanging operator details?\n\n"
                     ."Kind regards,\n[Signature]\n\n[Opt-out line]",
             ],
