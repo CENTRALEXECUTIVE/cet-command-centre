@@ -1,5 +1,7 @@
 # CET 90-day social growth plan: 2 November 2026 to 31 January 2027
 
+> **Rule (directors, 5 Nov 2026), overrides any idea below:** never mention directors driving or "owner-run"; say professional, licensed chauffeurs. No prices or surcharges in posts.
+
 Builds on `setup.md` (scheduler, bios, link-in-bio, 15-shot evergreen list) and
 `2026-11-02-week.md` (week 1 pack). Facts only from `BUSINESS_FACTS.md`. Anything
 unconfirmed is marked `[CONFIRM: ...]` and collected in section 9.

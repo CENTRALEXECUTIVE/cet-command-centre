@@ -26,11 +26,11 @@ Account hygiene: one shared business email (admin@centralexecutivetransfers.co.u
 Common facts only from BUSINESS_FACTS. No years-trading, insurance or vetting claims until confirmed.
 
 - **Instagram (150 chars):** Executive chauffeur, Sheffield. Airport transfers, corporate accounts, group travel. Fixed prices. Book online or WhatsApp 07405 172435
-- **Facebook (About):** Owner-run executive chauffeur service in Sheffield and South Yorkshire. Airport transfers with flight tracking and meet & greet, corporate accounts with VAT invoices, V-Class and minibus for groups. Fixed prices quoted up front. Call 0114 399 8242 or WhatsApp +44 7405 172435.
+- **Facebook (About):** Executive chauffeur service in Sheffield and South Yorkshire. Airport transfers with flight tracking and meet & greet, corporate accounts with VAT invoices, V-Class and minibus for groups. Fixed prices quoted up front. Call 0114 399 8242 or WhatsApp +44 7405 172435.
 - **LinkedIn tagline:** Executive chauffeur and corporate transfers, Sheffield.
-- **LinkedIn About:** Central Executive Transfers Ltd (Company No. 15749931) is an owner-run, licensed private hire operator (Operator Licence OP037) based in Sheffield. We provide airport transfers, executive travel and corporate accounts for South Yorkshire businesses: fixed prices, flight tracking, VAT invoices and combined or monthly invoicing. The directors drive the executive work. Also: partner operators, get in touch for cover work.
+- **LinkedIn About:** Central Executive Transfers Ltd (Company No. 15749931) is a licensed private hire operator (Operator Licence OP037) based in Sheffield. We provide airport transfers, executive travel and corporate accounts for South Yorkshire businesses: fixed prices, flight tracking, VAT invoices and combined or monthly invoicing. Professional, licensed chauffeurs, council-licensed and enhanced-DBS checked. Also: partner operators, get in touch for cover work.
 - **TikTok (80 chars):** Executive chauffeur, Sheffield. Airport runs and behind the scenes. Book below.
-- **Google Business Profile description (750 max):** Owner-run executive chauffeur service in Sheffield. Airport transfers to Manchester, East Midlands, Leeds Bradford, Heathrow and more, with flight tracking and meet & greet. Corporate accounts with VAT invoices. Mercedes V-Class and minibuses for groups. Fixed prices quoted up front, live driver tracking, card or cash. Licensed private hire operator. Book online or call 0114 399 8242. Open 24/7.
+- **Google Business Profile description (750 max):** Executive chauffeur service in Sheffield. Airport transfers to Manchester, East Midlands, Leeds Bradford, Heathrow and more, with flight tracking and meet & greet. Corporate accounts with VAT invoices. Mercedes V-Class and minibuses for groups. Fixed prices quoted up front, live driver tracking, card or cash. Licensed private hire operator. Book online or call 0114 399 8242. Open 24/7.
 
 Handle: use the same name everywhere, e.g. `@centralexecutivetransfers` [CONFIRM availability].
 
@@ -57,7 +57,7 @@ Phone, vertical unless stated, 4K if storage allows, clean the lens, daylight or
 7. Boot loaded with luggage (dummy bags), showing capacity.
 8. Car prep sequence: wipe-down, vacuum, polish, 20 s timelapse.
 9. Director in smart dress by the car, no name board, smiling to camera (ask Abdi/Maj; own consent).
-10. "Director drives your car" talking head, 15 s, who we are.
+10. "Who we are" talking head, 15 s: licensed chauffeurs, 24/7 phone (never say the directors drive).
 11. Meet & greet: driver in arrivals holding a blank or "CET" sign (no real names), Manchester Airport [CONFIRM filming permission at the airport; use exterior/public areas only].
 12. Door held open, bags lifted into the car (a team member as dummy passenger).
 13. Phone showing a flight tracker (dummy flight) and the tracking link screen with fake data.
