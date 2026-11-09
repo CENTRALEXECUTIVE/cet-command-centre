@@ -149,6 +149,7 @@
                     <div class="field">
                         <label for="pickup_at">Pickup date &amp; time <span class="req">*</span></label>
                         <input id="pickup_at" type="datetime-local" name="pickup_at" value="{{ old('pickup_at', $pf['pickup_at'] ?? $quote?->pickup_at?->format('Y-m-d\TH:i')) }}" required>
+                        <div id="pickup-at-reminder" class="pickup-reminder" role="alert" hidden>⏰ Don't forget: set the pickup date &amp; time</div>
                         @error('pickup_at') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field" id="return_field">
@@ -1477,6 +1478,44 @@
         document.addEventListener('click', function () { setTimeout(render, 0); });
         setInterval(render, 1500); // picks up values set by the address/price scripts
         render();
+    })();
+    </script>
+    <style>
+        .pickup-reminder{ margin-top:6px; padding:8px 10px; border-radius:8px; font-weight:700; font-size:13.5px;
+            background:#fff4e0; color:#8a4b00; border:1px solid #f5b54a; }
+        .pickup-reminder.loud{ background:#fde8e8; color:#9b1c1c; border-color:#e02424; }
+        input.pickup-missing{ outline:3px solid #e02424 !important; outline-offset:1px; }
+    </style>
+    <script>
+    // The office kept forgetting the pickup date & time (directors, Nov 2026):
+    // an amber reminder sits under the field while it's empty, and trying to go
+    // Next / Confirm without it pops up a reminder and jumps to the field.
+    (function () {
+        var el = document.getElementById('pickup_at');
+        var note = document.getElementById('pickup-at-reminder');
+        if (!el || !note) return;
+        var lastAlert = 0;
+        function sync() {
+            var empty = !el.value;
+            note.hidden = !empty;
+            if (!empty) { note.classList.remove('loud'); el.classList.remove('pickup-missing'); }
+        }
+        el.addEventListener('input', sync);
+        el.addEventListener('change', sync);
+        el.addEventListener('invalid', function () {
+            if (el.value) return;
+            note.hidden = false;
+            note.classList.add('loud');
+            el.classList.add('pickup-missing');
+            if (Date.now() - lastAlert > 2000) {
+                lastAlert = Date.now();
+                setTimeout(function () {
+                    alert('Pickup date & time is missing.\n\nPlease set it before saving the booking.');
+                    try { el.scrollIntoView({ block: 'center' }); el.focus(); } catch (e) {}
+                }, 400);
+            }
+        });
+        sync();
     })();
     </script>
     @include('bookings.partials.form-v2')

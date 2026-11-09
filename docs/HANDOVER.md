@@ -245,6 +245,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Corporate account + optional cost code + PO/reference. Only fields the form sends are touched. No
   migration. Test: EditBookingMoreOptionsTest. Earlier today: multi-vehicle bookings, cost code optional,
   luggage-0 edit now sticks (Nicola Wright / Forged Solutions, 2 × V Class, VAT, £240).
+- **9 Nov 2026** — New booking: pickup date & time reminder (directors kept forgetting it). Amber note
+  under the field while it's empty; Next / Confirm without it turns it red, pops up a reminder and
+  jumps to the field. Front-end only.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
