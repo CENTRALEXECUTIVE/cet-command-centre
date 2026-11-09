@@ -75,7 +75,8 @@ class OutreachEmailComposer
 
         return strtr($text, [
             '{first_name}' => $first !== '' ? $first : 'there',
-            '{company}' => (string) $prospect->company,
+            // "Rolls-Royce (Advanced Blade Casting Facility)" reads as "Rolls-Royce" in a sentence.
+            '{company}' => self::teamName((string) $prospect->company) ?: (string) $prospect->company,
             '{original_subject}' => (string) ($prospect->email_subject ?: 'Executive travel for '.$prospect->company),
             '{sender}' => $senderName,
         ]);

@@ -55,4 +55,14 @@ class OutreachFollowUpTrackTest extends TestCase
         $this->assertStringStartsWith('Dear Andy,', $c->firstEmail($mk('Andy Smith', 'andrew@example.com'))['body']);
         $this->assertStringStartsWith('Dear Jo,', $c->firstEmail($mk('Jo Bloggs', 'jbloggs@example.com'))['body']);
     }
+
+    public function test_follow_ups_name_the_company_without_the_bracketed_site(): void
+    {
+        $p = Prospect::create(['company' => 'Rolls-Royce (Advanced Blade Casting Facility)', 'segment' => 'Aerospace manufacturing',
+            'status' => 'emailed', 'contact_email' => 'uk_enquiries@rolls-royce.com', 'fit_score' => 5]);
+        $body = app(OutreachEmailComposer::class)->followUps($p)['day_4']['body'];
+
+        $this->assertStringContainsString('corporate chauffeur account for Rolls-Royce.', $body);
+        $this->assertStringNotContainsString('(Advanced Blade Casting Facility)', $body);
+    }
 }
