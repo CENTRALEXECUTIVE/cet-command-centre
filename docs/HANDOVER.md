@@ -201,6 +201,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   migration 2026_11_09_000001 marks it Not interested. First batch review: untick TBR (already applied
   via their partner form 5 Nov; mark Replied), AMRC greets "Dear Ben" on a generic inbox (clear the
   contact name), DocFest and SCS were house-style picks on 3 Nov so may have been sent by hand already.
+- **9 Nov 2026** — Outreach follow-ups: managed ground transport / transfer platforms (CMAC, First Travel
+  Solutions, Suntransfers, Jayride, Holiday Taxis, Transferz, Kiwitaxi, NXTS, GroundSpan) were getting the
+  CORPORATE follow-up ("corporate chauffeur account… monthly VAT invoice"); partner_keywords now include
+  ground transport / managed transport / airport transfer / transfer platform so they get the partner
+  follow-ups. Council/NHS transport prospects still get the corporate follow-up (open: own wording?).
+  Batch cap: follow-ups due come first and count inside the 10/day, never on top.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

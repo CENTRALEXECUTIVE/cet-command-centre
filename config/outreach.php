@@ -13,7 +13,7 @@ return [
 
     // A prospect whose segment contains one of these words gets the PARTNER
     // (operator-to-operator) follow-ups; everyone else gets the CORPORATE ones.
-    'partner_keywords' => ['partner', 'operator', 'chauffeur', 'travel management', 'tmc', 'trade'],
+    'partner_keywords' => ['partner', 'operator', 'chauffeur', 'travel management', 'tmc', 'trade', 'ground transport', 'managed transport', 'airport transfer', 'transfer platform'],
 
     // Directors' choice (5 Nov 2026): drafts end at "Kind regards," and the mail
     // app adds their own signature (Matthew Green, Central Executive Transfers,
