@@ -34,6 +34,12 @@ class OutreachBatch
         return max(1, (int) config('outreach.batch.daily_limit', 10));
     }
 
+    /** Follow-ups allowed in a day's batch, so most of it is new emails. */
+    public static function maxFollowUps(): int
+    {
+        return max(0, (int) config('outreach.batch.max_follow_ups', 3));
+    }
+
     public static function isWeekend(?Carbon $now = null): bool
     {
         return ($now ?? Carbon::now(config('app.timezone')))->isWeekend();
@@ -47,6 +53,18 @@ class OutreachBatch
 
         return ProspectActivity::where('type', 'emailed')
             ->where('body', 'like', self::SENT_PREFIX.'%')
+            ->where('created_at', '>=', $start)
+            ->count();
+    }
+
+    /** How many of today's batch emails were follow-ups (the log names the stage). */
+    public function followUpsSentToday(): int
+    {
+        $start = Carbon::now(config('app.timezone', 'Europe/London'))->startOfDay()->utc();
+
+        return ProspectActivity::where('type', 'emailed')
+            ->where('body', 'like', self::SENT_PREFIX.'%')
+            ->where('body', 'like', '%follow-up, approved by%')
             ->where('created_at', '>=', $start)
             ->count();
     }
@@ -70,7 +88,7 @@ class OutreachBatch
             ->whereNotNull('next_action_at')
             ->whereDate('next_action_at', '<=', Carbon::today()->toDateString())
             ->orderBy('next_action_at')->orderByDesc('fit_score')->orderBy('id')
-            ->limit($limit)->get();
+            ->limit(min($limit, max(0, self::maxFollowUps() - $this->followUpsSentToday())))->get();
 
         $new = $due->count() < $limit
             ? Prospect::query()->where($hasEmail)->where('status', 'new')

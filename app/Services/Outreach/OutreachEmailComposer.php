@@ -45,7 +45,8 @@ class OutreachEmailComposer
     /** Apply merge fields and expand [Name]/[Signature]/[Opt-out line] placeholders. */
     public function merge(string $text, Prospect $prospect, ?User $sender = null): string
     {
-        $first = $prospect->firstName();
+        // Only greet a person by name when the address actually reaches them.
+        $first = $prospect->greetingName();
         $senderName = $this->senderName($prospect, $sender);
         $signature = str_replace('{sender}', $senderName, (string) config('outreach.signature'));
 

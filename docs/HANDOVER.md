@@ -207,6 +207,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   ground transport / managed transport / airport transfer / transfer platform so they get the partner
   follow-ups. Council/NHS transport prospects still get the corporate follow-up (open: own wording?).
   Batch cap: follow-ups due come first and count inside the 10/day, never on top.
+- **9 Nov 2026** — Outreach greetings: a name is used only when the address reaches that person
+  (`Prospect::greetingName`): shared inboxes (enquiries@, info@, sales@…) or someone else's address
+  (charles@ for contact Garry at SCS; rob.burton@ for Kevan) greet "Dear {Company} Team," (13 prospects).
+  DECISION: batch mainly NEW: at most 3 follow-ups a day inside the 10 (`outreach.batch.max_follow_ups`),
+  the rest wait oldest-first. TBR marked Replied (migration 2026_11_09_000002).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

@@ -9,7 +9,7 @@
             <div class="form-hero-glow"></div>
             <div class="fh-eyebrow">Sales · Outreach</div>
             <div class="fh-title">Today's batch</div>
-            <div class="fh-sub">Check each email, untick any you don't want, then approve. They send from admin@ with the Matthew Green signature. Weekdays only, up to {{ $limit }} a day.</div>
+            <div class="fh-sub">Check each email, untick any you don't want, then approve. They send from admin@ with the Matthew Green signature. Weekdays only, up to {{ $limit }} a day, mostly new: at most {{ \App\Services\Outreach\OutreachBatch::maxFollowUps() }} follow-ups (the rest wait for the next day).</div>
         </div>
     </div>
 

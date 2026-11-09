@@ -49,7 +49,7 @@ class OutreachBatchTest extends TestCase
         Mail::fake();
         $this->travelTo(Carbon::parse('2026-11-10 10:00')); // Tuesday
         $admin = User::factory()->admin()->create(['name' => 'Abdi']);
-        $p = $this->prospect(['company' => 'Acme', 'contact_name' => 'Jane Smith', 'cc_email' => 'boss@example.test']);
+        $p = $this->prospect(['company' => 'Acme', 'contact_name' => 'Jane Smith', 'contact_email' => 'jane.smith@example.test', 'cc_email' => 'boss@example.test']);
 
         $this->actingAs($admin)->post(route('outreach.batch.send'), ['ids' => [$p->id]])
             ->assertSessionHasErrors('confirm');
@@ -105,5 +105,22 @@ class OutreachBatchTest extends TestCase
         $driver = User::factory()->driver()->create();
         $this->actingAs($driver)->get(route('outreach.batch'))->assertStatus(403);
         $this->actingAs($driver)->post(route('outreach.batch.send'), ['ids' => [1], 'confirm' => '1'])->assertStatus(403);
+    }
+
+    public function test_the_batch_is_mostly_new_with_at_most_three_follow_ups(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-10 10:00')); // Tuesday
+        foreach (range(1, 5) as $i) {
+            $this->prospect(['status' => 'emailed', 'next_action_at' => '2026-11-09', 'email_subject' => 'Hi']);
+        }
+        foreach (range(1, 12) as $i) {
+            $this->prospect();
+        }
+
+        $batch = app(\App\Services\Outreach\OutreachBatch::class)->candidates();
+
+        $this->assertCount(10, $batch);
+        $this->assertSame(3, $batch->where('status', 'emailed')->count());
+        $this->assertSame(7, $batch->where('status', 'new')->count());
     }
 }

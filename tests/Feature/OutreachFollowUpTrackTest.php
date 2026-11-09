@@ -41,4 +41,18 @@ class OutreachFollowUpTrackTest extends TestCase
         $this->assertStringNotContainsString('corporate chauffeur account', $body);
         $this->assertStringContainsString('partnership', $body);
     }
+
+    public function test_a_name_is_only_used_when_the_address_reaches_that_person(): void
+    {
+        $c = app(OutreachEmailComposer::class);
+        $mk = fn ($name, $email) => Prospect::create(['company' => 'University of Sheffield AMRC', 'town' => $email, 'segment' => 'Research',
+            'status' => 'new', 'contact_name' => $name, 'contact_email' => $email, 'fit_score' => 5,
+            'email_subject' => 'Hello', 'email_body' => "Dear [Name],\n\nBody.\n\nKind regards,"]);
+
+        $this->assertStringStartsWith('Dear University of Sheffield AMRC Team,', $c->firstEmail($mk('Prof Ben Morgan (CEO)', 'enquiries@amrc.co.uk'))['body']);
+        $this->assertStringStartsWith('Dear University of Sheffield AMRC Team,', $c->firstEmail($mk('Garry Jones', 'charles@scschauffeur.co.uk'))['body']);
+        $this->assertStringStartsWith('Dear Ben,', $c->firstEmail($mk('Ben Morgan', 'ben.morgan@amrc.co.uk'))['body']);
+        $this->assertStringStartsWith('Dear Andy,', $c->firstEmail($mk('Andy Smith', 'andrew@example.com'))['body']);
+        $this->assertStringStartsWith('Dear Jo,', $c->firstEmail($mk('Jo Bloggs', 'jbloggs@example.com'))['body']);
+    }
 }

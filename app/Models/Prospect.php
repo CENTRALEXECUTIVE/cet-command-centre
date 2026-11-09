@@ -181,4 +181,37 @@ class Prospect extends Model
 
         return $parts[0] ?? '';
     }
+
+    /**
+     * The first name to greet in an email — only when the email address really
+     * reaches that person. A shared inbox (enquiries@, sales@, info@…) or an
+     * address for someone else (charles@ when the contact is Garry) greets the
+     * company team instead, so a stranger never opens "Dear Ben,". Empty = team.
+     */
+    public function greetingName(): string
+    {
+        $first = $this->firstName();
+        $local = strtolower((string) strstr((string) $this->contact_email, '@', true));
+        if ($first === '' || $local === '') {
+            return $first;
+        }
+
+        $token = preg_split('/[._\-+0-9]/', $local, -1, PREG_SPLIT_NO_EMPTY)[0] ?? $local;
+        if (in_array($local, self::SHARED_INBOXES, true) || in_array($token, self::SHARED_INBOXES, true)) {
+            return '';
+        }
+
+        // A personal address starts with the person's name or initial
+        // (ben@, ben.morgan@, bmorgan@, b.morgan@). Anything else is someone else's.
+        return str_starts_with($token, mb_strtolower(mb_substr($first, 0, 1))) ? $first : '';
+    }
+
+    /** Local parts that are shared inboxes, never one named person. */
+    public const SHARED_INBOXES = [
+        'info', 'enquiries', 'enquiry', 'enquire', 'sales', 'hello', 'hi', 'contact', 'contactus', 'admin', 'office',
+        'reception', 'bookings', 'booking', 'events', 'corpevents', 'event', 'support', 'team', 'mail', 'general',
+        'customercare', 'customerservice', 'customerservices', 'supplier', 'suppliers', 'procurement', 'purchasing',
+        'travel', 'res', 'reservations', 'hr', 'accounts', 'marketing', 'partners', 'partnerships', 'partner',
+        'operations', 'ops', 'help', 'service', 'services', 'newbusiness', 'business', 'press', 'media', 'careers',
+    ];
 }

@@ -28,6 +28,9 @@ return [
     // mailer (admin@, directors' choice 6 Nov 2026) with the signature below.
     'batch' => [
         'daily_limit' => (int) env('OUTREACH_DAILY_LIMIT', 10),
+        // Directors (9 Nov 2026): mainly NEW emails. At most this many follow-ups a
+        // day inside the daily limit; the rest wait (oldest first) for the next day.
+        'max_follow_ups' => (int) env('OUTREACH_MAX_FOLLOW_UPS', 3),
         'from_name' => 'Matthew Green | Central Executive Transfers',
         'signature' => [
             'name' => 'Matthew Green',
