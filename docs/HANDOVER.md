@@ -240,6 +240,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   actually used so "Re:" matches) and replies: Blacklane Replied (Sheffield not on their list; apply via
   partner portal), CMS Replied (Tanya Holt passed us to Julie Pepper: reply to Julie), Boeing Not interested.
   Rule: send outreach from the batch page, or tap "Mark emailed" after sending by hand, or duplicates go out.
+- **9 Nov 2026** — Edit booking now has the New-booking options: Vehicles (2 × V Class etc., capacity ×
+  count), Meet & greet with name board + meeting point, Wheelchair, How it came in, and (Payment section)
+  Corporate account + optional cost code + PO/reference. Only fields the form sends are touched. No
+  migration. Test: EditBookingMoreOptionsTest. Earlier today: multi-vehicle bookings, cost code optional,
+  luggage-0 edit now sticks (Nicola Wright / Forged Solutions, 2 × V Class, VAT, £240).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

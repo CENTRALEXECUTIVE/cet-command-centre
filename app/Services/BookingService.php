@@ -331,13 +331,17 @@ class BookingService
                     // An explicitly changed contact number wins over the calendar;
                     // an unchanged one leaves any existing override untouched.
                     'contact_override' => $contactOverride ?: ($booking->meta['contact_override'] ?? null),
-                ]),
+                ], $this->editExtras($booking, $data)),
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_method' => $data['payment_method'],
                 'payment_status' => $data['payment_status'] ?? $booking->payment_status,
                 'quoted_price' => $data['quoted_price'] ?? null,
                 'final_price' => $data['final_price'] ?? null,
-            ])->save();
+            ] + (array_key_exists('corporate_account_id', $data) ? [
+                'corporate_account_id' => $data['corporate_account_id'] ?: null,
+                'cost_code' => trim((string) ($data['cost_code'] ?? '')) ?: null,
+                'corporate_reference' => trim((string) ($data['corporate_reference'] ?? '')) ?: null,
+            ] : []))->save();
 
             // Keep the geocoded coordinates in step with an edited address, so the
             // driver's Waze / Google Maps links (which navigate to the exact point)
@@ -671,5 +675,39 @@ class BookingService
         }
 
         return $booking;
+    }
+
+    /**
+     * The extra options on the Edit form (Nov 2026): vehicles, meet & greet with its
+     * name board / meeting point, wheelchair, how it came in. Only keys the form
+     * actually sent are touched, so an older form or another caller can't wipe them.
+     */
+    private function editExtras(Booking $booking, array $data): array
+    {
+        $out = [];
+        if (array_key_exists('vehicle_count', $data)) {
+            $vc = (int) ($data['vehicle_count'] ?: 1);
+            $out['vehicle_count'] = $vc > 1 ? min($vc, 5) : null;
+        }
+        if (array_key_exists('meet_greet', $data)) {
+            $on = (bool) $data['meet_greet'];
+            $out['meet_greet'] = $on ?: null;
+            if (! $on) {
+                $out['meet_and_greet'] = null; // legacy key from imports
+            }
+        }
+        foreach (['meeting_board', 'meeting_point'] as $k) {
+            if (array_key_exists($k, $data)) {
+                $out[$k] = trim((string) $data[$k]) ?: null;
+            }
+        }
+        if (array_key_exists('wheelchair', $data)) {
+            $out['wheelchair'] = (bool) $data['wheelchair'] ?: null;
+        }
+        if (array_key_exists('booking_source', $data)) {
+            $out['enquiry_source'] = $data['booking_source'] ?: ($booking->meta['enquiry_source'] ?? null);
+        }
+
+        return $out;
     }
 }

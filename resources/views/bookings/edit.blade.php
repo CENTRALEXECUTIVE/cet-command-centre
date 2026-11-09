@@ -148,6 +148,12 @@
                         <input id="hand_luggage" type="number" name="hand_luggage" min="0" max="30" value="{{ old('hand_luggage', $booking->displayHandLuggage()) }}">
                     </div>
                 </div>
+                <div class="field" style="max-width:260px">
+                    <label for="vehicle_count">Vehicles <span class="muted">(same vehicle × this many)</span></label>
+                    <input id="vehicle_count" type="number" name="vehicle_count" min="1" max="5" value="{{ old('vehicle_count', (int) ($booking->meta['vehicle_count'] ?? 1)) }}">
+                    <p class="hint" style="margin:4px 0 0">e.g. 2 V-Class for 10 people. The price below is for all of them; add each car's driver under 🚗 Extra cars.</p>
+                    @error('vehicle_count') <div class="error">{{ $message }}</div> @enderror
+                </div>
                 <div class="grid grid-3">
                     <div class="field">
                         <label for="child_seats">Child seats</label>
@@ -175,6 +181,32 @@
                         <input type="hidden" name="ribbon" value="0">
                         <input type="checkbox" name="ribbon" value="1" style="width:auto" @checked($ribbonOn)>
                         🎀 Ribbon job <span class="muted" style="font-weight:400">(ribbons fitted to the car)</span>
+                    </label>
+                </div>
+                @php($mgOn = old('meet_greet', ! empty($booking->meta['meet_greet']) || ! empty($booking->meta['meet_and_greet'])))
+                <div class="field">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer">
+                        <input type="hidden" name="meet_greet" value="0">
+                        <input type="checkbox" id="meet_greet" name="meet_greet" value="1" style="width:auto" @checked($mgOn)
+                               onchange="document.getElementById('mg-detail').hidden = !this.checked">
+                        🪧 Meet &amp; greet <span class="muted" style="font-weight:400">(airport pickups only; the price isn't changed, adjust it below if needed)</span>
+                    </label>
+                    <div id="mg-detail" class="grid grid-2" style="margin-top:8px" @unless($mgOn) hidden @endunless>
+                        <div class="field" style="margin:0">
+                            <label for="meeting_board" style="font-size:12px">Name board</label>
+                            <input id="meeting_board" name="meeting_board" maxlength="160" value="{{ old('meeting_board', $booking->meta['meeting_board'] ?? '') }}" placeholder="e.g. Mr J Smith">
+                        </div>
+                        <div class="field" style="margin:0">
+                            <label for="meeting_point" style="font-size:12px">Meeting point</label>
+                            <input id="meeting_point" name="meeting_point" maxlength="300" value="{{ old('meeting_point', $booking->meta['meeting_point'] ?? '') }}" placeholder="e.g. Costa, arrivals hall">
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer">
+                        <input type="hidden" name="wheelchair" value="0">
+                        <input type="checkbox" name="wheelchair" value="1" style="width:auto" @checked(old('wheelchair', ! empty($booking->meta['wheelchair'])))>
+                        ♿ Wheelchair accessible
                     </label>
                 </div>
                 <div class="field">
@@ -207,6 +239,15 @@
                     <textarea id="driver_notes" name="driver_notes" placeholder="Extra info the customer gave — e.g. call on arrival, side entrance, luggage help needed…">{{ old('driver_notes', $booking->driverNotes()) }}</textarea>
                     <p class="hint" style="margin:4px 0 0">The driver sees this on their job screen. Use it for anything the customer told you that the driver should know.</p>
                 </div>
+                <div class="field" style="margin:12px 0 0;max-width:320px">
+                    <label for="booking_source">How did this booking come in? <span class="muted">(for the office)</span></label>
+                    <select id="booking_source" name="booking_source">
+                        <option value="">— Not recorded —</option>
+                        @foreach(['phone' => 'By phone', 'whatsapp' => 'WhatsApp', 'email' => 'Email', 'website' => 'Website', 'repeat' => 'Repeat / direct', 'other' => 'Other'] as $val => $label)
+                            <option value="{{ $val }}" @selected(old('booking_source', $booking->meta['enquiry_source'] ?? '') === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -214,11 +255,32 @@
         <div class="eto-section">
             <div class="head"><span class="ico">💳</span> Payment</div>
             <div class="body">
+                @if(isset($corporateAccounts) && $corporateAccounts->isNotEmpty())
+                    <div class="grid grid-2">
+                        <div class="field">
+                            <label for="corporate_account_id">Corporate account</label>
+                            <select id="corporate_account_id" name="corporate_account_id">
+                                <option value="">— Private booking —</option>
+                                @foreach($corporateAccounts as $acc)
+                                    <option value="{{ $acc->id }}" @selected((string) old('corporate_account_id', $booking->corporate_account_id) === (string) $acc->id)>{{ $acc->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="cost_code">Cost code <span class="muted">(optional)</span></label>
+                            <input id="cost_code" name="cost_code" maxlength="60" value="{{ old('cost_code', $booking->cost_code) }}">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="corporate_reference">Corporate reference / PO <span class="muted">(optional, shown on the invoice)</span></label>
+                        <input id="corporate_reference" name="corporate_reference" maxlength="120" value="{{ old('corporate_reference', $booking->corporate_reference) }}">
+                    </div>
+                @endif
                 <div class="grid grid-2">
                     <div class="field">
                         <label for="payment_method">Payment method <span class="req">*</span></label>
                         <select id="payment_method" name="payment_method" required>
-                            <option value="card" @selected(old('payment_method', $booking->payment_method?->value)==='card')>Card (Tide link)</option>
+                            <option value="card" @selected(old('payment_method', $booking->payment_method?->value)==='card')>Card (payment link)</option>
                             <option value="cash" @selected(old('payment_method', $booking->payment_method?->value)==='cash')>Cash</option>
                             <option value="account" @selected(old('payment_method', $booking->payment_method?->value)==='account')>Account (invoiced)</option>
                         </select>

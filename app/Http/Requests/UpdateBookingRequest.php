@@ -40,6 +40,16 @@ class UpdateBookingRequest extends FormRequest
             'pickup_at' => ['required', 'date'],
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required', 'string', 'max:500'],
+            // Same options as the New booking form (Nov 2026).
+            'vehicle_count' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'meet_greet' => ['nullable', 'boolean'],
+            'meeting_board' => ['nullable', 'string', 'max:160'],
+            'meeting_point' => ['nullable', 'string', 'max:300'],
+            'wheelchair' => ['nullable', 'boolean'],
+            'corporate_account_id' => ['nullable', 'integer', 'exists:corporate_accounts,id'],
+            'cost_code' => ['nullable', 'string', 'max:60'],
+            'corporate_reference' => ['nullable', 'string', 'max:120'],
+            'booking_source' => ['nullable', 'in:phone,whatsapp,email,website,repeat,other'],
             'via_stops' => ['nullable', 'array', 'max:10'],
             'via_stops.*' => ['nullable', 'string', 'max:500'],
             'flight_number' => ['nullable', 'string', 'max:32'],
@@ -91,7 +101,7 @@ class UpdateBookingRequest extends FormRequest
             // Capacity is across ALL cars on the job (lead + extra cars), so a big
             // group split over several vehicles is allowed once the cars are added.
             $booking = $this->route('booking');
-            $cars = $booking instanceof \App\Models\Booking ? max(1, $booking->vehicleCount()) : 1;
+            $cars = max($booking instanceof \App\Models\Booking ? max(1, $booking->carCount()) : 1, (int) ($this->input('vehicle_count') ?: ($booking instanceof \App\Models\Booking ? ($booking->meta['vehicle_count'] ?? 1) : 1)));
             $seats = $vehicleType->passenger_capacity * $cars;
 
             if ((int) $this->input('passengers') > $seats) {
