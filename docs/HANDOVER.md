@@ -248,6 +248,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **9 Nov 2026** — New booking: pickup date & time reminder (directors kept forgetting it). Amber note
   under the field while it's empty; Next / Confirm without it turns it red, pops up a reminder and
   jumps to the field. Front-end only.
+- **10 Nov 2026** — Claude read-only outreach report: super admin makes a key on Settings → Claude
+  access (hash stored only, shown once); Claude reads `GET /reports/claude/outreach` with
+  `Authorization: Bearer <key>` (today's sent/queued/batch awaiting approval, replies, due follow-ups,
+  pipeline). No bookings/customers/money; changes nothing. No migration. Test: ClaudeReportTest.
+  Also: social planner artifact (posts + ChatGPT prompts + first two real Reels), video skill styles.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 

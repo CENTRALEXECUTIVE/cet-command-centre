@@ -368,6 +368,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::post('alerts/hold', [\App\Http\Controllers\AlertsController::class, 'toggleHold'])
             ->middleware('throttle:30,1')->name('alerts.hold');
         Route::get('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'index'])->name('notifications.index');
+        // Read-only report key for Claude (super admins; Nov 2026).
+        Route::get('settings/claude-access', [\App\Http\Controllers\Admin\ClaudeAccessController::class, 'index'])->name('claude-access.index');
+        Route::post('settings/claude-access', [\App\Http\Controllers\Admin\ClaudeAccessController::class, 'generate'])->middleware('throttle:6,1')->name('claude-access.generate');
+        Route::post('settings/claude-access/revoke', [\App\Http\Controllers\Admin\ClaudeAccessController::class, 'revoke'])->middleware('throttle:6,1')->name('claude-access.revoke');
         Route::put('settings/notifications', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'update'])->name('notifications.update');
         Route::post('settings/notifications/test', [\App\Http\Controllers\Admin\NotificationPreferencesController::class, 'test'])->middleware('throttle:6,1')->name('notifications.test');
         // Call-only test: ring the business line to confirm the emergency line works.
@@ -572,6 +576,9 @@ Route::post('webhooks/square-chauffeurs', [WebhookController::class, 'squareChau
     ->name('webhooks.square-chauffeurs');
 // Stripe webhook for the sister company (Central Executive Transfers PVT LTD) —
 // no-VAT fare payments. Verified with the Stripe signing secret.
+// Read-only outreach report for Claude, locked by a bearer key (Settings → Claude access).
+Route::get('reports/claude/outreach', [\App\Http\Controllers\ClaudeReportController::class, 'outreach'])
+    ->middleware('throttle:30,1')->name('claude.report.outreach');
 Route::post('webhooks/stripe', [WebhookController::class, 'stripe'])
     ->middleware('throttle:120,1')
     ->name('webhooks.stripe');

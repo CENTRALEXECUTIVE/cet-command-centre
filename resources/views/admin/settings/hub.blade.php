@@ -49,6 +49,7 @@
 
         if ($isSuperAdmin) {
             $groups['People'][] = ['Notifications', 'Alert preferences and the emergency call line.', 'notifications.index', '🔔'];
+            $groups['People'][] = ['Claude access', 'Read-only outreach report key for Claude.', 'claude-access.index', '🔑'];
         }
     @endphp
 
