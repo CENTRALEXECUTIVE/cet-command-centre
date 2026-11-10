@@ -1,0 +1,9 @@
+{"hook":"What happens before your chauffeur arrives?",
+ "segments":[
+  {"src":"a0.mp4","dur":105,"caption":"Before every job","emphasis":["every"]},
+  {"src":"a1.mp4","dur":45,"caption":"Mats out and cleaned","emphasis":["cleaned"]},
+  {"src":"a2.mp4","dur":45,"caption":"Seats wiped down","emphasis":["wiped"]},
+  {"src":"a3.mp4","dur":45,"caption":"Every corner checked","emphasis":["corner"]},
+  {"src":"a4.mp4","dur":45,"caption":"Fresh water ready","emphasis":["water"]},
+  {"src":"a5.mp4","dur":90,"caption":"Ready when you are","emphasis":["ready"]}
+ ]}
