@@ -40,7 +40,7 @@ And to make it simple for you:
 - Driver details sent to you and the traveller before pickup
 - Phone answered 24/7 if plans change
 
-Whenever you next need a car, just reply to this email or give us a call and we'll take care of it.
+Whenever you next need a car, just reply to this email and we'll take care of it.
 
 Kind regards,
 TXT;
