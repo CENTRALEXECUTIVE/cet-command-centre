@@ -173,7 +173,6 @@ export const Reel = ({hook, segments, steps}) => {
         <Sequence key={i} from={s.from} durationInFrames={s.dur}>
           <Clip src={s.src} dur={s.dur} />
           {s.caption ? <Sequence from={i === 0 && hook ? 40 : 0}><Caption text={s.caption} emphasis={s.emphasis} dur={s.dur - (i === 0 && hook ? 40 : 0)} /></Sequence> : null}
-          <Audio src={staticFile('whoosh.wav')} volume={0.55} />
         </Sequence>
       ))}
       {hook ? <Sequence from={0} durationInFrames={placed[0].dur}><Hook text={hook} dur={placed[0].dur} /></Sequence> : null}
@@ -182,7 +181,6 @@ export const Reel = ({hook, segments, steps}) => {
       </Sequence>
       <Sequence from={at} durationInFrames={END}>
         <EndCard />
-        <Audio src={staticFile('impact.wav')} volume={0.9} />
       </Sequence>
     </AbsoluteFill>
   );

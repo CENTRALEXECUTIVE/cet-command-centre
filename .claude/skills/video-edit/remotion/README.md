@@ -4,7 +4,7 @@ Motion-graphics Reels: cinematic grade, zoom-blur + flash cuts on a 120 BPM grid
 per beat, so an in-app trending sound lines up), HUD overlay (gold corner brackets, scan line,
 live timecode, "CET // SHEFFIELD", progress bar), glass caption panels with words springing in,
 gold glow word + underline wipe, glitch typewriter hook on white pills, CENTRAL end card with
-light sweep. Synthesised whoosh/impact SFX only (royalty-free); trending music is added in the
+light sweep. No sound effects (directors: they sounded odd) and no baked-in music; the video ships silent and trending music is added in the
 TikTok/Instagram app (copyright: music baked into the file gets muted).
 
 Run (from a scratch copy, never commit node_modules or videos):
