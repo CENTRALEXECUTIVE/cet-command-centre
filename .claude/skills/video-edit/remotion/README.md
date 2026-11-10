@@ -1,6 +1,6 @@
 # CET futuristic Reel (Remotion) — house style v4, Nov 2026
 
-Motion-graphics Reels: cinematic grade, zoom-blur + flash cuts on a 120 BPM grid (15 frames
+Motion-graphics Reels: clean bright natural grade (directors, 10 Nov: NO teal/orange or yellow tint, no heavy vignette or grain — "gloomy"; use eq=contrast=1.06:saturation=1.1:brightness=0.035:gamma=1.03,unsharp=5:5:0.5), zoom-blur + flash cuts on a 120 BPM grid (15 frames
 per beat, so an in-app trending sound lines up), HUD overlay (gold corner brackets, scan line,
 live timecode, "CET // SHEFFIELD", progress bar), glass caption panels with words springing in,
 gold glow word + underline wipe, glitch typewriter hook on white pills, CENTRAL end card with

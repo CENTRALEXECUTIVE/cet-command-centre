@@ -27,7 +27,7 @@ const Footage = ({src, dur}) => {
       <AbsoluteFill style={{transform: `scale(${s})`, filter: `blur(${blur}px)`}}>
         <OffthreadVideo src={staticFile(src)} muted style={{width: '100%', height: '100%', objectFit: 'cover'}} />
       </AbsoluteFill>
-      <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(5,8,16,0.55) 0%, rgba(5,8,16,0.05) 30%, rgba(5,8,16,0.15) 55%, rgba(5,8,16,0.85) 100%)'}} />
+      <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)'}} />
     </AbsoluteFill>
   );
 };
@@ -78,7 +78,7 @@ const Title = ({lead, big, accent, y = 1240}) => {
   const c = spring({frame: f - 11, fps, config: {damping: 15, stiffness: 150}});
   const bar = interpolate(f, [4, 18], [0, 120], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease});
   return (
-    <div style={{position: 'absolute', top: y, left: 80, right: 160}}>
+    <div style={{position: 'absolute', top: y - 26, left: 50, right: 140, padding: '26px 30px 30px', borderRadius: 30, background: 'rgba(10,12,16,0.5)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1.5px solid rgba(255,255,255,0.14)'}}>
       <div style={{fontFamily: 'Mono', fontSize: 28, letterSpacing: 5, color: GOLD, opacity: a, transform: `translateX(${(1 - a) * -30}px)`}}>{lead}</div>
       <div style={{width: bar, height: 3, background: GOLD, margin: '14px 0 18px', boxShadow: `0 0 10px ${GOLD}`}} />
       <div style={{fontFamily: 'TT', fontWeight: 800, fontSize: 92, lineHeight: 1.0, color: 'white', letterSpacing: -1,
@@ -98,7 +98,7 @@ const Card = ({icon, title, lines, y = 560, delay = 4, tone = GOLD}) => {
   return (
     <div style={{position: 'absolute', top: y + float, left: 120, right: 200, perspective: 1200}}>
       <div style={{transform: `rotateX(${(1 - s) * 45}deg) translateY(${(1 - s) * 120}px) scale(${0.85 + 0.15 * s})`, opacity: s,
-        padding: '28px 30px', borderRadius: 30, background: 'rgba(255,255,255,0.14)', border: '1.5px solid rgba(255,255,255,0.28)',
+        padding: '28px 30px', borderRadius: 30, background: 'rgba(14,16,20,0.62)', border: '1.5px solid rgba(255,255,255,0.22)',
         backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)', boxShadow: '0 30px 80px rgba(0,0,0,0.45)',
         display: 'flex', gap: 24, alignItems: 'center'}}>
         <div style={{width: 92, height: 92, borderRadius: 24, background: tone, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 50, flex: 'none'}}>{icon}</div>
