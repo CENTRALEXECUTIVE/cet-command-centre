@@ -214,3 +214,8 @@ volume (licensing). Review: upload the MP4 to the social planner artifact; the d
 leave timestamped notes (db collection `notes`: post, postId, t, text) and Claude makes
 the next version from them. Never use clips showing a phone in hand while driving, other
 people's number plates, or faces of staff/customers.
+
+**Style menu item 2: numbered glass cards** (from a reference Reel, Nov 2026): `scripts/cet_reel_cards.py <spec.json> <out.mp4>`.
+A row of dark glass cards (1..5) floats near the top of b-roll; each step reveals the next card,
+the active one glows gold, with a big caption below; hook first, CENTRAL end card last.
+Best for list posts ("5 things before every airport pickup"). Spec format is in the script header.
