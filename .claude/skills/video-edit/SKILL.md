@@ -200,3 +200,17 @@ Environment check: `npx hyperframes doctor`
 **"npx hyperframes not found"** — run `npx skills add heygen-com/hyperframes` in the project directory.
 
 **Low memory warning from `doctor`** — close other apps; renders can fail with <1GB free. Use `--quality draft` for iteration.
+
+## CET house style v2 (approved direction, Nov 2026) — b-roll Reels with no talking
+
+For footage with no speech (car prep, driving POV): `scripts/cet_reel_v2.py <edl.json> <out.mp4>`
+(run with a Python that has Pillow). Per clip: 9:16 crop, slow 7% push-in zoom, big pop-in
+caption (white, 1 gold word, black outline) at 70% height, optional `hook` line at 22% on
+the first clip, original audio at 45%, then a 2.2 s CENTRAL end card (wordmark, gold rule,
+website). Pace: hook 2.5–3 s, then 1.8–2.2 s per shot, 15–20 s total. EDL clips add
+optional `hook` / `hook_emphasis`. Captions are short factual lines (BUSINESS_FACTS only),
+never speech we didn't record. Music: add a trending sound inside Instagram/TikTok at low
+volume (licensing). Review: upload the MP4 to the social planner artifact; the directors
+leave timestamped notes (db collection `notes`: post, postId, t, text) and Claude makes
+the next version from them. Never use clips showing a phone in hand while driving, other
+people's number plates, or faces of staff/customers.
