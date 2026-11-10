@@ -253,6 +253,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   `Authorization: Bearer <key>` (today's sent/queued/batch awaiting approval, replies, due follow-ups,
   pipeline). No bookings/customers/money; changes nothing. No migration. Test: ClaudeReportTest.
   Also: social planner artifact (posts + ChatGPT prompts + first two real Reels), video skill styles.
+- **10 Nov 2026** — Batch check before approval: First Travel already replied 3 Nov (registration link,
+  supplier.fts-tech.co.uk/register) → Replied. Vulcan Seals is an existing customer → first email goes to
+  Jane McGuinness personally (VAT registered, all travel nationwide, account; no closing question, directors'
+  wording). William Cook first email mentions a recent Parkway Avenue visitor we looked after (no customer
+  named, GDPR; Josh Polesky is Solar Turbines, not William Cook). Migration 2026_11_10_000001.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
