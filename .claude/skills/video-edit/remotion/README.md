@@ -21,3 +21,12 @@ Split-flap departures board hook (SHEFFIELD → MAN/LHR/LBA), floating glass UI 
 rule + big TikTok Sans line + Instrument Serif italic accent in gold), 01/05 step counter, soft
 blur-in cuts, navy gradient grade, end card "Every detail, handled." Fonts in public/: TikTokSans
 600/800, mono.ttf, serif-italic.ttf (Instrument Serif Italic, OFL).
+
+## Typography (directors, 10 Nov: "modern, futuristic, not a generic AI font")
+GitHub's open-source families (OFL), fetched as TTF from Google Fonts into public/:
+- **Hubot Sans Expanded ExtraBold** (hubot-x-800.ttf, wdth 125) — headlines, UPPERCASE, tracking -0.5/-1
+- **Hubot Sans Bold** (hubot-700.ttf) — card titles, small caps lines
+- **Mona Sans Medium** (mona-500.ttf) — body lines, website
+- **Geist Mono** (geist-mono.ttf, Vercel) — labels, HUD, split-flap board
+Accent line = solid CET gold (#FBBA2A) with a soft glow. Do NOT use outlined/stroked text with these
+variable fonts (overlapping contours show through). Glass panels: dark gradient + 1px gold hairline.

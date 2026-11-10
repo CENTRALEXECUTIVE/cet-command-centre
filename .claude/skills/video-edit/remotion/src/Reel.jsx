@@ -8,7 +8,10 @@ const GOLD = '#FBBA2A';
 const fontCss = `
 @font-face{font-family:TT;src:url(${staticFile('TikTokSans-800.ttf')});font-weight:800}
 @font-face{font-family:TT;src:url(${staticFile('TikTokSans-600.ttf')});font-weight:600}
-@font-face{font-family:Mono;src:url(${staticFile('mono.ttf')})}
+@font-face{font-family:Mono;src:url(${staticFile('geist-mono.ttf')})}
+@font-face{font-family:HubotX;src:url(${staticFile('hubot-x-800.ttf')})}
+@font-face{font-family:Hubot;src:url(${staticFile('hubot-700.ttf')})}
+@font-face{font-family:Mona;src:url(${staticFile('mona-500.ttf')})}
 `;
 
 /* ---------- video segment with zoom-blur entry + flash ---------- */
@@ -81,7 +84,7 @@ const Caption = ({text, emphasis = [], y = 1130, size = 72, dur}) => {
   return (
     <div style={{position: 'absolute', top: y, left: 60, right: 140, display: 'flex', justifyContent: 'center', opacity: out}}>
       <div style={{position: 'relative', padding: '22px 34px 26px', borderRadius: 26,
-        background: 'rgba(10,10,10,0.42)', border: '1.5px solid rgba(255,255,255,0.18)',
+        background: 'linear-gradient(135deg, rgba(10,10,12,0.6), rgba(10,10,12,0.36))', border: '1px solid rgba(251,186,42,0.4)',
         backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
         boxShadow: '0 20px 60px rgba(0,0,0,0.35)', transform: `scale(${0.9 + 0.1 * panelIn})`, opacity: panelIn,
         display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0 18px', maxWidth: 900}}>
@@ -89,7 +92,7 @@ const Caption = ({text, emphasis = [], y = 1130, size = 72, dur}) => {
           const s = spring({frame: f - 3 - i * 3, fps, config: {damping: 14, stiffness: 180}});
           const isE = emph.includes(w.replace(/[.,!?]/g, '').toLowerCase());
           return (
-            <span key={i} style={{fontFamily: 'TT', fontWeight: 800, fontSize: size, lineHeight: 1.12,
+            <span key={i} style={{fontFamily: 'HubotX', fontSize: size * 0.82, lineHeight: 1.15, textTransform: 'uppercase', letterSpacing: -0.5,
               color: isE ? GOLD : 'white', display: 'inline-block',
               transform: `translateY(${(1 - s) * 50}px)`, opacity: s, filter: `blur(${(1 - s) * 8}px)`,
               textShadow: isE ? `0 0 24px rgba(251,186,42,0.75)` : '0 2px 12px rgba(0,0,0,0.45)'}}>{w}</span>
@@ -123,9 +126,9 @@ const Hook = ({text, dur}) => {
     <div style={{position: 'absolute', top: 360, left: 40, right: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, opacity: out}}>
       {lines.map((l, i) => (
         <div key={i} style={{background: 'white', borderRadius: 18, padding: '10px 26px', position: 'relative', whiteSpace: 'nowrap'}}>
-          <span style={{fontFamily: 'TT', fontWeight: 800, fontSize: 64, color: '#0c0c0c',
+          <span style={{fontFamily: 'HubotX', fontSize: 50, color: '#0c0c0c', textTransform: 'uppercase', letterSpacing: -0.5,
             textShadow: glitch ? `${glitch}px 0 rgba(255,0,60,0.7), ${-glitch}px 0 rgba(0,220,255,0.7)` : 'none'}}>{l}</span>
-          {i === lines.length - 1 && chars < text.length ? <span style={{fontFamily: 'TT', fontWeight: 800, fontSize: 70, color: GOLD}}>|</span> : null}
+          {i === lines.length - 1 && chars < text.length ? <span style={{fontFamily: 'HubotX', fontSize: 50, color: GOLD}}>|</span> : null}
         </div>
       ))}
     </div>
@@ -145,7 +148,7 @@ const EndCard = () => {
       <div style={{position: 'relative', display: 'flex', gap: 34, overflow: 'hidden', padding: '10px 20px'}}>
         {letters.map((c, i) => {
           const s = spring({frame: f - i * 2, fps, config: {damping: 16, stiffness: 140}});
-          return <span key={i} style={{fontFamily: 'TT', fontWeight: 800, fontSize: 112, color: 'white',
+          return <span key={i} style={{fontFamily: 'HubotX', fontSize: 100, color: 'white',
             transform: `translateY(${(1 - s) * 80}px)`, opacity: s}}>{c}</span>;
         })}
         <div style={{position: 'absolute', top: 0, bottom: 0, left: sweep, width: 160,
@@ -153,9 +156,9 @@ const EndCard = () => {
       </div>
       <div style={{height: 5, width: lineW, background: GOLD, boxShadow: `0 0 18px ${GOLD}`, margin: '18px 0 30px'}} />
       <div style={{opacity: sub, transform: `translateY(${(1 - sub) * 20}px)`, textAlign: 'center'}}>
-        <div style={{fontFamily: 'TT', fontWeight: 600, fontSize: 46, color: 'white'}}>Executive Transfers</div>
+        <div style={{fontFamily: 'Hubot', fontSize: 44, color: 'white', textTransform: 'uppercase', letterSpacing: 4}}>Executive Transfers</div>
         <div style={{fontFamily: 'Mono', fontSize: 26, color: 'rgba(255,255,255,0.6)', letterSpacing: 4, marginTop: 14}}>SHEFFIELD · SOUTH YORKSHIRE · NATIONWIDE</div>
-        <div style={{fontFamily: 'TT', fontWeight: 600, fontSize: 40, color: GOLD, marginTop: 22}}>centralexecutivetransfers.co.uk</div>
+        <div style={{fontFamily: 'Mona', fontSize: 38, color: GOLD, marginTop: 22}}>centralexecutivetransfers.co.uk</div>
       </div>
     </AbsoluteFill>
   );

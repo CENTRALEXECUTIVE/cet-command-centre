@@ -14,6 +14,10 @@ const css = `
 @font-face{font-family:TT;src:url(${staticFile('TikTokSans-600.ttf')});font-weight:600}
 @font-face{font-family:Mono;src:url(${staticFile('mono.ttf')})}
 @font-face{font-family:SerifI;src:url(${staticFile('serif-italic.ttf')})}
+@font-face{font-family:HubotX;src:url(${staticFile('hubot-x-800.ttf')})}
+@font-face{font-family:Hubot;src:url(${staticFile('hubot-700.ttf')})}
+@font-face{font-family:Mona;src:url(${staticFile('mona-500.ttf')})}
+@font-face{font-family:GMono;src:url(${staticFile('geist-mono.ttf')})}
 `;
 const ease = Easing.out(Easing.cubic);
 
@@ -44,7 +48,7 @@ const Flap = ({target, start, seed}) => {
     <div style={{width: 46, height: 66, margin: '0 2px', borderRadius: 6, background: 'linear-gradient(180deg,#1c1c1c 0 49%,#0b0b0b 51% 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.06), 0 4px 10px rgba(0,0,0,0.5)',
       position: 'relative', transform: `scaleY(${flip})`}}>
-      <span style={{fontFamily: 'Mono', fontSize: 44, color: ch === ' ' ? 'transparent' : (ch === '→' || ch === '·' ? GOLD : '#f5d36b')}}>{ch === ' ' ? '_' : ch}</span>
+      <span style={{fontFamily: 'GMono', fontSize: 44, color: ch === ' ' ? 'transparent' : (ch === '→' || ch === '·' ? GOLD : '#f5d36b')}}>{ch === ' ' ? '_' : ch}</span>
       <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: 'rgba(0,0,0,0.8)'}} />
     </div>
   );
@@ -57,7 +61,7 @@ const Board = ({rows}) => {
     <div style={{position: 'absolute', top: 300, left: 50, right: 50, padding: '26px 22px 30px', borderRadius: 26,
       background: 'rgba(8,8,8,0.82)', border: '1.5px solid rgba(255,255,255,0.12)', boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
       transform: `translateY(${(1 - pop) * 60}px)`, opacity: pop}}>
-      <div style={{display: 'flex', justifyContent: 'space-between', fontFamily: 'Mono', fontSize: 24, letterSpacing: 6, color: 'rgba(255,255,255,0.55)', marginBottom: 16}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', fontFamily: 'GMono', fontSize: 24, letterSpacing: 6, color: 'rgba(255,255,255,0.55)', marginBottom: 16}}>
         <span>✈ DEPARTURES</span><span style={{color: GOLD}}>CET</span>
       </div>
       {rows.map((r, ri) => (
@@ -78,13 +82,13 @@ const Title = ({lead, big, accent, y = 1240}) => {
   const c = spring({frame: f - 11, fps, config: {damping: 15, stiffness: 150}});
   const bar = interpolate(f, [4, 18], [0, 120], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease});
   return (
-    <div style={{position: 'absolute', top: y - 26, left: 50, right: 140, padding: '26px 30px 30px', borderRadius: 30, background: 'rgba(10,12,16,0.5)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1.5px solid rgba(255,255,255,0.14)'}}>
-      <div style={{fontFamily: 'Mono', fontSize: 28, letterSpacing: 5, color: GOLD, opacity: a, transform: `translateX(${(1 - a) * -30}px)`}}>{lead}</div>
+    <div style={{position: 'absolute', top: y - 26, left: 50, right: 140, padding: '26px 30px 30px', borderRadius: 30, background: 'linear-gradient(135deg, rgba(10,12,16,0.62), rgba(10,12,16,0.38))', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(251,186,42,0.35)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.35)'}}>
+      <div style={{fontFamily: 'GMono', fontSize: 28, letterSpacing: 5, color: GOLD, opacity: a, transform: `translateX(${(1 - a) * -30}px)`}}>{lead}</div>
       <div style={{width: bar, height: 3, background: GOLD, margin: '14px 0 18px', boxShadow: `0 0 10px ${GOLD}`}} />
-      <div style={{fontFamily: 'TT', fontWeight: 800, fontSize: 92, lineHeight: 1.0, color: 'white', letterSpacing: -1,
+      <div style={{fontFamily: 'HubotX', fontSize: 78, lineHeight: 1.02, color: 'white', letterSpacing: -1, textTransform: 'uppercase',
         opacity: b, transform: `translateY(${(1 - b) * 40}px)`, filter: `blur(${(1 - b) * 8}px)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)'}}>{big}</div>
-      {accent ? <div style={{fontFamily: 'SerifI', fontSize: 104, lineHeight: 1.05, color: GOLD, opacity: c,
-        transform: `translateY(${(1 - c) * 40}px)`, filter: `blur(${(1 - c) * 8}px)`, textShadow: '0 0 30px rgba(251,186,42,0.35)'}}>{accent}</div> : null}
+      {accent ? <div style={{fontFamily: 'HubotX', fontSize: 70, lineHeight: 1.08, color: GOLD, textTransform: 'uppercase', letterSpacing: -0.5, marginTop: 6, opacity: c,
+        transform: `translateY(${(1 - c) * 40}px)`, filter: `blur(${(1 - c) * 8}px)`, filter: `blur(${(1 - c) * 8}px) drop-shadow(0 0 14px rgba(251,186,42,0.45))`}}>{accent}</div> : null}
     </div>
   );
 };
@@ -98,13 +102,13 @@ const Card = ({icon, title, lines, y = 560, delay = 4, tone = GOLD}) => {
   return (
     <div style={{position: 'absolute', top: y + float, left: 120, right: 200, perspective: 1200}}>
       <div style={{transform: `rotateX(${(1 - s) * 45}deg) translateY(${(1 - s) * 120}px) scale(${0.85 + 0.15 * s})`, opacity: s,
-        padding: '28px 30px', borderRadius: 30, background: 'rgba(14,16,20,0.62)', border: '1.5px solid rgba(255,255,255,0.22)',
+        padding: '28px 30px', borderRadius: 30, background: 'rgba(14,16,20,0.62)', border: '1px solid rgba(251,186,42,0.4)',
         backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)', boxShadow: '0 30px 80px rgba(0,0,0,0.45)',
         display: 'flex', gap: 24, alignItems: 'center'}}>
         <div style={{width: 92, height: 92, borderRadius: 24, background: tone, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 50, flex: 'none'}}>{icon}</div>
         <div style={{minWidth: 0}}>
-          <div style={{fontFamily: 'TT', fontWeight: 800, fontSize: 42, color: 'white'}}>{title}</div>
-          {lines.map((l, i) => <div key={i} style={{fontFamily: 'TT', fontWeight: 600, fontSize: 32, color: 'rgba(255,255,255,0.78)', marginTop: 6}}>{l}</div>)}
+          <div style={{fontFamily: 'Hubot', fontSize: 40, color: 'white'}}>{title}</div>
+          {lines.map((l, i) => <div key={i} style={{fontFamily: 'Mona', fontSize: 31, color: 'rgba(255,255,255,0.8)', marginTop: 6}}>{l}</div>)}
         </div>
       </div>
     </div>
@@ -115,8 +119,8 @@ const Counter = ({n, total}) => {
   const f = useCurrentFrame();
   const o = interpolate(f, [0, 6], [0, 1], {extrapolateRight: 'clamp'});
   return (
-    <div style={{position: 'absolute', top: 150, right: 160, fontFamily: 'Mono', fontSize: 30, letterSpacing: 4, color: 'white', opacity: o}}>
-      <span style={{color: GOLD, fontSize: 64, fontFamily: 'TT', fontWeight: 800}}>{String(n).padStart(2, '0')}</span> / {String(total).padStart(2, '0')}
+    <div style={{position: 'absolute', top: 150, right: 160, fontFamily: 'GMono', fontSize: 30, letterSpacing: 4, color: 'white', opacity: o}}>
+      <span style={{color: GOLD, fontSize: 64, fontFamily: 'HubotX'}}>{String(n).padStart(2, '0')}</span> / {String(total).padStart(2, '0')}
     </div>
   );
 };
@@ -129,12 +133,12 @@ const End = () => {
   const line = interpolate(f, [6, 24], [0, 300], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease});
   return (
     <AbsoluteFill style={{background: 'radial-gradient(circle at 50% 40%, #12161f 0%, #05070b 65%)', alignItems: 'center', justifyContent: 'center', textAlign: 'center'}}>
-      <div style={{fontFamily: 'SerifI', fontSize: 84, color: 'white', opacity: a, transform: `translateY(${(1 - a) * 30}px)`}}>Every detail, <span style={{color: GOLD}}>handled.</span></div>
+      <div style={{fontFamily: 'HubotX', fontSize: 64, color: 'white', textTransform: 'uppercase', letterSpacing: -0.5, opacity: a, transform: `translateY(${(1 - a) * 30}px)`}}>Every detail<br/><span style={{color: GOLD}}>handled.</span></div>
       <div style={{width: line, height: 3, background: GOLD, margin: '34px 0', boxShadow: `0 0 14px ${GOLD}`}} />
       <div style={{opacity: b, transform: `translateY(${(1 - b) * 20}px)`}}>
-        <div style={{fontFamily: 'TT', fontWeight: 800, fontSize: 70, letterSpacing: 22, color: 'white', marginLeft: 22}}>CENTRAL</div>
-        <div style={{fontFamily: 'Mono', fontSize: 26, letterSpacing: 5, color: 'rgba(255,255,255,0.6)', marginTop: 14}}>EXECUTIVE TRANSFERS · SHEFFIELD</div>
-        <div style={{fontFamily: 'TT', fontWeight: 600, fontSize: 40, color: GOLD, marginTop: 26}}>centralexecutivetransfers.co.uk</div>
+        <div style={{fontFamily: 'HubotX', fontSize: 64, letterSpacing: 20, color: 'white', marginLeft: 20}}>CENTRAL</div>
+        <div style={{fontFamily: 'GMono', fontSize: 26, letterSpacing: 5, color: 'rgba(255,255,255,0.6)', marginTop: 14}}>EXECUTIVE TRANSFERS · SHEFFIELD</div>
+        <div style={{fontFamily: 'Mona', fontSize: 38, color: GOLD, marginTop: 26}}>centralexecutivetransfers.co.uk</div>
       </div>
     </AbsoluteFill>
   );
