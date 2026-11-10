@@ -8,8 +8,9 @@ import json, subprocess, sys, tempfile
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-sys.path.insert(0, "/home/user/cet-command-centre/.claude/skills/video-edit/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import burn_captions_pil as cap  # noqa
+import cet_tiktok_text as tt  # noqa
 sys.path.insert(0, str(Path(__file__).parent))
 
 W, H, FPS = 1080, 1920, 30
@@ -42,7 +43,7 @@ def caption(d, text, y_ratio, size, emphasis):
 def cards_png(steps, shown, active, out, cap_text=None, emph=()):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     n = len(steps); gap = 18; cw = (W - 80 - gap * (n - 1)) // n; ch = 250; top = 300
-    fnum = ImageFont.truetype(BOLD, 54); flab = ImageFont.truetype(FONT, 30); fsub = ImageFont.truetype(FONT, 25)
+    fnum = ImageFont.truetype(tt.BOLD, 56); flab = ImageFont.truetype(tt.BOLD, 30); fsub = ImageFont.truetype(tt.SEMI, 25)
     for i in range(shown):
         x0 = 40 + i * (cw + gap); y0 = top - (14 if i == active else 0)
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0)); ld = ImageDraw.Draw(layer)
@@ -58,9 +59,10 @@ def cards_png(steps, shown, active, out, cap_text=None, emph=()):
             glow = layer.filter(ImageFilter.GaussianBlur(10))
             img = Image.alpha_composite(img, glow)
         img = Image.alpha_composite(img, layer)
-    if cap_text:
-        caption(ImageDraw.Draw(img), cap_text, 0.70, 100, emph)
     img.save(out)
+    if cap_text:
+        c = Path(str(out) + ".cap.png"); tt.caption_png(cap_text, c, emph)
+        img = Image.alpha_composite(Image.open(out), Image.open(c)); img.save(out)
 
 
 def end_card(out_png):
@@ -98,8 +100,7 @@ def main():
         run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-t", str(total), "-c", "copy", str(bg)])
         # 2) overlay states
         pngs = []
-        hook = tmp / "s0.png"; img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        caption(ImageDraw.Draw(img), spec["hook"], 0.45, 108, spec.get("hook_emphasis", [])); img.save(hook)
+        hook = tmp / "s0.png"; tt.hook_png(spec["hook"], hook, y_ratio=0.40)
         pngs.append((hook, 0, hs))
         for i, st in enumerate(steps):
             p = tmp / f"s{i+1}.png"; cards_png(steps, i + 1, i, p, st["caption"], st.get("emphasis", []))
@@ -113,7 +114,7 @@ def main():
         body = tmp / "body.mp4"
         run(["ffmpeg", "-y", *inputs, "-filter_complex", fc.rstrip(";"), "-map", f"[{last}]", "-map", "0:a?",
              "-t", str(total), "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", str(body)])
-        ec = tmp / "end.png"; end_card(ec); endv = tmp / "end.mp4"
+        ec = tmp / "end.png"; tt.end_card_png(ec); endv = tmp / "end.mp4"
         run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(ec), "-f", "lavfi", "-t", "2.2", "-i",
              "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", "-c:v", "libx264",
              "-preset", "fast", "-crf", "20", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-shortest", str(endv)])

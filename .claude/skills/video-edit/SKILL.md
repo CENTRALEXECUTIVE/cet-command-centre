@@ -219,3 +219,13 @@ people's number plates, or faces of staff/customers.
 A row of dark glass cards (1..5) floats near the top of b-roll; each step reveals the next card,
 the active one glows gold, with a big caption below; hook first, CENTRAL end card last.
 Best for list posts ("5 things before every airport pickup"). Spec format is in the script header.
+
+**TikTok-native text (Nov 2026, directors: "professional, sleek, like TikTok")** — all CET Reel
+scripts now use `scripts/cet_tiktok_text.py`: TikTok Sans (fonts/TikTokSans-600/800.ttf, OFL from
+Google Fonts), sentence case; hook = white rounded pill per line with black text (TikTok
+"background" style); captions = white text on a dark translucent rounded box per line, one gold
+word, lines balanced (no orphan word), inside the TikTok/Reels safe zone (bottom 22% and the right
+button column clear). Style menu item 3: **photo slideshow** `scripts/cet_photo_reel.py` (fills
+9:16, 6% push-in per photo, 1.6 s per slide, hook on slide 1, captions on every other slide).
+Only use cars we run (E-Class, V-Class); leave out the Rolls-Royce/Audi/venue shots until the
+directors confirm they're ours to show.

@@ -5,8 +5,9 @@ import json, subprocess, sys, tempfile
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-sys.path.insert(0, "/home/user/cet-command-centre/.claude/skills/video-edit/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import burn_captions_pil as cap  # noqa
+import cet_tiktok_text as tt  # noqa
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (251, 186, 42, 255)
@@ -76,9 +77,9 @@ def main():
             frames = int(dur * FPS)
             zoom = f"zoompan=z='1+0.07*on/{frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={FPS}"
             pngs = []
-            p = tmp / f"cap{i}.png"; text_png([c["caption_text"]], p, 0.70, 104, c.get("caption_emphasis", [])); pngs.append(p)
+            p = tmp / f"cap{i}.png"; tt.caption_png(c["caption_text"], p, c.get("caption_emphasis", [])); pngs.append(p)
             if c.get("hook"):
-                h = tmp / f"hook{i}.png"; text_png([c["hook"]], h, 0.22, 88, c.get("hook_emphasis", [])); pngs.append(h)
+                h = tmp / f"hook{i}.png"; tt.hook_png(c["hook"], h); pngs.append(h)
             inputs = ["-ss", str(c["in_s"]), "-t", str(dur), "-i", str(src)]
             fc = f"[0:v]{cap.crop_filter(sw, sh)},{zoom},format=yuv420p[v0];"
             last = "v0"
@@ -92,7 +93,7 @@ def main():
                  "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-r", str(FPS),
                  "-c:a", "aac", "-b:a", "160k", "-ac", "2", str(part)])
             parts.append(part)
-        ec = tmp / "end.png"; end_card(ec)
+        ec = tmp / "end.png"; tt.end_card_png(ec)
         endv = tmp / "end.mp4"
         run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(ec), "-f", "lavfi", "-t", "2.2", "-i",
              "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", "-c:v", "libx264",
