@@ -276,6 +276,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   still matched (`Phone::variants`) so no duplicates.
 - **11 Nov 2026 (late)** — Confirmation email money (directors): VAT bookings list each journey EX-VAT, then
   Subtotal (excl. VAT), VAT (20%), Total — replaces the "Includes VAT" note. US numbers display +1 734 629 2334.
+- **11 Nov 2026 (late)** — Outreach: EG Chauffeurs marked Replied (no auto follow-up); Mercure H6628@accor.com
+  bounced → on hold, no address (migration 2026_11_11_000002 — needs `migrate`). Pricing review agent run: findings
+  being fixed with the directors (no-postcode = Sheffield default, PA3/Oban collision, Doncaster→Exeter typo).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
