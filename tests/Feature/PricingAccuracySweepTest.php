@@ -45,9 +45,14 @@ class PricingAccuracySweepTest extends TestCase
     /** Executive fixed fare to Manchester Airport for each home-catchment address. */
     private const LOCAL_TO_MANCHESTER = [
         'Sheffield S1 2HH' => 105.0, 'Mosborough, Sheffield S20 5AA' => 105.0,
-        'Rotherham S60 1AA' => 105.0, 'Barnsley S70 1AA' => 105.0, 'Chesterfield S40 1AA' => 110.0,
-        'Doncaster DN1 1AA' => 140.0, 'Bawtry DN10 6AA' => 140.0, 'Worksop S80 1AA' => 125.0,
-        'Mansfield NG18 1AA' => 150.0, 'Matlock DE4 3AA' => 150.0, 'Meadowhall Centre' => 105.0,
+        'Rotherham S60 1AA' => 105.0, 'Barnsley S70 1AA' => 105.0, 'Chesterfield S40 1AA' => 105.0,
+        'Meadowhall Centre' => 105.0,
+    ];
+
+    /** Towns now on the mileage guide, never a fixed fare (directors, 11 Nov 2026). */
+    private const MILEAGE_TOWNS = [
+        'Doncaster DN1 1AA', 'Bawtry DN10 6AA', 'Worksop S80 1AA', 'Mansfield NG18 1AA',
+        'Matlock DE4 3AA', 'Bakewell DE45 1AA',
     ];
 
     /** Far addresses that must NEVER get a local fixed fare. */
@@ -118,6 +123,34 @@ class PricingAccuracySweepTest extends TestCase
             $this->assertTrue($q['fixed'], "{$address} → Manchester Airport should be a FIXED fare");
             $this->assertEqualsWithDelta($fare, $q['price'], 0.01, "{$address} → Manchester Airport fare");
         }
+    }
+
+    public function test_doncaster_worksop_mansfield_matlock_and_bakewell_are_priced_by_mileage(): void
+    {
+        $quotes = app(QuoteService::class);
+        foreach (self::MILEAGE_TOWNS as $address) {
+            foreach (['Manchester Airport', 'Heathrow Airport', 'Humberside Airport', 'Newcastle Airport'] as $airport) {
+                $q = $quotes->quote($address, $airport, $this->exec());
+                $this->assertFalse($q['fixed'], "{$address} → {$airport} must be mileage-priced");
+                $this->assertNotNull($q['price'], "{$address} → {$airport} should still be priced");
+            }
+        }
+    }
+
+    public function test_an_address_with_no_postcode_never_gets_a_blind_sheffield_fare(): void
+    {
+        // "Huddersfield" (no postcode, ~27 mi) used to fall to the Sheffield default: £290 to Heathrow.
+        $this->stubDistances(180);
+        $q = app(QuoteService::class)->quote('Huddersfield', 'Heathrow Airport', $this->exec());
+        $this->assertFalse($q['fixed']);
+        $this->assertGreaterThan(400, (float) $q['price']);
+    }
+
+    public function test_oban_is_not_glasgow_airport(): void
+    {
+        $q = app(QuoteService::class)->quote('Sheffield S1 2HH', 'Oban PA34 4AA', $this->exec());
+        $this->assertFalse($q['fixed'], 'PA34 (Oban) must not match Glasgow Airport PA3');
+        $this->assertTrue(app(QuoteService::class)->quote('Sheffield S1 2HH', 'Glasgow Airport PA3 2SW', $this->exec())['fixed']);
     }
 
     public function test_no_out_of_area_address_ever_gets_a_local_fixed_fare_to_any_airport(): void

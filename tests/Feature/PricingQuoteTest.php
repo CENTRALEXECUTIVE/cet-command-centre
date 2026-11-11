@@ -67,12 +67,13 @@ class PricingQuoteTest extends TestCase
         $quotes = app(QuoteService::class);
         $exec = VehicleType::where('slug', 'executive')->first();
 
-        // East Midlands: £90 from S20/Chesterfield, £105 from general Sheffield.
+        // East Midlands: £90 from S20, £105 from general Sheffield. Chesterfield is on
+        // Sheffield's fares (directors, 11 Nov 2026).
         $this->assertEquals(90.0, $quotes->quote('Sheffield S20 1AB', 'East Midlands Airport', $exec)['price']);
-        $this->assertEquals(90.0, $quotes->quote('Chesterfield S40 1AA', 'East Midlands Airport', $exec)['price']);
+        $this->assertEquals(105.0, $quotes->quote('Chesterfield S40 1AA', 'East Midlands Airport', $exec)['price']);
         $this->assertEquals(105.0, $quotes->quote('Sheffield S10 4BL', 'East Midlands Airport', $exec)['price']);
 
-        // Birmingham: £140 from S20/Chesterfield, £150 from Sheffield/Rotherham.
+        // Birmingham: £140 from S20, £150 from Sheffield/Rotherham.
         $this->assertEquals(140.0, $quotes->quote('Sheffield S20 1AB', 'Birmingham Airport', $exec)['price']);
         $this->assertEquals(150.0, $quotes->quote('Rotherham S60 1AA', 'Birmingham Airport', $exec)['price']);
 

@@ -473,7 +473,8 @@ class QuoteService
         if ($outward !== null) {
             foreach (self::AIRPORT_POSTCODES as $key => $codes) {
                 foreach ($codes as $code) {
-                    if (str_starts_with($outward, $code)) {
+                    // Exact district: PA3 is Glasgow Airport, PA30–PA38 is Oban/Mull.
+                    if ($outward === $code) {
                         return $key;
                     }
                 }
@@ -524,12 +525,21 @@ class QuoteService
                 ->contains(fn ($p) => strtoupper(trim((string) $p)) === $outward))
             ->sortBy(fn ($z) => count($z->postcode_prefixes ?? [])) // fewest prefixes = most specific
             ->pluck('slug')
-            ->reject(fn ($slug) => in_array($slug, $base, true))
+            ->reject(fn ($slug) => in_array($slug, $base, true) || in_array($slug, self::MILEAGE_TOWNS, true))
             ->values()
             ->all();
 
         return array_merge($extra, $base);
     }
+
+    /**
+     * Towns that USED to have their own fixed-fare zone and are now priced by the
+     * mileage guide (+ drag only when both ends are away) — directors, 11 Nov 2026:
+     * "Bakewell, Matlock and them lot should have mileage calculation, not fixed
+     * pricing". Fixed fares are for the home catchment only (Sheffield, S20,
+     * Rotherham, Barnsley, and Chesterfield on Sheffield's prices).
+     */
+    private const MILEAGE_TOWNS = ['doncaster', 'worksop', 'mansfield', 'matlock'];
 
     /** The built-in (code) zone detection — the reliable base, DB layered on top. */
     private function builtinZonesFor(string $text): array
@@ -539,8 +549,8 @@ class QuoteService
             if (str_starts_with($outward, 'S20')) {
                 return ['s20', 'sheffield'];
             }
-            if (preg_match('/^S4\d$/', $outward)) {
-                return ['chesterfield'];
+            if (preg_match('/^S4\d$/', $outward)) {   // Chesterfield: same fares as Sheffield (directors, 11 Nov 2026)
+                return ['sheffield'];
             }
             if (preg_match('/^S6[0-6]$/', $outward)) {
                 return ['rotherham'];
@@ -548,21 +558,15 @@ class QuoteService
             if (preg_match('/^S7[0-5]$/', $outward)) {
                 return ['barnsley'];
             }
-            if (preg_match('/^S8[01]$/', $outward)) {   // Worksop (S80/S81)
-                return ['worksop'];
+            if (preg_match('/^S8[01]$/', $outward)) {   // Worksop (S80/S81) → mileage guide
+                return [];
             }
             // Doncaster is DN1–DN12 ONLY. The rest of the DN area is far away — Goole
             // (DN14), Scunthorpe/Brigg (DN15–20), Gainsborough (DN21), Retford (DN22),
             // Grimsby/Immingham (DN31–41) — and must NOT get the Doncaster fixed fare.
-            if (preg_match('/^DN([1-9]|1[0-2])$/', $outward)) {
-                return ['doncaster'];
-            }
-            if (preg_match('/^NG(1[89]|2[01])$/', $outward)) { // Mansfield (NG18–21)
-                return ['mansfield'];
-            }
-            if (str_starts_with($outward, 'DE4')) {      // Matlock (DE4)
-                return ['matlock'];
-            }
+            // Doncaster, Mansfield and Matlock/Bakewell are priced by the mileage guide
+            // now (directors, 11 Nov 2026), so they get no fixed zone here.
+
             // Sheffield is "S" + digits (S1–S99). NOT any code that merely starts with S —
             // ST (Stoke), SO (Southampton), SA (Swansea), SE (London), SK (Stockport)…
             if (preg_match('/^S\d{1,2}$/', $outward)) {
@@ -580,15 +584,14 @@ class QuoteService
         // Fall back to a town name in the text.
         $t = strtolower($text);
         return match (true) {
-            str_contains($t, 'chesterfield') => ['chesterfield'],
+            str_contains($t, 'chesterfield') => ['sheffield'],
             str_contains($t, 'rotherham') => ['rotherham'],
             str_contains($t, 'barnsley') => ['barnsley'],
-            str_contains($t, 'worksop') => ['worksop'],
-            str_contains($t, 'doncaster') => ['doncaster'],
-            str_contains($t, 'mansfield') => ['mansfield'],
-            str_contains($t, 'matlock') => ['matlock'],
             str_contains($t, 'sheffield') => ['sheffield'],
-            default => ['sheffield'], // sensible default for the home catchment
+            // No postcode and no home-town name ("Huddersfield", "12 High Street"): it only
+            // gets the Sheffield fare if Google measures it inside the home radius. Was a
+            // blind Sheffield default — "Huddersfield" → Heathrow was quoted £290 not ~£555.
+            default => $this->withinHomeRadius($text) ? ['sheffield'] : [],
         };
     }
 
@@ -646,6 +649,33 @@ class QuoteService
         }
 
         return (float) $d['miles'] > (float) config('cet.fixed_zone_max_miles', 35);
+    }
+
+    /**
+     * True only when the address is MEASURED within the no-drag home radius of base.
+     * Unknown / unmeasurable = false, so it never gets a home fixed fare by guesswork.
+     */
+    private function withinHomeRadius(string $text): bool
+    {
+        $base = (string) config('cet.base.address');
+        if ($base === '' || trim($text) === '') {
+            return false;
+        }
+        try {
+            // (No Maps key → resolve() gives an 'estimate' → false below.)
+            $d = \Illuminate\Support\Facades\Cache::remember(
+                'zoneguard:'.md5(strtolower(trim($text))),
+                now()->addDay(),
+                fn () => $this->distance->resolve($base, $text),
+            );
+        } catch (\Throwable) {
+            return false;
+        }
+        if (($d['source'] ?? null) === 'estimate' || ! isset($d['miles'])) {
+            return false;
+        }
+
+        return (float) $d['miles'] <= $this->freeRoam->deadMileageFreeRadius();
     }
 
     /** The outward code (e.g. "S20") from an address, if present. */

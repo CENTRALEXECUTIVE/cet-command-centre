@@ -64,15 +64,15 @@ class AdminPricingStripTest extends TestCase
         ])->assertOk()->json('options');
         $this->assertEqualsWithDelta(210.0, $this->execPrice($reverse), 0.001);
 
-        // DIFFERENT return drop-off (Chesterfield = £110 from Manchester): the return
-        // leg re-prices on its own route — £105 out + £110 back = £215, not £210.
+        // DIFFERENT return route (Birmingham Airport → Chesterfield = £150, Chesterfield on
+        // Sheffield fares): the return re-prices on its own route — £105 + £150 = £255.
         $different = $this->actingAs($admin)->postJson(route('pricing.strip'), [
             'pickup' => 'Sheffield S1', 'destination' => 'Manchester Airport',
             'journey_type' => 'return',
-            'return_pickup' => 'Manchester Airport',
+            'return_pickup' => 'Birmingham Airport',
             'return_destination' => 'Chesterfield',
         ])->assertOk()->json('options');
-        $this->assertEqualsWithDelta(215.0, $this->execPrice($different), 0.001);
+        $this->assertEqualsWithDelta(255.0, $this->execPrice($different), 0.001);
     }
 
     public function test_meet_and_greet_is_only_charged_on_the_airport_arrival_leg_of_a_return(): void
