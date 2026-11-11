@@ -159,18 +159,19 @@ class PricingAccuracySweepTest extends TestCase
         $this->assertGreaterThan(350, (float) $q['price']); // mileage + drag, never the £290 Sheffield fare
     }
 
-    public function test_s25_and_s26_pay_25_more_to_manchester_airport_only(): void
+    public function test_s25_and_s26_pay_more_to_manchester_airport_only(): void
     {
         $quotes = app(QuoteService::class);
         foreach (['Dinnington, Sheffield S25 2AA', 'Kiveton Park, Sheffield S26 5AA'] as $address) {
-            $this->assertEqualsWithDelta(130.0, $quotes->quote($address, 'Manchester Airport', $this->exec())['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(125.0, $quotes->quote($address, 'Manchester Airport', $this->exec())['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(180.0, $quotes->quote($address, 'Manchester Airport', $this->vehicle('minibus-8-xl'))['price'], 0.01, $address);
             $this->assertEqualsWithDelta(190.0, $quotes->quote($address, 'Manchester Airport', $this->vehicle('v-class'))['price'], 0.01, $address);
             $this->assertEqualsWithDelta(165.0, $quotes->quote($address, 'Manchester Airport', $this->vehicle('minibus-8'))['price'], 0.01, $address);
             // Manchester only — every other route keeps the normal fare.
             $this->assertEqualsWithDelta(290.0, $quotes->quote($address, 'Heathrow Airport', $this->exec())['price'], 0.01, $address);
             $this->assertEqualsWithDelta(105.0, $quotes->quote($address, 'Leeds Bradford Airport', $this->exec())['price'], 0.01, $address);
             // Same on the way back.
-            $this->assertEqualsWithDelta(130.0, $quotes->quote('Manchester Airport', $address, $this->exec())['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(125.0, $quotes->quote('Manchester Airport', $address, $this->exec())['price'], 0.01, $address);
         }
         // Neighbouring Sheffield districts are unchanged.
         $this->assertEqualsWithDelta(105.0, $quotes->quote('Mosborough, Sheffield S20 5AA', 'Manchester Airport', $this->exec())['price'], 0.01);

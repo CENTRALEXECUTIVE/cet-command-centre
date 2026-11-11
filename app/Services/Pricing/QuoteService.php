@@ -183,7 +183,7 @@ class QuoteService
         if ($destKey !== null && $localFar !== true) {
             $price = $this->fixedPrice($destKey, $this->zonesFor($localText), $slug);
             if ($price !== null) {
-                $price += $this->localUplift($localText, $destKey);
+                $price += $this->localUplift($localText, $destKey, $slug);
                 return $this->withTimeSurcharge(
                     ['price' => $price, 'basis' => 'Fixed price', 'miles' => null, 'fixed' => true],
                     $pickupAt,
@@ -691,15 +691,17 @@ class QuoteService
 
     /**
      * Extra on the MANCHESTER AIRPORT fixed fare for the further-out districts S25
-     * (Dinnington/North Anston) and S26 (Kiveton/Aston/Swallownest): +£25 on every
-     * vehicle (directors, 11 Nov 2026 — Manchester only; every other route unchanged).
-     * Office-tunable via cet.s25_s26_uplift.
+     * (Dinnington/North Anston) and S26 (Kiveton/Aston/Swallownest), directors 11 Nov
+     * 2026: Executive £125 (+£20, Estate follows at Executive + £10), Minibus £165,
+     * Minibus XL £180, V-Class £190 (+£25). Every other route unchanged.
      */
-    private function localUplift(string $text, string $destKey): float
+    private function localUplift(string $text, string $destKey, string $slug): float
     {
-        return $destKey === 'manchester' && in_array($this->outward($text), ['S25', 'S26'], true)
-            ? (float) config('cet.s25_s26_uplift', 25)
-            : 0.0;
+        if ($destKey !== 'manchester' || ! in_array($this->outward($text), ['S25', 'S26'], true)) {
+            return 0.0;
+        }
+
+        return in_array($slug, ['executive', 'estate'], true) ? 20.0 : 25.0;
     }
 
     /** The outward code (e.g. "S20") from an address, if present. */
