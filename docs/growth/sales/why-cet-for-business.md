@@ -56,8 +56,8 @@ and onward anywhere in the UK. Airports we cover include Manchester, East
 Midlands, Leeds Bradford, Heathrow, Gatwick, Stansted, Luton, Liverpool and
 Doncaster/Humberside.
 
-**Sample fixed fares (executive saloon):** Barnsley to Manchester Airport £110 ·
-Barnsley to East Midlands £100 · Barnsley to Heathrow £320.
+**Sample fixed fares (executive saloon, before VAT):** Sheffield to Manchester Airport £105 ·
+Sheffield to East Midlands £105 · Sheffield to Heathrow £290 · anywhere in London £320.
 [CONFIRM with directors before quoting; the corporate rate card may differ.]
 
 ---

@@ -11,37 +11,39 @@ send Part 1 or Part 3 outside the business.
 
 ### What we already know (from the Command Centre)
 
-The fixed-price matrix in the Command Centre (Pricing) is the baseline. These are
-the matrix figures held for the nearest zones. **There is no Sheffield-origin row
-for most routes yet**, so the Sheffield figures in Part 2 still need setting.
+The fixed-price matrix in the Command Centre (Pricing) is the baseline. **Updated 11 Nov
+2026 to the live fares.** Fixed fares apply to the home catchment only: Sheffield (incl.
+S20), Rotherham, Barnsley and Chesterfield all pay the SAME fares. Everywhere else
+(Doncaster, Worksop, Mansfield, Matlock, Bakewell, Nottingham…) is priced by mileage.
 
-Public figures, VAT inclusive. Columns follow the matrix: Executive, Estate, Minibus
-("8 Seater" in the matrix), Minibus XL ("8 Seater XL"), V-Class ("Executive 8 Seater").
+Standard fares are **before VAT**; a VAT-invoice customer pays +20% on top (e.g.
+Heathrow £290 → £348). Columns: Executive, Estate, Minibus ("8 Seater"), Minibus XL
+("8 Seater XL"), V-Class ("Executive 8 Seater").
 
-| From (matrix zone) | To | Executive | Estate | Minibus | Minibus XL | V-Class |
-|---|---|---|---|---|---|---|
-| Barnsley | Manchester Airport | £110 | £115 | £150 | £165 | £175 |
-| Barnsley | East Midlands Airport | £100 | £105 | £150 | £165 | £175 |
-| Barnsley | Heathrow | £320 | £325 | £380 | £395 | £450 |
-| Barnsley | Gatwick | £370 | £375 | £460 | £475 | £550 |
-| Barnsley | Central London | £330 | £335 | £400 | £415 | £450 |
-| Barnsley | Stansted | £300 | £305 | £360 | £450 | £450 |
-| Barnsley | Luton | £270 | £275 | £320 | £335 | £410 |
-| Nottingham (5-mile zone) | Heathrow | £310 | £315 | £390 | £405 | £480 |
-| Sheffield S20 | Liverpool Airport | £155 | £160 | £195 | £210 | £220 |
-| Doncaster | Humberside Airport | £85 | n/a | £130 | £150 | £160 |
+| From Sheffield / Rotherham / Barnsley / Chesterfield to | Executive | Estate | Minibus | Minibus XL | V-Class |
+|---|---|---|---|---|---|
+| Manchester Airport | £105 | £115 | £140 | £155 | £165 |
+| Leeds Bradford Airport | £105 | £115 | £140 | £155 | £165 |
+| East Midlands Airport | £105 | £115 | £140 | £155 | £165 |
+| Humberside Airport | £110 | £120 | £150 | £165 | £175 |
+| Birmingham Airport (Barnsley £165) | £150 | £160 | £190 | £205 | £215 |
+| Liverpool Airport (Barnsley £165) | £150 | £160 | £190 | £205 | £215 |
+| Luton / Newcastle Airport | £255 | £265 | £295 | £315 | £405 |
+| Stansted | £280 | £290 | £330 | £345 | £450 |
+| Heathrow | £290 | £300 | £340 | £360 | £450 |
+| Anywhere in London | £320 | £330 | £370 | £385 | £470 |
+| Gatwick / Southend | £350 | £360 | £420 | £435 | £550 |
+
+Sheffield S20 (Mosborough area) is cheaper to East Midlands (£90) and Birmingham (£140).
 
 Notes:
-- The Manchester, Gatwick, London, Stansted, Luton and Heathrow rows are the
-  "Barnsley Deep" zone in the matrix. `BUSINESS_FACTS.md` calls them "Barnsley".
-- **Estate:** the system now always prices Estate at the Executive fare **plus £10**.
-  The matrix shows +£5 on some rows, which the system treats as a transcription error.
-- **Off-matrix routes** use distance pricing: the first 10 miles at a flat £50, then
-  per-mile tiers, rounded to £5.
+- **Estate** is always the Executive fare **plus £10**.
+- **Off-matrix routes** use the mileage guide: Executive £50 for the first 10 miles then
+  £2.00/mile (£1.73 after 100); Minibus £70 then £2.23; V-Class £100 then £2.73
+  (£2.65 after 100). Rounded to £5. A job whose nearer end is beyond 15 miles from
+  base adds £1 per mile of that extra run (e.g. Doncaster → Heathrow ≈ £370).
 - [CONFIRM: which matrix column we call "Minibus" on a client card. `BUSINESS_FACTS.md`
   lists the standard minibus as 7 seats / 5 bags, but the matrix column is "8 Seater".]
-- [CONFIRM: these are the current live figures. The seed is a starter subset
-  transcribed from ETO. Check Pricing before using any of them.]
 
 ### Extras and rules already set in the system (defaults; can be changed in Settings)
 
@@ -65,8 +67,8 @@ Notes:
 **Central Executive Transfers: corporate rate card**
 Valid from [CONFIRM date] to [CONFIRM date, for example 12 months]. Prices are
 fixed per vehicle, per journey, one way.
-[CONFIRM: show prices **ex VAT** with VAT added on the invoice (usual for business
-clients), or VAT inclusive as on the public site.]
+Prices are **before VAT**; VAT at 20% is added on the invoice (this is how the system
+prices every VAT customer).
 
 ### Airport and London transfers from Sheffield
 
@@ -74,17 +76,17 @@ clients), or VAT inclusive as on the public site.]
 Advanced Manufacturing Park]. Other South Yorkshire and North Derbyshire pickups
 are quoted on request at the same basis.
 
-| Sheffield to / from | Executive saloon (4 seats, 2 bags) | Mercedes V-Class (7 seats, 7 bags) | Minibus ([CONFIRM] seats) |
+| Sheffield to / from | Executive saloon (4 seats, 2 bags) | Mercedes V-Class (7 seats, 7 bags) | Minibus (8 seats) |
 |---|---|---|---|
-| Manchester Airport (MAN) | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| East Midlands Airport (EMA) | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| Leeds Bradford Airport (LBA) | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| Birmingham Airport (BHX) | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| Heathrow (LHR) | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| Gatwick (LGW) | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| Central London | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
+| Manchester Airport (MAN) | £105 | £165 | £140 |
+| East Midlands Airport (EMA) | £105 | £165 | £140 |
+| Leeds Bradford Airport (LBA) | £105 | £165 | £140 |
+| Birmingham Airport (BHX) | £150 | £215 | £190 |
+| Heathrow (LHR) | £290 | £450 | £340 |
+| Gatwick (LGW) | £350 | £550 | £420 |
+| Anywhere in London | £320 | £470 | £370 |
 | Sheffield station to the AMP / Sheffield Business Park | £[CONFIRM] | £[CONFIRM] | £[CONFIRM] |
-| Local journeys (up to 10 miles) | £[CONFIRM: the £50 flat first-10-miles rate?] | £[CONFIRM] | £[CONFIRM] |
+| Local journeys (up to 10 miles) | £50 | £100 | £70 |
 
 Estate (4 seats, 4 bags): the Executive price plus £10.
 Other routes: a fixed price on request, confirmed in writing before the journey.

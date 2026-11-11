@@ -126,7 +126,7 @@ times and luggage and I'll quote it as one price. [CONFIRM: the largest group we
 take on, and whether we arrange coaches.]"
 
 ### 18. "Do you go to London / long distance?"
-"Yes, UK-wide. For example, Barnsley to Heathrow is £320 in an executive saloon,
+"Yes, UK-wide. For example, Sheffield to Heathrow is £290 in an executive saloon,
 fixed. I'll quote your exact route." Check every figure in Pricing before quoting.
 
 ### 19. "Do you have electric or hybrid cars? We have a sustainability policy."

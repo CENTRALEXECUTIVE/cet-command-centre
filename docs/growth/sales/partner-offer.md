@@ -35,7 +35,7 @@ drivers, and we will tell you when they are.
 ## Trade rate card: outline only. All figures are [CONFIRM rates with directors]
 
 Our public fixed-price matrix is the baseline (for example, executive saloon
-Barnsley to Manchester Airport £110, to East Midlands £100, to Heathrow £320).
+Sheffield/Barnsley to Manchester Airport £105, to East Midlands £105, to Heathrow £290, anywhere in London £320, before VAT).
 The directors need to choose one of two trade models.
 
 **Option 1: discount off the public matrix.** Trade price = public fixed price
