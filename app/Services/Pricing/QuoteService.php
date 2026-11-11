@@ -328,8 +328,8 @@ class QuoteService
     /** The fixed price for a destination, preferring the most specific pickup zone. */
     private function fixedPrice(string $destKey, array $zones, string $slug): ?float
     {
-        // Core central London = the London fare with £20 built in (directors, 11 Nov 2026:
-        // V-Class £450 → £470). One fare to the customer; the £20 is never shown.
+        // ALL of London = the ETO Central London fare with £20 built in (directors' final
+        // decision, 11 Nov 2026: V-Class £450 → £470). One fare; the £20 is never shown.
         if ($destKey === 'london-core') {
             $central = $this->fixedPrice('central-london', $zones, $slug);
 
@@ -480,20 +480,20 @@ class QuoteService
             }
         }
 
-        // 2b) Anywhere else in London = the standard London fixed fare (V-Class £450).
-        //     Only the core codes used to match, so Canary Wharf, Wembley, Croydon… fell
-        //     to mileage + drag (£685 V-Class).
+        // 2b) Anywhere in London = the ETO Central London fare + £20 built in (directors'
+        //     final decision, 11 Nov 2026). Only the core codes used to match, so Canary
+        //     Wharf, Wembley, Croydon… fell to mileage + drag (£685 V-Class).
         //     Airports are matched above first (TW6 Heathrow, City Airport by name).
         if ($outward !== null && preg_match('/^([A-Z]{1,2})\d/', $outward, $m)) {
             $area = $m[1];
             if (in_array($area, self::LONDON_AREAS, true)
                 || (in_array($area, self::LONDON_MIXED_AREAS, true) && str_contains($t, 'london'))) {
-                return 'central-london';
+                return 'london-core';
             }
         }
         if ($outward === null && preg_match('/(^|,)\s*london\s*(,|$|uk|united kingdom)/', $t)
             && ! preg_match('/london\s+(road|rd|street|st|lane|way|colney)\b/', $t)) {
-            return 'central-london';
+            return 'london-core';
         }
 
         // 3) "Terminal N, Manchester" → Manchester Airport (Google drops "airport").
