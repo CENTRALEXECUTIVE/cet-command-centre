@@ -56,7 +56,7 @@
                     </div>
                     <div class="field">
                         <label for="customer_phone">Mobile number</label>
-                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $pf['customer_phone'] ?? $customer?->phone) }}" placeholder="07…">
+                        @include('bookings._phone-input', ['value' => old('customer_phone', $pf['customer_phone'] ?? $customer?->phone)])
                         @error('customer_phone') <div class="error">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -1366,7 +1366,7 @@
             box.value = opt.dataset.name;
             var ph = document.getElementById('customer_phone');
             var em = document.getElementById('customer_email');
-            if (ph && opt.dataset.phone) ph.value = opt.dataset.phone;
+            if (ph && opt.dataset.phone) { ph.value = opt.dataset.phone; ph.dispatchEvent(new Event('input')); }
             if (em && opt.dataset.email) em.value = opt.dataset.email;
             lastQ = box.value.trim();
             hide();

@@ -137,6 +137,28 @@ class BookingTest extends TestCase
         $this->assertTrue((bool) ($booking->meta['ribbon'] ?? false));
     }
 
+    public function test_contact_number_is_saved_in_the_picked_countrys_format(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // A US number typed nationally with United States picked → +1, never read as UK.
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'customer_name' => 'Jon Holden', 'customer_phone' => '(347) 882-0640', 'customer_phone_country' => 'US',
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('customers', ['name' => 'Jon Holden', 'phone' => '+13478820640']);
+    }
+
+    public function test_an_existing_customer_stored_in_the_old_format_is_still_matched(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $existing = \App\Models\Customer::create(['name' => 'James Watson', 'phone' => '07700 900123']);
+
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload())->assertSessionHasNoErrors();
+
+        $this->assertSame($existing->id, Booking::first()->customer_id);
+        $this->assertSame(1, \App\Models\Customer::count());
+    }
+
     public function test_admin_can_create_a_booking_with_full_side_effects(): void
     {
         $admin = User::factory()->admin()->create();
@@ -152,7 +174,7 @@ class BookingTest extends TestCase
         $response->assertRedirect(route('bookings.show', $booking));
 
         // Customer remembered.
-        $this->assertDatabaseHas('customers', ['name' => 'James Watson', 'phone' => '07700900123']);
+        $this->assertDatabaseHas('customers', ['name' => 'James Watson', 'phone' => '+447700900123']);
         // GDPR consent captured.
         $this->assertDatabaseHas('consents', ['type' => 'privacy_notice', 'granted' => true]);
         // Calendar event scaffolded with +1h end and the card emoji.
@@ -1022,7 +1044,7 @@ class BookingTest extends TestCase
         $this->assertEquals(3, $booking->passengers);
         $this->assertEquals('145.50', (string) $booking->quoted_price);
         // Contact detail flowed to the customer record.
-        $this->assertEquals('07700900999', $booking->customer->phone);
+        $this->assertEquals('+447700900999', $booking->customer->phone);
         // Via stop persisted.
         $this->assertEquals('Meadowhall Centre', $booking->stops()->first()->address);
         // Calendar event kept (updated in place, not duplicated).

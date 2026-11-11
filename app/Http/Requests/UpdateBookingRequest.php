@@ -21,6 +21,20 @@ class UpdateBookingRequest extends FormRequest
         return (bool) $this->user()?->isAdmin();
     }
 
+    /**
+     * Put the contact number into ETO's international format (+447…, +1…),
+     * read in the country picked beside the box (default UK).
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('customer_phone')) {
+            $this->merge(['customer_phone' => \App\Support\Phone::normalise(
+                $this->input('customer_phone'),
+                $this->input('customer_phone_country', 'GB'),
+            )]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

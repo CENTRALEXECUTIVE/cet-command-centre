@@ -857,7 +857,7 @@ class BookingController extends Controller
             $customer = new \App\Models\Customer([
                 'name' => trim((string) $request->input('customer_name')) ?: 'Customer',
                 'email' => trim((string) $request->input('customer_email')) ?: null,
-                'phone' => trim((string) $request->input('customer_phone')) ?: null,
+                'phone' => \App\Support\Phone::normalise($request->input('customer_phone'), $request->input('customer_phone_country', 'GB')),
             ]);
 
             $needsInvoice = $request->boolean('vat_invoice');

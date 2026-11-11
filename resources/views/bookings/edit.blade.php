@@ -40,7 +40,7 @@
                              shared and carry a different/older number. What's shown here must be
                              the number for THIS booking. --}}
                         <label for="customer_phone">Mobile number</label>
-                        <input id="customer_phone" name="customer_phone" value="{{ old('customer_phone', $booking->customerContactNumber()) }}" placeholder="07…">
+                        @include('bookings._phone-input', ['value' => old('customer_phone', $booking->customerContactNumber())])
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0">

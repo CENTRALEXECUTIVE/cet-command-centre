@@ -184,7 +184,7 @@ class BookingService
                     && Booking::where('customer_id', $customer->id)->where('id', '!=', $booking->id)->exists();
 
                 if ($identityChanged && $sharedByOthers) {
-                    $target = ($newPhone !== '' ? Customer::where('phone', $newPhone)->first() : null)
+                    $target = ($newPhone !== '' ? Customer::whereIn('phone', \App\Support\Phone::variants($newPhone))->first() : null)
                         ?? Customer::create(array_filter([
                             'name' => $newName ?: $customer->name,
                             'phone' => $newPhone ?: null,
@@ -453,7 +453,9 @@ class BookingService
         // silently files it under the wrong person and texts the wrong number.
         $customer = null;
         if ($phone) {
-            $customer = Customer::where('phone', $phone)->first();
+            // Same number in any stored format (07…, +447…, "07700 900123").
+            $customer = Customer::where('phone', $phone)->first()
+                ?? Customer::whereIn('phone', \App\Support\Phone::variants($phone))->first();
         }
         if (! $customer && ! $phone && $email) {
             $customer = Customer::where('email', $email)->first();
