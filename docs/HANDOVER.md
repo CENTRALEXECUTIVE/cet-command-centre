@@ -268,6 +268,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   directors chose the original **Arial 14px** (the Forgemasters email look) — reverted, keep it. Also live today:
   all-London fixed fares (ETO Central London + £20, built in), no drag from home, return-time reminder on
   new booking. Open: Mercure Sheffield bounced (need a contact / hold); regenerate the Claude report key.
+- **11 Nov 2026 (eve)** — Booking confirmations, cancellations and invoices now show the office LANDLINE
+  0114 399 8242 (was the 07405 mobile); invoices use Settings → Invoice phone if set. WhatsApp links stay on the
+  mobile. Open: switch other customer pages (thanks/book/paid/error) to the landline? — directors to confirm.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
