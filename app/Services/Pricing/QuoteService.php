@@ -416,6 +416,12 @@ class QuoteService
         'central-london' => ['EC1', 'EC2', 'EC3', 'EC4', 'WC1', 'WC2', 'SW1', 'W1'],
     ];
 
+    /** Postcode areas wholly in Greater London → the London fixed fare. */
+    private const LONDON_AREAS = ['E', 'EC', 'N', 'NW', 'SE', 'SW', 'W', 'WC', 'BR', 'CR', 'EN', 'HA', 'IG', 'SM', 'UB'];
+
+    /** Areas that straddle London and the Home Counties: London fare only when the address says London. */
+    private const LONDON_MIXED_AREAS = ['TW', 'KT', 'DA', 'RM'];
+
     /**
      * Find the special destination in either end; returns [destKey, otherEndText].
      * Drop-off is checked first, then pickup (an airport arrival).
@@ -463,6 +469,22 @@ class QuoteService
                     }
                 }
             }
+        }
+
+        // 2b) Anywhere in London = the London fixed fare (directors, 11 Nov 2026: "Sheffield to
+        //     London anywhere is £450" V-Class). Only the core West End/City codes used to
+        //     match, so Canary Wharf, Wembley, Croydon… fell to mileage + drag (£685).
+        //     Airports are matched above first (TW6 Heathrow, City Airport by name).
+        if ($outward !== null && preg_match('/^([A-Z]{1,2})\d/', $outward, $m)) {
+            $area = $m[1];
+            if (in_array($area, self::LONDON_AREAS, true)
+                || (in_array($area, self::LONDON_MIXED_AREAS, true) && str_contains($t, 'london'))) {
+                return 'central-london';
+            }
+        }
+        if ($outward === null && preg_match('/(^|,)\s*london\s*(,|$|uk|united kingdom)/', $t)
+            && ! preg_match('/london\s+(road|rd|street|st|lane|way|colney)\b/', $t)) {
+            return 'central-london';
         }
 
         // 3) "Terminal N, Manchester" → Manchester Airport (Google drops "airport").

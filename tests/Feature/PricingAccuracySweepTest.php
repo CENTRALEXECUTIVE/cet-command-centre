@@ -310,16 +310,40 @@ class PricingAccuracySweepTest extends TestCase
         $this->stubDistances(tripMiles: 165.0);
         $quotes = app(QuoteService::class);
 
-        $q = $quotes->quote('Sheffield S1 2HH', 'Canary Wharf, London E14 5AB', $this->exec());
+        $q = $quotes->quote('Sheffield S1 2HH', 'Cardiff CF10 1AA', $this->exec());
         $this->assertFalse($q['fixed']);
-        $this->assertSame(0.0, (float) ($q['dead_mileage'] ?? 0), 'Sheffield → London: no out-of-area charge');
+        $this->assertSame(0.0, (float) ($q['dead_mileage'] ?? 0), 'Sheffield → Cardiff: no out-of-area charge');
         $this->assertStringNotContainsString('out-of-area', $q['basis']);
 
-        $back = $quotes->quote('Canary Wharf, London E14 5AB', 'Sheffield S1 2HH', $this->exec());
-        $this->assertSame(0.0, (float) ($back['dead_mileage'] ?? 0), 'London → Sheffield: no out-of-area charge');
+        $back = $quotes->quote('Cardiff CF10 1AA', 'Sheffield S1 2HH', $this->exec());
+        $this->assertSame(0.0, (float) ($back['dead_mileage'] ?? 0), 'Cardiff → Sheffield: no out-of-area charge');
         $this->assertEqualsWithDelta($q['price'], $back['price'], 0.01, 'same price both ways');
 
         $away = $quotes->quote('Avensys Training Academy, Frederick Road, Kidderminster, UK, DY11 7RA', 'Manchester Airport', $this->exec());
         $this->assertGreaterThan(0, (float) ($away['dead_mileage'] ?? 0), 'Kidderminster → MAN keeps its drag');
+    }
+
+    /** "Sheffield to London anywhere is £450" V-Class (directors, 11 Nov 2026). */
+    public function test_anywhere_in_london_gets_the_london_fixed_fare(): void
+    {
+        $this->stubDistances(tripMiles: 165.0);
+        $quotes = app(QuoteService::class);
+        $v = VehicleType::where('slug', 'v-class')->firstOrFail();
+
+        foreach ([
+            'Canary Wharf, London E14 5AB', 'Wembley Stadium, London HA9 0WS', 'Croydon CR0 1AA',
+            'Westminster, London SW1A 1AA', 'Richmond, London TW9 1AA', 'Stratford, London E20 1EJ',
+        ] as $london) {
+            foreach ([['Sheffield S1 2HH', $london], [$london, 'Sheffield S1 2HH']] as [$a, $b]) {
+                $q = $quotes->quote($a, $b, $v);
+                $this->assertTrue($q['fixed'], "{$a} → {$b} should be the London fixed fare");
+                $this->assertEqualsWithDelta(450.0, $q['price'], 0.01, "{$a} → {$b} V-Class");
+            }
+        }
+
+        // Heathrow keeps its own fare; a Sheffield "London Road" is not London; a Surrey KT address isn't either.
+        $this->assertEqualsWithDelta(290.0, $quotes->quote('Sheffield S1 2HH', 'Heathrow Airport TW6 1QG', $this->exec())['price'], 0.01);
+        $this->assertNotSame(450.0, (float) $quotes->quote('Sheffield S1 2HH', 'London Road, Sheffield S2 4LA', $v)['price']);
+        $this->assertFalse($quotes->quote('Sheffield S1 2HH', 'Kingston upon Thames, Surrey KT1 1AA', $v)['fixed']);
     }
 }
