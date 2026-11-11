@@ -1,7 +1,8 @@
 <!doctype html>
-<html><body style="margin:0;padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#111;background:#fff">
-<div style="max-width:620px">{!! nl2br(e($bodyText)) !!}</div>
-<div style="margin-top:18px;font-size:14px;line-height:1.5;color:#111">
+{{-- Matches what Outlook writes (directors, 11 Nov 2026): Aptos 12pt ≈ 16px, Calibri/Arial fallback. --}}
+<html><body style="margin:0;padding:16px;font-family:Aptos,Calibri,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#111;background:#fff">
+<div style="max-width:640px;font-family:Aptos,Calibri,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5">{!! nl2br(e($bodyText)) !!}</div>
+<div style="margin-top:20px;font-family:Aptos,Calibri,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#111">
     <strong>{{ $sig['name'] ?? 'Matthew Green' }}</strong><br>
     <strong>{{ $sig['company'] ?? 'Central Executive Transfers' }}</strong><br>
     <a href="tel:{{ preg_replace('/\s+/', '', $sig['phone'] ?? '01143998242') }}" style="color:#1a5fd0">{{ $sig['phone'] ?? '0114 399 8242' }}</a><br>
