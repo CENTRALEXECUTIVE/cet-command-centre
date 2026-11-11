@@ -951,9 +951,11 @@ class BookingController extends Controller
                     'reference' => 'CET-PREVIEWB',
                     'journey_type' => 'return',
                     'is_return_leg' => true,
+                    // Never copy the outbound time: a blank return time previews as "not set"
+                    // (11 Nov 2026: a preview showed the return at 09:30, same as the outbound).
                     'pickup_at' => $request->filled('return_pickup_at')
                         ? \Illuminate\Support\Carbon::parse($request->input('return_pickup_at'), config('app.timezone'))
-                        : $booking->pickup_at,
+                        : null,
                     'pickup_address' => $retPickup,
                     'destination_address' => trim((string) $request->input('return_destination_address')) ?: $request->input('pickup_address'),
                     'passengers' => $request->filled('return_passengers') ? (int) $request->input('return_passengers') : $booking->passengers,

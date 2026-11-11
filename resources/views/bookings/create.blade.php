@@ -155,6 +155,7 @@
                     <div class="field" id="return_field">
                         <label for="return_pickup_at">Return pickup date &amp; time</label>
                         <input id="return_pickup_at" type="datetime-local" name="return_pickup_at" value="{{ old('return_pickup_at') }}">
+                        <div id="return-at-reminder" class="pickup-reminder" role="alert" hidden>⏰ Don't forget: set the return pickup date &amp; time</div>
                         @error('return_pickup_at') <div class="error">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -1490,32 +1491,41 @@
     // The office kept forgetting the pickup date & time (directors, Nov 2026):
     // an amber reminder sits under the field while it's empty, and trying to go
     // Next / Confirm without it pops up a reminder and jumps to the field.
+    // Same for the RETURN pickup time on a return journey (11 Nov 2026: a preview
+    // showed the return at the outbound's 09:30 because it was left blank).
     (function () {
-        var el = document.getElementById('pickup_at');
-        var note = document.getElementById('pickup-at-reminder');
-        if (!el || !note) return;
         var lastAlert = 0;
-        function sync() {
-            var empty = !el.value;
-            note.hidden = !empty;
-            if (!empty) { note.classList.remove('loud'); el.classList.remove('pickup-missing'); }
-        }
-        el.addEventListener('input', sync);
-        el.addEventListener('change', sync);
-        el.addEventListener('invalid', function () {
-            if (el.value) return;
-            note.hidden = false;
-            note.classList.add('loud');
-            el.classList.add('pickup-missing');
-            if (Date.now() - lastAlert > 2000) {
-                lastAlert = Date.now();
-                setTimeout(function () {
-                    alert('Pickup date & time is missing.\n\nPlease set it before saving the booking.');
-                    try { el.scrollIntoView({ block: 'center' }); el.focus(); } catch (e) {}
-                }, 400);
+        var jt = document.getElementById('journey_type');
+        function wire(el, note, label, active) {
+            if (!el || !note) return;
+            function sync() {
+                var on = active();
+                if (el.id === 'return_pickup_at') el.required = on;
+                var empty = on && !el.value;
+                note.hidden = !empty;
+                if (!empty) { note.classList.remove('loud'); el.classList.remove('pickup-missing'); }
             }
-        });
-        sync();
+            el.addEventListener('input', sync);
+            el.addEventListener('change', sync);
+            if (jt) jt.addEventListener('change', sync);
+            el.addEventListener('invalid', function () {
+                if (el.value) return;
+                note.hidden = false;
+                note.classList.add('loud');
+                el.classList.add('pickup-missing');
+                if (Date.now() - lastAlert > 2000) {
+                    lastAlert = Date.now();
+                    setTimeout(function () {
+                        alert(label + ' is missing.\n\nPlease set it before saving the booking.');
+                        try { el.scrollIntoView({ block: 'center' }); el.focus(); } catch (e) {}
+                    }, 400);
+                }
+            });
+            sync();
+        }
+        wire(document.getElementById('pickup_at'), document.getElementById('pickup-at-reminder'), 'Pickup date & time', function () { return true; });
+        wire(document.getElementById('return_pickup_at'), document.getElementById('return-at-reminder'), 'Return pickup date & time',
+            function () { return !!(jt && jt.value === 'return'); });
     })();
     </script>
     @include('bookings.partials.form-v2')

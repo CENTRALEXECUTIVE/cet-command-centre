@@ -97,7 +97,7 @@ class BookingConfirmationMail extends Mailable
                 'refs' => $legs->map(fn ($b) => $b->external_reference ?: $b->reference)->implode(' / '),
                 'legs' => $legs->map(fn ($b, $i) => ['booking' => $b, 'title' => $title($b, $i), 'changed' => $changed($b)])->all(),
                 'lines' => $legs->map(fn ($b, $i) => [
-                    'label' => ($isPair ? ($b->is_return_leg ? 'Return' : 'Outbound') : 'Journey '.($i + 1)).' — '.($b->pickup_at?->format('D d M, H:i') ?? ''),
+                    'label' => ($isPair ? ($b->is_return_leg ? 'Return' : 'Outbound') : 'Journey '.($i + 1)).' — '.($b->pickup_at?->format('D d M, H:i') ?? 'time not set'),
                     'amount' => (float) ($b->amountPayable() ?? 0),
                 ])->all(),
                 'total' => round($legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2),

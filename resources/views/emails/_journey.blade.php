@@ -3,7 +3,7 @@
     <tr><td style="padding:8px 26px 0">
         <h2 style="font-size:17px;margin:0 0 8px">{{ $title ?? 'Journey' }}@if(!empty($changed)) <span style="display:inline-block;background:#12558c;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px;vertical-align:middle">UPDATED</span>@endif</h2>
         <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-            {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i')) !!}
+            {!! $row('Date &amp; time:', $leg->pickup_at?->format('d/m/Y H:i') ?? 'Not set yet') !!}
             {{-- The real UK offset ON THE PICKUP DATE (was hard-coded UTC+1, wrong all winter). --}}
             @php $ukAt = $leg->pickup_at?->clone()->setTimezone('Europe/London'); @endphp
             {!! $row('Time zone:', $ukAt ? ($ukAt->dst ? 'UTC+1 London (BST)' : 'UTC+0 London (GMT)') : 'UK time') !!}
