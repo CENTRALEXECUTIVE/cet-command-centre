@@ -279,6 +279,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **11 Nov 2026 (late)** — Outreach: EG Chauffeurs marked Replied (no auto follow-up); Mercure H6628@accor.com
   bounced → on hold, no address (migration 2026_11_11_000002 — needs `migrate`). Pricing review agent run: findings
   being fixed with the directors (no-postcode = Sheffield default, PA3/Oban collision, Doncaster→Exeter typo).
+- **11 Nov 2026 (night)** — Pricing (directors): fixed fares for the home catchment only (Sheffield/S20,
+  Rotherham, Barnsley, Chesterfield on Sheffield fares). Doncaster/Worksop/Mansfield/Matlock/Bakewell → mileage
+  guide. Radius stays 15 mi; near-end drag = £1/mile of the extra run when the nearer end is ≤35 mi (Doncaster →
+  Heathrow ~£370, was £515); both ends >35 mi keep full furthest-end drag (Kidderminster £330). No-postcode
+  addresses only get Sheffield fares if measured inside 15 mi; PA3 exact (Oban fix). Exeter typo now moot.
+  Directors to confirm: Southend = Gatwick price, Bristol/V-Class long-run rates (agent review list).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
