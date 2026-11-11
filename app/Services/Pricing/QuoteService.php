@@ -240,9 +240,19 @@ class QuoteService
                 $deadMiles = max($deadMiles, (float) ($leg['miles'] ?? 0));
                 $nearest = min($nearest ?? INF, (float) ($leg['miles'] ?? 0));
             }
-            $dead = ($nearest !== null && $nearest <= $this->freeRoam->deadMileageFreeRadius())
-                ? 0.0
-                : $this->freeRoam->deadMileageCharge($deadMiles);
+            if ($nearest !== null && $nearest <= $this->freeRoam->deadMileageFreeRadius()) {
+                $dead = 0.0;
+            } elseif ($nearest !== null && $nearest <= (float) config('cet.fixed_zone_max_miles', 35)) {
+                // One end is just outside the radius (Doncaster, Worksop, Matlock…): the only
+                // extra over a home job is the empty run out to that end, so drag = those
+                // miles (directors, 11 Nov 2026: Doncaster → Heathrow £350 + £20 = £370, not
+                // £515). The long run home from the far end is already what a home job absorbs.
+                $deadMiles = $nearest;
+                $dead = $this->freeRoam->deadMileageCharge($deadMiles);
+            } else {
+                // Both ends genuinely away (Kidderminster → MAN): drag to the furthest end.
+                $dead = $this->freeRoam->deadMileageCharge($deadMiles);
+            }
             $price += $dead;
         }
 

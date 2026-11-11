@@ -137,13 +137,26 @@ class PricingAccuracySweepTest extends TestCase
         }
     }
 
+    public function test_a_job_just_outside_the_radius_only_pays_drag_for_the_extra_miles(): void
+    {
+        // Doncaster (20 mi) → Heathrow (170 mi trip): £350 mileage + £20 drag = £370, not £515.
+        $this->stubDistances(170);
+        $q = app(QuoteService::class)->quote('Doncaster DN1 1AA', 'Heathrow Airport', $this->exec());
+        $this->assertFalse($q['fixed']);
+        $this->assertEqualsWithDelta(20.0, (float) $q['dead_mileage'], 0.01);
+        $this->assertEqualsWithDelta(370.0, (float) $q['price'], 0.01);
+        // Same both ways.
+        $back = app(QuoteService::class)->quote('Heathrow Airport', 'Doncaster DN1 1AA', $this->exec());
+        $this->assertEqualsWithDelta(370.0, (float) $back['price'], 0.01);
+    }
+
     public function test_an_address_with_no_postcode_never_gets_a_blind_sheffield_fare(): void
     {
         // "Huddersfield" (no postcode, ~27 mi) used to fall to the Sheffield default: £290 to Heathrow.
         $this->stubDistances(180);
         $q = app(QuoteService::class)->quote('Huddersfield', 'Heathrow Airport', $this->exec());
         $this->assertFalse($q['fixed']);
-        $this->assertGreaterThan(400, (float) $q['price']);
+        $this->assertGreaterThan(350, (float) $q['price']); // mileage + drag, never the £290 Sheffield fare
     }
 
     public function test_oban_is_not_glasgow_airport(): void
@@ -195,9 +208,12 @@ class PricingAccuracySweepTest extends TestCase
         $pricer = app(FreeRoamPricer::class);
         foreach (self::OUT_OF_AREA as $address) {
             $q = $quotes->quote($address, 'Manchester Airport', $this->exec());
-            // Drag to the FAR end of the journey (same price both ways): the far address or
-            // the airport (stubbed at 40 mi), whichever is further. Every mile, £1, to £5.
-            $miles = max($this->miles($address), 40.0);
+            // Both ends away: drag to the FAR end (same price both ways) — the far address or
+            // the airport (stubbed at 40 mi). But when the nearer end is within 35 mi
+            // (Huddersfield 27), only those extra miles are dragged (directors, 11 Nov 2026).
+            // Every mile, £1, to £5.
+            $near = min($this->miles($address), 40.0);
+            $miles = $near <= 35 ? $near : max($this->miles($address), 40.0);
             $this->assertEqualsWithDelta($pricer->deadMileageCharge($miles), $q['dead_mileage'], 0.01, "drag for {$address}");
             $this->assertEqualsWithDelta($q['dead_mileage'], round($miles / 5) * 5, 0.01, "{$address}: drag must be the WHOLE {$miles} mi");
             $this->assertEqualsWithDelta($pricer->price('executive', 90.0) + $q['dead_mileage'], $q['price'], 0.01, "total for {$address}");

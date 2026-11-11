@@ -421,6 +421,9 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   (per-vehicle rates in FreeRoamPricer) + drag only when both ends are away. An address with no postcode
   and no home-town name only gets the Sheffield fare if Google measures it inside the free radius.
   Airport postcodes match the district exactly (PA3 Glasgow ≠ PA34 Oban).
+  **Near-end drag (11 Nov 2026):** radius stays 15 mi. When the NEARER end is just outside it (≤ 35 mi,
+  `cet.fixed_zone_max_miles`), drag = only those extra miles (Doncaster → Heathrow £350 + £20 = £370, not
+  £515). Only when both ends are beyond 35 mi does the full furthest-end drag apply (Kidderminster → MAN £330).
 - **Paste-a-booking (`/intake`)** captures the **price** (£ figure), accessibility/
   "Additional" notes, and multi-type bag lists — none silently dropped.
 
