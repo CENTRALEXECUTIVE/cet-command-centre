@@ -299,4 +299,27 @@ class PricingAccuracySweepTest extends TestCase
         $q = app(QuoteService::class)->quote('Sheffield S1 2HH', 'Leeds LS1 1AA', $this->exec());
         $this->assertNotNull($q['price']);
     }
+
+    /**
+     * Sheffield → London (outside the core Central London fixed-fare postcodes) was quoted
+     * £685 V-Class = 165 mi + 166 mi "out-of-area" (directors, 11 Nov 2026). A journey that
+     * starts or ends at home never carries drag; only jobs with BOTH ends away do.
+     */
+    public function test_a_long_run_from_home_carries_no_drag_but_away_to_away_still_does(): void
+    {
+        $this->stubDistances(tripMiles: 165.0);
+        $quotes = app(QuoteService::class);
+
+        $q = $quotes->quote('Sheffield S1 2HH', 'Canary Wharf, London E14 5AB', $this->exec());
+        $this->assertFalse($q['fixed']);
+        $this->assertSame(0.0, (float) ($q['dead_mileage'] ?? 0), 'Sheffield → London: no out-of-area charge');
+        $this->assertStringNotContainsString('out-of-area', $q['basis']);
+
+        $back = $quotes->quote('Canary Wharf, London E14 5AB', 'Sheffield S1 2HH', $this->exec());
+        $this->assertSame(0.0, (float) ($back['dead_mileage'] ?? 0), 'London → Sheffield: no out-of-area charge');
+        $this->assertEqualsWithDelta($q['price'], $back['price'], 0.01, 'same price both ways');
+
+        $away = $quotes->quote('Avensys Training Academy, Frederick Road, Kidderminster, UK, DY11 7RA', 'Manchester Airport', $this->exec());
+        $this->assertGreaterThan(0, (float) ($away['dead_mileage'] ?? 0), 'Kidderminster → MAN keeps its drag');
+    }
 }

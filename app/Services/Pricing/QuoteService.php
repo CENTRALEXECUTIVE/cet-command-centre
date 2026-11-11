@@ -217,8 +217,13 @@ class QuoteService
         // drop-off, so A→B and B→A cost the same real miles — the directors chose the
         // SAME price both ways (Nov 2026): Kidderminster→MAN and MAN→Kidderminster both
         // carry the 113.9 mi drag. Only when we can price the journey and have a base.
+        // A journey that STARTS or ENDS in the home catchment carries no drag (directors,
+        // 11 Nov 2026: Sheffield → London V-Class was quoted £685 = 165 mi + 166 mi
+        // "out-of-area"). The per-mile rate already prices a long run from home; drag
+        // is only for jobs where BOTH ends are away (Kidderminster → MAN).
         $dead = 0.0;
         $deadMiles = null;
+        $nearest = null;
         if ($price !== null && filled($base = (string) config('cet.base.address'))) {
             $deadMiles = 0.0;
             foreach ([$pickup, $destination] as $end) {
@@ -233,8 +238,11 @@ class QuoteService
                     return $this->officeToConfirm();
                 }
                 $deadMiles = max($deadMiles, (float) ($leg['miles'] ?? 0));
+                $nearest = min($nearest ?? INF, (float) ($leg['miles'] ?? 0));
             }
-            $dead = $this->freeRoam->deadMileageCharge($deadMiles);
+            $dead = ($nearest !== null && $nearest <= $this->freeRoam->deadMileageFreeRadius())
+                ? 0.0
+                : $this->freeRoam->deadMileageCharge($deadMiles);
             $price += $dead;
         }
 

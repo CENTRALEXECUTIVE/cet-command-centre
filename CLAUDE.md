@@ -410,7 +410,9 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   Doncaster = **DN1–DN12 only** (Grimsby/Scunthorpe/Goole are out of area); and a
   distance backstop (`QuoteService::localEndIsOutOfArea`, `cet.fixed_zone_max_miles`
   = 35) refuses any local fixed fare to an address >35 mi from base. Guarded by
-  `PricingAccuracySweepTest` — keep it green.
+  `PricingAccuracySweepTest` — keep it green. **No drag from home (11 Nov 2026):** a journey that
+  starts or ends inside the free radius is mileage-priced only (Sheffield → London V-Class was £685
+  with drag, now ~£520); drag applies only when BOTH ends are away (Kidderminster → MAN keeps it).
 - **Paste-a-booking (`/intake`)** captures the **price** (£ figure), accessibility/
   "Additional" notes, and multi-type bag lists — none silently dropped.
 

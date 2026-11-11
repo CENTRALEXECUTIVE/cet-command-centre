@@ -388,12 +388,12 @@ class CustomerAdminPriceParityTest extends TestCase
         $this->assertEqualsWithDelta(305.00, $r['cust_pay'], 0.001);
 
         // Out on Christmas Day, back on an ordinary day → only the outbound is uplifted.
-        // Same price both ways: each leg carries the drag to Leeds (the far end), so the
-        // standard fare is £140 per leg; Christmas +50% on the outbound → £210.
+        // No drag from home (directors, 11 Nov 2026): Sheffield → Leeds is the mileage fare
+        // only, £105 per leg; Christmas +50% on the outbound → £160 (rounded to £5).
         $r = $this->compare('Sheffield S1 2HH', 'Leeds LS1 4DY', 'return', $exec, [], false, null, '2026-12-25T10:00', '2027-01-05T10:00');
         $this->assertTrue($r['match'], $this->row($r));
-        $this->assertEqualsWithDelta(210.00, $r['cust_out'], 0.001);
-        $this->assertEqualsWithDelta(140.00, $r['cust_ret'], 0.001);
+        $this->assertEqualsWithDelta(160.00, $r['cust_out'], 0.001);
+        $this->assertEqualsWithDelta(105.00, $r['cust_ret'], 0.001);
     }
 
     public function test_parity_office_night_and_date_surcharges_apply_on_both_sides(): void
