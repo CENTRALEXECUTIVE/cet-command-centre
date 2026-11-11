@@ -258,6 +258,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Jane McGuinness personally (VAT registered, all travel nationwide, account; no closing question, directors'
   wording). William Cook first email mentions a recent Parkway Avenue visitor we looked after (no customer
   named, GDPR; Josh Polesky is Solar Turbines, not William Cook). Migration 2026_11_10_000001.
+- **10–11 Nov 2026** — Bounce fixes (B. Braun → info.bbmuk@bbraun.com, bbraun.co.uk has no MX; Unipart → cs@;
+  Irwin Mitchell on hold; Jane follow-up 18 Nov). 11 Nov: directors asked Claude to approve and schedule the day's
+  batch ("do it yourself… start sending for 9am"): migration 2026_11_11_000001 fixes Addison Lee's follow-up to
+  partnerships@ + the original subject and queues the 10 from 09:00, 5 min apart (approver Abdi). Social: planner
+  artifact with 3 Reels (Remotion styles: futuristic HUD, editorial airport, fleet slideshow), GitHub fonts
+  (Hubot Sans/Mona Sans/Geist Mono), bright natural grade, royalty-free Mixkit house music baked in.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
