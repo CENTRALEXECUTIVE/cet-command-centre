@@ -126,3 +126,38 @@ www.centralexecutivetransfers.co.uk
 - Follow-ups, signature, opt-out: `config/outreach.php`.
 - `[Name]` → contact first name, else "Dear [Company] Team," (`OutreachEmailComposer::teamName`
   strips "(Sheffield office)" etc.); "Dear Sir or Madam," only with no company name.
+
+## Replies to customers and partners (directors, 11 Nov 2026)
+
+The directors prefer short, plain replies. Two they wrote themselves and want as the model:
+
+> Good morning Nicola,
+>
+> Thank you for getting in touch.
+>
+> We can confirm availability for both journeys on 14th and 16th December.
+>
+> Kind regards,
+
+> Hi,
+>
+> Thank you for getting back to us.
+>
+> We operate with a combination of our own fleet and trusted, fully licensed chauffeurs who work closely with us.
+>
+> Our fleet includes 4 Mercedes V-Class vehicles and several Mercedes E-Class vehicles.
+>
+> Regarding pricing, this would depend on the journey, vehicle requirements and duration. We'd be happy to offer competitive trade rates on any enquiries you send our way.
+>
+> We look forward to working together.
+>
+> Kind regards,
+
+Rules for replies:
+- Answer exactly what was asked, in 2 to 5 short sentences. No bullet lists, no feature lists, no sales pitch.
+- Open "Good morning/Hi [Name]," then "Thank you for getting in touch / getting back to us."
+- Never leave placeholders like [£XXX] in a draft. If a figure isn't known, say it depends and offer to quote.
+- No quoted prices unless the directors give them; for partners, "competitive trade rates".
+- Don't ask for lots of details up front; confirm first, details follow.
+- End at "Kind regards," (the Outlook signature adds Matthew Green / Central Executive Transfers; never type the company name above it).
+- Facts confirmed 11 Nov: own fleet plus trusted fully licensed partner chauffeurs; 4 Mercedes V-Class and several Mercedes E-Class; no S-Class or i7.
