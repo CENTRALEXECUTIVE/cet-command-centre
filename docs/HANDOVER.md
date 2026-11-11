@@ -293,6 +293,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   stat box is a link to its list (`?view=sent|week|replied|meetings|accounts|contacted`). Of the 10 "due": 2 real
   (Clarity, Corporé — capped at 3 follow-ups/day), 7 have no email (SMP, Rolls-Royce, Carey, Birchwood, Bekaert,
   Frasers, Danieli — contacted by form/hand), TBR replied with a stale date. Directors to decide how to handle.
+- **11 Nov 2026 (late night)** — Vehicles: ETO-style "Available on" per vehicle (Frontend & backend / Backend
+  only / Off; stored in vehicle_meta). Estate = Backend only (admin form + price strip, never customers). Favicon:
+  /favicon.ico confirmed showing the circle-C; Google results still show the old icon (refresh takes up to ~3
+  weeks from 4 Nov). Dates for comparison: sitemap ~30–31 Oct, indexing 31 Oct–4 Nov, Ads paused 4 Nov.
+  Offered: noindex on staging (staging/widget is in Google) and a weekly bookings-by-source report.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
