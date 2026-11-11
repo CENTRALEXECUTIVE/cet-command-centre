@@ -273,6 +273,11 @@ class Phone
             return $national;
         }
 
+        // US / Canada: +1 734 629 2334.
+        if ($code === '1' && strlen($rest) === 10) {
+            return '+1 '.substr($rest, 0, 3).' '.substr($rest, 3, 3).' '.substr($rest, 6);
+        }
+
         // Everyone else: "+<code> " then the rest in groups of three.
         $grouped = trim(chunk_split($rest, 3, ' '));
 

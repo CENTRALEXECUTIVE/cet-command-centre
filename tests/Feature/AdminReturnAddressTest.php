@@ -275,7 +275,8 @@ class AdminReturnAddressTest extends TestCase
 
         $html = (new \App\Mail\BookingConfirmationMail($out->fresh(), paid: false, payUrl: '#'))->render();
         $this->assertStringContainsString('£318.00', $html);
-        $this->assertStringContainsString('Includes VAT £53.00 (net £265.00)', $html);
+        $this->assertMatchesRegularExpression('/Subtotal \(excl\. VAT\):.*?£265\.00/s', $html);
+        $this->assertMatchesRegularExpression('/VAT \(20%\):.*?£53\.00/s', $html);
     }
 
     public function test_the_vat_toggle_switches_both_legs_of_a_return(): void

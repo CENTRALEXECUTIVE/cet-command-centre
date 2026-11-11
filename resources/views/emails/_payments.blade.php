@@ -13,6 +13,11 @@
 @endphp
 @if($totalFare > 0)
     <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;width:100%;max-width:360px">
+        @if(! empty($vatSplit) && ($vatSplit['vat'] ?? 0) > 0)
+            @php $vatNet = round($totalFare / (1 + (float) $vatSplit['rate']), 2); @endphp
+            <tr><td style="padding:4px 14px 4px 0;color:#666">Fare (excl. VAT):</td><td style="padding:4px 0;color:#111;text-align:right">£{{ number_format($vatNet, 2) }}</td></tr>
+            <tr><td style="padding:4px 14px 4px 0;color:#666">VAT ({{ rtrim(rtrim(number_format((float) $vatSplit['rate'] * 100, 1), '0'), '.') }}%):</td><td style="padding:4px 0;color:#111;text-align:right">£{{ number_format($totalFare - $vatNet, 2) }}</td></tr>
+        @endif
         <tr><td style="padding:4px 14px 4px 0;color:#666">Total fare:</td><td style="padding:4px 0;color:#111;text-align:right">£{{ number_format($totalFare, 2) }}</td></tr>
         <tr><td style="padding:4px 14px 4px 0;color:#666">Paid:</td><td style="padding:4px 0;color:#1f7a44;font-weight:700;text-align:right">£{{ number_format($paidSoFar, 2) }}</td></tr>
         @if($remaining !== null)

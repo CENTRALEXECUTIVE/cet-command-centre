@@ -148,7 +148,8 @@ class WebBookingEmailTest extends TestCase
 
         $html = (new BookingConfirmationMail($booking, paid: false, payUrl: 'https://pay.example/x'))->render();
 
-        $this->assertStringContainsString('Includes VAT', $html);
+        $this->assertMatchesRegularExpression('/Fare \(excl\. VAT\):.*?£120\.00/s', $html);
+        $this->assertMatchesRegularExpression('/VAT \(20%\):.*?£24\.00/s', $html);
         $this->assertStringContainsString('Awaiting payment', $html);
         // Unpaid card booking is on hold until paid, with a Complete-payment link.
         $this->assertStringContainsString('Complete payment', $html);

@@ -93,12 +93,17 @@ class BookingConfirmationMail extends Mailable
                     $vatAmt += (float) $v['vat'];
                 }
             }
+            // VAT trips list each journey EX-VAT, then VAT, then the total (directors,
+            // 11 Nov 2026: "£300 and £290, then VAT, then the total").
+            $vatSvc = app(VatService::class);
+            $lineAmount = fn ($b) => (float) ($b->amountPayable() ?? 0);
+            $lineNet = fn ($b) => $b->vatInvoiceRequested() ? (float) $vatSvc->fromGross($lineAmount($b))['net'] : $lineAmount($b);
             $trip = [
                 'refs' => $legs->map(fn ($b) => $b->external_reference ?: $b->reference)->implode(' / '),
                 'legs' => $legs->map(fn ($b, $i) => ['booking' => $b, 'title' => $title($b, $i), 'changed' => $changed($b)])->all(),
                 'lines' => $legs->map(fn ($b, $i) => [
                     'label' => ($isPair ? ($b->is_return_leg ? 'Return' : 'Outbound') : 'Journey '.($i + 1)).' — '.($b->pickup_at?->format('D d M, H:i') ?? 'time not set'),
-                    'amount' => (float) ($b->amountPayable() ?? 0),
+                    'amount' => $vatAmt > 0 ? $lineNet($b) : $lineAmount($b),
                 ])->all(),
                 'total' => round($legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2),
                 'due' => $due = round($legs->sum(fn ($b) => (float) ($b->transactionsAmountDue() ?? 0)), 2),
@@ -107,6 +112,12 @@ class BookingConfirmationMail extends Mailable
             // Paid = total − what's still owed, so the three figures always add up
             // (summing each leg's ledger showed £295 paid on a £318 trip paid in full).
             $trip['paid'] = round(max(0.0, $trip['total'] - $due), 2);
+            if ($trip['vat']) {
+                // Subtotal = the ex-VAT lines; VAT = the rest, so the three always add up.
+                $trip['subtotal'] = round(array_sum(array_column($trip['lines'], 'amount')), 2);
+                $trip['vat_line'] = round($trip['total'] - $trip['subtotal'], 2);
+                $trip['vat_rate'] = rtrim(rtrim(number_format($vatSvc->rate() * 100, 1), '0'), '.');
+            }
         }
 
         return new Content(view: 'emails.booking-confirmation', with: [

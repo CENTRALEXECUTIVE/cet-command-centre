@@ -49,5 +49,6 @@ class PhoneNormaliseTest extends TestCase
         $this->assertContains('07700 900123', Phone::variants('+447700900123'));
         $this->assertContains('07700900123', Phone::variants('+447700900123'));
         $this->assertSame('🇬🇧', Phone::flag('GB'));
+        $this->assertSame('+1 734 629 2334', Phone::display('+17346292334'));
     }
 }

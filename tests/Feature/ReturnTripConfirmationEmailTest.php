@@ -45,7 +45,12 @@ class ReturnTripConfirmationEmailTest extends TestCase
         $this->assertStringContainsString('Ibis Birmingham Airport', $html);
         $this->assertStringContainsString('Total (whole trip):', $html);
         $this->assertStringContainsString('£318.00', $html);        // (115 + 150) + 20% VAT
-        $this->assertStringContainsString('Includes VAT £53.00 (net £265.00)', $html);
+        // Directors (11 Nov 2026): each journey ex-VAT, then VAT, then the total.
+        $this->assertMatchesRegularExpression('/Outbound — .*?£115\.00/s', $html);
+        $this->assertMatchesRegularExpression('/Return — .*?£150\.00/s', $html);
+        $this->assertMatchesRegularExpression('/Subtotal \(excl\. VAT\):.*?£265\.00/s', $html);
+        $this->assertMatchesRegularExpression('/VAT \(20%\):.*?£53\.00/s', $html);
+        $this->assertStringNotContainsString('£138.00', $html); // never the VAT-inclusive leg price
         $this->assertStringContainsString('Complete payment — £318.00', $html);
         // No meet & greet promised at the office pickup.
         $this->assertSame(1, substr_count($html, 'driver waits in arrivals'));

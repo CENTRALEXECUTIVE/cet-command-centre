@@ -123,19 +123,17 @@
                     @foreach($trip['lines'] as $line)
                         <tr><td style="padding:4px 14px 4px 0;color:#666">{{ $line['label'] }}</td><td style="padding:4px 0;color:#111;text-align:right">£{{ number_format($line['amount'], 2) }}</td></tr>
                     @endforeach
+                    @if(! empty($trip['vat']))
+                        <tr><td style="padding:6px 14px 4px 0;color:#666;border-top:1px solid #eee">Subtotal (excl. VAT):</td><td style="padding:6px 0 4px;color:#111;text-align:right;border-top:1px solid #eee">£{{ number_format($trip['subtotal'], 2) }}</td></tr>
+                        <tr><td style="padding:4px 14px 4px 0;color:#666">VAT ({{ $trip['vat_rate'] }}%):</td><td style="padding:4px 0;color:#111;text-align:right">£{{ number_format($trip['vat_line'], 2) }}</td></tr>
+                    @endif
                     <tr><td style="padding:6px 14px 4px 0;color:#111;font-weight:700;border-top:1px solid #eee">Total (whole trip):</td><td style="padding:6px 0 4px;color:#111;font-weight:700;text-align:right;border-top:1px solid #eee">£{{ number_format($trip['total'], 2) }}</td></tr>
                     <tr><td style="padding:4px 14px 4px 0;color:#666">Paid:</td><td style="padding:4px 0;color:#1f7a44;font-weight:700;text-align:right">£{{ number_format($trip['paid'], 2) }}</td></tr>
                     <tr><td style="padding:4px 14px 4px 0;color:#666">{{ $trip['due'] > 0.001 ? 'Remaining:' : 'Balance:' }}</td>
                         <td style="padding:4px 0;font-weight:700;text-align:right;color:{{ $trip['due'] > 0.001 ? '#b9770a' : '#1f7a44' }}">{{ $trip['due'] > 0.001 ? '£'.number_format($trip['due'], 2) : 'Paid in full' }}</td></tr>
                 </table>
-                @if($trip['vat'])
-                    <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($trip['vat']['vat'], 2) }} (net £{{ number_format($trip['vat']['net'], 2) }}).</p>
-                @endif
             @else
-                @include('emails._payments')
-                @if($booking->vatInvoiceRequested() && $vat && ($vat['vat'] ?? 0) > 0)
-                    <p style="margin:8px 0 0;font-size:13px;color:#666">Includes VAT £{{ number_format($vat['vat'], 2) }} (net £{{ number_format($vat['net'], 2) }}).</p>
-                @endif
+                @include('emails._payments', ['vatSplit' => $booking->vatInvoiceRequested() ? $vat : null])
             @endif
             @if(! $paid && ! $isCash && ! $isAccount && $payUrl)
                 <p style="margin:12px 0 0"><a href="{{ $payUrl }}" style="display:inline-block;background:#1f7a44;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-weight:800">Complete payment{{ ! empty($trip) && $trip['due'] > 0.001 ? ' — £'.number_format($trip['due'], 2) : '' }} &rarr;</a></p>
