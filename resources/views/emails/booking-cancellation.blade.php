@@ -82,7 +82,7 @@
 
     {{-- Footer --}}
     <tr><td style="padding:18px 26px 26px;background:#f6f5f2;color:#555;font-size:12.5px;text-align:center">
-        <strong style="color:#111">{{ $company['name'] ?? 'Central Executive Transfers' }}</strong> &nbsp;|&nbsp; Tel: +447405172435<br>
+        <strong style="color:#111">{{ $company['name'] ?? 'Central Executive Transfers' }}</strong> &nbsp;|&nbsp; Tel: 0114 399 8242<br>
         Email: {{ $contactEmail }} &nbsp;|&nbsp; Website: https://centralexecutivetransfers.co.uk/
     </td></tr>
 

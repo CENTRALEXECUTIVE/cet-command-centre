@@ -19,7 +19,7 @@ return [
         // Registered/correspondence address + contact for invoices. Best set in
         // the app (Settings → Company & invoice details), which overrides these.
         'address' => env('CET_COMPANY_ADDRESS', ''),
-        'phone' => env('CET_COMPANY_PHONE', ''),
+        'phone' => env('CET_COMPANY_PHONE', '0114 399 8242'),
         'email' => env('CET_COMPANY_EMAIL', 'admin@centralexecutivetransfers.co.uk'),
     ],
 
