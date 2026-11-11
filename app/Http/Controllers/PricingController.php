@@ -85,7 +85,7 @@ class PricingController extends Controller
             $inOptions['meet_greet'] = \App\Support\AirportMatcher::isAirport($returnPickup);
         }
 
-        $options = VehicleType::where('is_active', true)->orderBy('sort_order')->get()
+        $options = VehicleType::forOffice((bool) $request->user()?->isAdmin())->orderBy('sort_order')->get()
             ->map(function (VehicleType $vt) use ($fares, $data, $pickupAt, $returnAt, $isReturn, $outOptions, $inOptions, $returnPickup) {
                 $out = $fares->calculate($data['pickup'], $data['destination'], $vt, $pickupAt, $outOptions);
                 // The return leg prices its OWN addresses when the office gave different

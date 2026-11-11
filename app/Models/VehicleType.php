@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -19,6 +20,25 @@ class VehicleType extends Model
             'uses_third_party_driver' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    /** Vehicle types the office can always book, even when hidden from customers. */
+    public const OFFICE_ONLY = ['estate'];
+
+    /**
+     * What the ADMIN booking screens offer: every active type plus the office-only
+     * ones (Estate) — those stay switched off for customers on the website/widget
+     * but the office must still be able to book them (directors, 11 Nov 2026).
+     * Customers (and corporate clients) keep the plain is_active list.
+     */
+    public function scopeForOffice(Builder $q, bool $isAdmin = true): Builder
+    {
+        return $q->where(function (Builder $w) use ($isAdmin) {
+            $w->where('is_active', true);
+            if ($isAdmin) {
+                $w->orWhereIn('slug', self::OFFICE_ONLY);
+            }
+        });
     }
 
     public function vehicles(): HasMany

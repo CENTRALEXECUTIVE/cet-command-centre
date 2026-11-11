@@ -2696,7 +2696,7 @@ class BookingController extends Controller
         $user = $request->user();
 
         return [
-            'vehicleTypes' => VehicleType::where('is_active', true)->orderBy('sort_order')->get(),
+            'vehicleTypes' => VehicleType::forOffice($user->isAdmin())->orderBy('sort_order')->get(),
             'airports' => Airport::where('is_active', true)->orderBy('name')->get(),
             'corporateAccounts' => $user->isAdmin()
                 ? CorporateAccount::where('is_active', true)->orderBy('name')->get()

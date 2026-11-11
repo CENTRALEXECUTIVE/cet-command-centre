@@ -37,6 +37,20 @@ class StoreBookingRequest extends FormRequest
         }
     }
 
+    /** Active types; admins may also book the office-only ones (Estate). */
+    private function bookableVehicle(): \Illuminate\Validation\Rules\Exists
+    {
+        $admin = (bool) $this->user()?->isAdmin();
+
+        // Nested so it reads id = ? AND (is_active OR office-only), never "… OR estate" on its own.
+        return Rule::exists('vehicle_types', 'id')->where(fn ($q) => $q->where(function ($w) use ($admin) {
+            $w->where('is_active', true);
+            if ($admin) {
+                $w->orWhereIn('slug', VehicleType::OFFICE_ONLY);
+            }
+        }));
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -49,7 +63,7 @@ class StoreBookingRequest extends FormRequest
             'customer_email' => ['nullable', 'email', 'max:160'],
 
             // Service
-            'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')->where('is_active', true)],
+            'vehicle_type_id' => ['required', $this->bookableVehicle()],
             'airport_id' => ['nullable', Rule::exists('airports', 'id')],
 
             // Journey
@@ -73,7 +87,7 @@ class StoreBookingRequest extends FormRequest
             'leg_price_return' => ['nullable', 'numeric', 'min:0'],
             // The return leg's own vehicle (blank = same as outbound) and its own
             // flight (a return collected from an airport is a different flight).
-            'return_vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')->where('is_active', true)],
+            'return_vehicle_type_id' => ['nullable', $this->bookableVehicle()],
             'return_flight_number' => ['nullable', 'string', 'max:32'],
             // The return leg's own passengers and luggage (blank = same as outbound),
             // for when the party changes on the way back.
