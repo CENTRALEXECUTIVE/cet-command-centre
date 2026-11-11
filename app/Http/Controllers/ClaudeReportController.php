@@ -95,6 +95,12 @@ class ClaudeReportController extends Controller
             'batch_waiting_for_approval' => $candidates,
             'replies_last_14_days' => $replies,
             'follow_ups_due_next_7_days' => $dueNext,
+            // The same list as the dashboard's "Follow-ups due today" (today or overdue, not closed).
+            'follow_ups_due_or_overdue' => Prospect::followUpsDue()->orderBy('next_action_at')->get()
+                ->map(fn ($p) => [
+                    'company' => $p->company, 'status' => $p->status, 'to' => $p->contact_email,
+                    'due' => $p->next_action_at?->format('D j M'),
+                ])->values(),
             'pipeline' => Prospect::query()->selectRaw('status, count(*) as n')->groupBy('status')->pluck('n', 'status'),
         ], 200, ['Cache-Control' => 'no-store']);
     }
