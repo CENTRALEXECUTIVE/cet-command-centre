@@ -183,6 +183,7 @@ class QuoteService
         if ($destKey !== null && $localFar !== true) {
             $price = $this->fixedPrice($destKey, $this->zonesFor($localText), $slug);
             if ($price !== null) {
+                $price += $this->localUplift($localText);
                 return $this->withTimeSurcharge(
                     ['price' => $price, 'basis' => 'Fixed price', 'miles' => null, 'fixed' => true],
                     $pickupAt,
@@ -686,6 +687,19 @@ class QuoteService
         }
 
         return (float) $d['miles'] <= $this->freeRoam->deadMileageFreeRadius();
+    }
+
+    /**
+     * Extra on every fixed fare for the further-out Sheffield districts — S25
+     * (Dinnington/North Anston) and S26 (Kiveton/Aston/Swallownest): +£25 on every
+     * vehicle (directors, 11 Nov 2026: Manchester Airport exec £130 from there).
+     * Office-tunable via cet.s25_s26_uplift.
+     */
+    private function localUplift(string $text): float
+    {
+        return in_array($this->outward($text), ['S25', 'S26'], true)
+            ? (float) config('cet.s25_s26_uplift', 25)
+            : 0.0;
     }
 
     /** The outward code (e.g. "S20") from an address, if present. */

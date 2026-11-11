@@ -33,7 +33,7 @@ class PricingAccuracySweepTest extends TestCase
     private const BASE_MILES = [
         // ---- home catchment (local fixed fares) ----
         'Sheffield S1' => 1, 'Mosborough' => 8, 'Rotherham S60' => 7, 'Barnsley S70' => 15,
-        'Chesterfield S40' => 13, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25,
+        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25,
         'Mansfield NG18' => 26, 'Matlock DE4' => 24, 'Meadowhall' => 4,
         // ---- out of area ----
         'Kidderminster' => 114, 'Grimsby' => 70, 'Scunthorpe' => 45, 'Goole' => 38,
@@ -157,6 +157,27 @@ class PricingAccuracySweepTest extends TestCase
         $q = app(QuoteService::class)->quote('Huddersfield', 'Heathrow Airport', $this->exec());
         $this->assertFalse($q['fixed']);
         $this->assertGreaterThan(350, (float) $q['price']); // mileage + drag, never the £290 Sheffield fare
+    }
+
+    public function test_s25_and_s26_pay_25_more_on_every_fixed_fare(): void
+    {
+        $quotes = app(QuoteService::class);
+        foreach (['Dinnington, Sheffield S25 2AA', 'Kiveton Park, Sheffield S26 5AA'] as $address) {
+            $this->assertEqualsWithDelta(130.0, $quotes->quote($address, 'Manchester Airport', $this->exec())['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(190.0, $quotes->quote($address, 'Manchester Airport', $this->vehicle('v-class'))['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(165.0, $quotes->quote($address, 'Manchester Airport', $this->vehicle('minibus-8'))['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(315.0, $quotes->quote($address, 'Heathrow Airport', $this->exec())['price'], 0.01, $address);
+            // Same on the way back.
+            $this->assertEqualsWithDelta(130.0, $quotes->quote('Manchester Airport', $address, $this->exec())['price'], 0.01, $address);
+        }
+        // Neighbouring Sheffield districts are unchanged.
+        $this->assertEqualsWithDelta(105.0, $quotes->quote('Mosborough, Sheffield S20 5AA', 'Manchester Airport', $this->exec())['price'], 0.01);
+        $this->assertEqualsWithDelta(105.0, $quotes->quote('Sheffield S1 2HH', 'Manchester Airport', $this->exec())['price'], 0.01);
+    }
+
+    private function vehicle(string $slug): \App\Models\VehicleType
+    {
+        return \App\Models\VehicleType::where('slug', $slug)->firstOrFail();
     }
 
     public function test_oban_is_not_glasgow_airport(): void

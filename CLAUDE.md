@@ -424,6 +424,8 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   **Near-end drag (11 Nov 2026):** radius stays 15 mi. When the NEARER end is just outside it (≤ 35 mi,
   `cet.fixed_zone_max_miles`), drag = only those extra miles (Doncaster → Heathrow £350 + £20 = £370, not
   £515). Only when both ends are beyond 35 mi does the full furthest-end drag apply (Kidderminster → MAN £330).
+  **S25/S26 (Dinnington, Anston, Kiveton, Aston) = +£25 on every fixed fare, every vehicle** (11 Nov 2026;
+  MAN exec £130, V-Class £190), `cet.s25_s26_uplift`.
 - **Paste-a-booking (`/intake`)** captures the **price** (£ figure), accessibility/
   "Additional" notes, and multi-type bag lists — none silently dropped.
 
