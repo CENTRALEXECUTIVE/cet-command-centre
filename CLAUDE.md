@@ -413,7 +413,7 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   `PricingAccuracySweepTest` — keep it green. **No drag from home (11 Nov 2026):** a journey that
   starts or ends inside the free radius is mileage-priced only (Sheffield → London V-Class was £685
   with drag, now ~£520); drag applies only when BOTH ends are away (Kidderminster → MAN keeps it).
-  **London fixed fares:** core Central London codes = V-Class £450 / exec £300; anywhere else in London = that + £20 (E, EC, N,
+  **London fixed fares:** anywhere in London = V-Class £450 / exec £300; core central codes (EC1-4, WC1-2, SW1, W1) have £20 built in, never itemised (E, EC, N,
   NW, SE, SW, W, WC, BR, CR, EN, HA, IG, SM, UB always; TW/KT/DA/RM only when the address says London.
   Airports (TW6 Heathrow etc.) match their own fares first.
 - **Paste-a-booking (`/intake`)** captures the **price** (£ figure), accessibility/

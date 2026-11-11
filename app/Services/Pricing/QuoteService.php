@@ -47,7 +47,7 @@ class QuoteService
         'heathrow' => ['heathrow'],     // only ever the airport
         'leeds-bradford' => ['leeds bradford'], // only ever the airport
         'manchester' => ['manchester airport'],
-        'central-london' => ['central london'],
+        'london-core' => ['central london'],
     ];
 
     /**
@@ -328,12 +328,12 @@ class QuoteService
     /** The fixed price for a destination, preferring the most specific pickup zone. */
     private function fixedPrice(string $destKey, array $zones, string $slug): ?float
     {
-        // Greater London (outside the core Central London codes) = the Central London fare
-        // + £20 (directors, 11 Nov 2026: V-Class £450 → £470).
-        if ($destKey === 'greater-london') {
+        // Core central London = the London fare with £20 built in (directors, 11 Nov 2026:
+        // V-Class £450 → £470). One fare to the customer; the £20 is never shown.
+        if ($destKey === 'london-core') {
             $central = $this->fixedPrice('central-london', $zones, $slug);
 
-            return $central === null ? null : $central + (float) config('cet.greater_london_uplift', 20);
+            return $central === null ? null : $central + (float) config('cet.london_core_uplift', 20);
         }
 
         // The EDITABLE matrix (office-managed in /pricing) wins, so staff can change a
@@ -420,8 +420,9 @@ class QuoteService
         'glasgow' => ['PA3'],
         'exeter' => ['EX5'],
         'southend' => ['SS2'],
-        // Central London — the core West End / City / Westminster outward codes.
-        'central-london' => ['EC1', 'EC2', 'EC3', 'EC4', 'WC1', 'WC2', 'SW1', 'W1'],
+        // Core central London (West End / City / Westminster) — the standard London fare
+        // with £20 built in (directors, 11 Nov 2026). Shown as one fare, never itemised.
+        'london-core' => ['EC1', 'EC2', 'EC3', 'EC4', 'WC1', 'WC2', 'SW1', 'W1'],
     ];
 
     /** Postcode areas wholly in Greater London → the London fixed fare. */
@@ -479,20 +480,20 @@ class QuoteService
             }
         }
 
-        // 2b) Anywhere else in London = the Central London fixed fare + £20 (directors,
-        //     11 Nov 2026). Only the core West End/City codes used to match, so Canary
-        //     Wharf, Wembley, Croydon… fell to mileage + drag (£685 V-Class).
+        // 2b) Anywhere else in London = the standard London fixed fare (V-Class £450).
+        //     Only the core codes used to match, so Canary Wharf, Wembley, Croydon… fell
+        //     to mileage + drag (£685 V-Class).
         //     Airports are matched above first (TW6 Heathrow, City Airport by name).
         if ($outward !== null && preg_match('/^([A-Z]{1,2})\d/', $outward, $m)) {
             $area = $m[1];
             if (in_array($area, self::LONDON_AREAS, true)
                 || (in_array($area, self::LONDON_MIXED_AREAS, true) && str_contains($t, 'london'))) {
-                return 'greater-london';
+                return 'central-london';
             }
         }
         if ($outward === null && preg_match('/(^|,)\s*london\s*(,|$|uk|united kingdom)/', $t)
             && ! preg_match('/london\s+(road|rd|street|st|lane|way|colney)\b/', $t)) {
-            return 'greater-london';
+            return 'central-london';
         }
 
         // 3) "Terminal N, Manchester" → Manchester Airport (Google drops "airport").

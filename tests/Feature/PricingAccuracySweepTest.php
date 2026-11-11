@@ -323,7 +323,7 @@ class PricingAccuracySweepTest extends TestCase
         $this->assertGreaterThan(0, (float) ($away['dead_mileage'] ?? 0), 'Kidderminster → MAN keeps its drag');
     }
 
-    /** Central London £450 V-Class; anywhere else in London £450 + £20 (directors, 11 Nov 2026). */
+    /** London £450 V-Class; core central London £470 with the £20 built in (directors, 11 Nov 2026). */
     public function test_anywhere_in_london_gets_the_london_fixed_fare(): void
     {
         $this->stubDistances(tripMiles: 165.0);
@@ -331,9 +331,10 @@ class PricingAccuracySweepTest extends TestCase
         $v = VehicleType::where('slug', 'v-class')->firstOrFail();
 
         foreach ([
-            'Westminster, London SW1A 1AA' => 450.0, 'Oxford Street, London W1D 1AA' => 450.0,
-            'Canary Wharf, London E14 5AB' => 470.0, 'Wembley Stadium, London HA9 0WS' => 470.0,
-            'Croydon CR0 1AA' => 470.0, 'Richmond, London TW9 1AA' => 470.0, 'Stratford, London E20 1EJ' => 470.0,
+            'Westminster, London SW1A 1AA' => 470.0, 'Oxford Street, London W1D 1AA' => 470.0,
+            'Canary Wharf, London E14 5AB' => 450.0, 'Wembley Stadium, London HA9 0WS' => 450.0,
+            'Croydon CR0 1AA' => 450.0, 'Richmond, London TW9 1AA' => 450.0, 'Stratford, London E20 1EJ' => 450.0,
+            'Tottenham, London N17 0AP' => 450.0,
         ] as $london => $fare) {
             foreach ([['Sheffield S1 2HH', $london], [$london, 'Sheffield S1 2HH']] as [$a, $b]) {
                 $q = $quotes->quote($a, $b, $v);
@@ -341,7 +342,10 @@ class PricingAccuracySweepTest extends TestCase
                 $this->assertEqualsWithDelta($fare, $q['price'], 0.01, "{$a} → {$b} V-Class");
             }
         }
-        $this->assertEqualsWithDelta(320.0, $quotes->quote('Sheffield S1 2HH', 'Canary Wharf, London E14 5AB', $this->exec())['price'], 0.01, 'Executive £300 + £20');
+        $this->assertEqualsWithDelta(300.0, $quotes->quote('Sheffield S1 2HH', 'Canary Wharf, London E14 5AB', $this->exec())['price'], 0.01, 'Executive £300');
+        $core = $quotes->quote('Sheffield S1 2HH', 'Westminster, London SW1A 1AA', $this->exec());
+        $this->assertEqualsWithDelta(320.0, $core['price'], 0.01, 'core central: £20 built in');
+        $this->assertSame('Fixed price', $core['basis'], 'the £20 is never itemised');
 
         // Heathrow keeps its own fare; a Sheffield "London Road" is not London; a Surrey KT address isn't either.
         $this->assertEqualsWithDelta(290.0, $quotes->quote('Sheffield S1 2HH', 'Heathrow Airport TW6 1QG', $this->exec())['price'], 0.01);

@@ -58,7 +58,7 @@ class PricingQuoteTest extends TestCase
         $this->assertEquals(105.0, $manReturn['price']);
 
         $this->assertEquals(290.0, $quotes->quote('Sheffield S1 2HH', 'Heathrow Terminal 5', $exec)['price']);
-        $this->assertEquals(300.0, $quotes->quote('Sheffield S1', 'Central London', $exec)['price']);
+        $this->assertEquals(320.0, $quotes->quote('Sheffield S1', 'Central London', $exec)['price']); // £300 + £20 built in (core central, 11 Nov 2026)
         $this->assertEquals(400.0, $quotes->quote('Sheffield S1', 'Port of Southampton', $exec)['price']);
     }
 
