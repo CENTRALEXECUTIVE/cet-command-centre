@@ -271,6 +271,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **11 Nov 2026 (eve)** — Booking confirmations, cancellations and invoices now show the office LANDLINE
   0114 399 8242 (was the 07405 mobile); invoices use Settings → Invoice phone if set. WhatsApp links stay on the
   mobile. Open: switch other customer pages (thanks/book/paid/error) to the landline? — directors to confirm.
+- **11 Nov 2026 (late)** — Contact number: ETO-style country picker (flag + code) on new/edit booking; saved
+  as +E.164 read in the picked country (`Phone::normalise`), '+'/'00' auto-picks the country. Old 07… customers
+  still matched (`Phone::variants`) so no duplicates.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
