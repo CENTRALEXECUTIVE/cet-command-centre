@@ -34,7 +34,7 @@ class EstateOfficeOnlyTest extends TestCase
         $this->actingAs($admin)->get(route('bookings.create'))->assertOk()
             ->assertSee('value="'.$estate->id.'"', false);
 
-        // The office-only rule is ONLY for Estate — other switched-off types stay off.
+        // Estate defaults to Backend only when switched off; other switched-off types stay off.
         $this->assertFalse(VehicleType::forOffice(true)->whereKey($hiddenOther->id)->exists());
         $this->assertTrue(VehicleType::forOffice(true)->whereKey($estate->id)->exists());
         $this->assertFalse(VehicleType::forOffice(false)->whereKey($estate->id)->exists());

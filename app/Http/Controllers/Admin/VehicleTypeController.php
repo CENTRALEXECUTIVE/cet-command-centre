@@ -37,7 +37,7 @@ class VehicleTypeController extends Controller
             'luggage_capacity' => ['required', 'integer', 'min:0', 'max:60'],
             'hand_luggage_capacity' => ['required', 'integer', 'min:0', 'max:60'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:999'],
-            'is_active' => ['nullable', 'boolean'],
+            'availability' => ['required', 'in:'.implode(',', array_keys(VehicleType::AVAILABILITY))],
         ]);
 
         $vehicleType->update([
@@ -45,7 +45,8 @@ class VehicleTypeController extends Controller
             'passenger_capacity' => (int) $data['passenger_capacity'],
             'luggage_capacity' => (int) $data['luggage_capacity'],
             'sort_order' => (int) $data['sort_order'],
-            'is_active' => (bool) ($data['is_active'] ?? false),
+            // Only "Frontend & backend" shows to customers.
+            'is_active' => $data['availability'] === 'both',
         ]);
 
         // Tagline + hand luggage live in the shared vehicle_meta Setting (no column).
@@ -53,6 +54,7 @@ class VehicleTypeController extends Controller
         $meta[$vehicleType->slug] = [
             'tagline' => trim((string) ($data['tagline'] ?? '')) ?: null,
             'hand_luggage' => (int) $data['hand_luggage_capacity'],
+            'availability' => $data['availability'],
         ];
         Setting::set('vehicle_meta', $meta, 'json', 'fleet');
 

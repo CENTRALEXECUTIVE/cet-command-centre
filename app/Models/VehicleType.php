@@ -22,21 +22,51 @@ class VehicleType extends Model
         ];
     }
 
-    /** Vehicle types the office can always book, even when hidden from customers. */
-    public const OFFICE_ONLY = ['estate'];
+    /**
+     * Where a vehicle type is offered (ETO-style, set per vehicle in Settings → Vehicles):
+     *  - 'both'    = Frontend & backend: customers (website/widget) AND the office.
+     *  - 'backend' = Backend only: the office booking screens, never customers.
+     *  - 'off'     = hidden everywhere.
+     * Customers only ever see is_active types, so 'both' = is_active. Backend-only is
+     * stored in the vehicle_meta Setting (no migration). Estate defaults to backend-only
+     * when switched off and never set (directors, 11 Nov 2026).
+     */
+    public const AVAILABILITY = [
+        'both' => 'Frontend & backend (customers and office)',
+        'backend' => 'Backend only (office)',
+        'off' => 'Off (hidden everywhere)',
+    ];
+
+    public function availability(): string
+    {
+        if ($this->is_active) {
+            return 'both';
+        }
+        $set = $this->metaOverrides()['availability'] ?? null;
+
+        return in_array($set, ['backend', 'off'], true) ? $set : ($this->slug === 'estate' ? 'backend' : 'off');
+    }
+
+    /** Slugs the office can book although customers can't (Backend only). @return list<string> */
+    public static function backendOnlySlugs(): array
+    {
+        return static::where('is_active', false)->get()
+            ->filter(fn (self $vt) => $vt->availability() === 'backend')
+            ->pluck('slug')->values()->all();
+    }
 
     /**
-     * What the ADMIN booking screens offer: every active type plus the office-only
-     * ones (Estate) — those stay switched off for customers on the website/widget
-     * but the office must still be able to book them (directors, 11 Nov 2026).
-     * Customers (and corporate clients) keep the plain is_active list.
+     * What the ADMIN booking screens offer: Frontend & backend types plus the Backend
+     * only ones. Customers (and corporate clients) keep the plain is_active list.
      */
     public function scopeForOffice(Builder $q, bool $isAdmin = true): Builder
     {
-        return $q->where(function (Builder $w) use ($isAdmin) {
+        $backend = $isAdmin ? self::backendOnlySlugs() : [];
+
+        return $q->where(function (Builder $w) use ($backend) {
             $w->where('is_active', true);
-            if ($isAdmin) {
-                $w->orWhereIn('slug', self::OFFICE_ONLY);
+            if ($backend) {
+                $w->orWhereIn('slug', $backend);
             }
         });
     }

@@ -37,16 +37,16 @@ class StoreBookingRequest extends FormRequest
         }
     }
 
-    /** Active types; admins may also book the office-only ones (Estate). */
+    /** Frontend types; admins may also book the Backend-only ones (Settings → Vehicles). */
     private function bookableVehicle(): \Illuminate\Validation\Rules\Exists
     {
-        $admin = (bool) $this->user()?->isAdmin();
+        $backend = $this->user()?->isAdmin() ? VehicleType::backendOnlySlugs() : [];
 
-        // Nested so it reads id = ? AND (is_active OR office-only), never "… OR estate" on its own.
-        return Rule::exists('vehicle_types', 'id')->where(fn ($q) => $q->where(function ($w) use ($admin) {
+        // Nested so it reads id = ? AND (is_active OR backend-only), never "… OR x" on its own.
+        return Rule::exists('vehicle_types', 'id')->where(fn ($q) => $q->where(function ($w) use ($backend) {
             $w->where('is_active', true);
-            if ($admin) {
-                $w->orWhereIn('slug', VehicleType::OFFICE_ONLY);
+            if ($backend) {
+                $w->orWhereIn('slug', $backend);
             }
         }));
     }

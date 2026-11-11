@@ -3,7 +3,7 @@
 
 @section('content')
     <h1 class="page-title">Vehicles</h1>
-    <p class="page-sub">Control the vehicle classes customers see on the booking page — name, subtitle, how many passengers &amp; bags each carries, whether it's shown, and the order. Prices live in the pricing editors; photos in <a href="{{ route('fleet-photos.index') }}">Fleet photos</a>.</p>
+    <p class="page-sub">Control the vehicle classes customers see on the booking page — name, subtitle, how many passengers &amp; bags each carries, where it's offered (Frontend &amp; backend = customers and office; Backend only = office bookings only), and the order. Prices live in the pricing editors; photos in <a href="{{ route('fleet-photos.index') }}">Fleet photos</a>.</p>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
     @if($errors->any())
@@ -13,7 +13,7 @@
     @endif
 
     @foreach($vehicleTypes as $vt)
-        <div class="card" style="margin-bottom:14px;{{ $vt->is_active ? '' : 'opacity:.6' }}">
+        <div class="card" style="margin-bottom:14px;{{ $vt->availability() === 'off' ? 'opacity:.6' : '' }}">
             <form method="POST" action="{{ route('vehicles.update', $vt) }}">
                 @csrf
                 @method('PUT')
@@ -67,9 +67,13 @@
                         </div>
 
                         <div style="display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap">
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $vt->is_active)) style="width:18px;height:18px">
-                                <span>Show this vehicle to customers</span>
+                            <label style="display:flex;align-items:center;gap:8px">
+                                <span class="hint">Available on</span>
+                                <select name="availability" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+                                    @foreach(\App\Models\VehicleType::AVAILABILITY as $k => $label)
+                                        <option value="{{ $k }}" @selected(old('availability', $vt->availability()) === $k)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </label>
                             <button class="btn btn-primary" style="padding:8px 18px;margin-left:auto">Save</button>
                         </div>

@@ -38,7 +38,7 @@ class VehicleAdminTest extends TestCase
             'luggage_capacity' => 2,
             'hand_luggage_capacity' => 3,
             'sort_order' => 1,
-            'is_active' => '1',
+            'availability' => 'both',
         ])->assertRedirect();
 
         $exec->refresh();
@@ -64,10 +64,34 @@ class VehicleAdminTest extends TestCase
             'luggage_capacity' => $exec->luggage_capacity,
             'hand_luggage_capacity' => 2,
             'sort_order' => $exec->sort_order,
-            // is_active omitted → unchecked → hidden.
+            'availability' => 'off',
         ])->assertRedirect();
 
         $this->assertFalse($exec->refresh()->is_active);
+        $this->assertSame('off', $exec->availability());
+        $this->assertFalse(VehicleType::forOffice(true)->whereKey($exec->id)->exists());
+    }
+
+    public function test_backend_only_hides_from_customers_but_keeps_it_for_the_office(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $mini = VehicleType::where('slug', 'minibus-8')->firstOrFail();
+
+        $this->actingAs($admin)->put(route('vehicles.update', $mini), [
+            'name' => $mini->name,
+            'passenger_capacity' => $mini->passenger_capacity,
+            'luggage_capacity' => $mini->luggage_capacity,
+            'hand_luggage_capacity' => 2,
+            'sort_order' => $mini->sort_order,
+            'availability' => 'backend',
+        ])->assertRedirect();
+
+        $mini->refresh();
+        $this->assertFalse($mini->is_active, 'customers never see it');
+        $this->assertSame('backend', $mini->availability());
+        $this->assertTrue(VehicleType::forOffice(true)->whereKey($mini->id)->exists(), 'the office can book it');
+        $this->assertFalse(VehicleType::forOffice(false)->whereKey($mini->id)->exists(), 'corporate clients cannot');
+        $this->actingAs($admin)->get(route('vehicles.index'))->assertSee('Backend only (office)');
     }
 
     public function test_a_blank_subtitle_clears_the_override_back_to_the_default(): void
@@ -85,7 +109,7 @@ class VehicleAdminTest extends TestCase
             'luggage_capacity' => $exec->luggage_capacity,
             'hand_luggage_capacity' => 2,
             'sort_order' => $exec->sort_order,
-            'is_active' => '1',
+            'availability' => 'both',
         ])->assertRedirect();
 
         // Falls back to the built-in default subtitle.
