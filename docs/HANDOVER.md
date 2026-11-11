@@ -274,6 +274,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - **11 Nov 2026 (late)** — Contact number: ETO-style country picker (flag + code) on new/edit booking; saved
   as +E.164 read in the picked country (`Phone::normalise`), '+'/'00' auto-picks the country. Old 07… customers
   still matched (`Phone::variants`) so no duplicates.
+- **11 Nov 2026 (late)** — Confirmation email money (directors): VAT bookings list each journey EX-VAT, then
+  Subtotal (excl. VAT), VAT (20%), Total — replaces the "Includes VAT" note. US numbers display +1 734 629 2334.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
