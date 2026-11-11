@@ -30,3 +30,11 @@ GitHub's open-source families (OFL), fetched as TTF from Google Fonts into publi
 - **Geist Mono** (geist-mono.ttf, Vercel) — labels, HUD, split-flap board
 Accent line = solid CET gold (#FBBA2A) with a soft glow. Do NOT use outlined/stroked text with these
 variable fonts (overlapping contours show through). Glass panels: dark gradient + 1px gold hairline.
+
+## Music (directors, 11 Nov: "music needs to be in the video")
+Bake in a royalty-free track licensed for commercial social use (Mixkit Stock Music Free License;
+mp3 from assets.mixkit.co/music/<id>/<id>.mp3, never re-sell or Content-ID it). Used: 371 "Deep Urban"
+from 28 s (Before every job), 129 "House Vibez" from 16 s (airport). Start where the track is loud
+(volumedetect in 4 s windows), afade in 0.4 s / out 1.8 s, loudnorm I=-14. Never rip chart/trending
+songs into the file (copyright: platforms mute or strike it); a trending sound can still be layered
+in-app at low volume.
