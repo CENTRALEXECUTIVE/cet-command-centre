@@ -323,7 +323,7 @@ class PricingAccuracySweepTest extends TestCase
         $this->assertGreaterThan(0, (float) ($away['dead_mileage'] ?? 0), 'Kidderminster → MAN keeps its drag');
     }
 
-    /** "Sheffield to London anywhere is £450" V-Class (directors, 11 Nov 2026). */
+    /** Central London £450 V-Class; anywhere else in London £450 + £20 (directors, 11 Nov 2026). */
     public function test_anywhere_in_london_gets_the_london_fixed_fare(): void
     {
         $this->stubDistances(tripMiles: 165.0);
@@ -331,15 +331,17 @@ class PricingAccuracySweepTest extends TestCase
         $v = VehicleType::where('slug', 'v-class')->firstOrFail();
 
         foreach ([
-            'Canary Wharf, London E14 5AB', 'Wembley Stadium, London HA9 0WS', 'Croydon CR0 1AA',
-            'Westminster, London SW1A 1AA', 'Richmond, London TW9 1AA', 'Stratford, London E20 1EJ',
-        ] as $london) {
+            'Westminster, London SW1A 1AA' => 450.0, 'Oxford Street, London W1D 1AA' => 450.0,
+            'Canary Wharf, London E14 5AB' => 470.0, 'Wembley Stadium, London HA9 0WS' => 470.0,
+            'Croydon CR0 1AA' => 470.0, 'Richmond, London TW9 1AA' => 470.0, 'Stratford, London E20 1EJ' => 470.0,
+        ] as $london => $fare) {
             foreach ([['Sheffield S1 2HH', $london], [$london, 'Sheffield S1 2HH']] as [$a, $b]) {
                 $q = $quotes->quote($a, $b, $v);
-                $this->assertTrue($q['fixed'], "{$a} → {$b} should be the London fixed fare");
-                $this->assertEqualsWithDelta(450.0, $q['price'], 0.01, "{$a} → {$b} V-Class");
+                $this->assertTrue($q['fixed'], "{$a} → {$b} should be a London fixed fare");
+                $this->assertEqualsWithDelta($fare, $q['price'], 0.01, "{$a} → {$b} V-Class");
             }
         }
+        $this->assertEqualsWithDelta(320.0, $quotes->quote('Sheffield S1 2HH', 'Canary Wharf, London E14 5AB', $this->exec())['price'], 0.01, 'Executive £300 + £20');
 
         // Heathrow keeps its own fare; a Sheffield "London Road" is not London; a Surrey KT address isn't either.
         $this->assertEqualsWithDelta(290.0, $quotes->quote('Sheffield S1 2HH', 'Heathrow Airport TW6 1QG', $this->exec())['price'], 0.01);

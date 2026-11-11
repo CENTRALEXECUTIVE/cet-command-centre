@@ -328,6 +328,14 @@ class QuoteService
     /** The fixed price for a destination, preferring the most specific pickup zone. */
     private function fixedPrice(string $destKey, array $zones, string $slug): ?float
     {
+        // Greater London (outside the core Central London codes) = the Central London fare
+        // + £20 (directors, 11 Nov 2026: V-Class £450 → £470).
+        if ($destKey === 'greater-london') {
+            $central = $this->fixedPrice('central-london', $zones, $slug);
+
+            return $central === null ? null : $central + (float) config('cet.greater_london_uplift', 20);
+        }
+
         // The EDITABLE matrix (office-managed in /pricing) wins, so staff can change a
         // customer-facing fare themselves. The built-in RULES below are the fallback /
         // seed — identical values, so nothing changes until a price is actually edited.
@@ -471,20 +479,20 @@ class QuoteService
             }
         }
 
-        // 2b) Anywhere in London = the London fixed fare (directors, 11 Nov 2026: "Sheffield to
-        //     London anywhere is £450" V-Class). Only the core West End/City codes used to
-        //     match, so Canary Wharf, Wembley, Croydon… fell to mileage + drag (£685).
+        // 2b) Anywhere else in London = the Central London fixed fare + £20 (directors,
+        //     11 Nov 2026). Only the core West End/City codes used to match, so Canary
+        //     Wharf, Wembley, Croydon… fell to mileage + drag (£685 V-Class).
         //     Airports are matched above first (TW6 Heathrow, City Airport by name).
         if ($outward !== null && preg_match('/^([A-Z]{1,2})\d/', $outward, $m)) {
             $area = $m[1];
             if (in_array($area, self::LONDON_AREAS, true)
                 || (in_array($area, self::LONDON_MIXED_AREAS, true) && str_contains($t, 'london'))) {
-                return 'central-london';
+                return 'greater-london';
             }
         }
         if ($outward === null && preg_match('/(^|,)\s*london\s*(,|$|uk|united kingdom)/', $t)
             && ! preg_match('/london\s+(road|rd|street|st|lane|way|colney)\b/', $t)) {
-            return 'central-london';
+            return 'greater-london';
         }
 
         // 3) "Terminal N, Manchester" → Manchester Airport (Google drops "airport").
