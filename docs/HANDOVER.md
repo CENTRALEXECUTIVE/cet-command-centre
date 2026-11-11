@@ -285,6 +285,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   Heathrow ~£370, was £515); both ends >35 mi keep full furthest-end drag (Kidderminster £330). No-postcode
   addresses only get Sheffield fares if measured inside 15 mi; PA3 exact (Oban fix). Exeter typo now moot.
   Directors to confirm: Southend = Gatwick price, Bristol/V-Class long-run rates (agent review list).
+- **11 Nov 2026 (late night)** — S25/S26 → Manchester Airport only: Exec £125, Estate £135, Minibus £165,
+  XL £180, V-Class £190 (other routes unchanged). Sales kit prices updated to live fares. Outreach: EG reply now
+  counted (replied_at, migration 2026_11_11_000003 — needs `migrate`); Claude report lists due/overdue follow-ups
+  (dashboard showed 10 due — check which are real follow-ups vs replied prospects with a stale date).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
