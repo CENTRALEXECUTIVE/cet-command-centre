@@ -17,15 +17,26 @@
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
     @if($errors->any())<div class="card" style="border-left:4px solid #b32020;background:rgba(179,32,32,.08)">{{ $errors->first() }}</div>@endif
 
-    {{-- Stats --}}
+    {{-- Stats — every box opens the list behind its number. --}}
+    @php
+        $box = fn ($v) => route('outreach.index', $v ? ['view' => $v] : []).'#list';
+        $viewLabels = [
+            'sent' => 'Everyone we have emailed (most recent first)', 'week' => 'Emailed this week',
+            'replied' => 'Prospects who replied (most recent first)', 'meetings' => 'Meetings and proposals',
+            'accounts' => 'Accounts opened', 'contacted' => 'Everyone contacted (most recent first)',
+        ];
+    @endphp
     <div class="deck ox-stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:18px">
-        <div class="kpi"><div class="kpi-ico">🏢</div><div class="kpi-n">{{ $stats['total'] }}</div><div class="kpi-l">Prospects</div></div>
-        <div class="kpi"><div class="kpi-ico">✉</div><div class="kpi-n">{{ $stats['emailed_week'] }}</div><div class="kpi-l">Emailed this week</div></div>
-        <div class="kpi"><div class="kpi-ico">💬</div><div class="kpi-n">{{ $stats['replies'] }}</div><div class="kpi-l">Replies</div></div>
-        <div class="kpi"><div class="kpi-ico">📅</div><div class="kpi-n">{{ $stats['meetings'] }}</div><div class="kpi-l">Meetings / proposals</div></div>
-        <div class="kpi ok"><div class="kpi-ico">✅</div><div class="kpi-n">{{ $stats['accounts'] }}</div><div class="kpi-l">Accounts opened</div></div>
-        <div class="kpi"><div class="kpi-ico">📈</div><div class="kpi-n">{{ $stats['reply_rate'] }}%</div><div class="kpi-l">Reply rate ({{ $stats['contacted'] }} contacted)</div></div>
+        <a href="{{ $box(null) }}" class="kpi {{ $view === '' && ! array_filter($filters) ? 'on' : '' }}"><div class="kpi-ico">🏢</div><div class="kpi-n">{{ $stats['total'] }}</div><div class="kpi-l">Prospects</div></a>
+        <a href="{{ $box('sent') }}" class="kpi {{ $view === 'sent' ? 'on' : '' }}"><div class="kpi-ico">📤</div><div class="kpi-n">{{ $stats['emails_sent'] }}</div><div class="kpi-l">Total emails sent</div></a>
+        <a href="{{ $box('week') }}" class="kpi {{ $view === 'week' ? 'on' : '' }}"><div class="kpi-ico">✉</div><div class="kpi-n">{{ $stats['emailed_week'] }}</div><div class="kpi-l">Emailed this week</div></a>
+        <a href="{{ $box('replied') }}" class="kpi {{ $view === 'replied' ? 'on' : '' }}"><div class="kpi-ico">💬</div><div class="kpi-n">{{ $stats['replies'] }}</div><div class="kpi-l">Replies</div></a>
+        <a href="{{ $box('meetings') }}" class="kpi {{ $view === 'meetings' ? 'on' : '' }}"><div class="kpi-ico">📅</div><div class="kpi-n">{{ $stats['meetings'] }}</div><div class="kpi-l">Meetings / proposals</div></a>
+        <a href="{{ $box('accounts') }}" class="kpi ok {{ $view === 'accounts' ? 'on' : '' }}"><div class="kpi-ico">✅</div><div class="kpi-n">{{ $stats['accounts'] }}</div><div class="kpi-l">Accounts opened</div></a>
+        <a href="{{ $box('contacted') }}" class="kpi {{ $view === 'contacted' ? 'on' : '' }}"><div class="kpi-ico">📈</div><div class="kpi-n">{{ $stats['reply_rate'] }}%</div><div class="kpi-l">Reply rate ({{ $stats['contacted'] }} contacted)</div></a>
+        <a href="#due" class="kpi"><div class="kpi-ico">⏰</div><div class="kpi-n">{{ $due->count() }}</div><div class="kpi-l">Follow-ups due</div></a>
     </div>
+    <style>.ox-stats a.kpi{color:inherit;cursor:pointer}.ox-stats a.kpi.on{border-color:#FBBA2A;box-shadow:0 0 0 2px rgba(251,186,42,.35)}</style>
 
     {{-- Follow-ups due today --}}
     <div class="card ox-due" id="due">
@@ -82,12 +93,19 @@
             <option value="">Any fit</option>
             @foreach([5,4,3,2] as $f)<option value="{{ $f }}" @selected((int)($filters['fit'] ?? 0) === $f)>Fit {{ $f }}{{ $f < 5 ? '+' : '' }}</option>@endforeach
         </select>
+        @if(($filters['view'] ?? '') !== '')<input type="hidden" name="view" value="{{ $filters['view'] }}">@endif
         <button class="btn btn-primary">Filter</button>
         @if(array_filter($filters))<a href="{{ route('outreach.index') }}" class="btn btn-ghost">Clear</a>@endif
     </form>
 
     {{-- List --}}
-    <div class="card">
+    <div class="card" id="list">
+        @if($view !== '')
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
+                <strong>{{ $viewLabels[$view] ?? '' }} · {{ $prospects->total() }}</strong>
+                <a href="{{ route('outreach.index') }}#list" class="btn btn-ghost">Show all</a>
+            </div>
+        @endif
         <div class="table-scroll">
             <table class="table-modern table-cards">
                 <thead><tr><th>Company</th><th>Contact</th><th>Fit</th><th>Status</th><th>Next action</th><th>Owner</th></tr></thead>

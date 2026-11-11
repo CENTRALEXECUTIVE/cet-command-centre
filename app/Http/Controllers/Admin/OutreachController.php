@@ -35,6 +35,34 @@ class OutreachController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $q = Prospect::query()->with('owner');
+        $weekStart = Carbon::now()->startOfWeek();
+
+        // The stat boxes are links: each opens the list behind its number.
+        $view = (string) $request->query('view');
+        $viewOrder = null;
+        switch ($view) {
+            case 'sent':      // every prospect we've emailed, most recent first
+            case 'contacted':
+                $q->whereNotNull('last_contacted_at');
+                $viewOrder = 'last_contacted_at';
+                break;
+            case 'week':
+                $q->whereHas('activities', fn ($a) => $a->where('type', 'emailed')->where('created_at', '>=', $weekStart));
+                $viewOrder = 'last_contacted_at';
+                break;
+            case 'replied':
+                $q->whereNotNull('replied_at');
+                $viewOrder = 'replied_at';
+                break;
+            case 'meetings':
+                $q->whereIn('status', ['meeting', 'proposal']);
+                break;
+            case 'accounts':
+                $q->where('status', 'account_opened');
+                break;
+            default:
+                $view = '';
+        }
 
         if (($status = $request->query('status')) && isset(Prospect::STATUSES[$status])) {
             $q->where('status', $status);
@@ -60,11 +88,14 @@ class OutreachController extends Controller
         }
 
         $closed = "'".implode("','", Prospect::CLOSED)."'";
-        $prospects = $q->orderByRaw("case when status in ($closed) then 1 else 0 end")
-            ->orderByDesc('fit_score')->orderBy('company')
+        if ($viewOrder) {
+            $q->orderByDesc($viewOrder);
+        } else {
+            $q->orderByRaw("case when status in ($closed) then 1 else 0 end");
+        }
+        $prospects = $q->orderByDesc('fit_score')->orderBy('company')
             ->paginate(50)->withQueryString();
 
-        $weekStart = Carbon::now()->startOfWeek();
         $contacted = Prospect::whereNotNull('last_contacted_at')->count();
         $replies = Prospect::whereNotNull('replied_at')->count();
 
@@ -73,6 +104,8 @@ class OutreachController extends Controller
             'due' => Prospect::followUpsDue()->with('owner')->orderBy('next_action_at')->orderByDesc('fit_score')->limit(100)->get(),
             'stats' => [
                 'total' => Prospect::count(),
+                // Every email that's gone out — first emails AND follow-ups, batch or by hand.
+                'emails_sent' => ProspectActivity::where('type', 'emailed')->count(),
                 'emailed_week' => ProspectActivity::where('type', 'emailed')->where('created_at', '>=', $weekStart)
                     ->distinct()->count('prospect_id'),
                 'replies' => $replies,
@@ -83,7 +116,8 @@ class OutreachController extends Controller
             ],
             'segments' => Prospect::whereNotNull('segment')->distinct()->orderBy('segment')->pluck('segment'),
             'owners' => $this->owners(),
-            'filters' => $request->only(['status', 'segment', 'owner', 'fit', 'q']),
+            'filters' => $request->only(['status', 'segment', 'owner', 'fit', 'q', 'view']),
+            'view' => $view,
         ]);
     }
 
