@@ -169,12 +169,27 @@ def caption_png_style(text, out, style):
         ImageDraw.Draw(ov).rounded_rectangle([x0, y, x0 + tw + 48, y + 88], radius=16, fill=(0, 0, 0, 165))
         img.alpha_composite(ov); _draw_mixed(img, (x0 + 24, y + 10), text, f, (255, 255, 255, 255), 60)
     elif style in ("viral", "mix"):
-        f = ImageFont.truetype(POPPINS, 92); d = ImageDraw.Draw(img)
-        words = text.upper().split(); tw = d.textlength(" ".join(words), font=f) + 4 * (len(words) - 1); x = (W - tw) / 2
-        for i, w in enumerate(words):
-            d.text((x, y), w, font=f, fill=YELLOW if i == len(words) - 1 else (255, 255, 255, 255),
-                   stroke_width=9, stroke_fill=(0, 0, 0, 255))
-            x += d.textlength(w + " ", font=f) + 4
+        d = ImageDraw.Draw(img)
+        words = text.upper().split()
+        width = lambda ws, f: d.textlength(" ".join(ws), font=f) + 4 * (len(ws) - 1)
+        size = 92
+        f = ImageFont.truetype(POPPINS, size)
+        # One line if it fits (down to 72px); otherwise two balanced lines.
+        while width(words, f) > W - 160 and size > 72:
+            size -= 4; f = ImageFont.truetype(POPPINS, size)
+        if width(words, f) > W - 160:
+            best = min(range(1, len(words)), key=lambda k: abs(width(words[:k], f) - width(words[k:], f)))
+            lines = [words[:best], words[best:]]
+        else:
+            lines = [words]
+        last = lines[-1][-1]
+        for li, ws in enumerate(lines):
+            x = (W - width(ws, f)) / 2
+            for w in ws:
+                d.text((x, y), w, font=f, fill=YELLOW if (li == len(lines) - 1 and w is last) else (255, 255, 255, 255),
+                       stroke_width=9, stroke_fill=(0, 0, 0, 255))
+                x += d.textlength(w + " ", font=f) + 4
+            y += int(size * 1.15)
     else:  # classic
         f = ImageFont.truetype(BOLD, 70)
 
