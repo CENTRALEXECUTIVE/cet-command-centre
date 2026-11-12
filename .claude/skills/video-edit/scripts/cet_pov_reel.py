@@ -246,6 +246,12 @@ def main(plan_path, out):
     run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(body)])
     dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                          "-of", "csv=p=0", str(body)]).decode().strip())
+    if not plan.get("music"):
+        # No music: the directors add a trending sound inside TikTok / Instagram / CapCut,
+        # where it's licensed (a copyrighted track baked into the file gets muted).
+        run(["ffmpeg", "-y", "-i", str(body), "-c", "copy", out])
+        print(out, f"{dur:.1f}s (no music)")
+        return
     run(["ffmpeg", "-y", "-i", str(body), "-ss", str(plan.get("music_start", 0)), "-i", plan["music"], "-filter_complex",
          f"[1:a]atrim=0:{dur:.2f},afade=t=in:d=0.4,afade=t=out:st={dur - 1.6:.2f}:d=1.6,volume=0.85[a]",
          "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", out])
