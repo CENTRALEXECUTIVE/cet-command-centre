@@ -117,6 +117,43 @@ class Prospect extends Model
     }
 
     /** next_action_at on or before today, and not closed. */
+    /** Segment words that mark a PARTNER (another operator / agency), not a business client. */
+    public const PARTNER_WORDS = ['chauffeur', 'transfer', 'ground transport', 'taxi', 'cab ', 'cab booking', 'partner',
+        'travel management', 'tmc', 'dmc', 'marketplace', 'coach', 'managed transport', 'event travel',
+        'car company', 'limousine', 'tour operator'];
+
+    /** Partner prospects (chauffeur/transfer firms, TMCs, DMCs, marketplaces). */
+    public function scopePartners(Builder $q): Builder
+    {
+        return $q->where(function (Builder $w) {
+            foreach (self::PARTNER_WORDS as $word) {
+                $w->orWhereRaw('lower(coalesce(segment, \'\')) like ?', ['%'.$word.'%']);
+            }
+        });
+    }
+
+    /** Business clients — everything that isn't a partner. */
+    public function scopeBusinesses(Builder $q): Builder
+    {
+        return $q->where(function (Builder $w) {
+            foreach (self::PARTNER_WORDS as $word) {
+                $w->whereRaw('lower(coalesce(segment, \'\')) not like ?', ['%'.$word.'%']);
+            }
+        });
+    }
+
+    public function isPartner(): bool
+    {
+        $seg = strtolower((string) $this->segment);
+        foreach (self::PARTNER_WORDS as $word) {
+            if (str_contains($seg, $word)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function scopeFollowUpsDue(Builder $q): Builder
     {
         return $q->whereNotNull('next_action_at')

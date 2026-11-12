@@ -35,6 +35,11 @@ class OutreachBatch
     }
 
     /** Follow-ups allowed in a day's batch, so most of it is new emails. */
+    public static function maxNewPartners(): int
+    {
+        return max(0, (int) config('outreach.batch.max_new_partners', 1));
+    }
+
     public static function maxFollowUps(): int
     {
         return max(0, (int) config('outreach.batch.max_follow_ups', 3));
@@ -92,11 +97,25 @@ class OutreachBatch
             ->limit(min($limit, max(0, self::maxFollowUps() - $this->followUpsSentToday()
                 - count(array_filter($this->queued(), fn ($q) => ($q['status'] ?? '') !== 'new')))))->get();
 
-        $new = $due->count() < $limit
-            ? Prospect::query()->where($hasEmail)->whereNotIn('id', $queuedIds)->where('status', 'new')
-                ->orderByDesc('fit_score')->orderBy('id')
-                ->limit($limit - $due->count())->get()
-            : collect();
+        // New emails: BUSINESSES first, then at most max_new_partners partner firms
+        // (directors, 12 Nov 2026). Partners already queued today count to that cap.
+        $slots = $limit - $due->count();
+        $new = collect();
+        if ($slots > 0) {
+            $queuedPartners = Prospect::whereIn('id', array_column(array_filter($this->queued(), fn ($q) => ($q['status'] ?? '') === 'new'), 'id'))
+                ->get()->filter->isPartner()->count();
+            $partnerCap = max(0, self::maxNewPartners() - $queuedPartners);
+            $fresh = fn () => Prospect::query()->where($hasEmail)->whereNotIn('id', $queuedIds)->where('status', 'new')
+                ->orderByDesc('fit_score')->orderBy('id');
+            $partners = $partnerCap > 0 ? $fresh()->partners()->limit(min($partnerCap, $slots))->get() : collect();
+            $businesses = $fresh()->businesses()->limit($slots)->get();
+            // Businesses fill the batch; a partner takes the LAST slot only within the cap.
+            $new = $businesses->take(max(0, $slots - $partners->count()))->concat($partners);
+            if ($new->count() < $slots) { // not enough businesses left: top up with partners
+                $more = $fresh()->partners()->whereNotIn('id', $new->pluck('id'))->limit($slots - $new->count())->get();
+                $new = $new->concat($more);
+            }
+        }
 
         return $due->concat($new)->values();
     }

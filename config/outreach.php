@@ -31,6 +31,11 @@ return [
         // Directors (9 Nov 2026): mainly NEW emails. At most this many follow-ups a
         // day inside the daily limit; the rest wait (oldest first) for the next day.
         'max_follow_ups' => (int) env('OUTREACH_MAX_FOLLOW_UPS', 3),
+        // Directors (12 Nov 2026): "too many chauffeuring companies — I want more
+        // businesses". New emails go to BUSINESSES first; at most this many NEW emails a
+        // day to partners (chauffeur / transfer / taxi firms, travel-management and
+        // DMC agencies, marketplaces). Their follow-ups still go out when due.
+        'max_new_partners' => (int) env('OUTREACH_MAX_NEW_PARTNERS', 1),
         'from_name' => 'Matthew Green | Central Executive Transfers',
         'signature' => [
             'name' => 'Matthew Green',

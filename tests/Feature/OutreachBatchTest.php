@@ -26,6 +26,24 @@ class OutreachBatchTest extends TestCase
         ]);
     }
 
+    public function test_new_emails_go_to_businesses_first_with_at_most_one_partner_a_day(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-12 08:00'));
+        config(['outreach.batch.daily_limit' => 5, 'outreach.batch.max_new_partners' => 1]);
+        foreach (['Manchester chauffeur company', 'Travel management company (TMC)', 'Partner - global chauffeur network', 'Airport transfer platform'] as $seg) {
+            $this->prospect(['segment' => $seg, 'fit_score' => 5]);   // partners score higher…
+        }
+        foreach (['Law', 'Accountancy', 'Steel castings (rail, defence)', 'Private hospital', 'Council home-to-school (SEND) transport'] as $seg) {
+            $this->prospect(['segment' => $seg, 'fit_score' => 4]);   // …but businesses come first
+        }
+
+        $batch = app(\App\Services\Outreach\OutreachBatch::class)->candidates();
+        $this->assertCount(5, $batch);
+        $this->assertSame(1, $batch->filter->isPartner()->count(), 'one partner a day, max');
+        $this->assertSame(4, $batch->reject->isPartner()->count());
+        $this->assertFalse(Prospect::where('segment', 'Council home-to-school (SEND) transport')->first()->isPartner(), 'a council is a client, not a partner');
+    }
+
     public function test_batch_page_lists_due_follow_ups_first_then_best_new_prospects_up_to_the_limit(): void
     {
         $this->travelTo(Carbon::parse('2026-11-10 10:00')); // Tuesday
