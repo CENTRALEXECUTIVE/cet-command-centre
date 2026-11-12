@@ -164,6 +164,7 @@ class SettingsController extends Controller
             'square_access_token' => ['nullable', 'string', 'max:255'],
             'square_location_id' => ['nullable', 'string', 'max:120'],
             'square_webhook_signature_key' => ['nullable', 'string', 'max:255'],
+            'square_tips_webhook_signature_key' => ['nullable', 'string', 'max:255'],
             'square_chauffeurs_access_token' => ['nullable', 'string', 'max:255'],
             'square_chauffeurs_location_id' => ['nullable', 'string', 'max:120'],
             'square_chauffeurs_webhook_signature_key' => ['nullable', 'string', 'max:255'],
@@ -252,7 +253,7 @@ class SettingsController extends Controller
         // provided, so leaving a secret field blank doesn't wipe a saved key.
         foreach ([
             'square_environment', 'square_app_id', 'square_access_token', 'square_location_id',
-            'square_webhook_signature_key', 'square_chauffeurs_access_token',
+            'square_webhook_signature_key', 'square_tips_webhook_signature_key', 'square_chauffeurs_access_token',
             'square_chauffeurs_location_id', 'square_chauffeurs_webhook_signature_key',
             'stripe_secret_key', 'stripe_publishable_key', 'stripe_webhook_secret',
         ] as $key) {

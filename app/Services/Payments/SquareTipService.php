@@ -261,8 +261,13 @@ class SquareTipService
      */
     public function verifySignature(?string $signature, string $body, string $notificationUrl): bool
     {
-        $key = $this->webhookSignatureKey();
-        if (blank($key) || blank($signature)) {
+        // Two Square apps call this one endpoint: the main booking/fare app AND the
+        // "CET Tips" app — each subscription signs with its OWN key, so accept either.
+        $keys = array_values(array_filter([
+            $this->webhookSignatureKey(),
+            \App\Models\Setting::get('square_tips_webhook_signature_key') ?: config('services.square.tips_webhook_signature_key'),
+        ], fn ($k) => filled($k)));
+        if (! $keys || blank($signature)) {
             return false;
         }
 
@@ -277,10 +282,12 @@ class SquareTipService
             preg_replace('#^https://#i', 'http://', $notificationUrl),
         ]);
 
-        foreach ($candidates as $url) {
-            $expected = base64_encode(hash_hmac('sha256', $url.$body, $key, true));
-            if (hash_equals($expected, (string) $signature)) {
-                return true;
+        foreach ($keys as $key) {
+            foreach ($candidates as $url) {
+                $expected = base64_encode(hash_hmac('sha256', $url.$body, $key, true));
+                if (hash_equals($expected, (string) $signature)) {
+                    return true;
+                }
             }
         }
 

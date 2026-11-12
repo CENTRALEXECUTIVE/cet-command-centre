@@ -127,7 +127,9 @@ class WebhookController extends Controller
         // Not a tip or a fare? It may be a COVER- combined-invoice payment — settle it.
         $cover = ($tipBooking || $fareBooking)
             ? false
-            : $this->settleCoverByReference($square->coverReferenceFromWebhook($payload), 'square');
+            // (The COVER- parser lives on the booking-payment service — calling it on the
+            // tip service 500'd every non-tip/non-fare event, incl. Square's test events.)
+            : $this->settleCoverByReference(app(\App\Services\Payments\SquareBookingPaymentService::class)->coverReferenceFromWebhook($payload), 'square');
 
         return response()->json(['recorded' => (bool) ($tipBooking ?? $fareBooking), 'cover' => $cover]);
     }

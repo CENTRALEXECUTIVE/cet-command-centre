@@ -118,6 +118,28 @@ class SquareTipTest extends TestCase
         $this->assertFalse($svc->verifySignature('deadbeef', $body, $httpsUrl));
     }
 
+    public function test_the_cet_tips_app_signs_with_its_own_key_and_is_accepted(): void
+    {
+        $this->configureSquare(); // main app key = 'sig-key'
+        $url = 'https://staging.centralexecutivetransfers.co.uk/webhooks/square';
+        $body = '{"type":"payment.updated","data":{"object":{}}}';
+        $tipsSig = base64_encode(hash_hmac('sha256', $url.$body, 'tips-app-key', true));
+
+        // Before the CET Tips key is saved: rejected (the 120 failed deliveries).
+        $this->call('POST', $url, [], [], [], ['HTTP_X_SQUARE_HMACSHA256_SIGNATURE' => $tipsSig, 'CONTENT_TYPE' => 'application/json'], $body)
+            ->assertStatus(403);
+
+        // With the CET Tips app's key in Settings → payments: accepted (Square's test event passes).
+        \App\Models\Setting::set('square_tips_webhook_signature_key', 'tips-app-key', 'string', 'payments');
+        $this->call('POST', $url, [], [], [], ['HTTP_X_SQUARE_HMACSHA256_SIGNATURE' => $tipsSig, 'CONTENT_TYPE' => 'application/json'], $body)
+            ->assertOk();
+
+        // The main app's key still works, and junk is still refused.
+        $mainSig = base64_encode(hash_hmac('sha256', $url.$body, 'sig-key', true));
+        $this->assertTrue(app(SquareTipService::class)->verifySignature($mainSig, $body, $url));
+        $this->assertFalse(app(SquareTipService::class)->verifySignature('deadbeef', $body, $url));
+    }
+
     public function test_webhook_logs_a_completed_tip_onto_the_booking(): void
     {
         $this->configureSquare();

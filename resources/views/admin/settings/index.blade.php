@@ -151,6 +151,9 @@
                 <label>Webhook signature key
                     <input type="text" name="square_webhook_signature_key" value="{{ $square['webhook_signature_key'] }}" placeholder="from Square → Webhooks" autocomplete="off" spellcheck="false">
                 </label>
+                <label>"CET Tips" app — webhook signature key
+                    <input type="text" name="square_tips_webhook_signature_key" value="" placeholder="{{ filled(\App\Models\Setting::get('square_tips_webhook_signature_key')) ? 'saved — leave blank to keep' : 'from Square → CET Tips → Webhooks' }}" autocomplete="off" spellcheck="false">
+                </label>
             </div>
             <div class="card" style="margin-top:12px;border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10)">
                 <strong>Webhook URL for Square</strong>
