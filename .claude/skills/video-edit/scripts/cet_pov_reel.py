@@ -232,10 +232,17 @@ def main(plan_path, out):
         seg = tmp / f"s{i:02d}.mp4"
         speed = float(s.get("speed", 1.0))
         src_dur = float(s["dur"]) * speed
-        fc = (f"[0:v]setpts=PTS/{speed},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-              f"fps=30,format=yuv420p,{GRADE},split[a][b];"
-              f"[b]gblur=sigma=16[bl];[2:v]scale={W}:{H},format=gray[m];[bl][m]alphamerge[blm];"
-              f"[a][blm]overlay=0:0[g];[g][1:v]overlay=0:0")
+        # Photo reels: the directors' photos are already edited — no extra grade and no
+        # blurred edges over the car ("you've ruined my E-Class", 12 Nov 2026).
+        grade = f",{GRADE}" if plan.get("grade", True) else ""
+        if plan.get("edge_blur", True):
+            fc = (f"[0:v]setpts=PTS/{speed},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                  f"fps=30,format=yuv420p{grade},split[a][b];"
+                  f"[b]gblur=sigma=16[bl];[2:v]scale={W}:{H},format=gray[m];[bl][m]alphamerge[blm];"
+                  f"[a][blm]overlay=0:0[g];[g][1:v]overlay=0:0")
+        else:
+            fc = (f"[0:v]setpts=PTS/{speed},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                  f"fps=30,format=yuv420p{grade}[g];[g][1:v]overlay=0:0")
         inputs = ["-ss", str(s["start"]), "-t", f"{src_dur:.3f}", "-i", str(src / s["file"]),
                   "-i", str(tmp / "banner.png"), "-loop", "1", "-i", str(tmp / "mask.png")]
         if s.get("caption"):
