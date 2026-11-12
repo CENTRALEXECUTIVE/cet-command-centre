@@ -102,6 +102,92 @@ def pop_png(text, out):
     img.save(out)
 
 
+POPPINS = str(HERE.parent / "fonts" / "Poppins-ExtraBold.ttf")
+YELLOW = (255, 225, 60, 255)
+
+
+def _shadowed(img, draw_fn, blur=6):
+    sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(sh), shadow=True)
+    img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(blur)))
+    draw_fn(ImageDraw.Draw(img), shadow=False)
+
+
+def _wrap_lines(text, font, max_w):
+    return tt._balanced(text, font, max_w) if hasattr(tt, "_balanced") else [text]
+
+
+def hook_png_style(text, out, style, highlight=None):
+    """The headline, upper third, in one of the TikTok-native looks:
+    classic = white TikTok Sans + thin black outline + soft shadow (TikTok's default text)
+    viral   = heavy caps, thick black outline, one word in yellow (CapCut captions)
+    box     = white rounded box per line, black text (TikTok 'background' style)"""
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    y0 = int(H * 0.19)
+    if style == "box":
+        f = ImageFont.truetype(BOLD, 64)
+        d = ImageDraw.Draw(img)
+        for ln in _wrap_lines(text, f, W - 220):
+            tw = _mixed_len(ln, f, 64); x0 = (W - tw) / 2 - 26
+            d.rounded_rectangle([x0, y0, x0 + tw + 52, y0 + 92], radius=18, fill=(255, 255, 255, 255))
+            _draw_mixed(img, (x0 + 26, y0 + 10), ln, f, (12, 12, 12, 255), 64)
+            y0 += 98
+    elif style == "viral":
+        f = ImageFont.truetype(POPPINS, 76)
+        words_hi = {w.upper() for w in (highlight or "").split()}
+        for ln in _wrap_lines(text.upper(), f, W - 200):
+            d = ImageDraw.Draw(img); tw = d.textlength(ln, font=f); x = (W - tw) / 2
+            for w in ln.split():
+                d.text((x, y0), w, font=f, fill=YELLOW if w.strip(".,!?") in words_hi else (255, 255, 255, 255),
+                       stroke_width=8, stroke_fill=(0, 0, 0, 255))
+                x += d.textlength(w + " ", font=f) + 4
+            y0 += 100
+    else:  # classic
+        f = ImageFont.truetype(BOLD, 74)
+        lines = _wrap_lines(text, f, W - 200)
+
+        def draw(d, shadow):
+            y = y0
+            for ln in lines:
+                tw = d.textlength(ln, font=f); x = (W - tw) / 2
+                if shadow:
+                    d.text((x, y + 5), ln, font=f, fill=(0, 0, 0, 170))
+                else:
+                    d.text((x, y), ln, font=f, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(0, 0, 0, 255))
+                y += 92
+        _shadowed(img, draw)
+    img.save(out)
+
+
+def caption_png_style(text, out, style):
+    """Mid-frame step caption in the same family of looks (viral: last word yellow)."""
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    y = int(H * 0.58)
+    if style == "box":
+        f = ImageFont.truetype(BOLD, 60); tw = _mixed_len(text, f, 60); x0 = (W - tw) / 2 - 24
+        ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(ov).rounded_rectangle([x0, y, x0 + tw + 48, y + 88], radius=16, fill=(0, 0, 0, 165))
+        img.alpha_composite(ov); _draw_mixed(img, (x0 + 24, y + 10), text, f, (255, 255, 255, 255), 60)
+    elif style in ("viral", "mix"):
+        f = ImageFont.truetype(POPPINS, 92); d = ImageDraw.Draw(img)
+        words = text.upper().split(); tw = d.textlength(" ".join(words), font=f) + 4 * (len(words) - 1); x = (W - tw) / 2
+        for i, w in enumerate(words):
+            d.text((x, y), w, font=f, fill=YELLOW if i == len(words) - 1 else (255, 255, 255, 255),
+                   stroke_width=9, stroke_fill=(0, 0, 0, 255))
+            x += d.textlength(w + " ", font=f) + 4
+    else:  # classic
+        f = ImageFont.truetype(BOLD, 70)
+
+        def draw(d, shadow):
+            tw = d.textlength(text, font=f); x = (W - tw) / 2
+            if shadow:
+                d.text((x, y + 5), text, font=f, fill=(0, 0, 0, 170))
+            else:
+                d.text((x, y), text, font=f, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(0, 0, 0, 255))
+        _shadowed(img, draw)
+    img.save(out)
+
+
 def edge_mask(out):
     """Alpha mask: opaque at top/bottom ~17%, fading to clear — for the soft edge blur."""
     m = Image.new("L", (W, H), 0)
@@ -120,7 +206,11 @@ def main(plan_path, out):
     src = Path(plan["src_dir"])
     tmp = Path(tempfile.mkdtemp(prefix="cetpov_"))
     edge_mask(tmp / "mask.png")
-    banner_png(plan["title"], plan.get("subtitle", ""), tmp / "banner.png")
+    style = plan.get("text_style", "banner")   # banner | classic | viral | box | mix
+    if style == "banner":
+        banner_png(plan["title"], plan.get("subtitle", ""), tmp / "banner.png")
+    else:
+        hook_png_style(plan["title"], tmp / "banner.png", "classic" if style == "mix" else style, plan.get("hook_highlight"))
 
     segs = []
     for i, s in enumerate(plan["shots"]):
@@ -134,7 +224,10 @@ def main(plan_path, out):
         inputs = ["-ss", str(s["start"]), "-t", f"{src_dur:.3f}", "-i", str(src / s["file"]),
                   "-i", str(tmp / "banner.png"), "-loop", "1", "-i", str(tmp / "mask.png")]
         if s.get("caption"):
-            pop_png(s["caption"], tmp / f"c{i}.png")
+            if style == "banner":
+                pop_png(s["caption"], tmp / f"c{i}.png")
+            else:
+                caption_png_style(s["caption"], tmp / f"c{i}.png", style)
             inputs += ["-i", str(tmp / f"c{i}.png")]
             fc += f"[v0];[v0][3:v]overlay=0:0:enable='gte(t,0.12)'"
         run(["ffmpeg", "-y", *inputs, "-filter_complex", fc, "-t", f"{float(s['dur']):.3f}",
