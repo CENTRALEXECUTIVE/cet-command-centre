@@ -38,3 +38,14 @@ from 28 s (Before every job), 129 "House Vibez" from 16 s (airport). Start where
 (volumedetect in 4 s windows), afade in 0.4 s / out 1.8 s, loudnorm I=-14. Never rip chart/trending
 songs into the file (copyright: platforms mute or strike it); a trending sound can still be layered
 in-app at low volume.
+
+
+## POV style (12 Nov 2026) — the directors' chosen look
+
+Matched to a chauffeur creator's TikTok they liked: first-person footage, 1–2 s cuts,
+a crisp teal-and-orange grade (deep blacks, cool shadows, whites kept at 1.0 — never
+the muddy yellow look they rejected), soft blurred top/bottom edges, a **red banner
+headline + yellow banner subline** with colour emoji (Noto: avoid 🫡, it isn't in the
+font — use ✅ ✨ 👌 💯), white pop captions mid-frame, Mixkit music, CET end card.
+Script: `scripts/cet_pov_reel.py plan.json out.mp4` (plan format in its docstring).
+Filming tip for new clips: 0.5× ultra-wide, 60 fps, daylight, phone on chest, hands in shot.
