@@ -29,6 +29,9 @@ class StripePaymentService
     /** reference_id prefix on a combined COVER-invoice session (ignored by the fare webhook). */
     public const COVER_PREFIX = 'COVER-';
 
+    /** Driver card tips on PVT LTD (no-VAT) bookings carry this client reference prefix. */
+    public const TIP_PREFIX = 'TIP-';
+
     private function secretKey(): ?string
     {
         return Setting::get('stripe_secret_key') ?: config('services.stripe.secret_key');
@@ -229,6 +232,57 @@ class StripePaymentService
 
             return null;
         }
+    }
+
+    /**
+     * A Stripe-hosted checkout for a customer's card TIP on a PVT LTD (no-VAT)
+     * booking (directors, 12 Nov 2026: tips follow the company — PVT LTD → Stripe,
+     * Ltd → Square). The client reference carries TIP-, never FARE-, so the fare
+     * webhook ignores it and it can never mark a fare paid. Null if unavailable.
+     */
+    public function createTipCheckoutUrl(Booking $booking, float $amount, ?string $redirectUrl = null): ?string
+    {
+        if (! $this->enabled() || $amount <= 0) {
+            return null;
+        }
+        $driver = $booking->driverPublicName() ?: 'your driver';
+        $name = 'Tip for '.$driver.' — '.config('cet.company_novat.name', 'Central Executive Transfers PVT LTD');
+
+        return $this->createCheckoutSession($name, $amount, self::TIP_PREFIX.($booking->external_reference ?: $booking->reference), $redirectUrl, ['kind' => 'tip']);
+    }
+
+    /**
+     * Log a paid Stripe TIP onto the driver's payroll from checkout.session.completed.
+     * Returns the booking, or null when it isn't a paid TIP- session of ours (or it was
+     * already logged).
+     */
+    public function recordTipFromWebhook(array $payload): ?Booking
+    {
+        if (($payload['type'] ?? null) !== 'checkout.session.completed') {
+            return null;
+        }
+        $session = data_get($payload, 'data.object');
+        if (! is_array($session) || strtolower((string) ($session['payment_status'] ?? '')) !== 'paid') {
+            return null;
+        }
+        $clientRef = (string) ($session['client_reference_id'] ?? '');
+        if (! str_starts_with($clientRef, self::TIP_PREFIX)) {
+            return null;
+        }
+        $reference = substr($clientRef, strlen(self::TIP_PREFIX));
+        $paymentId = (string) ($session['payment_intent'] ?? $session['id'] ?? '');
+        $amount = (int) ($session['amount_total'] ?? 0);
+        if ($reference === '' || $paymentId === '' || $amount <= 0) {
+            return null;
+        }
+        $booking = Booking::where('external_reference', $reference)->orWhere('reference', $reference)->first();
+        if (! $booking) {
+            Log::warning('[Stripe] tip for unknown reference', ['reference' => $reference, 'payment' => $paymentId]);
+
+            return null;
+        }
+
+        return $booking->logStripeTip($amount / 100, $paymentId) ? $booking : null;
     }
 
     /**

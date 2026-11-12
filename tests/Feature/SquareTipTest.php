@@ -101,6 +101,44 @@ class SquareTipTest extends TestCase
         });
     }
 
+    public function test_tips_follow_the_company_pvt_ltd_to_stripe_ltd_to_square(): void
+    {
+        $this->configureSquare();
+        config(['services.stripe.secret_key' => 'sk_test_x']);
+        Http::fake([
+            'api.stripe.com/v1/checkout/sessions' => Http::response(['id' => 'cs_1', 'url' => 'https://checkout.stripe.com/c/tip'], 200),
+            '*/v2/online-checkout/payment-links' => Http::response(['payment_link' => ['id' => 'pl_1', 'url' => 'https://squareup.com/checkout/abc']], 200),
+        ]);
+
+        // PVT LTD (no VAT) booking → Stripe, reference TIP-…, never FARE-.
+        $pvt = Booking::factory()->create(['external_reference' => 'PVT001', 'meta' => ['billing_entity' => 'chauffeurs']]);
+        $this->post(route('tip.pay', $pvt->tipToken()), ['amount' => '10'])->assertRedirect('https://checkout.stripe.com/c/tip');
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'checkout/sessions')
+            && $r['client_reference_id'] === 'TIP-PVT001' && $r['line_items[0][price_data][unit_amount]'] === '1000');
+
+        // Ltd (VAT) booking → Square, as before.
+        $ltd = Booking::factory()->create(['external_reference' => 'LTD001', 'meta' => ['billing_entity' => 'transfers']]);
+        $this->post(route('tip.pay', $ltd->tipToken()), ['amount' => '5'])->assertRedirect('https://squareup.com/checkout/abc');
+    }
+
+    public function test_a_paid_stripe_tip_lands_on_the_drivers_payroll_once_and_never_as_a_fare(): void
+    {
+        config(['services.stripe.secret_key' => 'sk_test_x']);
+        $booking = Booking::factory()->create(['external_reference' => 'PVT002', 'meta' => ['billing_entity' => 'chauffeurs']]);
+        $event = ['type' => 'checkout.session.completed', 'data' => ['object' => [
+            'id' => 'cs_9', 'payment_intent' => 'pi_9', 'payment_status' => 'paid', 'amount_total' => 1500,
+            'client_reference_id' => 'TIP-PVT002',
+        ]]];
+        $stripe = app(\App\Services\Payments\StripePaymentService::class);
+
+        $this->assertNull($stripe->recordFareFromWebhook($event), 'a tip is never a fare payment');
+        $this->assertSame($booking->id, $stripe->recordTipFromWebhook($event)?->id);
+        $this->assertNull($stripe->recordTipFromWebhook($event), 'idempotent');
+        $tip = \App\Models\BookingTip::where('booking_id', $booking->id)->sole();
+        $this->assertSame('stripe', $tip->source);
+        $this->assertEquals(15.0, (float) $tip->amount);
+    }
+
     public function test_signature_verifies_even_when_the_proxy_strips_https(): void
     {
         $this->configureSquare(); // webhook_signature_key = 'sig-key'

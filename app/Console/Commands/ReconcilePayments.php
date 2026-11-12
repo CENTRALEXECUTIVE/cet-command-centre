@@ -32,6 +32,13 @@ class ReconcilePayments extends Command
         $found = 0;
 
         foreach ($stripe->recentCompletedSessions($since) as $session) {
+            // A PVT LTD driver tip whose webhook never arrived — log it onto payroll.
+            if ($tip = $stripe->recordTipFromWebhook(['type' => 'checkout.session.completed', 'data' => ['object' => $session]])) {
+                Log::warning('[reconcile] Stripe tip the webhook missed — logged now', ['booking' => $tip->reference]);
+                $this->line('Stripe: tip logged '.$tip->reference);
+
+                continue;
+            }
             $booking = $stripe->recordFareFromWebhook(['type' => 'checkout.session.completed', 'data' => ['object' => $session]]);
             if ($booking) {
                 $found++;

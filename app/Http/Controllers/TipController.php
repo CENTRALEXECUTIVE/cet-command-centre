@@ -28,7 +28,9 @@ class TipController extends Controller
             'booking' => $booking,
             'token' => $token,
             'amounts' => $this->square->presetAmounts(),
-            'enabled' => $this->square->enabled(),
+            // Card tips are on when the booking's company can take them (PVT LTD → Stripe, Ltd → Square).
+            'enabled' => $booking && $booking->billingEntity() === 'chauffeurs' && app(\App\Services\Payments\StripePaymentService::class)->enabled()
+                ? true : $this->square->enabled(),
             'driverName' => $booking?->driverPublicName(),
         ]);
     }
@@ -40,19 +42,21 @@ class TipController extends Controller
             return redirect()->route('tip.show', $token);
         }
 
-        if (! $this->square->enabled()) {
-            return back()->with('tipError', 'Card tips aren’t available just yet — sorry about that.');
-        }
-
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:1', 'max:500'],
         ]);
+        $amount = round((float) $data['amount'], 2);
 
-        $url = $this->square->createCheckoutUrl(
-            $booking,
-            round((float) $data['amount'], 2),
-            redirectUrl: route('tip.thanks', $token),
-        );
+        // Tips follow the company that billed the job (directors, 12 Nov 2026):
+        // PVT LTD (no VAT) → Stripe; Ltd (VAT) → Square.
+        $stripe = app(\App\Services\Payments\StripePaymentService::class);
+        if ($booking->billingEntity() === 'chauffeurs' && $stripe->enabled()) {
+            $url = $stripe->createTipCheckoutUrl($booking, $amount, redirectUrl: route('tip.thanks', $token));
+        } elseif ($this->square->enabled()) {
+            $url = $this->square->createCheckoutUrl($booking, $amount, redirectUrl: route('tip.thanks', $token));
+        } else {
+            return back()->with('tipError', 'Card tips aren’t available just yet — sorry about that.');
+        }
 
         if (! $url) {
             return back()->with('tipError', 'Sorry — we couldn’t start the payment. Please try again.');

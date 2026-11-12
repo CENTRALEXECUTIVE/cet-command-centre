@@ -6468,6 +6468,20 @@ class Booking extends Model
         return true;
     }
 
+    /**
+     * A card tip paid through Stripe (PVT LTD bookings). Same idempotency as Square:
+     * the payment id is unique, so a re-sent webhook never logs it twice.
+     */
+    public function logStripeTip(float $amount, string $paymentId): bool
+    {
+        if (BookingTip::where('square_payment_id', $paymentId)->exists()) {
+            return false;
+        }
+        $this->logTip($amount, 'card', note: 'Card tip via Stripe', loggedBy: 'Stripe', source: 'stripe', squarePaymentId: $paymentId);
+
+        return true;
+    }
+
     public function logSquareTip(float $amount, string $paymentId, ?string $note = null): bool
     {
         // Idempotent: the DB unique index on square_payment_id is the real guard.

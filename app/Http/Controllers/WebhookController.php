@@ -205,6 +205,12 @@ class WebhookController extends Controller
         }
 
         $payload = $request->json()->all();
+        // A driver TIP on a PVT LTD booking (TIP- reference) — log it and stop.
+        if ($tipBooking = $stripe->recordTipFromWebhook($payload)) {
+            \Illuminate\Support\Facades\Log::info('[Stripe webhook] tip '.$tipBooking->reference);
+
+            return response()->json(['recorded' => true, 'tip' => true]);
+        }
         $fareBooking = $stripe->recordFareFromWebhook($payload);
         \Illuminate\Support\Facades\Log::info('[Stripe webhook] '.($payload['type'] ?? '?').' → '.($fareBooking ? 'fare recorded '.$fareBooking->reference : 'not a new fare (ignored)'));
         if ($fareBooking) {
