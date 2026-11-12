@@ -832,6 +832,12 @@
                         <div class="cet-field" style="margin-top:14px"><label for="b-notes">Extra details <span class="opt">(optional)</span></label>
                             <textarea id="b-notes" name="notes" rows="2" placeholder="Full address, flat / company / buzzer, terminal, or anything else we should know…"></textarea></div>
 
+                        <div class="cet-field" style="margin-top:14px"><label for="b-heard">How did you hear about us? <span class="opt">(optional)</span></label>
+                            <select id="b-heard" name="heard_about">
+                                <option value="">Choose…</option>
+                                @foreach(\App\Models\Booking::HEARD_ABOUT as $hk => $hl)<option value="{{ $hk }}">{{ $hl }}</option>@endforeach
+                            </select></div>
+
                         {{-- Payment method (like ETO): pay by card online, or cash to the
                              driver on the day. Hidden entirely for a quote-only vehicle
                              (Rolls Royce / on request) — then it's a request-a-quote. --}}

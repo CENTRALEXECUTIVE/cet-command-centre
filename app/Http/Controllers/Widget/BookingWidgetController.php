@@ -332,6 +332,7 @@ class BookingWidgetController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'heard_about' => ['nullable', Rule::in(array_keys(\App\Models\Booking::HEARD_ABOUT))],
             // ETO-style extras (captured for the office; guide price is confirmed).
             'meet_greet' => ['nullable', 'boolean'],
             'child_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
@@ -658,6 +659,8 @@ class BookingWidgetController extends Controller
                 // Google Ads attribution (gclid/utm) — traces the booking back to the
                 // ad that won it; kept for reporting and offline conversion import.
                 'marketing' => $this->marketingParams($request) ?: null,
+                // "How did you hear about us?" — the sources report.
+                'heard_about' => $data['heard_about'] ?? null,
             ], fn ($v) => $v !== null && $v !== '' && $v !== false),
         ]);
 

@@ -64,6 +64,22 @@ class BookingWidgetTest extends TestCase
             ->assertSee('Payment method');
     }
 
+    public function test_a_web_booking_saves_how_the_customer_heard_about_us(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1,
+            'customer_name' => 'Jo Smith', 'customer_phone' => '07700900123',
+            'heard_about' => 'tiktok',
+        ])->assertOk();
+
+        $this->assertSame('tiktok', \App\Models\Booking::latest('id')->first()->meta['heard_about'] ?? null);
+    }
+
     public function test_a_web_booking_lands_as_a_pending_request_and_alerts_the_office(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

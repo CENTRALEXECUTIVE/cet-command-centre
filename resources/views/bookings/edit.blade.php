@@ -248,6 +248,15 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="field" style="margin:12px 0 0;max-width:320px">
+                    <label for="heard_about">How did they hear about us?</label>
+                    <select id="heard_about" name="heard_about">
+                        <option value="">— Not asked —</option>
+                        @foreach(\App\Models\Booking::HEARD_ABOUT as $val => $label)
+                            <option value="{{ $val }}" @selected(old('heard_about', $booking->meta['heard_about'] ?? '') === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
         </div>
 

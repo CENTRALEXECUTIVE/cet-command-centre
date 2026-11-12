@@ -732,6 +732,49 @@ class Booking extends Model
     /** How close to the pickup a GPS ping must be to count as "at the pickup". */
     public const WAITING_GEOFENCE_M = 200;
 
+    /**
+     * "How did you hear about us?" (directors, 12 Nov 2026) — asked on the website
+     * booking form and recordable by the office, so the weekly sources report shows
+     * which marketing actually brings bookings (social, Google, word of mouth…).
+     */
+    public const HEARD_ABOUT = [
+        'google' => 'Google search', 'tiktok' => 'TikTok', 'instagram' => 'Instagram',
+        'facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'recommended' => 'Recommended by someone',
+        'used_before' => 'Used you before', 'company' => 'Through my company', 'other' => 'Other',
+    ];
+
+    /**
+     * Where the customer heard about us: what they told us, else what the link they
+     * came from says (a Google Ads click id, or utm_source=tiktok/instagram/facebook…).
+     * Null when we simply don't know.
+     */
+    public function heardAboutKey(): ?string
+    {
+        $told = $this->meta['heard_about'] ?? null;
+        if (is_string($told) && isset(self::HEARD_ABOUT[$told])) {
+            return $told;
+        }
+        $m = (array) ($this->meta['marketing'] ?? []);
+        if (filled($m['gclid'] ?? null) || filled($m['gbraid'] ?? null) || filled($m['wbraid'] ?? null)) {
+            return 'google_ads';
+        }
+        $src = strtolower((string) ($m['utm_source'] ?? ''));
+        foreach (['tiktok' => 'tiktok', 'instagram' => 'instagram', 'ig' => 'instagram', 'facebook' => 'facebook',
+                  'fb' => 'facebook', 'linkedin' => 'linkedin', 'google' => 'google'] as $needle => $key) {
+            if ($src !== '' && str_contains($src, $needle)) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    /** The heard-about label for reports ("Google Ads" when only the ad click id says so). */
+    public static function heardAboutLabel(?string $key): string
+    {
+        return $key === 'google_ads' ? 'Google Ads' : (self::HEARD_ABOUT[$key] ?? 'Not asked / unknown');
+    }
+
     /** Minutes of free waiting the customer gets once the driver is at pickup. */
     public function waitingGraceMinutes(): int
     {

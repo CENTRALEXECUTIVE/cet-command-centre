@@ -101,6 +101,7 @@
                     <a href="{{ route('reports.owed') }}" class="{{ request()->routeIs('reports.owed') ? 'active' : '' }}">💷 Money owed</a>
                     <a href="{{ route('reports.revenue') }}" class="{{ request()->routeIs('reports.revenue') ? 'active' : '' }}">Revenue reports</a>
                     <a href="{{ route('reports.customers') }}" class="{{ request()->routeIs('reports.customers') ? 'active' : '' }}">👥 New customers</a>
+                    <a href="{{ route('reports.sources') }}" class="{{ request()->routeIs('reports.sources') ? 'active' : '' }}">📊 Bookings by source</a>
                     <a href="{{ route('reports.vat') }}" class="{{ request()->routeIs('reports.vat') ? 'active' : '' }}">🧾 VAT report</a>
                 </details>
 

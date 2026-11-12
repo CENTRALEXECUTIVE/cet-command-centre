@@ -166,6 +166,82 @@ class ReportController extends Controller
      * genuinely new customers each month brought and what the ads cost to win them.
      * Defaults to the last 12 months when no range is given.
      */
+    /**
+     * Bookings by source, week by week (directors, 12 Nov 2026): how each booking
+     * came in (website / phone / WhatsApp / email / corporate portal) and how the
+     * customer heard about us, with a marker at the week Google Ads were paused
+     * (4 Nov 2026) — so the effect of stopping ads, and of social/SEO, is visible.
+     * A return counts as one booking (the return leg is skipped); revenue is every
+     * leg's fare. Cancelled and no-show bookings are left out.
+     */
+    public function sources(Request $request): View
+    {
+        $adsOff = Carbon::parse((string) config('cet.ads_paused_on', '2026-11-04'), config('app.timezone'));
+        $start = ($request->date('start') ?? $adsOff->copy()->subWeeks(10))->startOfWeek();
+        $end = ($request->date('end') ?? now())->endOfDay();
+
+        $channelLabels = ['website' => 'Website', 'phone' => 'Phone', 'whatsapp' => 'WhatsApp', 'email' => 'Email',
+            'portal' => 'Corporate portal', 'repeat' => 'Repeat / direct', 'other' => 'Other'];
+        $channelOf = function (\App\Models\Booking $b): string {
+            $told = $b->meta['enquiry_source'] ?? null;
+            if (is_string($told) && $told !== '') {
+                return $told;
+            }
+
+            return match ((string) $b->source) {
+                'web' => 'website', 'portal' => 'portal', 'email' => 'email', 'whatsapp' => 'whatsapp',
+                default => 'phone',
+            };
+        };
+
+        $bookings = \App\Models\Booking::query()
+            ->whereBetween('created_at', [$start, $end])
+            ->whereNotIn('status', [\App\Enums\BookingStatus::Cancelled, \App\Enums\BookingStatus::NoShow])
+            ->get(['id', 'source', 'meta', 'quoted_price', 'created_at', 'is_return_leg', 'status']);
+
+        $weeks = [];
+        for ($w = $start->copy(); $w->lte($end); $w->addWeek()) {
+            $weeks[$w->toDateString()] = ['start' => $w->copy(), 'bookings' => 0, 'revenue' => 0.0,
+                'channels' => array_fill_keys(array_keys($channelLabels), 0), 'ads_off' => $adsOff->between($w, $w->copy()->endOfWeek())];
+        }
+        $heard = [];
+        $heardSince = [];
+        foreach ($bookings as $b) {
+            $k = $b->created_at->copy()->timezone(config('app.timezone'))->startOfWeek()->toDateString();
+            if (! isset($weeks[$k])) {
+                continue;
+            }
+            $weeks[$k]['revenue'] += (float) $b->quoted_price;
+            if ($b->is_return_leg) {
+                continue;
+            }
+            $weeks[$k]['bookings']++;
+            $ch = $channelOf($b);
+            $weeks[$k]['channels'][isset($channelLabels[$ch]) ? $ch : 'other']++;
+            $label = \App\Models\Booking::heardAboutLabel($b->heardAboutKey());
+            $heard[$label] = ($heard[$label] ?? 0) + 1;
+            if ($b->created_at->gte($adsOff)) {
+                $heardSince[$label] = ($heardSince[$label] ?? 0) + 1;
+            }
+        }
+        arsort($heard);
+
+        $before = array_filter($weeks, fn ($w) => $w['start']->copy()->endOfWeek()->lt($adsOff));
+        $after = array_filter($weeks, fn ($w) => $w['start']->gte($adsOff->copy()->startOfWeek()->addWeek()));
+        $avg = fn (array $ws, string $f) => $ws ? round(array_sum(array_column($ws, $f)) / count($ws), 1) : null;
+
+        return view('reports.sources', [
+            'start' => $start, 'end' => $end, 'adsOff' => $adsOff,
+            'weeks' => array_reverse($weeks), 'channelLabels' => $channelLabels,
+            'heard' => $heard, 'heardSince' => $heardSince,
+            'summary' => [
+                'before_bookings' => $avg($before, 'bookings'), 'after_bookings' => $avg($after, 'bookings'),
+                'before_revenue' => $avg($before, 'revenue'), 'after_revenue' => $avg($after, 'revenue'),
+                'before_weeks' => count($before), 'after_weeks' => count($after),
+            ],
+        ]);
+    }
+
     public function customers(Request $request): View
     {
         $start = ($request->date('start') ?? now()->subMonths(11)->startOfMonth())->startOfMonth();

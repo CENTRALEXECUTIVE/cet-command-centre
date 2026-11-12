@@ -541,6 +541,15 @@
                     @error('booking_source') <div class="error">{{ $message }}</div> @enderror
                 </div>
                 <div class="field">
+                    <label for="heard_about">How did they hear about us?</label>
+                    <select id="heard_about" name="heard_about">
+                        <option value="">— Not asked —</option>
+                        @foreach(\App\Models\Booking::HEARD_ABOUT as $val => $label)
+                            <option value="{{ $val }}" @selected(old('heard_about') === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field">
                     <label for="special_requests">Special requests</label>
                     <textarea id="special_requests" name="special_requests" placeholder="Child seat, meet &amp; greet, name board…">{{ old('special_requests', $pf['special_requests'] ?? null) }}</textarea>
                     @error('special_requests') <div class="error">{{ $message }}</div> @enderror

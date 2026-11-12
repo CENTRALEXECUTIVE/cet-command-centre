@@ -117,6 +117,7 @@ class StoreBookingRequest extends FormRequest
             // How the booking reached the office (phone / WhatsApp / email / …),
             // recorded for the office. Free-ish but constrained to the known set.
             'booking_source' => ['nullable', Rule::in(['phone', 'whatsapp', 'email', 'website', 'repeat', 'other'])],
+            'heard_about' => ['nullable', Rule::in(array_keys(\App\Models\Booking::HEARD_ABOUT))],
 
             // VAT invoice (billed by Central Executive Transfers Ltd via Square,
             // +20% VAT). The company details for the invoice are optional — the

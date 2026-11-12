@@ -64,6 +64,7 @@ class UpdateBookingRequest extends FormRequest
             'cost_code' => ['nullable', 'string', 'max:60'],
             'corporate_reference' => ['nullable', 'string', 'max:120'],
             'booking_source' => ['nullable', 'in:phone,whatsapp,email,website,repeat,other'],
+            'heard_about' => ['nullable', 'in:'.implode(',', array_keys(\App\Models\Booking::HEARD_ABOUT))],
             'via_stops' => ['nullable', 'array', 'max:10'],
             'via_stops.*' => ['nullable', 'string', 'max:500'],
             'flight_number' => ['nullable', 'string', 'max:32'],

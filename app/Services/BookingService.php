@@ -630,6 +630,7 @@ class BookingService
                 'meeting_point' => trim((string) ($data['meeting_point'] ?? '')) ?: null,
                 // How the booking came in (phone / WhatsApp / email / …) — office record.
                 'enquiry_source' => $data['booking_source'] ?? null,
+                'heard_about' => $data['heard_about'] ?? null,
                 // Extras — same set the customer widget captures (child-seat counts are
                 // capped at the passenger count), so the calendar marks and the driver
                 // sheet show them.
@@ -705,6 +706,9 @@ class BookingService
         }
         if (array_key_exists('wheelchair', $data)) {
             $out['wheelchair'] = (bool) $data['wheelchair'] ?: null;
+        }
+        if (array_key_exists('heard_about', $data)) {
+            $out['heard_about'] = $data['heard_about'] ?: ($booking->meta['heard_about'] ?? null);
         }
         if (array_key_exists('booking_source', $data)) {
             $out['enquiry_source'] = $data['booking_source'] ?: ($booking->meta['enquiry_source'] ?? null);
