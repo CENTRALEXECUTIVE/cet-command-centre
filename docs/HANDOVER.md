@@ -308,6 +308,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   `Prospect::PARTNER_WORDS`); follow-ups to partners still go. Migration 2026_11_12_000002 re-queues today's batch
   that way (only if nothing sent). Also live: "How did you hear about us?" (website + admin forms, meta.heard_about)
   and Reports → Bookings by source (weekly, marker at Ads paused 4 Nov).
+- **12 Nov 2026 (pm)** — Square webhook: /webhooks/square 500'd on every verified non-tip/non-fare event
+  (called coverReferenceFromWebhook on the tip service) — fixed; it also accepts the "CET Tips" Square app's own
+  signing key (Settings → Square card payments → "CET Tips" key). Square warned it stops CET Tips deliveries 18 Nov.
+  Tips now follow the company: PVT LTD → Stripe (TIP- ref, webhook + reconcile log it), Ltd → Square. ITP Aero held
+  (mailbox rejected us). Rebecca Fielding (Grad Consult, past customer) — personal email drafted, awaiting directors.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
