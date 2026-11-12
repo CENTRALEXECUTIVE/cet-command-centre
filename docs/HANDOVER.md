@@ -303,6 +303,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   apart, skipping any domain with no mail server (all 10 checked had MX). Video: POV reel style script added;
   directors disliked the red/yellow banners — choosing between TikTok Classic / viral captions / background box.
   Next: "How did you hear about us?" + weekly bookings-by-source report (directors said yes).
+- **12 Nov 2026 (08:00)** — Directors: "too many chauffeuring companies, I want more businesses". Batch now
+  businesses first, max 1 NEW partner email/day (`outreach.batch.max_new_partners`; partners = segment words in
+  `Prospect::PARTNER_WORDS`); follow-ups to partners still go. Migration 2026_11_12_000002 re-queues today's batch
+  that way (only if nothing sent). Also live: "How did you hear about us?" (website + admin forms, meta.heard_about)
+  and Reports → Bookings by source (weekly, marker at Ads paused 4 Nov).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
