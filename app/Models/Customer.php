@@ -121,8 +121,8 @@ class Customer extends Model
 
     /**
      * At-a-glance facts for the OFFICE (admin pages only — never shown to the customer):
-     * online account, how long they've been with us, trips, business account, marketing
-     * consent, contact details on file, VIP. Each is [label, value, tone] where tone is
+     * online account, how long they've been with us, trips, business account, contact
+     * details on file, VIP. Each is [label, value, tone] where tone is
      * good | warn | muted.
      *
      * @return list<array{0:string,1:string,2:string}>
@@ -145,9 +145,6 @@ class Customer extends Model
         if ($this->corporate_account_id) {
             $facts[] = ['Business account', (string) ($this->corporateAccount?->name ?? 'Linked'), 'good'];
         }
-        $facts[] = $this->marketing_consent
-            ? ['Marketing', 'Opted in', 'good']
-            : ['Marketing', 'Not opted in', 'muted'];
         $facts[] = filled($this->email) ? ['Email', 'On file', 'good'] : ['Email', 'Missing', 'warn'];
         $facts[] = filled($this->phone) ? ['Phone', 'On file', 'good'] : ['Phone', 'Missing', 'warn'];
         if ($this->is_vip) {
