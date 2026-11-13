@@ -581,6 +581,8 @@ Route::post('webhooks/square-chauffeurs', [WebhookController::class, 'squareChau
 // Read-only outreach report for Claude, locked by a bearer key (Settings → Claude access).
 Route::get('reports/claude/outreach', [\App\Http\Controllers\ClaudeReportController::class, 'outreach'])
     ->middleware('throttle:30,1')->name('claude.report.outreach');
+Route::get('reports/claude/booking', [\App\Http\Controllers\ClaudeReportController::class, 'booking'])
+    ->middleware('throttle:30,1')->name('claude.report.booking');
 Route::post('webhooks/stripe', [WebhookController::class, 'stripe'])
     ->middleware('throttle:120,1')
     ->name('webhooks.stripe');

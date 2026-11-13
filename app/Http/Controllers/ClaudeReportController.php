@@ -12,9 +12,10 @@ use Illuminate\Support\Carbon;
 
 /**
  * Read-only reports for Claude (Nov 2026). Locked by a secret key a super admin
- * creates on Settings → Claude access; only its SHA-256 hash is stored. Outreach
- * only: company contacts, never customer bookings, phone numbers or money. Nothing
- * here changes or sends anything.
+ * creates on Settings → Claude access; only its SHA-256 hash is stored. Nothing here
+ * changes or sends anything. Outreach: company contacts. Booking lookup (directors,
+ * 13 Nov 2026): ONE booking by its exact reference, with the minimum customer detail —
+ * first name, masked email, never phone numbers or addresses.
  */
 class ClaudeReportController extends Controller
 {
@@ -103,5 +104,71 @@ class ClaudeReportController extends Controller
                 ])->values(),
             'pipeline' => Prospect::query()->selectRaw('status, count(*) as n')->groupBy('status')->pluck('n', 'status'),
         ], 200, ['Cache-Control' => 'no-store']);
+    }
+
+    /** One booking by exact reference: status, payment, email history (masked), online account. */
+    public function booking(Request $request): JsonResponse
+    {
+        abort_unless(self::tokenMatches($request->bearerToken()), 404);
+
+        $ref = strtoupper(trim((string) $request->query('ref', '')));
+        abort_if($ref === '', 422, 'ref is required');
+
+        $b = \App\Models\Booking::withTrashed()->with('customer', 'vehicleType')
+            ->where('reference', $ref)->orWhere('external_reference', $ref)->first();
+        abort_unless($b, 404);
+
+        $tz = config('app.timezone', 'Europe/London');
+        $c = $b->customer;
+        $linked = $b->linked_booking_id ? \App\Models\Booking::withTrashed()->find($b->linked_booking_id) : null;
+
+        $emails = collect(\App\Support\BookingEmailLog::entries($b))->map(fn (array $e) => [
+            'at' => $e['at'] ?? null,
+            'type' => $e['type'] ?? null,
+            'audience' => $e['audience'] ?? null,
+            'to' => self::maskEmail((string) ($e['to'] ?? '')),
+            'sent' => (bool) ($e['ok'] ?? false),
+            'error' => isset($e['error']) ? \Illuminate\Support\Str::limit((string) $e['error'], 120) : null,
+        ])->values();
+
+        return response()->json([
+            'reference' => $b->reference,
+            'external_reference' => $b->external_reference,
+            'deleted' => $b->trashed(),
+            'status' => $b->status?->value ?? $b->status,
+            'source' => $b->source,
+            'is_return_leg' => (bool) $b->is_return_leg,
+            'linked_reference' => $linked?->reference,
+            'pickup_at' => $b->pickup_at?->copy()->timezone($tz)->format('D j M Y H:i'),
+            'vehicle' => $b->vehicleType?->name,
+            'payment' => [
+                'method' => $b->payment_method?->value ?? $b->payment_method,
+                'status' => $b->payment_status?->value ?? $b->payment_status,
+                'quoted_price' => $b->quoted_price,
+                'fare_paid' => $b->fareIsPaid(),
+            ],
+            'customer' => $c ? [
+                'first_name' => \Illuminate\Support\Str::before(trim((string) $c->name), ' '),
+                'email' => self::maskEmail((string) $c->email),
+                'online_account' => $c->hasOnlineAccount(),
+                'customer_since' => $c->created_at?->copy()->timezone($tz)->toDateString(),
+            ] : null,
+            'emails' => [
+                'sent' => $emails->where('sent', true)->count(),
+                'failed' => $emails->where('sent', false)->count(),
+                'history' => $emails,
+            ],
+        ]);
+    }
+
+    /** jarthur@aegisenergy.uk → ja•••@aegisenergy.uk */
+    public static function maskEmail(string $email): ?string
+    {
+        if (! str_contains($email, '@')) {
+            return $email === '' ? null : '•••';
+        }
+        [$user, $domain] = explode('@', $email, 2);
+
+        return mb_substr($user, 0, 2).'•••@'.$domain;
     }
 }

@@ -78,4 +78,28 @@ class ClaudeReportTest extends TestCase
         $this->actingAs(User::factory()->admin()->create(['is_super_admin' => true]))
             ->get(route('claude-access.index'))->assertOk()->assertSee('Claude access');
     }
+
+    public function test_booking_lookup_is_key_locked_and_masks_customer_details(): void
+    {
+        $customer = \App\Models\Customer::create(['name' => 'Jess Arthur', 'email' => 'jarthur@example.co.uk', 'phone' => '07700900333']);
+        $booking = Booking::factory()->create(['customer_id' => $customer->id, 'reference' => 'CET-ABC12A', 'pickup_at' => now()->addDay()]);
+        \App\Support\BookingEmailLog::record($booking, ['type' => 'Paid confirmation', 'audience' => 'customer',
+            'to' => 'jarthur@example.co.uk', 'subject' => 'x', 'ok' => true]);
+
+        $this->getJson(route('claude.report.booking', ['ref' => 'CET-ABC12A']))->assertNotFound();
+
+        $key = $this->makeKey();
+        $res = $this->getJson(route('claude.report.booking', ['ref' => 'cet-abc12a']), ['Authorization' => 'Bearer '.$key])
+            ->assertOk()
+            ->assertJsonPath('reference', 'CET-ABC12A')
+            ->assertJsonPath('customer.first_name', 'Jess')
+            ->assertJsonPath('customer.email', 'ja•••@example.co.uk')
+            ->assertJsonPath('customer.online_account', false)
+            ->assertJsonPath('emails.sent', 1)
+            ->assertJsonPath('emails.history.0.to', 'ja•••@example.co.uk');
+
+        $body = $res->getContent();
+        $this->assertStringNotContainsString('07700900333', $body);
+        $this->assertStringNotContainsString('jarthur@', $body);
+    }
 }
