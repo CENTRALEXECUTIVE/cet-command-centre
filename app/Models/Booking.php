@@ -5397,6 +5397,13 @@ class Booking extends Model
      */
     public function suggestedDriverPay(): ?float
     {
+        // Directors' Manchester Airport jobs (to or from MAN, executive saloon, Abdi or
+        // Maj driving) pay a flat figure, default £95 — directors, 13 Nov 2026, to
+        // recoup commission. Setting: director_man_pay.
+        if ($this->isDirectorManchesterJob()) {
+            return $this->directorManchesterPay();
+        }
+
         // A discounted booking leaves driver pay for the office to set by hand: the
         // company absorbs the goodwill, so we don't auto-suggest 90% of a fare that
         // a voucher has already reduced. The payroll box stays blank for a manual figure.
@@ -5412,6 +5419,29 @@ class Booking extends Model
         return round($fare * $this->driverPayPercent() / 100, 2);
     }
 
+    /** The flat pay for a director's Manchester Airport job (default £95). */
+    public function directorManchesterPay(): float
+    {
+        return (float) \App\Models\Setting::get('director_man_pay', 95);
+    }
+
+    /**
+     * A Manchester Airport job (either direction) on an executive saloon driven by
+     * one of the directors (Abdi or Maj — the non-third-party rotation drivers).
+     */
+    public function isDirectorManchesterJob(): bool
+    {
+        if (! $this->driver_id || $this->airportCode() !== 'MAN') {
+            return false;
+        }
+        if (! ($this->vehicleType?->affects_rotation)) {
+            return false; // executive saloons only (the cars the directors drive)
+        }
+        $profile = $this->driver?->driverProfile;
+
+        return $profile !== null && ! $profile->is_third_party;
+    }
+
     /**
      * Auto-fill the driver's pay with the standard 90% share when it hasn't been
      * set yet — so upcoming jobs already show the right "driver owed" in payroll
@@ -5423,7 +5453,19 @@ class Booking extends Model
     public function applyDefaultDriverPay(): bool
     {
         if ($this->driverPay() !== null) {
-            return false; // a price is already on the job — don't touch it
+            // An AUTO figure with nothing paid yet follows the rule for whoever now
+            // drives it (e.g. a director's flat Manchester pay once allocated).
+            // A hand-typed / cover price is never touched.
+            $auto = ($this->meta['payroll']['pay_auto'] ?? null) === true;
+            $new = $auto && (float) $this->driverPaidAmount() <= 0.001 ? $this->suggestedDriverPay() : null;
+            if ($new === null || abs($new - (float) $this->driverPay()) < 0.01) {
+                return false;
+            }
+            $this->forceFill(['meta' => array_merge($this->meta ?? [], [
+                'payroll' => array_merge($this->meta['payroll'] ?? [], ['pay' => $new, 'pay_auto' => true]),
+            ])])->save();
+
+            return true;
         }
         $pay = $this->suggestedDriverPay();
         if ($pay === null) {
