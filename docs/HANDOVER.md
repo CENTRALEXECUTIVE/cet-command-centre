@@ -313,6 +313,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   signing key (Settings → Square card payments → "CET Tips" key). Square warned it stops CET Tips deliveries 18 Nov.
   Tips now follow the company: PVT LTD → Stripe (TIP- ref, webhook + reconcile log it), Ltd → Square. ITP Aero held
   (mailbox rejected us). Rebecca Fielding (Grad Consult, past customer) — personal email drafted, awaiting directors.
+- **13 Nov 2026** — Social: bookings-first plan `docs/growth/social/plan-2026-11-13-bookings.md` (past-customer
+  Christmas message, reviews, GBP weekly, outreach, hotels/venues; then 3 Reels/week). Video tool: POV/photo reels,
+  TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
+  in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
+  wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
