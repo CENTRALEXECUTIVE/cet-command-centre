@@ -258,7 +258,7 @@ def main(plan_path, out):
 
     tt.end_card_png(str(tmp / "end.png"))
     end = tmp / "end.mp4"
-    run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(tmp / "end.png"), "-vf", f"scale={W}:{H},fps=30,format=yuv420p",
+    run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(tmp / "end.png"), "-vf", f"scale={W}:{H},fps=30,format=yuv420p,fade=t=in:st=0:d=0.35",
          "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", str(end)])
     segs.append(end)
 

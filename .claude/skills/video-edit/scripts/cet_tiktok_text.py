@@ -98,15 +98,43 @@ def caption_png(text, out, emphasis=(), y_ratio=0.60, size=60):
 
 
 def end_card_png(out):
-    img = Image.new("RGBA", (W, H), (10, 10, 10, 255)); d = ImageDraw.Draw(img)
-    f1 = ImageFont.truetype(BOLD, 96); word = "CENTRAL"; sp = 30
-    total = sum(f1.getlength(c) for c in word) + sp * (len(word) - 1); x = (W - total) / 2
-    for c in word:
-        d.text((x, 760), c, font=f1, fill=WHITE); x += f1.getlength(c) + sp
-    d.rectangle([(W / 2 - 170, 900), (W / 2 + 170, 905)], fill=GOLD)
-    f2 = ImageFont.truetype(SEMI, 44); f3 = ImageFont.truetype(SEMI, 40)
-    for i, (t, col, ff) in enumerate([("Executive Transfers", WHITE, f2),
-                                      ("Sheffield · South Yorkshire · Nationwide", (185, 178, 160, 255), f3),
-                                      ("centralexecutivetransfers.co.uk", GOLD, f3)]):
-        d.text(((W - ff.getlength(t)) / 2, 950 + i * 66), t, font=ff, fill=col)
+    """CET end card (directors' redesign, 13 Nov 2026): the real CENTRAL wordmark (crisp,
+    from the brand logo), gold tracked 'EXECUTIVE TRANSFERS', a thin gold rule, what we do,
+    the website in a gold-outlined pill and the office landline. Black with a soft charcoal
+    glow — premium, readable, inside the TikTok/Reels safe area."""
+    from PIL import ImageFilter
+    img = Image.new("RGBA", (W, H), (8, 8, 9, 255))
+    # Soft radial glow behind the logo.
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).ellipse([W / 2 - 520, 560, W / 2 + 520, 1220], fill=(40, 38, 34, 255))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(140)))
+    d = ImageDraw.Draw(img)
+
+    logo = Image.open(FONTS / "cet-wordmark-white.png")
+    lw = 760; logo = logo.resize((lw, int(logo.height * lw / logo.width)), Image.LANCZOS)
+    img.alpha_composite(logo, (int((W - lw) / 2), 720))
+    y = 720 + logo.height + 38
+
+    tag = "EXECUTIVE TRANSFERS"; ft = ImageFont.truetype(SEMI, 40); sp = 9
+    tw = sum(ft.getlength(c) for c in tag) + sp * (len(tag) - 1); x = (W - tw) / 2
+    for c in tag:
+        d.text((x, y), c, font=ft, fill=GOLD); x += ft.getlength(c) + sp
+    y += 84
+    d.rectangle([(W / 2 - 60, y), (W / 2 + 60, y + 3)], fill=GOLD)
+    y += 46
+
+    fs = ImageFont.truetype(SEMI, 38)
+    line = "Airports  ·  Business  ·  Weddings  ·  Nationwide"
+    d.text(((W - fs.getlength(line)) / 2, y), line, font=fs, fill=(196, 190, 176, 255))
+    y += 110
+
+    fw = ImageFont.truetype(BOLD, 40); site = "centralexecutivetransfers.co.uk"
+    sw = fw.getlength(site); px, py = 38, 22
+    d.rounded_rectangle([(W - sw) / 2 - px, y, (W + sw) / 2 + px, y + 52 + py * 2], radius=44,
+                        outline=GOLD, width=3)
+    d.text(((W - sw) / 2, y + py + 2), site, font=fw, fill=WHITE)
+    y += 52 + py * 2 + 40
+    ph = "Book online or call 0114 399 8242"
+    d.text(((W - fs.getlength(ph)) / 2, y), ph, font=fs, fill=(196, 190, 176, 255))
     img.save(out)
+
