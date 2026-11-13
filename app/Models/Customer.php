@@ -113,6 +113,50 @@ class Customer extends Model
         return hash_equals($this->password_reset_token, hash('sha256', $raw));
     }
 
+    /** True when the customer has set a password and can sign in at My account. */
+    public function hasOnlineAccount(): bool
+    {
+        return self::passwordLoginAvailable() && filled($this->getAttribute('password'));
+    }
+
+    /**
+     * At-a-glance facts for the OFFICE (admin pages only — never shown to the customer):
+     * online account, how long they've been with us, trips, business account, marketing
+     * consent, contact details on file, VIP. Each is [label, value, tone] where tone is
+     * good | warn | muted.
+     *
+     * @return list<array{0:string,1:string,2:string}>
+     */
+    public function adminFacts(): array
+    {
+        $trips = $this->bookings()
+            ->where('is_return_leg', false)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->count();
+
+        $facts = [];
+        $facts[] = $this->hasOnlineAccount()
+            ? ['Online account', 'Yes — can sign in', 'good']
+            : ['Online account', 'No', 'muted'];
+        $facts[] = ['Customer since', $this->created_at ? $this->created_at->timezone(config('app.timezone'))->format('j M Y') : '—', 'muted'];
+        $facts[] = $trips <= 1
+            ? ['Trips', $trips === 1 ? 'First booking' : 'None yet', 'warn']
+            : ['Trips', $trips.' — returning customer', 'good'];
+        if ($this->corporate_account_id) {
+            $facts[] = ['Business account', (string) ($this->corporateAccount?->name ?? 'Linked'), 'good'];
+        }
+        $facts[] = $this->marketing_consent
+            ? ['Marketing', 'Opted in', 'good']
+            : ['Marketing', 'Not opted in', 'muted'];
+        $facts[] = filled($this->email) ? ['Email', 'On file', 'good'] : ['Email', 'Missing', 'warn'];
+        $facts[] = filled($this->phone) ? ['Phone', 'On file', 'good'] : ['Phone', 'Missing', 'warn'];
+        if ($this->is_vip) {
+            $facts[] = ['VIP', 'Yes', 'good'];
+        }
+
+        return $facts;
+    }
+
     public function corporateAccount(): BelongsTo
     {
         return $this->belongsTo(CorporateAccount::class);

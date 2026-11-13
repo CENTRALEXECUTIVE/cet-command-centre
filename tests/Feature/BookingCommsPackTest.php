@@ -191,7 +191,7 @@ class BookingCommsPackTest extends TestCase
         $this->assertTrue($log[0]['ok']);
 
         $this->actingAs($admin)->get(route('bookings.show', $b))->assertOk()
-            ->assertSee('Emails sent (1)', false)
+            ->assertSee('Emails (1 sent)', false)
             ->assertSee('Confirmation + pay link', false);
     }
 

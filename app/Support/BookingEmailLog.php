@@ -75,7 +75,7 @@ class BookingEmailLog
         try {
             self::record($booking, [
                 'type' => ucfirst($what),
-                'audience' => 'customer',
+                'audience' => str_starts_with(strtolower($what), 'office') ? 'office' : 'customer',
                 'to' => (string) ($to ?? ''),
                 'from' => $booking->senderAddress(),
                 'subject' => '',

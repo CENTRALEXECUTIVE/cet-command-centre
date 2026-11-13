@@ -11,6 +11,8 @@
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
+    @include('customers._facts', ['customer' => $customer])
+
     {{-- Headline stats + quick actions --}}
     <div class="grid grid-3" style="margin-bottom:16px">
         <div class="stat"><div class="n">{{ $tripCount }}</div><div class="l">Trips</div></div>

@@ -746,7 +746,7 @@ class BookingWidgetController extends Controller
         // always reaches the payment page, whatever the mail server is doing. A failed send
         // is raised on the office alerts feed (MailFailure) so the office can WhatsApp it.
         $confirmIds = array_values(array_filter([$booking->id, ($isReturn && isset($return)) ? $return->id : null]));
-        dispatch(function () use ($confirmIds) {
+        \App\Support\AfterResponse::run(function () use ($confirmIds) {
             $mailer = app(\App\Services\Messaging\CustomerBookingMailer::class);
             foreach ($confirmIds as $id) {
                 try {
@@ -757,7 +757,7 @@ class BookingWidgetController extends Controller
                     \App\Support\MailFailure::report('customer booking confirmation', $e, Booking::find($id));
                 }
             }
-        })->afterResponse();
+        });
 
         // Tell the office at once — a web request needs a human to confirm. Never allowed
         // to stop the customer reaching the payment page if an alert channel is down.
@@ -788,13 +788,13 @@ class BookingWidgetController extends Controller
         \Illuminate\Support\Facades\Cache::put($this->submissionFingerprint($request), $booking->id, now()->addMinutes(20));
         if ($ops = $booking->officeInbox()) {
             $bookingId = $booking->id;
-            dispatch(function () use ($ops, $bookingId) {
+            \App\Support\AfterResponse::run(function () use ($ops, $bookingId) {
                 try {
                     \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail(Booking::findOrFail($bookingId)));
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning('[widget] office booking email failed: '.$e->getMessage());
                 }
-            })->afterResponse();
+            });
         }
 
         // Offer online card payment only when Square is live AND we have a firm

@@ -1420,7 +1420,7 @@
         <div class="card">
             <h2>Service &amp; Payment</h2>
             <table>
-                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->displayCustomerName() }}</a>@else{{ $booking->displayCustomerName() }}@endif</td></tr>
+                <tr><th>Customer</th><td>@if($booking->customer && auth()->user()->isAdmin())<a href="{{ route('customers.show', $booking->customer) }}">{{ $booking->displayCustomerName() }}</a>@include('customers._facts', ['customer' => $booking->customer, 'margin' => '6px 0 0'])@else{{ $booking->displayCustomerName() }}@endif</td></tr>
                 @if($booking->displayContact())<tr><th>Contact</th><td>{{ $booking->displayContact() }}</td></tr>@endif
                 <tr><th>Vehicle</th><td>{{ $booking->vehicleLabel($booking->displayVehicleType()) }}@if($booking->vehiclesStillToAllocate() > 0) <span style="color:#b8860b;font-size:13px">· {{ $booking->vehiclesStillToAllocate() }} more {{ \Illuminate\Support\Str::plural('car', $booking->vehiclesStillToAllocate()) }} to add under 🚗 Extra cars</span>@endif</td></tr>
                 <tr><th>Driver</th><td>{{ ($booking->driver || !empty($booking->meta['driver_details']['name'])) ? $booking->driverLabel() : 'Awaiting allocation' }}</td></tr>
@@ -1834,7 +1834,8 @@
 
             {{-- 📧 Email history (newest first, capped at 50) --}}
             <details style="margin-top:14px" @if($emailLog) open @endif>
-                <summary style="cursor:pointer;font-weight:600;font-size:14px">📧 Emails sent ({{ count($emailLog) }})</summary>
+                @php $emailOk = collect($emailLog)->filter(fn ($e) => $e['ok'] ?? false)->count(); $emailFailed = count($emailLog) - $emailOk; @endphp
+                <summary style="cursor:pointer;font-weight:600;font-size:14px">📧 Emails ({{ $emailOk }} sent{{ $emailFailed ? ', '.$emailFailed.' failed' : '' }})</summary>
                 @if($emailLog)
                     <div style="overflow-x:auto;margin-top:8px">
                         <table style="width:100%;font-size:13px">
@@ -1843,7 +1844,8 @@
                             @foreach($emailLog as $e)
                                 <tr>
                                     <td style="white-space:nowrap">{{ $fmtAt($e['at'] ?? now()) }}</td>
-                                    <td>{{ $e['type'] ?? '—' }}@if(($e['audience'] ?? '') === 'office')<div class="muted" style="font-size:11px">office</div>@endif</td>
+                                    <td>{{ $e['type'] ?? '—' }}@if(($e['audience'] ?? '') === 'office')<div class="muted" style="font-size:11px">office</div>@endif
+                                        <div style="margin-top:3px">@if($e['ok'] ?? false)<span class="badge badge-complete">✓ Sent</span>@else<span class="badge badge-cancelled">✗ Failed — not delivered</span>@endif</div></td>
                                     <td>{{ $e['to'] ?? '' }}</td>
                                     <td>{{ $e['from'] ?? '' }}</td>
                                     <td>{{ $e['subject'] ?? '' }}@if(!empty($e['note']))<div class="muted" style="font-size:11px">{{ $e['note'] }}</div>@endif</td>
