@@ -742,24 +742,40 @@ class BookingWidgetController extends Controller
         // web-only and off by default (see CustomerBookingMailer). Never reaches
         // ETO/existing customers. On a return we confirm BOTH legs, so the customer
         // gets a confirmation + tap-to-pay link for the outbound AND the return.
-        $mailer = app(\App\Services\Messaging\CustomerBookingMailer::class);
-        $mailer->confirmIfWebBooking($booking);
-        if ($isReturn && isset($return)) {
-            $mailer->confirmIfWebBooking($return->fresh());
-        }
+        // Sent AFTER the customer's page loads (13 Nov 2026 Microsoft outage): the customer
+        // always reaches the payment page, whatever the mail server is doing. A failed send
+        // is raised on the office alerts feed (MailFailure) so the office can WhatsApp it.
+        $confirmIds = array_values(array_filter([$booking->id, ($isReturn && isset($return)) ? $return->id : null]));
+        dispatch(function () use ($confirmIds) {
+            $mailer = app(\App\Services\Messaging\CustomerBookingMailer::class);
+            foreach ($confirmIds as $id) {
+                try {
+                    if ($leg = Booking::find($id)) {
+                        $mailer->confirmIfWebBooking($leg);
+                    }
+                } catch (\Throwable $e) {
+                    \App\Support\MailFailure::report('customer booking confirmation', $e, Booking::find($id));
+                }
+            }
+        })->afterResponse();
 
-        // Tell the office at once — a web request needs a human to confirm.
-        $name = $customer->name;
-        $when = $pickupAt->format('D d M, H:i');
-        \App\Models\WatchdogEvent::log('web_booking', 'New web booking request — '.$name, 'info', $booking);
-        $typeLabel = $isQuoteRequest ? ' ('.$vehicleType->name.' — quote request)'
-            : ($isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : ''));
-        $action = $isQuoteRequest ? 'Email them a price.' : 'Confirm it.';
-        $this->adminAlerts->notify('web_booking',
-            ($isQuoteRequest ? '💬 New quote request — ' : '🌐 New web booking — ').$name.$typeLabel,
-            $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
-                .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
-            'info', $booking);
+        // Tell the office at once — a web request needs a human to confirm. Never allowed
+        // to stop the customer reaching the payment page if an alert channel is down.
+        try {
+            $name = $customer->name;
+            $when = $pickupAt->format('D d M, H:i');
+            \App\Models\WatchdogEvent::log('web_booking', 'New web booking request — '.$name, 'info', $booking);
+            $typeLabel = $isQuoteRequest ? ' ('.$vehicleType->name.' — quote request)'
+                : ($isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : ''));
+            $action = $isQuoteRequest ? 'Email them a price.' : 'Confirm it.';
+            $this->adminAlerts->notify('web_booking',
+                ($isQuoteRequest ? '💬 New quote request — ' : '🌐 New web booking — ').$name.$typeLabel,
+                $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
+                    .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
+                'info', $booking);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[widget] office alert failed: '.$e->getMessage());
+        }
 
         // Email the office too (mirrors ETO's "New booking" notification), so the
         // office is aware of every web request — paid or not — and can chase up an

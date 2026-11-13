@@ -66,6 +66,17 @@ class WebBookingDuplicateAndConfirmationPdfTest extends TestCase
         $this->assertSame(2, Booking::where('source', 'web')->count());
     }
 
+    public function test_the_customer_still_reaches_the_next_page_when_email_is_down(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        \Illuminate\Support\Facades\Mail::shouldReceive('to')->andThrow(new \RuntimeException('Microsoft is down'));
+
+        $this->post(route('widget.book.store'), $this->payload(['customer_email' => 'jess@example.com']))
+            ->assertOk()->assertSee('Booking request received');
+
+        $this->assertSame(1, Booking::where('source', 'web')->count());
+    }
+
     public function test_the_booking_form_locks_after_the_first_click(): void
     {
         $this->get(route('widget.book'))->assertOk()

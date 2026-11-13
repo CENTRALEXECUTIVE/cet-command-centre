@@ -318,6 +318,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **13 Nov 2026 (pm)** — Microsoft outage: a web customer (Aegis Energy) clicked "Book & pay" repeatedly while the
+  page hung on the office email and got 6 return trips; only one paid (£120, CET-D95DCA/B). Fix: one-off form token
+  + button locks after first click; exact repeat within 20 min returns the same booking; office AND customer emails
+  now send after the page loads (SMTP timeout 10s); alert failures can't block the payment page; failed emails show
+  on the alerts feed. New **⬇ Download PDF** of the customer confirmation next to Preview (admin only) for WhatsApp.
+  Humanizer skill added. Open: clear the 5 unpaid duplicate trips (directors to choose merge vs cleanup).
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
