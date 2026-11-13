@@ -332,6 +332,7 @@ class BookingWidgetController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'submission_token' => ['nullable', 'string', 'max:64'],
             'heard_about' => ['nullable', Rule::in(array_keys(\App\Models\Booking::HEARD_ABOUT))],
             // ETO-style extras (captured for the office; guide price is confirmed).
             'meet_greet' => ['nullable', 'boolean'],
@@ -591,6 +592,16 @@ class BookingWidgetController extends Controller
             $customer->forceFill(['corporate_account_id' => $account->id])->save();
         }
 
+        // ONE booking per submission (13 Nov 2026: a customer clicked "Book & pay" six
+        // times while a Microsoft outage stalled the page, and got six return trips).
+        // (a) The form carries a one-off token: a repeat with the same token gets the
+        //     booking already made, never a new one — even if it arrives mid-request.
+        // (b) Belt and braces: exactly the same form again within 20 minutes, still
+        //     pending = the same booking (any different choice books anew).
+        if ($dupe = $this->priorSubmission($request)) {
+            return $this->bookedResponse($dupe, $wantsCard, $isQuoteRequest, $isAccount);
+        }
+
         // A return trip gets a PAIRED reference — outbound …A, return …B, same base —
         // so the two legs are obviously one trip. A one-way gets a normal reference.
         [$outboundRef, $returnRef] = $isReturn ? Booking::generateReferencePair() : [Booking::generateReference(), null];
@@ -753,12 +764,21 @@ class BookingWidgetController extends Controller
         // Email the office too (mirrors ETO's "New booking" notification), so the
         // office is aware of every web request — paid or not — and can chase up an
         // unpaid one. The customer receipt is separate (sent on payment).
+        // Sent AFTER the customer's page has loaded, so a slow or down mail server never
+        // keeps them waiting (and tempted to click again).
+        if ($token = (string) $request->input('submission_token', '')) {
+            \Illuminate\Support\Facades\Cache::put('widget-sub:'.$token, $booking->id, now()->addHours(6));
+        }
+        \Illuminate\Support\Facades\Cache::put($this->submissionFingerprint($request), $booking->id, now()->addMinutes(20));
         if ($ops = $booking->officeInbox()) {
-            try {
-                \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail($booking->fresh()));
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('[widget] office booking email failed: '.$e->getMessage());
-            }
+            $bookingId = $booking->id;
+            dispatch(function () use ($ops, $bookingId) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($ops)->send(new \App\Mail\OfficeBookingMail(Booking::findOrFail($bookingId)));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[widget] office booking email failed: '.$e->getMessage());
+                }
+            })->afterResponse();
         }
 
         // Offer online card payment only when Square is live AND we have a firm
@@ -804,6 +824,70 @@ class BookingWidgetController extends Controller
                 'quoteRequest' => $isQuoteRequest,
                 'conversionValue' => $conversionValue,
                 'conversionEvent' => $conversionEvent,
+            ])
+            ->header('Content-Security-Policy', $this->frameAncestors());
+    }
+
+    /**
+     * The booking this submission already created, if any: by the form's one-off token
+     * (claimed atomically, so two clicks arriving together can't both create), else the
+     * same customer + pickup time + pickup address booked online in the last 20 minutes
+     * and still pending. Null when it's a genuinely new booking.
+     */
+    private function priorSubmission(Request $request): ?Booking
+    {
+        $token = (string) $request->input('submission_token', '');
+        if ($token !== '') {
+            $key = 'widget-sub:'.$token;
+            if (! \Illuminate\Support\Facades\Cache::add($key, 'pending', now()->addHours(6))) {
+                // Another click got there first: wait briefly for it to finish.
+                for ($i = 0; $i < 20; $i++) {
+                    $id = \Illuminate\Support\Facades\Cache::get($key);
+                    if (is_int($id) || ctype_digit((string) $id)) {
+                        return Booking::find((int) $id);
+                    }
+                    usleep(500000);
+                }
+            }
+        }
+
+        // Exactly the same form (every field the customer filled in) in the last 20
+        // minutes, still pending = the same booking. Any different choice books anew.
+        $id = \Illuminate\Support\Facades\Cache::get($this->submissionFingerprint($request));
+        $prior = $id ? Booking::find((int) $id) : null;
+
+        return $prior && $prior->status === \App\Enums\BookingStatus::Pending ? $prior : null;
+    }
+
+    /** A cache key for everything the customer submitted (ignoring the one-off tokens). */
+    private function submissionFingerprint(Request $request): string
+    {
+        $input = $request->except(['_token', 'submission_token']);
+        ksort($input);
+
+        return 'widget-fp:'.sha1((string) json_encode($input));
+    }
+
+    /** The thank-you / pay-now page for an existing web booking (a repeat submission). */
+    private function bookedResponse(Booking $booking, bool $wantsCard, bool $isQuoteRequest, bool $isAccount): \Illuminate\Http\Response
+    {
+        $legs = $booking->invoiceGroupBookings();
+        $payAmount = round((float) $legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2);
+        $payUrl = (! $isAccount && $payAmount > 0 && ! $booking->fareIsPaid() && $this->payments->enabledForBooking($booking))
+            ? URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id])
+            : null;
+
+        return response()
+            ->view('widget.book', [
+                'vehicleTypes' => collect(),
+                'done' => true,
+                'ref' => $booking->reference,
+                'payUrl' => $payUrl,
+                'payWanted' => $wantsCard,
+                'payAmount' => $payAmount ?: null,
+                'quoteRequest' => $isQuoteRequest,
+                'conversionValue' => 0.0,
+                'conversionEvent' => 'booking_repeat',
             ])
             ->header('Content-Security-Policy', $this->frameAncestors());
     }

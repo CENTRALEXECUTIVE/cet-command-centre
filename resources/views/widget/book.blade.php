@@ -525,6 +525,7 @@
 
             <div class="cet-body">
                 <form id="cet-book" action="{{ route('widget.book.store') }}" method="POST" autocomplete="off">
+                    <input type="hidden" name="submission_token" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
                     @csrf
                     <div class="cet-hp"><label>Company<input name="company" tabindex="-1" autocomplete="off"></label></div>
                     {{-- Google Ads / analytics attribution carried from the landing URL. --}}
@@ -1954,7 +1955,12 @@
             }
 
             form.addEventListener('submit', function (e) {
-                if (!validateStep(3)) { e.preventDefault(); }
+                if (!validateStep(3)) { e.preventDefault(); return; }
+                // One click only: a second tap while we're booking would make a second booking.
+                if (form.dataset.sent === '1') { e.preventDefault(); return; }
+                form.dataset.sent = '1';
+                var sb = document.getElementById('cet-submit');
+                if (sb) { sb.disabled = true; sb.textContent = 'Booking… please wait'; sb.style.opacity = '.7'; }
             });
         })();
     </script>

@@ -795,6 +795,39 @@ class BookingController extends Controller
     }
 
     /**
+     * The customer confirmation as a PDF to DOWNLOAD — exactly what the email says (same
+     * mailable and state as the preview), for sending by WhatsApp or printing when email
+     * isn't getting through (Microsoft outage, 13 Nov 2026). Nothing is sent or saved.
+     */
+    public function downloadConfirmation(Request $request, Booking $booking): \Illuminate\Http\Response
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $fresh = $booking->fresh();
+        $state = \App\Services\Messaging\ConfirmationEmailState::for($fresh);
+        $html = (new \App\Mail\BookingConfirmationMail(
+            $fresh, paid: $state['paid'], payUrl: $state['payUrl'], updated: $request->boolean('updated'),
+        ))->render();
+        // Load our own images from disk (no remote fetching inside the PDF renderer).
+        $html = str_replace(rtrim(url('/'), '/').'/images/', public_path('images').'/', $html);
+
+        $options = new \Dompdf\Options;
+        $options->set('isRemoteEnabled', false);
+        $options->set('chroot', public_path());
+        $pdf = new \Dompdf\Dompdf($options);
+        $pdf->setPaper('A4');
+        $pdf->loadHtml($html);
+        $pdf->render();
+
+        $ref = $fresh->external_reference ?: $fresh->reference;
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="CET-booking-'.preg_replace('/[^A-Za-z0-9-]/', '', (string) $ref).'.pdf"',
+        ]);
+    }
+
+    /**
      * Preview the confirmation email from the create form BEFORE the booking is
      * saved — built from the details entered so far, so the office can check the
      * email before confirming (and before anything is sent to the customer).
