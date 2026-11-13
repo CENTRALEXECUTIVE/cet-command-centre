@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * creates on Settings → Claude access; only its SHA-256 hash is stored. Nothing here
  * changes or sends anything. Outreach: company contacts. Booking lookup (directors,
  * 13 Nov 2026): ONE booking by its exact reference, with the minimum customer detail —
- * first name, masked email, never phone numbers or addresses.
+ * name and masked email, never phone numbers or addresses.
  */
 class ClaudeReportController extends Controller
 {
@@ -148,7 +148,7 @@ class ClaudeReportController extends Controller
                 'fare_paid' => $b->fareIsPaid(),
             ],
             'customer' => $c ? [
-                'first_name' => \Illuminate\Support\Str::before(trim((string) $c->name), ' '),
+                'name' => $c->name,
                 'email' => self::maskEmail((string) $c->email),
                 'online_account' => $c->hasOnlineAccount(),
                 'customer_since' => $c->created_at?->copy()->timezone($tz)->toDateString(),

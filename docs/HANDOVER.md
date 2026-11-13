@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **13 Nov 2026 (night)** — Read-only booking lookup for Claude: GET reports/claude/booking?ref=CET-XXXXXX (same
+  Claude-access key): status, payment, customer name, masked email, online account, email history sent/failed.
+  No phones/addresses; exact ref only.
 - **13 Nov 2026 (eve)** — Admin-only customer chips (customer + booking page): online account, customer since, trips,
   business account, email/phone on file, VIP (marketing chip dropped — never asked on the form). Email history shows
   Sent/Failed under each type + "Emails (x sent, y failed)". After-response emails now run once (AfterResponse

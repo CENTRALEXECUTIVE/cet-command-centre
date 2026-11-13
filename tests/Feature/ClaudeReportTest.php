@@ -92,7 +92,7 @@ class ClaudeReportTest extends TestCase
         $res = $this->getJson(route('claude.report.booking', ['ref' => 'cet-abc12a']), ['Authorization' => 'Bearer '.$key])
             ->assertOk()
             ->assertJsonPath('reference', 'CET-ABC12A')
-            ->assertJsonPath('customer.first_name', 'Jess')
+            ->assertJsonPath('customer.name', 'Jess Arthur')
             ->assertJsonPath('customer.email', 'ja•••@example.co.uk')
             ->assertJsonPath('customer.online_account', false)
             ->assertJsonPath('emails.sent', 1)
