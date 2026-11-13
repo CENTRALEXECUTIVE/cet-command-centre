@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **13 Nov 2026 (17:00)** — Directors: Abdi/Maj Manchester Airport jobs (exec, either direction) now pay a flat £95
+  driver pay (setting director_man_pay; Booking::isDirectorManchesterJob). Auto pay follows on allocation; hand-typed
+  prices untouched. Migration 2026_11_13_000005 sets this week's (9–15 Nov) director MAN jobs to £95.
 - **13 Nov 2026 (14:00)** — Outreach: today's batch (AMRC, NCM UK, Pricecheck follow-ups; MJ Gleeson, Loadhog, OSL,
   Jefferson Sheard, CTI, Chesterfield Special Cylinders, Little's Chauffeur Drive) queued by migration 2026_11_13_000003,
   5 min apart from deploy, approved by directors in chat. IFA + Marcegaglia follow-ups roll to Monday.
