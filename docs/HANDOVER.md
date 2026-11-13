@@ -323,7 +323,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   + button locks after first click; exact repeat within 20 min returns the same booking; office AND customer emails
   now send after the page loads (SMTP timeout 10s); alert failures can't block the payment page; failed emails show
   on the alerts feed. New **⬇ Download PDF** of the customer confirmation next to Preview (admin only) for WhatsApp.
-  Humanizer skill added. Open: clear the 5 unpaid duplicate trips (directors to choose merge vs cleanup).
+  Humanizer skill added. Directors: delete them. Migration 2026_11_13_000001 quietly deletes (to Trash) the 5 unpaid duplicate
+  trips (EE0C1, 88CD4, 63C34, 95EB6, 9FBDC A/B) — same customer, web, pending, unpaid only; no email, calendar untouched.
 - **2–3 Nov 2026** — Pricing drag/zone fix (Kidderminster), VAT/payment fixes, house email
   style (SCS/Rolls-Royce/DocFest), 256 drafts rewritten, contacts. Detail below.
 
