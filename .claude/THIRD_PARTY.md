@@ -19,3 +19,9 @@ ui-design agents so they only run when asked. All CLAUDE.md safety rules still a
 - `.claude/agents/startup-analyst.md` (plugins/startup-business-analyst)
 - `.claude/skills/startup-financial-modeling/`, `.claude/skills/startup-metrics-framework/`
 Source: https://github.com/wshobson/agents (MIT License, Copyright (c) Seth Hobson).
+
+## blader/humanizer (MIT), commit b48c832, added 13 Nov 2026
+- `.claude/skills/humanizer/` (SKILL.md + LICENSE only; the packaging script and agent files were not copied)
+Source: https://github.com/blader/humanizer (MIT License, Copyright (c) 2025 Siqi Chen). Text-only skill:
+rewrites AI-sounding writing (contrasts, triads, dashes, inflated claims) without changing facts. Use on
+outreach emails, replies, social captions and website copy. House style rules still win.
