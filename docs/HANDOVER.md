@@ -318,6 +318,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **15 Nov 2026** — Keith Boldock (BENDITNOW LTD, CET-F3979A/B) paid £264 incl. VAT but the invoice read "£220 paid,
+  £44 VAT due" (InvoicePdf only counted net). Fixed: invoices honour the real online amount; return-leg invoice bills
+  the company (vat_details from any leg); onFarePaid is locked per booking so twin webhooks can't double-send paid
+  emails (he got two). Office to resend a corrected confirmation. Outreach: Chesterfield Cylinders → enquiries@csc-
+  holdings.com (resend first email); MJ Gleeson + Parker Bestobell on hold (no working address).
 - **13 Nov 2026 (17:00)** — Directors: Abdi/Maj Manchester Airport jobs (exec, either direction) now pay a flat £95
   driver pay (setting director_man_pay; Booking::isDirectorManchesterJob). Auto pay follows on allocation; hand-typed
   prices untouched. Migration 2026_11_13_000005 sets this week's (9–15 Nov) director MAN jobs to £95.
