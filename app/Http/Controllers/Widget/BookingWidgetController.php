@@ -530,6 +530,12 @@ class BookingWidgetController extends Controller
             $returnNotes = trim($passengerLine.($returnNotes ? "\n".$returnNotes : ''));
         }
         $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
+        // On a return to the airport (home → airport, then airport → home) the flight the
+        // form asks for is the RETURN flight — the one the driver meets. It belongs on the
+        // return leg, not the outbound drop-off (15 Nov 2026: CET-F3979B had no flight).
+        $flightOnReturn = $isReturn
+            && ! \App\Support\AirportMatcher::isAirport($pickupFull)
+            && \App\Support\AirportMatcher::isAirport($destination);
         // Customer-entered flight landing time (UK-local, like every other clock we
         // show — never converted; see the timezone rule). Stored for the office.
         $flightLandingAt = null;
@@ -616,7 +622,7 @@ class BookingWidgetController extends Controller
             'pickup_address' => $pickupFull,
             'destination_address' => $destination,
             'passengers' => $data['passengers'],
-            'flight_number' => $flight,
+            'flight_number' => $flightOnReturn ? null : $flight,
             'special_requests' => $composedNotes,
             'status' => BookingStatus::Pending->value,
             // Account jobs are billed monthly (driver collects nothing). Otherwise no
@@ -638,7 +644,7 @@ class BookingWidgetController extends Controller
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                 'driver_notes' => $composedNotes,
                 'web_quote_basis' => $quote['basis'],
-                'flight_landing_at' => $flightLandingAt,
+                'flight_landing_at' => $flightOnReturn ? null : $flightLandingAt,
                 'hourly_hours' => $isHourly ? (int) $data['hours'] : null,
                 'meet_greet' => $mgOutbound ?: null,
                 'child_seats' => $extra['child_seats'] ?: null,
@@ -699,7 +705,7 @@ class BookingWidgetController extends Controller
                 'pickup_address' => $destination,
                 'destination_address' => $pickupFull,
                 'passengers' => $data['passengers'],
-                'flight_number' => null, // return leg has no inbound flight
+                'flight_number' => $flightOnReturn ? $flight : null, // the flight the driver meets
                 'special_requests' => $returnNotes,
                 'status' => BookingStatus::Pending->value,
                 // A return leg never collects cash on the day (returns are card-only),
@@ -712,6 +718,7 @@ class BookingWidgetController extends Controller
                 'quoted_price' => $returnQuoted,
                 'meta' => array_filter([
                     'web_booking' => true,
+                    'flight_landing_at' => $flightOnReturn ? $flightLandingAt : null,
                     'lead_name' => $leadName,
                     'booked_by' => $leadName ? $customer->name : null,
                     'suitcases' => (int) ($data['suitcases'] ?? 0),

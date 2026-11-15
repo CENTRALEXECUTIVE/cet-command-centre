@@ -1634,7 +1634,7 @@
                 if (lf) lf.hidden = !arrival;
                 if (le) le.dataset.required = arrival ? '1' : '';
 
-                if (isReturn && anyAir) {
+                if (isReturn && anyAir && !puAir) {
                     if (flabel) flabel.textContent = 'Return flight number';
                     if (fopt) fopt.textContent = '— required (the flight you land on coming back)';
                     if (llabel) llabel.textContent = 'Return flight landing time';

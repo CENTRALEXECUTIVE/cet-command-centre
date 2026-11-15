@@ -366,6 +366,30 @@ class BookingWidgetTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_the_return_flight_goes_on_the_leg_that_collects_from_the_airport(): void
+    {
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $land = now()->addDays(5)->setTime(21, 30)->format('Y-m-d\TH:i');
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S13 8TW', 'pickup_postcode' => 'S13 8TW',
+            'destination_address' => 'Manchester Airport',
+            'journey_type' => 'return',
+            'pickup_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(5)->setTime(22, 5)->format('Y-m-d\TH:i'),
+            'flight_number' => 'ezy708', 'flight_landing_at' => $land,
+            'vehicle_type_id' => $executive->id, 'passengers' => 4,
+            'customer_name' => 'Keith Test', 'customer_phone' => '07700900555',
+        ])->assertOk();
+
+        $out = \App\Models\Booking::where('source', 'web')->where('is_return_leg', false)->first();
+        $ret = \App\Models\Booking::where('is_return_leg', true)->first();
+        $this->assertNull($out->flight_number);
+        $this->assertSame('EZY708', $ret->flight_number);
+        $this->assertNotEmpty($ret->meta['flight_landing_at'] ?? null);
+        $this->assertEmpty($out->meta['flight_landing_at'] ?? null);
+    }
+
     public function test_a_flight_number_is_required_for_an_airport_return(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
@@ -516,7 +540,9 @@ class BookingWidgetTest extends TestCase
         $this->assertTrue((bool) ($ret->meta['meet_greet'] ?? false));
         $this->assertFalse((bool) ($out->meta['meet_greet'] ?? false));
         $this->assertFalse($out->isMeetGreet());
-        $this->assertNotEmpty($out->meta['flight_landing_at']);
+        // ...on the leg that collects from the airport (the return), not the drop-off.
+        $this->assertNotEmpty($ret->meta['flight_landing_at']);
+        $this->assertSame('BA1368', $ret->flight_number);
     }
 
     public function test_an_airport_return_requires_a_flight_landing_time(): void
