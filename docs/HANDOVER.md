@@ -318,6 +318,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **15 Nov 2026 (pm)** — Confirmation email shows "Company: <name>" under the customer on VAT-invoice bookings
+  (from vat_details on any leg), matching the invoice's Bill to.
 - **15 Nov 2026** — Keith Boldock (BENDITNOW LTD, CET-F3979A/B) paid £264 incl. VAT but the invoice read "£220 paid,
   £44 VAT due" (InvoicePdf only counted net). Fixed: invoices honour the real online amount; return-leg invoice bills
   the company (vat_details from any leg); onFarePaid is locked per booking so twin webhooks can't double-send paid
