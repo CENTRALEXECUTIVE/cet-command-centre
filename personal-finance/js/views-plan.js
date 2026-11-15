@@ -209,7 +209,7 @@ export function debts() {
   const pts = [{ v: totalDebt }, ...p.schedule.filter((_, i) => i % step === 0 || i === p.schedule.length - 1).map((r) => ({ v: r.total }))];
   const lbl = ['Now', ...p.schedule.filter((_, i) => i % step === 0 || i === p.schedule.length - 1).map((r) => monthYear(r.date))];
   const showAll = ctx.ui.debtAll;
-  return `<header class="page-head"><div><p class="eyebrow">Debt payoff</p><h1>${p.date ? `Debt free by ${monthYear(p.date)}` : d.items.length ? 'Not paying off at this rate' : 'Debt planner'}</h1></div></header>
+  return `<header class="page-head"><div><p class="eyebrow">Debt payoff</p><h1>${!totalDebt ? (d.items.length ? 'Add your balances' : 'Debt planner') : p.date ? `Debt free by ${monthYear(p.date)}` : 'Not paying off at this rate'}</h1></div></header>
   <section class="kpis">
     <div class="kpi"><span class="k-label">Total owed</span><span class="k-val neg">${gbp0(totalDebt)}</span></div>
     <div class="kpi"><span class="k-label">Minimum payments</span><span class="k-val">${gbp0(p.minTotal)}</span>${C.num(d.budget) < p.minTotal ? '<span class="k-foot neg">Your budget is below the minimums, so the minimums are used</span>' : ''}</div>
