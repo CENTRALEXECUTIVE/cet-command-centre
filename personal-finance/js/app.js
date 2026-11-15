@@ -78,7 +78,12 @@ const deviceName = () => (/iphone|android|mobile/i.test(navigator.userAgent) ? '
 async function startSync() {
   if (!(await Sync.init())) { if (route === 'prefs') render(); return; }
   const setup = await Sync.pendingSetup();
-  if (setup) { ctx.setupReady = setup; render(); }
+  if (setup) {
+    ctx.setupReady = setup;
+    // Nothing of yours in the app yet (only example data): load it straight away.
+    if (ctx.state.settings.sample) return action('setup-load');
+    render();
+  }
   const saved = await Store.kvGet('sync');
   if (Sync.resume(saved)) syncNow();
   if (route === 'prefs') render();
