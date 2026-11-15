@@ -228,14 +228,14 @@ export function taxEstimate(state, now = C.today()) {
   const incCats = new Set(cfg.income || []), costCats = new Set(cfg.costs || []);
   const ty = C.taxYear(now);
   const inYear = state.transactions.filter((t) => t.date >= ty.start && t.date <= ty.end && t.date <= now);
-  const income = C.sum(inYear.filter((t) => t.type === 'income' && incCats.has(t.category)), (t) => t.amount);
-  const costs = C.sum(inYear.filter((t) => t.type === 'expense' && costCats.has(t.category)), (t) => t.amount);
+  const income = C.sum(inYear.filter((t) => t.type === 'income' && (incCats.has(t.category) || t.business)), (t) => t.amount);
+  const costs = C.sum(inYear.filter((t) => t.type === 'expense' && (costCats.has(t.category) || t.business)), (t) => t.amount);
   const profit = Math.max(0, income - costs);
   const elapsed = Math.max(1, daysBetween(ty.start, now) + 1), total = daysBetween(ty.start, ty.end) + 1;
   const projectedProfit = (profit / elapsed) * total;
   const proj = taxOn(projectedProfit);
   const soFar = C.round2(proj.total * (elapsed / total));
-  return { configured: incCats.size > 0, label: ty.label, income: C.round2(income), costs: C.round2(costs), profit: C.round2(profit), projectedProfit: C.round2(projectedProfit), projected: proj, dueSoFar: soFar, setAsidePct: profit ? soFar / profit : 0, fractionOfYear: elapsed / total };
+  return { configured: incCats.size > 0 || inYear.some((t) => t.business), label: ty.label, income: C.round2(income), costs: C.round2(costs), profit: C.round2(profit), projectedProfit: C.round2(projectedProfit), projected: proj, dueSoFar: soFar, setAsidePct: profit ? soFar / profit : 0, fractionOfYear: elapsed / total };
 }
 
 // ---------- budget suggestions from real spending ----------

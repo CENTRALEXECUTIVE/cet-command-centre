@@ -10,7 +10,7 @@ Centre Laravel app: it shares nothing with it, has no server and is never deploy
 | --- | --- |
 | **Home** | This month's income, spending, what's left in your plan, savings rate, one-tap "quick add" chips for your most common entries (Uber, Bolt, fuel…), reminders for missed entries, due bills and backups, plus the AutoPilot dashboard (savings in 12 months, net worth, freedom date, debt-free date, surplus). |
 | **Insights** | Ask a question in plain English (answered on the device), "Left before payday" safe-to-spend with the bills still to come, "Does anything look off?" (double charges, fees, unusual amounts, price rises, regular payments missing from Repeating), regular payments found in your history, a 0–100 money score, and a self-employed tax-pot estimate for the UK tax year. |
-| **Trans.** | Money Manager-style Daily / Calendar / Monthly views, search, filters, add/edit/delete, "Repeat" on any entry. |
+| **Trans.** | Money Manager-style Daily / Calendar / Monthly views, search, filters (incl. personal / business), add/edit/delete, split one payment across categories, "Business" tag, "Repeat" on any entry. |
 | **Stats** | Donut + % list by category, Weekly / Monthly / Annually / UK tax year / custom period, tap a category for its breakdown and 12-month trend. |
 | **Accounts** | Cash, Accounts, Card, Savings, Investments, Loans with balances; assets, liabilities and net worth; "set today's balance" to reconcile; monthly net-worth history. |
 | **Budget plan** | The AutoPilot Money sheet: income, fixed / variable / optional sections, surplus, % of income, "give your surplus a job", and this month's plan vs actual. |
@@ -20,6 +20,8 @@ Centre Laravel app: it shares nothing with it, has no server and is never deploy
 | **Freedom** | Freedom number (monthly need ÷ 4%), date, progress, "+£100 a month" what-if. |
 | **Repeating** | Bills and regular income that log themselves (auto) or wait for one tap, so nothing gets forgotten. |
 | **Import & bank** | Money Manager Excel export (all history, safe to re-import), bank CSV/OFX statements (Monzo, Starling, Revolut, Lloyds/Halifax, NatWest, Barclays, Nationwide, Santander, Chase, Amex, or any bank by picking columns), auto-categorising from your own history and rules, duplicate detection against what you typed in. |
+| **Halal investing** | Shariah status per holding, share of the portfolio checked compliant, zakat calculator (gold or silver nisab, 2.5%), AAOIFI company screen, dividend purification, a halal roadmap and a researched shortlist (iShares Islamic ETFs, HSBC Islamic Global Equity, Wahed). |
+| **Sync** | Phone ⇄ computer through the claude.ai link: compressed and AES-256 encrypted on the device with a sync passcode before it is stored in your private area. Merges both devices' entries. |
 | **Settings** | Passcode lock (AES-256 encryption at rest), backup/restore, categories (rename/merge), rules. |
 
 ## Asking Claude (optional)
@@ -68,3 +70,11 @@ node tests/e2e.cjs            # browser test of every screen and feature (needs 
 - `js/store.js` IndexedDB storage, encryption, defaults, example data
 - `js/views-*.js` screens; `js/app.js` shell, routing, editor, import flows
 - `tests/` `node --test` suites for `calc.js` and `importers.js`
+
+## Claude Code skills in this folder
+
+- `.claude/skills/watch-video` — give Claude a TikTok / Instagram / YouTube link and it downloads
+  the video, transcribes it, saves stills and reviews it (yt-dlp, ffmpeg, faster-whisper; free).
+  Works fully on your own computer; cloud sessions usually only get the caption and stats.
+- `.claude/skills/market-brief` — a dated, sourced halal market and investing brief using the
+  built-in web search (no API keys).

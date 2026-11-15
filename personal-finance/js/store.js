@@ -1,6 +1,7 @@
 // Persistence: everything lives on this device in IndexedDB (no server, no account).
 // Optional passcode lock encrypts the whole record with AES-GCM (key from PBKDF2).
 import { today, addDays, addMonths, isoDate } from './calc.js';
+import { SHORTLIST } from './halal.js';
 
 const DB = 'money-hq', STORE = 'kv', KEY = 'state';
 export const SCHEMA = 3;
@@ -31,6 +32,13 @@ async function rawPut(v) {
     await new Promise((res, rej) => { const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(v, KEY); t.oncomplete = res; t.onerror = () => rej(t.error); });
     return true;
   } catch { return false; }
+}
+// Small extra values (e.g. the sync key, which stays a non-extractable CryptoKey).
+export async function kvGet(k) {
+  try { const db = await idb(); return await new Promise((res, rej) => { const q = db.transaction(STORE).objectStore(STORE).get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch { return undefined; }
+}
+export async function kvPut(k, v) {
+  try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction(STORE, 'readwrite'); if (v === undefined) t.objectStore(STORE).delete(k); else t.objectStore(STORE).put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch {}
 }
 export async function wipe() {
   mem = null;
@@ -86,12 +94,13 @@ export function flush() { if (pending) { clearTimeout(timer); return save(pendin
 export function migrate(s) {
   const base = blankState();
   const out = { ...base, ...s, settings: { ...base.settings, ...(s.settings || {}) } };
-  for (const k of ['accounts', 'categories', 'transactions', 'recurring', 'rules', 'holdings']) if (!Array.isArray(out[k])) out[k] = base[k];
-  for (const k of ['budget', 'goals', 'networth', 'debts', 'freedom']) out[k] = { ...base[k], ...(s[k] || {}) };
+  for (const k of ['accounts', 'categories', 'transactions', 'recurring', 'rules', 'holdings', 'tombstones', 'halalShortlist']) if (!Array.isArray(out[k])) out[k] = base[k];
+  for (const k of ['budget', 'goals', 'networth', 'debts', 'freedom', 'zakat']) out[k] = { ...base[k], ...(s[k] || {}) };
   if ((s.schema || 1) < 3) out.settings.theme = 'light'; // v3 is light-first; dark stays available in Settings
   out.settings.payday = { ...base.settings.payday, ...(s.settings?.payday || {}) };
   out.settings.tax = { income: [], costs: [], ...(s.settings?.tax || {}) };
   if (!Array.isArray(out.settings.dismissed)) out.settings.dismissed = [];
+  if (!out.halalShortlist.length) out.halalShortlist = SHORTLIST.map((x) => ({ id: uid(), ...x, status: 'researching' }));
   out.schema = SCHEMA;
   return out;
 }
@@ -160,6 +169,9 @@ export function blankState() {
     recurring: [],
     rules: [],
     holdings: [],
+    tombstones: [],
+    halalShortlist: SHORTLIST.map((x) => ({ id: uid(), ...x, status: 'researching' })),
+    zakat: { metal: 'silver', gramPrice: 0, gold: 0, silver: 0, investPct: 0.25, owedToYou: 0, debtsDue: 0, extraCash: 0, dueDate: '' },
     budget: budgetTemplate(false),
     goals: { sinking: [], investments: [] },
     networth: { assets: [], liabilities: [], history: [] },

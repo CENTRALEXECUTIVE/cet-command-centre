@@ -2,6 +2,7 @@
 import * as C from './calc.js';
 import { lines, meter } from './charts.js';
 import * as I from './insights.js';
+import * as H from './halal.js';
 import { ctx, esc, gbp, gbp0, gbpK, pct, niceDate, monthYear, duration, field, select, delBtn, addBtn, catsOf, accountName } from './ui.js';
 
 const S = () => ctx.state;
@@ -115,11 +116,12 @@ export function invest() {
   </section>
   ${lisaIn ? `<p class="muted">Lifetime ISA: ${gbp0(lisaIn)} of ${gbp0(C.LISA_ALLOWANCE)} paid in this tax year (counts towards the £20,000).</p>` : ''}
   <section class="card"><div class="card-head"><h2>Holdings</h2><span class="muted">Update prices from your platform app; live prices can be added later</span></div>
-    <div class="table-wrap"><table class="table edit"><thead><tr><th>Holding</th><th>Ticker</th><th>Account</th><th>Units</th><th>Price £</th><th>Paid in £</th><th>Added this tax year £</th><th class="r">Value</th><th class="r">Gain</th><th></th></tr></thead><tbody>
+    <div class="table-wrap"><table class="table edit"><thead><tr><th>Holding</th><th>Ticker</th><th>Account</th><th>Units</th><th>Price £</th><th>Paid in £</th><th>Added this tax year £</th><th>Shariah status</th><th>Dividends this year £</th><th>Non-compliant income %</th><th class="r">Value</th><th class="r">Gain</th><th></th></tr></thead><tbody>
     ${hs.map(({ h, value }) => `<tr><td>${field(`holdings|${h.id}|name`, h.name, { label: 'Holding' })}</td><td>${field(`holdings|${h.id}|ticker`, h.ticker, { cls: 'short', label: 'Ticker' })}</td><td>${select(`holdings|${h.id}|wrapper`, h.wrapper, wrappers, { label: 'Account type' })}</td>
       <td>${field(`holdings|${h.id}|units`, h.units, { type: 'number', step: 'any', label: 'Units' })}</td><td>${field(`holdings|${h.id}|price`, h.price, { type: 'money', step: 'any', label: 'Price' })}</td><td>${field(`holdings|${h.id}|cost`, h.cost, { type: 'money', label: 'Paid in' })}</td><td>${field(`holdings|${h.id}|contributedThisYear`, h.contributedThisYear, { type: 'money', label: 'Added this tax year' })}</td>
-      <td class="r"><b>${gbp0(value)}</b></td><td class="r ${value - C.num(h.cost) < 0 ? 'neg' : 'pos'}">${gbp0(value - C.num(h.cost))}</td><td>${delBtn('holdings', h.id)}</td></tr>`).join('') || '<tr><td colspan="10" class="muted">No holdings yet. Add your first one below.</td></tr>'}
-    </tbody></table></div>${addBtn('holdings', 'Add holding', { name: '', ticker: '', wrapper: 'S&S ISA', units: 0, price: 0, cost: 0, contributedThisYear: 0 })}</section>
+      <td>${select(`holdings|${h.id}|halal`, h.halal || 'unchecked', [['unchecked', 'Not checked'], ['compliant', 'Compliant'], ['doubtful', 'Doubtful'], ['not', 'Not compliant']], { label: 'Shariah status' })}</td><td>${field(`holdings|${h.id}|dividends`, h.dividends || 0, { type: 'money', label: 'Dividends this year' })}</td><td>${field(`holdings|${h.id}|nonCompliantPct`, h.nonCompliantPct || 0, { type: 'number', step: '0.1', label: 'Non-compliant income %' })}</td>
+      <td class="r"><b>${gbp0(value)}</b></td><td class="r ${value - C.num(h.cost) < 0 ? 'neg' : 'pos'}">${gbp0(value - C.num(h.cost))}</td><td>${delBtn('holdings', h.id)}</td></tr>`).join('') || '<tr><td colspan="13" class="muted">No holdings yet. Add your first one below.</td></tr>'}
+    </tbody></table></div>${addBtn('holdings', 'Add holding', { name: '', ticker: '', wrapper: 'S&S ISA', units: 0, price: 0, cost: 0, contributedThisYear: 0, halal: 'unchecked', dividends: 0, nonCompliantPct: 0 })}</section>
   <section class="grid-2">
     <div class="card"><div class="card-head"><h2>By account type</h2></div><ul class="plain">${[...byWrap].map(([k, v]) => `<li><span>${esc(k)}</span><b>${gbp0(v)} <small class="muted">${pct(total ? v / total : 0)}</small></b></li>`).join('') || '<li class="muted">—</li>'}</ul></div>
     <div class="card"><div class="card-head"><h2>Getting started again</h2></div><ul class="ticks">
@@ -129,6 +131,71 @@ export function invest() {
       <li>Pension (SIPP) gets tax relief: £80 in becomes £100.</li>
       <li>Low-cost global index funds keep fees down. Check the platform fee too.</li></ul>
       <p class="muted">General information, not financial advice.</p></div>
+  </section>
+  ${halalSections(total)}`;
+}
+
+// ---------- HALAL INVESTING ----------
+function halalSections(total) {
+  const s = S(), z = s.zakat;
+  const bal = C.accountBalances(s.accounts, s.transactions);
+  const cash = C.sum(s.accounts.filter((a) => ['cash', 'bank', 'savings'].includes(a.group)), (a) => Math.max(0, bal[a.id] || 0));
+  const zk = H.zakat(z, { cash, investments: total });
+  const pur = H.purification(s.holdings);
+  const comp = H.compliance(s.holdings);
+  const sc = ctx.ui.screen || {};
+  const res = H.screen(sc);
+  const riba = s.debts.items.filter((d) => C.num(d.rate) > 0);
+  return `<header class="page-head sub-page"><div><p class="eyebrow">Halal investing</p><h2 class="h1-like">Invest the halal way</h2></div></header>
+  <section class="kpis">
+    <div class="kpi"><span class="k-label">Portfolio checked as compliant</span><span class="k-val">${pct(comp.pct)}</span><span class="k-foot">${gbp0(comp.by.compliant)} of ${gbp0(comp.total)}${comp.by.unchecked ? ` · ${gbp0(comp.by.unchecked)} not checked yet` : ''}</span></div>
+    <div class="kpi"><span class="k-label">Zakat due</span><span class="k-val">${zk.priced ? gbp(zk.amount) : '—'}</span><span class="k-foot">${zk.priced ? (zk.due ? `2.5% of ${gbp0(zk.net)}` : `below the nisab of ${gbp0(zk.nisab)}`) : 'enter today\'s price per gram below'}</span></div>
+    <div class="kpi"><span class="k-label">To purify (give away)</span><span class="k-val">${gbp(pur.total)}</span><span class="k-foot">non-compliant share of dividends</span></div>
+    <div class="kpi"><span class="k-label">Interest-bearing debts</span><span class="k-val ${riba.length ? 'neg' : ''}">${riba.length}</span><span class="k-foot">${riba.length ? 'clearing riba comes before investing' : 'none in the debt planner'}</span></div>
+  </section>
+  <section class="grid-2">
+    <div class="card"><div class="card-head"><h2>Your halal roadmap</h2></div><ul class="ticks">
+      <li>Get rid of interest (riba): clear credit cards and loans with interest first. ${riba.length ? `You have ${riba.length} in the <a href="#debts">debt planner</a>.` : ''}</li>
+      <li>Keep an emergency fund in a non-interest account or an Islamic savings account (expected profit rate instead of interest).</li>
+      <li>Use your £20,000 Stocks &amp; Shares ISA allowance with Shariah-screened funds, so growth is tax-free.</li>
+      <li>Prefer broad Islamic index funds over picking single shares: screening is done for you and risk is spread.</li>
+      <li>For a pension, check whether your provider offers a Shariah fund or use a halal SIPP.</li>
+      <li>Each year: work out zakat on your wealth and purify any non-compliant dividend income.</li></ul>
+      <p class="muted small-print">Scholars differ on details (for example how much of a fund counts for zakat). Check with a scholar you trust. Not financial or religious advice.</p></div>
+    <div class="card"><div class="card-head"><h2>Halal shortlist</h2><span class="muted">Options to research</span></div>
+      ${s.halalShortlist.map((x) => `<div class="short-row"><div><b>${esc(x.name)}</b>${x.ticker ? ` <span class="pill">${esc(x.ticker)}</span>` : ''}<small class="muted">${esc(x.kind)} · ${esc(x.note)}</small></div>${select(`halalShortlist|${x.id}|status`, x.status, [['researching', 'Researching'], ['chosen', 'Chosen'], ['own', 'I own this'], ['no', 'Not for me']], { label: 'Status', cls: 'mini' })}${delBtn('halalShortlist', x.id)}</div>`).join('')}
+      ${addBtn('halalShortlist', 'Add option', { name: 'New option', ticker: '', kind: '', note: '', status: 'researching' })}
+      <p class="muted small-print">Fees, tickers and which platforms carry them change. Confirm on the fund's factsheet before buying.</p></div>
+  </section>
+  <section class="card"><div class="card-head"><h2>Zakat calculator</h2><span class="muted">2.5% of zakatable wealth held for a lunar year, if it is above the nisab</span></div>
+    <div class="form-grid">
+      <label class="lbl">Nisab measured by ${select('zakat||metal', z.metal, [['silver', 'Silver (612.36 g) · lower threshold'], ['gold', 'Gold (87.48 g)']], { label: 'Nisab metal' })}</label>
+      <label class="lbl">Today's ${z.metal} price per gram £ ${field('zakat||gramPrice', z.gramPrice, { type: 'money', step: '0.01', label: 'Price per gram' })}</label>
+      <label class="lbl">Gold you own (value £) ${field('zakat||gold', z.gold, { type: 'money', label: 'Gold value' })}</label>
+      <label class="lbl">Silver you own (value £) ${field('zakat||silver', z.silver, { type: 'money', label: 'Silver value' })}</label>
+      <label class="lbl">Cash not in the app £ ${field('zakat||extraCash', z.extraCash, { type: 'money', label: 'Other cash' })}</label>
+      <label class="lbl">Share of investments counted % ${field('zakat||investPct', z.investPct, { type: 'pct', label: 'Investment share counted' })}</label>
+      <label class="lbl">Money owed to you £ ${field('zakat||owedToYou', z.owedToYou, { type: 'money', label: 'Owed to you' })}</label>
+      <label class="lbl">Debts due now £ ${field('zakat||debtsDue', z.debtsDue, { type: 'money', label: 'Debts due' })}</label>
+      <label class="lbl">Your zakat date ${field('zakat||dueDate', z.dueDate, { type: 'date', label: 'Zakat date' })}</label>
+    </div>
+    <ul class="plain">${zk.parts.map((p) => `<li><span>${esc(p.label)}</span><b class="${p.value < 0 ? 'neg' : ''}">${p.value < 0 ? '−' + gbp(-p.value) : gbp(p.value)}</b></li>`).join('')}<li><span><b>Zakatable wealth</b></span><b>${gbp(zk.net)}</b></li></ul>
+    <p>${zk.priced ? (zk.due ? `Your wealth is above the nisab of <b>${gbp0(zk.nisab)}</b>. Zakat due: <b>${gbp(zk.amount)}</b>.` : `Your wealth is below the nisab of <b>${gbp0(zk.nisab)}</b>, so no zakat is due on these figures.`) : 'Enter today\'s price per gram to see the nisab.'}</p>
+    <p class="muted small-print">Cash counts from your Cash, Accounts and Savings balances in the app (${gbp0(cash)}). For long-term index funds many scholars count about 25% (the companies' zakatable assets); count 100% for shares you trade. Your investments: ${gbp0(total)}.</p></section>
+  <section class="grid-2">
+    <div class="card"><div class="card-head"><h2>Check a company (AAOIFI ratios)</h2></div>
+      <p class="muted">Copy figures from the company's latest accounts or a screening app such as Zoya or Musaffa.</p>
+      <div class="form-grid">
+        <label class="lbl">Market value £ <input id="sc-cap" class="in" type="number" inputmode="decimal" data-ui-num="screen.marketCap" value="${esc(sc.marketCap ?? '')}"></label>
+        <label class="lbl">Interest-bearing debt £ <input id="sc-debt" class="in" type="number" inputmode="decimal" data-ui-num="screen.debt" value="${esc(sc.debt ?? '')}"></label>
+        <label class="lbl">Cash + interest deposits £ <input id="sc-cash" class="in" type="number" inputmode="decimal" data-ui-num="screen.cashAndInterest" value="${esc(sc.cashAndInterest ?? '')}"></label>
+        <label class="lbl">Non-compliant income % <input id="sc-inc" class="in" type="number" inputmode="decimal" step="0.1" data-ui-num="screen.nonCompliantIncomePct" value="${esc(sc.nonCompliantIncomePct ?? '')}"></label>
+      </div>
+      <ul class="plain">${res.tests.map((t) => `<li><span>${esc(t.name)}</span><b class="${t.pass === false ? 'neg' : t.pass ? 'pos' : 'muted'}">${t.value == null ? '—' : `${(t.value * 100).toFixed(1)}% ${t.pass ? '✓' : '✗'}`}</b></li>`).join('')}</ul>
+      <p>${res.verdict === 'pass' ? '<span class="pill ok">Passes the financial screens</span> Also check the business itself is permissible (no alcohol, gambling, conventional banking, etc.).' : res.verdict === 'fail' ? '<span class="pill over">Fails a screen</span> Not compliant on these figures.' : '<span class="muted">Fill in all four figures to get a result.</span>'}</p></div>
+    <div class="card"><div class="card-head"><h2>Dividend purification</h2></div>
+      <p class="muted">Set each holding's dividends and its non-compliant income % in the holdings table above. That share of the dividends is given to charity (not counted as sadaqah).</p>
+      ${pur.rows.length ? `<ul class="plain">${pur.rows.map((r) => `<li><span>${esc(r.name)}</span><b>${gbp(r.amount)}</b></li>`).join('')}<li><span><b>Total to purify</b></span><b>${gbp(pur.total)}</b></li></ul>` : '<p class="muted">Nothing to purify yet.</p>'}</div>
   </section>`;
 }
 

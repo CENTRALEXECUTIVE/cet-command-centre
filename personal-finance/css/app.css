@@ -395,3 +395,16 @@ details summary { cursor: pointer; font-weight: 600; color: var(--muted); margin
   .ask-form .btn { padding-inline: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* ---------- additions: split, business tag, halal, check-in ---------- */
+.split-box { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed var(--line-strong); border-radius: 14px; }
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; align-items: center; }
+.lbl.biz { align-self: end; padding-bottom: 8px; color: var(--fg); }
+.tag.biz { background: var(--t1); color: var(--pos); border-color: transparent; }
+.short-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.short-row small { display: block; margin-top: 2px; }
+.page-head.sub-page { margin-top: 14px; padding-top: 22px; border-top: 1px solid var(--line-strong); }
+.h1-like { font-size: clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem); }
+.nudge.week::before { background: var(--accent); }
+.nudge .row-btns { display: inline-flex; margin-left: 6px; vertical-align: middle; }
+@media (max-width: 520px) { .short-row { grid-template-columns: minmax(0, 1fr) auto; } .short-row .in { grid-column: 1; } .nudge .row-btns { display: flex; margin: 8px 0 0; } }

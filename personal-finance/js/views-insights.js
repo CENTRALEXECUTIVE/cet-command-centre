@@ -84,7 +84,7 @@ export function insights() {
       : '<p class="muted">Nothing yet. A payee shows here once it has been paid three times at a steady weekly or monthly rhythm.</p>'}</section>
 
   <section class="card"><div class="card-head"><h2>Tax pot <span class="muted">self-employed estimate, ${t.label}</span></h2>${t.configured ? `<b class="hero-num small">${gbp0(t.dueSoFar)}</b>` : ''}</div>
-    <p class="muted">Tick what counts as self-employed income and as business costs. The estimate covers Income Tax and Class 4 National Insurance for England, Wales and Northern Ireland.</p>
+    <p class="muted">Tick what counts as self-employed income and as business costs. Anything you tag “Business” when adding it is counted too. The estimate covers Income Tax and Class 4 National Insurance for England, Wales and Northern Ireland.</p>
     <div class="grid-2">
       <div><p class="lbl">Self-employed income</p><div class="chips small">${catsOf('income').map((c) => `<button class="chip ${tcfg.income.includes(c) ? 'on' : ''}" data-tax-toggle="income|${esc(c)}">${esc(c)}</button>`).join('')}</div></div>
       <div><p class="lbl">Business costs</p><div class="chips small">${catsOf('expense').map((c) => `<button class="chip ${tcfg.costs.includes(c) ? 'on' : ''}" data-tax-toggle="costs|${esc(c)}">${esc(c)}</button>`).join('')}</div></div>

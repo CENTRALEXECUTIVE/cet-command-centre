@@ -2,6 +2,7 @@
 import * as C from './calc.js';
 import * as IM from './importers.js';
 import * as Store from './store.js';
+import * as Sync from './sync.js';
 import { ctx, esc, gbp, getPath, catsOf, accountName, niceDate } from './ui.js';
 import { home, trans, stats, accounts, netWorth } from './views-core.js';
 import { plan, goals, invest, debts, freedom, recurring } from './views-plan.js';
@@ -41,7 +42,46 @@ const app = $('#app');
 let route = 'home';
 
 // ---------- state ----------
-function commit(opts = {}) { Store.save(ctx.state); if (opts.render !== false) render(); }
+function commit(opts = {}) {
+  ctx.state.settings.updatedAt = new Date().toISOString();
+  Store.save(ctx.state);
+  queueSync();
+  if (opts.render !== false) render();
+}
+ctx.sync = Sync.state;
+
+// ---------- sync ----------
+let syncTimer = null, syncing = false;
+function queueSync(delay = 3000) {
+  if (!Sync.state.enabled) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncNow, delay);
+}
+async function syncNow({ quiet = true } = {}) {
+  if (!Sync.state.enabled || syncing) return;
+  syncing = true;
+  try {
+    const got = await Sync.pullIfNewer();
+    if (got) { ctx.state = Store.migrate(Sync.merge(ctx.state, got.data)); await Store.save(ctx.state, { now: true }); }
+    await Sync.push(ctx.state, deviceName());
+    await Store.kvPut('sync', Sync.snapshot());
+    Sync.state.error = '';
+    if (got) { render(); toast('Updated from your other device'); } else if (!quiet) toast('Synced');
+  } catch (err) {
+    Sync.state.status = 'error'; Sync.state.error = err?.code === 'quota_exceeded' ? 'The sync storage is full.' : err?.message || 'Sync failed';
+    if (!quiet) toast(`Sync failed: ${Sync.state.error}`);
+  }
+  syncing = false;
+  if (route === 'prefs') render();
+}
+const deviceName = () => (/iphone|android|mobile/i.test(navigator.userAgent) ? 'phone' : 'computer');
+async function startSync() {
+  if (!(await Sync.init())) { if (route === 'prefs') render(); return; }
+  const saved = await Store.kvGet('sync');
+  if (Sync.resume(saved)) syncNow();
+  if (route === 'prefs') render();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
 ctx.commit = commit;
 ctx.render = () => render();
 
@@ -118,6 +158,7 @@ app.addEventListener('change', async (e) => {
     else commit();
     return;
   }
+  if (el.dataset.uiNum) { const [o, k] = el.dataset.uiNum.split('.'); (ctx.ui[o] ||= {})[k] = el.value === '' ? '' : C.num(el.value); render(); return; }
   if (el.dataset.ui != null) { ctx.ui[el.dataset.ui] = el.value; if (el.dataset.ui === 'speriod') ctx.ui.sanchor = C.today(); render(); return; }
   if (el.dataset.setbal) {
     const a = ctx.state.accounts.find((x) => x.id === el.dataset.setbal);
@@ -176,6 +217,7 @@ app.addEventListener('click', (e) => {
   if (d.toggleUi) { ctx.ui[d.toggleUi] = !ctx.ui[d.toggleUi]; render(); return; }
   if (d.editTx) return openTx(ctx.state.transactions.find((t) => t.id === d.editTx));
   if (d.quick != null) { const q = C.frequentEntries(ctx.state.transactions, 6, C.addMonths(C.today(), -3))[+d.quick]; return openTx(null, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, amount: q.last }); }
+  if (d.fscope != null) { ctx.ui.fscope = d.fscope; render(); return; }
   if (d.ttab) { ctx.ui.ttab = d.ttab; render(); return; }
   if (d.monthStep) { ctx.ui.month = C.monthKey(C.addMonths(ctx.ui.month + '-01', ctx.ui.ttab === 'monthly' ? 12 * +d.monthStep : +d.monthStep)); render(); return; }
   if (d.calDay) { ctx.ui.calDay = d.calDay; render(); return; }
@@ -232,6 +274,7 @@ async function action(a, btn) {
       await Store.setPasscode(p1); ctx.ui.lockOn = true; await Store.save(s, { now: true }); render(); toast('Passcode on. Your data is encrypted.'); return;
     }
     case 'clear-pass': await Store.setPasscode(null); ctx.ui.lockOn = false; await Store.save(s, { now: true }); render(); toast('Passcode removed'); return;
+    case 'week-done': s.settings.weekDone = C.today(); commit(); toast('Nice. See you next week.'); return;
     case 'ask-clear': ctx.ui.ask = null; render(); return;
     case 'ask-ai': return askClaude();
     case 'undismiss': s.settings.dismissed = []; commit(); return;
@@ -242,6 +285,27 @@ async function action(a, btn) {
       s.budget.items = sg.expenses.map((r) => ({ id: Store.uid(), group: group(r.category), section: bare(r.category), name: 'Average month', amount: r.monthly, category: r.category }));
       ctx.ui.budgetSuggest = false; commit(); toast('Plan rebuilt from your real averages. Adjust any line.'); return;
     }
+    case 'sync-on': {
+      const p1 = $('#sync1').value, p2 = $('#sync2')?.value;
+      if (p1.length < 6) return toast('Use at least 6 characters for the sync passcode');
+      if (p2 != null && p1 !== p2) return toast("The two passcodes don't match");
+      try {
+        const r = await Sync.enable(p1);
+        if (r.result === 'pulled') {
+          const local = ctx.state;
+          ctx.state = Store.migrate(local.settings.sample ? r.data : Sync.merge(local, r.data));
+          await Store.save(ctx.state, { now: true });
+          toast(`Sync on. Loaded ${ctx.state.transactions.length.toLocaleString()} entries from your ${r.meta.device || 'other device'}.`);
+        } else toast('Sync on. Open this page on your other device and turn sync on with the same passcode.');
+        await Store.kvPut('sync', Sync.snapshot());
+        if (r.result === 'new' || !ctx.state.settings.sample) await syncNow();
+        applyTheme(); render();
+      } catch (err) { toast(err?.name === 'OperationError' ? "That passcode doesn't open the synced copy. Use the one you chose on your other device." : `Sync couldn't start: ${err?.message || err}`); }
+      return;
+    }
+    case 'sync-now': return syncNow({ quiet: false });
+    case 'sync-off': Sync.disable(); await Store.kvPut('sync', undefined); render(); toast('Sync turned off on this device'); return;
+    case 'sync-forget': if (!ctx.ui.confirmForget) { ctx.ui.confirmForget = true; render(); return; } await Sync.forget(); await Store.kvPut('sync', undefined); ctx.ui.confirmForget = false; render(); toast('Synced copy deleted. Data on this device is untouched.'); return;
     case 'wipe': await Store.wipe(); await Store.setPasscode(null); ctx.state = Store.blankState(); ctx.ui = {}; commit(); toast('All data deleted'); return;
   }
 }
@@ -308,8 +372,11 @@ function openTx(t, preset = {}) {
           <label class="lbl">${v.type === 'income' ? 'From (payer)' : 'Note (where / what)'}<input id="tx-note" class="in" name="note" list="dl-notes" value="${esc(v.note)}" placeholder="${v.type === 'income' ? 'Uber, Bolt, Central job…' : 'Costa, Fuel, EE SIM…'}"></label>
           ${v.type === 'transfer' ? '' : `<label class="lbl">Subcategory<input id="tx-sub" class="in" name="subcategory" list="dl-subs" value="${esc(v.subcategory)}"></label>`}
           <label class="lbl">Description<input id="tx-desc" class="in" name="description" value="${esc(v.description)}" placeholder="Optional detail"></label>
+          ${v.type === 'transfer' ? '' : `<label class="lbl inline biz"><input id="tx-biz" type="checkbox" class="check" name="business" ${v.business ? 'checked' : ''}> Business (work / CET)</label>`}
           ${editing ? '' : `<label class="lbl">Repeat<select id="tx-repeat" class="in" name="repeat"><option value="">Doesn't repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></label>`}
         </div>
+        ${v.type === 'expense' && !editing ? (v.splits ? `<div class="split-box"><p class="lbl">Split ${gbp(C.num(v.amount))} across categories</p>${v.splits.map((sp, i) => `<div class="split-row"><select id="sp-cat-${i}" class="in" name="sp-cat-${i}" aria-label="Part ${i + 1} category">${cats.map((c) => `<option ${c === sp.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><input id="sp-amt-${i}" class="in" name="sp-amt-${i}" type="number" step="0.01" inputmode="decimal" value="${esc(sp.amount)}" placeholder="0.00" aria-label="Part ${i + 1} amount"><button type="button" class="icon-btn danger" data-sp-del="${i}" aria-label="Remove part">✕</button></div>`).join('')}
+          <div class="row-btns"><button type="button" class="btn ghost small" data-sp-add>+ Add part</button><span class="muted">${(() => { const left = C.round2(C.num(v.amount) - v.splits.reduce((t, x) => t + C.num(x.amount), 0)); return left === 0 ? 'Parts add up' : `${gbp(Math.abs(left))} ${left > 0 ? 'still to assign' : 'too much'}`; })()}</span><button type="button" class="link" data-sp-off>Don't split</button></div></div>` : '<button type="button" class="link" data-sp-on>Split across categories</button>') : ''}
         <datalist id="dl-notes">${notes.map((n) => `<option value="${esc(n)}">`).join('')}</datalist><datalist id="dl-subs">${subs.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
         <p class="form-err neg" id="tx-err" hidden></p>
         <div class="row-btns end">
@@ -319,7 +386,17 @@ function openTx(t, preset = {}) {
     modal.hidden = false;
     document.body.classList.add('modal-open');
   };
-  const collect = () => { const f = $('#tx-form', modal); if (!f) return; const fd = new FormData(f); for (const [k, val] of fd) v[k] = val; };
+  const collect = () => {
+    const f = $('#tx-form', modal); if (!f) return;
+    const fd = new FormData(f);
+    if (f.querySelector('[name=business]')) v.business = false;
+    for (const [k, val] of fd) {
+      const m = k.match(/^sp-(cat|amt)-(\d+)$/);
+      if (m) { if (v.splits?.[+m[2]]) v.splits[+m[2]][m[1] === 'cat' ? 'category' : 'amount'] = val; }
+      else if (k === 'business') v.business = true;
+      else v[k] = val;
+    }
+  };
   draw();
   setTimeout(() => $('#tx-amount', modal)?.focus(), 50);
   modal.onclick = (e) => {
@@ -327,10 +404,15 @@ function openTx(t, preset = {}) {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.ttype) { collect(); v.type = b.dataset.ttype; draw(); return; }
     if (b.dataset.tcat) { collect(); v.category = b.dataset.tcat; draw(); return; }
+    if (b.dataset.spOn != null) { collect(); v.splits = [{ category: v.category || catsOf('expense')[0], amount: v.amount || '' }, { category: catsOf('expense').find((c) => c !== v.category) || catsOf('expense')[0], amount: '' }]; draw(); return; }
+    if (b.dataset.spAdd != null) { collect(); v.splits.push({ category: catsOf('expense')[0], amount: '' }); draw(); return; }
+    if (b.dataset.spDel != null) { collect(); v.splits.splice(+b.dataset.spDel, 1); if (v.splits.length < 2) v.splits = null; draw(); return; }
+    if (b.dataset.spOff != null) { collect(); v.splits = null; draw(); return; }
     if (b.dataset.tq != null) { const q = quick[+b.dataset.tq]; collect(); Object.assign(v, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, amount: q.last }); draw(); $('#tx-amount', modal).select(); return; }
     if (b.dataset.tdel != null) {
       if (!v._confirmDel) { collect(); v._confirmDel = true; draw(); return; }
       ctx.state.transactions = ctx.state.transactions.filter((x) => x.id !== t.id);
+      (ctx.state.tombstones ||= []).push(t.id);
       closeModal(); commit(); toast('Deleted'); return;
     }
   };
@@ -340,9 +422,17 @@ function openTx(t, preset = {}) {
     const err = (m) => { const p = $('#tx-err', modal); p.textContent = m; p.hidden = false; };
     const amount = C.round2(C.num(v.amount));
     if (!(amount > 0)) return err('Enter an amount above £0.');
-    if (v.type !== 'transfer' && !v.category) return err('Pick a category.');
+    if (v.type !== 'transfer' && !v.category && !v.splits) return err('Pick a category.');
+    if (v.splits) {
+      const parts = v.splits.map((x) => ({ category: x.category, amount: C.round2(C.num(x.amount)) })).filter((x) => x.amount > 0);
+      if (C.round2(parts.reduce((t, x) => t + x.amount, 0)) !== amount) return err(`The parts must add up to ${gbp(amount)}.`);
+      const splitId = Store.uid(), time = new Date().toTimeString().slice(0, 5);
+      parts.forEach((x, i) => ctx.state.transactions.push({ id: Store.uid(), date: v.date, time, type: 'expense', amount: x.amount, accountId: v.accountId, category: x.category, subcategory: '', note: (v.note || '').trim(), description: `Part ${i + 1} of ${parts.length} · ${gbp(amount)} total${v.description ? ' · ' + v.description.trim() : ''}`, source: 'manual', splitId, business: !!v.business }));
+      ctx.state.settings.lastLog = C.today();
+      commit(); toast(`Saved ${parts.length} parts: ${gbp(amount)}`); closeModal(); return;
+    }
     if (v.type === 'transfer' && v.accountId === v.toAccountId) return err('Choose two different accounts.');
-    const rec = { id: t?.id || Store.uid(), date: v.date, time: t?.time || new Date().toTimeString().slice(0, 5), type: v.type, amount, accountId: v.accountId, toAccountId: v.type === 'transfer' ? v.toAccountId : undefined, category: v.type === 'transfer' ? '' : v.category, subcategory: v.subcategory || '', note: (v.note || '').trim(), description: (v.description || '').trim(), source: t?.source || 'manual', importKey: t?.importKey, recurringId: t?.recurringId };
+    const rec = { id: t?.id || Store.uid(), date: v.date, time: t?.time || new Date().toTimeString().slice(0, 5), type: v.type, amount, accountId: v.accountId, toAccountId: v.type === 'transfer' ? v.toAccountId : undefined, category: v.type === 'transfer' ? '' : v.category, subcategory: v.subcategory || '', note: (v.note || '').trim(), description: (v.description || '').trim(), source: t?.source || 'manual', importKey: t?.importKey, recurringId: t?.recurringId, splitId: t?.splitId, business: v.type === 'transfer' ? false : !!v.business };
     if (editing) ctx.state.transactions = ctx.state.transactions.map((x) => (x.id === t.id ? rec : x));
     else ctx.state.transactions.push(rec);
     if (!editing && v.repeat) {
@@ -529,7 +619,7 @@ function lockScreen(record) {
     <form id="unlock" class="lock-form"><input id="unlock-pass" class="in" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode" autofocus><button class="btn primary">Unlock</button></form><p class="neg" id="unlock-err" hidden>That passcode didn't work.</p></div>`;
   $('#unlock').onsubmit = async (e) => {
     e.preventDefault();
-    try { ctx.state = await Store.unlock(record, $('#unlock-pass').value); ctx.ui.lockOn = true; start(); }
+    try { ctx.state = await Store.unlock(record, $('#unlock-pass').value); ctx.ui.lockOn = true; start(); startSync(); window.claude?.use?.('sample').then((x) => { if (x) { ctx.ai = x; render(); } }).catch(() => {}); }
     catch { $('#unlock-err').hidden = false; }
   };
 }
@@ -551,5 +641,6 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   if (r.fresh) Store.save(ctx.state);
   start();
   window.claude?.use?.('sample').then((sample) => { if (sample) { ctx.ai = sample; render(); } }).catch(() => {});
+  startSync();
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|anthropic/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

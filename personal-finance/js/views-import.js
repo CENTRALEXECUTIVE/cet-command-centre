@@ -123,6 +123,22 @@ export function guessGroup(name) {
   return 'bank';
 }
 
+// ---------- SYNC ----------
+function syncCard() {
+  const sy = ctx.sync || {};
+  const head = (pill) => `<div class="card-head"><h2>Sync between your phone and computer</h2>${pill}</div>`;
+  if (!sy.available) return `<section class="card">${head('<span class="pill">Not available here</span>')}
+    <p class="muted">Sync works when you open Money HQ from its claude.ai link while signed in. This copy keeps everything on this device; use Backup below to move data.</p></section>`;
+  if (!sy.enabled) return `<section class="card">${head('<span class="pill">Off</span>')}
+    <p>Open this same link on your phone and your computer and they stay in step. Everything is encrypted on this device with a sync passcode before it is stored, so the stored copy is unreadable without it.</p>
+    <p class="muted small-print">First device: choose a sync passcode. Other devices: type the same one and your data loads. If you forget it, the synced copy can't be opened (your data on each device is still there).</p>
+    <div class="form-row"><input id="sync1" class="in" type="password" autocomplete="new-password" placeholder="Sync passcode (6+ characters)" aria-label="Sync passcode"><input id="sync2" class="in" type="password" autocomplete="new-password" placeholder="Repeat it" aria-label="Repeat sync passcode"><button class="btn primary" data-action="sync-on">Turn on sync</button></div></section>`;
+  const when = sy.lastSync ? new Date(sy.lastSync).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  return `<section class="card">${head(`<span class="pill ${sy.status === 'error' ? 'over' : 'ok'}">${sy.status === 'error' ? 'Problem' : sy.status === 'saving' ? 'Saving…' : 'On'}</span>`)}
+    <p>${sy.status === 'error' ? `<span class="neg">${esc(sy.error)}</span>` : `Encrypted and synced${when ? ` at ${when}` : ''}. Changes save a few seconds after you make them, and other devices update when you open the app.`}</p>
+    <div class="row-btns"><button class="btn primary small" data-action="sync-now">Sync now</button><button class="btn ghost small" data-action="sync-off">Turn off on this device</button><button class="btn ghost small danger" data-action="sync-forget">${ctx.ui.confirmForget ? 'Tap again to delete the synced copy' : 'Delete synced copy'}</button></div></section>`;
+}
+
 // ---------- SETTINGS ----------
 export function prefs() {
   const s = S();
@@ -140,6 +156,7 @@ export function prefs() {
       <div class="form-row"><input id="pass1" class="in" type="password" autocomplete="new-password" placeholder="${lockOn ? 'New passcode' : 'Choose a passcode'}" aria-label="Passcode"><input id="pass2" class="in" type="password" autocomplete="new-password" placeholder="Repeat it" aria-label="Repeat passcode">
       <button class="btn primary small" data-action="set-pass">${lockOn ? 'Change' : 'Turn on'}</button>${lockOn ? '<button class="btn ghost small" data-action="clear-pass">Turn off</button>' : ''}</div></div>
   </section>
+  ${syncCard()}
   <section class="card"><div class="card-head"><h2>Backup</h2><span class="muted">${s.settings.lastBackup ? `Last backup ${niceDate(s.settings.lastBackup)}` : 'No backup yet'}</span></div>
     <p>Your data lives only in this browser on this device. A backup file lets you move to a new phone or recover after clearing the browser. Save it somewhere private (your own Google Drive or iCloud).</p>
     <div class="row-btns"><button class="btn primary" data-action="backup">Download backup</button><button class="btn ghost" data-action="backup-copy">Copy backup text</button>

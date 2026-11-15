@@ -41,7 +41,7 @@ function txRow(t) {
   const amt = t.type === 'income' ? `<span class="amt pos">${gbp(t.amount)}</span>` : t.type === 'expense' ? `<span class="amt neg">${gbp(t.amount)}</span>` : `<span class="amt">${gbp(t.amount)}</span>`;
   const cat = t.type === 'transfer' ? `<span class="cat-ico">⇄</span><span class="cat-name">Transfer</span>` : `<span class="cat-ico">${esc(icon(t.category)) || '•'}</span><span class="cat-name">${esc(bare(t.category))}${t.subcategory ? `<small>${esc(t.subcategory)}</small>` : ''}</span>`;
   const acct = t.type === 'transfer' ? `${esc(accountName(t.accountId))} → ${esc(accountName(t.toAccountId))}` : esc(accountName(t.accountId));
-  const flags = [t.recurringId ? '<span class="tag">repeats</span>' : '', t.source === 'statement' ? '<span class="tag">bank</span>' : ''].join('');
+  const flags = [t.recurringId ? '<span class="tag">repeats</span>' : '', t.source === 'statement' ? '<span class="tag">bank</span>' : '', t.business ? '<span class="tag biz">business</span>' : '', t.splitId ? '<span class="tag">split</span>' : ''].join('');
   return `<button class="tx-row" data-edit-tx="${t.id}">
     <span class="tx-cat">${cat}</span>
     <span class="tx-main"><span class="tx-note">${esc(t.note || t.description || (t.type === 'transfer' ? 'Transfer' : bare(t.category)))}</span><span class="tx-sub">${acct}${t.description && t.note ? ` · ${esc(t.description)}` : ''} ${flags}</span></span>
@@ -79,6 +79,13 @@ export function home() {
 
   const issues = I.findIssues(s), pd = I.payday(s), score = I.healthScore(s);
   const nudges = [];
+  const dow = new Date(today + 'T12:00').getDay();
+  if ((dow === 0 || dow === 1) && !s.settings.sample && s.settings.weekDone !== today) {
+    const wk = tx().filter((t) => t.date > C.addDays(today, -7) && t.date <= today);
+    const wi = C.sum(wk.filter((t) => t.type === 'income'), (t) => t.amount), we = C.sum(wk.filter((t) => t.type === 'expense'), (t) => t.amount);
+    const top = C.byCategory(wk)[0];
+    nudges.push(`<div class="nudge week"><strong>Weekly check-in.</strong> Last 7 days: ${gbp0(wi)} in, ${gbp0(we)} out${top ? `, most on ${esc(bare(top.name))}` : ''}, ${wk.length} entries. Anything missing, like cash spends or fuel? <span class="row-btns"><button class="btn primary small" data-action="quick-add">Add missing</button><button class="btn ghost small" data-action="week-done">All logged</button></span></div>`);
+  }
   if (issues.length) nudges.push(`<div class="nudge warn"><strong>${issues.length} thing${issues.length > 1 ? 's' : ''} to check.</strong> ${esc(issues[0].title)}${issues.length > 1 ? ` and ${issues.length - 1} more` : ''}. <a href="#insights">Take a look</a></div>`);
   if (due.length) nudges.push(`<div class="nudge warn"><strong>${due.length} repeating payment${due.length > 1 ? 's' : ''} due.</strong> Log ${due.length > 1 ? 'them' : 'it'} in one tap. <a href="#recurring">Review</a></div>`);
   if (gap != null && gap >= 2) nudges.push(`<div class="nudge">Your last entry was ${gap} days ago. Anything to add? <button class="link" data-action="quick-add">Add now</button></div>`);
@@ -138,7 +145,7 @@ export function trans() {
   ui.month ||= C.monthKey(C.today());
   ui.ttab ||= 'daily';
   const q = (ui.q || '').toLowerCase();
-  const filt = (t) => (!ui.facct || t.accountId === ui.facct || t.toAccountId === ui.facct) && (!ui.fcat || t.category === ui.fcat) && (!ui.ftype || t.type === ui.ftype) &&
+  const filt = (t) => (!ui.fscope || (ui.fscope === 'business') === !!t.business) && (!ui.facct || t.accountId === ui.facct || t.toAccountId === ui.facct) && (!ui.fcat || t.category === ui.fcat) && (!ui.ftype || t.type === ui.ftype) &&
     (!q || `${t.note} ${t.description} ${t.category} ${t.subcategory} ${t.amount}`.toLowerCase().includes(q));
   const year = ui.month.slice(0, 4);
   const scope = ui.ttab === 'monthly' ? tx().filter((t) => t.date.startsWith(year)) : tx().filter((t) => C.monthKey(t.date) === ui.month);
@@ -186,6 +193,7 @@ export function trans() {
     <div class="filters">
       <input id="tx-search" class="in" type="search" placeholder="Search notes, payees, amounts" value="${esc(ui.q || '')}" data-ui="q" aria-label="Search">
       <select id="tx-ftype" class="in" data-ui="ftype" aria-label="Type"><option value="">All types</option>${['expense', 'income', 'transfer'].map((v) => `<option ${ui.ftype === v ? 'selected' : ''} value="${v}">${v[0].toUpperCase() + v.slice(1)}</option>`).join('')}</select>
+      <select id="tx-fscope" class="in" data-ui="fscope" aria-label="Personal or business"><option value="">Personal + business</option><option value="personal" ${ui.fscope === 'personal' ? 'selected' : ''}>Personal only</option><option value="business" ${ui.fscope === 'business' ? 'selected' : ''}>Business only</option></select>
       <select id="tx-facct" class="in" data-ui="facct" aria-label="Account"><option value="">All accounts</option>${s.accounts.map((a) => `<option ${ui.facct === a.id ? 'selected' : ''} value="${a.id}">${esc(a.name)}</option>`).join('')}</select>
       <select id="tx-fcat" class="in" data-ui="fcat" aria-label="Category"><option value="">All categories</option>${s.categories.map((c) => `<option ${ui.fcat === c.name ? 'selected' : ''} value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select>
     </div>
@@ -214,10 +222,11 @@ export function stats() {
   const ui = ctx.ui;
   ui.stype ||= 'expense';
   const r = periodRange();
-  const inRange = tx().filter((t) => t.date >= r.from && t.date <= r.to);
+  const scoped = tx().filter((t) => !ui.fscope || (ui.fscope === 'business') === !!t.business);
+  const inRange = scoped.filter((t) => t.date >= r.from && t.date <= r.to);
   const inc = C.sum(inRange.filter((t) => t.type === 'income'), (t) => t.amount);
   const exp = C.sum(inRange.filter((t) => t.type === 'expense'), (t) => t.amount);
-  const cats = C.byCategory(tx(), { type: ui.stype, from: r.from, to: r.to });
+  const cats = C.byCategory(scoped, { type: ui.stype, from: r.from, to: r.to });
   const total = C.sum(cats, (c) => c.total);
   const shown = topN(cats, 7);
   let drill = '';
@@ -234,6 +243,7 @@ export function stats() {
   const flow = C.cashflow(tx(), C.lastNMonths(12, r.to));
   return `<header class="page-head"><div class="month-nav">${ui.speriod === 'period' ? '' : '<button class="icon-btn" data-period-step="-1" aria-label="Previous">‹</button>'}<h1>${esc(r.label)}</h1>${ui.speriod === 'period' ? '' : '<button class="icon-btn" data-period-step="1" aria-label="Next">›</button>'}</div>
     <select id="stats-period" class="in round" data-ui="speriod" aria-label="Period">${[['weekly', 'Weekly'], ['monthly', 'Monthly'], ['annually', 'Annually'], ['taxyear', 'Tax year'], ['period', 'Period']].map(([v, l]) => `<option value="${v}" ${ui.speriod === v ? 'selected' : ''}>${l}</option>`).join('')}</select></header>
+    <div class="seg" role="radiogroup" aria-label="Personal or business">${[['', 'Everything'], ['personal', 'Personal'], ['business', 'Business']].map(([v, l]) => `<button class="seg-btn ${(ui.fscope || '') === v ? 'on' : ''}" data-fscope="${v}">${l}</button>`).join('')}</div>
     ${ui.speriod === 'period' ? `<div class="filters"><label class="lbl">From <input id="s-from" class="in" type="date" data-ui="sfrom" value="${r.from}"></label><label class="lbl">To <input id="s-to" class="in" type="date" data-ui="sto" value="${r.to}"></label></div>` : ''}
     <div class="tabs big"><button class="tab ${ui.stype === 'income' ? 'on' : ''}" data-stype="income">Income <b>${gbp(inc)}</b></button><button class="tab ${ui.stype === 'expense' ? 'on' : ''}" data-stype="expense">Expenses <b>${gbp(exp)}</b></button></div>
     <section class="card stats-card"><div class="donut-wrap">${donut(shown, { label: gbp0(total), sub: ui.stype === 'income' ? 'income' : 'spent' })}</div>
