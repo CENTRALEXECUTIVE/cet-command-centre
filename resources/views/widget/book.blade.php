@@ -787,7 +787,7 @@
                                 <input id="b-flight-landing" name="flight_landing_at" type="datetime-local">
                             </div>
                             <div class="cet-field" id="b-flight-other-field" hidden>
-                                <label for="b-flight-other"><span id="b-flight-other-label">Outbound flight number</span> <span class="opt" id="b-flight-other-opt">— optional (the flight you fly out on)</span></label>
+                                <label for="b-flight-other"><span id="b-flight-other-label">🛫 Departure flight number</span> <span class="opt" id="b-flight-other-opt">— optional (the flight you fly out on)</span></label>
                                 <input id="b-flight-other" name="other_flight_number" placeholder="e.g. EZY707" autocomplete="off" style="text-transform:uppercase">
                             </div>
                             <p class="cet-foot" style="text-align:left;margin:2px 0 0">We track your flight and adjust the pickup if it lands early or late — at no extra charge.</p>
@@ -1359,8 +1359,8 @@
                     + row('Hand luggage', val('b-hand') || '0');
                 var elseBox2 = document.getElementById('b-else');
                 if (elseBox2 && elseBox2.checked && val('b-lead-name')) html += row('Passenger', val('b-lead-name'));
-                if (val('b-flight')) html += row('Flight', val('b-flight').toUpperCase());
-                if (val('b-flight-other')) html += row('Other flight', val('b-flight-other').toUpperCase());
+                if (val('b-flight')) html += row((document.getElementById('b-journey') || {}).value === 'return' ? 'Arrival flight' : 'Flight', val('b-flight').toUpperCase());
+                if (val('b-flight-other')) html += row('Departure flight', val('b-flight-other').toUpperCase());
                 if (val('b-flight-landing')) {
                     var ld = new Date(val('b-flight-landing'));
                     html += row('Lands', isNaN(ld) ? val('b-flight-landing')
@@ -1639,17 +1639,27 @@
                 if (lf) lf.hidden = !arrival;
                 if (le) le.dataset.required = arrival ? '1' : '';
 
-                // A return touching an airport: a second, optional box for the OTHER flight
-                // (the one they fly out on), stored on the leg that drops at the airport.
+                // A return touching an airport: a second, optional box for the DEPARTURE
+                // flight (the one they fly out on), stored on the leg that drops at the
+                // airport. Plain "Departure" / "Arrival" wording (what their ticket says),
+                // shown in journey order so the flight they take first comes first.
                 var of = document.getElementById('b-flight-other-field');
                 var olabel = document.getElementById('b-flight-other-label');
+                var oopt = document.getElementById('b-flight-other-opt');
                 if (of) of.hidden = !(isReturn && anyAir);
-                if (olabel) olabel.textContent = puAir ? 'Return departure flight number' : 'Outbound flight number';
+                if (olabel) olabel.textContent = '🛫 Departure flight number';
+                if (oopt) oopt.textContent = '— optional (the flight you fly out on)';
+                if (of && ff && lf && isReturn && anyAir) {
+                    if (!puAir) { ff.parentNode.insertBefore(of, ff); }        // fly out first, then land
+                    else { lf.parentNode.insertBefore(of, lf.nextSibling); }  // land first, then fly out
+                }
 
-                if (isReturn && anyAir && !puAir) {
-                    if (flabel) flabel.textContent = 'Return flight number';
-                    if (fopt) fopt.textContent = '— required (the flight you land on coming back)';
-                    if (llabel) llabel.textContent = 'Return flight landing time';
+                if (isReturn && anyAir) {
+                    if (flabel) flabel.textContent = '🛬 Arrival flight number';
+                    if (fopt) fopt.textContent = puAir
+                        ? '— required (the flight you land on, we meet you)'
+                        : '— required (the flight you land on coming home, we meet you)';
+                    if (llabel) llabel.textContent = '🛬 Arrival landing time';
                 } else if (puAir) {
                     if (flabel) flabel.textContent = 'Flight number';
                     if (fopt) fopt.textContent = '— required (arrival flight we track)';
