@@ -3,7 +3,7 @@
 import { today, addDays, addMonths, isoDate } from './calc.js';
 
 const DB = 'money-hq', STORE = 'kv', KEY = 'state';
-export const SCHEMA = 2;
+export const SCHEMA = 3;
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 // ---------- IndexedDB (falls back to memory if blocked) ----------
@@ -88,7 +88,7 @@ export function migrate(s) {
   const out = { ...base, ...s, settings: { ...base.settings, ...(s.settings || {}) } };
   for (const k of ['accounts', 'categories', 'transactions', 'recurring', 'rules', 'holdings']) if (!Array.isArray(out[k])) out[k] = base[k];
   for (const k of ['budget', 'goals', 'networth', 'debts', 'freedom']) out[k] = { ...base[k], ...(s[k] || {}) };
-  if ((s.schema || 1) < 2 && out.settings.theme === 'auto') out.settings.theme = 'dark'; // v2 is dark-first
+  if ((s.schema || 1) < 3) out.settings.theme = 'light'; // v3 is light-first; dark stays available in Settings
   out.settings.payday = { ...base.settings.payday, ...(s.settings?.payday || {}) };
   out.settings.tax = { income: [], costs: [], ...(s.settings?.tax || {}) };
   if (!Array.isArray(out.settings.dismissed)) out.settings.dismissed = [];
@@ -145,7 +145,7 @@ function budgetTemplate(withAmounts) {
 export function blankState() {
   return {
     schema: SCHEMA,
-    settings: { name: '', sample: false, lastBackup: null, theme: 'dark', weekStart: 1, created: today(), payday: { mode: 'weekly', weekday: 2, day: 28 }, tax: { income: [], costs: [] }, dismissed: [] },
+    settings: { name: '', sample: false, lastBackup: null, theme: 'light', weekStart: 1, created: today(), payday: { mode: 'weekly', weekday: 2, day: 28 }, tax: { income: [], costs: [] }, dismissed: [] },
     accounts: [
       { id: 'cash', name: 'Cash', group: 'cash', opening: 0 },
       { id: 'bank', name: 'Accounts', group: 'bank', opening: 0 },

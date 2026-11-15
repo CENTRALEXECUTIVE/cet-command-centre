@@ -85,7 +85,7 @@ export function home() {
   if (!s.settings.sample && (backupDays == null || backupDays > 30) && tx().length) nudges.push(`<div class="nudge">${backupDays == null ? 'You have no backup yet.' : `Last backup was ${backupDays} days ago.`} Your data only lives on this device. <a href="#prefs">Back up now</a></div>`);
 
   return `${sampleBanner()}
-  <header class="page-head"><div><p class="eyebrow">${esc(monthLabel(mk, true))}</p><h1>${s.settings.name ? `Hi ${esc(s.settings.name)}` : 'Your money'}</h1></div>
+  <header class="page-head"><div><p class="eyebrow">${esc(monthLabel(mk, true))}</p><h1>${greeting()}${s.settings.name ? `, ${esc(s.settings.name)}` : ''}</h1><p class="lede">${m.income || m.expense ? `You've brought in ${gbp0(m.income)} and spent ${gbp0(m.expense)} so far this month. ${issues.length ? `There ${issues.length > 1 ? `are ${issues.length} things` : 'is 1 thing'} worth checking.` : 'Nothing looks off.'}` : 'Nothing logged yet this month. Add your first entry or import your history.'}</p></div>
     <button class="btn primary" data-action="quick-add">+ Add</button></header>
   ${askBar(true)}
   ${nudges.join('')}
@@ -119,6 +119,7 @@ export function home() {
   <section class="card"><div class="card-head"><h2>Recent</h2><a href="#trans">All transactions</a></div>
     <div class="tx-list">${recent.map(txRow).join('') || '<p class="muted">No transactions yet. Tap + Add, or import your history.</p>'}</div></section>`;
 }
+function greeting() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
 function trend(now, before, upIsGood) {
   if (!before) return '<span class="muted">—</span>';
   const d = (now - before) / before;
