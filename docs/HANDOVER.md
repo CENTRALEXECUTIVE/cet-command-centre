@@ -318,6 +318,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **15 Nov 2026 (night)** — Confirmation "Payment received" heading showed one leg's share (£138) when sent from the
+  return leg; now the whole trip payment (£264) from either leg. Customers get ONE confirmation per trip.
 - **15 Nov 2026 (late)** — Names: PersonName::short — a title keeps the surname ("Mr Smith", never "Mr") in pay
   statements/driver labels and all customer greetings. Moved flights: outbound flagged meta flight_cleared so it
   stops falling back to the stale calendar block (migration 2026_11_15_000002). Remove the flight from Keith's
