@@ -86,4 +86,15 @@ class InvoiceOnlinePaidVatTest extends TestCase
         $plain = Booking::factory()->create(['quoted_price' => 90]);
         $this->assertStringNotContainsString('Company:', (new \App\Mail\BookingConfirmationMail($plain->fresh()))->render());
     }
+
+    public function test_the_payment_heading_shows_the_whole_trip_payment_from_either_leg(): void
+    {
+        [$out, $ret] = $this->trip();
+        $ret->forceFill(['meta' => array_merge($ret->meta, ['square_payment' => ['id' => 'pay_1', 'amount' => 138.00]])])->save();
+
+        foreach ([$out, $ret] as $leg) {
+            $html = (new \App\Mail\BookingConfirmationMail($leg->fresh(), paid: true))->render();
+            $this->assertStringContainsString('Payment received: £264.00', $html);
+        }
+    }
 }

@@ -108,8 +108,28 @@
                     // The REAL payment the customer made: the latest online card payment
                     // recorded on this booking (a trip's one payment covers every leg),
                     // else the latest paid ledger line.
-                    $hist = $booking->meta['square_payment']['history'] ?? [];
-                    $lastOnline = $hist ? end($hist) : (! empty($booking->meta['square_payment']['amount']) ? $booking->meta['square_payment'] : null);
+                    // On a return, the ONE card payment can be recorded on either leg (each leg
+                    // may hold only its own share, e.g. £138 of £264) — so look across every leg
+                    // and take the full payment, never a share (15 Nov 2026).
+                    $cands = [];
+                    foreach ((! empty($trip) ? $booking->invoiceGroupBookings() : collect([$booking])) as $leg) {
+                        $h = $leg->meta['square_payment']['history'] ?? [];
+                        $c = $h ? end($h) : (! empty($leg->meta['square_payment']['amount']) ? $leg->meta['square_payment'] : null);
+                        if ($c) { $cands[] = $c; }
+                    }
+                    $lastOnline = null;
+                    if ($cands) {
+                        // Same payment split across legs → add the shares; a later payment
+                        // (e.g. a balance) → just that one. Never more than the trip's paid total.
+                        $byId = collect($cands)->groupBy(fn ($c) => (string) ($c['id'] ?? ''));
+                        $latestId = collect($cands)->sortByDesc(fn ($c) => (string) ($c['at'] ?? ''))->first()['id'] ?? '';
+                        $group = $byId->get((string) $latestId, collect([$cands[0]]));
+                        $lastOnline = $group->first();
+                        $lastOnline['amount'] = round($group->sum(fn ($c) => (float) ($c['amount'] ?? 0)), 2);
+                        if (! empty($trip) && (float) $trip['paid'] > 0) {
+                            $lastOnline['amount'] = min($lastOnline['amount'], (float) $trip['paid']);
+                        }
+                    }
                     $lastPaid = $booking->payments->where('status', 'paid')->sortByDesc('paid_at')->first();
                     $isManual = $lastOnline && str_starts_with((string) ($lastOnline['id'] ?? ''), 'MANUAL-');
                 @endphp
