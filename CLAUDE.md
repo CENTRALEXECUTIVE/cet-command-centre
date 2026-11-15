@@ -142,6 +142,16 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   details*` bullets / `*Central Executive Transfers*`), sent manually, 08:00–23:00
   window, rendered at send time.
 
+## Personal finance app (`personal-finance/`) — separate from CET
+
+`personal-finance/` is **Money HQ**, Abdi's private personal-finance web app
+(replaces the AutoPilot spreadsheet + Money Manager). It is a standalone static
+PWA (vanilla JS modules, no build, data in the browser's IndexedDB). It shares
+no code, data or routes with the Laravel app and is not part of the CET deploy.
+Never commit real personal figures, bank statements or exports to the repo.
+Tests: `cd personal-finance && npm test`. Developed on branch
+`claude/personal-finance-bank-integration-vzyt3t`. See `personal-finance/README.md`.
+
 ## Handover to another Claude account
 
 Everything is in Git — nothing lives only in a chat. To continue elsewhere:
