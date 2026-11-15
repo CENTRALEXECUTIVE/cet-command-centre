@@ -175,7 +175,7 @@ test('applyUpdates adds missed transactions once, creating categories and subcat
     { date: '2026-07-16', amount: 10, category: 'Brand new', note: 'Test', key: 'card|3' },
   ] };
   const n1 = I.applyUpdates(s, [op]);
-  assert.match(n1[0], /3 missed card payments added \(£-?25\.01\)|3 missed card payments added/);
+  assert.match(n1[0], /^3 missed card entries added \(£-25\.01 out\)$/);
   assert.equal(s.transactions.length, 3);
   assert.ok(s.categories.some((c) => c.name === 'Brand new' && c.kind === 'expense'));
   assert.ok(s.categories.find((c) => c.name === '🧘🏼 Health').subs.includes('Gym'));

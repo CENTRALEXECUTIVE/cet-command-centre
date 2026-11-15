@@ -426,7 +426,7 @@ export function applyUpdates(state, ops = []) {
       const acct = byName(state.accounts, op.account);
       if (!acct) continue;
       const have = new Set(state.transactions.map((t) => t.importKey).filter(Boolean));
-      let n = 0, total = 0;
+      let n = 0, out = 0, inn = 0;
       for (const it of op.items || []) {
         if (it.key && have.has(it.key)) continue;
         const kind = it.type || 'expense';
@@ -434,9 +434,10 @@ export function applyUpdates(state, ops = []) {
         if (!cat) { cat = { id: Math.random().toString(36).slice(2, 10), name: it.category, kind, subs: [] }; state.categories.push(cat); }
         if (it.subcategory && !(cat.subs ||= []).includes(it.subcategory)) cat.subs.push(it.subcategory);
         state.transactions.push({ id: Math.random().toString(36).slice(2, 10) + n, date: it.date, time: '', type: kind, amount: C.round2(it.amount), accountId: acct.id, category: it.category, subcategory: it.subcategory || '', note: it.note || '', description: it.description || '', source: 'statement', importKey: it.key, business: !!it.business });
-        n++; total += C.num(it.amount);
+        n++; if (kind === 'income') inn += C.num(it.amount); else out += C.num(it.amount);
       }
-      if (n) notes.push(`${n} missed ${acct.name.toLowerCase()} payments added (£${C.round2(total).toLocaleString('en-GB', { minimumFractionDigits: 2 })})`);
+      const f = (v) => `£${C.round2(v).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
+      if (n) notes.push(`${n} missed ${acct.name === 'Accounts' ? 'bank' : acct.name.toLowerCase()} entries added (${[out ? `${f(out)} out` : '', inn ? `${f(inn)} in` : ''].filter(Boolean).join(', ')})`);
     } else if (op.op === 'setAsset') {
       const x = byName(state.networth.assets, op.asset);
       if (x) x.value = op.value; else state.networth.assets.push({ id: Math.random().toString(36).slice(2, 10), name: op.asset, value: op.value });
