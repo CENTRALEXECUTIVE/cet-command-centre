@@ -1,4 +1,9 @@
 // Small hand-drawn SVG charts. Colours come from CSS tokens so both themes read.
+const DEFS = `<defs>
+  <linearGradient id="g-pos" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--pos)"/><stop offset="1" style="stop-color:var(--pos);stop-opacity:.35"/></linearGradient>
+  <linearGradient id="g-neg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--neg)"/><stop offset="1" style="stop-color:var(--neg);stop-opacity:.35"/></linearGradient>
+  <linearGradient id="g-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--a1)"/><stop offset=".55" style="stop-color:var(--a2)"/><stop offset="1" style="stop-color:var(--a3)"/></linearGradient>
+</defs>`;
 export const PALETTE = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)', 'var(--c7)', 'var(--c8)'];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -11,11 +16,12 @@ export function donut(items, { size = 200, label = '', sub = '' } = {}) {
   const segs = items.map((it, i) => {
     const frac = it.total / total;
     const a1 = a0 + frac * Math.PI * 2;
+    const gap = items.length > 1 && frac > 0.02 ? 0.018 : 0;
     const large = a1 - a0 > Math.PI ? 1 : 0;
     const p = (a) => `${(cx + r * Math.cos(a)).toFixed(2)} ${(cy + r * Math.sin(a)).toFixed(2)}`;
-    const d = frac >= 0.9999 ? `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r}` : `M ${p(a0)} A ${r} ${r} 0 ${large} 1 ${p(a1)}`;
+    const d = frac >= 0.9999 ? `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r}` : `M ${p(a0 + gap)} A ${r} ${r} 0 ${large} 1 ${p(a1 - gap)}`;
     a0 = a1;
-    return `<path d="${d}" fill="none" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="${w}"><title>${esc(it.name)}: ${(frac * 100).toFixed(1)}%</title></path>`;
+    return `<path d="${d}" fill="none" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="${w}" stroke-linecap="butt"><title>${esc(it.name)}: ${(frac * 100).toFixed(1)}%</title></path>`;
   });
   return `<svg class="donut" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="${esc(label)}">
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${w}"/>
@@ -45,11 +51,11 @@ export function columns(rows, { height = 180, fmt = (v) => v, aLabel = 'In', bLa
   const bars = rows.map((r, i) => {
     const x = padL + i * cw + cw / 2;
     return `<g><title>${esc(r.label)} · ${aLabel} ${esc(fmt(r.a))} · ${bLabel} ${esc(fmt(r.b))}</title>
-      <rect x="${x - bw - 1}" y="${y(r.a)}" width="${bw}" height="${Math.max(0, y(0) - y(r.a))}" rx="3" fill="var(--pos)"/>
-      <rect x="${x + 1}" y="${y(r.b)}" width="${bw}" height="${Math.max(0, y(0) - y(r.b))}" rx="3" fill="var(--neg)"/>
+      <rect x="${x - bw - 1}" y="${y(r.a)}" width="${bw}" height="${Math.max(0, y(0) - y(r.a))}" rx="3" fill="url(#g-pos)"/>
+      <rect x="${x + 1}" y="${y(r.b)}" width="${bw}" height="${Math.max(0, y(0) - y(r.b))}" rx="3" fill="url(#g-neg)"/>
       <text x="${x}" y="${H - 6}" text-anchor="middle" class="axis">${esc(r.label)}</text></g>`;
   }).join('');
-  return `<div class="chart-scroll"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Income and spending by month">${grid}${bars}</svg></div>`;
+  return `<div class="chart-scroll"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Income and spending by month">${DEFS}${grid}${bars}</svg></div>`;
 }
 
 // Line(s): series [{name, colour, points:[{x(label), v}]}]
@@ -66,10 +72,10 @@ export function lines(series, { height = 200, fmt = (v) => v, labels = [] } = {}
   const xl = labels.map((l, i) => (i % step === 0 || i === labels.length - 1 ? `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" class="axis">${esc(l)}</text>` : '')).join('');
   const paths = series.map((s) => {
     const pts = s.points.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`);
-    const area = s.area ? `<path d="M ${x(0)},${y(0)} L ${pts.join(' L ')} L ${x(s.points.length - 1)},${y(0)} Z" fill="${s.colour}" opacity=".12"/>` : '';
+    const area = s.area ? `<path d="M ${x(0)},${y(0)} L ${pts.join(' L ')} L ${x(s.points.length - 1)},${y(0)} Z" fill="${s.colour}" opacity=".14"/>` : '';
     const last = s.points.length - 1;
-    return `${area}<polyline points="${pts.join(' ')}" fill="none" stroke="${s.colour}" stroke-width="2.5" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 5"' : ''}/>
-      <circle cx="${x(last)}" cy="${y(s.points[last]?.v || 0)}" r="4" fill="${s.colour}"/>`;
+    return `${area}<polyline points="${pts.join(' ')}" fill="none" stroke="${s.colour}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="${s.dash ? '' : 'glow'}" style="color:${s.colour}" ${s.dash ? 'stroke-dasharray="5 5"' : ''}/>
+      <circle cx="${x(last)}" cy="${y(s.points[last]?.v || 0)}" r="4.5" fill="${s.colour}" class="glow" style="color:${s.colour}"/>`;
   }).join('');
   return `<div class="chart-scroll"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${esc(series.map((s) => s.name).join(', '))}">${grid}${paths}${xl}</svg></div>`;
 }
@@ -78,6 +84,15 @@ export function niceMax(v) {
   const p = Math.pow(10, Math.floor(Math.log10(v)));
   for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
   return 10 * p;
+}
+
+// Progress ring with a gradient stroke (money score).
+export function ring(frac, label = '', sub = '', size = 170) {
+  const f = Math.max(0, Math.min(1, frac || 0)), r = 78, c = 2 * Math.PI * r;
+  return `<svg class="ring" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="${esc(label)} ${esc(sub)}">${DEFS}
+    <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--line)" stroke-width="14"/>
+    <circle cx="100" cy="100" r="${r}" fill="none" stroke="url(#g-ring)" stroke-width="14" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 100 100)" class="ring-arc"/>
+    <text x="100" y="104" text-anchor="middle" class="ring-big">${esc(label)}</text><text x="100" y="128" text-anchor="middle" class="donut-sub">${esc(sub)}</text></svg>`;
 }
 
 export function meter(frac, cls = '') {

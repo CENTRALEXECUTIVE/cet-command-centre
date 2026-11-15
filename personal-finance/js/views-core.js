@@ -3,6 +3,9 @@ import * as C from './calc.js';
 import { donut, topN, columns, lines, meter, PALETTE } from './charts.js';
 import { ctx, esc, gbp, gbp0, gbpK, pct, monthLabel, shortMonth, dayName, niceDate, monthYear, duration, field, select, delBtn, addBtn, accountName, icon, bare } from './ui.js';
 import { ACCOUNT_GROUPS } from './store.js';
+import * as I from './insights.js';
+import { askBar, paydayCard } from './views-insights.js';
+import { ring } from './charts.js';
 
 const S = () => ctx.state;
 const tx = () => S().transactions;
@@ -74,7 +77,9 @@ export function home() {
   const flow = C.cashflow(tx(), C.lastNMonths(6));
   const quick = C.frequentEntries(tx(), 6, C.addMonths(today, -3));
 
+  const issues = I.findIssues(s), pd = I.payday(s), score = I.healthScore(s);
   const nudges = [];
+  if (issues.length) nudges.push(`<div class="nudge warn"><strong>${issues.length} thing${issues.length > 1 ? 's' : ''} to check.</strong> ${esc(issues[0].title)}${issues.length > 1 ? ` and ${issues.length - 1} more` : ''}. <a href="#insights">Take a look</a></div>`);
   if (due.length) nudges.push(`<div class="nudge warn"><strong>${due.length} repeating payment${due.length > 1 ? 's' : ''} due.</strong> Log ${due.length > 1 ? 'them' : 'it'} in one tap. <a href="#recurring">Review</a></div>`);
   if (gap != null && gap >= 2) nudges.push(`<div class="nudge">Your last entry was ${gap} days ago. Anything to add? <button class="link" data-action="quick-add">Add now</button></div>`);
   if (!s.settings.sample && (backupDays == null || backupDays > 30) && tx().length) nudges.push(`<div class="nudge">${backupDays == null ? 'You have no backup yet.' : `Last backup was ${backupDays} days ago.`} Your data only lives on this device. <a href="#prefs">Back up now</a></div>`);
@@ -82,12 +87,13 @@ export function home() {
   return `${sampleBanner()}
   <header class="page-head"><div><p class="eyebrow">${esc(monthLabel(mk, true))}</p><h1>${s.settings.name ? `Hi ${esc(s.settings.name)}` : 'Your money'}</h1></div>
     <button class="btn primary" data-action="quick-add">+ Add</button></header>
+  ${askBar(true)}
   ${nudges.join('')}
   <section class="kpis">
     <div class="kpi"><span class="k-label">Income this month</span><span class="k-val pos">${gbp0(m.income)}</span><span class="k-foot">${trend(m.income, prev.income, true)} vs last month</span></div>
     <div class="kpi"><span class="k-label">Spent this month</span><span class="k-val neg">${gbp0(m.expense)}</span><span class="k-foot">${trend(m.expense, prev.expense, false)} vs last month</span></div>
     <div class="kpi"><span class="k-label">Left in your plan</span><span class="k-val ${leftToSpend < 0 ? 'neg' : ''}">${gbp0(leftToSpend)}</span><span class="k-foot">${leftToSpend > 0 ? `about ${gbp0(perDay)} a day to month end` : 'over this month’s plan'}</span></div>
-    <div class="kpi"><span class="k-label">Net this month</span><span class="k-val ${m.net < 0 ? 'neg' : 'pos'}">${gbp0(m.net)}</span><span class="k-foot">savings rate ${m.income ? pct(Math.max(0, m.net) / m.income) : '—'}</span></div>
+    <a class="kpi link-kpi" href="#insights"><span class="k-label">Safe before payday</span><span class="k-val ${pd.safe < 0 ? 'neg' : 'grad'}">${gbp0(pd.safe)}</span><span class="k-foot">${gbp0(pd.perDay)} a day until ${niceDate(pd.date).replace(/ \d{4}$/, '')}</span></a>
   </section>
 
   ${quick.length ? `<section class="card"><div class="card-head"><h2>Quick add</h2><span class="muted">Your most common entries. Tap, check the amount, save.</span></div>
@@ -102,6 +108,7 @@ export function home() {
 
   <section class="card"><div class="card-head"><h2>Your financial dashboard</h2><span class="muted">From your plan, goals and accounts</span></div>
     <div class="dash">
+      <a class="dash-item score-item" href="#insights">${ring(score.score / 100, String(score.score), score.label, 96)}<span><span class="k-label">Money score</span><span class="k-foot">Net ${gbp0(m.net)} this month · savings rate ${m.income ? pct(Math.max(0, m.net) / m.income) : '—'}</span></span></a>
       <a class="dash-item" href="#goals"><span class="k-label">Savings & investments</span><span class="k-val">${gbp0(si.now)}</span><span class="k-foot">${gbp0(si.in12)} in 12 months</span></a>
       <a class="dash-item" href="#accounts"><span class="k-label">Net worth</span><span class="k-val ${nw.net < 0 ? 'neg' : ''}">${gbp0(nw.net)}</span><span class="k-foot">${gbp0(nw.assets)} assets · ${gbp0(nw.liabilities)} owed</span></a>
       <a class="dash-item" href="#freedom"><span class="k-label">Financially free</span><span class="k-val">${fr.date ? monthYear(fr.date) : '—'}</span><span class="k-foot">target ${gbpK(fr.goal)} · ${pct(fr.progress)} there</span></a>

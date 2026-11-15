@@ -9,6 +9,7 @@ Centre Laravel app: it shares nothing with it, has no server and is never deploy
 | Area | What you get |
 | --- | --- |
 | **Home** | This month's income, spending, what's left in your plan, savings rate, one-tap "quick add" chips for your most common entries (Uber, Bolt, fuel…), reminders for missed entries, due bills and backups, plus the AutoPilot dashboard (savings in 12 months, net worth, freedom date, debt-free date, surplus). |
+| **Insights** | Ask a question in plain English (answered on the device), "Left before payday" safe-to-spend with the bills still to come, "Does anything look off?" (double charges, fees, unusual amounts, price rises, regular payments missing from Repeating), regular payments found in your history, a 0–100 money score, and a self-employed tax-pot estimate for the UK tax year. |
 | **Trans.** | Money Manager-style Daily / Calendar / Monthly views, search, filters, add/edit/delete, "Repeat" on any entry. |
 | **Stats** | Donut + % list by category, Weekly / Monthly / Annually / UK tax year / custom period, tap a category for its breakdown and 12-month trend. |
 | **Accounts** | Cash, Accounts, Card, Savings, Investments, Loans with balances; assets, liabilities and net worth; "set today's balance" to reconcile; monthly net-worth history. |
@@ -20,6 +21,14 @@ Centre Laravel app: it shares nothing with it, has no server and is never deploy
 | **Repeating** | Bills and regular income that log themselves (auto) or wait for one tap, so nothing gets forgotten. |
 | **Import & bank** | Money Manager Excel export (all history, safe to re-import), bank CSV/OFX statements (Monzo, Starling, Revolut, Lloyds/Halifax, NatWest, Barclays, Nationwide, Santander, Chase, Amex, or any bank by picking columns), auto-categorising from your own history and rules, duplicate detection against what you typed in. |
 | **Settings** | Passcode lock (AES-256 encryption at rest), backup/restore, categories (rename/merge), rules. |
+
+## Asking Claude (optional)
+
+Questions are answered on the device by `js/insights.js`. When the app runs as a
+claude.ai artifact, an extra "Ask Claude for a deeper answer" button appears. Pressing it
+sends a summary (monthly totals, category totals, bills, goals, debts and the 60 latest
+entries) to Claude for that one question. Nothing is sent unless that button is pressed.
+The self-hosted version has no such button.
 
 ## Privacy and safety
 
@@ -47,13 +56,15 @@ on a private repo, or `python3 -m http.server` locally). Open it on your phone a
 ```bash
 cd personal-finance
 python3 -m http.server 8080   # then open http://localhost:8080
-npm test                      # unit tests for the maths and importers (Node 18+)
+npm test                      # unit tests for the maths, importers and insights (Node 18+)
+node tests/e2e.cjs            # browser test of every screen and feature (needs Playwright; server on :8765)
 ```
 
 ## Code map
 
 - `js/calc.js` money maths: budget, sinking funds, compound growth, freedom date, debt snowball/avalanche, recurring dates, UK tax year
 - `js/importers.js` CSV/OFX parsing, bank presets, Money Manager rows, categorising, duplicates
+- `js/insights.js` checks, payday, subscriptions, money score, tax estimate, question engine
 - `js/store.js` IndexedDB storage, encryption, defaults, example data
 - `js/views-*.js` screens; `js/app.js` shell, routing, editor, import flows
 - `tests/` `node --test` suites for `calc.js` and `importers.js`

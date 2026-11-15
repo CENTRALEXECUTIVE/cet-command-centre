@@ -6,9 +6,12 @@ import { ctx, esc, gbp, getPath, catsOf, accountName, niceDate } from './ui.js';
 import { home, trans, stats, accounts, netWorth } from './views-core.js';
 import { plan, goals, invest, debts, freedom, recurring } from './views-plan.js';
 import { importView, prefs, prepareBank, prepareMM, guessGroup } from './views-import.js';
+import { insights } from './views-insights.js';
+import * as I from './insights.js';
+import { bare } from './ui.js';
 
 const ROUTES = {
-  home: ['Home', 'home', home], trans: ['Trans.', 'list', trans], stats: ['Stats', 'pie', stats], accounts: ['Accounts', 'wallet', accounts],
+  home: ['Home', 'home', home], trans: ['Trans.', 'list', trans], stats: ['Stats', 'pie', stats], accounts: ['Accounts', 'wallet', accounts], insights: ['Insights', 'spark', insights],
   plan: ['Budget plan', 'grid', plan], goals: ['Goals', 'target', goals], invest: ['Investments', 'up', invest], debts: ['Debts', 'down', debts],
   freedom: ['Freedom', 'flag', freedom], recurring: ['Repeating', 'repeat', recurring], import: ['Import & bank', 'bank', importView], prefs: ['Settings', 'gear', prefs],
 };
@@ -27,9 +30,10 @@ const ICON_PATHS = {
   bank: 'M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18',
   gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
+  spark: 'M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
 };
 const ico = (k) => `<svg class="ni-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="${k === 'more' ? 3.5 : 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON_PATHS[k]}"/></svg>`;
-const NAV_GROUPS = [['Track', ['home', 'trans', 'stats', 'accounts']], ['Plan', ['plan', 'goals', 'invest', 'debts', 'freedom']], ['Tools', ['recurring', 'import', 'prefs']]];
+const NAV_GROUPS = [['Track', ['home', 'insights', 'trans', 'stats', 'accounts']], ['Plan', ['plan', 'goals', 'invest', 'debts', 'freedom']], ['Tools', ['recurring', 'import', 'prefs']]];
 const MOBILE = ['home', 'trans', 'stats', 'accounts'];
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -84,7 +88,7 @@ function go() {
   const changed = next !== route;
   route = next;
   render();
-  if (changed) window.scrollTo(0, 0);
+  if (changed) { window.scrollTo(0, 0); const m = document.getElementById('main'); m?.classList.add('enter'); setTimeout(() => m?.classList.remove('enter'), 600); }
 }
 
 // ---------- generic bindings ----------
@@ -186,6 +190,15 @@ app.addEventListener('click', (e) => {
   if (d.filterAcct) { ctx.ui.facct = d.filterAcct; return; }
   if (d.recLog) return logRecurring(d.recLog);
   if (d.recSkip) { const r = ctx.state.recurring.find((x) => x.id === d.recSkip); r.next = C.nextDate(r.next, r.freq); commit(); toast(`Skipped. Next ${r.name}: ${niceDate(r.next)}`); return; }
+  if (d.ask) { ctx.ui.ask = { q: d.ask, result: I.answer(d.ask, ctx.state) }; render(); return; }
+  if (d.dismiss) { ctx.state.settings.dismissed.push(d.dismiss); commit(); toast('Marked as fine'); return; }
+  if (d.subAdd) return addSubscription(d.subAdd);
+  if (d.taxToggle) {
+    const [which, cat] = [d.taxToggle.slice(0, d.taxToggle.indexOf('|')), d.taxToggle.slice(d.taxToggle.indexOf('|') + 1)];
+    const list = ctx.state.settings.tax[which];
+    const i = list.indexOf(cat); if (i >= 0) list.splice(i, 1); else list.push(cat);
+    commit(); return;
+  }
   if (d.action) return action(d.action, b);
 });
 
@@ -219,8 +232,52 @@ async function action(a, btn) {
       await Store.setPasscode(p1); ctx.ui.lockOn = true; await Store.save(s, { now: true }); render(); toast('Passcode on. Your data is encrypted.'); return;
     }
     case 'clear-pass': await Store.setPasscode(null); ctx.ui.lockOn = false; await Store.save(s, { now: true }); render(); toast('Passcode removed'); return;
+    case 'ask-clear': ctx.ui.ask = null; render(); return;
+    case 'ask-ai': return askClaude();
+    case 'undismiss': s.settings.dismissed = []; commit(); return;
+    case 'budget-apply': {
+      const sg = I.suggestBudget(s.transactions);
+      const group = (c) => (/household|bills|rent|mortgage|tax|insur|hagbad/i.test(c) ? 'fixed' : /food|transport|health|business|fuel/i.test(c) ? 'variable' : 'optional');
+      s.budget.income = sg.income.map((r) => ({ id: Store.uid(), name: bare(r.category), amount: r.monthly }));
+      s.budget.items = sg.expenses.map((r) => ({ id: Store.uid(), group: group(r.category), section: bare(r.category), name: 'Average month', amount: r.monthly, category: r.category }));
+      ctx.ui.budgetSuggest = false; commit(); toast('Plan rebuilt from your real averages. Adjust any line.'); return;
+    }
     case 'wipe': await Store.wipe(); await Store.setPasscode(null); ctx.state = Store.blankState(); ctx.ui = {}; commit(); toast('All data deleted'); return;
   }
+}
+
+// ---------- insights actions ----------
+app.addEventListener('submit', (e) => {
+  if (e.target.id !== 'ask-form') return;
+  e.preventDefault();
+  const q = new FormData(e.target).get('q').trim();
+  if (!q) return;
+  ctx.ui.ask = { q, result: I.answer(q, ctx.state) };
+  render();
+});
+
+function addSubscription(key) {
+  const s = ctx.state, sub = I.detectSubscriptions(s.transactions, s.recurring).find((x) => x.key === key);
+  if (!sub) return;
+  let next = sub.nextDate;
+  while (next < C.today()) next = C.nextDate(next, sub.freq);
+  s.recurring.push({ id: Store.uid(), name: sub.name, type: 'expense', amount: sub.amount, category: sub.category, subcategory: sub.subcategory, accountId: sub.accountId, freq: sub.freq, next, auto: false });
+  commit(); toast(`${sub.name} added to Repeating. Next due ${niceDate(next)}.`);
+}
+
+async function askClaude() {
+  const a = ctx.ui.ask;
+  if (!ctx.ai || !a?.q || a.loading) return;
+  a.loading = true; render();
+  const prompt = `You are the assistant inside a private UK personal finance app. Answer the user's question using ONLY the data below. Amounts are in GBP (£). Be direct and specific with figures, 2 to 6 short sentences, plain text with no markdown. If the data cannot answer it, say what is missing. Do not give regulated financial advice; you may point out facts, patterns and options.\n\nQuestion: ${a.q}\n\nThe app's own on-device answer was: ${a.result?.text || 'none'}\n\nData (JSON):\n${JSON.stringify(I.contextForAI(ctx.state))}`;
+  try {
+    const res = await ctx.ai(prompt, { cache: false });
+    if (ctx.ui.ask === a) a.result = { text: res.text.trim(), rows: [], ai: true };
+  } catch (err) {
+    if (err?.code === 'not_granted') ctx.ai = null;
+    toast(err?.code === 'not_granted' ? 'Claude was not given permission, so answers stay on this device.' : err?.code === 'rate_limited' ? 'Claude is busy. Try again in a minute.' : "Claude couldn't answer just now.");
+  }
+  a.loading = false; render();
 }
 
 // ---------- transaction editor ----------
@@ -493,5 +550,6 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   ctx.state = r.state;
   if (r.fresh) Store.save(ctx.state);
   start();
+  window.claude?.use?.('sample').then((sample) => { if (sample) { ctx.ai = sample; render(); } }).catch(() => {});
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|anthropic/.test(location.host)) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

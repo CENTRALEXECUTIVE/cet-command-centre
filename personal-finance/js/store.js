@@ -3,7 +3,7 @@
 import { today, addDays, addMonths, isoDate } from './calc.js';
 
 const DB = 'money-hq', STORE = 'kv', KEY = 'state';
-export const SCHEMA = 1;
+export const SCHEMA = 2;
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 // ---------- IndexedDB (falls back to memory if blocked) ----------
@@ -88,6 +88,10 @@ export function migrate(s) {
   const out = { ...base, ...s, settings: { ...base.settings, ...(s.settings || {}) } };
   for (const k of ['accounts', 'categories', 'transactions', 'recurring', 'rules', 'holdings']) if (!Array.isArray(out[k])) out[k] = base[k];
   for (const k of ['budget', 'goals', 'networth', 'debts', 'freedom']) out[k] = { ...base[k], ...(s[k] || {}) };
+  if ((s.schema || 1) < 2 && out.settings.theme === 'auto') out.settings.theme = 'dark'; // v2 is dark-first
+  out.settings.payday = { ...base.settings.payday, ...(s.settings?.payday || {}) };
+  out.settings.tax = { income: [], costs: [], ...(s.settings?.tax || {}) };
+  if (!Array.isArray(out.settings.dismissed)) out.settings.dismissed = [];
   out.schema = SCHEMA;
   return out;
 }
@@ -141,7 +145,7 @@ function budgetTemplate(withAmounts) {
 export function blankState() {
   return {
     schema: SCHEMA,
-    settings: { name: '', sample: false, lastBackup: null, theme: 'auto', weekStart: 1, created: today() },
+    settings: { name: '', sample: false, lastBackup: null, theme: 'dark', weekStart: 1, created: today(), payday: { mode: 'weekly', weekday: 2, day: 28 }, tax: { income: [], costs: [] }, dismissed: [] },
     accounts: [
       { id: 'cash', name: 'Cash', group: 'cash', opening: 0 },
       { id: 'bank', name: 'Accounts', group: 'bank', opening: 0 },
@@ -193,6 +197,11 @@ export function sampleState(now = today()) {
     if (d.endsWith('-12')) tx(d, 'expense', 38.5, '🪑 Household', 'EE SIM', 'card', 'Bills');
     if (d.endsWith('-25')) tx(d, 'transfer', 500, '', 'ISA top-up', 'bank'), (s.transactions.at(-1).toAccountId = 'isa');
   }
+  // keep the example balances believable: most income has already been spent or moved on
+  const flow = (id) => s.transactions.reduce((t, x) => t + (x.accountId === id ? (x.type === 'income' ? x.amount : -x.amount) : 0) + (x.toAccountId === id ? x.amount : 0), 0);
+  s.accounts.find((a) => a.id === 'bank').opening = Math.round(1240 - flow('bank'));
+  s.accounts.find((a) => a.id === 'cash').opening = Math.round(85 - flow('cash'));
+  s.accounts.find((a) => a.id === 'card').opening = Math.round(-640 - flow('card'));
   s.recurring = [
     { id: uid(), name: 'Taxi insurance', type: 'expense', amount: 185, category: '🚖 Transport', subcategory: 'Insurance', accountId: 'card', freq: 'monthly', next: addMonths(now.slice(0, 8) + '08', now.slice(8) >= '08' ? 1 : 0), auto: false },
     { id: uid(), name: 'EE SIM', type: 'expense', amount: 38.5, category: '🪑 Household', subcategory: 'Bills', accountId: 'card', freq: 'monthly', next: addMonths(now.slice(0, 8) + '12', now.slice(8) >= '12' ? 1 : 0), auto: true },
@@ -226,6 +235,12 @@ export function sampleState(now = today()) {
     budget: 450, method: 'avalanche',
   };
   s.freedom = { monthlyNeed: 4000, current: 8200, monthly: 750, rate: 0.07, withdrawalRate: 0.04 };
+  s.settings.tax = { income: ['💰 Salary', 'Business'], costs: ['BUSINESS'] };
+  // a few things for the Insights checks to find
+  tx(addDays(now, -6), 'expense', 125.19, '👬🏻 Social Life', 'Trainline', 'card'); tx(addDays(now, -5), 'expense', 125.19, '👬🏻 Social Life', 'Trainline', 'card');
+  tx(addDays(now, -9), 'expense', 12, 'Other', 'Late payment fee', 'card');
+  for (const k of [3, 2, 1]) tx(addMonths(addDays(now, -4), -k), 'expense', 7.99, '🪑 Household', 'Streaming TV', 'card');
+  tx(addDays(now, -4), 'expense', 9.99, '🪑 Household', 'Streaming TV', 'card');
   s.rules = [{ id: uid(), match: 'costa', type: 'expense', category: '🍜 Food', subcategory: 'Coffee' }];
   return s;
 }

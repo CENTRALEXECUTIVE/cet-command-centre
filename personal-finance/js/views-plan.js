@@ -1,6 +1,7 @@
 // AutoPilot plan, goals, investments, debts, financial freedom, recurring payments.
 import * as C from './calc.js';
 import { lines, meter } from './charts.js';
+import * as I from './insights.js';
 import { ctx, esc, gbp, gbp0, gbpK, pct, niceDate, monthYear, duration, field, select, delBtn, addBtn, catsOf, accountName } from './ui.js';
 
 const S = () => ctx.state;
@@ -18,7 +19,8 @@ export function plan() {
   const dom = Number(C.today().slice(8)), dim = new Date(+mk.slice(0, 4), +mk.slice(5), 0).getDate();
   const vs = [...new Set([...planned.keys(), ...actual.keys()])].map((c) => ({ c, p: planned.get(c) || 0, a: actual.get(c) || 0 })).sort((x, y) => y.p - x.p || y.a - x.a);
 
-  return `<header class="page-head"><div><p class="eyebrow">AutoPilot plan</p><h1>Monthly budget</h1></div></header>
+  return `<header class="page-head"><div><p class="eyebrow">AutoPilot plan</p><h1>Monthly budget</h1></div><button class="btn ghost" data-toggle-ui="budgetSuggest">${ctx.ui.budgetSuggest ? 'Close' : 'Build from my real spending'}</button></header>
+  ${ctx.ui.budgetSuggest ? suggestCard() : ''}
   <section class="kpis">
     <div class="kpi"><span class="k-label">Monthly income</span><span class="k-val pos">${gbp0(sum.income)}</span></div>
     <div class="kpi"><span class="k-label">Planned outgoings</span><span class="k-val neg">${gbp0(sum.outgoing)}</span><span class="k-foot">${pct(sum.outgoing / (sum.income || 1))} of income</span></div>
@@ -50,6 +52,16 @@ export function plan() {
   <section class="card"><div class="card-head"><h2>This month: plan vs actual</h2><span class="muted">Day ${dom} of ${dim} · ${pct(dom / dim)} of the month gone</span></div>
     <p class="muted">Link budget lines to a category (the small dropdown) to compare them with what you actually spent.</p>
     <ul class="vs">${vs.map((r) => { const f = r.p ? r.a / r.p : r.a ? 1.01 : 0; const cls = f > 1 ? 'over' : f > dom / dim + 0.1 ? 'warn' : 'ok'; return `<li><span class="vs-name">${esc(r.c)}</span>${meter(Math.min(1, f), cls)}<span class="vs-num"><b class="${f > 1 ? 'neg' : ''}">${gbp0(r.a)}</b> of ${r.p ? gbp0(r.p) : 'no plan'}</span></li>`; }).join('') || '<li class="muted">No spending this month yet.</li>'}</ul></section>`;
+}
+
+function suggestCard() {
+  const sg = I.suggestBudget(S().transactions);
+  if (!sg.months.length) return '<section class="card highlight"><p class="muted">There is no history in the last three full months yet. Log or import some first.</p></section>';
+  const list = (rows) => `<ul class="plain">${rows.map((r) => `<li><span>${esc(r.category)}</span><b>${gbp0(r.monthly)}</b></li>`).join('')}</ul>`;
+  return `<section class="card highlight"><div class="card-head"><h2>Your real monthly averages</h2><span class="muted">From ${sg.months.length} full month${sg.months.length > 1 ? 's' : ''} of history</span></div>
+    <div class="grid-2"><div><h3 class="sub-h">Income <span class="muted">${gbp0(C.sum(sg.income, (r) => r.monthly))}</span></h3>${list(sg.income)}</div><div><h3 class="sub-h">Spending <span class="muted">${gbp0(C.sum(sg.expenses, (r) => r.monthly))}</span></h3>${list(sg.expenses)}</div></div>
+    <p class="nudge warn">Using these replaces the income and budget lines in your current plan. Your “give your surplus a job” list is kept.</p>
+    <div class="row-btns"><button class="btn primary" data-action="budget-apply">Use these as my plan</button><button class="btn ghost" data-toggle-ui="budgetSuggest">Cancel</button></div></section>`;
 }
 
 // ---------- GOALS ----------
