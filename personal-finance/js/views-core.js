@@ -48,7 +48,15 @@ function txRow(t) {
     ${amt}</button>`;
 }
 
+function setupBanner() {
+  const r = ctx.setupReady;
+  if (!r) return '';
+  return `<div class="banner setup"><div><strong>Your setup is ready.</strong> Claude has prepared ${Number(r.entries || 0).toLocaleString()} entries from Money Manager, your real NatWest balances, the savings pot, the wedding and tax goals, and your monthly bills. ${S().settings.sample ? '' : 'Loading it replaces what is in the app now.'}</div>
+    <div class="row-btns"><button class="btn primary" data-action="setup-load">Load my setup</button><button class="btn ghost small" data-action="setup-skip">${ctx.ui.confirmSetupSkip ? 'Tap again to discard it' : 'Not now'}</button></div></div>`;
+}
+
 function sampleBanner() {
+  if (ctx.setupReady) return setupBanner();
   if (!S().settings.sample) return '';
   return `<div class="banner"><div><strong>You're looking at example data.</strong> None of these figures are yours. Import your Money Manager file to bring in your history, or start with a clean slate.</div>
     <div class="row-btns"><a class="btn primary small" href="#import">Import Money Manager</a><button class="btn ghost small" data-action="start-fresh">Start fresh</button></div></div>`;

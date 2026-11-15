@@ -195,6 +195,29 @@ const wait = (p, ms = 250) => p.waitForTimeout(ms);
     check('sync: no script errors', A.errs.length + B.errs.length === 0, [...A.errs, ...B.errs].join(' | '));
     await A.c.close(); await B.c.close();
   }
+  // 14. a setup prepared by Claude, waiting in the private store, loads with one tap
+  {
+    const zlib = require('zlib');
+    const setup = { app: 'money-hq', exported: new Date().toISOString(), state: { settings: { name: 'Tester' }, accounts: [{ id: 'bank', name: 'Accounts', group: 'bank', opening: 500 }], transactions: [{ id: 'x1', date: new Date().toISOString().slice(0, 10), type: 'expense', amount: 12.34, category: 'Other', note: 'Setup coffee', accountId: 'bank' }] } };
+    const store = new Map([
+      ['data/users/viewer-9/setup-meta', { count: 1, z: true, entries: 1 }],
+      ['data/users/viewer-9/setup-c0', { d: zlib.gzipSync(Buffer.from(JSON.stringify(setup))).toString('base64') }],
+    ]);
+    const c = await b.newContext({ viewport: { width: 400, height: 860 } });
+    await c.exposeBinding('__kv', (_s, op, path, val) => { if (op === 'get') return store.get(path) ?? null; if (op === 'set') store.set(path, val); else store.delete(path); return null; });
+    await c.addInitScript(`(() => { const mk = (path) => ({ id: path.split('/').pop(), path, get: async () => { const v = await window.__kv('get', path); return { exists: v != null, data: () => v }; }, set: async (d) => { await window.__kv('set', path, d); }, delete: async () => { await window.__kv('del', path); } }); const db = { collection: (col) => ({ doc: (n) => mk(col + '/' + n) }), doc: mk }; window.claude = { use: async (n) => n === 'db' ? db : n === 'user' ? { id: async () => 'viewer-9' } : null }; })();`);
+    const p = await c.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+    await p.goto(`${BASE}/#home`); await wait(p, 1500);
+    check('setup: banner offered', (await p.locator('[data-action=setup-load]').count()) === 1);
+    await p.click('[data-action=setup-load]'); await wait(p, 1500);
+    await p.goto(`${BASE}/#trans`); await wait(p, 500);
+    check('setup: data loaded', (await p.locator('.main').innerText()).includes('Setup coffee'));
+    check('setup: removed from store after loading', !store.has('data/users/viewer-9/setup-c0') && !store.has('data/users/viewer-9/setup-meta'));
+    await p.goto(`${BASE}/#home`); await wait(p, 800);
+    check('setup: example banner gone', (await p.locator('.banner').count()) === 0);
+    check('setup: no script errors', errs.length === 0, errs.join(' | '));
+    await c.close();
+  }
   await b.close();
   console.log(`${passes.length} passed, ${fails.length} failed`);
   fails.forEach((f) => console.log('FAIL', f));

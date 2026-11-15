@@ -129,3 +129,23 @@ export async function forget() {
   await doc('vault').delete();
   disable();
 }
+
+// A setup Claude prepared for you, waiting in your private area (data/users/<you>/setup-*).
+export async function pendingSetup() {
+  if (!db) return null;
+  try { const s = await doc('setup-meta').get(); return s.exists ? s.data() : null; } catch { return null; }
+}
+export async function takeSetup() {
+  const meta = await pendingSetup();
+  if (!meta) return null;
+  const parts = [];
+  for (let i = 0; i < meta.count; i++) { const s = await doc(`setup-c${i}`).get(); if (!s.exists) throw new Error('Part of the setup is missing.'); parts.push(s.data().d); }
+  const bytes = unb64(parts.join(''));
+  const data = JSON.parse(await gunzip(bytes, meta.z));
+  return { meta, data };
+}
+export async function clearSetup() {
+  const meta = await pendingSetup();
+  for (let i = 0; i < (meta?.count || 0); i++) await doc(`setup-c${i}`).delete();
+  await doc('setup-meta').delete();
+}

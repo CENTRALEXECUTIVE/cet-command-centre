@@ -408,3 +408,5 @@ details summary { cursor: pointer; font-weight: 600; color: var(--muted); margin
 .nudge.week::before { background: var(--accent); }
 .nudge .row-btns { display: inline-flex; margin-left: 6px; vertical-align: middle; }
 @media (max-width: 520px) { .short-row { grid-template-columns: minmax(0, 1fr) auto; } .short-row .in { grid-column: 1; } .nudge .row-btns { display: flex; margin: 8px 0 0; } }
+
+.banner.setup { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }

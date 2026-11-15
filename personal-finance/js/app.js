@@ -77,6 +77,8 @@ async function syncNow({ quiet = true } = {}) {
 const deviceName = () => (/iphone|android|mobile/i.test(navigator.userAgent) ? 'phone' : 'computer');
 async function startSync() {
   if (!(await Sync.init())) { if (route === 'prefs') render(); return; }
+  const setup = await Sync.pendingSetup();
+  if (setup) { ctx.setupReady = setup; render(); }
   const saved = await Store.kvGet('sync');
   if (Sync.resume(saved)) syncNow();
   if (route === 'prefs') render();
@@ -305,6 +307,21 @@ async function action(a, btn) {
       } catch (err) { toast(err?.name === 'OperationError' ? "That passcode doesn't open the synced copy. Use the one you chose on your other device." : `Sync couldn't start: ${err?.message || err}`); }
       return;
     }
+    case 'setup-load': {
+      try {
+        const got = await Sync.takeSetup();
+        if (!got?.data?.state) throw new Error('No setup found.');
+        ctx.state = Store.migrate(got.data.state);
+        ctx.state.settings.sample = false;
+        await Store.save(ctx.state, { now: true });
+        await Sync.clearSetup();
+        ctx.setupReady = null; applyTheme(); location.hash = 'home'; render();
+        toast(`Loaded: ${ctx.state.transactions.length.toLocaleString()} entries, your balances, goals and bills`);
+        queueSync(500);
+      } catch (err) { toast(`Couldn't load the setup: ${err?.message || err}`); }
+      return;
+    }
+    case 'setup-skip': if (!ctx.ui.confirmSetupSkip) { ctx.ui.confirmSetupSkip = true; render(); return; } await Sync.clearSetup(); ctx.setupReady = null; render(); toast('Setup removed'); return;
     case 'sync-now': return syncNow({ quiet: false });
     case 'sync-off': Sync.disable(); await Store.kvPut('sync', undefined); render(); toast('Sync turned off on this device'); return;
     case 'sync-forget': if (!ctx.ui.confirmForget) { ctx.ui.confirmForget = true; render(); return; } await Sync.forget(); await Store.kvPut('sync', undefined); ctx.ui.confirmForget = false; render(); toast('Synced copy deleted. Data on this device is untouched.'); return;
