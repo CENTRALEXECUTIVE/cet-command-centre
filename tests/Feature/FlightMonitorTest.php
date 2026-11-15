@@ -31,8 +31,21 @@ class FlightMonitorTest extends TestCase
             'customer_id' => $customer->id,
             'driver_id' => $driver?->id,
             'flight_number' => 'BA123',
+            'pickup_address' => 'Manchester Airport (MAN)',
+            'destination_address' => 'Sheffield S1 2HH',
             'pickup_at' => now()->addHours(3),
         ]);
+    }
+
+    public function test_a_departure_flight_never_moves_the_pickup(): void
+    {
+        $this->fakeClient(45);
+        $booking = $this->flightBooking();
+        $booking->forceFill(['pickup_address' => 'Sheffield S1 2HH', 'destination_address' => 'Manchester Airport (MAN)'])->save();
+        $original = $booking->pickup_at->copy();
+
+        $this->assertNull(app(FlightMonitorService::class)->monitor($booking->fresh()));
+        $this->assertEquals($original->format('H:i'), $booking->fresh()->pickup_at->format('H:i'));
     }
 
     private function fakeClient(int $delay, string $status = 'active'): void

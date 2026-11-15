@@ -38,6 +38,12 @@ class FlightMonitorService
 
     public function monitor(Booking $booking): ?FlightMonitor
     {
+        // Only ARRIVALS — a pickup AT the airport. A departure flight (on a drop-off to
+        // the airport) must never move a pickup: a delay there would collect the
+        // customer late for their own flight (15 Nov 2026).
+        if (! \App\Support\AirportMatcher::isAirport($booking->pickup_address)) {
+            return null;
+        }
         if (blank($booking->flight_number)) {
             return null;
         }

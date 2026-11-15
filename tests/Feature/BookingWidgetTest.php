@@ -386,6 +386,21 @@ class BookingWidgetTest extends TestCase
         $ret = \App\Models\Booking::where('is_return_leg', true)->first();
         $this->assertNull($out->flight_number);
         $this->assertSame('EZY708', $ret->flight_number);
+
+        // With the optional outbound flight too, it lands on the drop-off leg.
+        \App\Models\Booking::query()->forceDelete();
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S13 8TW', 'pickup_postcode' => 'S13 8TW',
+            'destination_address' => 'Manchester Airport', 'journey_type' => 'return',
+            'pickup_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+            'return_pickup_at' => now()->addDays(5)->setTime(22, 5)->format('Y-m-d\TH:i'),
+            'flight_number' => 'EZY708', 'other_flight_number' => 'ezy707', 'flight_landing_at' => $land,
+            'vehicle_type_id' => $executive->id, 'passengers' => 4,
+            'customer_name' => 'Keith Test', 'customer_phone' => '07700900555',
+        ])->assertOk();
+        $this->assertSame('EZY707', \App\Models\Booking::where('source', 'web')->where('is_return_leg', false)->first()->flight_number);
+        $this->assertSame('EZY708', \App\Models\Booking::where('is_return_leg', true)->first()->flight_number);
         $this->assertNotEmpty($ret->meta['flight_landing_at'] ?? null);
         $this->assertEmpty($out->meta['flight_landing_at'] ?? null);
     }

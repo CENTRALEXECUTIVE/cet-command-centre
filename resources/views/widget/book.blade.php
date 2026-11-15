@@ -786,6 +786,10 @@
                                 <label for="b-flight-landing"><span id="b-flight-landing-label">Flight landing time</span> <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
                                 <input id="b-flight-landing" name="flight_landing_at" type="datetime-local">
                             </div>
+                            <div class="cet-field" id="b-flight-other-field" hidden>
+                                <label for="b-flight-other"><span id="b-flight-other-label">Outbound flight number</span> <span class="opt" id="b-flight-other-opt">— optional (the flight you fly out on)</span></label>
+                                <input id="b-flight-other" name="other_flight_number" placeholder="e.g. EZY707" autocomplete="off" style="text-transform:uppercase">
+                            </div>
                             <p class="cet-foot" style="text-align:left;margin:2px 0 0">We track your flight and adjust the pickup if it lands early or late — at no extra charge.</p>
                         </div>
 
@@ -1356,6 +1360,7 @@
                 var elseBox2 = document.getElementById('b-else');
                 if (elseBox2 && elseBox2.checked && val('b-lead-name')) html += row('Passenger', val('b-lead-name'));
                 if (val('b-flight')) html += row('Flight', val('b-flight').toUpperCase());
+                if (val('b-flight-other')) html += row('Other flight', val('b-flight-other').toUpperCase());
                 if (val('b-flight-landing')) {
                     var ld = new Date(val('b-flight-landing'));
                     html += row('Lands', isNaN(ld) ? val('b-flight-landing')
@@ -1633,6 +1638,13 @@
                 if (fe) fe.dataset.required = arrival ? '1' : '';
                 if (lf) lf.hidden = !arrival;
                 if (le) le.dataset.required = arrival ? '1' : '';
+
+                // A return touching an airport: a second, optional box for the OTHER flight
+                // (the one they fly out on), stored on the leg that drops at the airport.
+                var of = document.getElementById('b-flight-other-field');
+                var olabel = document.getElementById('b-flight-other-label');
+                if (of) of.hidden = !(isReturn && anyAir);
+                if (olabel) olabel.textContent = puAir ? 'Return departure flight number' : 'Outbound flight number';
 
                 if (isReturn && anyAir && !puAir) {
                     if (flabel) flabel.textContent = 'Return flight number';

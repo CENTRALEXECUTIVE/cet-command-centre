@@ -327,6 +327,7 @@ class BookingWidgetController extends Controller
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'flight_number' => ['nullable', 'string', 'max:32'],
+            'other_flight_number' => ['nullable', 'string', 'max:32'],
             'flight_landing_at' => ['nullable', 'date'],
             'customer_name' => ['required', 'string', 'max:120'],
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
@@ -536,6 +537,9 @@ class BookingWidgetController extends Controller
         $flightOnReturn = $isReturn
             && ! \App\Support\AirportMatcher::isAirport($pickupFull)
             && \App\Support\AirportMatcher::isAirport($destination);
+        // The OTHER flight on a return (optional): the one they fly OUT on. It goes on
+        // the leg that drops at the airport — the opposite leg to the one we meet.
+        $otherFlight = $isReturn ? (strtoupper(trim((string) ($data['other_flight_number'] ?? ''))) ?: null) : null;
         // Customer-entered flight landing time (UK-local, like every other clock we
         // show — never converted; see the timezone rule). Stored for the office.
         $flightLandingAt = null;
@@ -622,7 +626,7 @@ class BookingWidgetController extends Controller
             'pickup_address' => $pickupFull,
             'destination_address' => $destination,
             'passengers' => $data['passengers'],
-            'flight_number' => $flightOnReturn ? null : $flight,
+            'flight_number' => $flightOnReturn ? $otherFlight : $flight,
             'special_requests' => $composedNotes,
             'status' => BookingStatus::Pending->value,
             // Account jobs are billed monthly (driver collects nothing). Otherwise no
@@ -705,7 +709,7 @@ class BookingWidgetController extends Controller
                 'pickup_address' => $destination,
                 'destination_address' => $pickupFull,
                 'passengers' => $data['passengers'],
-                'flight_number' => $flightOnReturn ? $flight : null, // the flight the driver meets
+                'flight_number' => $flightOnReturn ? $flight : $otherFlight, // the flight the driver meets (or flies out on)
                 'special_requests' => $returnNotes,
                 'status' => BookingStatus::Pending->value,
                 // A return leg never collects cash on the day (returns are card-only),
