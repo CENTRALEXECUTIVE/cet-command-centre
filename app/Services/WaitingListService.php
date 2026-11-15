@@ -35,7 +35,7 @@ class WaitingListService
                 continue;
             }
 
-            $name = Str::before($entry->customer->name ?? 'there', ' ');
+            $name = \App\Support\PersonName::short($entry->customer->name ?? '', 'there');
             $body = "Good news {$name} — a Central Executive Transfers slot has opened on "
                 ."{$entry->desired_date->format('D d M')}"
                 .($entry->desired_time_window ? " ({$entry->desired_time_window})" : '')

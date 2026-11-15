@@ -43,6 +43,7 @@ return new class extends Migration
 
                 $outMeta = $out->meta ?? [];
                 unset($outMeta['flight_landing_at']);
+                $outMeta['flight_cleared'] = true;
                 $out->forceFill(['flight_number' => null, 'meta' => $outMeta])->saveQuietly();
             });
     }

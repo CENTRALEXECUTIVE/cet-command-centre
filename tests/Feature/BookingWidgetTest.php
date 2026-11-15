@@ -405,6 +405,15 @@ class BookingWidgetTest extends TestCase
         $this->assertEmpty($out->meta['flight_landing_at'] ?? null);
     }
 
+    public function test_a_leg_whose_flight_was_moved_off_shows_no_flight(): void
+    {
+        $b = \App\Models\Booking::factory()->create(['flight_number' => null, 'meta' => ['flight_cleared' => true]]);
+        $this->assertNull($b->displayFlightNumber());
+
+        $b->forceFill(['flight_number' => 'BA1'])->save();
+        $this->assertSame('BA1', $b->fresh()->displayFlightNumber()); // a flight set again shows
+    }
+
     public function test_a_flight_number_is_required_for_an_airport_return(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();

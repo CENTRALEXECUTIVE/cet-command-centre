@@ -3613,6 +3613,11 @@ class Booking extends Model
     /** Flight number — a manual edit wins, else the calendar, else our own. */
     public function displayFlightNumber(): ?string
     {
+        // The flight was deliberately moved off this leg (a web return's arrival flight
+        // belongs on the airport pickup) — don't fall back to the stale calendar block.
+        if (! empty($this->meta['flight_cleared']) && blank($this->flight_number)) {
+            return null;
+        }
         $flight = $this->editable($this->calendarField('Flight Number'), $this->flight_number, 'flight_number');
 
         // The builder prints "N/A" where there's no flight — treat that as none.
@@ -6669,7 +6674,7 @@ class Booking extends Model
      */
     public function driverJobLabel(): string
     {
-        $first = trim(\Illuminate\Support\Str::before($this->displayName() ?: ($this->customer?->name ?? ''), ' '));
+        $first = \App\Support\PersonName::short($this->displayName() ?: ($this->customer?->name ?? ''));
         $parts = array_filter([$first ?: null, $this->airportCode() ?: null]);
 
         return $parts === [] ? (string) ($this->external_reference ?? $this->reference) : implode(' ', $parts);

@@ -191,7 +191,7 @@ class FlightMonitorService
             return;
         }
 
-        $name = Str::before($booking->customer->name ?? 'there', ' ');
+        $name = \App\Support\PersonName::short($booking->customer->name ?? '', 'there');
         $body = "Hi {$name}, your flight {$booking->flight_number} is delayed ~{$delayMinutes} min. "
             ."We've automatically moved your Central Executive Transfers pickup to "
             ."{$newPickup->format('H:i')}. No action needed — your driver will be there.";

@@ -28,7 +28,7 @@ class MissedCallService
             'received_at' => $receivedAt ?? now(),
         ]);
 
-        $name = $customer ? ' '.Str::before($customer->name, ' ') : '';
+        $name = $customer && \App\Support\PersonName::short($customer->name) !== '' ? ' '.\App\Support\PersonName::short($customer->name) : '';
         $draft = "Hi{$name}, sorry we missed your call to Central Executive Transfers. "
             .'Reply here with your pickup, destination and time and we’ll sort your booking right away.';
         $wa = Phone::wa($fromNumber);

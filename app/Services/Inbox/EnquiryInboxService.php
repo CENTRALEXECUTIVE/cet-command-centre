@@ -139,7 +139,7 @@ class EnquiryInboxService
     private function draftReply(EmailEnquiry $enquiry, VehicleType $vehicleType): string
     {
         $ex = $enquiry->extracted ?? [];
-        $first = Str::before((string) ($enquiry->from_name ?: 'there'), ' ') ?: 'there';
+        $first = \App\Support\PersonName::short((string) $enquiry->from_name, 'there');
         $when = ! empty($ex['pickup_datetime'])
             ? optional($this->tryDate($ex['pickup_datetime']))->format('D d M Y, H:i')
             : null;

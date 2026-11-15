@@ -400,7 +400,7 @@ class BookingNotifier
     {
         $name = trim((string) $name);
 
-        return $name === '' ? '' : Str::before($name, ' ');
+        return $name === '' ? '' : \App\Support\PersonName::short($name);
     }
 
     /**
@@ -837,7 +837,7 @@ class BookingNotifier
             ?: ($booking->meta['lead_name'] ?? null)
             ?: $booking->customer?->name;
 
-        return Str::before(trim((string) ($lead ?: 'there')), ' ') ?: 'there';
+        return \App\Support\PersonName::short((string) $lead, 'there');
     }
 
     /**
