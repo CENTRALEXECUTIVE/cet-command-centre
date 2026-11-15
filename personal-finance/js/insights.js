@@ -400,3 +400,33 @@ export function contextForAI(state, now = C.today()) {
     recentTransactions: [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60).map((t) => ({ date: t.date, type: t.type, amount: t.amount, category: t.category, note: t.note })),
   };
 }
+
+// Apply a list of simple, named changes to the state. Returns plain-English notes of what changed.
+export function applyUpdates(state, ops = []) {
+  const notes = [];
+  const byName = (list, name) => list.find((x) => String(x.name).trim().toLowerCase() === String(name).trim().toLowerCase());
+  for (const op of ops) {
+    if (op.op === 'setBalance') {
+      const a = byName(state.accounts, op.account);
+      if (!a) continue;
+      const now = C.accountBalances([a], state.transactions)[a.id];
+      a.opening = C.round2(C.num(a.opening) + C.num(op.balance) - now);
+      notes.push(`${a.name} balance set to £${C.num(op.balance).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`);
+    } else if (op.op === 'setGoal') {
+      const g = byName(state.goals.sinking, op.goal);
+      if (!g) continue;
+      for (const k of ['target', 'saved', 'monthly', 'date']) if (op[k] != null) g[k] = op[k];
+      notes.push(`${g.name} goal updated`);
+    } else if (op.op === 'setDebt') {
+      const d = byName(state.debts.items, op.debt);
+      if (!d) continue;
+      for (const k of ['balance', 'rate', 'min']) if (op[k] != null) d[k] = op[k];
+      notes.push(`${d.name} updated`);
+    } else if (op.op === 'setAsset') {
+      const x = byName(state.networth.assets, op.asset);
+      if (x) x.value = op.value; else state.networth.assets.push({ id: Math.random().toString(36).slice(2, 10), name: op.asset, value: op.value });
+      notes.push(`${op.asset} set to £${C.num(op.value).toLocaleString('en-GB')}`);
+    }
+  }
+  return notes;
+}

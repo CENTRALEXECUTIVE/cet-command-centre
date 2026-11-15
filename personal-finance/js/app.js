@@ -77,6 +77,11 @@ async function syncNow({ quiet = true } = {}) {
 const deviceName = () => (/iphone|android|mobile/i.test(navigator.userAgent) ? 'phone' : 'computer');
 async function startSync() {
   if (!(await Sync.init())) { if (route === 'prefs') render(); return; }
+  const upd = await Sync.takeUpdates();
+  if (upd?.ops?.length && !ctx.state.settings.sample) {
+    const notes = I.applyUpdates(ctx.state, upd.ops);
+    if (notes.length) { commit(); toast(`Updated by Claude: ${notes.join(', ')}`); }
+  }
   const setup = await Sync.pendingSetup();
   if (setup) {
     ctx.setupReady = setup;

@@ -149,3 +149,9 @@ export async function clearSetup() {
   for (let i = 0; i < (meta?.count || 0); i++) await doc(`setup-c${i}`).delete();
   await doc('setup-meta').delete();
 }
+
+// Small updates Claude leaves for you (e.g. "set Hagbad to £6,000"), applied once then removed.
+export async function takeUpdates() {
+  if (!db) return null;
+  try { const s = await doc('updates').get(); if (!s.exists) return null; await doc('updates').delete(); return s.data(); } catch { return null; }
+}

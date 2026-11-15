@@ -152,3 +152,17 @@ test('AI context contains summaries, not the whole history', () => {
   assert.ok(c.recentTransactions.length <= 60);
   assert.ok(JSON.stringify(c).length < 30000);
 });
+
+test('applyUpdates sets balances, goals, debts and assets by name', () => {
+  const s = base();
+  s.accounts.push({ id: 'hb', name: 'Hagbad', group: 'savings', opening: 0 });
+  s.transactions = [{ id: 'a', date: '2026-01-01', type: 'transfer', amount: 5500, accountId: 'cash', toAccountId: 'hb' }];
+  s.goals.sinking = [{ id: 'g', name: 'Wedding', target: 30000, saved: 0 }];
+  s.debts.items = [{ id: 'd', name: 'Virgin', balance: 0, rate: 0, min: 185 }];
+  const notes = I.applyUpdates(s, [{ op: 'setBalance', account: 'hagbad', balance: 6000 }, { op: 'setGoal', goal: 'Wedding', saved: 12000 }, { op: 'setDebt', debt: 'Virgin', balance: 1870.25 }, { op: 'setAsset', asset: 'Held by Mum', value: 6000 }, { op: 'setBalance', account: 'Nope', balance: 1 }]);
+  assert.equal(C.accountBalances(s.accounts, s.transactions).hb, 6000);
+  assert.equal(s.goals.sinking[0].saved, 12000);
+  assert.equal(s.debts.items[0].balance, 1870.25);
+  assert.equal(s.networth.assets.at(-1).value, 6000);
+  assert.equal(notes.length, 4);
+});

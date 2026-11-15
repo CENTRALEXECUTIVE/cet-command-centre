@@ -214,6 +214,10 @@ const wait = (p, ms = 250) => p.waitForTimeout(ms);
     check('setup: removed from store after loading', !store.has('data/users/viewer-9/setup-c0') && !store.has('data/users/viewer-9/setup-meta'));
     await p.goto(`${BASE}/#home`); await wait(p, 800);
     check('setup: example banner gone', (await p.locator('.banner').count()) === 0);
+    store.set('data/users/viewer-9/updates', { ops: [{ op: 'setAsset', asset: 'Held by Mum', value: 6000 }, { op: 'setBalance', account: 'Accounts', balance: 777 }] });
+    await p.reload(); await wait(p, 1500); await p.goto(`${BASE}/#accounts`); await wait(p, 600);
+    const acctText = await p.locator('.main').innerText();
+    check('updates: applied once and removed', acctText.includes('£777.00') && !store.has('data/users/viewer-9/updates'));
     check('setup: no script errors', errs.length === 0, errs.join(' | '));
     await c.close();
   }
