@@ -79,6 +79,15 @@
         <h2 style="font-size:17px;margin:0 0 8px">Customer</h2>
         <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
             {!! $row('Name:', $booking->displayName() ?: $booking->customer?->name) !!}
+            @php
+                // VAT invoice to a business: show the company too, so the email matches the invoice.
+                $vatCompany = $booking->vatInvoiceRequested()
+                    ? trim((string) ($booking->invoiceGroupBookings()->map(fn ($b) => $b->meta['vat_details']['name'] ?? null)->filter()->first() ?? ''))
+                    : '';
+            @endphp
+            @if($vatCompany !== '')
+                {!! $row('Company:', $vatCompany) !!}
+            @endif
             {!! $row('Phone number:', \App\Support\Phone::display($booking->customer?->phone)) !!}
             {!! $row('Email:', $booking->customer?->email) !!}
         </table>

@@ -75,4 +75,15 @@ class InvoiceOnlinePaidVatTest extends TestCase
         $this->assertEqualsWithDelta(220.0, $d['paymentsReceived'], 0.01);
         $this->assertEqualsWithDelta(44.0, $d['balanceDue'], 0.01);
     }
+
+    public function test_the_confirmation_email_shows_the_company_on_a_vat_booking(): void
+    {
+        [$out] = $this->trip();
+        $html = (new \App\Mail\BookingConfirmationMail($out->fresh(), paid: true))->render();
+        $this->assertStringContainsString('Company:', $html);
+        $this->assertStringContainsString('BENDITNOW LTD', $html);
+
+        $plain = Booking::factory()->create(['quoted_price' => 90]);
+        $this->assertStringNotContainsString('Company:', (new \App\Mail\BookingConfirmationMail($plain->fresh()))->render());
+    }
 }
