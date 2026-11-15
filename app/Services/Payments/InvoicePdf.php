@@ -195,9 +195,16 @@ class InvoicePdf
         // VAT is then the outstanding balance on a VAT invoice — until the VAT is
         // settled (webhook / office), when it's counted as received too and the
         // invoice reads paid in full.
-        $paymentsReceived = round(collect($lines)->filter(fn ($l) => $l['paid'])->sum('net'), 2);
+        $netPaid = round(collect($lines)->filter(fn ($l) => $l['paid'])->sum('net'), 2);
+        // What was ACTUALLY taken online across the trip (15 Nov 2026: a web customer paid
+        // £264 incl. VAT and the invoice said "£220 paid, £44 VAT due"). The online pay
+        // link charges the VAT-inclusive amount, so honour the real figure. A return
+        // records the whole-trip total on one leg; summing then capping at the invoice
+        // total never double-counts.
+        $onlinePaid = round($legs->sum(fn (Booking $b) => $b->onlinePaidTotal()), 2);
+        $paymentsReceived = max($netPaid, $onlinePaid);
         if ($isVat && $booking->vatSettled()) {
-            $paymentsReceived = round($paymentsReceived + $vatTotal, 2);
+            $paymentsReceived = max($paymentsReceived, round($netPaid + $vatTotal, 2));
         }
         $paymentsReceived = min($paymentsReceived, $grossTotal);
 
@@ -228,8 +235,11 @@ class InvoicePdf
         // the form (name / address / VAT number), so the invoice is reclaimable.
         $billToAddress = null;
         $billToVat = null;
-        if (! $cover && $isVat && is_array($booking->meta['vat_details'] ?? null)) {
-            $vd = $booking->meta['vat_details'];
+        // The company details live on whichever leg the customer booked from — use them
+        // for every leg's invoice (the return leg's invoice was billing the passenger).
+        $vdLeg = $legs->first(fn (Booking $b) => is_array($b->meta['vat_details'] ?? null));
+        if (! $cover && $isVat && $vdLeg) {
+            $vd = $vdLeg->meta['vat_details'];
             $billedTo = trim((string) ($vd['name'] ?? '')) ?: $billedTo;
             $billToAddress = trim((string) ($vd['address'] ?? '')) ?: null;
             $billToVat = trim((string) ($vd['vat_number'] ?? '')) ?: null;

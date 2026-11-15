@@ -294,6 +294,31 @@ class BookingStatusService
      */
     public function onFarePaid(Booking $booking, bool $emailCustomer = true): Booking
     {
+        // One at a time per booking (15 Nov 2026: two webhook events for the same
+        // payment arrived together and BOTH sent the customer and the office their
+        // "paid" emails before either was stamped). A second caller waits for the
+        // first to finish, then finds everything already done.
+        $lock = null;
+        try {
+            $lock = \Illuminate\Support\Facades\Cache::lock('fare-paid:'.$booking->id, 60);
+            $lock->block(20);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            return $booking->fresh() ?? $booking; // still busy after 20s: the first run handles it
+        } catch (\Throwable) {
+            $lock = null; // lock store unavailable — never let that stop a payment being processed
+        }
+        try {
+            return $this->onFarePaidLocked($booking, $emailCustomer);
+        } finally {
+            try {
+                $lock?->release();
+            } catch (\Throwable) {
+            }
+        }
+    }
+
+    private function onFarePaidLocked(Booking $booking, bool $emailCustomer): Booking
+    {
         $booking->reconcilePaidStatus();
         $fresh = $booking->fresh();
 
