@@ -548,8 +548,8 @@ async function pdfTextLines(file) {
     rows.sort((a, b) => b.y - a.y);
     for (const r of rows) {
       r.items.sort((a, b) => a.x - b.x);
-      let out = '', end = null;
-      for (const it of r.items) { if (end != null) out += it.x - end > 2 ? '   ' : ''; out += it.s; end = it.x + it.w; }
+      let out = '';
+      for (const it of r.items) { const col = Math.round(it.x / 4.2); out += out.length < col ? ' '.repeat(col - out.length) : out.length ? '  ' : ''; out += it.s; }
       lines.push(out);
     }
   }
@@ -568,11 +568,14 @@ async function handleImportFile(kind, files) {
       const pdfs = (Array.isArray(files) ? files : [file]).filter((f) => /\.pdf$/i.test(f.name));
       if (pdfs.length) {
         const parsed = [];
-        for (const f of pdfs) { const ls = await pdfTextLines(f); parsed.push({ ...IM.parseStatementText(ls), holder: IM.statementHolder(ls) }); }
-        const lines = parsed.flatMap((p) => p.lines).sort((a, b) => a.date.localeCompare(b.date));
+        for (const f of pdfs) parsed.push(IM.parseAnyStatement(await pdfTextLines(f)));
+        // Overlapping files (e.g. a statement and a transaction list for the same weeks) repeat lines.
+        const seenRow = new Set();
+        const lines = parsed.flatMap((p) => p.lines).filter((l) => { const k = `${l.date}|${l.type}|${l.amount}|${l.balance ?? l.ref ?? l.description}`; if (seenRow.has(k)) return false; seenRow.add(k); return true; }).sort((a, b) => a.date.localeCompare(b.date));
         if (!lines.length) throw new Error("No transactions found in that PDF. If it's a scanned image, or a bank layout this reader doesn't know, use a CSV download instead.");
         const last = parsed.filter((p) => p.lines.length).sort((a, b) => a.lines.at(-1).date.localeCompare(b.lines.at(-1).date)).at(-1);
-        imp.pdf = { files: pdfs.length, lines, balanced: parsed.every((p) => p.balanced !== false), closing: last.closing, closingDate: last.lines.at(-1).date, holder: parsed[0].holder };
+        imp.pdf = { files: pdfs.length, lines, balanced: parsed.every((p) => p.balanced !== false), closing: last.closing, closingDate: last.statementDate || last.lines.at(-1).date, holder: parsed[0].holder, card: parsed.some((p) => p.kind === 'card') };
+        if (imp.pdf.card) { const cardAcct = ctx.state.accounts.find((a) => a.group === 'card'); if (cardAcct && !ctx.ui.impAccount) imp.accountId = cardAcct.id; }
         imp.fileName = pdfs.length > 1 ? `${pdfs.length} statements · ${niceDate(lines[0].date)} to ${niceDate(lines.at(-1).date)}` : file.name;
       } else if (/\.(ofx|qfx)$/i.test(file.name)) { imp.ofx = true; imp.text = await file.text(); }
       else {

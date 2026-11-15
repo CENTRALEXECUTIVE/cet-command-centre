@@ -382,3 +382,76 @@ export function statementHolder(lines) {
   const i = lines.findIndex((l) => /Account Name/i.test(l));
   return i >= 0 && lines[i + 1] ? lines[i + 1].trim().split(/\s{2,}/)[0] : '';
 }
+
+// NatWest online "Transactions" download: newest first, full dates, £ amounts, and the
+// description wraps both above and below the line that carries the date and amounts.
+// The amount line sits in the middle of its description, so a row's text below it has as
+// many lines as its text above it.
+export function parseTransactionListText(lines) {
+  const hi = lines.findIndex((l) => /^\s*Date\s+Type\s+Description\b.*Paid in.*Paid out.*Balance/i.test(l));
+  if (hi < 0) return null;
+  const ROW = /^\s*(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})\s+(\S+)\s*(.*?)\s*(£[\d,]+\.\d{2})\s+(-?£[\d,]+\.\d{2})\s*$/;
+  const rows = []; let run = [];
+  for (const raw of lines.slice(hi + 1)) {
+    const line = raw.replace(/\s+$/, '');
+    if (/©\s*National Westminster|downloaded from the NatWest|Registered in England|Financial Services Register|Prudential Regulation|^\s*Page \d+ of \d+|^\s*Date\s+Type\s+Description/i.test(line)) continue;
+    if (!line.trim()) continue;
+    const m = line.match(ROW);
+    if (!m || !MON3[m[2].toUpperCase()]) { run.push(line.trim()); continue; }
+    const prev = rows.at(-1);
+    const post = prev ? Math.min(run.length, prev.pre) : 0;
+    if (prev) prev.desc.push(...run.slice(0, post));
+    const pre = run.slice(post);
+    rows.push({ date: `${m[3]}-${String(MON3[m[2].toUpperCase()]).padStart(2, '0')}-${m[1].padStart(2, '0')}`, code: m[4], desc: [...pre, m[5]].filter(Boolean), pre: pre.length, amount: toNum(m[6]), balance: toNum(m[7].replace('£', '')), col: line.indexOf(m[6]) });
+    run = [];
+  }
+  if (rows.length && run.length) rows.at(-1).desc.push(...run.slice(0, rows.at(-1).pre));
+  // oldest first; money in vs out from the running balance
+  const header = lines[hi], inCol = header.search(/Paid in/i), outCol = header.search(/Paid out/i);
+  const asc = rows[0] && rows.at(-1) && rows[0].date > rows.at(-1).date ? [...rows].reverse() : rows;
+  let ok = 0;
+  const out = asc.map((r, i) => {
+    let signed;
+    if (i > 0) { const d = round2(r.balance - asc[i - 1].balance); if (Math.abs(Math.abs(d) - r.amount) < 0.011) { signed = d; ok++; } }
+    if (signed == null) signed = Math.abs(r.col - inCol) <= Math.abs(r.col - outCol) ? r.amount : -r.amount;
+    const words = r.desc.join(' ').replace(/\s*,\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    return { date: r.date, amount: round2(Math.abs(signed)), type: signed < 0 ? 'expense' : 'income', description: tidyStatement(words), notes: `${r.code} ${words}`, balance: r.balance, ref: '', bankCategory: '' };
+  });
+  const holder = (lines.join('\n').match(/Account name:\s*([^\n]+)/i) || [])[1]?.trim() || '';
+  return { lines: out, summary: {}, totals: {}, balanced: rows.length < 2 ? null : ok === rows.length - 1, account: null, closing: out.length ? out.at(-1).balance : null, holder, kind: 'list' };
+}
+
+// Credit card statement (NatWest Mastercard layout). No running balance per row; credits end
+// with "-". Checked against the statement summary (previous + spending − payments = new).
+export function parseCardStatementText(lines) {
+  const text = lines.join('\n');
+  if (!/Trans\s+Post|MasterCard Number|Visa Number|Credit Limit/i.test(text)) return null;
+  const sm = text.match(/Summary\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (!sm) return null;
+  const stmtY = +sm[3], stmtM = MON3[sm[2].slice(0, 3).toUpperCase()];
+  const money = (re) => { const m = text.match(re); return m ? toNum(m[1]) : null; };
+  const prev = money(/Balance brought forward from[\s\S]{0,500}?£([\d,]+\.\d{2})/i);
+  const paid = money(/Payments to your account\s+£([\d,]+\.\d{2})/i);
+  const spent = money(/Spending on your account[\s\S]{0,500}?£([\d,]+\.\d{2})/i);
+  const closing = money(/New Balance\s+=?\s*£([\d,]+\.\d{2})/i);
+  const out = [];
+  const ROW = /^\s*(\d{1,2})\s+([A-Z]{3})\s+(\d{1,2})\s+([A-Z]{3})\s+(\d{6,})?\s*(.+?)\s+([\d,]+\.\d{2})(\s*-)?\s*$/;
+  for (const raw of lines) {
+    const m = raw.match(ROW);
+    if (!m || !MON3[m[2]] || /Sub-Total|BALANCE FROM PREVIOUS/i.test(raw)) continue;
+    const mon = MON3[m[2]], y = mon > stmtM ? stmtY - 1 : stmtY;
+    const credit = !!m[8];
+    const desc = m[6].replace(/\s{2,}/g, ' ').trim();
+    out.push({ date: `${y}-${String(mon).padStart(2, '0')}-${m[1].padStart(2, '0')}`, amount: toNum(m[7]), type: credit ? 'income' : 'expense', description: desc, notes: desc, ref: m[5] || '', bankCategory: '', cardPayment: credit && /PAYMENT RECEIVED|THANK YOU|DIRECT DEBIT PAYMENT/i.test(desc) });
+  }
+  const credits = round2(out.filter((l) => l.type === 'income').reduce((t, l) => t + l.amount, 0));
+  const debits = round2(out.filter((l) => l.type === 'expense').reduce((t, l) => t + l.amount, 0));
+  const balanced = prev != null && closing != null ? Math.abs(round2(prev + debits - credits) - closing) < 0.02 : null;
+  const holder = (text.match(/Cardholder\s+(?:MR|MRS|MS|MISS|DR)?\s*([A-Z][A-Z ]+)/) || [])[1]?.trim() || '';
+  return { lines: out, summary: { opening: prev, paidIn: paid, withdrawn: spent, closing }, totals: { paidIn: credits, withdrawn: debits }, balanced, account: null, closing: closing == null ? null : -closing, holder, kind: 'card', statementDate: `${stmtY}-${String(stmtM).padStart(2, '0')}-${sm[1].padStart(2, '0')}` };
+}
+
+// Pick the right reader for a statement's text.
+export function parseAnyStatement(lines) {
+  return parseTransactionListText(lines) || parseCardStatementText(lines) || { ...parseStatementText(lines), holder: statementHolder(lines), kind: 'statement' };
+}
