@@ -37,6 +37,13 @@ export function getPath(obj, path) { return path.split('.').reduce((o, k) => (o 
 
 export const ctx = { state: null, ui: {}, render: () => {}, commit: () => {}, toast: () => {}, openTx: () => {}, modal: () => {}, closeModal: () => {} };
 
+export function subsOf(category, kind) {
+  const c = ctx.state.categories.find((x) => x.name === category && (!kind || x.kind === kind));
+  const count = new Map();
+  for (const t of ctx.state.transactions) if (t.category === category && t.subcategory) count.set(t.subcategory, (count.get(t.subcategory) || 0) + 1);
+  for (const sname of c?.subs || []) if (!count.has(sname)) count.set(sname, 0);
+  return [...count].sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n }));
+}
 export const catsOf = (kind) => ctx.state.categories.filter((c) => c.kind === kind).map((c) => c.name);
 export const accountName = (id) => ctx.state.accounts.find((a) => a.id === id)?.name || '—';
 export const icon = (name) => { const m = String(name || '').match(/^\p{Extended_Pictographic}[\u{FE0F}\u{1F3FB}-\u{1F3FF}‍\p{Extended_Pictographic}]*/u); return m ? m[0] : ''; };

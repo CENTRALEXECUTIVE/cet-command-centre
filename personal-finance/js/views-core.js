@@ -52,7 +52,7 @@ function setupBanner() {
   const r = ctx.setupReady;
   if (!r) return '';
   return `<div class="banner setup"><div><strong>Your setup is ready.</strong> Claude has prepared ${Number(r.entries || 0).toLocaleString()} entries from Money Manager, your real NatWest balances, the savings pot, the wedding and tax goals, and your monthly bills. ${S().settings.sample ? '' : 'Loading it replaces what is in the app now.'}</div>
-    <div class="row-btns"><button class="btn primary" data-action="setup-load">Load my setup</button><button class="btn ghost small" data-action="setup-skip">${ctx.ui.confirmSetupSkip ? 'Tap again to discard it' : 'Not now'}</button></div></div>`;
+    <div class="row-btns"><button class="btn primary" data-action="setup-load">Load my setup</button><button class="btn ghost small" data-action="setup-skip">Not now</button></div></div>`;
 }
 
 function sampleBanner() {
@@ -153,7 +153,7 @@ export function trans() {
   ui.month ||= C.monthKey(C.today());
   ui.ttab ||= 'daily';
   const q = (ui.q || '').toLowerCase();
-  const filt = (t) => (!ui.fscope || (ui.fscope === 'business') === !!t.business) && (!ui.facct || t.accountId === ui.facct || t.toAccountId === ui.facct) && (!ui.fcat || t.category === ui.fcat) && (!ui.ftype || t.type === ui.ftype) &&
+  const filt = (t) => (!ui.fscope || (ui.fscope === 'business') === !!t.business) && (!ui.facct || t.accountId === ui.facct || t.toAccountId === ui.facct) && (!ui.fcat || (ui.fcat.includes('||') ? `${t.category}||${t.subcategory}` === ui.fcat : t.category === ui.fcat)) && (!ui.ftype || t.type === ui.ftype) &&
     (!q || `${t.note} ${t.description} ${t.category} ${t.subcategory} ${t.amount}`.toLowerCase().includes(q));
   const year = ui.month.slice(0, 4);
   const scope = ui.ttab === 'monthly' ? tx().filter((t) => t.date.startsWith(year)) : tx().filter((t) => C.monthKey(t.date) === ui.month);
@@ -203,7 +203,7 @@ export function trans() {
       <select id="tx-ftype" class="in" data-ui="ftype" aria-label="Type"><option value="">All types</option>${['expense', 'income', 'transfer'].map((v) => `<option ${ui.ftype === v ? 'selected' : ''} value="${v}">${v[0].toUpperCase() + v.slice(1)}</option>`).join('')}</select>
       <select id="tx-fscope" class="in" data-ui="fscope" aria-label="Personal or business"><option value="">Personal + business</option><option value="personal" ${ui.fscope === 'personal' ? 'selected' : ''}>Personal only</option><option value="business" ${ui.fscope === 'business' ? 'selected' : ''}>Business only</option></select>
       <select id="tx-facct" class="in" data-ui="facct" aria-label="Account"><option value="">All accounts</option>${s.accounts.map((a) => `<option ${ui.facct === a.id ? 'selected' : ''} value="${a.id}">${esc(a.name)}</option>`).join('')}</select>
-      <select id="tx-fcat" class="in" data-ui="fcat" aria-label="Category"><option value="">All categories</option>${s.categories.map((c) => `<option ${ui.fcat === c.name ? 'selected' : ''} value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select>
+      <select id="tx-fcat" class="in" data-ui="fcat" aria-label="Category"><option value="">All categories</option>${s.categories.map((c) => `<option ${ui.fcat === c.name ? 'selected' : ''} value="${esc(c.name)}">${esc(c.name)}</option>${(c.subs || []).map((sb) => `<option ${ui.fcat === c.name + '||' + sb ? 'selected' : ''} value="${esc(c.name + '||' + sb)}">   ${esc(bare(c.name))} › ${esc(sb)}</option>`).join('')}`).join('')}</select>
     </div>
     <section class="card flush">${body}</section>`;
 }
@@ -240,12 +240,14 @@ export function stats() {
   let drill = '';
   if (ui.scat) {
     const ts = inRange.filter((t) => t.type === ui.stype && t.category === ui.scat);
-    const subs = new Map();
-    ts.forEach((t) => { const k = t.subcategory || t.note || '(no note)'; subs.set(k, (subs.get(k) || 0) + C.num(t.amount)); });
-    const rows = [...subs].sort((a, b) => b[1] - a[1]);
+    const group = (f) => { const m = new Map(); ts.forEach((t) => { const k = f(t); m.set(k, (m.get(k) || 0) + C.num(t.amount)); }); return [...m].sort((a, b) => b[1] - a[1]); };
+    const bySub = group((t) => t.subcategory || 'No subcategory');
+    const byPlace = group((t) => t.note || t.description || '(no note)');
+    const catTotal = C.sum(ts, (t) => t.amount) || 1;
     const trend = C.lastNMonths(12, r.to).map((mk) => ({ mk, v: C.sum(tx().filter((t) => t.type === ui.stype && t.category === ui.scat && C.monthKey(t.date) === mk), (t) => t.amount) }));
     drill = `<section class="card"><div class="card-head"><h2>${esc(ui.scat)}</h2><button class="link" data-scat="">Close</button></div>
-      <div class="grid-2"><div><h3 class="sub-h">Breakdown</h3><ul class="plain">${rows.slice(0, 15).map(([k, v]) => `<li><span>${esc(k)}</span><b>${gbp(v)}</b></li>`).join('')}</ul></div>
+      <div class="grid-2"><div><h3 class="sub-h">By subcategory</h3><ul class="bars">${bySub.map(([k, v], i) => `<li><span class="b-name">${esc(k)}</span><span class="b-track"><span style="width:${(v / catTotal) * 100}%;background:${PALETTE[i % PALETTE.length]}"></span></span><span class="b-val">${gbp0(v)}</span></li>`).join('')}</ul>
+        <h3 class="sub-h">Top places</h3><ul class="plain">${byPlace.slice(0, 10).map(([k, v]) => `<li><span>${esc(k)}</span><b>${gbp(v)}</b></li>`).join('')}</ul></div>
       <div><h3 class="sub-h">Last 12 months</h3>${lines([{ name: ui.scat, colour: 'var(--accent)', area: true, points: trend.map((x) => ({ v: x.v })) }], { fmt: gbpK, labels: trend.map((x) => shortMonth(x.mk)), height: 170 })}</div></div></section>`;
   }
   const flow = C.cashflow(tx(), C.lastNMonths(12, r.to));

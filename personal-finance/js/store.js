@@ -100,6 +100,9 @@ export function migrate(s) {
   out.settings.payday = { ...base.settings.payday, ...(s.settings?.payday || {}) };
   out.settings.tax = { income: [], costs: [], ...(s.settings?.tax || {}) };
   if (!Array.isArray(out.settings.dismissed)) out.settings.dismissed = [];
+  for (const c of out.categories) {
+    if (!Array.isArray(c.subs)) c.subs = [...new Set(out.transactions.filter((t) => t.category === c.name && (t.type === c.kind || !t.type) && t.subcategory).map((t) => t.subcategory))];
+  }
   if (!out.halalShortlist.length) out.halalShortlist = SHORTLIST.map((x) => ({ id: uid(), ...x, status: 'researching' }));
   out.schema = SCHEMA;
   return out;

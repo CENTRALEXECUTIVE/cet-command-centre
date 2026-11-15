@@ -410,3 +410,9 @@ details summary { cursor: pointer; font-weight: 600; color: var(--muted); margin
 @media (max-width: 520px) { .short-row { grid-template-columns: minmax(0, 1fr) auto; } .short-row .in { grid-column: 1; } .nudge .row-btns { display: flex; margin: 8px 0 0; } }
 
 .banner.setup { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+
+.cat-block { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.sub-list { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 14px; }
+.sub-edit { display: inline-flex; align-items: center; gap: 4px; }
+.sub-edit .in { width: 130px; }
+.chip.ghost-chip { border-style: dashed; color: var(--muted); }

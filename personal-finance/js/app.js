@@ -9,7 +9,7 @@ import { plan, goals, invest, debts, freedom, recurring } from './views-plan.js'
 import { importView, prefs, prepareBank, prepareMM, guessGroup } from './views-import.js';
 import { insights } from './views-insights.js';
 import * as I from './insights.js';
-import { bare } from './ui.js';
+import { bare, subsOf } from './ui.js';
 
 const ROUTES = {
   home: ['Home', 'home', home], trans: ['Trans.', 'list', trans], stats: ['Stats', 'pie', stats], accounts: ['Accounts', 'wallet', accounts], insights: ['Insights', 'spark', insights],
@@ -77,13 +77,13 @@ async function syncNow({ quiet = true } = {}) {
 const deviceName = () => (/iphone|android|mobile/i.test(navigator.userAgent) ? 'phone' : 'computer');
 async function startSync() {
   if (!(await Sync.init())) { if (route === 'prefs') render(); return; }
-  const upd = await Sync.takeUpdates();
-  if (upd?.ops?.length && !ctx.state.settings.sample) {
+  const upd = ctx.state.settings.sample ? null : await Sync.takeUpdates();
+  if (upd?.ops?.length) {
     const notes = I.applyUpdates(ctx.state, upd.ops);
     if (notes.length) { commit(); toast(`Updated by Claude: ${notes.join(', ')}`); }
   }
   const setup = await Sync.pendingSetup();
-  if (setup) {
+  if (setup && (ctx.state.settings.sample || ctx.state.settings.setupLoaded !== setup.created)) {
     ctx.setupReady = setup;
     // Nothing of yours in the app yet (only example data): load it straight away.
     if (ctx.state.settings.sample) return action('setup-load');
@@ -181,6 +181,18 @@ app.addEventListener('change', async (e) => {
     commit(); return;
   }
   if (el.dataset.renameCat) return renameCategory(el.dataset.renameCat, el.value.trim());
+  if (el.dataset.renameSub) {
+    const [cid, i] = el.dataset.renameSub.split('|'); const c = ctx.state.categories.find((x) => x.id === cid); const old = c.subs[+i]; const name = el.value.trim();
+    if (!name || name === old) return render();
+    ctx.state.transactions.forEach((t) => { if (t.category === c.name && t.subcategory === old) t.subcategory = name; });
+    c.subs = [...new Set(c.subs.map((x, j) => (j === +i ? name : x)))];
+    commit(); toast(`Renamed to ${name}`); return;
+  }
+  if (el.dataset.addSub) {
+    const c = ctx.state.categories.find((x) => x.id === el.dataset.addSub); const name = el.value.trim();
+    if (name && !(c.subs ||= []).includes(name)) { c.subs.push(name); commit(); toast(`Added ${name} to ${bare(c.name)}`); }
+    return;
+  }
   if (el.dataset.import) return handleImportFile(el.dataset.import, el.dataset.import === 'bank' ? [...el.files] : el.files[0]);
   if (el.dataset.restore != null) return restore(el.files[0]);
   const imp = ctx.ui.imp;
@@ -207,6 +219,7 @@ app.addEventListener('click', (e) => {
   const b = e.target.closest('button, a, [data-edit-tx], [data-cal-day], [data-goto-month]');
   if (!b) return;
   const d = b.dataset;
+  if (d.delSub) { const [cid, i] = d.delSub.split('|'); const c = ctx.state.categories.find((x) => x.id === cid); c.subs.splice(+i, 1); commit(); return; }
   if (d.add) {
     const list = getPath(ctx.state, d.add);
     list.push({ id: Store.uid(), ...JSON.parse(d.tpl || '{}') });
@@ -323,15 +336,15 @@ async function action(a, btn) {
         if (!got?.data?.state) throw new Error('No setup found.');
         ctx.state = Store.migrate(got.data.state);
         ctx.state.settings.sample = false;
+        ctx.state.settings.setupLoaded = got.meta.created;
         await Store.save(ctx.state, { now: true });
-        await Sync.clearSetup();
         ctx.setupReady = null; applyTheme(); location.hash = 'home'; render();
         toast(`Loaded: ${ctx.state.transactions.length.toLocaleString()} entries, your balances, goals and bills`);
         queueSync(500);
       } catch (err) { toast(`Couldn't load the setup: ${err?.message || err}`); }
       return;
     }
-    case 'setup-skip': if (!ctx.ui.confirmSetupSkip) { ctx.ui.confirmSetupSkip = true; render(); return; } await Sync.clearSetup(); ctx.setupReady = null; render(); toast('Setup removed'); return;
+    case 'setup-skip': s.settings.setupLoaded = ctx.setupReady?.created; ctx.setupReady = null; commit(); toast('Hidden on this device'); return;
     case 'sync-now': return syncNow({ quiet: false });
     case 'sync-off': Sync.disable(); await Store.kvPut('sync', undefined); render(); toast('Sync turned off on this device'); return;
     case 'sync-forget': if (!ctx.ui.confirmForget) { ctx.ui.confirmForget = true; render(); return; } await Sync.forget(); await Store.kvPut('sync', undefined); ctx.ui.confirmForget = false; render(); toast('Synced copy deleted. Data on this device is untouched.'); return;
@@ -397,9 +410,10 @@ function openTx(t, preset = {}) {
           ${v.type === 'transfer' ? `<label class="lbl">To<select id="tx-to" class="in" name="toAccountId">${s.accounts.map((a) => `<option value="${a.id}" ${a.id === v.toAccountId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>` : ''}
         </div>
         ${v.type === 'transfer' ? '' : `<p class="lbl">Category</p><div class="chips cats">${cats.map((c) => `<button type="button" class="chip ${c === v.category ? 'on' : ''}" data-tcat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
+        ${v.type !== 'transfer' && v.category && !v.splits ? (() => { const ss = subsOf(v.category, v.type); return `<p class="lbl">Subcategory <span class="muted">(optional)</span></p><div class="chips small subs">${ss.map((x) => `<button type="button" class="chip ${x.name === v.subcategory ? 'on' : ''}" data-tsub="${esc(x.name)}">${esc(x.name)}</button>`).join('')}<button type="button" class="chip ghost-chip" data-tsub-new>+ New</button></div>`; })() : ''}
         <div class="form-grid">
           <label class="lbl">${v.type === 'income' ? 'From (payer)' : 'Note (where / what)'}<input id="tx-note" class="in" name="note" list="dl-notes" value="${esc(v.note)}" placeholder="${v.type === 'income' ? 'Uber, Bolt, Central job…' : 'Costa, Fuel, EE SIM…'}"></label>
-          ${v.type === 'transfer' ? '' : `<label class="lbl">Subcategory<input id="tx-sub" class="in" name="subcategory" list="dl-subs" value="${esc(v.subcategory)}"></label>`}
+          ${v.type === 'transfer' || !v.subNew ? `<input type="hidden" name="subcategory" value="${esc(v.subcategory || '')}">` : `<label class="lbl">New subcategory<input id="tx-sub" class="in" name="subcategory" value="${esc(v.subcategory || '')}" placeholder="e.g. Fuel, Eating out"></label>`}
           <label class="lbl">Description<input id="tx-desc" class="in" name="description" value="${esc(v.description)}" placeholder="Optional detail"></label>
           ${v.type === 'transfer' ? '' : `<label class="lbl inline biz"><input id="tx-biz" type="checkbox" class="check" name="business" ${v.business ? 'checked' : ''}> Business (work / CET)</label>`}
           ${editing ? '' : `<label class="lbl">Repeat<select id="tx-repeat" class="in" name="repeat"><option value="">Doesn't repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></label>`}
@@ -432,7 +446,9 @@ function openTx(t, preset = {}) {
     if (e.target === modal || e.target.closest('[data-close]')) return closeModal();
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.ttype) { collect(); v.type = b.dataset.ttype; draw(); return; }
-    if (b.dataset.tcat) { collect(); v.category = b.dataset.tcat; draw(); return; }
+    if (b.dataset.tcat) { collect(); if (v.category !== b.dataset.tcat) { v.subcategory = ''; v.subNew = false; } v.category = b.dataset.tcat; draw(); return; }
+    if (b.dataset.tsub != null) { collect(); v.subNew = false; v.subcategory = v.subcategory === b.dataset.tsub ? '' : b.dataset.tsub; draw(); return; }
+    if (b.dataset.tsubNew != null) { collect(); v.subNew = true; v.subcategory = ''; draw(); setTimeout(() => $('#tx-sub', modal)?.focus(), 30); return; }
     if (b.dataset.spOn != null) { collect(); v.splits = [{ category: v.category || catsOf('expense')[0], amount: v.amount || '' }, { category: catsOf('expense').find((c) => c !== v.category) || catsOf('expense')[0], amount: '' }]; draw(); return; }
     if (b.dataset.spAdd != null) { collect(); v.splits.push({ category: catsOf('expense')[0], amount: '' }); draw(); return; }
     if (b.dataset.spDel != null) { collect(); v.splits.splice(+b.dataset.spDel, 1); if (v.splits.length < 2) v.splits = null; draw(); return; }
@@ -468,6 +484,7 @@ function openTx(t, preset = {}) {
       const r = { id: Store.uid(), name: rec.note || rec.category, type: rec.type === 'transfer' ? 'expense' : rec.type, amount, category: rec.category, subcategory: rec.subcategory, accountId: rec.accountId, freq: v.repeat, next: C.nextDate(rec.date, v.repeat), auto: false };
       ctx.state.recurring.push(r); rec.recurringId = r.id;
     }
+    if (rec.subcategory) { const cat = ctx.state.categories.find((c) => c.name === rec.category && c.kind === rec.type); if (cat && !(cat.subs ||= []).includes(rec.subcategory)) cat.subs.push(rec.subcategory); }
     ctx.state.settings.lastLog = C.today();
     commit();
     toast(`${editing ? 'Updated' : 'Saved'}: ${rec.note || rec.category || 'Transfer'} ${gbp(amount)}`);

@@ -47,6 +47,19 @@ const wait = (p, ms = 250) => p.waitForTimeout(ms);
     await p.click('[data-ttab=calendar]'); check(`${name} calendar view`, (await p.locator('.cal-cell:not(.blank)').count()) >= 28);
     await p.click('[data-ttab=monthly]'); check(`${name} monthly view`, (await p.locator('tr.click').count()) >= 1);
 
+    // 2b. subcategories: chips for the chosen category, saved on the entry, filterable
+    await go('home');
+    await p.click(name === 'phone' ? '.fab' : '.page-head [data-action=quick-add]');
+    await p.fill('#tx-amount', '40'); await p.click('[data-tcat="🚖 Transport"]'); await wait(p, 150);
+    check(`${name} subcategory chips shown`, (await p.locator('[data-tsub="Fuel"]').count()) === 1);
+    await p.click('[data-tsub="Fuel"]'); await p.fill('#tx-note', 'E2E fuel'); await p.click('#tx-form button[type=submit].primary'); await wait(p);
+    await go('trans'); await p.click('[data-ttab=daily]'); await p.fill('#tx-search', 'E2E fuel'); await wait(p, 500);
+    check(`${name} subcategory saved`, (await text('.tx-row')).includes('Fuel'));
+    await p.fill('#tx-search', ''); await p.selectOption('#tx-fcat', '🚖 Transport||Fuel'); await wait(p);
+    check(`${name} filter by subcategory`, (await p.locator('.tx-row').count()) >= 1 && (await p.locator('.tx-row').allInnerTexts()).every((t) => t.includes('Fuel')));
+    await p.selectOption('#tx-fcat', ''); await wait(p, 200);
+    await go('prefs'); check(`${name} subcategories in settings`, (await p.locator('[data-rename-sub]').count()) >= 1);
+
     // 3. stats periods and drill-down
     await go('stats');
     for (const per of ['weekly', 'annually', 'taxyear', 'monthly']) { await p.selectOption('#stats-period', per); await wait(p, 150); }
@@ -211,7 +224,7 @@ const wait = (p, ms = 250) => p.waitForTimeout(ms);
     check('setup: loads by itself over example data', (await p.locator('[data-action=setup-load]').count()) === 0);
     await p.goto(`${BASE}/#trans`); await wait(p, 500);
     check('setup: data loaded', (await p.locator('.main').innerText()).includes('Setup coffee'));
-    check('setup: removed from store after loading', !store.has('data/users/viewer-9/setup-c0') && !store.has('data/users/viewer-9/setup-meta'));
+    check('setup: kept for your other devices', store.has('data/users/viewer-9/setup-c0') && store.has('data/users/viewer-9/setup-meta'));
     await p.goto(`${BASE}/#home`); await wait(p, 800);
     check('setup: example banner gone', (await p.locator('.banner').count()) === 0);
     store.set('data/users/viewer-9/updates', { ops: [{ op: 'setAsset', asset: 'Held by Mum', value: 6000 }, { op: 'setBalance', account: 'Accounts', balance: 777 }] });
