@@ -135,6 +135,7 @@ function go() {
 function resolveBind(bind) {
   const [path, id, key] = bind.split('|');
   if (path === 'ui') return { obj: ctx.ui, key, ui: true };
+  if (path === 'ui.imp') return { obj: ctx.ui.imp, key, ui: true, imp: true };
   const base = getPath(ctx.state, path);
   const obj = id ? (Array.isArray(base) ? base.find((x) => x.id === id) : null) : base;
   return { obj, key };
@@ -154,7 +155,7 @@ app.addEventListener('change', async (e) => {
     if (!obj) return;
     obj[key] = readInput(el);
     if (el.dataset.bind === 'settings||theme') applyTheme();
-    if (ui) { if (ctx.ui.imp?.kind === 'bank') { ctx.ui.imp.accountId = ctx.ui.impAccount; prepareBank(ctx.ui.imp); } render(); }
+    if (ui) { if (ctx.ui.imp?.kind === 'bank') { if (el.dataset.bind === 'ui||impAccount') { ctx.ui.imp.accountId = ctx.ui.impAccount; ctx.ui.imp.after = undefined; } ctx.ui.imp.lines = []; prepareBank(ctx.ui.imp); } render(); }
     else commit();
     return;
   }
@@ -168,7 +169,7 @@ app.addEventListener('change', async (e) => {
     commit(); return;
   }
   if (el.dataset.renameCat) return renameCategory(el.dataset.renameCat, el.value.trim());
-  if (el.dataset.import) return handleImportFile(el.dataset.import, el.files[0]);
+  if (el.dataset.import) return handleImportFile(el.dataset.import, el.dataset.import === 'bank' ? [...el.files] : el.files[0]);
   if (el.dataset.restore != null) return restore(el.files[0]);
   const imp = ctx.ui.imp;
   if (imp) {
@@ -182,6 +183,7 @@ app.addEventListener('change', async (e) => {
     if (el.dataset.impCat != null) { const l = imp.lines[+el.dataset.impCat]; l.category = el.value; l.changed = l.category !== l.autoCat; return; }
     if (el.dataset.impSub != null) { imp.lines[+el.dataset.impSub].subcategory = el.value; return; }
     if (el.dataset.impRemember != null) { imp.remember = el.checked; return; }
+    if (el.dataset.impSetbal != null) { imp.setBal = el.checked; return; }
   }
 });
 
@@ -516,7 +518,46 @@ async function fileRows(file) {
   return IM.parseCSV(await file.text());
 }
 
-async function handleImportFile(kind, file) {
+// PDF reader (pdf.js), loaded only when a PDF is chosen, pinned with integrity hashes.
+// The worker script runs on the main thread (no separate worker needed).
+let pdfLoading = null;
+function loadPDFJS() {
+  if (window.pdfjsLib && window.pdfjsWorker) return Promise.resolve(window.pdfjsLib);
+  const add = (src, integrity) => new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.integrity = integrity; sc.crossOrigin = 'anonymous'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load the PDF reader. Check your connection, or use a CSV download instead.')); document.head.appendChild(sc); });
+  pdfLoading ||= add('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js', 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2')
+    .then(() => add('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'))
+    .then(() => window.pdfjsLib).catch((e) => { pdfLoading = null; throw e; });
+  return pdfLoading;
+}
+// Rebuild the printed lines from the PDF's positioned text pieces.
+async function pdfTextLines(file) {
+  const lib = await loadPDFJS();
+  const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+  const lines = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const page = await doc.getPage(n);
+    const tc = await page.getTextContent();
+    const rows = [];
+    for (const it of tc.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const x = it.transform[4], y = it.transform[5];
+      let row = rows.find((r) => Math.abs(r.y - y) < 2.5);
+      if (!row) rows.push((row = { y, items: [] }));
+      row.items.push({ x, w: it.width || 0, s: it.str });
+    }
+    rows.sort((a, b) => b.y - a.y);
+    for (const r of rows) {
+      r.items.sort((a, b) => a.x - b.x);
+      let out = '', end = null;
+      for (const it of r.items) { if (end != null) out += it.x - end > 2 ? '   ' : ''; out += it.s; end = it.x + it.w; }
+      lines.push(out);
+    }
+  }
+  return lines;
+}
+
+async function handleImportFile(kind, files) {
+  const file = Array.isArray(files) ? files[0] : files;
   if (!file) return;
   try {
     if (kind === 'mm') {
@@ -524,7 +565,16 @@ async function handleImportFile(kind, file) {
       ctx.ui.imp = { kind: 'mm', fileName: file.name, mm: prepareMM(rows) };
     } else {
       const imp = { kind: 'bank', fileName: file.name, accountId: ctx.ui.impAccount || ctx.state.accounts[0]?.id, sign: 'normal', dateOrder: 'dmy', lines: [] };
-      if (/\.(ofx|qfx)$/i.test(file.name)) { imp.ofx = true; imp.text = await file.text(); }
+      const pdfs = (Array.isArray(files) ? files : [file]).filter((f) => /\.pdf$/i.test(f.name));
+      if (pdfs.length) {
+        const parsed = [];
+        for (const f of pdfs) { const ls = await pdfTextLines(f); parsed.push({ ...IM.parseStatementText(ls), holder: IM.statementHolder(ls) }); }
+        const lines = parsed.flatMap((p) => p.lines).sort((a, b) => a.date.localeCompare(b.date));
+        if (!lines.length) throw new Error("No transactions found in that PDF. If it's a scanned image, or a bank layout this reader doesn't know, use a CSV download instead.");
+        const last = parsed.filter((p) => p.lines.length).sort((a, b) => a.lines.at(-1).date.localeCompare(b.lines.at(-1).date)).at(-1);
+        imp.pdf = { files: pdfs.length, lines, balanced: parsed.every((p) => p.balanced !== false), closing: last.closing, closingDate: last.lines.at(-1).date, holder: parsed[0].holder };
+        imp.fileName = pdfs.length > 1 ? `${pdfs.length} statements · ${niceDate(lines[0].date)} to ${niceDate(lines.at(-1).date)}` : file.name;
+      } else if (/\.(ofx|qfx)$/i.test(file.name)) { imp.ofx = true; imp.text = await file.text(); }
       else {
         const all = await fileRows(file);
         const hi = IM.findHeaderRow(all);
@@ -580,8 +630,14 @@ function commitBank() {
       if (match.length >= 3) { s.rules = s.rules.filter((r) => r.match !== match); s.rules.push({ id: Store.uid(), match, type: l.type, category: l.category, subcategory: l.subcategory || '' }); }
     }
   }
+  if (imp.pdf?.closing != null && imp.setBal !== false) {
+    const a = s.accounts.find((x) => x.id === imp.accountId);
+    const upTo = s.transactions.filter((t) => t.date <= imp.pdf.closingDate);
+    const balThen = C.accountBalances([a], upTo)[a.id];
+    a.opening = C.round2(C.num(a.opening) + imp.pdf.closing - balThen);
+  }
   ctx.ui.imp = null;
-  commit(); toast(`Imported ${picked.length} transactions into ${accountName(imp.accountId)}`);
+  commit(); toast(picked.length ? `Imported ${picked.length} transactions into ${accountName(imp.accountId)}` : `${accountName(imp.accountId)} balance set from your statement`);
   location.hash = 'trans';
 }
 const tidy = (s) => String(s).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 60);

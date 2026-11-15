@@ -304,3 +304,81 @@ export function findDuplicates(lines, existing, accountId) {
     return { ...l, dup: null };
   });
 }
+
+// ---------- PDF bank statements (NatWest and similar layouts) ----------
+// Works on text lines (from pdf.js in the app, or pdftotext in tests). Rows look like:
+//   "18 MAY   Automated Credit UBER PAYMENTS UK L      230.31        14,739.65"
+// with the description sometimes wrapping onto the line above. Every row ends with the
+// running balance, so money in vs out is decided by how the balance moved — no need to
+// know which column a number sat in.
+const MON3 = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+const MONEY = String.raw`-?[\d,]+\.\d{2}(?:\s?(?:OD|DR|CR))?`;
+const toNum = (s) => { const neg = /OD|DR|^-/.test(s); const n = parseFloat(s.replace(/[^\d.]/g, '')); return neg ? -n : n; };
+
+export function parseStatementText(lines) {
+  const text = lines.join('\n');
+  const per = text.match(/(\d{1,2})\s+([A-Z]{3})[A-Z]*\s+(\d{4})\s+to\s+(\d{1,2})\s+([A-Z]{3})[A-Z]*\s+(\d{4})/i);
+  const startY = per ? +per[3] : null, startM = per ? MON3[per[2].toUpperCase()] : null;
+  const summary = {};
+  for (const [k, re] of [['opening', /Previous Balance\s+£?(-?[\d,]+\.\d{2})/i], ['paidIn', /Paid In\s+£?([\d,]+\.\d{2})/i], ['withdrawn', /Withdrawn\s+£?([\d,]+\.\d{2})/i], ['closing', /New Balance\s+£?(-?[\d,]+\.\d{2}(?:\s?OD)?)/i]]) {
+    const m = text.match(re); if (m) summary[k] = toNum(m[1]);
+  }
+  const acct = text.match(/Account No\s+Sort Code[^\n]*\n[^\n]*?(\d{8})\s+(\d{2}-\d{2}-\d{2})/i);
+  const out = [];
+  let inTable = false, date = null, prevBal = null, desc = [];
+  const yearFor = (mon) => (startY == null ? new Date().getFullYear() : mon < startM ? startY + 1 : startY);
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (/^\s*Date\s+Description\b.*Balance/i.test(line)) { inTable = true; desc = []; continue; }
+    if (!inTable) continue;
+    if (/National Westminster Bank Plc|RETSTMT|^\s*Account Name\b|Registered in England|Authority and regulated|Financial Services Firm/i.test(line)) { inTable = false; desc = []; continue; }
+    if (!line.trim()) continue;
+    let rest = line;
+    const dm = rest.match(/^\s*(\d{1,2})\s+([A-Z]{3})(?:\s+(\d{4}))?\b\s*/);
+    if (dm && MON3[dm[2]]) {
+      const mon = MON3[dm[2]], y = dm[3] ? +dm[3] : yearFor(mon);
+      date = `${y}-${String(mon).padStart(2, '0')}-${dm[1].padStart(2, '0')}`;
+      rest = rest.slice(dm[0].length);
+    }
+    const am = rest.match(new RegExp(String.raw`(?:(${MONEY})\s+)?(${MONEY})\s*$`));
+    if (!am) { desc.push(rest.trim()); continue; }
+    const bal = toNum(am[2]);
+    const body = rest.slice(0, am.index).trim();
+    const words = [...desc, body].join(' ').replace(/\s{2,}/g, ' ').trim();
+    desc = [];
+    if (/BROUGHT FORWARD/i.test(words) || !am[1]) { prevBal = bal; continue; }
+    if (/CARRIED FORWARD/i.test(words)) { prevBal = bal; continue; }
+    const amt = toNum(am[1]);
+    let signed = prevBal == null ? null : round2(bal - prevBal);
+    if (signed == null || Math.abs(Math.abs(signed) - Math.abs(amt)) > 0.011) signed = /credit|deposit|refund|interest paid|received/i.test(words) ? Math.abs(amt) : -Math.abs(amt);
+    prevBal = bal;
+    if (!date) continue;
+    out.push({ date, amount: round2(Math.abs(signed)), type: signed < 0 ? 'expense' : 'income', description: tidyStatement(words), notes: words, balance: bal, ref: '', bankCategory: '' });
+  }
+  const totals = { paidIn: round2(out.filter((l) => l.type === 'income').reduce((t, l) => t + l.amount, 0)), withdrawn: round2(out.filter((l) => l.type === 'expense').reduce((t, l) => t + l.amount, 0)) };
+  const checks = summary.paidIn != null ? Math.abs(totals.paidIn - summary.paidIn) < 0.02 && Math.abs(totals.withdrawn - summary.withdrawn) < 0.02 : null;
+  return { lines: out, summary, totals, balanced: checks, account: acct ? { number: acct[1], sortCode: acct[2] } : null, closing: out.length ? out.at(-1).balance : summary.closing ?? null };
+}
+
+// "Automated Credit UBER PAYMENTS UK L" → "Uber Payments Uk L"; drop bank boilerplate & refs.
+export function tidyStatement(s) {
+  return String(s)
+    .replace(/^(Automated Credit|OnLine Transaction|Card Transaction \d{4} \d{2}[A-Z]{3}\d{2}|Direct Debit|Standing Order|Cash Withdrawal \S+ \d{2}[A-Z]{3}\d{2}|Debit Card Refund \S+|Card Refund \S+|BACS|Charges|Faster Payment)\s*/i, '')
+    .replace(/\b(FP|VIA MOBILE - PYMT|VIA ONLINE - PYMT|\/DOC\/\S+|\/TXT\/\S+|XP\d+|REV\d+|PID-\d+)\b/gi, ' ')
+    .replace(/\b\d{2}\/\d{2}\/\d{2}\b.*$/, '')
+    .replace(/\s{2,}/g, ' ').trim().slice(0, 80) || String(s).slice(0, 80);
+}
+
+// Money moved between your own accounts / pots / cards is not spending or income.
+export function isOwnTransfer(text, holder = '') {
+  const t = String(text).toUpperCase();
+  if (/\b(TO POT|FROM POT|POT SAVING|SAVINGS? POT|OWN ACCOUNT|TRANSFER TO SAV|NWESTPLAT|AMERICAN EXP|AMEX|BARCLAYCARD|CAPITAL ONE|MBNA|CREDIT CARD|VANQUIS|AQUA CARD)\b/.test(t)) return true;
+  const words = String(holder).toUpperCase().replace(/^(MR|MRS|MS|MISS|DR)\s+/, '').split(/\s+/).filter((w) => w.length > 2);
+  if (words.length >= 2 && words.every((w) => t.includes(w))) return true; // e.g. "JANE SMITH ..."
+  if (words[0] && new RegExp(`\\b(${words[0].slice(0, 4)}\\w*)\\b.*\\b(REVOLUT|MONZO|WISE ACC|METRO|STARLING|CHASE|KROO)\\b`).test(t) && !/\bMUM\b/.test(t)) return true;
+  return false;
+}
+export function statementHolder(lines) {
+  const i = lines.findIndex((l) => /Account Name/i.test(l));
+  return i >= 0 && lines[i + 1] ? lines[i + 1].trim().split(/\s{2,}/)[0] : '';
+}

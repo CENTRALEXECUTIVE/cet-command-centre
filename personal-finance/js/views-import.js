@@ -16,9 +16,9 @@ export function importView() {
       <p>In Money Manager: <b>More → Backup → Export data to Excel</b>, then pick the file here. Accounts and categories are created to match, and anything already imported is skipped, so you can re-import a newer export at any time.</p>
       <label class="file-drop"><input id="mm-file" type="file" accept=".xlsx,.xls,.csv" data-import="mm"><span>Choose Money Manager export (.xlsx)</span></label></div>
     <div class="card"><div class="card-head"><h2>2 · Bank statement</h2></div>
-      <p>Download a CSV (or OFX/QFX) statement from your banking app or website. Monzo, Starling, Revolut, Lloyds, Halifax, NatWest, Barclays, Nationwide, Santander, Chase and Amex are recognised automatically. Any other bank works by picking the columns.</p>
+      <p>Upload PDF statements straight from your banking app (NatWest-style layouts), or a CSV / OFX download. Monzo, Starling, Revolut, Lloyds, Halifax, NatWest, Barclays, Nationwide, Santander, Chase and Amex are recognised automatically. Any other bank works by picking the columns.</p>
       <label class="lbl">Into account ${select('ui||impAccount', ctx.ui.impAccount || S().accounts[0]?.id, S().accounts.map((a) => [a.id, a.name]), { label: 'Account' })}</label>
-      <label class="file-drop"><input id="bank-file" type="file" accept=".csv,.ofx,.qfx,.txt,.xlsx" data-import="bank"><span>Choose statement file</span></label>
+      <label class="file-drop"><input id="bank-file" type="file" accept=".csv,.ofx,.qfx,.txt,.xlsx,.pdf" multiple data-import="bank"><span>Choose statement files (PDF, CSV or OFX — several at once is fine)</span></label>
       <p class="muted">Every line is categorised from your own history first, then from your rules, then from common UK merchants. Anything that matches an entry you typed by hand is unticked so it isn't counted twice.</p></div>
   </section>
   <section class="card"><div class="card-head"><h2>3 · Connect your bank (Open Banking)</h2><span class="pill warn">Not connected</span></div>
@@ -47,7 +47,7 @@ function bankReview(imp) {
   const picked = imp.lines.filter((l) => l.pick);
   const colOpts = [['', '—'], ...(imp.header || []).map((h, i) => [String(i), h || `Column ${i + 1}`])];
   const m = imp.mapping || {};
-  return `<section class="card highlight"><div class="card-head"><h2>${esc(imp.fileName)}</h2><span class="muted">${imp.preset ? `Recognised as ${esc(imp.preset.name)}` : imp.ofx ? 'OFX statement' : 'Check the columns below'}</span></div>
+  return `<section class="card highlight"><div class="card-head"><h2>${esc(imp.fileName)}</h2><span class="muted">${imp.pdf ? `${imp.pdf.files} PDF statement${imp.pdf.files > 1 ? 's' : ''} · ${imp.pdf.balanced ? 'totals match the bank ✓' : '<span class="neg">totals differ from the bank — check the lines</span>'}` : imp.preset ? `Recognised as ${esc(imp.preset.name)}` : imp.ofx ? 'OFX statement' : 'Check the columns below'}</span></div>
     ${imp.header ? `<details ${imp.preset ? '' : 'open'}><summary>Columns</summary><div class="form-grid">
       ${['date', 'description', 'amount', 'debit', 'credit'].map((k) => `<label class="lbl">${{ date: 'Date', description: 'Description', amount: 'Amount (one column)', debit: 'Money out', credit: 'Money in' }[k]}<select id="map-${k}" class="in" data-map="${k}">${colOpts.map(([v, t]) => `<option value="${v}" ${String(m[k] ?? '') === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`).join('')}
       <label class="lbl">Spending shows as<select id="map-sign" class="in" data-map="sign"><option value="normal" ${imp.sign !== 'inverted' ? 'selected' : ''}>Negative (most banks)</option><option value="inverted" ${imp.sign === 'inverted' ? 'selected' : ''}>Positive (credit cards)</option></select></label>
@@ -58,20 +58,28 @@ function bankReview(imp) {
       <td class="r ${l.type === 'income' ? 'pos' : 'neg'}">${l.type === 'income' ? '+' : '−'}${gbp(l.amount)}</td>
       <td><select id="imp-cat-${i}" class="in mini" data-imp-cat="${i}" aria-label="Category">${cats(l.type).map((c) => `<option ${c === l.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
       <td><input id="imp-sub-${i}" class="in mini" data-imp-sub="${i}" value="${esc(l.subcategory)}" aria-label="Subcategory"></td>
-      <td>${l.dup === 'exact' ? '<span class="pill">already imported</span>' : l.dup === 'manual' ? '<span class="pill warn">you logged this</span>' : l.how === 'none' ? '<span class="pill">check</span>' : ''}</td></tr>`).join('')}
+      <td>${l.dup === 'exact' ? '<span class="pill">already imported</span>' : l.own ? '<span class="pill">own transfer</span>' : l.covered ? '<span class="pill">in your log</span>' : l.dup === 'manual' ? '<span class="pill warn">you logged this</span>' : l.how === 'none' ? '<span class="pill">check</span>' : ''}</td></tr>`).join('')}
     </tbody></table></div>
+    ${imp.pdf?.closing != null ? `<label class="lbl inline"><input id="imp-setbal" type="checkbox" class="check" data-imp-setbal ${imp.setBal !== false ? 'checked' : ''}> Set this account's balance to ${gbp(imp.pdf.closing)} (statement balance on ${niceDate(imp.pdf.closingDate)})</label>` : ''}
+    <div class="form-row"><label class="lbl">Only import bank lines after ${field('ui.imp||after', imp.after || '', { type: 'date', label: 'Only import lines after' })}</label>
+      <p class="muted small-print">Defaults to the last day your own log covers for this account${imp.after ? ` (${niceDate(imp.after)})` : ''}, so nothing is counted twice. Clear it to bring everything in.</p></div>
+    <p class="muted small-print">Own transfers (savings pots, your other accounts, credit card payments) are left unticked so they don't count as spending.</p>
     <label class="lbl inline"><input id="imp-remember" type="checkbox" class="check" data-imp-remember ${imp.remember !== false ? 'checked' : ''}> Remember category changes as rules for next time</label>
-    <div class="row-btns"><button class="btn primary" data-action="imp-bank-commit" ${picked.length ? '' : 'disabled'}>Import ${picked.length} transaction${picked.length === 1 ? "" : "s"}</button><button class="btn ghost" data-action="imp-cancel">Cancel</button></div></section>`;
+    <div class="row-btns"><button class="btn primary" data-action="imp-bank-commit" ${picked.length || (imp.pdf?.closing != null && imp.setBal !== false) ? '' : 'disabled'}>${picked.length ? `Import ${picked.length} transaction${picked.length === 1 ? '' : 's'}` : 'Set balance only'}</button><button class="btn ghost" data-action="imp-cancel">Cancel</button></div></section>`;
 }
 
 // Build the review model for a statement.
 export function prepareBank(imp) {
   const s = S();
   let lines;
-  if (imp.ofx) lines = IM.parseOFX(imp.text);
+  if (imp.pdf) lines = imp.pdf.lines;
+  else if (imp.ofx) lines = IM.parseOFX(imp.text);
   else lines = IM.rowsToLines(imp.rows, imp.mapping, { sign: imp.sign, dateOrder: imp.dateOrder });
   const memory = IM.learnFromHistory(s.transactions);
   const acct = imp.accountId;
+  // Your own log (typed in or Money Manager) already covers up to this date; bank lines on or
+  // before it would double count (e.g. daily Uber entries vs weekly bank payouts).
+  if (imp.after === undefined) imp.after = s.transactions.filter((t) => t.source !== 'statement' && (t.accountId === acct || t.toAccountId === acct)).reduce((m, t) => (t.date > m ? t.date : m), '');
   const marked = IM.findDuplicates(lines, s.transactions, acct);
   const prev = new Map((imp.lines || []).map((l) => [l.key, l]));
   imp.lines = marked.map((l) => {
@@ -79,7 +87,9 @@ export function prepareBank(imp) {
     const old = prev.get(key);
     const c = IM.categorise(l, { rules: s.rules, memory });
     const category = catsOf(l.type).includes(c.category) ? c.category : catsOf(l.type).includes('Other') ? 'Other' : catsOf(l.type)[0];
-    return old ? { ...l, ...old, dup: l.dup } : { ...l, key, category, subcategory: c.subcategory || '', how: c.how, pick: !l.dup, autoCat: category };
+    const own = imp.pdf ? IM.isOwnTransfer(l.notes || l.description, imp.pdf.holder) : false;
+    const covered = !!imp.after && l.date <= imp.after;
+    return old ? { ...l, ...old, dup: l.dup, covered } : { ...l, key, category, subcategory: c.subcategory || '', how: c.how, pick: !l.dup && !own && !covered, own, covered, autoCat: category };
   });
 }
 
