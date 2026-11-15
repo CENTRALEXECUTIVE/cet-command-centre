@@ -1400,11 +1400,19 @@
                 <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
                 @if($booking->airport)<tr><th>Airport</th><td>{{ $booking->airport->code }} — {{ $booking->airport->name }}</td></tr>@endif
                 @if($booking->displayFlightNumber())
-                    <tr><th>Flight</th><td>
+                    @php $flightIsArrival = \App\Support\AirportMatcher::isAirport($booking->pickup_address); @endphp
+                    <tr><th>{{ $flightIsArrival ? 'Flight (arriving)' : (\App\Support\AirportMatcher::isAirport($booking->destination_address) ? 'Flight (departing)' : 'Flight') }}</th><td>
                         <span class="mono">{{ $booking->flightDisplayCode() }}</span>
                         <a href="{{ $booking->flightRadarUrl() }}" data-flightradar target="_blank" rel="noopener" class="btn" style="background:#fc3d02;color:#fff;padding:3px 10px;font-size:12px;margin-left:8px">✈ Flightradar24</a>
                         <a href="{{ $booking->flightSearchUrl() }}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:3px 10px;font-size:12px">Live status</a>
                     </td></tr>
+                    @if($flightIsArrival && filled($booking->meta['flight_landing_at'] ?? null))
+                        <tr><th>Lands (customer)</th><td>{{ \Illuminate\Support\Carbon::parse($booking->meta['flight_landing_at'])->format('D j M, H:i') }}
+                            @if($booking->pickup_at && abs(\Illuminate\Support\Carbon::parse($booking->meta['flight_landing_at'], config('app.timezone'))->diffInMinutes($booking->pickup_at->copy()->timezone(config('app.timezone')), false)) < 1)
+                                <span class="muted" style="font-size:12px">· pickup set to the landing time — check the schedule</span>
+                            @endif
+                        </td></tr>
+                    @endif
                 @endif
                 @if($booking->displayMeetAndGreet())<tr><th>Meet &amp; Greet</th><td>{{ $booking->displayMeetAndGreet() }}</td></tr>@endif
                 @if($booking->estimatedDistanceMiles() !== null)<tr><th>Estimated distance</th><td>{{ number_format($booking->estimatedDistanceMiles(), 1) }} mi</td></tr>@endif
