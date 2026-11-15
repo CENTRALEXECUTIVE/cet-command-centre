@@ -318,6 +318,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **15 Nov 2026 (eve)** — Web returns: the arrival flight + landing time now go on the leg that collects from the
+  airport (were on the outbound drop-off — CET-F3979B had none; migration 2026_11_15_000001 moves upcoming ones).
+  Form: "🛬 Arrival flight" (required) + optional "🛫 Departure flight" (on the drop-off leg), in journey order.
+  Flight monitor only acts on pickups AT an airport (a delayed departure flight could have pushed a home pickup
+  back). Admin page labels Flight (arriving/departing) + "Lands (customer)". Calendar not edited — add flight by hand.
 - **15 Nov 2026 (pm)** — Confirmation email shows "Company: <name>" under the customer on VAT-invoice bookings
   (from vat_details on any leg), matching the invoice's Bill to.
 - **15 Nov 2026** — Keith Boldock (BENDITNOW LTD, CET-F3979A/B) paid £264 incl. VAT but the invoice read "£220 paid,
