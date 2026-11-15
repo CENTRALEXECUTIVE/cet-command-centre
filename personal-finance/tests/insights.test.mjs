@@ -166,3 +166,19 @@ test('applyUpdates sets balances, goals, debts and assets by name', () => {
   assert.equal(s.networth.assets.at(-1).value, 6000);
   assert.equal(notes.length, 4);
 });
+
+test('applyUpdates adds missed transactions once, creating categories and subcategories', () => {
+  const s = base();
+  const op = { op: 'addTransactions', account: 'Card', items: [
+    { date: '2026-07-23', amount: 24.99, category: '🧘🏼 Health', subcategory: 'Gym', note: 'Wellhub', key: 'card|1' },
+    { date: '2026-05-12', amount: -60, category: '🚖 Transport', subcategory: 'Services & Repairs', note: 'Refund', key: 'card|2' },
+    { date: '2026-07-16', amount: 10, category: 'Brand new', note: 'Test', key: 'card|3' },
+  ] };
+  const n1 = I.applyUpdates(s, [op]);
+  assert.match(n1[0], /3 missed card payments added \(£-?25\.01\)|3 missed card payments added/);
+  assert.equal(s.transactions.length, 3);
+  assert.ok(s.categories.some((c) => c.name === 'Brand new' && c.kind === 'expense'));
+  assert.ok(s.categories.find((c) => c.name === '🧘🏼 Health').subs.includes('Gym'));
+  I.applyUpdates(s, [op]);
+  assert.equal(s.transactions.length, 3, 'second time adds nothing');
+});
