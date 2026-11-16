@@ -444,6 +444,26 @@ export function applyUpdates(state, ops = []) {
       }
       const f = (v) => `£${C.round2(v).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
       if (n) notes.push(`${n} missed ${acct.name === 'Accounts' ? 'bank' : acct.name.toLowerCase()} entries added (${[out ? `${f(out)} out` : '', inn ? `${f(inn)} in` : ''].filter(Boolean).join(', ')})`);
+    } else if (op.op === 'editTransactions') {
+      // Change entries already in the app, found by their import key.
+      let n = 0;
+      for (const ch of op.items || []) {
+        const t = state.transactions.find((x) => x.importKey === ch.key);
+        if (!t) continue;
+        const set = ch.set || {};
+        if (set.type) { t.type = set.type; if (set.type !== 'transfer') delete t.toAccountId; }
+        for (const k of ['category', 'subcategory', 'note', 'business']) if (set[k] !== undefined) t[k] = set[k];
+        if (t.type !== 'transfer' && t.category) {
+          let cat = state.categories.find((c) => c.name === t.category && c.kind === t.type);
+          if (!cat) { cat = { id: Math.random().toString(36).slice(2, 10), name: t.category, kind: t.type, subs: [] }; state.categories.push(cat); }
+          if (t.subcategory && !(cat.subs ||= []).includes(t.subcategory)) cat.subs.push(t.subcategory);
+        }
+        n++;
+      }
+      if (n) notes.push(`${n} entr${n > 1 ? 'ies' : 'y'} corrected`);
+    } else if (op.op === 'removeAccount') {
+      const a = byName(state.accounts, op.account);
+      if (a && !state.transactions.some((t) => t.accountId === a.id || t.toAccountId === a.id)) { state.accounts = state.accounts.filter((x) => x !== a); notes.push(`${a.name} removed`); }
     } else if (op.op === 'setAsset') {
       const x = byName(state.networth.assets, op.asset);
       if (x) x.value = op.value; else state.networth.assets.push({ id: Math.random().toString(36).slice(2, 10), name: op.asset, value: op.value });

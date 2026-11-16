@@ -196,3 +196,15 @@ test('applyUpdates moves money into a named account, creating it once', () => {
   assert.equal(s.accounts.filter((a) => a.name === 'Loans to family & friends').length, 1);
   assert.equal(bal.bank, 1000 - 10990 - 1400);
 });
+
+test('applyUpdates corrects entries by key and removes an emptied account', () => {
+  const s = base();
+  I.applyUpdates(s, [{ op: 'addTransactions', account: 'Accounts', items: [{ date: '2025-12-03', amount: 1400, type: 'transfer', toAccount: 'Loans', note: 'Loan', key: 'b|9' }] }]);
+  const before = C.accountBalances(s.accounts, s.transactions).bank;
+  const notes = I.applyUpdates(s, [{ op: 'editTransactions', items: [{ key: 'b|9', set: { type: 'expense', category: 'Family support', subcategory: 'Eedo Kawsar', note: 'Eedo Kawsar' } }] }, { op: 'removeAccount', account: 'Loans' }]);
+  assert.deepEqual(notes, ['1 entry corrected', 'Loans removed']);
+  const t = s.transactions.find((x) => x.importKey === 'b|9');
+  assert.deepEqual([t.type, t.category, t.toAccountId], ['expense', 'Family support', undefined]);
+  assert.equal(C.accountBalances(s.accounts, s.transactions).bank, before, 'bank balance unchanged');
+  assert.ok(!s.accounts.some((a) => a.name === 'Loans'));
+});
