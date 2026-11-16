@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **16 Nov 2026** — ETO import mapped "Incomplete" (unpaid abandoned checkout) to No Show — Justin Hall's unpaid
+  ASBTVGa (CET-A53016) sat beside his paid Y8CZVWa (CET-975569) on 20 Nov. Importer now skips Incomplete; migration
+  2026_11_16_000001 cancels unpaid No Shows nobody marked by hand. Check Google Calendar for a duplicate event by hand.
 - **15 Nov 2026 (night)** — Confirmation "Payment received" heading showed one leg's share (£138) when sent from the
   return leg; now the whole trip payment (£264) from either leg. Customers get ONE confirmation per trip.
 - **15 Nov 2026 (late)** — Names: PersonName::short — a title keeps the surname ("Mr Smith", never "Mr") in pay
