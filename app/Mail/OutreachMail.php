@@ -19,7 +19,15 @@ class OutreachMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public string $subjectLine, public string $bodyText) {}
+    /** $inReplyTo: the Message-ID of the email we're answering, so it threads in their inbox. */
+    public function __construct(public string $subjectLine, public string $bodyText, public ?string $inReplyTo = null) {}
+
+    public function headers(): \Illuminate\Mail\Mailables\Headers
+    {
+        return new \Illuminate\Mail\Mailables\Headers(
+            text: $this->inReplyTo ? ['In-Reply-To' => $this->inReplyTo, 'References' => $this->inReplyTo] : [],
+        );
+    }
 
     public function envelope(): Envelope
     {

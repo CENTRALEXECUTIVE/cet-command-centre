@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **16 Nov 2026 (eve)** — SIXT ride (Fabiola Fofana, Country Manager UKI/IE) replied to our 11 Nov partner email asking
+  if we're VAT registered; reply sent via outreach mailer, threaded (migration 2026_11_16_000003): Ltd, VAT GB527220417,
+  company 15749931, SCC operator licence (no number, directors' choice). OutreachMail supports In-Reply-To.
 - **16 Nov 2026 (13:30)** — New booking: "Passenger name — if booking for someone else". Customer = booker (email/
   phone/payment, e.g. Nicola Wright of Forged Solutions); passenger (e.g. Erik Toth) goes on the job via meta lead_name
   + booked_by. A typed name differing from the matched customer is kept as the passenger, never swapped back.
