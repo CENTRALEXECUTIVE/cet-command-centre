@@ -83,7 +83,7 @@ async function startSync() {
     if (notes.length) { commit(); toast(`Updated by Claude: ${notes.join(', ')}`); }
   }
   const setup = await Sync.pendingSetup();
-  if (setup && (ctx.state.settings.sample || ctx.state.settings.setupLoaded !== setup.created)) {
+  if (setup && ctx.state.settings.sample) {
     ctx.setupReady = setup;
     // Nothing of yours in the app yet (only example data): load it straight away.
     if (ctx.state.settings.sample) return action('setup-load');

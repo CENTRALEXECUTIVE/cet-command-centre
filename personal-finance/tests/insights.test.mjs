@@ -208,3 +208,11 @@ test('applyUpdates corrects entries by key and removes an emptied account', () =
   assert.equal(C.accountBalances(s.accounts, s.transactions).bank, before, 'bank balance unchanged');
   assert.ok(!s.accounts.some((a) => a.name === 'Loans'));
 });
+
+test('applyUpdates replaces the budget plan', () => {
+  const s = base();
+  const n = I.applyUpdates(s, [{ op: 'setBudget', income: [{ name: 'Central jobs', amount: 4000 }], items: [{ group: 'fixed', section: 'Home', name: 'Mum bills', amount: 1000, category: 'Household' }], allocation: [{ name: 'Tax pot', amount: 600 }] }]);
+  const b = C.budgetSummary(s.budget);
+  assert.deepEqual([b.income, b.outgoing, b.allocated], [4000, 1000, 600]);
+  assert.equal(n[0], 'Budget plan updated to your real averages');
+});
