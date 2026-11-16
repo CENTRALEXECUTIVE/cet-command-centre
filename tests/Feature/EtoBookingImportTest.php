@@ -84,6 +84,23 @@ class EtoBookingImportTest extends TestCase
         @unlink($path);
     }
 
+    public function test_an_incomplete_eto_booking_is_skipped_never_a_no_show(): void
+    {
+        // 16 Nov 2026: "Incomplete" = an unpaid, abandoned checkout. Never a job.
+        $path = $this->csv([[
+            'Journey date' => '20/11/2026 15:30', 'Passenger name' => 'Justin Hall',
+            'Reference number' => 'ASBTVGa', 'Vehicle type' => 'Executive', 'Status' => 'Incomplete',
+            'Payments' => 'Balance remaining, Card', 'Total' => '105.00',
+            'Pickup' => 'Dronfield S18 8RP', 'Dropoff' => 'Holiday Inn Manchester Airport',
+        ]]);
+
+        $stats = app(EtoBookingImporter::class)->import($path);
+
+        $this->assertEquals(0, $stats['imported']);
+        $this->assertEquals(1, $stats['skipped']);
+        $this->assertNull(Booking::where('external_reference', 'ASBTVGa')->first());
+    }
+
     public function test_reimport_corrects_the_created_date_on_an_existing_booking(): void
     {
         // A booking that arrived earlier (e.g. via the calendar) with today's

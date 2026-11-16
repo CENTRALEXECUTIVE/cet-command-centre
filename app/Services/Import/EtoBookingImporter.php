@@ -27,7 +27,9 @@ class EtoBookingImporter
         'completed' => BookingStatus::Complete,
         'confirmed' => BookingStatus::Pending,
         'cancelled' => BookingStatus::Cancelled,
-        'incomplete' => BookingStatus::NoShow,
+        // "Incomplete" = the customer started a booking on ETO but never paid — an
+        // abandoned checkout, NOT a job and NOT a no-show. Skipped (16 Nov 2026: it
+        // was imported as No Show and sat next to the real, paid booking).
     ];
 
     public function __construct(private readonly FixedPriceService $fixedPrices) {}
