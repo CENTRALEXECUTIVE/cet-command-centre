@@ -445,6 +445,9 @@
                                 @foreach($corporateAccounts as $acc)
                                     <option value="{{ $acc->id }}"
                                         data-cost-code-required="{{ $acc->cost_code_required ? '1' : '0' }}"
+                                        data-vat-name="{{ $acc->name }}"
+                                        data-vat-number="{{ $acc->vat_number }}"
+                                        data-vat-address="{{ preg_replace('/\s*\R\s*/', ', ', trim((string) $acc->billing_address)) }}"
                                         @selected(old('corporate_account_id')==$acc->id)>{{ $acc->name }}</option>
                                 @endforeach
                             </select>
@@ -473,6 +476,33 @@
                     </label>
                     <div class="hint">On = billed by <strong>Central Executive Transfers Ltd</strong> (+20% VAT, card via Square). Off = <strong>PVT LTD</strong> (no VAT, card via Stripe).</div>
                 </div>
+                <script>
+                    // Business account + VAT invoice → fill the invoice details from the account
+                    // (directors, 16 Nov 2026: "I forget what to put in"). Only fills boxes that are
+                    // empty or still hold the previous account's details — never overwrites typing.
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var acc = document.getElementById('corporate_account_id'), vat = document.getElementById('vat_invoice');
+                        if (!acc || !vat) return;
+                        var map = { vat_company: 'vatName', vat_number: 'vatNumber', vat_address: 'vatAddress' };
+                        function fill() {
+                            var opt = acc.options[acc.selectedIndex];
+                            if (!vat.checked || !opt || !opt.value) return;
+                            Object.keys(map).forEach(function (id) {
+                                var el = document.getElementById(id), val = opt.dataset[map[id]] || '';
+                                if (el && val && (el.value.trim() === '' || el.dataset.autofilled === '1')) {
+                                    el.value = val; el.dataset.autofilled = '1';
+                                }
+                            });
+                        }
+                        ['vat_company', 'vat_number', 'vat_address'].forEach(function (id) {
+                            var el = document.getElementById(id);
+                            if (el) el.addEventListener('input', function () { el.dataset.autofilled = ''; });
+                        });
+                        acc.addEventListener('change', fill);
+                        vat.addEventListener('change', fill);
+                        fill();
+                    });
+                </script>
                 <div id="vat-details" class="grid grid-2" {{ old('vat_invoice') ? '' : 'hidden' }} style="margin-top:4px">
                     <div class="field">
                         <label for="vat_company">Company name <span class="muted">(bill to)</span></label>

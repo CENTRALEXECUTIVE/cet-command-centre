@@ -318,6 +318,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **16 Nov 2026 (13:10)** — New booking: choosing a business account with VAT invoice ticked fills Company name, VAT
+  number and billing address from the account (only empty/auto-filled boxes; typing is never overwritten).
 - **16 Nov 2026 (pm)** — Search: top box searches EVERYTHING as you type (Admin\QuickSearchController, route
   quick-search): bookings (ref/ETO ref/customer/lead/phone any format/email/addresses/flight/driver), customers,
   drivers, vehicles, business accounts, outreach. Bookings page has a Driver dropdown (all their jobs, past+future).
