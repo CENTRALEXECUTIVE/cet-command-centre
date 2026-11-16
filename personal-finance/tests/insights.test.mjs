@@ -182,3 +182,17 @@ test('applyUpdates adds missed transactions once, creating categories and subcat
   I.applyUpdates(s, [op]);
   assert.equal(s.transactions.length, 3, 'second time adds nothing');
 });
+
+test('applyUpdates moves money into a named account, creating it once', () => {
+  const s = base();
+  const op = { op: 'addTransactions', account: 'Accounts', items: [
+    { date: '2025-10-08', amount: 10990, type: 'transfer', toAccount: 'Car', toGroup: 'other', note: 'Mercedes', key: 'b|1' },
+    { date: '2025-12-03', amount: 1400, type: 'transfer', toAccount: 'Loans to family & friends', note: 'Loan', key: 'b|2' },
+  ] };
+  I.applyUpdates(s, [op]); I.applyUpdates(s, [op]);
+  const car = s.accounts.find((a) => a.name === 'Car');
+  const bal = C.accountBalances(s.accounts, s.transactions);
+  assert.equal(bal[car.id], 10990);
+  assert.equal(s.accounts.filter((a) => a.name === 'Loans to family & friends').length, 1);
+  assert.equal(bal.bank, 1000 - 10990 - 1400);
+});

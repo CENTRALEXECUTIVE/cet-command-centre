@@ -430,6 +430,12 @@ export function applyUpdates(state, ops = []) {
       for (const it of op.items || []) {
         if (it.key && have.has(it.key)) continue;
         const kind = it.type || 'expense';
+        if (kind === 'transfer') {
+          let to = byName(state.accounts, it.toAccount);
+          if (!to) { to = { id: Math.random().toString(36).slice(2, 10), name: it.toAccount, group: it.toGroup || 'other', opening: 0 }; state.accounts.push(to); }
+          state.transactions.push({ id: Math.random().toString(36).slice(2, 10) + n, date: it.date, time: '', type: 'transfer', amount: C.round2(it.amount), accountId: acct.id, toAccountId: to.id, category: '', subcategory: '', note: it.note || '', description: it.description || '', source: 'statement', importKey: it.key });
+          n++; continue;
+        }
         let cat = state.categories.find((c) => c.name === it.category && c.kind === kind);
         if (!cat) { cat = { id: Math.random().toString(36).slice(2, 10), name: it.category, kind, subs: [] }; state.categories.push(cat); }
         if (it.subcategory && !(cat.subs ||= []).includes(it.subcategory)) cat.subs.push(it.subcategory);
