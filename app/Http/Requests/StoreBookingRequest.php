@@ -57,6 +57,7 @@ class StoreBookingRequest extends FormRequest
         return [
             // Customer / passenger
             'customer_name' => ['required', 'string', 'max:120'],
+            'lead_name' => ['nullable', 'string', 'max:120'],
             // Contact is OPTIONAL — a 3rd-party / cover job from another operator
             // often has no customer phone or email, but we still add it to fulfil it.
             'customer_phone' => ['nullable', 'string', 'max:32'],

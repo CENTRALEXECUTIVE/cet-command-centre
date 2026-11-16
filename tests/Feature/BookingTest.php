@@ -59,6 +59,31 @@ class BookingTest extends TestCase
         $this->assertDatabaseHas('bookings', ['destination_address' => 'Manchester Airport']);
     }
 
+    public function test_booking_for_someone_else_keeps_the_passengers_name(): void
+    {
+        // 16 Nov 2026: Nicola Wright books and pays for her clients — the job must say Erik Toth.
+        $admin = User::factory()->admin()->create();
+        $nicola = \App\Models\Customer::create(['name' => 'Nicola Wright', 'email' => 'nicola@example.com', 'phone' => '07700900777']);
+
+        // (a) the explicit "Passenger name" box
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'customer_name' => 'Nicola Wright', 'customer_email' => 'nicola@example.com', 'customer_phone' => '07700900777',
+            'lead_name' => 'Erik Toth',
+        ]))->assertSessionHasNoErrors()->assertRedirect();
+        $b = Booking::latest('id')->first();
+        $this->assertTrue($b->customer->is($nicola));
+        $this->assertSame('Erik Toth', $b->displayName());
+        $this->assertSame('Nicola Wright', $b->meta['booked_by'] ?? null);
+
+        // (b) typing the passenger in the name box with Nicola's email/phone never swaps it back
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'customer_name' => 'Jon Holden', 'customer_email' => 'nicola@example.com', 'customer_phone' => '07700900777',
+        ]))->assertRedirect();
+        $b2 = Booking::latest('id')->first();
+        $this->assertTrue($b2->customer->is($nicola));
+        $this->assertSame('Jon Holden', $b2->displayName());
+    }
+
     public function test_meet_and_greet_is_not_saved_on_a_drop_off_to_the_airport(): void
     {
         $admin = User::factory()->admin()->create();

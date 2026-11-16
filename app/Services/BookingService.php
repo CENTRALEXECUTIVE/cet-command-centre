@@ -442,6 +442,19 @@ class BookingService
         return $changed;
     }
 
+    /** The passenger's name when it isn't the booker's, else null. */
+    private function passengerName(array $data, Customer $customer): ?string
+    {
+        $norm = fn ($v) => mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $v)));
+        $lead = trim((string) ($data['lead_name'] ?? ''));
+        if ($lead === '') {
+            $typed = trim((string) ($data['customer_name'] ?? ''));
+            $lead = ($typed !== '' && $norm($typed) !== $norm($customer->name)) ? $typed : '';
+        }
+
+        return ($lead !== '' && $norm($lead) !== $norm($customer->name)) ? $lead : null;
+    }
+
     private function resolveCustomer(array $data): Customer
     {
         $phone = $data['customer_phone'] ?? null;
@@ -618,6 +631,12 @@ class BookingService
             'passengers' => $legPassengers,
             'luggage' => $luggage,
             'meta' => array_filter([
+                // Booking FOR someone else (directors, 16 Nov 2026: Nicola Wright books and pays
+                // for her clients). The customer record stays the BOOKER (email/phone/payment);
+                // the passenger's name goes on the job. Also when the name typed differs from
+                // the customer the email/phone matched — never swap the typed name away.
+                'lead_name' => ($lead = $this->passengerName($data, $customer)) ?: null,
+                'booked_by' => $lead ? $customer->name : null,
                 // Same vehicle × N (e.g. 2 V-Class for 10 people); price is for all of them.
                 'vehicle_count' => ($vc = (int) ($data['vehicle_count'] ?? 1)) > 1 ? min($vc, 5) : null,
                 'suitcases' => $suitcases,

@@ -53,6 +53,11 @@
                         <input id="customer_name" name="customer_name" autocomplete="off" data-customer-search="{{ route('customers.search') }}" value="{{ old('customer_name', $pf['customer_name'] ?? $customer?->name) }}" required>
                         <div id="customer-match" role="listbox" style="display:none;position:absolute;z-index:50;left:0;right:0;top:100%;background:#fff;color:#111;border:1px solid #d9d9d9;border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.28);max-height:260px;overflow-y:auto"></div>
                         @error('customer_name') <div class="error">{{ $message }}</div> @enderror
+                        <div style="margin-top:8px">
+                            <label for="lead_name" style="font-weight:600">Passenger name <span class="muted" style="font-weight:400">— if booking for someone else</span></label>
+                            <input id="lead_name" name="lead_name" autocomplete="off" value="{{ old('lead_name', $pf['lead_name'] ?? '') }}" placeholder="e.g. Erik Toth (Nicola books, Erik travels)">
+                            <div class="hint">The name above is who books &amp; pays (their email/phone get the confirmation and invoice). The passenger's name goes on the job, the name board and the driver's sheet.</div>
+                        </div>
                     </div>
                     <div class="field">
                         <label for="customer_phone">Mobile number</label>
