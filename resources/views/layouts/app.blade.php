@@ -145,12 +145,55 @@
                     🛰<span class="alert-badge" data-alert-badge
                         style="{{ $unackCritical > 0 ? '' : 'display:none' }}">{{ $unackCritical ?: '' }}</span>
                 </a>
-                <form method="GET" action="{{ route('bookings.index') }}" role="search"
-                      style="flex:1;max-width:340px;margin:0 12px;min-width:110px">
-                    <input type="search" id="global-search" name="q" value="{{ request('q') }}" placeholder="🔍 Search bookings…  ( / )"
-                           aria-label="Search bookings"
+                <form method="GET" action="{{ route('bookings.index') }}" role="search" id="global-search-form"
+                      style="flex:1;max-width:340px;margin:0 12px;min-width:110px;position:relative">
+                    <input type="search" id="global-search" name="q" value="{{ request('q') }}" placeholder="🔍 Search anything…  ( / )"
+                           aria-label="Search bookings, customers, drivers, vehicles, accounts" autocomplete="off"
+                           data-url="{{ route('quick-search') }}"
                            style="width:100%;padding:7px 12px;border:1px solid rgba(128,128,128,.4);border-radius:8px;font-size:13px;background:#fff;color:#111">
+                    <div id="global-search-results" hidden
+                         style="position:absolute;top:calc(100% + 6px);left:0;width:min(440px,92vw);max-height:70vh;overflow:auto;background:#fff;color:#111;border:1px solid rgba(0,0,0,.12);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);z-index:1000;padding:6px 0;font-size:13px"></div>
                 </form>
+                <script>
+                    // Live "search anything": results pop up as you type (bookings, customers,
+                    // drivers, vehicles, business accounts, outreach). Enter = full bookings search.
+                    (function () {
+                        var box = document.getElementById('global-search'), out = document.getElementById('global-search-results');
+                        if (!box || !out) return;
+                        var timer = null, seq = 0;
+                        function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+                        function render(data) {
+                            if (!data.groups || !data.groups.length) {
+                                out.innerHTML = '<div style="padding:10px 14px;color:#777">Nothing found for “' + esc(data.q) + '”.</div>';
+                            } else {
+                                out.innerHTML = data.groups.map(function (g) {
+                                    return '<div style="padding:8px 14px 2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a6d1a;font-weight:700">' + esc(g.label) + '</div>'
+                                        + g.items.map(function (i) {
+                                            return '<a href="' + esc(i.url) + '" style="display:block;padding:7px 14px;text-decoration:none;color:#111;border-radius:6px" onmouseover="this.style.background=\'#f6f3ea\'" onmouseout="this.style.background=\'\'">'
+                                                + '<div style="font-weight:600">' + esc(i.title) + '</div>'
+                                                + (i.sub ? '<div style="color:#666;font-size:12px;margin-top:1px">' + esc(i.sub) + '</div>' : '') + '</a>';
+                                        }).join('');
+                                }).join('') + '<a href="' + esc(data.all_bookings_url) + '" style="display:block;padding:9px 14px;border-top:1px solid #eee;margin-top:4px;color:#8a6d1a;font-weight:600;text-decoration:none">See all matching bookings →</a>';
+                            }
+                            out.hidden = false;
+                        }
+                        box.addEventListener('input', function () {
+                            clearTimeout(timer);
+                            var q = box.value.trim();
+                            if (q.length < 2) { out.hidden = true; return; }
+                            timer = setTimeout(function () {
+                                var mine = ++seq;
+                                fetch(box.dataset.url + '?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                                    .then(function (r) { return r.ok ? r.json() : null; })
+                                    .then(function (d) { if (d && mine === seq) render(d); })
+                                    .catch(function () {});
+                            }, 220);
+                        });
+                        box.addEventListener('keydown', function (e) { if (e.key === 'Escape') { out.hidden = true; } });
+                        document.addEventListener('click', function (e) { if (!document.getElementById('global-search-form').contains(e.target)) out.hidden = true; });
+                        box.addEventListener('focus', function () { if (out.innerHTML && box.value.trim().length >= 2) out.hidden = false; });
+                    })();
+                </script>
                 <script>
                     // Press "/" anywhere (outside a field) to jump to search.
                     document.addEventListener('keydown', function (e) {

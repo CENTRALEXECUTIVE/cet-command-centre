@@ -286,6 +286,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Customer CRM.
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers-search', [\App\Http\Controllers\CustomerController::class, 'search'])->middleware('throttle:60,1')->name('customers.search');
+        // The top search box: everything, as you type.
+        Route::get('quick-search', [\App\Http\Controllers\Admin\QuickSearchController::class, 'search'])->middleware('throttle:120,1')->name('quick-search');
         Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');
         Route::put('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'update'])->name('customers.update');
         Route::delete('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'destroy'])->name('customers.destroy');

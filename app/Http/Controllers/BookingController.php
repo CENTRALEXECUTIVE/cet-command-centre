@@ -105,7 +105,19 @@ class BookingController extends Controller
                     // ...or the driver who did the job (name or callsign).
                     ->orWhereHas('driver', fn ($d) => $d->where('name', 'like', "%{$q}%")
                         ->orWhereHas('driverProfile', fn ($p) => $p->where('callsign', 'like', "%{$q}%")))
-                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"));
+                    ->orWhere('pickup_address', 'like', "%{$q}%")
+                    ->orWhere('destination_address', 'like', "%{$q}%")
+                    ->orWhere('flight_number', 'like', "%{$q}%")
+                    ->orWhereHas('customer', function ($c) use ($q) {
+                        $c->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%")->orWhere('email', 'like', "%{$q}%");
+                        $digits = preg_replace('/\D+/', '', $q);
+                        if (strlen($digits) >= 5) {
+                            // 07700 900123 / +44 7700… / 7700900123 all find the same customer.
+                            foreach (collect(\App\Support\Phone::variants($q))->push($digits)->map(fn ($v) => preg_replace('/\D+/', '', (string) $v))->unique() as $v) {
+                                $c->orWhereRaw("replace(replace(replace(phone, ' ', ''), '+', ''), '-', '') like ?", ['%'.$v.'%']);
+                            }
+                        }
+                    });
             });
         }
 
