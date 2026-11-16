@@ -45,6 +45,7 @@
             <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
                 @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
                 @if(!empty($month))<input type="hidden" name="month" value="{{ $month->format('Y-m') }}">@else<input type="hidden" name="filter" value="{{ $filter ?? 'upcoming' }}">@endif
+                @if(!empty($driverName))<input type="hidden" name="driver" value="{{ $driverName }}">@endif
                 <label for="bk-status" class="muted" style="font-size:13px">Status</label>
                 @php
                     // Common statuses first; the unlikely Cancelled / No-show sit at the bottom.
@@ -59,10 +60,30 @@
                     @endforeach
                 </select>
             </form>
+            {{-- Driver: every job a driver has done or is booked on (past and future). --}}
+            @php
+                $driverOptions = \App\Models\User::query()
+                    ->where('is_active', true)
+                    ->where(fn ($u) => $u->where('role', 'driver')->orWhereHas('driverProfile'))
+                    ->orderBy('name')->pluck('name')->unique()->values();
+            @endphp
+            <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
+                @if(!empty($statusFilter))<input type="hidden" name="status" value="{{ $statusFilter }}">@endif
+                @if(request('from'))<input type="hidden" name="from" value="{{ request('from') }}">@endif
+                @if(request('to'))<input type="hidden" name="to" value="{{ request('to') }}">@endif
+                <label for="bk-driver" class="muted" style="font-size:13px">Driver</label>
+                <select id="bk-driver" name="driver" onchange="this.form.submit()" style="width:auto">
+                    <option value="">All drivers</option>
+                    @foreach($driverOptions as $dn)
+                        <option value="{{ $dn }}" @selected(($driverName ?? '') === $dn)>{{ $dn }}</option>
+                    @endforeach
+                </select>
+            </form>
             {{-- Date range: see every booking between two dates (for payroll / checks). --}}
             <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap">
                 @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
                 @if(!empty($statusFilter))<input type="hidden" name="status" value="{{ $statusFilter }}">@endif
+                @if(!empty($driverName))<input type="hidden" name="driver" value="{{ $driverName }}">@endif
                 <div>
                     <label for="bk-from" class="muted" style="font-size:13px;display:block">From</label>
                     <input id="bk-from" type="date" name="from" value="{{ request('from') }}" style="width:auto">

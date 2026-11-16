@@ -102,6 +102,9 @@ class BookingController extends Controller
                 $sub->where('reference', 'like', "%{$q}%")
                     ->orWhere('external_reference', 'like', "%{$q}%")
                     ->orWhere('meta->lead_name', 'like', "%{$q}%")
+                    // ...or the driver who did the job (name or callsign).
+                    ->orWhereHas('driver', fn ($d) => $d->where('name', 'like', "%{$q}%")
+                        ->orWhereHas('driverProfile', fn ($p) => $p->where('callsign', 'like', "%{$q}%")))
                     ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"));
             });
         }
@@ -160,7 +163,8 @@ class BookingController extends Controller
         } else {
             // Time filter for order. Default to Upcoming (soonest first); when
             // searching, default to All so a match isn't hidden by its date.
-            $filter = $request->query('filter') ?: ($q !== '' ? 'all' : 'upcoming');
+            // A search or a driver lookup shows every date (past and future), newest first.
+            $filter = $request->query('filter') ?: (($q !== '' || trim((string) $request->query('driver')) !== '') ? 'all' : 'upcoming');
             match ($filter) {
                 'today' => $query->whereBetween('pickup_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('pickup_at'),
                 // Jobs a driver is out on RIGHT NOW (set off → not yet completed),
