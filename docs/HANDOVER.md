@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **16 Nov 2026 (13:30)** — New booking: "Passenger name — if booking for someone else". Customer = booker (email/
+  phone/payment, e.g. Nicola Wright of Forged Solutions); passenger (e.g. Erik Toth) goes on the job via meta lead_name
+  + booked_by. A typed name differing from the matched customer is kept as the passenger, never swapped back.
 - **16 Nov 2026 (13:10)** — New booking: choosing a business account with VAT invoice ticked fills Company name, VAT
   number and billing address from the account (only empty/auto-filled boxes; typing is never overwritten).
 - **16 Nov 2026 (pm)** — Search: top box searches EVERYTHING as you type (Admin\QuickSearchController, route
