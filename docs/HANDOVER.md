@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **17 Nov 2026 (eve)** — Set-off nudge: with an office-set lead time it fires at lead time + 15 min
+  (StatusWatchdog::setOffNudgeAt), unless live flight data shows an earlier landing (then the flight-based time).
+  No lead time = smart estimate as before. Getting-ready prompt still at the lead time; urgent at pickup−10.
 - **17 Nov 2026 (pm)** — SEO check (docs/growth/seo/seo-progress-2026-11-17.md): pages ~2 weeks old, not ranking yet
   for money terms (normal); next: GBP, reviews, Search Console check, free listings, gap pages. New read-only
   reports/claude/sources (counts only: weekly bookings, channel, new vs returning, heard-about, utm).
