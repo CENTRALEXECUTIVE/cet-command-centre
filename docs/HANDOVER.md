@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **17 Nov 2026 (pm)** — SEO check (docs/growth/seo/seo-progress-2026-11-17.md): pages ~2 weeks old, not ranking yet
+  for money terms (normal); next: GBP, reviews, Search Console check, free listings, gap pages. New read-only
+  reports/claude/sources (counts only: weekly bookings, channel, new vs returning, heard-about, utm).
 - **17 Nov 2026 (am)** — Missed alert: Richard Mauer's paid web booking (09:55) pushed to nobody — both directors were
   on live jobs and admins on a job got NO push. Directors' rule now: alerts push as NORMAL (sound) even mid-job / app
   open; only a manual "hold my alerts" stops them. On a job the dashboard ALARM/chime stays muted
