@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **17 Nov 2026 (am)** — Missed alert: Richard Mauer's paid web booking (09:55) pushed to nobody — both directors were
+  on live jobs and admins on a job got NO push. Directors' rule now: alerts push as NORMAL (sound) even mid-job / app
+  open; only a manual "hold my alerts" mutes (AdminAlerts + feed mute_sound). Gmail: user's app had inbox sync off.
 - **17 Nov 2026** — Outreach batch queued from 09:00, 5 min apart (migration 2026_11_17_000001): Forgemasters, CMAC,
   Flint Bishop final follow-ups; Beatson Clark, Swann-Morton, Leviat, Genuit/Polypipe, BHP, Sheffield Hallam, Passenger Plus.
 - **16 Nov 2026 (eve)** — SIXT ride (Fabiola Fofana, Country Manager UKI/IE) replied to our 11 Nov partner email asking

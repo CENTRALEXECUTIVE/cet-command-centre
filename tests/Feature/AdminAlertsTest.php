@@ -249,7 +249,7 @@ class AdminAlertsTest extends TestCase
 
     /* ── Preference filtering ────────────────────────────────────────────── */
 
-    public function test_the_alerts_feed_mutes_sound_while_the_user_is_on_a_job(): void
+    public function test_the_alerts_feed_keeps_sound_on_a_job_and_mutes_only_when_held(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -257,12 +257,17 @@ class AdminAlertsTest extends TestCase
         $this->actingAs($admin)->getJson(route('alerts.feed'))
             ->assertOk()->assertJson(['mute_sound' => false]);
 
-        // Out on a job: the feed still returns, but sound is muted.
+        // Out on a job: sound stays ON (directors, 17 Nov 2026).
         Booking::factory()->create([
             'driver_id' => $admin->id,
             'status' => BookingStatus::EnRoute->value,
             'pickup_at' => now()->subMinutes(5),
         ]);
+        $this->actingAs($admin)->getJson(route('alerts.feed'))
+            ->assertOk()->assertJson(['mute_sound' => false]);
+
+        // Only a manual "hold my alerts" mutes it.
+        $admin->holdAlertsFor(60);
         $this->actingAs($admin)->getJson(route('alerts.feed'))
             ->assertOk()->assertJson(['mute_sound' => true]);
     }

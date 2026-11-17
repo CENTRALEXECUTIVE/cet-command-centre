@@ -90,14 +90,13 @@ class AdminAlerts
         User::where('role', UserRole::Admin->value)->where('is_active', true)
             ->where('is_super_admin', true)->get()
             ->filter(fn (User $admin) => $admin->wantsAlert($prefType, $severity))
-            // Held by hand ("hold my alerts") = no push. On a live job = still pushed,
-            // but SILENT (no sound/vibration) — 17 Nov 2026: both directors were driving,
-            // so a paid web booking reached nobody's phone. Never silently lost again.
+            // Held by hand ("hold my alerts") = no push. Otherwise ALWAYS a normal push,
+            // even mid-job or with the app open — directors, 17 Nov 2026: both were
+            // driving, so a paid web booking reached nobody's phone. Never again.
             ->reject(fn (User $admin) => $admin->alertsHeld())
             ->each(fn (User $admin) => $this->push->sendToUser($admin, $title, $body, [
                 'url' => $url,
                 'tag' => 'alert-'.$prefType.'-'.($booking?->id ?? 'general'),
-                'silent' => $admin->onActiveJob(),
             ]));
     }
 
@@ -107,18 +106,16 @@ class AdminAlerts
 
         User::where('role', UserRole::Admin->value)->where('is_active', true)->get()
             ->filter(fn (User $admin) => $admin->wantsAlert($prefType, $severity))
-            // NEVER blare next to a passenger: an admin on a LIVE job gets the push
-            // SILENTLY (no sound, no vibration) — it waits on their lock screen. An
-            // admin who held their alerts gets none. (The emergency CALL is separate
-            // and routes around a busy driver on its own.)
-            // Held by hand ("hold my alerts") = no push. On a live job = still pushed,
-            // but SILENT (no sound/vibration) — 17 Nov 2026: both directors were driving,
-            // so a paid web booking reached nobody's phone. Never silently lost again.
+            // Every active admin gets the push as normal, on a job or not (directors'
+            // choice, 17 Nov 2026). Only a manual "hold my alerts" mutes it. (The
+            // emergency CALL is separate and routes around a busy driver on its own.)
+            // Held by hand ("hold my alerts") = no push. Otherwise ALWAYS a normal push,
+            // even mid-job or with the app open — directors, 17 Nov 2026: both were
+            // driving, so a paid web booking reached nobody's phone. Never again.
             ->reject(fn (User $admin) => $admin->alertsHeld())
             ->each(fn (User $admin) => $this->push->sendToUser($admin, $title, $body, [
                 'url' => $url,
                 'tag' => 'alert-'.$prefType.'-'.($booking?->id ?? 'general'),
-                'silent' => $admin->onActiveJob(),
             ]));
     }
 }
