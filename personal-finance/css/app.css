@@ -416,3 +416,5 @@ details summary { cursor: pointer; font-weight: 600; color: var(--muted); margin
 .sub-edit { display: inline-flex; align-items: center; gap: 4px; }
 .sub-edit .in { width: 130px; }
 .chip.ghost-chip { border-style: dashed; color: var(--muted); }
+
+.amount-hint { white-space: nowrap; }

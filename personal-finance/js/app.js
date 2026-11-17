@@ -243,7 +243,7 @@ app.addEventListener('click', (e) => {
   }
   if (d.toggleUi) { ctx.ui[d.toggleUi] = !ctx.ui[d.toggleUi]; render(); return; }
   if (d.editTx) return openTx(ctx.state.transactions.find((t) => t.id === d.editTx));
-  if (d.quick != null) { const q = C.frequentEntries(ctx.state.transactions, 6, C.addMonths(C.today(), -3))[+d.quick]; return openTx(null, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, amount: q.last }); }
+  if (d.quick != null) { const q = C.frequentEntries(ctx.state.transactions, 6, C.addMonths(C.today(), -3))[+d.quick]; return openTx(null, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, hint: q.last }); }
   if (d.fscope != null) { ctx.ui.fscope = d.fscope; render(); return; }
   if (d.ttab) { ctx.ui.ttab = d.ttab; render(); return; }
   if (d.monthStep) { ctx.ui.month = C.monthKey(C.addMonths(ctx.ui.month + '-01', ctx.ui.ttab === 'monthly' ? 12 * +d.monthStep : +d.monthStep)); render(); return; }
@@ -403,7 +403,7 @@ function openTx(t, preset = {}) {
       <div class="seg wide">${['income', 'expense', 'transfer'].map((k) => `<button type="button" class="seg-btn ${v.type === k ? 'on ' + k : ''}" data-ttype="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
       ${!editing && quick.length ? `<div class="chips small">${quick.filter((q) => v.type === 'transfer' || q.type === v.type).slice(0, 6).map((q, i) => `<button type="button" class="chip" data-tq="${quick.indexOf(q)}">${esc(q.note)}</button>`).join('')}</div>` : ''}
       <form id="tx-form" autocomplete="off">
-        <label class="amount-in"><span>£</span><input id="tx-amount" name="amount" type="number" inputmode="decimal" step="0.01" min="0" required value="${esc(v.amount)}" placeholder="0.00" aria-label="Amount"></label>
+        <label class="amount-in"><span>£</span><input id="tx-amount" name="amount" type="number" inputmode="decimal" step="0.01" min="0" required value="${esc(v.amount)}" placeholder="${v.hint ? esc(Number(v.hint).toFixed(2)) : '0.00'}" aria-label="Amount">${v.hint && !String(v.amount || '').trim() ? `<small class="muted amount-hint">last time £${esc(Number(v.hint).toFixed(2))}</small>` : ''}</label>
         <div class="form-grid">
           <label class="lbl">Date<input id="tx-date" class="in" name="date" type="date" required value="${esc(v.date)}"></label>
           <label class="lbl">${v.type === 'transfer' ? 'From' : 'Account'}<select id="tx-acct" class="in" name="accountId">${s.accounts.map((a) => `<option value="${a.id}" ${a.id === v.accountId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
@@ -453,7 +453,7 @@ function openTx(t, preset = {}) {
     if (b.dataset.spAdd != null) { collect(); v.splits.push({ category: catsOf('expense')[0], amount: '' }); draw(); return; }
     if (b.dataset.spDel != null) { collect(); v.splits.splice(+b.dataset.spDel, 1); if (v.splits.length < 2) v.splits = null; draw(); return; }
     if (b.dataset.spOff != null) { collect(); v.splits = null; draw(); return; }
-    if (b.dataset.tq != null) { const q = quick[+b.dataset.tq]; collect(); Object.assign(v, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, amount: q.last }); draw(); $('#tx-amount', modal).select(); return; }
+    if (b.dataset.tq != null) { const q = quick[+b.dataset.tq]; collect(); Object.assign(v, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, hint: q.last }); draw(); const amt = $('#tx-amount', modal); if (!String(v.amount || '').trim()) amt.focus(); return; }
     if (b.dataset.tdel != null) {
       if (!v._confirmDel) { collect(); v._confirmDel = true; draw(); return; }
       ctx.state.transactions = ctx.state.transactions.filter((x) => x.id !== t.id);

@@ -47,6 +47,31 @@ const wait = (p, ms = 250) => p.waitForTimeout(ms);
     await p.click('[data-ttab=calendar]'); check(`${name} calendar view`, (await p.locator('.cal-cell:not(.blank)').count()) >= 28);
     await p.click('[data-ttab=monthly]'); check(`${name} monthly view`, (await p.locator('tr.click').count()) >= 1);
 
+    // 2a. the amount you type is never changed by other buttons in the form
+    await go('home');
+    await p.click(name === 'phone' ? '.fab' : '.page-head [data-action=quick-add]');
+    await p.click('[data-ttype=income]'); await p.fill('#tx-amount', '31.41');
+    const keep = async (label) => check(`${name} amount kept after ${label}`, (await p.inputValue('#tx-amount')) === '31.41', await p.inputValue('#tx-amount'));
+    if (await p.locator('[data-tq]').count()) { await p.click('[data-tq] >> nth=0'); await keep('quick payer button'); }
+    await p.click('[data-ttype=expense]'); await keep('switching to expense');
+    await p.click('[data-tcat="🚖 Transport"]'); await keep('picking a category');
+    await p.click('[data-tsub="Fuel"]'); await keep('picking a subcategory');
+    await p.click('[data-tsub-new]'); await keep('+ New subcategory');
+    await p.click('[data-sp-on]'); await p.click('[data-sp-off]'); await keep('split on and off');
+    await p.click('[data-ttype=transfer]'); await p.click('[data-ttype=income]'); await keep('switching type twice');
+    await p.click('[data-close]'); await wait(p);
+    // Home quick-add opens with the amount empty and the last amount as a hint
+    if (await p.locator('[data-quick]').count()) {
+      await p.click('[data-quick] >> nth=0'); await wait(p, 150);
+      check(`${name} quick add opens with empty amount`, (await p.inputValue('#tx-amount')) === '' && (await p.locator('.amount-hint').count()) === 1);
+      await p.click('[data-close]'); await wait(p);
+    }
+    // editing an entry: changing category keeps its amount
+    await go('trans'); await p.click('[data-ttab=daily]'); await wait(p);
+    await p.click('.tx-row >> nth=0'); const amtBefore = await p.inputValue('#tx-amount');
+    await p.click('.chips.cats .chip:not(.on) >> nth=0'); check(`${name} edit keeps amount`, (await p.inputValue('#tx-amount')) === amtBefore);
+    await p.click('[data-close]'); await wait(p);
+
     // 2b. subcategories: chips for the chosen category, saved on the entry, filterable
     await go('home');
     await p.click(name === 'phone' ? '.fab' : '.page-head [data-action=quick-add]');
