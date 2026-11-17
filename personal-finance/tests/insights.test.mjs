@@ -216,3 +216,10 @@ test('applyUpdates replaces the budget plan', () => {
   assert.deepEqual([b.income, b.outgoing, b.allocated], [4000, 1000, 600]);
   assert.equal(n[0], 'Budget plan updated to your real averages');
 });
+
+test('applyUpdates removes entries by key', () => {
+  const s = base();
+  s.transactions = [{ id: 'a', importKey: 'k1', date: '2026-01-01', type: 'expense', amount: 5, accountId: 'bank' }, { id: 'b', importKey: 'k2', date: '2026-01-01', type: 'expense', amount: 5, accountId: 'bank' }];
+  assert.deepEqual(I.applyUpdates(s, [{ op: 'removeTransactions', keys: ['k2', 'nope'] }]), ['1 entry removed']);
+  assert.deepEqual(s.transactions.map((t) => t.id), ['a']);
+});

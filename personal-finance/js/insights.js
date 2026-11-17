@@ -467,6 +467,12 @@ export function applyUpdates(state, ops = []) {
       if (op.items) state.budget.items = op.items.map((x) => ({ id: id(), ...x }));
       if (op.allocation) state.budget.allocation = op.allocation.map((x) => ({ id: id(), ...x }));
       notes.push('Budget plan updated to your real averages');
+    } else if (op.op === 'removeTransactions') {
+      const keys = new Set(op.keys || []);
+      const before = state.transactions.length;
+      state.transactions = state.transactions.filter((t) => !keys.has(t.importKey));
+      const n = before - state.transactions.length;
+      if (n) { (state.tombstones ||= []).push(...keys); notes.push(`${n} entr${n > 1 ? 'ies' : 'y'} removed`); }
     } else if (op.op === 'removeAccount') {
       const a = byName(state.accounts, op.account);
       if (a && !state.transactions.some((t) => t.accountId === a.id || t.toAccountId === a.id)) { state.accounts = state.accounts.filter((x) => x !== a); notes.push(`${a.name} removed`); }
