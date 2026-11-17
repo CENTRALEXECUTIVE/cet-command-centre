@@ -13,9 +13,8 @@ use Mockery;
 use Tests\TestCase;
 
 /**
- * NEVER blare next to a passenger: an admin who is themselves on a live job (or
- * has held their alerts) gets no push — but the alert still lands on the feed and
- * any other director still receives it.
+ * NEVER blare next to a passenger: an admin on a live job gets the push SILENTLY;
+ * one who held their alerts gets none. The alert always lands on the feed too.
  */
 class AdminAlertSuppressionTest extends TestCase
 {
@@ -32,12 +31,14 @@ class AdminAlertSuppressionTest extends TestCase
         $this->assertFalse($free->busyForAlerts());
 
         $push = Mockery::mock(WebPushService::class);
+        // 17 Nov 2026: the busy director still gets it — SILENTLY — so nothing is lost
+        // when both directors are driving; the free one gets a normal push.
         $push->shouldReceive('sendToUser')
             ->once()
-            ->with(Mockery::on(fn (User $u) => $u->id === $free->id), Mockery::any(), Mockery::any(), Mockery::any());
+            ->with(Mockery::on(fn (User $u) => $u->id === $free->id), Mockery::any(), Mockery::any(), Mockery::on(fn ($o) => empty($o['silent'])));
         $push->shouldReceive('sendToUser')
-            ->never()
-            ->with(Mockery::on(fn (User $u) => $u->id === $busy->id), Mockery::any(), Mockery::any(), Mockery::any());
+            ->once()
+            ->with(Mockery::on(fn (User $u) => $u->id === $busy->id), Mockery::any(), Mockery::any(), Mockery::on(fn ($o) => ($o['silent'] ?? false) === true));
         $this->app->instance(WebPushService::class, $push);
 
         $subject = Booking::factory()->create(['status' => BookingStatus::Pending->value]);

@@ -10,7 +10,7 @@
  *
  * Bump CACHE_VERSION whenever a precached asset changes so clients refresh.
  */
-const CACHE_VERSION = 'cet-static-v36';
+const CACHE_VERSION = 'cet-static-v37';
 
 const PRECACHE = [
     '/offline.html',
@@ -97,6 +97,12 @@ self.addEventListener('push', (event) => {
         data: { url: data.url || '/driver/jobs' },
         vibrate: [80, 40, 80],
     };
+    // Silent push (the director is driving a job): show it, but no sound or buzz.
+    if (data.silent) {
+        options.silent = true;
+        options.renotify = false;
+        delete options.vibrate;
+    }
     event.waitUntil(self.registration.showNotification(title, options));
 });
 

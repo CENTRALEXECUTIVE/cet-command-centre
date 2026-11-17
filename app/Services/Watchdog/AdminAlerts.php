@@ -90,10 +90,14 @@ class AdminAlerts
         User::where('role', UserRole::Admin->value)->where('is_active', true)
             ->where('is_super_admin', true)->get()
             ->filter(fn (User $admin) => $admin->wantsAlert($prefType, $severity))
-            ->reject(fn (User $admin) => $admin->busyForAlerts())
+            // Held by hand ("hold my alerts") = no push. On a live job = still pushed,
+            // but SILENT (no sound/vibration) — 17 Nov 2026: both directors were driving,
+            // so a paid web booking reached nobody's phone. Never silently lost again.
+            ->reject(fn (User $admin) => $admin->alertsHeld())
             ->each(fn (User $admin) => $this->push->sendToUser($admin, $title, $body, [
                 'url' => $url,
                 'tag' => 'alert-'.$prefType.'-'.($booking?->id ?? 'general'),
+                'silent' => $admin->onActiveJob(),
             ]));
     }
 
@@ -103,16 +107,18 @@ class AdminAlerts
 
         User::where('role', UserRole::Admin->value)->where('is_active', true)->get()
             ->filter(fn (User $admin) => $admin->wantsAlert($prefType, $severity))
-            // NEVER blare next to a passenger: an admin who is themselves on a
-            // LIVE job (or has held their alerts) gets NO push — a siren going off
-            // with a customer in the car is unacceptable. The alert is still on
-            // the feed for when they're free, and any OTHER director still gets
-            // it, so nothing is lost. (The emergency CALL is separate and routes
-            // around a busy driver on its own.)
-            ->reject(fn (User $admin) => $admin->busyForAlerts())
+            // NEVER blare next to a passenger: an admin on a LIVE job gets the push
+            // SILENTLY (no sound, no vibration) — it waits on their lock screen. An
+            // admin who held their alerts gets none. (The emergency CALL is separate
+            // and routes around a busy driver on its own.)
+            // Held by hand ("hold my alerts") = no push. On a live job = still pushed,
+            // but SILENT (no sound/vibration) — 17 Nov 2026: both directors were driving,
+            // so a paid web booking reached nobody's phone. Never silently lost again.
+            ->reject(fn (User $admin) => $admin->alertsHeld())
             ->each(fn (User $admin) => $this->push->sendToUser($admin, $title, $body, [
                 'url' => $url,
                 'tag' => 'alert-'.$prefType.'-'.($booking?->id ?? 'general'),
+                'silent' => $admin->onActiveJob(),
             ]));
     }
 }

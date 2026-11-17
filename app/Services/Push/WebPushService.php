@@ -62,6 +62,8 @@ class WebPushService
             'body' => $body,
             'url' => $options['url'] ?? route('driver.jobs'),
             'tag' => $options['tag'] ?? null,
+            // A silent push: shown on the lock screen, no sound or vibration (driver busy).
+            'silent' => ! empty($options['silent']) ? true : null,
         ]));
 
         foreach ($subs as $sub) {
