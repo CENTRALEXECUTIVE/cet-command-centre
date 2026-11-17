@@ -161,6 +161,84 @@ class ClaudeReportController extends Controller
         ]);
     }
 
+    /**
+     * Where bookings come from (directors, 17 Nov 2026) — COUNTS ONLY, no names or
+     * contact details. Week by week: bookings, how they came in, new vs returning
+     * customers, how they heard about us, and campaign/link tags.
+     */
+    public function sources(Request $request): JsonResponse
+    {
+        abort_unless(self::tokenMatches($request->bearerToken()), 404);
+
+        $tz = config('app.timezone', 'Europe/London');
+        $weeksBack = max(1, min(26, (int) $request->query('weeks', 12)));
+        $start = Carbon::now($tz)->startOfWeek()->subWeeks($weeksBack - 1);
+
+        $bookings = \App\Models\Booking::query()
+            ->where('created_at', '>=', $start->copy()->utc())
+            ->where('is_return_leg', false)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->get(['id', 'customer_id', 'source', 'source_system', 'meta', 'quoted_price', 'created_at']);
+
+        // A customer's very first booking (ever) = a NEW customer.
+        $firstIds = \App\Models\Booking::query()
+            ->whereIn('customer_id', $bookings->pluck('customer_id')->filter()->unique())
+            ->where('is_return_leg', false)
+            ->selectRaw('customer_id, min(id) as first_id')->groupBy('customer_id')
+            ->pluck('first_id', 'customer_id');
+
+        $weeks = [];
+        $totals = ['heard' => [], 'utm_source' => [], 'channel' => [], 'new' => 0, 'returning' => 0, 'google_ads_click' => 0];
+        foreach ($bookings as $b) {
+            $wk = $b->created_at->copy()->timezone($tz)->startOfWeek()->toDateString();
+            $weeks[$wk] ??= ['week_of' => $wk, 'bookings' => 0, 'new_customers' => 0, 'returning' => 0, 'channels' => [], 'heard' => []];
+            $w = &$weeks[$wk];
+            $w['bookings']++;
+
+            $channel = $b->meta['enquiry_source'] ?? null;
+            if (! is_string($channel) || $channel === '') {
+                $channel = match (true) {
+                    $b->source === 'web' => 'website',
+                    in_array($b->source_system, ['eto'], true) => 'eto_import',
+                    default => (string) ($b->source ?: 'other'),
+                };
+            }
+            $w['channels'][$channel] = ($w['channels'][$channel] ?? 0) + 1;
+            $totals['channel'][$channel] = ($totals['channel'][$channel] ?? 0) + 1;
+
+            $isNew = $b->customer_id && (int) ($firstIds[$b->customer_id] ?? 0) === (int) $b->id;
+            $isNew ? $w['new_customers']++ : $w['returning']++;
+            $isNew ? $totals['new']++ : $totals['returning']++;
+
+            $heard = \App\Models\Booking::heardAboutLabel($b->heardAboutKey());
+            $w['heard'][$heard] = ($w['heard'][$heard] ?? 0) + 1;
+            $totals['heard'][$heard] = ($totals['heard'][$heard] ?? 0) + 1;
+
+            $m = (array) ($b->meta['marketing'] ?? []);
+            if (filled($m['gclid'] ?? null) || filled($m['gbraid'] ?? null) || filled($m['wbraid'] ?? null)) {
+                $totals['google_ads_click']++;
+            }
+            if (filled($m['utm_source'] ?? null)) {
+                $u = mb_strtolower((string) $m['utm_source']).(filled($m['utm_medium'] ?? null) ? ' / '.mb_strtolower((string) $m['utm_medium']) : '');
+                $totals['utm_source'][$u] = ($totals['utm_source'][$u] ?? 0) + 1;
+            }
+            unset($w);
+        }
+        ksort($weeks);
+        foreach (['heard', 'utm_source', 'channel'] as $k) {
+            arsort($totals[$k]);
+        }
+
+        return response()->json([
+            'generated_at' => now()->toIso8601String(),
+            'from' => $start->toDateString(),
+            'ads_paused_on' => (string) config('cet.ads_paused_on', '2026-11-04'),
+            'note' => 'Counts only. Return legs, cancelled and no-show excluded. Week = when the booking came in.',
+            'weeks' => array_values($weeks),
+            'totals' => $totals,
+        ]);
+    }
+
     /** jarthur@aegisenergy.uk → ja•••@aegisenergy.uk */
     public static function maskEmail(string $email): ?string
     {

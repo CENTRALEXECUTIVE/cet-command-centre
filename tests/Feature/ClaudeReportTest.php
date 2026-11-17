@@ -102,4 +102,20 @@ class ClaudeReportTest extends TestCase
         $this->assertStringNotContainsString('07700900333', $body);
         $this->assertStringNotContainsString('jarthur@', $body);
     }
+
+    public function test_sources_report_is_key_locked_and_counts_only(): void
+    {
+        $c = \App\Models\Customer::create(['name' => 'Secret Person', 'phone' => '07700900444', 'email' => 'secret@example.com']);
+        Booking::factory()->create(['customer_id' => $c->id, 'source' => 'web', 'meta' => ['heard_about' => 'google', 'marketing' => ['utm_source' => 'Google', 'utm_medium' => 'organic']]]);
+        Booking::factory()->create(['customer_id' => $c->id, 'source' => 'phone']);
+
+        $this->getJson(route('claude.report.sources'))->assertNotFound();
+
+        $key = $this->makeKey();
+        $res = $this->getJson(route('claude.report.sources'), ['Authorization' => 'Bearer '.$key])->assertOk()
+            ->assertJsonPath('totals.new', 1)->assertJsonPath('totals.returning', 1)
+            ->assertJsonPath('totals.utm_source.google / organic', 1);
+        $this->assertStringNotContainsString('Secret Person', $res->getContent());
+        $this->assertStringNotContainsString('07700900444', $res->getContent());
+    }
 }
