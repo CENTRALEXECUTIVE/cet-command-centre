@@ -195,7 +195,7 @@ class StatusWatchdog
                     'URGENT: '.$booking->pickup_at->format('H:i').' pickup — set off now',
                     'URGENT: '.$booking->pickup_at->format('H:i').' pickup at '.$this->shortAddress($booking->pickup_address).' — set off now',
                     severity: 'critical');
-            } elseif (now()->gte($this->setOffDeadline($booking))) {
+            } elseif (now()->gte($this->setOffNudgeAt($booking))) {
                 // For an airport pickup, spell out the landing time and the "be
                 // there by" so the driver knows why it's time to go NOW.
                 [$title, $body] = $airportLanding
@@ -596,6 +596,47 @@ class StatusWatchdog
         }
 
         return $booking->pickup_at->copy()->subMinutes($this->setOffLeadMinutes($booking));
+    }
+
+    /** Minutes after an office-set lead time before the "time to set off" nudge. */
+    public const SET_OFF_AFTER_LEAD_MINUTES = 15;
+
+    /**
+     * When to send the "time to set off" nudge (directors, 17 Nov 2026). With an
+     * office-set LEAD TIME: lead time + 15 min — the office has already decided when
+     * the driver should be up — UNLESS live flight data shows the flight landing
+     * EARLIER than planned, then the (earlier) flight-based time wins so the driver
+     * isn't late. Without a lead time: the smart drive-time estimate, as before.
+     */
+    public function setOffNudgeAt(Booking $booking): Carbon
+    {
+        $explicit = $booking->explicitLeadTimeAt();
+        if (! $explicit) {
+            return $this->setOffDeadline($booking);
+        }
+
+        $at = $explicit->copy()->addMinutes(self::SET_OFF_AFTER_LEAD_MINUTES);
+        if ($this->isAirportPickup($booking) && $this->flightLandingEarly($booking)) {
+            $flightBased = $this->setOffDeadline($booking);
+            if ($flightBased->lt($at)) {
+                $at = $flightBased;
+            }
+        }
+
+        return $at;
+    }
+
+    /** True when live flight data says the flight lands EARLIER than planned. */
+    private function flightLandingEarly(Booking $booking): bool
+    {
+        $monitor = \App\Models\FlightMonitor::where('booking_id', $booking->id)->first();
+        if (! $monitor?->estimated_arrival) {
+            return false;
+        }
+        $planned = $monitor->scheduled_arrival
+            ?? (filled($booking->meta['flight_landing_at'] ?? null) ? Carbon::parse($booking->meta['flight_landing_at'], config('app.timezone')) : null);
+
+        return $planned && Carbon::parse($monitor->estimated_arrival)->lt(Carbon::parse($planned)->subMinute());
     }
 
     /**

@@ -86,6 +86,34 @@ class StatusWatchdogTest extends TestCase
 
     /* ── Rules 1 + 2: set off ─────────────────────────────────────────────── */
 
+    public function test_with_an_office_lead_time_set_off_waits_until_15_minutes_after_it(): void
+    {
+        // Pickup in 60 min; the office set the lead time to 10 min ago.
+        $b = $this->job(BookingStatus::Allocated, now()->addMinutes(60));
+        $b->setLeadTime(now()->subMinutes(10));
+        $this->tick();
+        $this->assertNudged($b, 'set_off', 0); // only 10 of the 15 minutes gone
+
+        Carbon::setTestNow(now()->addMinutes(6)); // lead time + 16 min
+        $this->tick();
+        $this->assertNudged($b, 'set_off');
+    }
+
+    public function test_an_early_landing_overrides_the_office_lead_time(): void
+    {
+        // Airport pickup: the office set a late lead time, but the flight is landing 40 min early.
+        $b = Booking::factory()->create([
+            'driver_id' => $this->driver()->id, 'status' => BookingStatus::Allocated,
+            'pickup_address' => 'Manchester Airport (MAN), Terminal 2', 'destination_address' => 'Sheffield S1 2HH',
+            'pickup_at' => now()->addMinutes(120), 'flight_number' => 'BA123',
+        ]);
+        $b->setLeadTime(now()->addMinutes(60));
+        \App\Models\FlightMonitor::create(['booking_id' => $b->id, 'flight_number' => 'BA123', 'flight_date' => now()->toDateString(),
+            'scheduled_arrival' => now()->addMinutes(120), 'estimated_arrival' => now()->addMinutes(80)]);
+
+        $this->assertTrue(app(\App\Services\Watchdog\StatusWatchdog::class)->setOffNudgeAt($b->fresh())->lt(now()->addMinutes(75)));
+    }
+
     public function test_set_off_reminder_uses_flat_30_minutes_without_gps(): void
     {
         // No GPS history → lead time is a flat 30 min. Pickup in 28 → nudge.
