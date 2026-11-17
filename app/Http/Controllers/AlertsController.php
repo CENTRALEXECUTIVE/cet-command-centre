@@ -54,7 +54,7 @@ class AlertsController extends Controller
             // When the signed-in user is themselves out on a job (or has held their
             // alerts), the dashboard still SHOWS alerts but must make NO sound — no
             // chime, no siren — so a phone never blares next to a passenger.
-            'mute_sound' => (bool) (auth()->user()?->alertsHeld() ?? false), // only a manual hold mutes
+            'mute_sound' => (bool) (auth()->user()?->busyForAlerts() ?? false), // on a job (or held): no alarm/chime — phone pushes still arrive as normal
         ]);
     }
 
