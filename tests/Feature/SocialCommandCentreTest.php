@@ -58,8 +58,8 @@ class SocialCommandCentreTest extends TestCase
         // Starts tomorrow, runs two weeks.
         $this->assertTrue($planned->min('scheduled_at')->gte(Carbon::parse('2026-11-19')));
         $this->assertTrue($planned->max('scheduled_at')->lt(Carbon::parse('2026-12-03')));
-        // The ready prep Reel goes to TikTok, Instagram and Facebook together.
-        $prep = $planned->where('title', 'Prepping the car before every job');
+        // The button loads the full prepared plan; the prep Reel goes to TikTok, Instagram and Facebook.
+        $prep = $planned->where('title', 'Before every job (your own footage)');
         $this->assertEqualsCanonicalizing(['tiktok', 'instagram', 'facebook'], $prep->pluck('platform')->all());
         // House rules: no prices in any caption.
         foreach (SocialPost::all() as $p) {
@@ -73,7 +73,7 @@ class SocialCommandCentreTest extends TestCase
         $this->assertSame($n, SocialPost::count());
 
         $this->actingAs($admin)->get(route('social.planner', ['week' => '2026-11-16']))->assertOk()
-            ->assertSee('Prepping the car before every job');
+            ->assertSee('Before every job (your own footage)');
     }
 
     public function test_create_with_cross_post_then_mark_posted(): void
@@ -165,5 +165,52 @@ class SocialCommandCentreTest extends TestCase
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->post(route('social.ideas'))->assertRedirect();
         $this->assertSame(0, SocialPost::count());
+    }
+
+    public function test_prepared_plan_loads_from_tomorrow_without_doubling_the_starter(): void
+    {
+        $admin = User::factory()->admin()->create();
+        app(SocialStarterPack::class)->load(); // tapped earlier, untouched
+        $this->assertTrue(app(\App\Services\Social\SocialPlanImport::class)->available());
+
+        $n = app(\App\Services\Social\SocialPlanImport::class)->load();
+        $planned = SocialPost::where('status', 'planned')->get();
+        $this->assertSame(34, $planned->count()); // 31 prepared + wedding Reel x3
+        $this->assertSame($n, SocialPost::count());
+        // First prepared post (LinkedIn, 10 Nov 08:00) moves to tomorrow 08:00, UK time.
+        $first = $planned->sortBy('scheduled_at')->first();
+        $this->assertSame('linkedin', $first->platform);
+        $this->assertSame('2026-11-19 08:00', $first->scheduled_at->format('Y-m-d H:i'));
+        $this->assertSame(1, $planned->where('title', 'How a business account is set up')->count());
+        $this->assertSame(3, $planned->where('title', 'Your wedding day, arriving in style')->count());
+        $this->assertSame(4, $planned->where('platform', 'gbp')->count());
+        $this->assertStringContainsString('cet-prep-reel-final.mp4', (string) $planned->firstWhere('title', 'Before every job (your own footage)')->media_note);
+        $this->assertGreaterThan(5, SocialPost::where('status', 'idea')->where('title', 'like', 'Complaint:%')->count());
+        foreach (SocialPost::all() as $p) {
+            $this->assertDoesNotMatchRegularExpression('/£\s?\d/', (string) $p->caption);
+        }
+        // The button now does nothing more.
+        $this->actingAs($admin)->post(route('social.starter'));
+        $this->assertSame($n, SocialPost::count());
+    }
+
+    public function test_breakdown_saves_a_cet_version_to_the_ideas_bank(): void
+    {
+        config(['services.anthropic.key' => 'test-key']);
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['content' => [['text' => json_encode([
+            'hook' => 'POV: flight 2 hours late', 'format' => 'POV', 'topic' => 'reliability', 'why' => 'Relatable fear, happy ending.',
+            'cet' => ['title' => 'Late flight, driver still there', 'platform' => 'tiktok', 'hook' => 'Your flight is 2 hours late.', 'shot' => 'Arrivals board, then driver waiting.', 'caption' => 'We track every flight.'],
+        ])]]])]);
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('social.breakdown'), [
+            'source_platform' => 'tiktok', 'stats' => '120K views',
+            'content' => 'Driver holding a name board, text: POV your flight landed late.',
+        ])->assertRedirect();
+
+        $idea = SocialPost::firstOrFail();
+        $this->assertSame('idea', $idea->status);
+        $this->assertSame('CET version: Late flight, driver still there', $idea->title);
+        $this->assertStringContainsString('Why it worked: Relatable fear', $idea->notes);
+        $this->assertStringContainsString('120K views', $idea->notes);
     }
 }

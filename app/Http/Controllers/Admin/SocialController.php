@@ -191,7 +191,8 @@ class SocialController extends Controller
         if ($pack->alreadyLoaded()) {
             return back()->with('status', 'The starter plan is already loaded.');
         }
-        $n = $pack->load();
+        $import = app(\App\Services\Social\SocialPlanImport::class);
+        $n = $import->available() ? $import->load() : $pack->load();
 
         return redirect()->route('social.planner')->with('status', "Loaded the starter plan: {$n} posts and ideas. Nothing has been posted; post from each app and tap Posted.");
     }
@@ -267,6 +268,55 @@ class SocialController extends Controller
         }
 
         return back()->with('status', $n ? "Added {$n} new ideas to the ideas bank." : 'Claude did not return any ideas this time. Try again in a minute.');
+    }
+
+    /**
+     * "Why did this go viral?" The office pastes a competitor's (or any) post:
+     * what it showed and said, plus its numbers. Claude breaks down the hook,
+     * format and topic and writes a CET version, saved to the ideas bank.
+     * Nothing is scraped: only what the office pastes is used.
+     */
+    public function breakdown(Request $request, AnthropicService $ai): RedirectResponse
+    {
+        $this->admin($request);
+        $data = $request->validate([
+            'source_platform' => ['nullable', Rule::in(array_keys(SocialPost::PLATFORMS))],
+            'link' => ['nullable', 'url', 'max:500'],
+            'content' => ['required', 'string', 'min:10', 'max:4000'],
+            'stats' => ['nullable', 'string', 'max:200'],
+        ]);
+        if (! $ai->configured()) {
+            return back()->withInput()->with('status', 'Claude is not connected (no AI key set), so it could not break the post down.');
+        }
+
+        $prompt = 'A social post did well. Break down why, then write a version for Central Executive Transfers (Sheffield executive chauffeur and airport transfers).'
+            ."\nPlatform: ".($data['source_platform'] ?? 'unknown')
+            ."\nNumbers: ".($data['stats'] ?? 'not given')
+            ."\nWhat the post shows and says:\n".$data['content']
+            ."\n\nRules for the CET version: no prices, never show customers' faces, names or flight details, never say the directors drive or that it is owner-run, nothing invented (only claims like licensed DBS-checked chauffeurs, flight tracking, meet and greet, fixed price quoted up front, phone answered 24/7, VAT invoices, Mercedes E-Class and V-Class). British English."
+            .' JSON only: {"hook":"what grabs attention in the first 2 seconds","format":"e.g. talking head, POV, before/after, slideshow","topic":"what it is really about","why":"2-3 short sentences on why it worked","cet":{"title":"one line","platform":"tiktok|instagram|facebook|linkedin|gbp","hook":"on-screen text for the first 2 seconds","shot":"what to film, shot by shot","caption":"ready-to-post caption"}}';
+        $out = $ai->completeJson($prompt, 'You are a short-form video strategist. Reply with only valid JSON.', ['max_tokens' => 1500, 'timeout' => 40]);
+        $cet = is_array($out['cet'] ?? null) ? $out['cet'] : null;
+        if (! $cet || empty($cet['title'])) {
+            return back()->withInput()->with('status', 'Claude did not return a breakdown this time. Try again in a minute.');
+        }
+
+        $post = SocialPost::create([
+            'platform' => isset(SocialPost::PLATFORMS[$cet['platform'] ?? '']) ? $cet['platform'] : ($data['source_platform'] ?? 'tiktok'),
+            'status' => 'idea',
+            'title' => mb_substr('CET version: '.$cet['title'], 0, 160),
+            'caption' => trim('Hook: '.($cet['hook'] ?? '')."\n\n".($cet['caption'] ?? '')),
+            'media_note' => mb_substr((string) ($cet['shot'] ?? ''), 0, 2000) ?: null,
+            'notes' => mb_substr(implode("\n", array_filter([
+                'Learned from: '.($data['link'] ?? 'a pasted post').($data['stats'] ? ' ('.$data['stats'].')' : ''),
+                'Hook: '.($out['hook'] ?? '?'),
+                'Format: '.($out['format'] ?? '?'),
+                'Topic: '.($out['topic'] ?? '?'),
+                'Why it worked: '.($out['why'] ?? '?'),
+            ])), 0, 2000),
+        ]);
+
+        return redirect()->route('social.posts.edit', $post)->with('status', 'Broken down and saved to the ideas bank. The breakdown is in Notes.');
     }
 
     private function validated(Request $request): array

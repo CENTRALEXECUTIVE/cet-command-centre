@@ -318,6 +318,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **18 Nov 2026 (eve)** — Social: the full prepared plan (plan-2026-11-10.json, 31 posts never posted) loads into the
+  Command Centre on deploy (migration 2026_11_18_000004), moved to start Thu 19 Nov (same times), + wedding Reel
+  (Sat 28 Nov) + 20 ideas incl. 7 "answer a common complaint" Reels. Starter button now loads this set. New
+  Planner tool "Learn from a post that did well": paste a viral post, Claude breaks down hook/format/topic and
+  writes a CET version to the ideas bank (no scraping/logins). Directors' 2nd TikTok (Agent Reach scraper):
+  NOT installed: logs into LinkedIn/IG with account cookies, against their rules, could get CET accounts banned.
 - **18 Nov 2026 (pm)** — Social Media Command Centre (/social, sidebar Marketing → 📱 Social media), modelled on the
   directors' TikTok reference: Overview (followers per platform from the shared growth log, views by week, posting
   consistency gauge vs weekly goal (default 10), best day, top 5, coming up, notes), Planner (week grid + ideas bank +

@@ -193,7 +193,7 @@ class SocialStarterPack
     }
 
     /** The rest of the 20 ready ideas from the bookings plan. */
-    private function ideas(): array
+    public function ideas(): array
     {
         return [
             ['Meet and greet board at arrivals (sample name board, 5s clip)', 'instagram', 'airport'],

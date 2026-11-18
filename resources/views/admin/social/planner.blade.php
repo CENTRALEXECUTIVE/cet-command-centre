@@ -65,4 +65,23 @@
             @endunless
         </div>
     </div>
+    <div class="card sc-card" style="margin-top:14px" id="learn">
+        <h2>Learn from a post that did well</h2>
+        <p class="sc-sub">Seen a competitor's (or anyone's) post go viral? Paste what it showed and said. Claude breaks down the hook, format and topic, and writes a CET version for the ideas bank. Nothing is scraped and no logins are used.</p>
+        @if($aiReady)
+            <form method="POST" action="{{ route('social.breakdown') }}" class="sc-form">@csrf
+                <div class="sc-nums">
+                    <div class="field"><label for="bd-platform">Platform</label>
+                        <select id="bd-platform" name="source_platform"><option value="">—</option>@foreach(SocialPost::PLATFORMS as $k => $l)<option value="{{ $k }}" @selected(old('source_platform') === $k)>{{ $l }}</option>@endforeach</select></div>
+                    <div class="field"><label for="bd-link">Link (optional)</label><input id="bd-link" type="url" name="link" maxlength="500" value="{{ old('link') }}" placeholder="https://"></div>
+                    <div class="field"><label for="bd-stats">Its numbers (optional)</label><input id="bd-stats" name="stats" maxlength="200" value="{{ old('stats') }}" placeholder="e.g. 120K views, 4K likes"></div>
+                </div>
+                <div class="field" style="margin-top:10px"><label for="bd-content">What it shows and says</label>
+                    <textarea id="bd-content" name="content" required minlength="10" maxlength="4000" placeholder="e.g. Opens on a driver holding a name board: 'POV: your flight landed 2 hours late'. Cuts to the driver still waiting, smiling. Caption: ...">{{ old('content') }}</textarea></div>
+                <button class="btn btn-primary">Break it down</button>
+            </form>
+        @else
+            <p class="muted" style="margin:0">Claude isn't connected on this server (no AI key set).</p>
+        @endif
+    </div>
 @endsection
