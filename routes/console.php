@@ -14,6 +14,11 @@ Artisan::command('inspire', function () {
 Schedule::command('cet:heartbeat')->everyMinute();
 // Approved outreach emails spaced a few minutes apart (/outreach/batch → "one every 5 minutes").
 Schedule::command('cet:outreach-send-queued')->everyMinute()->withoutOverlapping(5);
+// Daily outreach on autopilot: weekdays from 09:00 UK, the day's batch 5 min apart
+// (directors, 18 Nov 2026). Re-checked every 10 min until 11:00 in case cron was late;
+// does nothing once anything is sent or queued that day.
+Schedule::command('cet:outreach-auto-queue')->weekdays()->everyTenMinutes()->between('09:00', '11:00')
+    ->timezone('Europe/London')->withoutOverlapping(10);
 
 // Deliver due WhatsApp reminders (24h / 2h before pickup).
 //

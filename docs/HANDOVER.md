@@ -318,6 +318,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **18 Nov 2026** — Outreach on AUTOPILOT (directors: "I don't have to always say"): cet:outreach-auto-queue runs
+  weekdays 09:00–11:00 UK every 10 min, queues the day's batch 5 min apart (same rules: limit, businesses first,
+  DNC/no-MX skipped), once per day. Off switch: Setting outreach_auto_send=0. Today's batch queued from 13:20.
+  Still check the inbox for bounces/replies.
 - **17 Nov 2026 (eve)** — Set-off nudge: with an office-set lead time it fires at lead time + 15 min
   (StatusWatchdog::setOffNudgeAt), unless live flight data shows an earlier landing (then the flight-based time).
   No lead time = smart estimate as before. Getting-ready prompt still at the lead time; urgent at pickup−10.

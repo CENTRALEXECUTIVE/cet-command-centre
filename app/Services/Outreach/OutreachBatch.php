@@ -256,6 +256,64 @@ class OutreachBatch
         return $result;
     }
 
+    /** Setting: queue the daily batch automatically each weekday (directors, 18 Nov 2026). */
+    public const AUTO_KEY = 'outreach_auto_send';
+
+    public static function autoSendEnabled(): bool
+    {
+        return (bool) \App\Models\Setting::get(self::AUTO_KEY, true);
+    }
+
+    /**
+     * Queue today's batch automatically, 5 min apart, from $startAt (or now if later).
+     * Same rules as an approved batch: weekdays only, daily limit, businesses first,
+     * do-not-contact skipped, and any domain with no mail server skipped. Does nothing
+     * if anything was already sent or queued today. Returns how many were queued.
+     */
+    public function autoQueueToday(?Carbon $startAt = null, int $minutes = 5): int
+    {
+        $tz = config('app.timezone', 'Europe/London');
+        $now = Carbon::now($tz);
+        if (self::isWeekend($now) || $this->sentToday() > 0 || $this->queued()) {
+            return 0;
+        }
+        $approver = User::where('is_super_admin', true)->where('name', 'like', 'Abdi%')->first()
+            ?? User::where('is_super_admin', true)->orderBy('id')->first();
+        if (! $approver) {
+            return 0;
+        }
+
+        $at = ($startAt ?? $now)->copy()->timezone($tz);
+        if ($at->lt($now)) {
+            $at = $now->copy()->addMinute()->startOfMinute();
+        }
+        $q = [];
+        foreach ($this->candidates() as $p) {
+            if ($p->isDoNotContact() || ! $p->nextSend() || ! $p->contact_email) {
+                continue;
+            }
+            $domain = substr((string) strrchr((string) $p->contact_email, '@'), 1);
+            try {
+                $hasMail = $domain && (checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A'));
+            } catch (\Throwable) {
+                $hasMail = true;
+            }
+            if (! $hasMail) {
+                $p->log('note', "Skipped from the {$now->format('j M')} batch: {$domain} has no mail server.");
+
+                continue;
+            }
+            $q[] = ['id' => $p->id, 'at' => $at->copy()->utc()->toIso8601String(), 'approver' => $approver->id, 'status' => $p->status];
+            $p->log('note', 'Queued for '.$at->format('H:i').' on '.$now->format('j M').' (daily auto-send, approved by the directors).');
+            $at->addMinutes($minutes);
+        }
+        if ($q) {
+            $this->saveQueue($q);
+        }
+
+        return count($q);
+    }
+
     /** Send any queued emails whose time has come (run every minute). */
     public function sendDue(): array
     {

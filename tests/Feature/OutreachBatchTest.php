@@ -26,6 +26,36 @@ class OutreachBatchTest extends TestCase
         ]);
     }
 
+    public function test_daily_autopilot_queues_once_from_9am_weekdays_only(): void
+    {
+        // 18 Nov 2026: the directors want the daily batch to go without asking each day.
+        config(['outreach.batch.daily_limit' => 3]);
+        User::factory()->admin()->create(['name' => 'Abdi', 'is_super_admin' => true]);
+        foreach ([1, 2, 3] as $i) {
+            $this->prospect(['contact_email' => "p{$i}@example.com", 'fit_score' => 4]);
+        }
+        $batch = app(\App\Services\Outreach\OutreachBatch::class);
+
+        $this->travelTo(Carbon::parse('2026-11-21 09:00', 'Europe/London')); // Saturday
+        $this->artisan('cet:outreach-auto-queue')->assertSuccessful();
+        $this->assertSame([], $batch->queued());
+
+        $this->travelTo(Carbon::parse('2026-11-23 09:00', 'Europe/London')); // Monday
+        $this->artisan('cet:outreach-auto-queue')->assertSuccessful();
+        $q = $batch->queued();
+        $this->assertCount(3, $q);
+        $this->assertSame(5, (int) Carbon::parse($q[0]['at'])->diffInMinutes(Carbon::parse($q[1]['at'])));
+
+        $this->artisan('cet:outreach-auto-queue')->assertSuccessful(); // a second run changes nothing
+        $this->assertCount(3, $batch->queued());
+
+        // The off switch.
+        \App\Models\Setting::set(\App\Services\Outreach\OutreachBatch::AUTO_KEY, '0');
+        \App\Models\Setting::set(\App\Services\Outreach\OutreachBatch::QUEUE_KEY, [], 'json', 'outreach');
+        $this->artisan('cet:outreach-auto-queue')->assertSuccessful();
+        $this->assertSame([], $batch->queued());
+    }
+
     public function test_new_emails_go_to_businesses_first_with_at_most_one_partner_a_day(): void
     {
         $this->travelTo(Carbon::parse('2026-11-12 08:00'));
