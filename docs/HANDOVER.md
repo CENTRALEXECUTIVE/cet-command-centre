@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **18 Nov 2026 (late)** — Courtyard by Marriott Sheffield night photos → photo Reel + 4-photo carousel, plates
+  blurred (docs/growth/data/video/2026-11-18-courtyard, not in git). Planned as Ready: Reel Mon 23 Nov 19:00
+  (TikTok/IG/FB), carousel Tue 24 Nov 19:30 (IG/FB) — migration 2026_11_18_000005. No hotel partnership implied.
 - **18 Nov 2026 (eve)** — Social: the full prepared plan (plan-2026-11-10.json, 31 posts never posted) loads into the
   Command Centre on deploy (migration 2026_11_18_000004), moved to start Thu 19 Nov (same times), + wedding Reel
   (Sat 28 Nov) + 20 ideas incl. 7 "answer a common complaint" Reels. Starter button now loads this set. New
