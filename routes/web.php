@@ -493,6 +493,23 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             ->middleware('throttle:12,1')->name('marketing.growth.export');
         Route::post('marketing/growth/social', [\App\Http\Controllers\Admin\GrowthController::class, 'saveSocial'])
             ->middleware('throttle:30,1')->name('marketing.growth.social');
+        // Social Media Command Centre: overview, platforms, posts + audit, planner, ideas.
+        Route::prefix('social')->name('social.')->controller(\App\Http\Controllers\Admin\SocialController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('planner', 'planner')->name('planner');
+            Route::get('posts', 'posts')->name('posts');
+            Route::get('posts/new', 'create')->name('posts.create');
+            Route::post('posts', 'store')->middleware('throttle:60,1')->name('posts.store');
+            Route::get('posts/{post}', 'edit')->name('posts.edit');
+            Route::put('posts/{post}', 'update')->middleware('throttle:60,1')->name('posts.update');
+            Route::post('posts/{post}/posted', 'markPosted')->middleware('throttle:60,1')->name('posts.posted');
+            Route::delete('posts/{post}', 'destroy')->middleware('throttle:30,1')->name('posts.destroy');
+            Route::post('starter', 'loadStarter')->middleware('throttle:5,1')->name('starter');
+            Route::post('settings', 'saveSettings')->middleware('throttle:30,1')->name('settings');
+            Route::post('followers', 'saveFollowers')->middleware('throttle:30,1')->name('followers');
+            Route::post('ideas', 'ideas')->middleware('throttle:6,1')->name('ideas');
+            Route::get('platform/{platform}', 'platform')->name('platform');
+        });
         Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
         Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');
         Route::post('marketing/keywords/import', [MarketingController::class, 'importKeywords'])->middleware('throttle:20,1')->name('marketing.keywords.import');

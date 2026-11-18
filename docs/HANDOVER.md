@@ -318,6 +318,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **18 Nov 2026 (pm)** — Social Media Command Centre (/social, sidebar Marketing → 📱 Social media), modelled on the
+  directors' TikTok reference: Overview (followers per platform from the shared growth log, views by week, posting
+  consistency gauge vs weekly goal (default 10), best day, top 5, coming up, notes), Planner (week grid + ideas bank +
+  "Suggest 6 ideas" via Claude), Posts (search/filter/sort, vs-average), per-platform tabs (what's working), post page
+  (copy caption, ✓ Posted, numbers, Audit vs platform average). One-tap 2-week starter plan from the 3 ready Reels.
+  Nothing posts anywhere: numbers typed from each app's insights (free, no APIs). New table social_posts (migration).
 - **18 Nov 2026** — Outreach on AUTOPILOT (directors: "I don't have to always say"): cet:outreach-auto-queue runs
   weekdays 09:00–11:00 UK every 10 min, queues the day's batch 5 min apart (same rules: limit, businesses first,
   DNC/no-MX skipped), once per day. Off switch: Setting outreach_auto_send=0. Today's batch queued from 13:20.

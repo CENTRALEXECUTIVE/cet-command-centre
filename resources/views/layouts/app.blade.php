@@ -71,7 +71,7 @@
             @if($u->isAdmin())
                 @php
                     $inSales = request()->routeIs('enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'cover-invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*', 'outreach.*');
-                    $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*');
+                    $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*', 'social.*');
                     $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'route-order.*', 'fleet-photos.*', 'driver.documents*');
                     $inAdmin = request()->routeIs('imports.*', 'audit.*', 'users.*', 'settings.*', 'gdpr.*');
                 @endphp
@@ -92,6 +92,7 @@
                 <details class="nav-fold" @if($inMarketing) open @endif>
                     <summary>Marketing &amp; reports</summary>
                     <a href="{{ route('marketing.growth') }}" class="{{ request()->routeIs('marketing.growth*') ? 'active' : '' }}">📈 Growth dashboard</a>
+                    <a href="{{ route('social.index') }}" class="{{ request()->routeIs('social.*') ? 'active' : '' }}">📱 Social media</a>
                     <a href="{{ route('marketing.studio') }}" class="{{ request()->routeIs('marketing.studio*') ? 'active' : '' }}">🎨 Marketing Studio</a>
                     <a href="{{ route('review.index') }}" class="{{ request()->routeIs('review.*') || request()->routeIs('reports.business') ? 'active' : '' }}">Review</a>
                     <a href="{{ route('marketing.ads') }}" class="{{ request()->routeIs('marketing.ads') ? 'active' : '' }}">Google Ads</a>
