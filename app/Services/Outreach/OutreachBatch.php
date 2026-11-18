@@ -267,7 +267,7 @@ class OutreachBatch
     /**
      * Queue today's batch automatically, 5 min apart, from $startAt (or now if later).
      * Same rules as an approved batch: weekdays only, daily limit, businesses first,
-     * do-not-contact skipped, and any domain with no mail server skipped. Does nothing
+     * do-not-contact skipped. Does nothing
      * if anything was already sent or queued today. Returns how many were queued.
      */
     public function autoQueueToday(?Carbon $startAt = null, int $minutes = 5): int
@@ -292,17 +292,9 @@ class OutreachBatch
             if ($p->isDoNotContact() || ! $p->nextSend() || ! $p->contact_email) {
                 continue;
             }
-            $domain = substr((string) strrchr((string) $p->contact_email, '@'), 1);
-            try {
-                $hasMail = $domain && (checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A'));
-            } catch (\Throwable) {
-                $hasMail = true;
-            }
-            if (! $hasMail) {
-                $p->log('note', "Skipped from the {$now->format('j M')} batch: {$domain} has no mail server.");
-
-                continue;
-            }
+            // No DNS "has a mail server" check here: the host's resolver gave false
+            // "no mail server" answers (18 Nov 2026: 4 good addresses skipped). A real
+            // bad address bounces once and is put on hold — that's the safety net.
             $q[] = ['id' => $p->id, 'at' => $at->copy()->utc()->toIso8601String(), 'approver' => $approver->id, 'status' => $p->status];
             $p->log('note', 'Queued for '.$at->format('H:i').' on '.$now->format('j M').' (daily auto-send, approved by the directors).');
             $at->addMinutes($minutes);
