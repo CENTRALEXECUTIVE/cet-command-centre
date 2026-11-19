@@ -318,6 +318,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **19 Nov 2026 (eve)** — Social: (1) December plan 2–15 Dec loaded on deploy (migration 2026_11_19_000003,
+  SocialDecemberPlan): 31 posts, all Ready with files (resources/social-media/d01–d15): 4 new photo-slideshow Reels
+  (Christmas airport runs, night out, winter weddings, which car), 2 carousels (party night, NYE ride home),
+  2 stories x WhatsApp/IG/FB, LinkedIn cards, GBP photos. (2) Meta connection (read-only): MetaInsightsService +
+  `cet:social-sync` nightly 03:20 UK — FB/IG followers into growth log, last-60-day post numbers, matches planned
+  posts (marks Posted + link), adds posts made in-app. Connect card on Social → Overview (super-admin; Page ID +
+  Page token in Settings, token never shown). Setup steps: docs/growth/social/meta-connect.md. Not connected yet.
 - **19 Nov 2026 (pm)** — Social: EVERY planned post now carries its finished photos/video in the Command Centre
   (post page: gallery + ⬇ Download per file; planner shows thumbnails) and is marked Ready. Files ship in
   `resources/social-media/` (25 MB, committed deliberately: finished exports only, real CET photos + CET text

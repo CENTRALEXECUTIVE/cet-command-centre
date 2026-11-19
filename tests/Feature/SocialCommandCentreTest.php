@@ -268,4 +268,19 @@ class SocialCommandCentreTest extends TestCase
         $this->actingAs($admin)->delete(route('social.posts.media.remove', [$post, 0]))->assertRedirect();
         $this->assertSame([], $post->fresh()->media);
     }
+
+    public function test_december_plan_loads_once_with_files_and_house_rules(): void
+    {
+        $n = app(\App\Services\Social\SocialDecemberPlan::class)->load();
+        $this->assertSame(31, $n);
+        $this->assertSame(0, app(\App\Services\Social\SocialDecemberPlan::class)->load());
+        $posts = SocialPost::all();
+        $this->assertTrue($posts->every(fn ($p) => $p->status === 'ready' && count($p->mediaKeys()) > 0));
+        $this->assertSame('2026-12-02 19:00', $posts->sortBy('scheduled_at')->first()->scheduled_at->format('Y-m-d H:i'));
+        $this->assertTrue($posts->max('scheduled_at')->lt(Carbon::parse('2026-12-16')));
+        $this->assertSame(6, $posts->where('format', 'Story')->count());
+        foreach ($posts as $p) {
+            $this->assertDoesNotMatchRegularExpression('/£\s?\d|owner-run|directors drive/i', (string) $p->caption);
+        }
+    }
 }

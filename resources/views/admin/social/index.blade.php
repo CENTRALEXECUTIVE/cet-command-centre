@@ -202,4 +202,25 @@
             <p class="sc-sub" style="margin:10px 0 0">Bookings that came from social show in <a href="{{ route('reports.sources') }}">Bookings by source</a>.</p>
         </div>
     </div>
+    <div class="card sc-card" style="margin-top:14px" id="meta">
+        <h2>Facebook &amp; Instagram numbers {{ $metaConnected ? '· connected' : '· not connected' }}</h2>
+        @if($metaConnected)
+            <p class="sc-sub">Followers and every post's views, likes, comments, shares and saves update every night (read-only: nothing is ever posted from here).
+                @if($metaLastSync) Last update {{ \Illuminate\Support\Carbon::parse($metaLastSync)->timezone(config('app.timezone'))->format('D j M, H:i') }}.@endif</p>
+            <form method="POST" action="{{ route('social.meta.sync') }}" class="sc-inline">@csrf<button class="btn btn-ghost">Sync now</button></form>
+        @else
+            <p class="sc-sub">Connect once and the numbers fill themselves in. Free, read-only. Steps: docs/growth/social/meta-connect.md (Claude can walk you through it).</p>
+        @endif
+        @if(auth()->user()->isSuperAdmin())
+            <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">{{ $metaConnected ? 'Change connection' : 'Connect' }}</summary>
+                <form method="POST" action="{{ route('social.meta.save') }}" class="sc-form" style="margin-top:10px">@csrf
+                    <div class="sc-nums">
+                        <div class="field"><label for="meta-page">Facebook Page ID</label><input id="meta-page" name="page_id" inputmode="numeric" required value="{{ $metaPageId }}"></div>
+                        <div class="field"><label for="meta-token">Page access token</label><input id="meta-token" name="token" type="password" autocomplete="off" placeholder="{{ $metaConnected ? 'Saved (leave blank to keep)' : 'Paste the token' }}"></div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:10px">Save and test</button>
+                </form>
+            </details>
+        @endif
+    </div>
 @endsection

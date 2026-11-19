@@ -50,6 +50,8 @@ Schedule::command('cet:backup-database')->hourly()->withoutOverlapping(30)
 
 // GDPR: prune GPS pings past the retention window, daily.
 Schedule::command('cet:prune-gps')->dailyAt('03:00');
+// Social Media Command Centre: Facebook/Instagram numbers (read-only, no-op until connected).
+Schedule::command('cet:social-sync')->dailyAt('03:20')->timezone('Europe/London')->withoutOverlapping(30);
 
 // Fleet & driver compliance: sync dates and send renewal reminders, daily.
 Schedule::command('cet:check-compliance')->dailyAt('08:00');

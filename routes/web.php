@@ -510,6 +510,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             Route::post('ideas', 'ideas')->middleware('throttle:6,1')->name('ideas');
             Route::post('breakdown', 'breakdown')->middleware('throttle:10,1')->name('breakdown');
             Route::get('platform/{platform}', 'platform')->name('platform');
+            Route::post('meta', 'saveMeta')->middleware('throttle:10,1')->name('meta.save');
+            Route::post('meta/sync', 'syncMeta')->middleware('throttle:4,1')->name('meta.sync');
             Route::get('media/{post}/{index}', 'media')->whereNumber('index')->name('media');
             Route::post('posts/{post}/media', 'uploadMedia')->middleware('throttle:30,1')->name('posts.media.upload');
             Route::delete('posts/{post}/media/{index}', 'removeMedia')->whereNumber('index')->middleware('throttle:30,1')->name('posts.media.remove');

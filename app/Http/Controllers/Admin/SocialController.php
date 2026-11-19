@@ -42,6 +42,9 @@ class SocialController extends Controller
             'notes' => (string) Setting::get('social_notes', ''),
             'starterLoaded' => app(SocialStarterPack::class)->alreadyLoaded(),
             'anyPosts' => SocialPost::exists(),
+            'metaConnected' => app(\App\Services\Social\MetaInsightsService::class)->configured(),
+            'metaPageId' => (string) Setting::get(\App\Services\Social\MetaInsightsService::PAGE_ID, ''),
+            'metaLastSync' => Setting::get(\App\Services\Social\MetaInsightsService::LAST_SYNC),
         ]);
     }
 
@@ -176,6 +179,35 @@ class SocialController extends Controller
         ]);
 
         return back()->with('status', 'Marked as posted on '.$post->platformLabel().'. Add its numbers in a day or two.');
+    }
+
+    /** Save the Facebook Page ID / Page access token (blank token keeps the saved one), then test. */
+    public function saveMeta(Request $request, \App\Services\Social\MetaInsightsService $meta): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+        $data = $request->validate([
+            'page_id' => ['required', 'regex:/^\d{5,25}$/'],
+            'token' => ['nullable', 'string', 'max:1000'],
+        ]);
+        Setting::set(\App\Services\Social\MetaInsightsService::PAGE_ID, $data['page_id'], 'string', 'social');
+        if (trim((string) ($data['token'] ?? '')) !== '') {
+            Setting::set(\App\Services\Social\MetaInsightsService::TOKEN, trim($data['token']), 'string', 'social');
+        }
+        $t = $meta->test();
+
+        return back()->with('status', $t['ok']
+            ? 'Connected to '.$t['page'].($t['instagram'] ? ' and Instagram @'.$t['instagram'] : ' (no Instagram business account linked to this Page yet)').'. Numbers update every night, or tap Sync now.'
+            : 'Not connected: '.$t['error']);
+    }
+
+    public function syncMeta(Request $request, \App\Services\Social\MetaInsightsService $meta): RedirectResponse
+    {
+        $this->admin($request);
+        $r = $meta->sync();
+
+        return back()->with('status', $r['ok']
+            ? "Synced {$r['facebook']} Facebook and {$r['instagram']} Instagram posts".($r['created'] ? " ({$r['created']} added that were posted straight in the app)" : '').'.'
+            : 'Sync failed: '.($r['error'] ?? 'unknown'));
     }
 
     /** Stream (or with ?dl=1 download) one of a post's photos/videos. Admin only. */
