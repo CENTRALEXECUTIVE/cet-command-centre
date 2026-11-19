@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **19 Nov 2026 (late)** — Directors chose photo filter **B · Warm premium** (removes the teal cast, warmer light,
+  deeper blacks, soft vignette). Re-made every photo post, story, carousel and photo-slideshow Reel in
+  resources/social-media with it (text cards and filmed Reels unchanged). Keep using B for new photos.
 - **19 Nov 2026 (eve)** — Social: (1) December plan 2–15 Dec loaded on deploy (migration 2026_11_19_000003,
   SocialDecemberPlan): 31 posts, all Ready with files (resources/social-media/d01–d15): 4 new photo-slideshow Reels
   (Christmas airport runs, night out, winter weddings, which car), 2 carousels (party night, NYE ride home),
