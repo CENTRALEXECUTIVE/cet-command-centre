@@ -510,6 +510,9 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             Route::post('ideas', 'ideas')->middleware('throttle:6,1')->name('ideas');
             Route::post('breakdown', 'breakdown')->middleware('throttle:10,1')->name('breakdown');
             Route::get('platform/{platform}', 'platform')->name('platform');
+            Route::get('media/{post}/{index}', 'media')->whereNumber('index')->name('media');
+            Route::post('posts/{post}/media', 'uploadMedia')->middleware('throttle:30,1')->name('posts.media.upload');
+            Route::delete('posts/{post}/media/{index}', 'removeMedia')->whereNumber('index')->middleware('throttle:30,1')->name('posts.media.remove');
         });
         Route::get('marketing/keywords', [MarketingController::class, 'keywords'])->name('marketing.keywords');
         Route::post('marketing/keywords', [MarketingController::class, 'storeKeyword'])->name('marketing.keywords.store');

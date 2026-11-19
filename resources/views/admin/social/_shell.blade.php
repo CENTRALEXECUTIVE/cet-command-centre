@@ -73,6 +73,15 @@
     .sc-post.posted { opacity: .7; }
     .sc-add { font-size: 12px; color: var(--muted); text-decoration: none; margin-top: auto; padding: 4px; text-align: center; border: 1px dashed var(--line); border-radius: 8px; }
     .sc-add:hover { color: inherit; border-color: var(--gold); }
+    .sc-media { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .sc-media figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #0b0b0b; }
+    .sc-media img, .sc-media video { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; background: #000; }
+    .sc-media figcaption { display: flex; gap: 6px; align-items: center; padding: 6px; background: var(--bg, #fff); }
+    .sc-media figcaption span { font-weight: 800; font-size: 12px; color: var(--muted); }
+    .sc-media figcaption .btn { padding: 6px 8px; min-height: 34px; font-size: 12px; }
+    .sc-media figcaption a.btn { flex: 1; justify-content: center; display: inline-flex; white-space: nowrap; }
+    .sc-thumb { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 6px; display: block; margin: 4px 0; background: #111; }
+    .sc-vid { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin: 4px 0; }
     .sc-audit td, .sc-audit th { padding: 6px 10px; text-align: right; font-variant-numeric: tabular-nums; }
     .sc-audit td:first-child, .sc-audit th:first-child { text-align: left; }
     @media (prefers-color-scheme: dark) {

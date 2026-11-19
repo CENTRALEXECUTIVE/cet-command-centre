@@ -22,6 +22,7 @@
                 @foreach($d['posts'] as $p)
                     <a href="{{ route('social.posts.edit', $p) }}" class="sc-post {{ $p->status === 'posted' ? 'posted' : '' }}" style="--c: {{ $p->colour() }}">
                         <small>{{ $p->when()->format('H:i') }} · {{ $p->platformLabel() }}</small>
+                        @if($img = $p->firstImageKey())<img class="sc-thumb" src="{{ route('social.media', [$p, array_search($img, $p->mediaKeys())]) }}" alt="" loading="lazy">@elseif(count($p->mediaKeys()))<span class="sc-vid">🎬 Video ready</span>@endif
                         <b>{{ $p->title }}</b>
                         <span class="sc-chip sc-st-{{ $p->status }}" style="margin-top:4px">{{ $p->status === 'posted' ? '✓ Posted' : $p->statusLabel() }}</span>
                     </a>

@@ -213,4 +213,59 @@ class SocialCommandCentreTest extends TestCase
         $this->assertStringContainsString('Why it worked: Relatable fear', $idea->notes);
         $this->assertStringContainsString('120K views', $idea->notes);
     }
+
+    public function test_media_library_attaches_files_marks_ready_and_adds_stories(): void
+    {
+        app(\App\Services\Social\SocialPlanImport::class)->load();
+        SocialPost::create(['platform' => 'instagram', 'status' => 'ready', 'format' => 'Carousel', 'title' => 'Night pickup at Courtyard by Marriott Sheffield (carousel)']);
+        $res = app(\App\Services\Social\SocialMediaLibrary::class)->apply();
+
+        $this->assertGreaterThan(30, $res['attached']);
+        $this->assertSame(18, $res['stories']); // 6 stories x WhatsApp/Instagram/Facebook
+        // Every planned post from the plan now has its files and is Ready.
+        $this->assertSame(0, SocialPost::whereIn('status', ['planned', 'ready'])->whereNull('media')->count());
+        $carousel = SocialPost::where('title', 'Which car for which trip (7 slides)')->first();
+        $this->assertCount(7, $carousel->mediaKeys());
+        $this->assertSame('ready', $carousel->status);
+        $this->assertStringNotContainsString('Illustrative image', SocialPost::where('title', 'Sheffield winter evening')->first()->caption);
+        $this->assertSame(6, SocialPost::where('platform', 'whatsapp')->count());
+        // Running again changes nothing.
+        $this->assertSame(['attached' => 0, 'stories' => 0], app(\App\Services\Social\SocialMediaLibrary::class)->apply());
+
+        // Admins can view and download; drivers can't; bad index is 404.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('social.media', [$carousel, 1]))->assertOk();
+        $this->actingAs($admin)->get(route('social.media', [$carousel, 1]).'?dl=1')->assertOk()->assertDownload();
+        $this->actingAs($admin)->get(route('social.media', [$carousel, 99]))->assertNotFound();
+        $this->actingAs(User::factory()->create())->get(route('social.media', [$carousel, 1]))->assertForbidden();
+        $this->actingAs($admin)->get(route('social.posts.edit', $carousel))->assertOk()->assertSee('Photos &amp; video (7)', false);
+        $this->actingAs($admin)->get(route('social.planner', ['week' => '2026-11-16']))->assertOk()->assertSee('sc-thumb');
+    }
+
+    public function test_media_keys_cannot_escape_the_folders(): void
+    {
+        $this->assertNull(SocialPost::mediaPath('lib:../../.env'));
+        $this->assertNull(SocialPost::mediaPath('lib:p01/../../../.env.jpg'));
+        $this->assertNull(SocialPost::mediaPath('file:/etc/passwd'));
+        $this->assertNotNull(SocialPost::mediaPath('lib:p01/1.jpg'));
+    }
+
+    public function test_office_can_upload_and_remove_their_own_photo(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $admin = User::factory()->admin()->create();
+        $post = SocialPost::create(['platform' => 'instagram', 'status' => 'planned', 'title' => 'Own photo']);
+        $this->actingAs($admin)->post(route('social.posts.media.upload', $post), [
+            'files' => [\Illuminate\Http\UploadedFile::fake()->image('car.jpg', 1080, 1350)],
+        ])->assertRedirect();
+        $post->refresh();
+        $this->assertCount(1, $post->media);
+        $this->assertStringStartsWith('up:'.$post->id.'/', $post->media[0]);
+        // A non-image is refused.
+        $this->actingAs($admin)->post(route('social.posts.media.upload', $post), [
+            'files' => [\Illuminate\Http\UploadedFile::fake()->create('x.php', 1, 'text/x-php')],
+        ])->assertSessionHasErrors();
+        $this->actingAs($admin)->delete(route('social.posts.media.remove', [$post, 0]))->assertRedirect();
+        $this->assertSame([], $post->fresh()->media);
+    }
 }

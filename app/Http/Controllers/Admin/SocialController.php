@@ -54,7 +54,8 @@ class SocialController extends Controller
             'platform' => $platform,
             'label' => SocialPost::PLATFORMS[$platform],
             'summary' => $this->scc->summary($platform),
-            'followers' => $this->scc->followers()[$platform],
+            'followers' => $this->scc->followers()[$platform]
+                ?? ['label' => SocialPost::PLATFORMS[$platform], 'now' => null, 'change' => null, 'unit' => 'contacts'],
             'bestDay' => $this->scc->bestDay($platform),
             'top' => $this->scc->topPosts(5, $platform),
             'working' => $this->scc->working($platform),
@@ -175,6 +176,56 @@ class SocialController extends Controller
         ]);
 
         return back()->with('status', 'Marked as posted on '.$post->platformLabel().'. Add its numbers in a day or two.');
+    }
+
+    /** Stream (or with ?dl=1 download) one of a post's photos/videos. Admin only. */
+    public function media(Request $request, SocialPost $post, int $index)
+    {
+        $this->admin($request);
+        $key = $post->mediaKeys()[$index] ?? null;
+        $path = $key ? SocialPost::mediaPath($key) : null;
+        abort_unless($path, 404);
+        $name = \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($post->title, 40, '')).'-'.($index + 1).'.'.pathinfo($path, PATHINFO_EXTENSION);
+
+        return $request->boolean('dl')
+            ? response()->download($path, $name)
+            : response()->file($path, ['Cache-Control' => 'private, max-age=86400']);
+    }
+
+    /** Add the office's own photos/videos to a post. */
+    public function uploadMedia(Request $request, SocialPost $post): RedirectResponse
+    {
+        $this->admin($request);
+        $request->validate([
+            'files' => ['required', 'array', 'max:10'],
+            'files.*' => ['file', 'mimes:jpg,jpeg,png,webp,mp4,mov', 'max:102400'],
+        ]);
+        $media = $post->mediaKeys();
+        foreach ($request->file('files') as $file) {
+            $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension());
+            $name = \Illuminate\Support\Str::random(16).'.'.($ext === 'jpeg' ? 'jpg' : $ext);
+            $file->storeAs(SocialPost::UPLOAD_DIR.'/'.$post->id, $name, 'local');
+            $media[] = 'up:'.$post->id.'/'.$name;
+        }
+        $post->update(['media' => $media]);
+
+        return back()->with('status', 'Added '.count($request->file('files')).' file(s).');
+    }
+
+    /** Take a file off a post (an uploaded file is deleted; a library file is just unlinked). */
+    public function removeMedia(Request $request, SocialPost $post, int $index): RedirectResponse
+    {
+        $this->admin($request);
+        $media = $post->mediaKeys();
+        abort_unless(isset($media[$index]), 404);
+        $key = $media[$index];
+        if (str_starts_with($key, 'up:') && ($path = SocialPost::mediaPath($key))) {
+            @unlink($path);
+        }
+        array_splice($media, $index, 1);
+        $post->update(['media' => $media]);
+
+        return back()->with('status', 'Removed.');
     }
 
     public function destroy(Request $request, SocialPost $post): RedirectResponse

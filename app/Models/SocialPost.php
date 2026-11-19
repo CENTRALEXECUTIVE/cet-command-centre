@@ -15,6 +15,7 @@ class SocialPost extends Model
         'facebook' => 'Facebook',
         'linkedin' => 'LinkedIn',
         'gbp' => 'Google Business',
+        'whatsapp' => 'WhatsApp Status',
     ];
 
     /** Chart / dot colour per platform. */
@@ -24,6 +25,7 @@ class SocialPost extends Model
         'facebook' => '#4f6bff',
         'linkedin' => '#0a66c2',
         'gbp' => '#2f9e44',
+        'whatsapp' => '#25d366',
     ];
 
     public const STATUSES = [
@@ -49,12 +51,13 @@ class SocialPost extends Model
     public const METRICS = ['views', 'likes', 'comments', 'shares', 'saves', 'follows', 'enquiries'];
 
     protected $fillable = [
-        'platform', 'status', 'format', 'pillar', 'title', 'caption', 'hashtags', 'media_note',
+        'platform', 'status', 'format', 'pillar', 'title', 'caption', 'hashtags', 'media_note', 'media',
         'scheduled_at', 'posted_at', 'url', 'views', 'likes', 'comments', 'shares', 'saves',
         'follows', 'enquiries', 'notes',
     ];
 
     protected $casts = [
+        'media' => 'array',
         'scheduled_at' => 'datetime',
         'posted_at' => 'datetime',
         'views' => 'integer',
@@ -119,5 +122,49 @@ class SocialPost extends Model
     public function copyText(): string
     {
         return trim(trim((string) $this->caption)."\n\n".trim((string) $this->hashtags));
+    }
+
+    /*
+     * Media: a list of keys. "lib:p10/2.jpg" = a finished file shipped with the app
+     * (resources/social-media, privacy-checked, plates blurred); "up:12/x.jpg" = a
+     * file the office uploaded (storage/app/social-uploads). Served admin-only.
+     */
+    public const LIBRARY_DIR = 'social-media';
+
+    public const UPLOAD_DIR = 'social-uploads';
+
+    /** Absolute path for a media key, or null when it's invalid or missing. */
+    public static function mediaPath(string $key): ?string
+    {
+        if (! preg_match('#^(lib|up):([A-Za-z0-9_\-/]+\.(jpe?g|png|webp|mp4|mov))$#i', $key, $m)
+            || str_contains($m[2], '..')) {
+            return null;
+        }
+        $base = $m[1] === 'lib' ? resource_path(self::LIBRARY_DIR) : \Illuminate\Support\Facades\Storage::disk('local')->path(self::UPLOAD_DIR);
+        $path = $base.'/'.$m[2];
+
+        return is_file($path) ? $path : null;
+    }
+
+    public static function isVideoKey(string $key): bool
+    {
+        return (bool) preg_match('/\.(mp4|mov)$/i', $key);
+    }
+
+    /** @return list<string> media keys that exist on disk */
+    public function mediaKeys(): array
+    {
+        return array_values(array_filter((array) ($this->media ?? []), fn ($k) => is_string($k) && self::mediaPath($k)));
+    }
+
+    public function firstImageKey(): ?string
+    {
+        foreach ($this->mediaKeys() as $k) {
+            if (! self::isVideoKey($k)) {
+                return $k;
+            }
+        }
+
+        return null;
     }
 }

@@ -318,6 +318,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **19 Nov 2026 (pm)** — Social: EVERY planned post now carries its finished photos/video in the Command Centre
+  (post page: gallery + ⬇ Download per file; planner shows thumbnails) and is marked Ready. Files ship in
+  `resources/social-media/` (25 MB, committed deliberately: finished exports only, real CET photos + CET text
+  graphics, plates blurred, no customers; never raw footage). Office can upload their own files per post
+  (stored storage/app/private/social-uploads, admin-only route social.media). New platform "WhatsApp Status";
+  6 stories x WhatsApp/IG/FB planned 20–25 Nov. Migrations 2026_11_19_000001 (media column) + 000002
+  (SocialMediaLibrary::apply). Sheffield-evening post now a real photo (dropped "Illustrative image").
 - **19 Nov 2026** — Postcodes + airport fence. (1) Web bookings: a pickup/drop-off with no postcode (Google's
   autocomplete text omits it, e.g. "19 High View, Sheffield, UK", CET-6CFDDC) now gets it from Google on save
   (after pricing, so the price never changes; airports skipped) — GeocodingService::postcode (cached 30 days,

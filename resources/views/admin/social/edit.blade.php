@@ -72,6 +72,34 @@
 
         <div style="display:flex;flex-direction:column;gap:14px">
             @if($post->exists)
+                @php $keys = $post->mediaKeys(); @endphp
+                <div class="card sc-card" id="media">
+                    <h2>Photos &amp; video ({{ count($keys) }})</h2>
+                    <p class="sc-sub">{{ count($keys) ? 'Download on your phone, then post in '.$post->platformLabel().(count($keys) > 1 ? ' in this order.' : '.') : 'No files yet. Add your own below.' }}</p>
+                    @if(count($keys))
+                        <div class="sc-media">
+                            @foreach($keys as $i => $k)
+                                <figure>
+                                    @if(\App\Models\SocialPost::isVideoKey($k))
+                                        <video src="{{ route('social.media', [$post, $i]) }}" controls playsinline preload="metadata"></video>
+                                    @else
+                                        <a href="{{ route('social.media', [$post, $i]) }}" target="_blank" rel="noopener"><img src="{{ route('social.media', [$post, $i]) }}" alt="{{ $post->title }}, image {{ $i + 1 }}" loading="lazy"></a>
+                                    @endif
+                                    <figcaption>
+                                        <span>{{ $i + 1 }}</span>
+                                        <a class="btn btn-ghost" href="{{ route('social.media', [$post, $i]) }}?dl=1">⬇ Download</a>
+                                        <form method="POST" action="{{ route('social.posts.media.remove', [$post, $i]) }}" class="sc-inline" onsubmit="return confirm('Take this file off the post?')">@csrf @method('DELETE')<button class="btn btn-ghost" aria-label="Remove file {{ $i + 1 }}">✕</button></form>
+                                    </figcaption>
+                                </figure>
+                            @endforeach
+                        </div>
+                    @endif
+                    <form method="POST" action="{{ route('social.posts.media.upload', $post) }}" enctype="multipart/form-data" class="sc-actions" style="margin-top:10px">@csrf
+                        <input type="file" name="files[]" accept="image/*,video/mp4,video/quicktime" multiple aria-label="Add photos or video">
+                        <button class="btn btn-ghost">Add files</button>
+                    </form>
+                </div>
+
                 <div class="card sc-card">
                     <h2>Ready to paste</h2>
                     <p class="sc-sub">Copy, open {{ $post->platformLabel() }}, paste, post. Then tap Posted.</p>
