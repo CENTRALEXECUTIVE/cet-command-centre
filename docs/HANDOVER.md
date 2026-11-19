@@ -323,7 +323,7 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   (after pricing, so the price never changes; airports skipped) — GeocodingService::postcode (cached 30 days,
   5-min back-off when Google fails). (2) Driver screens show Booking::driverAddress(): display address + postcode
   when missing (display only — booking/calendar untouched), so existing jobs get it too. (3) Driver couldn't
-  Complete at Heathrow T5: airport ends now use a 4-mile fence (cet.airport_radius_metres 6437) instead of 1.5 mi;
+  Complete at Heathrow T5: airport ends now use a 2.5-mile fence (cet.airport_radius_metres 4023) instead of 1.5 mi;
   mid-route still blocked. Booking::geofenceRadius().
 - **18 Nov 2026 (late)** — Courtyard by Marriott Sheffield night photos → photo Reel + 4-photo carousel, plates
   blurred (docs/growth/data/video/2026-11-18-courtyard, not in git). Planned as Ready: Reel Mon 23 Nov 19:00

@@ -390,7 +390,7 @@ class Booking extends Model
 
     /**
      * How close the driver must be to an end to mark it. Normally the arrival
-     * radius (1.5 mi); an AIRPORT gets a wider one (default 4 mi) because the
+     * radius (1.5 mi); an AIRPORT gets a wider one (default 2.5 mi) because the
      * address geocodes to one point while terminals sit miles apart — "Heathrow"
      * vs dropping at Terminal 5 (Nov 2026: a driver couldn't complete). Still far
      * too tight to complete mid-route.
@@ -399,7 +399,7 @@ class Booking extends Model
     {
         $radius = (float) config('cet.arrival_radius_metres', 2414);
         if ($address && \App\Support\AirportMatcher::isAirport($address)) {
-            $radius = max($radius, (float) config('cet.airport_radius_metres', 6437));
+            $radius = max($radius, (float) config('cet.airport_radius_metres', 4023));
         }
 
         return $radius;

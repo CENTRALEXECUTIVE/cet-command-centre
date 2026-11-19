@@ -85,7 +85,7 @@ class PostcodeAndAirportFenceTest extends TestCase
             'meta' => ['geo' => ['dropoff' => $centre]],
         ]);
 
-        // ~3.7 km west of the centre (beyond Terminal 5's kerb): OK for the airport only.
+        // ~3.7 km west of the centre (Terminal 5 side): OK for the airport only.
         $t5 = [51.4720, -0.5080];
         $this->assertSame('ok', $airport->checkDriverAtDropoff($t5[0], $t5[1], 10));
         $this->assertSame('far', $home->checkDriverAtDropoff($t5[0], $t5[1], 10));
