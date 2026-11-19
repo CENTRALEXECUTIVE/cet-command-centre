@@ -318,6 +318,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **19 Nov 2026** — Postcodes + airport fence. (1) Web bookings: a pickup/drop-off with no postcode (Google's
+  autocomplete text omits it, e.g. "19 High View, Sheffield, UK", CET-6CFDDC) now gets it from Google on save
+  (after pricing, so the price never changes; airports skipped) — GeocodingService::postcode (cached 30 days,
+  5-min back-off when Google fails). (2) Driver screens show Booking::driverAddress(): display address + postcode
+  when missing (display only — booking/calendar untouched), so existing jobs get it too. (3) Driver couldn't
+  Complete at Heathrow T5: airport ends now use a 4-mile fence (cet.airport_radius_metres 6437) instead of 1.5 mi;
+  mid-route still blocked. Booking::geofenceRadius().
 - **18 Nov 2026 (late)** — Courtyard by Marriott Sheffield night photos → photo Reel + 4-photo carousel, plates
   blurred (docs/growth/data/video/2026-11-18-courtyard, not in git). Planned as Ready: Reel Mon 23 Nov 19:00
   (TikTok/IG/FB), carousel Tue 24 Nov 19:30 (IG/FB) — migration 2026_11_18_000005. No hotel partnership implied.

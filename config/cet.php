@@ -133,6 +133,8 @@ return [
     // geocode the point we can't verify, so that case fails OPEN. (Location being
     // OFF is always blocked — GPS is mandatory.)
     'arrival_radius_metres' => (int) env('CET_ARRIVAL_RADIUS_M', 2414),
+    // Airports: the address is one point but terminals are miles apart (Heathrow T5).
+    'airport_radius_metres' => (int) env('CET_AIRPORT_RADIUS_M', 6437),
 
     // Free waiting time the customer gets once the driver has arrived at the
     // pickup. The waiting timer on the driver's job screen only starts counting

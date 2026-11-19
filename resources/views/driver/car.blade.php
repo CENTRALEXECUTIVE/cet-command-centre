@@ -38,8 +38,8 @@
                 <div class="da-hero-time">{{ $booking->pickup_at->format('D d M') }} · <span>{{ $booking->pickup_at->format('H:i') }}</span></div>
                 <div class="da-hero-name">{{ $booking->displayName() }}</div>
                 <div class="da-hero-route">
-                    <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
-                    <span class="da-addr">🏁 {{ $booking->displayDropoffAddress() }}</span>
+                    <span class="da-addr">📍 {{ $booking->driverAddress('pickup') }}</span>
+                    <span class="da-addr">🏁 {{ $booking->driverAddress('dropoff') }}</span>
                 </div>
                 <div class="da-hero-chips">
                     <span class="badge" style="background:#5b2bc7;color:#fff">🚗 Car {{ $carNumber }} of {{ $carTotal }}</span>
@@ -113,8 +113,8 @@
             <div class="card">
                 <table>
                     <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
-                    <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
-                    <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
+                    <tr><th>From</th><td>{{ $booking->driverAddress('pickup') }}</td></tr>
+                    <tr><th>To</th><td>{{ $booking->driverAddress('dropoff') }}</td></tr>
                     <tr><th>Vehicle</th><td>{{ $booking->displayVehicleType() }}</td></tr>
                     <tr><th>Passengers</th><td>{{ ($car['passengers'] ?? null) !== null ? $car['passengers'].' in your car (of '.$booking->passengerCount().' total)' : $booking->passengerCount() }}</td></tr>
                     <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>

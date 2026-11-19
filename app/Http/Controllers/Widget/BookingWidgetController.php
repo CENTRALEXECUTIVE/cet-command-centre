@@ -487,6 +487,15 @@ class BookingWidgetController extends Controller
             'voucher' => $data['voucher'] ?? null,
         ]);
 
+        // The driver needs the postcode. Google's autocomplete text usually leaves it
+        // off ("19 High View, Sheffield, UK") and the browser's look-up can lose the
+        // race to Submit, so fill any missing one here. Priced first (above) so the
+        // customer pays exactly what they were shown; airports don't need one.
+        $pickupFull = $this->ensurePostcode($pickupFull);
+        if (! $isHourly) {
+            $destination = $this->ensurePostcode($destination);
+        }
+
         // "On request" vehicle (Rolls Royce / any POA class): no online price and
         // no payment method — it's a REQUEST A QUOTE. We take the full details and
         // the office emails a price back. Hourly hire is office-confirmed, not a
@@ -1055,6 +1064,18 @@ class BookingWidgetController extends Controller
         }
 
         return $parts ? implode("\n", $parts) : null;
+    }
+
+    /** Append the address's UK postcode (from Google) when it has none. Never for airports. */
+    private function ensurePostcode(string $address): string
+    {
+        if ($address === '' || \App\Services\GeocodingService::postcodeIn($address)
+            || \App\Support\AirportMatcher::isAirport($address)) {
+            return $address;
+        }
+        $pc = app(\App\Services\GeocodingService::class)->postcode($address);
+
+        return $pc ? $this->withPostcode($address, $pc) : $address;
     }
 
     /**

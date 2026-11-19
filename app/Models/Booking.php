@@ -377,7 +377,7 @@ class Booking extends Model
             return 'unknown'; // couldn't geocode the pickup → can't verify → allow
         }
 
-        $radius = (float) config('cet.arrival_radius_metres', 1609);
+        $radius = self::geofenceRadius($this->displayPickupAddress() ?: $this->pickup_address);
         $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
         // Forgive a little GPS error, but CAP it at the radius so a wildly
         // imprecise fix (IP/cell-level accuracy of tens of km — location half-off)
@@ -386,6 +386,23 @@ class Booking extends Model
         $slack = min((float) ($accuracy ?? 0), $radius);
 
         return $metres <= $radius + $slack ? 'ok' : 'far';
+    }
+
+    /**
+     * How close the driver must be to an end to mark it. Normally the arrival
+     * radius (1.5 mi); an AIRPORT gets a wider one (default 4 mi) because the
+     * address geocodes to one point while terminals sit miles apart — "Heathrow"
+     * vs dropping at Terminal 5 (Nov 2026: a driver couldn't complete). Still far
+     * too tight to complete mid-route.
+     */
+    public static function geofenceRadius(?string $address): float
+    {
+        $radius = (float) config('cet.arrival_radius_metres', 2414);
+        if ($address && \App\Support\AirportMatcher::isAirport($address)) {
+            $radius = max($radius, (float) config('cet.airport_radius_metres', 6437));
+        }
+
+        return $radius;
     }
 
     /**
@@ -407,7 +424,7 @@ class Booking extends Model
             return 'unknown'; // couldn't geocode the drop-off → can't verify → allow
         }
 
-        $radius = (float) config('cet.arrival_radius_metres', 1609);
+        $radius = self::geofenceRadius($this->displayDropoffAddress() ?: $this->destination_address);
         $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
         // Forgive a little GPS error, but CAP it at the radius so a wildly
         // imprecise fix (IP/cell-level accuracy of tens of km — location half-off)
@@ -516,7 +533,7 @@ class Booking extends Model
         $metres = \App\Support\Geo::haversineMeters($lat, $lng, $coords[0], $coords[1]);
         // Steps that must physically be AT the reference point.
         $expects = in_array($toStatus, ['arrived', 'collected', 'complete'], true);
-        $radius = (float) config('cet.arrival_radius_metres', 1609);
+        $radius = self::geofenceRadius($atDropoff ? $this->displayDropoffAddress() : $this->displayPickupAddress());
 
         return [
             'miles' => $metres / 1609.344,
@@ -3602,6 +3619,26 @@ class Booking extends Model
     public function displayPickupAddress(): ?string
     {
         return $this->editable($this->calendarField('Pickup Location'), $this->pickup_address, 'pickup_address');
+    }
+
+    /**
+     * The address as the DRIVER sees it: the display address plus its UK postcode
+     * when the text has none ("19 High View, Sheffield, UK" → "…, S2 3AB"), so the
+     * driver can confirm the right street. Looked up from Google once (cached);
+     * airports and hourly "as directed" are left as they are. Display only —
+     * never written back to the booking or the calendar.
+     */
+    public function driverAddress(string $which = 'pickup'): ?string
+    {
+        $addr = $which === 'dropoff' ? $this->displayDropoffAddress() : $this->displayPickupAddress();
+        $addr = trim((string) $addr);
+        if ($addr === '' || \App\Services\GeocodingService::postcodeIn($addr)
+            || \App\Support\AirportMatcher::isAirport($addr) || stripos($addr, 'as directed') !== false) {
+            return $addr !== '' ? $addr : null;
+        }
+        $pc = app(\App\Services\GeocodingService::class)->postcode($addr);
+
+        return $pc ? $addr.', '.$pc : $addr;
     }
 
     /** Drop-off address — a manual edit wins, else the calendar, else our own. */

@@ -53,12 +53,12 @@
                 aria-label="Open name board" title="Open a welcome name board">🪧 Name board</button>
     </div>
     <div class="da-hero-route">
-        <span class="da-addr">📍 {{ $booking->displayPickupAddress() }}</span>
+        <span class="da-addr">📍 {{ $booking->driverAddress('pickup') }}</span>
         @foreach($viaStops as $i => $stop)
             @php $stopName = $booking->stopContactName($i); @endphp
             <span class="da-addr" style="{{ $i < $stopsReached ? 'opacity:.55' : '' }}">🔀 Stop {{ $i + 1 }}: {{ $stop }}@if($stopName) · 🧍 {{ $stopName }}@endif{{ $i < $stopsReached ? ' ✓ done' : '' }}</span>
         @endforeach
-        <span class="da-addr">🏁 {{ $booking->displayDropoffAddress() }}</span>
+        <span class="da-addr">🏁 {{ $booking->driverAddress('dropoff') }}</span>
     </div>
     <div class="da-hero-chips">
         <span class="badge badge-{{ $booking->status->value }}">{{ $booking->status->label() }}</span>
@@ -286,7 +286,7 @@
         <a class="btn btn-dark" style="flex:1;text-align:center"
            href="{{ $booking->wazeUrl('pickup') }}"
            target="_blank" rel="noopener">🧭 Waze to pickup</a>
-        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->displayPickupAddress() }}"
+        <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->driverAddress('pickup') }}"
                 style="white-space:nowrap">📋 Copy</button>
     </div>
     @foreach($viaStops as $i => $stop)
@@ -303,7 +303,7 @@
             <a class="btn btn-ghost" style="flex:1;text-align:center"
                href="{{ $booking->wazeUrl('dropoff') }}"
                target="_blank" rel="noopener">🏁 Waze to drop-off</a>
-            <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->displayDropoffAddress() }}"
+            <button type="button" class="btn btn-ghost js-copy-addr" data-addr="{{ $booking->driverAddress('dropoff') }}"
                     style="white-space:nowrap">📋 Copy</button>
         </div>
     @endif
@@ -338,11 +338,11 @@
 <div class="card">
     <table>
         <tr><th>Pickup</th><td>{{ $booking->pickup_at->format('D d M, H:i') }}</td></tr>
-        <tr><th>From</th><td>{{ $booking->displayPickupAddress() }}</td></tr>
+        <tr><th>From</th><td>{{ $booking->driverAddress('pickup') }}</td></tr>
         @foreach($viaStops as $i => $stop)
             <tr><th>Stop {{ $i + 1 }}</th><td>{{ $stop }}{!! $i < $stopsReached ? ' <span style="color:#1f7a44;font-weight:700">✓ reached</span>' : '' !!}</td></tr>
         @endforeach
-        <tr><th>To</th><td>{{ $booking->displayDropoffAddress() }}</td></tr>
+        <tr><th>To</th><td>{{ $booking->driverAddress('dropoff') }}</td></tr>
         @if($booking->displayFlightNumber())
             <tr><th>Flight</th><td>
                 <span class="mono">{{ $booking->flightDisplayCode() }}</span>
