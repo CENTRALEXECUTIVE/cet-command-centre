@@ -59,6 +59,8 @@ class FareCalculator
         return [
             'base' => $base,
             'poa' => $base === null,
+            // Website only: far at both ends → take it as a quote request (admin still sees the price).
+            'office_quote' => (bool) ($quote['office_quote'] ?? false),
             'fixed' => $quote['fixed'],
             'surcharge' => $surcharge,
             'extras' => $extras,

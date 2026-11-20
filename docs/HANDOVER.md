@@ -318,6 +318,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **20 Nov 2026 (late, 2)** — Far-from-home jobs = quote REQUEST on the website (directors): when the drag is 40+
+  miles (only happens when BOTH ends are well outside our area, e.g. Kidderminster → MAN), the website shows
+  "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
+  (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
+  cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
 - **20 Nov 2026 (late)** — Drag (out-of-area dead mileage) now in BANDS (directors chose "each stretch at its own
   rate"): 0–15 mi free, 15–30 mi £1/mi, 30+ mi £2/mi, rounded to £5. FreeRoamPricer::deadMileageCharge; new
   settings deadmile_band_miles (30) + deadmile_rate2 (2.00) on Settings → Free-roam rates. 40 mi = £35 (was £40);

@@ -370,6 +370,10 @@ return [
     // fallback defaults. free_radius_miles = our normal coverage (no dead mileage
     // charged inside it); then BANDS: rate_per_mile for the miles up to band_miles,
     // rate2_per_mile for every mile beyond (40 mi out = 15×£1 + 10×£2 = £35).
+    // Drag of this many miles or more (both ends far from home) → the website sends a
+    // quote request instead of taking payment; the office prices it (20 Nov 2026).
+    'office_quote_drag_miles' => (float) env('CET_OFFICE_QUOTE_DRAG_MILES', 40),
+
     'dead_mileage' => [
         'rate_per_mile' => (float) env('CET_DEADMILE_RATE', 1.00),
         'free_radius_miles' => (float) env('CET_DEADMILE_RADIUS', 15.0),

@@ -155,6 +155,10 @@ class CustomerAdminPriceParityTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-11-02 09:00:00'));
         $this->seed(VehicleTypeSeeder::class);
         config(['cet.vat_registered' => true, 'cet.vat_rate' => 0.20]);
+        // These tests check the PRICE MATHS match on both sides. Far-at-both-ends jobs
+        // become quote requests on the website (covered in PricingAccuracySweepTest);
+        // switch that off here so the far routes still compare like-for-like.
+        config(['cet.office_quote_drag_miles' => 100000]);
         Mail::fake();
         $this->withoutMiddleware(ThrottleRequests::class);
         $this->stubDistances();

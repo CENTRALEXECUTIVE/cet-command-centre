@@ -256,6 +256,11 @@ class QuoteService
             }
             $price += $dead;
         }
+        // Far from home at BOTH ends (drag of 40+ miles, e.g. Kidderminster → MAN): the
+        // website takes the details as a quote REQUEST and the office prices it
+        // (directors, 20 Nov 2026). The figure stays here as the office's guide.
+        $officeQuote = $dead > 0 && $deadMiles !== null
+            && $deadMiles >= (float) config('cet.office_quote_drag_miles', 40);
 
         $basis = $d['miles'].' miles'.($d['source'] === 'estimate' ? ' (est.)' : '');
         if ($dead > 0) {
@@ -268,6 +273,7 @@ class QuoteService
             'basis' => $basis,
             'miles' => $d['miles'],
             'dead_mileage' => $dead,
+            'office_quote' => $officeQuote ?? false,
             'dead_mileage_miles' => $dead > 0 ? $deadMiles : null,
             'fixed' => false,
         ], $pickupAt);

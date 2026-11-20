@@ -259,7 +259,8 @@ class BookingWidgetController extends Controller
                     'vat' => (bool) ($data['vat_invoice'] ?? false),
                     'voucher' => $data['voucher'] ?? null,
                 ] + $seats);
-                $poa = $q['price'] === null || $trip['poa'];
+                // Far from home at both ends (40+ mi drag): no online price — a quote request.
+                $poa = $q['price'] === null || $trip['poa'] || ! empty($q['office_quote']) || ! empty($trip['office_quote']);
                 $labels = array_values(array_unique(array_filter([
                     $trip['out']['surcharge']['label'] ?? null,
                     $trip['ret']['surcharge']['label'] ?? null,
@@ -500,7 +501,15 @@ class BookingWidgetController extends Controller
         // no payment method — it's a REQUEST A QUOTE. We take the full details and
         // the office emails a price back. Hourly hire is office-confirmed, not a
         // quote request in this sense (it has a payment choice).
-        $isQuoteRequest = ! $isHourly && ($quote['price'] === null || $trip['poa']);
+        // Far from home at BOTH ends (drag of 40+ mi): take the details, no payment — the
+        // office prices it and emails the customer (directors, 20 Nov 2026).
+        $officeQuote = ! $isHourly && (! empty($quote['office_quote']) || ! empty($trip['office_quote']));
+        $isQuoteRequest = ! $isHourly && ($quote['price'] === null || $trip['poa'] || $officeQuote);
+        // The automatic figure stays as the office's guide, never as the customer's price.
+        $officeGuide = $officeQuote ? ($trip['total'] ?? null) : null;
+        if ($officeQuote) {
+            $trip['poa'] = true;
+        }
 
         // A logged-in customer (verified in this browser session) is the booker —
         // this is what makes "book on account" possible: only a signed-in company
@@ -686,6 +695,7 @@ class BookingWidgetController extends Controller
                 // Flag an on-request (Rolls Royce / POA) enquiry so the office knows
                 // to email a price rather than treat it as a priced booking.
                 'quote_request' => $isQuoteRequest ?: null,
+                'office_quote_guide' => $officeGuide,
                 // Google Ads attribution (gclid/utm) — traces the booking back to the
                 // ad that won it; kept for reporting and offline conversion import.
                 'marketing' => $this->marketingParams($request) ?: null,
@@ -787,7 +797,9 @@ class BookingWidgetController extends Controller
             \App\Models\WatchdogEvent::log('web_booking', 'New web booking request — '.$name, 'info', $booking);
             $typeLabel = $isQuoteRequest ? ' ('.$vehicleType->name.' — quote request)'
                 : ($isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : ''));
-            $action = $isQuoteRequest ? 'Email them a price.' : 'Confirm it.';
+            $action = $isQuoteRequest
+                ? ($officeQuote && $officeGuide ? 'Far from home at both ends: guide £'.number_format((float) $officeGuide, 2).'. Email them a price.' : 'Email them a price.')
+                : 'Confirm it.';
             $this->adminAlerts->notify('web_booking',
                 ($isQuoteRequest ? '💬 New quote request — ' : '🌐 New web booking — ').$name.$typeLabel,
                 $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)

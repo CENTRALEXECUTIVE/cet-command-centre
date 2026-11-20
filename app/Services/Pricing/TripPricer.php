@@ -72,9 +72,10 @@ class TripPricer
             : null;
 
         $poa = $out['poa'] || ($ret && $ret['poa']);
+        $officeQuote = ! empty($out['office_quote']) || ($ret && ! empty($ret['office_quote']));
         if ($poa) {
             return [
-                'poa' => true, 'out' => $out, 'ret' => $ret, 'net' => null, 'discount' => 0.0,
+                'poa' => true, 'office_quote' => $officeQuote, 'out' => $out, 'ret' => $ret, 'net' => null, 'discount' => 0.0,
                 'voucher_valid' => false, 'legs_net' => [null, null], 'legs_payable' => [null, null],
                 'vat' => 0.0, 'total' => null,
             ];
@@ -107,6 +108,7 @@ class TripPricer
 
         return [
             'poa' => false,
+            'office_quote' => $officeQuote,
             'out' => $out,
             'ret' => $ret,
             'net' => $net,

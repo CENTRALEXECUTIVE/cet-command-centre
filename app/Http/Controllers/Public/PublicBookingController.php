@@ -75,6 +75,10 @@ class PublicBookingController extends Controller
         $options = $this->activeVehicleTypes()->map(function (VehicleType $type) use ($pickup, $destination, $pickupAt) {
             $fare = $this->fares->calculate($pickup, $destination, $type, $pickupAt);
             $price = $fare['subtotal']; // base + any holiday/rush surcharge (no extras yet)
+            if (! empty($fare['office_quote'])) {
+                $price = null; // far from home at both ends: the office prices it (20 Nov 2026)
+                $fare['poa'] = true;
+            }
 
             return [
                 'id' => $type->id,
@@ -161,6 +165,11 @@ class PublicBookingController extends Controller
         );
         $base = $fare['base'];
         $subtotal = $fare['subtotal'];
+        if (! empty($fare['office_quote'])) {
+            // Far from home at both ends: a request, no price taken — the office prices it.
+            $base = null;
+            $subtotal = null;
+        }
 
         // Voucher (validated here; only consumed once payment succeeds).
         $voucher = Voucher::findByCode($data['voucher'] ?? null);

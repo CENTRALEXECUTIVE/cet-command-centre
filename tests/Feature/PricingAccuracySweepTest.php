@@ -270,7 +270,7 @@ class PricingAccuracySweepTest extends TestCase
         }
     }
 
-    public function test_the_real_kidderminster_job_prices_330_end_to_end_on_the_customer_booking(): void
+    public function test_the_real_kidderminster_job_is_a_quote_request_on_the_website_with_a_400_guide(): void
     {
         Mail::fake();
         $this->stubDistances(tripMiles: 91.7);
@@ -294,8 +294,32 @@ class PricingAccuracySweepTest extends TestCase
         ])->assertOk();
 
         $booking = Booking::firstWhere('source', 'web');
-        // £215 trip + £185 drag (bands, 20 Nov 2026) — what the customer is actually asked to pay.
-        $this->assertEqualsWithDelta(400.0, (float) $booking->quoted_price, 0.01);
+        // Far from home at BOTH ends (113.9 mi drag ≥ 40): the website takes it as a quote
+        // request — no price, no payment — and keeps £215 + £185 = £400 as the office's guide
+        // (directors, 20 Nov 2026).
+        $this->assertNull($booking->quoted_price);
+        $this->assertTrue((bool) $booking->meta['quote_request']);
+        $this->assertEqualsWithDelta(400.0, (float) $booking->meta['office_quote_guide'], 0.01);
+
+        // The website's price cards say "On request"; the admin form still prices it at £400.
+        $opts = $this->postJson(route('widget.prices'), [
+            'pickup' => 'Avensys Training Academy, Frederick Road, Kidderminster, DY11 7RA',
+            'destination' => 'Premier Inn Manchester Airport, M90 5DL',
+        ])->json('options');
+        $exec = collect($opts)->firstWhere('id', $this->exec()->id);
+        $this->assertTrue($exec['poa']);
+        $this->assertSame('On request', $exec['formatted']);
+        $q = app(QuoteService::class)->quote('Avensys Training Academy, Frederick Road, Kidderminster, DY11 7RA', 'Premier Inn Manchester Airport, M90 5DL', $this->exec());
+        $this->assertTrue($q['office_quote']);
+        $this->assertEqualsWithDelta(400.0, (float) $q['price'], 0.01);
+    }
+
+    public function test_a_job_with_less_than_40_miles_of_drag_is_still_priced_and_paid_online(): void
+    {
+        // Doncaster → Heathrow: near-end drag only (≈20 mi) — priced as normal.
+        $q = app(QuoteService::class)->quote('Doncaster DN1 1AA', 'Heathrow Airport', $this->exec());
+        $this->assertFalse($q['office_quote']);
+        $this->assertNotNull($q['price']);
     }
 
     public function test_quoting_never_breaks_when_maps_is_down(): void

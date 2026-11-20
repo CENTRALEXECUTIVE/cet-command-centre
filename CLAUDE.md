@@ -411,7 +411,8 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   Doncaster = **DN1–DN12 only** (Grimsby/Scunthorpe/Goole are out of area); and a
   distance backstop (`QuoteService::localEndIsOutOfArea`, `cet.fixed_zone_max_miles`
   = 35) refuses any local fixed fare to an address >35 mi from base. Guarded by
-  `PricingAccuracySweepTest` — keep it green. **No drag from home (11 Nov 2026):** a journey that
+  `PricingAccuracySweepTest` — keep it green. **Drag of 40+ mi (both ends far from home) → the website
+  takes a quote REQUEST, no payment; the office prices it (20 Nov 2026, `cet.office_quote_drag_miles`).** **No drag from home (11 Nov 2026):** a journey that
   starts or ends inside the free radius is mileage-priced only (Sheffield → London V-Class was £685
   with drag, now ~£520); drag applies only when BOTH ends are away (Kidderminster → MAN keeps it).
   **London fixed fares (final, 11 Nov 2026):** ALL of London = the ETO Central London fare + £20 built in, never itemised (V-Class £470 / exec £320 from Sheffield) (E, EC, N,
