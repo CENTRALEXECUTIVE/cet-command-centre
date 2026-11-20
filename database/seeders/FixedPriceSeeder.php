@@ -55,7 +55,7 @@ class FixedPriceSeeder extends Seeder
                 'Heathrow Airport' => [315, 310, 390, 405, 480],
             ],
             'Sheffield S20' => [
-                'Liverpool Airport' => [160, 155, 195, 210, 220],
+                'Liverpool Airport' => [185, 175, 215, 230, 240],
             ],
             'Doncaster' => [
                 'Humberside Airport' => [null, 85, 130, 150, 160],

@@ -128,10 +128,15 @@ class QuoteService
         ['dests' => ['humberside'], 'zones' => ['doncaster'], 'prices' => ['executive' => 120, 'minibus-8' => 140, 'minibus-8-xl' => 155, 'v-class' => 160]],
 
         // ---- Liverpool (Airport & Port) ----
-        ['dests' => ['liverpool'], 'zones' => ['sheffield', 'rotherham'], 'prices' => ['executive' => 150, 'minibus-8' => 190, 'minibus-8-xl' => 205, 'v-class' => 215]],
-        ['dests' => ['liverpool'], 'zones' => ['barnsley'], 'prices' => ['executive' => 165, 'minibus-8' => 190, 'minibus-8-xl' => 210, 'v-class' => 220]],
-        ['dests' => ['liverpool'], 'zones' => ['s20'], 'prices' => ['executive' => 155, 'minibus-8' => 195, 'minibus-8-xl' => 210, 'v-class' => 220]],
-        ['dests' => ['liverpool'], 'zones' => ['chesterfield'], 'prices' => ['executive' => 165, 'minibus-8' => 210, 'minibus-8-xl' => 215, 'v-class' => 240]],
+        // Liverpool John Lennon — raised (directors, 20 Nov 2026): Sheffield/Rotherham £170,
+        // S20 / Deep Rotherham (S62–S66) / Deep Barnsley (S71) £175, Barnsley £170. The
+        // larger vehicles go up by the same £ as Executive on each zone.
+        ['dests' => ['liverpool'], 'zones' => ['sheffield', 'rotherham'], 'prices' => ['executive' => 170, 'minibus-8' => 210, 'minibus-8-xl' => 225, 'v-class' => 235]],
+        ['dests' => ['liverpool'], 'zones' => ['rotherham-deep'], 'prices' => ['executive' => 175, 'minibus-8' => 215, 'minibus-8-xl' => 230, 'v-class' => 240]],
+        ['dests' => ['liverpool'], 'zones' => ['barnsley'], 'prices' => ['executive' => 170, 'minibus-8' => 195, 'minibus-8-xl' => 215, 'v-class' => 225]],
+        ['dests' => ['liverpool'], 'zones' => ['barnsley-deep'], 'prices' => ['executive' => 175, 'minibus-8' => 200, 'minibus-8-xl' => 220, 'v-class' => 230]],
+        ['dests' => ['liverpool'], 'zones' => ['s20'], 'prices' => ['executive' => 175, 'minibus-8' => 215, 'minibus-8-xl' => 230, 'v-class' => 240]],
+        ['dests' => ['liverpool'], 'zones' => ['chesterfield'], 'prices' => ['executive' => 185, 'minibus-8' => 230, 'minibus-8-xl' => 235, 'v-class' => 260]],
         ['dests' => ['liverpool'], 'zones' => ['mansfield', 'matlock'], 'prices' => ['executive' => 190, 'minibus-8' => 260, 'minibus-8-xl' => 280, 'v-class' => 290]],
         ['dests' => ['liverpool'], 'zones' => ['worksop'], 'prices' => ['executive' => 190, 'minibus-8' => 250, 'minibus-8-xl' => 270, 'v-class' => 280]],
         ['dests' => ['liverpool'], 'zones' => ['doncaster'], 'prices' => ['executive' => 210, 'minibus-8' => 260, 'minibus-8-xl' => 275, 'v-class' => 295]],
@@ -332,8 +337,10 @@ class QuoteService
         return [
             'sheffield' => ['name' => 'Sheffield', 'prefixes' => ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S17', 'S18', 'S19', 'S35']],
             's20' => ['name' => 'Sheffield S20', 'prefixes' => ['S20']],
-            'rotherham' => ['name' => 'Rotherham', 'prefixes' => ['S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66']],
-            'barnsley' => ['name' => 'Barnsley', 'prefixes' => ['S70', 'S71', 'S72', 'S73', 'S74', 'S75']],
+            'rotherham' => ['name' => 'Rotherham', 'prefixes' => ['S60', 'S61']],
+            'rotherham-deep' => ['name' => 'Deep Rotherham', 'prefixes' => ['S62', 'S63', 'S64', 'S65', 'S66']],
+            'barnsley' => ['name' => 'Barnsley', 'prefixes' => ['S70', 'S72', 'S73', 'S74', 'S75']],
+            'barnsley-deep' => ['name' => 'Deep Barnsley', 'prefixes' => ['S71']],
             'chesterfield' => ['name' => 'Chesterfield', 'prefixes' => ['S40', 'S41', 'S42', 'S43', 'S44', 'S45', 'S49']],
             'worksop' => ['name' => 'Worksop', 'prefixes' => ['S80', 'S81']],
             'doncaster' => ['name' => 'Doncaster', 'prefixes' => ['DN1', 'DN2', 'DN3', 'DN4', 'DN5', 'DN6', 'DN7', 'DN8', 'DN9', 'DN10', 'DN11', 'DN12']],
@@ -553,10 +560,11 @@ class QuoteService
      * Towns that USED to have their own fixed-fare zone and are now priced by the
      * mileage guide (+ drag only when both ends are away) — directors, 11 Nov 2026:
      * "Bakewell, Matlock and them lot should have mileage calculation, not fixed
-     * pricing". Fixed fares are for the home catchment only (Sheffield, S20,
-     * Rotherham, Barnsley, and Chesterfield on Sheffield's prices).
+     * pricing". Fixed fares: Sheffield, S20, Rotherham (+ Deep), Barnsley (+ Deep),
+     * Chesterfield on Sheffield's prices, and Doncaster DN1–DN12 (fixed fares
+     * re-activated by the directors, 20 Nov 2026: "Doncaster fixed pricing is right").
      */
-    private const MILEAGE_TOWNS = ['doncaster', 'worksop', 'mansfield', 'matlock'];
+    private const MILEAGE_TOWNS = ['worksop', 'mansfield', 'matlock'];
 
     /** The built-in (code) zone detection — the reliable base, DB layered on top. */
     private function builtinZonesFor(string $text): array
@@ -569,8 +577,17 @@ class QuoteService
             if (preg_match('/^S4\d$/', $outward)) {   // Chesterfield: same fares as Sheffield (directors, 11 Nov 2026)
                 return ['sheffield'];
             }
-            if (preg_match('/^S6[0-6]$/', $outward)) {
+            // Deep Rotherham (S62–S66) and Deep Barnsley (S71) — dearer on the routes
+            // that carry their own fare (Liverpool, 20 Nov 2026); every other route falls
+            // back to the base town's fare.
+            if (preg_match('/^S6[2-6]$/', $outward)) {
+                return ['rotherham-deep', 'rotherham'];
+            }
+            if (preg_match('/^S6[01]$/', $outward)) {
                 return ['rotherham'];
+            }
+            if ($outward === 'S71') {
+                return ['barnsley-deep', 'barnsley'];
             }
             if (preg_match('/^S7[0-5]$/', $outward)) {
                 return ['barnsley'];
@@ -581,8 +598,11 @@ class QuoteService
             // Doncaster is DN1–DN12 ONLY. The rest of the DN area is far away — Goole
             // (DN14), Scunthorpe/Brigg (DN15–20), Gainsborough (DN21), Retford (DN22),
             // Grimsby/Immingham (DN31–41) — and must NOT get the Doncaster fixed fare.
-            // Doncaster, Mansfield and Matlock/Bakewell are priced by the mileage guide
-            // now (directors, 11 Nov 2026), so they get no fixed zone here.
+            // Doncaster fixed fares are back on (directors, 20 Nov 2026).
+            if (preg_match('/^DN(\d{1,2})$/', $outward, $dn) && (int) $dn[1] >= 1 && (int) $dn[1] <= 12) {
+                return ['doncaster'];
+            }
+            // Mansfield and Matlock/Bakewell stay on the mileage guide (11 Nov 2026).
 
             // Sheffield is "S" + digits (S1–S99). NOT any code that merely starts with S —
             // ST (Stoke), SO (Southampton), SA (Swansea), SE (London), SK (Stockport)…

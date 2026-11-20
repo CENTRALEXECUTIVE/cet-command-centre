@@ -56,8 +56,8 @@ class FixedPriceTest extends TestCase
             'pickup_at' => '2026-06-15 14:00',
         ]);
 
-        // Sheffield S20 → Liverpool Airport, Executive = £155.
-        $this->assertEquals(155.0, (float) $quote->price);
+        // Sheffield S20 → Liverpool Airport, Executive = £175 (raised 20 Nov 2026).
+        $this->assertEquals(175.0, (float) $quote->price);
         $this->assertEquals('fixed_price', $quote->breakdown['source']);
     }
 

@@ -328,6 +328,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   settings deadmile_band_miles (30) + deadmile_rate2 (2.00) on Settings → Free-roam rates. 40 mi = £35 (was £40);
   Kidderminster 113.9 mi = £185 (was £115) → Kidderminster→MAN £400; Doncaster→LHR drag £5 → £355. Near-end and
   no-drag-from-home rules unchanged. Pricing tests + CLAUDE.md updated.
+- **20 Nov 2026 (late)** — Fares (directors): Liverpool John Lennon raised — Executive Sheffield/Rotherham/Barnsley
+  £170, S20 £175, new **Deep Rotherham** zone (S62–S66, out of Rotherham) £175, new **Deep Barnsley** zone (S71, as
+  in ETO) £175; Minibus/XL/V-Class up by the same £ per zone; Chesterfield +£20 (Exec £185). **Doncaster DN1–DN12
+  back on fixed fares** (was mileage since 11 Nov). Migration 2026_11_20_000002 writes only those zones + Liverpool
+  rows (keeps deposits). Fixed-fares PDF in docs/pricing/. OPEN: confirm Deep Barnsley = S71 only, and the
+  Chesterfield/bigger-vehicle Liverpool raises.
 - **20 Nov 2026 (eve)** — Edit booking rebuilt (directors: "exactly the same" as New booking): BookingController@edit
   renders bookings.create in edit mode, filled from the booking via session old-input (bookingFormValues) — same
   layout, live price cards per vehicle, "Use £X" re-quote; saves through update (PUT), nothing new created, no

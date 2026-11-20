@@ -71,7 +71,7 @@ class EditableFixedPriceTest extends TestCase
         $exec = VehicleType::where('slug', 'executive')->firstOrFail();
 
         // Office carves out a dearer fare for a specific "deep" area (S71).
-        $deep = PricingZone::create(['name' => 'Barnsley Deep', 'slug' => 'barnsley-deep', 'postcode_prefixes' => ['S71'], 'is_active' => true]);
+        $deep = PricingZone::updateOrCreate(['slug' => 'barnsley-deep'], ['name' => 'Deep Barnsley', 'postcode_prefixes' => ['S71'], 'is_active' => true]);
         app(FixedPriceService::class)->upsert($deep, 'Manchester Airport', $exec, 125.0);
 
         // An S71 pickup now gets the deep fare through the widget; a normal Barnsley

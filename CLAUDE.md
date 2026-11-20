@@ -418,8 +418,11 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   **London fixed fares (final, 11 Nov 2026):** ALL of London = the ETO Central London fare + £20 built in, never itemised (V-Class £470 / exec £320 from Sheffield) (E, EC, N,
   NW, SE, SW, W, WC, BR, CR, EN, HA, IG, SM, UB always; TW/KT/DA/RM only when the address says London.
   Airports (TW6 Heathrow etc.) match their own fares first.
-  **Fixed fares = home catchment only (11 Nov 2026):** Sheffield (incl. S20), Rotherham, Barnsley and
-  Chesterfield (on Sheffield's fares). Doncaster, Worksop, Mansfield, Matlock/Bakewell = the mileage guide
+  **Fixed fares = home catchment + Doncaster (11 Nov, Doncaster re-activated 20 Nov 2026):** Sheffield (incl. S20),
+  Rotherham, **Deep Rotherham (S62–S66)**, Barnsley, **Deep Barnsley (S71)**, Chesterfield (on Sheffield's fares) and
+  **Doncaster DN1–DN12** (its own fixed fares). The deep zones only differ where they carry their own fare (Liverpool
+  Airport, 20 Nov: Exec Sheffield/Rotherham/Barnsley £170, S20/Deep Rotherham/Deep Barnsley £175); every other route
+  falls back to the base town's fare. Worksop, Mansfield, Matlock/Bakewell = the mileage guide
   (per-vehicle rates in FreeRoamPricer) + drag only when both ends are away. An address with no postcode
   and no home-town name only gets the Sheffield fare if Google measures it inside the free radius.
   Airport postcodes match the district exactly (PA3 Glasgow ≠ PA34 Oban).

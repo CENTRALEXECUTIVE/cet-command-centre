@@ -33,7 +33,7 @@ class PricingAccuracySweepTest extends TestCase
     private const BASE_MILES = [
         // ---- home catchment (local fixed fares) ----
         'Sheffield S1' => 1, 'Mosborough' => 8, 'Rotherham S60' => 7, 'Barnsley S70' => 15,
-        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25,
+        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25, 'S62 6AA' => 9, 'S66 8AA' => 10, 'S72 8AA' => 17, 'S71 4AA' => 17,
         'Mansfield NG18' => 26, 'Matlock DE4' => 24, 'Meadowhall' => 4,
         // ---- out of area ----
         'Kidderminster' => 114, 'Grimsby' => 70, 'Scunthorpe' => 45, 'Goole' => 38,
@@ -49,9 +49,9 @@ class PricingAccuracySweepTest extends TestCase
         'Meadowhall Centre' => 105.0,
     ];
 
-    /** Towns now on the mileage guide, never a fixed fare (directors, 11 Nov 2026). */
+    /** Towns on the mileage guide, never a fixed fare (directors, 11 Nov 2026; Doncaster back on fixed 20 Nov). */
     private const MILEAGE_TOWNS = [
-        'Doncaster DN1 1AA', 'Bawtry DN10 6AA', 'Worksop S80 1AA', 'Mansfield NG18 1AA',
+        'Worksop S80 1AA', 'Mansfield NG18 1AA',
         'Matlock DE4 3AA', 'Bakewell DE45 1AA',
     ];
 
@@ -125,7 +125,7 @@ class PricingAccuracySweepTest extends TestCase
         }
     }
 
-    public function test_doncaster_worksop_mansfield_matlock_and_bakewell_are_priced_by_mileage(): void
+    public function test_worksop_mansfield_matlock_and_bakewell_are_priced_by_mileage(): void
     {
         $quotes = app(QuoteService::class);
         foreach (self::MILEAGE_TOWNS as $address) {
@@ -139,15 +139,15 @@ class PricingAccuracySweepTest extends TestCase
 
     public function test_a_job_just_outside_the_radius_only_pays_drag_for_the_extra_miles(): void
     {
-        // Doncaster (20 mi) → Heathrow (170 mi trip): £350 mileage + £5 drag (5 mi × £1 in the
+        // Worksop (20 mi) → Heathrow (170 mi trip): £350 mileage + £5 drag (5 mi × £1 in the
         // £1 band, 20 Nov 2026) = £355, not £515.
         $this->stubDistances(170);
-        $q = app(QuoteService::class)->quote('Doncaster DN1 1AA', 'Heathrow Airport', $this->exec());
+        $q = app(QuoteService::class)->quote('Worksop S80 1AA', 'Heathrow Airport', $this->exec());
         $this->assertFalse($q['fixed']);
         $this->assertEqualsWithDelta(5.0, (float) $q['dead_mileage'], 0.01);
         $this->assertEqualsWithDelta(355.0, (float) $q['price'], 0.01);
         // Same both ways.
-        $back = app(QuoteService::class)->quote('Heathrow Airport', 'Doncaster DN1 1AA', $this->exec());
+        $back = app(QuoteService::class)->quote('Heathrow Airport', 'Worksop S80 1AA', $this->exec());
         $this->assertEqualsWithDelta(355.0, (float) $back['price'], 0.01);
     }
 
@@ -316,8 +316,8 @@ class PricingAccuracySweepTest extends TestCase
 
     public function test_a_job_with_less_than_40_miles_of_drag_is_still_priced_and_paid_online(): void
     {
-        // Doncaster → Heathrow: near-end drag only (≈20 mi) — priced as normal.
-        $q = app(QuoteService::class)->quote('Doncaster DN1 1AA', 'Heathrow Airport', $this->exec());
+        // Worksop → Heathrow: near-end drag only (≈20 mi) — priced as normal.
+        $q = app(QuoteService::class)->quote('Worksop S80 1AA', 'Heathrow Airport', $this->exec());
         $this->assertFalse($q['office_quote']);
         $this->assertNotNull($q['price']);
     }
@@ -451,5 +451,47 @@ class PricingAccuracySweepTest extends TestCase
         $this->assertEqualsWithDelta(290.0, $quotes->quote('Sheffield S1 2HH', 'Heathrow Airport TW6 1QG', $this->exec())['price'], 0.01);
         $this->assertNotSame(450.0, (float) $quotes->quote('Sheffield S1 2HH', 'London Road, Sheffield S2 4LA', $v)['price']);
         $this->assertFalse($quotes->quote('Sheffield S1 2HH', 'Kingston upon Thames, Surrey KT1 1AA', $v)['fixed']);
+    }
+
+    public function test_doncaster_dn1_to_dn12_is_back_on_fixed_fares(): void
+    {
+        // Directors, 20 Nov 2026: "Doncaster fixed pricing is right. Activate it".
+        $quotes = app(QuoteService::class);
+        foreach (['Doncaster DN1 1AA', 'Bawtry DN10 6AA'] as $address) {
+            $q = $quotes->quote($address, 'Heathrow Airport', $this->exec());
+            $this->assertTrue($q['fixed'], "{$address} → Heathrow should be fixed");
+            $this->assertEqualsWithDelta(320.0, (float) $q['price'], 0.01);
+            $this->assertEqualsWithDelta(140.0, (float) $quotes->quote($address, 'Manchester Airport', $this->exec())['price'], 0.01);
+        }
+        // Grimsby/Scunthorpe/Goole (DN14+) stay out of area.
+        $this->assertFalse($quotes->quote('Grimsby DN32 9AA', 'Heathrow Airport', $this->exec())['fixed']);
+    }
+
+    public function test_liverpool_airport_fares_and_the_deep_zones(): void
+    {
+        // Directors, 20 Nov 2026 — Executive to Liverpool John Lennon.
+        $quotes = app(QuoteService::class);
+        $expect = [
+            'Sheffield S1 2HH' => 170.0,
+            'Mosborough, Sheffield S20 5AA' => 175.0,
+            'Rotherham S60 1AA' => 170.0,
+            'Rawmarsh, Rotherham S62 6AA' => 175.0,   // Deep Rotherham
+            'Maltby, Rotherham S66 8AA' => 175.0,     // Deep Rotherham
+            'Barnsley S70 1AA' => 170.0,
+            'Cudworth, Barnsley S72 8AA' => 170.0,
+            'Royston, Barnsley S71 4AA' => 175.0,     // Deep Barnsley
+        ];
+        foreach ($expect as $address => $fare) {
+            $q = $quotes->quote($address, 'Liverpool John Lennon Airport', $this->exec());
+            $this->assertTrue($q['fixed'], "{$address} → Liverpool should be fixed");
+            $this->assertEqualsWithDelta($fare, (float) $q['price'], 0.01, "{$address} → Liverpool");
+        }
+        // Same fare from the airport back home; the deep zones keep the base town's fare elsewhere.
+        $this->assertEqualsWithDelta(175.0, (float) $quotes->quote('Liverpool John Lennon Airport', 'Maltby, Rotherham S66 8AA', $this->exec())['price'], 0.01);
+        $this->assertEqualsWithDelta(105.0, (float) $quotes->quote('Maltby, Rotherham S66 8AA', 'Manchester Airport', $this->exec())['price'], 0.01);
+        $this->assertEqualsWithDelta(105.0, (float) $quotes->quote('Royston, Barnsley S71 4AA', 'Manchester Airport', $this->exec())['price'], 0.01);
+        // Bigger vehicles went up by the same £ as Executive (Sheffield V-Class £215 → £235).
+        $v = VehicleType::where('slug', 'v-class')->firstOrFail();
+        $this->assertEqualsWithDelta(235.0, (float) $quotes->quote('Sheffield S1 2HH', 'Liverpool John Lennon Airport', $v)['price'], 0.01);
     }
 }
