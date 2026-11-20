@@ -329,6 +329,59 @@ class BookingTransactionController extends Controller
     }
 
     /**
+     * "Refund difference": the customer paid more than the job now costs (e.g.
+     * downgraded V-Class → Executive). Either send the refund back to their card
+     * through Square/Stripe now, or record one already done by hand. Never
+     * automatic: the office picks the amount and taps the button. Nov 2026.
+     */
+    public function refundDifference(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:100000'],
+            'mode' => ['required', Rule::in(['send', 'record'])],
+            'reason' => ['nullable', 'string', 'max:190'],
+        ]);
+        $amount = round((float) $data['amount'], 2);
+        $over = $booking->overpaidAmount();
+        if ($amount > $over + 0.009) {
+            return back()->with('error', 'You can refund up to £'.number_format($over, 2).' (what was paid above the new price).')->with('scroll', 'transactions');
+        }
+
+        // The refund belongs on the leg that holds the card payment (a return's sits on one leg).
+        $holder = $booking;
+        if (! $booking->refundablePayment() && $booking->grossTakenForLeg() <= 0 && $booking->linked_booking_id
+            && ($other = Booking::find($booking->linked_booking_id))) {
+            $holder = $other;
+        }
+        $reason = ($data['reason'] ?? null) ?: 'Price reduced on '.$booking->reference;
+
+        if ($data['mode'] === 'record') {
+            $holder->recordLiveRefund($amount, 'manual', null, $reason, $request->user());
+
+            return back()->with('status', 'Recorded a £'.number_format($amount, 2).' refund. Make sure it has been sent back in Square/Stripe.')->with('scroll', 'transactions');
+        }
+
+        $pay = $holder->refundablePayment();
+        if (! $pay) {
+            return back()->with('error', 'No card payment found to refund against. Refund it in Square/Stripe by hand, then use "I\'ve already refunded it".')->with('scroll', 'transactions');
+        }
+        if ($amount > $pay['amount'] + 0.009) {
+            return back()->with('error', 'That card payment was only £'.number_format($pay['amount'], 2).'. Refund the rest by hand.')->with('scroll', 'transactions');
+        }
+        $key = 'cet-'.$holder->id.'-'.count($holder->liveRefunds()).'-'.(int) round($amount * 100);
+        $res = $pay['provider'] === 'stripe'
+            ? app(\App\Services\Payments\StripePaymentService::class)->refund($pay['id'], $amount, $key, $reason)
+            : app(\App\Services\Payments\SquareBookingPaymentService::class)->refund($pay['id'], $amount, $pay['entity'], $key, $reason);
+        if (! $res['ok']) {
+            return back()->with('error', 'The refund did not go through: '.$res['error'].' Nothing was recorded.')->with('scroll', 'transactions');
+        }
+        $holder->recordLiveRefund($amount, $pay['provider'], $res['id'] ?? null, $reason, $request->user());
+
+        return back()->with('status', '£'.number_format($amount, 2).' refunded to the customer\'s card via '.ucfirst($pay['provider']).'. It usually shows on their statement in 3–5 working days.')->with('scroll', 'transactions');
+    }
+
+    /**
      * Reset a booking's payment status back to unpaid and clear the "paid"
      * markers — for undoing a full test payment. Admin only. Does NOT refund: if
      * real money was taken, refund it in Square/Stripe. Individual transaction

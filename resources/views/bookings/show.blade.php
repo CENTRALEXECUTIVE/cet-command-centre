@@ -1962,6 +1962,45 @@
                 <div><div class="muted" style="font-size:12px">Amount due</div><div style="font-weight:800;font-size:18px;{{ ($amountDue ?? 0) > 0 ? 'color:#b8860b' : '' }}">£{{ number_format($amountDue ?? 0, 2) }}</div></div>
             </div>
 
+            {{-- 💷 Refund difference — the customer paid MORE than the job now costs
+                 (e.g. downgraded vehicle). Shows what they really paid and lets the
+                 office send the difference back (Square/Stripe) or record a hand refund. --}}
+            @php
+                $overpaid = $booking->overpaidAmount();
+                $refundHolder = $booking->refundablePayment() || $booking->grossTakenForLeg() > 0 || ! $booking->linked_booking_id
+                    ? $booking : (\App\Models\Booking::find($booking->linked_booking_id) ?? $booking);
+                $liveRefunds = $refundHolder->liveRefunds();
+                $refPay = $refundHolder->refundablePayment();
+            @endphp
+            @if($overpaid > 0.009)
+                <div id="refund-difference" style="border:2px solid #b8860b;border-radius:10px;padding:10px 14px;margin:0 0 12px;background:rgba(251,186,42,.08)">
+                    <div style="font-weight:800;margin-bottom:4px">💷 Refund difference: £{{ number_format($overpaid, 2) }}</div>
+                    <p class="hint" style="margin:0 0 8px">The customer paid £{{ number_format($refundHolder->grossTakenForLeg() - $refundHolder->liveRefundsTotal(), 2) }}{{ $refundHolder->is($booking) ? '' : ' (on '.$refundHolder->reference.')' }}, but the job now costs £{{ number_format($payableTotal ?? 0, 2) }}. Send the difference back to their card, or record a refund you've already made.</p>
+                    <form method="POST" action="{{ route('bookings.refund-difference', $booking) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+                        @csrf
+                        <div class="field" style="margin:0"><label style="font-size:12px" for="refund-amount">Amount (£)</label>
+                            <input id="refund-amount" name="amount" type="number" step="0.01" min="0.01" max="{{ number_format($overpaid, 2, '.', '') }}" value="{{ number_format($overpaid, 2, '.', '') }}" style="width:110px"></div>
+                        <div class="field" style="margin:0;flex:1 1 200px"><label style="font-size:12px" for="refund-reason">Reason (shown in Square/Stripe)</label>
+                            <input id="refund-reason" name="reason" maxlength="190" placeholder="e.g. Downgraded to Executive saloon" style="width:100%"></div>
+                        @if($refPay)
+                            <button class="btn btn-primary" name="mode" value="send" style="padding:8px 14px;font-size:13px"
+                                onclick="return confirm('Refund £' + document.getElementById('refund-amount').value + ' to the customer\'s card via {{ ucfirst($refPay['provider']) }} now? This sends real money back.')">↩ Refund to card via {{ ucfirst($refPay['provider']) }}</button>
+                        @endif
+                        <button class="btn btn-ghost" name="mode" value="record" style="padding:8px 14px;font-size:13px"
+                            onclick="return confirm('Record a refund you have ALREADY made in Square/Stripe? (No money is moved.)')">✓ I've already refunded it</button>
+                    </form>
+                </div>
+            @endif
+            @if($liveRefunds)
+                <div class="hint" style="margin:-4px 0 12px">
+                    @foreach($liveRefunds as $r)
+                        <div>↩ Refunded <strong>£{{ number_format((float) $r['amount'], 2) }}</strong>
+                            {{ ($r['how'] ?? '') === 'manual' ? '(recorded, done by hand)' : 'to card via '.ucfirst($r['how'] ?? 'card') }}
+                            · {{ \Illuminate\Support\Carbon::parse($r['at'])->timezone(config('app.timezone'))->format('j M Y, H:i') }}{{ !empty($r['by']) ? ' · '.$r['by'] : '' }}{{ !empty($r['reason']) ? ' · '.$r['reason'] : '' }}</div>
+                    @endforeach
+                </div>
+            @endif
+
             {{-- 🔁 Resend payment link — THE one action when a balance is due. Reuses the
                  newest open card link for exactly the amount due (no duplicate); else
                  creates one Balance line + link. Email / WhatsApp / SMS / copy. --}}

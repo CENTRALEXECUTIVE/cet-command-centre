@@ -245,6 +245,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // £1 test card link — proves the live card flow without marking any booking paid.
         Route::post('bookings/{booking}/transactions/test-link', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'testLink'])->middleware('throttle:30,1')->name('bookings.transactions.test-link');
         // Reset a booking's payment status back to unpaid (undo a test payment).
+        Route::post('bookings/{booking}/refund-difference', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'refundDifference'])->middleware('throttle:10,1')->name('bookings.refund-difference');
         Route::post('bookings/{booking}/transactions/reset-payment', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'resetPayment'])->middleware('throttle:30,1')->name('bookings.transactions.reset-payment');
         Route::post('bookings/{booking}/email-payment-request', [\App\Http\Controllers\Admin\BookingTransactionController::class, 'emailPaymentRequest'])->middleware('throttle:30,1')->name('bookings.email-payment-request');
         // Booking communications pack: resend the payment link (reuses an open one),

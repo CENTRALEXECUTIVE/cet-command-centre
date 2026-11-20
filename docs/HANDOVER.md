@@ -318,6 +318,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **20 Nov 2026 (pm)** — Refund difference (JELD-WEN CET-B3411F downgraded V-Class → Executive after paying £210):
+  the paid figure was capped at the new price, hiding the £72 overpaid. Now Booking::overpaidAmount() shows it and a
+  "💷 Refund difference" box on the booking sends it back to the card via Square (/v2/refunds) or Stripe (/v1/refunds),
+  office-confirmed, idempotent — or records a refund done by hand. Refunds live in meta['refunds'] and reduce the paid
+  figure. Edit now recomputes AUTO driver pay when price/vehicle changes (was only "Set price"); one-off migration
+  2026_11_20_000001 fixes B3411F's £157.50. Refund for B3411F itself still to be done by the office.
 - **20 Nov 2026** — Booking page luggage: a suitcase now counts as 1.5 carry-ons, so spare suitcase room takes
   carry-ons (VehicleType::fitsLuggage / luggageSpace; same rule in the widget JS). E-Class (2+2): 0 cases + up to
   5 carry-ons, 1 case + 3, 2 + 2. Was: any 3rd carry-on greyed the E-Class out. Directors' call: 5 carry-ons max.

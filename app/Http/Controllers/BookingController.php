@@ -701,6 +701,8 @@ class BookingController extends Controller
 
     public function update(UpdateBookingRequest $request, Booking $booking): RedirectResponse
     {
+        $previousFare = $booking->fareAmount();
+        $previousVehicle = $booking->vehicle_type_id;
         $this->bookings->updateFromForm($booking, $request->validated());
 
         // Adding a contact number can make masking possible on an already-
@@ -713,9 +715,22 @@ class BookingController extends Controller
             app(\App\Services\Telephony\TwilioProxyService::class)->openSession($booking, $booking->driver);
         }
 
+        // A new price or vehicle (e.g. V-Class → Executive) must carry through to the
+        // driver's pay, exactly as "Set price" does: the AUTO figure follows; a hand-
+        // typed/cover price or pay already handed over is left alone (Nov 2026).
+        $payNote = '';
+        if (abs((float) $booking->fareAmount() - (float) $previousFare) > 0.009 || $booking->vehicle_type_id !== $previousVehicle) {
+            $newPay = $booking->recomputeAutoDriverPay($previousFare);
+            if ($newPay !== null) {
+                $payNote = ' Driver income updated to £'.number_format($newPay, 2).'.';
+            }
+        }
+        $refundNote = $booking->fresh()->overpaidAmount() > 0.009
+            ? ' The customer has paid more than the new price — use "Refund difference" below.' : '';
+
         return redirect()
             ->route('bookings.show', $booking)
-            ->with('status', "Booking {$booking->reference} updated. The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
+            ->with('status', "Booking {$booking->reference} updated.{$payNote}{$refundNote} The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
     }
 
     /**

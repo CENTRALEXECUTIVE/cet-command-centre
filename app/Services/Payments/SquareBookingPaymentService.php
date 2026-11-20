@@ -382,4 +382,33 @@ class SquareBookingPaymentService
             ->orWhere('reference', $reference)
             ->first();
     }
+
+    /**
+     * Refund part (or all) of a Square payment. Only ever called from the office's
+     * "Refund difference" button after they confirm the amount. The idempotency key
+     * stops a double tap refunding twice.
+     *
+     * @return array{ok:bool, id?:string, error?:string}
+     */
+    public function refund(string $paymentId, float $amount, string $entity, string $idempotencyKey, ?string $reason = null): array
+    {
+        if (! $this->enabled($entity)) {
+            return ['ok' => false, 'error' => 'Square is not connected for this company.'];
+        }
+        try {
+            $r = $this->http($entity)->post($this->baseUrl($entity).'/v2/refunds', array_filter([
+                'idempotency_key' => substr($idempotencyKey, 0, 45),
+                'payment_id' => $paymentId,
+                'amount_money' => ['amount' => (int) round($amount * 100), 'currency' => 'GBP'],
+                'reason' => $reason ? substr($reason, 0, 190) : null,
+            ]));
+            if ($r->successful() && ($id = $r->json('refund.id'))) {
+                return ['ok' => true, 'id' => (string) $id];
+            }
+
+            return ['ok' => false, 'error' => (string) ($r->json('errors.0.detail') ?? ('Square said '.$r->status()))];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => 'Could not reach Square: '.$e->getMessage()];
+        }
+    }
 }

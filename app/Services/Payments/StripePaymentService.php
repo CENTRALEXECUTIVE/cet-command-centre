@@ -441,4 +441,32 @@ class StripePaymentService
     {
         return (string) Str::uuid();
     }
+
+    /**
+     * Refund part (or all) of a Stripe payment (payment_intent id). Office-confirmed
+     * only; the idempotency key stops a double tap refunding twice.
+     *
+     * @return array{ok:bool, id?:string, error?:string}
+     */
+    public function refund(string $paymentIntent, float $amount, string $idempotencyKey, ?string $reason = null): array
+    {
+        if (! $this->enabled()) {
+            return ['ok' => false, 'error' => 'Stripe is not connected.'];
+        }
+        try {
+            $r = $this->http()->withHeaders(['Idempotency-Key' => $idempotencyKey])->post(self::API.'/refunds', array_filter([
+                'payment_intent' => $paymentIntent,
+                'amount' => (int) round($amount * 100),
+                'reason' => 'requested_by_customer',
+                'metadata[note]' => $reason ? substr($reason, 0, 400) : null,
+            ]));
+            if ($r->successful() && ($id = $r->json('id'))) {
+                return ['ok' => true, 'id' => (string) $id];
+            }
+
+            return ['ok' => false, 'error' => (string) ($r->json('error.message') ?? ('Stripe said '.$r->status()))];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => 'Could not reach Stripe: '.$e->getMessage()];
+        }
+    }
 }

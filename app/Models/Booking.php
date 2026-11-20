@@ -1565,7 +1565,7 @@ class Booking extends Model
         // total on the outbound, but each leg only ever counts its own fare as paid.
         // Falls back to the gross fare for a job simply flagged paid by hand with no
         // recorded amount.
-        $recorded = $this->onlinePaidTotal();
+        $recorded = max(0.0, $this->onlinePaidTotal() - $this->liveRefundsTotal());
         $fare = $this->fareGross();
         if ($recorded > 0) {
             // Capped at what this leg is PAYABLE (incl. VAT on a VAT invoice — what
@@ -1576,6 +1576,85 @@ class Booking extends Model
         }
 
         return $this->fareIsPaid() ? (float) ($fare ?? 0) : 0.0;
+    }
+
+    /* ---- Refunds on a live job (e.g. downgraded vehicle) ------------------------
+     * Money handed back while the job still goes ahead. Each refund is recorded in
+     * meta['refunds'] (amount, when, who, how, provider reference) so the paid
+     * figure, invoices and reports show what the customer really paid. Nov 2026. */
+
+    /** @return list<array<string,mixed>> */
+    public function liveRefunds(): array
+    {
+        return array_values(array_filter((array) ($this->meta['refunds'] ?? []), 'is_array'));
+    }
+
+    public function liveRefundsTotal(): float
+    {
+        return round(array_sum(array_map(fn ($r) => (float) ($r['amount'] ?? 0), $this->liveRefunds())), 2);
+    }
+
+    /** What was actually taken for this leg (£, before refunds): ledger paid rows, else the online record. */
+    public function grossTakenForLeg(): float
+    {
+        if ($this->payments->isNotEmpty()) {
+            return round((float) $this->payments->where('status', 'paid')->sum('amount'), 2);
+        }
+        if ($this->onlinePaidTotal() > 0) {
+            return $this->onlinePaidTotal();
+        }
+
+        return $this->fareIsPaid() ? (float) ($this->amountPayable() ?? 0) : 0.0;
+    }
+
+    /**
+     * The customer has paid MORE than the job now costs (the price came down after
+     * they paid, e.g. V-Class → Executive): taken − refunded − payable, across this
+     * leg and its return pair (a return's card payment sits on one leg). 0 when not.
+     */
+    public function overpaidAmount(): float
+    {
+        $legs = collect([$this]);
+        if ($this->linked_booking_id && ($other = self::find($this->linked_booking_id))
+            && ! in_array($other->status, [BookingStatus::Cancelled, BookingStatus::NoShow], true)) {
+            $legs->push($other);
+        }
+        $taken = $legs->sum(fn (self $b) => $b->grossTakenForLeg() - $b->liveRefundsTotal());
+        $payable = $legs->sum(fn (self $b) => (float) ($b->amountPayable() ?? 0));
+
+        return max(0.0, round($taken - $payable, 2));
+    }
+
+    /** Record a refund handed back on this (still live) job. */
+    public function recordLiveRefund(float $amount, string $how, ?string $providerRef, ?string $reason, ?\App\Models\User $by): void
+    {
+        $meta = $this->meta ?? [];
+        $meta['refunds'][] = array_filter([
+            'amount' => round($amount, 2),
+            'at' => now()->toIso8601String(),
+            'how' => $how, // square | stripe | manual
+            'ref' => $providerRef,
+            'reason' => $reason,
+            'by' => $by?->name,
+        ], fn ($v) => $v !== null && $v !== '');
+        $this->forceFill(['meta' => $meta])->save();
+    }
+
+    /** The card payment a refund can go back to: [provider, payment id, entity, amount] of the newest real one. */
+    public function refundablePayment(): ?array
+    {
+        $history = $this->meta['square_payment']['history'] ?? (isset($this->meta['square_payment']['id']) ? [$this->meta['square_payment']] : []);
+        foreach (array_reverse((array) $history) as $h) {
+            $id = (string) ($h['id'] ?? '');
+            if ($id === '' || str_starts_with($id, 'MANUAL-')) {
+                continue;
+            }
+            $provider = (str_starts_with($id, 'pi_') || str_starts_with($id, 'cs_')) ? 'stripe' : 'square';
+
+            return ['provider' => $provider, 'id' => $id, 'entity' => $h['entity'] ?? 'transfers', 'amount' => (float) ($h['amount'] ?? 0)];
+        }
+
+        return null;
     }
 
     /** Total of all payment-ledger transactions, paid or not (£). */
