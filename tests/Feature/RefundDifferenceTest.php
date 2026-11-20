@@ -110,4 +110,22 @@ class RefundDifferenceTest extends TestCase
         $this->assertNotNull($new);
         $this->assertNotEquals(157.50, $b->fresh()->driverPay());
     }
+
+    public function test_a_return_paid_on_the_outbound_and_now_dearer_is_not_overpaid(): void
+    {
+        // CET-4DA06B, 20 Nov 2026: one card payment for the whole trip (£250) sits on the
+        // outbound AND was seeded into the return's ledger under the same payment id. The
+        // return then went up to £165 (£35 owed) — it read "Refund difference: £95".
+        $out = Booking::factory()->create(['quoted_price' => 120]);
+        $ret = Booking::factory()->create(['quoted_price' => 130, 'linked_booking_id' => $out->id]);
+        $out->forceFill(['linked_booking_id' => $ret->id])->save();
+        $out->markFarePaid('pi_trip', 250.00, 'chauffeurs');
+        \App\Models\Payment::create(['booking_id' => $ret->id, 'method' => 'card', 'amount' => 130, 'status' => 'paid',
+            'tide_reference' => 'pi_trip', 'meta' => ['name' => 'Paid online', 'online_seed' => true]]);
+        $ret->forceFill(['quoted_price' => 165, 'final_price' => null])->save();
+
+        $this->assertSame(0.0, $ret->fresh()->overpaidAmount());
+        $this->actingAs(User::factory()->admin()->create())->get(route('bookings.show', $ret))->assertOk()
+            ->assertDontSee('Refund difference')->assertSee('£35.00 due');
+    }
 }

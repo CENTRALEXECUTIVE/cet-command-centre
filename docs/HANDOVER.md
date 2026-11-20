@@ -323,6 +323,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **20 Nov 2026 (night, 3)** — CET-4DA06B (return leg repriced £130 → £165 after the trip was paid on the
+  outbound) showed "Refund difference £95" while £35 was OWED: overpaidAmount counted the one card payment twice
+  (outbound record + return ledger seed, same payment id). Now deduped by payment id, and the refund box never
+  shows while a balance is due; it's folded behind a small "↩ Refund £X…" button. Balance links after a part
+  payment now say "Booking update … New total / already paid / Balance" (WhatsApp/SMS + email subject).
 - **20 Nov 2026 (night, 2)** — Deep Barnsley now S71, S72 (Cudworth, Grimethorpe), S75 (Darton, Mapplewell,
   Dodworth) — directors. Barnsley keeps S70, S73, S74. Migration 2026_11_20_000004 (zone postcodes only). PDF updated.
 - **20 Nov 2026 (night)** — Deep Doncaster (directors: Darren's DN7 too far for the town fare): DN6, DN7, DN8,

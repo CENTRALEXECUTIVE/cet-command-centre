@@ -35,7 +35,11 @@ class PaymentLinkMail extends Mailable
 
         return new Envelope(
             from: new \Illuminate\Mail\Mailables\Address($this->booking->senderAddress(), $this->booking->senderName()),
-            subject: 'Central Executive Transfers — payment for booking '.$ref,
+            // Something was paid before (e.g. the trip was changed after paying): it's an
+            // update with a balance, not a fresh bill (directors, 20 Nov 2026).
+            subject: $this->summary()['paidBefore']
+                ? 'Booking update — balance for booking '.$ref.' | Central Executive Transfers'
+                : 'Central Executive Transfers — payment for booking '.$ref,
         );
     }
 

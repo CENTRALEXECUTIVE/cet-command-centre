@@ -468,6 +468,14 @@ class BookingTransactionController extends Controller
         $redirect->with('copy_link', $link)->with('scroll', 'transactions');
 
         $body = 'Central Executive Transfers — pay for booking '.$booking->reference.' (£'.number_format($amount, 2).'): '.$link;
+        $paidSoFar = round($booking->transactionsPaidTotal(), 2);
+        if ($paidSoFar > 0.009) {
+            // Paid before, then the booking changed (new flight / airport / price): say so.
+            $total = round($paidSoFar + $amount, 2);
+            $body = 'Booking update — Central Executive Transfers. Your booking '.$booking->reference
+                .' has been updated. New total £'.number_format($total, 2).', £'.number_format($paidSoFar, 2)
+                .' already paid. Balance £'.number_format($amount, 2).': '.$link;
+        }
         $phone = $booking->customerContactNumber() ?: $booking->customer?->phone;
 
         if ($channel === 'email') {

@@ -1972,8 +1972,12 @@
                 $liveRefunds = $refundHolder->liveRefunds();
                 $refPay = $refundHolder->refundablePayment();
             @endphp
-            @if($overpaid > 0.009)
-                <div id="refund-difference" style="border:2px solid #b8860b;border-radius:10px;padding:10px 14px;margin:0 0 12px;background:rgba(251,186,42,.08)">
+            {{-- Never offered while the customer still OWES money on this job (CET-4DA06B).
+                 Folded away behind a small button; tap to open and fill in. --}}
+            @if($overpaid > 0.009 && ($amountDue ?? 0) <= 0.009)
+                <details id="refund-difference" style="margin:0 0 12px">
+                    <summary class="btn btn-ghost" style="display:inline-block;padding:7px 14px;font-size:13px;cursor:pointer;list-style:none">↩ Refund £{{ number_format($overpaid, 2) }}…</summary>
+                <div style="border:2px solid #b8860b;border-radius:10px;padding:10px 14px;margin:8px 0 0;background:rgba(251,186,42,.08)">
                     <div style="font-weight:800;margin-bottom:4px">💷 Refund difference: £{{ number_format($overpaid, 2) }}</div>
                     <p class="hint" style="margin:0 0 8px">The customer paid £{{ number_format($refundHolder->grossTakenForLeg() - $refundHolder->liveRefundsTotal(), 2) }}{{ $refundHolder->is($booking) ? '' : ' (on '.$refundHolder->reference.')' }}, but the job now costs £{{ number_format($payableTotal ?? 0, 2) }}. Send the difference back to their card, or record a refund you've already made.</p>
                     <form method="POST" action="{{ route('bookings.refund-difference', $booking) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
@@ -1990,6 +1994,7 @@
                             onclick="return confirm('Record a refund you have ALREADY made in Square/Stripe? (No money is moved.)')">✓ I've already refunded it</button>
                     </form>
                 </div>
+                </details>
             @endif
             @if($liveRefunds)
                 <div class="hint" style="margin:-4px 0 12px">

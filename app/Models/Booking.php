@@ -1619,7 +1619,32 @@ class Booking extends Model
             && ! in_array($other->status, [BookingStatus::Cancelled, BookingStatus::NoShow], true)) {
             $legs->push($other);
         }
-        $taken = $legs->sum(fn (self $b) => $b->grossTakenForLeg() - $b->liveRefundsTotal());
+        // Count each real card payment ONCE across the pair. A return trip's single card
+        // payment is recorded on the outbound (whole trip) AND seeded into the return's
+        // ledger under the same payment id — summing both read a £35-owing return as
+        // "£95 overpaid" (CET-4DA06B, 20 Nov 2026). Keyed by payment id, the larger wins.
+        $byPayment = [];
+        foreach ($legs as $b) {
+            if ($b->payments->isNotEmpty()) {
+                foreach ($b->payments->where('status', 'paid') as $row) {
+                    $key = filled($row->tide_reference) ? 'pay:'.$row->tide_reference : 'row:'.$row->id;
+                    $byPayment[$key] = max($byPayment[$key] ?? 0, (float) $row->amount);
+                }
+            } elseif ($b->onlinePaidTotal() > 0) {
+                $history = (array) ($b->meta['square_payment']['history'] ?? []);
+                if ($history === []) {
+                    $id = $b->meta['square_payment']['id'] ?? null;
+                    $history = [['id' => $id, 'amount' => $b->onlinePaidTotal()]];
+                }
+                foreach ($history as $i => $h) {
+                    $key = filled($h['id'] ?? null) ? 'pay:'.$h['id'] : 'leg:'.$b->id.':'.$i;
+                    $byPayment[$key] = max($byPayment[$key] ?? 0, (float) ($h['amount'] ?? 0));
+                }
+            } elseif ($b->fareIsPaid()) {
+                $byPayment['fare:'.$b->id] = (float) ($b->amountPayable() ?? 0);
+            }
+        }
+        $taken = array_sum($byPayment) - $legs->sum(fn (self $b) => $b->liveRefundsTotal());
         $payable = $legs->sum(fn (self $b) => (float) ($b->amountPayable() ?? 0));
 
         return max(0.0, round($taken - $payable, 2));
