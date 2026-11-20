@@ -318,6 +318,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **20 Nov 2026 (eve)** — Edit booking rebuilt (directors: "exactly the same" as New booking): BookingController@edit
+  renders bookings.create in edit mode, filled from the booking via session old-input (bookingFormValues) — same
+  layout, live price cards per vehicle, "Use £X" re-quote; saves through update (PUT), nothing new created, no
+  customer email, calendar untouched. Return option hidden (each leg edited alone); waiting-time block added;
+  consent/email/preview hidden. Update now takes postcodes, flight landing time (airport pickup: landing = pickup,
+  UK time), passenger vs booker (lead_name/booked_by kept separate), VAT company details (VAT can't be switched off
+  once paid). cet-forms.js auto-quote never overwrites a price already on the form (sw v38). Old edit.blade removed.
 - **20 Nov 2026 (pm)** — Refund difference (JELD-WEN CET-B3411F downgraded V-Class → Executive after paying £210):
   the paid figure was capped at the new price, hiding the £72 overpaid. Now Booking::overpaidAmount() shows it and a
   "💷 Refund difference" box on the booking sends it back to the card via Square (/v2/refunds) or Stripe (/v1/refunds),

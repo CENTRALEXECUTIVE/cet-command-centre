@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'New Booking')
+@section('title', ($editing ?? null) ? 'Edit '.$editing->reference : 'New Booking')
 
 @section('content')
     @include('partials.smart-form-skin')
@@ -7,8 +7,13 @@
     <div class="smart-form sf-booking">
         <div class="smart-hero sf-compact">
             <div>
-                <span class="eyebrow">Sales · New job</span>
-                <h1>New booking</h1>
+                @if($editing ?? null)
+                    <span class="eyebrow">Bookings · Edit</span>
+                    <h1>Edit booking <span class="mono">{{ $editing->reference }}</span></h1>
+                @else
+                    <span class="eyebrow">Sales · New job</span>
+                    <h1>New booking</h1>
+                @endif
             </div>
             <span class="pill">⚡ Live price · checks meet &amp; greet, VAT and payment as you type</span>
         </div>
@@ -37,8 +42,20 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('bookings.store') }}" class="eto-form">
+    @if($editing ?? null)
+        <div class="alert alert-success" style="margin-bottom:12px">
+            ✏️ Editing <strong>{{ $editing->reference }}</strong>. Change anything below; the live price for every vehicle updates as you go, and <strong>"Use £…"</strong> re-quotes the job. Saving updates this booking: no new booking, nothing sent to the customer, the calendar isn't touched.
+            <a href="{{ route('bookings.show', $editing) }}" style="margin-left:6px">← Back to the booking</a>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ ($editing ?? null) ? route('bookings.update', $editing) : route('bookings.store') }}" class="eto-form">
         @csrf
+        @if($editing ?? null)
+            @method('PUT')
+            <input type="hidden" name="external_reference" value="{{ old('external_reference') }}">
+            <input type="hidden" name="payment_status" value="{{ old('payment_status') }}">
+        @endif
         @if($quote)<input type="hidden" name="quote_id" value="{{ $quote->id }}">@endif
         @if(($enquiry ?? null))<input type="hidden" name="enquiry_id" value="{{ $enquiry->id }}">@endif
         @php $pf = $prefill ?? []; @endphp
@@ -70,11 +87,13 @@
                     <input id="customer_email" type="email" name="customer_email" value="{{ old('customer_email', $pf['customer_email'] ?? $customer?->email) }}">
                     <div class="hint">Provide a phone number or an email so we can send confirmations.</div>
                     @error('customer_email') <div class="error">{{ $message }}</div> @enderror
+                    @unless($editing ?? null)
                     <label class="checkbox-row" style="margin-top:8px;font-size:13px;font-weight:600">
                         <input type="checkbox" name="email_customer" value="1" {{ old('email_customer', '1') ? 'checked' : '' }}>
                         Email the customer a booking confirmation
                     </label>
                     <div class="hint">Sent when they have an email. Untick to create the booking quietly.</div>
+                    @endunless
                 </div>
             </div>
         </div>
@@ -87,9 +106,10 @@
                     <label for="journey_type">Journey type <span class="req">*</span></label>
                     <select id="journey_type" name="journey_type" required>
                         <option value="one_way" @selected(old('journey_type','one_way')==='one_way')>One way</option>
-                        <option value="return" @selected(old('journey_type')==='return')>Return</option>
+                        @unless($editing ?? null)<option value="return" @selected(old('journey_type')==='return')>Return</option>@endunless
                         <option value="hourly" @selected(old('journey_type')==='hourly')>Hourly hire (as directed)</option>
                     </select>
+                    @if($editing ?? null)<div class="hint">Each leg of a return is its own booking, so you edit one leg at a time{{ $editing->linked_booking_id ? ' (the other leg is '.optional(\App\Models\Booking::find($editing->linked_booking_id))->reference.')' : '' }}.</div>@endif
                 </div>
 
                 <div class="field" id="hours_field" style="display:none">
@@ -475,6 +495,7 @@
                      PVT LTD via Stripe. The company details go on the invoice. --}}
                 <div class="field" style="margin-top:4px">
                     <label class="checkbox-row" style="font-weight:600">
+                        @if($editing ?? null)<input type="hidden" name="vat_invoice" value="0">@endif
                         <input type="checkbox" id="vat_invoice" name="vat_invoice" value="1" {{ old('vat_invoice') ? 'checked' : '' }}
                                onchange="document.getElementById('vat-details').hidden = !this.checked">
                         VAT invoice — customer wants a VAT receipt
@@ -598,6 +619,29 @@
         </div>
 
         {{-- ───────────── Consent ───────────── --}}
+        @if($editing ?? null)
+        {{-- Edit-only: waiting time (not on the New booking form). --}}
+        <div class="eto-section">
+            <div class="head"><span class="ico">⏱</span> Waiting time</div>
+            <div class="body">
+                <label class="checkbox-row" style="font-weight:600">
+                    <input type="checkbox" name="waiting" value="1" {{ old('waiting') ? 'checked' : '' }}
+                           onchange="document.getElementById('wait-detail').hidden = !this.checked">
+                    Driver waits during the job (wait &amp; return)
+                </label>
+                <div id="wait-detail" class="grid grid-2" style="margin-top:8px" {{ old('waiting') ? '' : 'hidden' }}>
+                    <div class="field" style="margin:0"><label for="waiting_where" style="font-size:12px">Where</label>
+                        <select id="waiting_where" name="waiting_where">
+                            <option value="">—</option>
+                            <option value="pickup" @selected(old('waiting_where') === 'pickup')>At the pickup</option>
+                            <option value="stop" @selected(old('waiting_where') === 'stop')>At a stop</option>
+                        </select></div>
+                    <div class="field" style="margin:0"><label for="waiting_minutes" style="font-size:12px">Minutes</label>
+                        <input id="waiting_minutes" type="number" min="0" max="600" name="waiting_minutes" value="{{ old('waiting_minutes') }}"></div>
+                </div>
+            </div>
+        </div>
+        @else
         <div class="eto-section">
             <div class="head"><span class="ico">🔒</span> Consent</div>
             <div class="body">
@@ -615,6 +659,7 @@
                 @error('privacy_consent') <div class="error">{{ $message }}</div> @enderror
             </div>
         </div>
+        @endif
 
         {{-- ───────────── Total + submit ───────────── --}}
         <div class="total-bar">
@@ -623,7 +668,7 @@
                      filled from the fields above so the office can check before confirming. --}}
                 <dl class="sf-summary" id="sf-summary" aria-live="polite"></dl>
                 <div class="total-label">Total</div>
-                <div class="total-amount" id="total-amount">£{{ number_format(old('quoted_price', $quote?->price ?? 0), 2) }}<span class="basis" id="total-basis">enter journey for a live price</span></div>
+                <div class="total-amount" id="total-amount">£{{ number_format((float) old('quoted_price', $quote?->price ?? 0), 2) }}<span class="basis" id="total-basis">enter journey for a live price</span></div>
                 {{-- Itemised breakdown right by the figure so the office sees what
                      makes up the total (base + each extra), not just a number. --}}
                 <div class="total-breakdown" id="total-breakdown" hidden></div>
@@ -632,14 +677,16 @@
                 <div class="total-breakdown" id="total-vat" data-vat-rate="{{ app(\App\Services\Payments\VatService::class)->rate() ?: 0.20 }}" hidden></div>
             </div>
             <div class="actions">
-                <a href="{{ route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
+                <a href="{{ ($editing ?? null) ? route('bookings.show', $editing) : route('bookings.index') }}" class="btn btn-ghost">Cancel</a>
                 {{-- See the customer's confirmation email BEFORE confirming — opens in a new
                      tab from the details entered so far. Sends nothing; nothing is saved. --}}
+                @unless($editing ?? null)
                 <button type="submit" class="btn btn-light"
                         formaction="{{ route('bookings.confirmation-email.preview-new') }}"
                         formmethod="post" formtarget="_blank" formnovalidate
                         title="Preview the customer's email before confirming — nothing is sent">👁 Preview email</button>
-                <button type="submit" class="btn btn-primary">Confirm booking →</button>
+                @endunless
+                <button type="submit" class="btn btn-primary">{{ ($editing ?? null) ? 'Save changes →' : 'Confirm booking →' }}</button>
             </div>
         </div>
     </form>
@@ -713,7 +760,7 @@
         window.CET_PRICES_URL = "{{ route('widget.prices') }}";
         window.CET_STRIP_URL = "{{ route('pricing.strip') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=36"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=37"></script>
     @verbatim
     <script>
         (function () {

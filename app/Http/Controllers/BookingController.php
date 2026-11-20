@@ -696,7 +696,90 @@ class BookingController extends Controller
         // losing the job's timeline. Editing fields never touches the status history.
         $booking->load(['customer', 'stops']);
 
-        return view('bookings.edit', $this->formData($request) + ['booking' => $booking]);
+        // Directors (20 Nov 2026): Edit is the SAME form as New booking — same layout,
+        // live prices for every vehicle and a "Use £X" re-quote — filled in from this
+        // booking. Saving updates this booking (nothing new is created). The values go
+        // in as "old input" so every field on the form picks them up; after a failed
+        // save the office's own typed values win instead.
+        if (! $request->session()->hasOldInput()) {
+            $request->session()->now('_old_input', $this->bookingFormValues($booking));
+        }
+
+        return view('bookings.create', $this->formData($request) + [
+            'editing' => $booking,
+            'quote' => null,
+            'customer' => $booking->customer,
+            'enquiry' => null,
+            'prefill' => [],
+        ]);
+    }
+
+    /** The booking's current details as New-booking form values (for Edit). */
+    private function bookingFormValues(Booking $b): array
+    {
+        $m = $b->meta ?? [];
+        $passenger = (string) $b->displayCustomerName();
+        $booker = (string) ($b->customer?->name ?? '');
+        // Booked for someone else (e.g. a PA for a visitor): show the booker as the
+        // customer and the traveller in "Passenger name", exactly like New booking.
+        $forSomeoneElse = $booker !== '' && strcasecmp(trim($booker), trim($passenger)) !== 0
+            && (filled($m['booked_by'] ?? null) || filled($m['lead_name'] ?? null));
+        $wt = $b->waitingTimeInfo() ?? [];
+        $vat = (array) ($m['vat_details'] ?? []);
+        $isAirportPickup = \App\Support\AirportMatcher::isAirport((string) $b->pickup_address);
+        $when = $b->pickup_at?->copy()->timezone(config('app.timezone'))->format('Y-m-d\TH:i');
+
+        return [
+            'customer_name' => $forSomeoneElse ? $booker : $passenger,
+            'lead_name' => $forSomeoneElse ? $passenger : '',
+            'customer_phone' => $b->customerContactNumber(),
+            'customer_email' => $b->customer?->email,
+            'journey_type' => $b->journey_type === 'hourly' ? 'hourly' : 'one_way',
+            'hours' => $m['hours'] ?? 3,
+            'pickup_address' => $b->pickup_address,
+            'pickup_postcode' => $b->pickup_postcode,
+            'destination_address' => $b->destination_address,
+            'destination_postcode' => $b->destination_postcode,
+            'via_stops' => $b->viaStops() ?: [''],
+            'pickup_at' => $when,
+            'flight_number' => $b->flight_number,
+            'flight_landing_at' => $isAirportPickup ? $when : '',
+            'airport_id' => $b->airport_id,
+            'vehicle_type_id' => $b->vehicle_type_id,
+            'vehicle_count' => (int) ($m['vehicle_count'] ?? 1),
+            'passengers' => $b->passengerCount() ?? $b->passengers,
+            'suitcases' => $b->displaySuitcases(),
+            'hand_luggage' => $b->displayHandLuggage(),
+            'child_seats' => $m['child_seats'] ?? 0,
+            'booster_seats' => $m['booster_seats'] ?? 0,
+            'infant_seats' => $m['infant_seats'] ?? 0,
+            'meet_greet' => ! empty($m['meet_greet']) ? '1' : '',
+            'meeting_board' => $m['meeting_board'] ?? '',
+            'meeting_point' => $m['meeting_point'] ?? '',
+            'wheelchair' => ! empty($m['wheelchair']) ? '1' : '',
+            'ribbon' => ! empty($m['ribbon']) ? '1' : '',
+            'waiting' => $b->waitingTimeInfo() !== null ? '1' : '',
+            'waiting_minutes' => $wt['minutes'] ?? '',
+            'waiting_where' => $wt['where'] ?? '',
+            'driver_notes' => $b->driverNotes(),
+            'special_requests' => $b->special_requests,
+            'payment_method' => $b->payment_method?->value,
+            // The price box shows what the job costs NOW (an office override wins).
+            'quoted_price' => $b->fareAmount() !== null ? number_format((float) $b->fareAmount(), 2, '.', '') : '',
+            'deposit_amount' => $b->depositAmount() ?: '',
+            'deposit_paid' => $b->depositPaidAmount() > 0 ? '1' : '',
+            'corporate_account_id' => $b->corporate_account_id,
+            'cost_code' => $b->cost_code,
+            'corporate_reference' => $b->corporate_reference,
+            'vat_invoice' => ($m['vat_invoice_requested'] ?? false) ? '1' : '',
+            'vat_company' => $vat['company'] ?? '',
+            'vat_number' => $vat['vat_number'] ?? '',
+            'vat_address' => $vat['address'] ?? '',
+            'booking_source' => $m['enquiry_source'] ?? '',
+            'heard_about' => $m['heard_about'] ?? '',
+            'external_reference' => $b->external_reference,
+            'payment_status' => $b->payment_status,
+        ];
     }
 
     public function update(UpdateBookingRequest $request, Booking $booking): RedirectResponse
@@ -704,6 +787,39 @@ class BookingController extends Controller
         $previousFare = $booking->fareAmount();
         $previousVehicle = $booking->vehicle_type_id;
         $this->bookings->updateFromForm($booking, $request->validated());
+
+        // VAT invoice (the Edit form is the New booking form now): keep the company
+        // details current. Switching VAT OFF moves the job to the other company, so
+        // it's refused once money has been taken (the payment sits with the Ltd).
+        $vatNote = '';
+        if ($request->has('vat_invoice')) {
+            $fresh = $booking->fresh();
+            $on = $request->boolean('vat_invoice');
+            $was = (bool) ($fresh->meta['vat_invoice_requested'] ?? false);
+            if ($on) {
+                if (! $was) {
+                    $fresh->setVatInvoiceRequested(true);
+                    $fresh = $fresh->fresh();
+                }
+                $company = trim((string) $request->input('vat_company', ''));
+                $meta = $fresh->meta ?? [];
+                $meta['vat_details'] = array_filter([
+                    'company' => $company,
+                    'vat_number' => trim((string) $request->input('vat_number', '')),
+                    'address' => trim((string) $request->input('vat_address', '')),
+                ], fn ($v) => $v !== '');
+                if ($company !== '') {
+                    $meta['booker_name'] = $company;
+                }
+                $fresh->forceFill(['meta' => $meta])->save();
+            } elseif ($was) {
+                if ($fresh->fareIsPaid() || $fresh->onlinePaidTotal() > 0) {
+                    $vatNote = ' VAT invoice left ON: the customer has already paid the VAT company.';
+                } else {
+                    $fresh->setVatInvoiceRequested(false);
+                }
+            }
+        }
 
         // Adding a contact number can make masking possible on an already-
         // allocated job — open the line now so the office can hand it out.
@@ -730,7 +846,7 @@ class BookingController extends Controller
 
         return redirect()
             ->route('bookings.show', $booking)
-            ->with('status', "Booking {$booking->reference} updated.{$payNote}{$refundNote} The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
+            ->with('status', "Booking {$booking->reference} updated.{$payNote}{$refundNote}{$vatNote} The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
     }
 
     /**

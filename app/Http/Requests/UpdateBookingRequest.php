@@ -88,6 +88,18 @@ class UpdateBookingRequest extends FormRequest
             'waiting_where' => ['nullable', Rule::in(['pickup', 'stop'])],
             'waiting_minutes' => ['nullable', 'integer', 'min:0', 'max:600'],
 
+            // Same extra fields as the New booking form, now that Edit uses it (20 Nov 2026).
+            'lead_name' => ['nullable', 'string', 'max:120'],
+            'journey_type' => ['nullable', Rule::in(['one_way', 'hourly'])],
+            'hours' => ['nullable', 'integer', 'min:1', 'max:24'],
+            'pickup_postcode' => ['nullable', 'string', 'max:16'],
+            'destination_postcode' => ['nullable', 'string', 'max:16'],
+            'flight_landing_at' => ['nullable', 'date'],
+            'vat_invoice' => ['nullable', 'boolean'],
+            'vat_company' => ['nullable', 'string', 'max:160'],
+            'vat_number' => ['nullable', 'string', 'max:32'],
+            'vat_address' => ['nullable', 'string', 'max:500'],
+
             // Commercials
             'payment_method' => ['required', Rule::in(PaymentMethod::values())],
             'deposit_amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],

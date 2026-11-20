@@ -209,7 +209,7 @@
         var price = document.getElementById('quoted_price');
         var note = document.getElementById('quote-note');
         if (!pickup || !dest || !veh || !window.CET_ESTIMATE_URL) return;
-        var timer = null, edited = false;
+        var timer = null, edited = !!(price && price.value !== ''); // never overwrite a price already on the form (Edit booking, AI quote)
         if (price) price.addEventListener('input', function () { edited = true; });
         function refresh() {
             var p = pickup.value.trim(), d = dest.value.trim(), v = veh.value;

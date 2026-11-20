@@ -944,7 +944,7 @@
         window.CET_LOGIN_URL = "{{ route('widget.login') }}";
         window.CET_ME = {!! json_encode($me ?? null) !!};
         window.CET_ME_ACCOUNT = {!! json_encode($meAccount ?? null) !!};</script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=36" defer></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=37" defer></script>
 
     <script>
         (function () {

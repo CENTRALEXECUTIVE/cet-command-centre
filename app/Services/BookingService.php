@@ -157,6 +157,18 @@ class BookingService
     public function updateFromForm(Booking $booking, array $data): Booking
     {
         return DB::transaction(function () use ($booking, $data) {
+            // Edit now uses the New booking form (20 Nov 2026). Collecting FROM an
+            // airport: the flight landing time IS the pickup time (UK-local, as on
+            // New booking) — the form keeps the two in step; the landing time wins.
+            if (! empty($data['flight_landing_at'])
+                && \App\Support\AirportMatcher::isAirport((string) ($data['pickup_address'] ?? ''))) {
+                $data['pickup_at'] = \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->format('Y-m-d H:i:s');
+            }
+            // Booked for someone else: "Passenger name" is the traveller; the customer
+            // name is who books & pays. Without it, the customer name IS the passenger.
+            $leadName = trim((string) ($data['lead_name'] ?? ''));
+            $passengerName = $leadName !== '' ? $leadName : (string) ($data['customer_name'] ?? '');
+
             // The contact number the booking CURRENTLY shows (override → calendar
             // "Contact No" → customer phone). We compare the office's edit against
             // this so a genuinely changed number sticks — see the override below.
@@ -247,7 +259,7 @@ class BookingService
                 'flight_number' => [$booking->displayFlightNumber(), $data['flight_number'] ?? null],
                 'passengers' => [$booking->passengerCount(), $data['passengers'] ?? null],
                 'vehicle_type' => [$booking->displayVehicleType(), $vehicleName],
-                'customer_name' => [$booking->displayName(), $data['customer_name'] ?? null],
+                'customer_name' => [$booking->displayName(), $passengerName !== '' ? $passengerName : null],
                 'luggage' => [$booking->displaySuitcases().'+'.$booking->displayHandLuggage(), $suitcases.'+'.$handLuggage],
                 'child_seats' => [
                     ($booking->meta['child_seats'] ?? 0).'/'.($booking->meta['booster_seats'] ?? 0).'/'.($booking->meta['infant_seats'] ?? 0),
@@ -288,9 +300,16 @@ class BookingService
                 (array) ($booking->meta['edited_fields'] ?? []), $editedFields,
             )));
 
-            if (filled($data['customer_name'] ?? null)) {
+            if ($leadName !== '') {
+                // Booked for someone else: the traveller's name replaces the old
+                // traveller's; the booker's name replaces the old booker's. Never cross them.
+                $booking->replaceStoredName($priorDisplayName, $passengerName);
+                if (filled($data['customer_name'] ?? null) && strcasecmp($booking->bookerName(), $priorDisplayName) !== 0) {
+                    $booking->replaceStoredName($booking->bookerName(), $data['customer_name']);
+                }
+            } elseif ($passengerName !== '') {
                 foreach ($priorNames as $old) {
-                    $booking->replaceStoredName($old, $data['customer_name']);
+                    $booking->replaceStoredName($old, $passengerName);
                 }
             }
 
@@ -301,13 +320,19 @@ class BookingService
                 'pickup_address' => $data['pickup_address'],
                 'destination_address' => $data['destination_address'],
                 'flight_number' => $data['flight_number'] ?? null,
+            ] + (array_key_exists('pickup_postcode', $data) ? ['pickup_postcode' => $data['pickup_postcode'] ?: null] : [])
+              + (array_key_exists('destination_postcode', $data) ? ['destination_postcode' => $data['destination_postcode'] ?: null] : []) + [
                 'passengers' => $data['passengers'],
                 'luggage' => $luggage,
                 'meta' => array_merge($booking->meta ?? [], [
                     // Keep the imported lead_name in step with an edited customer
                     // name, so the name shows consistently everywhere (driver link
                     // included), not just where the customer record is read.
-                    'lead_name' => $data['customer_name'] ?? ($booking->meta['lead_name'] ?? null),
+                    'lead_name' => $passengerName !== '' ? $passengerName : ($booking->meta['lead_name'] ?? null),
+                    // Who booked it, when that's someone other than the passenger.
+                    'booked_by' => $leadName !== '' && strcasecmp($leadName, (string) ($data['customer_name'] ?? '')) !== 0
+                        ? ($data['customer_name'] ?? null)
+                        : (array_key_exists('lead_name', $data) ? null : ($booking->meta['booked_by'] ?? null)),
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
                     'child_seats' => $childCap,
