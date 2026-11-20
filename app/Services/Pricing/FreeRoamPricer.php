@@ -77,19 +77,40 @@ class FreeRoamPricer
         return $v === null ? (float) config('cet.dead_mileage.free_radius_miles', 15.0) : (float) $v;
     }
 
+    /** Second drag band: up to this many miles from base is charged at the first rate (office-editable). */
+    public function deadMileageBandMiles(): float
+    {
+        $v = Setting::get('deadmile_band_miles');
+
+        return $v === null ? (float) config('cet.dead_mileage.band_miles', 30.0) : (float) $v;
+    }
+
+    /** The rate per mile beyond the second band (office-editable). */
+    public function deadMileageRate2(): float
+    {
+        $v = Setting::get('deadmile_rate2');
+
+        return $v === null ? (float) config('cet.dead_mileage.rate2_per_mile', 2.00) : (float) $v;
+    }
+
     /**
-     * The dead-mileage charge for an empty run of $baseToPickupMiles out to the
-     * pickup. Nothing inside the free radius; beyond it, the WHOLE distance is
-     * billed at the per-mile rate (so a 40-mile-out job charges 40 × rate), then
-     * rounded to a clean £5. Returns 0.0 when it doesn't apply.
+     * The dead-mileage ("drag") charge for $baseToPickupMiles of empty running, in
+     * BANDS — each stretch at its own rate (directors, 20 Nov 2026): the first 15 mi
+     * free, miles 15–30 at £1, every mile beyond 30 at £2. So 40 mi = £15 + £20 =
+     * £35; Kidderminster (114 mi) ≈ £185. Rounded to a clean £5; 0.0 inside the
+     * free radius.
      */
     public function deadMileageCharge(?float $baseToPickupMiles): float
     {
-        if ($baseToPickupMiles === null || $baseToPickupMiles <= $this->deadMileageFreeRadius()) {
+        $free = $this->deadMileageFreeRadius();
+        if ($baseToPickupMiles === null || $baseToPickupMiles <= $free) {
             return 0.0;
         }
+        $bandEnd = max($free, $this->deadMileageBandMiles());
+        $first = (min($baseToPickupMiles, $bandEnd) - $free) * $this->deadMileageRate();
+        $beyond = max(0.0, $baseToPickupMiles - $bandEnd) * $this->deadMileageRate2();
 
-        return $this->roundToFive($baseToPickupMiles * $this->deadMileageRate());
+        return $this->roundToFive($first + $beyond);
     }
 
     /**

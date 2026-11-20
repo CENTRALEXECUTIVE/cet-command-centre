@@ -45,6 +45,8 @@ class FreeRoamRateController extends Controller
             'estateUplift' => $pricer->estateUplift(),
             'deadMileRate' => $pricer->deadMileageRate(),
             'deadMileRadius' => $pricer->deadMileageFreeRadius(),
+            'deadMileBand' => $pricer->deadMileageBandMiles(),
+            'deadMileRate2' => $pricer->deadMileageRate2(),
             'vatPercent' => app(\App\Services\Payments\VatService::class)->ratePercent(),
             'samplePrices' => $this->samples($pricer),
         ]);
@@ -62,6 +64,8 @@ class FreeRoamRateController extends Controller
             'estate_uplift' => ['required', 'numeric', 'min:0', 'max:1000'],
             'deadmile_rate' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'deadmile_radius' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'deadmile_band_miles' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'deadmile_rate2' => ['nullable', 'numeric', 'min:0', 'max:1000'],
         ]);
 
         $rates = [];
@@ -83,6 +87,11 @@ class FreeRoamRateController extends Controller
         }
         if (isset($data['deadmile_radius'])) {
             Setting::set('deadmile_radius', (string) round((float) $data['deadmile_radius'], 2), 'string', 'pricing');
+        }
+        foreach (['deadmile_band_miles', 'deadmile_rate2'] as $k) {
+            if (isset($data[$k])) {
+                Setting::set($k, (string) round((float) $data[$k], 2), 'string', 'pricing');
+            }
         }
 
         return back()->with('status', 'Free-roam rates saved.');

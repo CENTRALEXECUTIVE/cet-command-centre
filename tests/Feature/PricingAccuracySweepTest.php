@@ -139,15 +139,16 @@ class PricingAccuracySweepTest extends TestCase
 
     public function test_a_job_just_outside_the_radius_only_pays_drag_for_the_extra_miles(): void
     {
-        // Doncaster (20 mi) → Heathrow (170 mi trip): £350 mileage + £20 drag = £370, not £515.
+        // Doncaster (20 mi) → Heathrow (170 mi trip): £350 mileage + £5 drag (5 mi × £1 in the
+        // £1 band, 20 Nov 2026) = £355, not £515.
         $this->stubDistances(170);
         $q = app(QuoteService::class)->quote('Doncaster DN1 1AA', 'Heathrow Airport', $this->exec());
         $this->assertFalse($q['fixed']);
-        $this->assertEqualsWithDelta(20.0, (float) $q['dead_mileage'], 0.01);
-        $this->assertEqualsWithDelta(370.0, (float) $q['price'], 0.01);
+        $this->assertEqualsWithDelta(5.0, (float) $q['dead_mileage'], 0.01);
+        $this->assertEqualsWithDelta(355.0, (float) $q['price'], 0.01);
         // Same both ways.
         $back = app(QuoteService::class)->quote('Heathrow Airport', 'Doncaster DN1 1AA', $this->exec());
-        $this->assertEqualsWithDelta(370.0, (float) $back['price'], 0.01);
+        $this->assertEqualsWithDelta(355.0, (float) $back['price'], 0.01);
     }
 
     public function test_an_address_with_no_postcode_never_gets_a_blind_sheffield_fare(): void
@@ -239,7 +240,8 @@ class PricingAccuracySweepTest extends TestCase
             $near = min($this->miles($address), 40.0);
             $miles = $near <= 35 ? $near : max($this->miles($address), 40.0);
             $this->assertEqualsWithDelta($pricer->deadMileageCharge($miles), $q['dead_mileage'], 0.01, "drag for {$address}");
-            $this->assertEqualsWithDelta($q['dead_mileage'], round($miles / 5) * 5, 0.01, "{$address}: drag must be the WHOLE {$miles} mi");
+            $banded = $miles <= 15 ? 0 : (min($miles, 30) - 15) + max(0, $miles - 30) * 2;
+            $this->assertEqualsWithDelta($q['dead_mileage'], round($banded / 5) * 5, 0.01, "{$address}: drag in bands over {$miles} mi");
             $this->assertEqualsWithDelta($pricer->price('executive', 90.0) + $q['dead_mileage'], $q['price'], 0.01, "total for {$address}");
         }
     }
@@ -248,9 +250,10 @@ class PricingAccuracySweepTest extends TestCase
     {
         $p = app(FreeRoamPricer::class);
         $this->assertSame(0.0, $p->deadMileageCharge(15.0), 'inside the 15-mile radius: no drag');
-        $this->assertSame(15.0, $p->deadMileageCharge(15.1), 'just past: the WHOLE distance is charged');
-        $this->assertSame(40.0, $p->deadMileageCharge(40.0));
-        $this->assertSame(115.0, $p->deadMileageCharge(113.9), 'the Kidderminster run: 113.9 mi → £115');
+        $this->assertSame(0.0, $p->deadMileageCharge(15.1), 'just past: only the extra 0.1 mi (rounds to £0)');
+        $this->assertSame(15.0, $p->deadMileageCharge(30.0), 'miles 15–30 at £1');
+        $this->assertSame(35.0, $p->deadMileageCharge(40.0), '15 × £1 + 10 × £2');
+        $this->assertSame(185.0, $p->deadMileageCharge(113.9), 'the Kidderminster run: 15 + 83.9 × 2 → £185');
         $this->assertSame(0.0, $p->deadMileageCharge(null), 'unknown distance: no drag, never an error');
     }
 
@@ -263,7 +266,7 @@ class PricingAccuracySweepTest extends TestCase
                 continue; // price on request (e.g. Rolls Royce) — the office quotes it
             }
             $this->assertFalse($q['fixed'], "{$vt->name}: Grimsby → Manchester must not be a fixed fare");
-            $this->assertEqualsWithDelta(70.0, $q['dead_mileage'], 0.01, "{$vt->name}: 70 mi drag");
+            $this->assertEqualsWithDelta(95.0, $q['dead_mileage'], 0.01, "{$vt->name}: 70 mi drag in bands (15 + 40×2)");
         }
     }
 
@@ -291,8 +294,8 @@ class PricingAccuracySweepTest extends TestCase
         ])->assertOk();
 
         $booking = Booking::firstWhere('source', 'web');
-        // £215 trip + £115 drag — what the customer is actually asked to pay.
-        $this->assertEqualsWithDelta(330.0, (float) $booking->quoted_price, 0.01);
+        // £215 trip + £185 drag (bands, 20 Nov 2026) — what the customer is actually asked to pay.
+        $this->assertEqualsWithDelta(400.0, (float) $booking->quoted_price, 0.01);
     }
 
     public function test_quoting_never_breaks_when_maps_is_down(): void

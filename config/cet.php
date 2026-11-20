@@ -368,10 +368,13 @@ return [
     // charge for getting the car there as well as the booked journey. The office
     // can change both figures from Settings → Free-roam rates; these are the
     // fallback defaults. free_radius_miles = our normal coverage (no dead mileage
-    // charged inside it); rate_per_mile = the empty-run rate beyond it, applied to
-    // the WHOLE base→pickup distance (so a 40-mile-out job bills 40 × rate).
+    // charged inside it); then BANDS: rate_per_mile for the miles up to band_miles,
+    // rate2_per_mile for every mile beyond (40 mi out = 15×£1 + 10×£2 = £35).
     'dead_mileage' => [
         'rate_per_mile' => (float) env('CET_DEADMILE_RATE', 1.00),
         'free_radius_miles' => (float) env('CET_DEADMILE_RADIUS', 15.0),
+        // Bands (directors, 20 Nov 2026): free → rate_per_mile up to band_miles → rate2_per_mile beyond.
+        'band_miles' => (float) env('CET_DEADMILE_BAND', 30.0),
+        'rate2_per_mile' => (float) env('CET_DEADMILE_RATE2', 2.00),
     ],
 ];

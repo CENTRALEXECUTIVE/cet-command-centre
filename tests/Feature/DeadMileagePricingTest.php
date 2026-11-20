@@ -42,21 +42,24 @@ class DeadMileagePricingTest extends TestCase
         $p = app(FreeRoamPricer::class);
 
         // 40 miles out at the default £1/mile = £40, rounded to a clean £5.
-        $this->assertSame(40.0, $p->deadMileageCharge(40.0));
+        // Bands (directors, 20 Nov 2026): 15 free, £1 to 30 mi, £2 after → 15 + 20 = £35.
+        $this->assertSame(35.0, $p->deadMileageCharge(40.0));
+        $this->assertSame(15.0, $p->deadMileageCharge(30.0));
         // 23 miles out → £23 → rounds to £25.
-        $this->assertSame(25.0, $p->deadMileageCharge(23.0));
+        $this->assertSame(10.0, $p->deadMileageCharge(23.0)); // 8 mi × £1 → £10
     }
 
     public function test_the_office_can_change_the_rate_and_radius(): void
     {
         Setting::set('deadmile_radius', '20', 'string', 'pricing');
         Setting::set('deadmile_rate', '1.50', 'string', 'pricing');
+        Setting::set('deadmile_rate2', '3.00', 'string', 'pricing');
         $p = app(FreeRoamPricer::class);
 
         // Now 18 miles is inside the (20mi) free radius.
         $this->assertSame(0.0, $p->deadMileageCharge(18.0));
         // 40 miles × £1.50 = £60.
-        $this->assertSame(60.0, $p->deadMileageCharge(40.0));
+        $this->assertSame(45.0, $p->deadMileageCharge(40.0)); // 10 × £1.50 + 10 × £3
     }
 
     public function test_a_free_roam_quote_adds_dead_mileage_for_a_far_pickup(): void
@@ -76,10 +79,10 @@ class DeadMileagePricingTest extends TestCase
         $quote = app(QuoteService::class)->quote('Goole DN14', 'Leeds LS1', $exec);
 
         // Journey (20mi exec, ex-VAT = 50 + 10×2 = £70) + £40 dead mileage = £110.
-        $this->assertSame(40.0, $quote['dead_mileage']);
+        $this->assertSame(35.0, $quote['dead_mileage']); // 40 mi in bands
         $this->assertSame(40.0, $quote['dead_mileage_miles']);
-        $this->assertSame(110.0, $quote['price']);
-        $this->assertSame(132.0, $quote['price_with_vat']); // £110 + 20% VAT
+        $this->assertSame(105.0, $quote['price']);
+        $this->assertSame(126.0, $quote['price_with_vat']); // £105 + 20% VAT
         $this->assertStringContainsString('out-of-area', $quote['basis']);
     }
 
@@ -158,8 +161,8 @@ class DeadMileagePricingTest extends TestCase
         ])->assertOk()->json('options'))->firstWhere('id', $exec->id);
 
         // £215 trip + £115 drag = £330 on BOTH sides, never the Sheffield fixed £105.
-        $this->assertEqualsWithDelta(330.0, (float) $adminOpt['price'], 0.01);
-        $this->assertEqualsWithDelta(330.0, (float) $customer['price'], 0.01);
+        $this->assertEqualsWithDelta(400.0, (float) $adminOpt['price'], 0.01);
+        $this->assertEqualsWithDelta(400.0, (float) $customer['price'], 0.01);
     }
 
     public function test_a_local_free_roam_quote_has_no_dead_mileage(): void

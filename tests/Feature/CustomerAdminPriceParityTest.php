@@ -428,20 +428,20 @@ class CustomerAdminPriceParityTest extends TestCase
 
     public function test_parity_admin_stores_each_return_leg_at_its_own_quoted_fare(): void
     {
-        // Kidderminster round trip through bookings.store: outbound £215 + £115 drag =
-        // £330; return Premier Inn MAN → Kidderminster: SAME price both ways (drag to
-        // the far end, Kidderminster, 113.9 mi → £115) = £215 + £115 + £10 airport
-        // pickup = £340. The customer side stores the same two legs.
+        // Kidderminster round trip through bookings.store: outbound £215 + £185 drag =
+        // £400; return Premier Inn MAN → Kidderminster: SAME price both ways (drag to
+        // the far end, Kidderminster, 113.9 mi in bands: 15 free, 15×£1, 83.9×£2 → £185)
+        // = £215 + £185 + £10 airport pickup = £410. The customer side stores the same two legs.
         $exec = $this->vt('executive');
         $adm = $this->adminStore(self::KIDDY, self::PREMIER_INN, 'return', $exec);
         $cust = $this->customer(self::KIDDY, self::PREMIER_INN, 'return', $exec);
-        $this->assertEqualsWithDelta(330.0, $adm['out'], 0.01);
-        $this->assertEqualsWithDelta(340.0, $adm['ret'], 0.01);
-        $this->assertEqualsWithDelta(670.0, $adm['pays'], 0.01);
-        $this->assertEqualsWithDelta(330.0, $cust['out'], 0.01);
-        $this->assertEqualsWithDelta(340.0, $cust['ret'], 0.01);
-        $this->assertEqualsWithDelta(670.0, $cust['shown'], 0.01);
-        $this->assertEqualsWithDelta(670.0, $cust['pay'], 0.01);
+        $this->assertEqualsWithDelta(400.0, $adm['out'], 0.01);
+        $this->assertEqualsWithDelta(410.0, $adm['ret'], 0.01);
+        $this->assertEqualsWithDelta(810.0, $adm['pays'], 0.01);
+        $this->assertEqualsWithDelta(400.0, $cust['out'], 0.01);
+        $this->assertEqualsWithDelta(410.0, $cust['ret'], 0.01);
+        $this->assertEqualsWithDelta(810.0, $cust['shown'], 0.01);
+        $this->assertEqualsWithDelta(810.0, $cust['pay'], 0.01);
     }
 
     public function test_via_stops_are_saved_on_both_legs_because_both_legs_are_charged(): void

@@ -318,6 +318,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **20 Nov 2026 (late)** — Drag (out-of-area dead mileage) now in BANDS (directors chose "each stretch at its own
+  rate"): 0–15 mi free, 15–30 mi £1/mi, 30+ mi £2/mi, rounded to £5. FreeRoamPricer::deadMileageCharge; new
+  settings deadmile_band_miles (30) + deadmile_rate2 (2.00) on Settings → Free-roam rates. 40 mi = £35 (was £40);
+  Kidderminster 113.9 mi = £185 (was £115) → Kidderminster→MAN £400; Doncaster→LHR drag £5 → £355. Near-end and
+  no-drag-from-home rules unchanged. Pricing tests + CLAUDE.md updated.
 - **20 Nov 2026 (eve)** — Edit booking rebuilt (directors: "exactly the same" as New booking): BookingController@edit
   renders bookings.create in edit mode, filled from the booking via session old-input (bookingFormValues) — same
   layout, live price cards per vehicle, "Use £X" re-quote; saves through update (PUT), nothing new created, no

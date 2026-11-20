@@ -58,13 +58,23 @@
                            value="{{ old('deadmile_radius', number_format((float) $deadMileRadius, 1, '.', '')) }}"
                            style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
                 </label>
-                <label>Dead-mileage rate (£ per empty mile)
+                <label>Band 1 rate (£ per mile, free radius → band 1 end)
                     <input type="number" step="0.01" min="0" name="deadmile_rate" required
                            value="{{ old('deadmile_rate', number_format((float) $deadMileRate, 2, '.', '')) }}"
                            style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
                 </label>
+                <label>Band 1 ends at (miles from base)
+                    <input type="number" step="0.1" min="0" name="deadmile_band_miles" required
+                           value="{{ old('deadmile_band_miles', number_format((float) $deadMileBand, 1, '.', '')) }}"
+                           style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+                </label>
+                <label>Band 2 rate (£ per mile beyond that)
+                    <input type="number" step="0.01" min="0" name="deadmile_rate2" required
+                           value="{{ old('deadmile_rate2', number_format((float) $deadMileRate2, 2, '.', '')) }}"
+                           style="width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+                </label>
             </div>
-            <p class="hint" style="margin:10px 0 0">Pickups within the free radius of base pay no dead mileage. Beyond it, the <strong>whole</strong> base→pickup distance is charged at the rate on top of the journey fare — e.g. a pickup 40 miles out at £1/mile adds £40. Airport fixed prices are unaffected.</p>
+            <p class="hint" style="margin:10px 0 0">Drag is charged in bands, each stretch at its own rate: nothing inside the free radius, then band 1's rate up to band 1's end, then band 2's rate for every mile after. E.g. 15 mi free, £1 to 30 mi, £2 after: a pickup 40 miles out adds £15 + £20 = £35. Rounded to £5. Airport fixed prices are unaffected.</p>
         </div>
 
         <button class="btn btn-primary" style="padding:9px 20px">Save rates</button>
