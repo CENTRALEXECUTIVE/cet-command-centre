@@ -420,7 +420,8 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   Airports (TW6 Heathrow etc.) match their own fares first.
   **Fixed fares = home catchment + Doncaster (11 Nov, Doncaster re-activated 20 Nov 2026):** Sheffield (incl. S20),
   Rotherham, **Deep Rotherham (S62–S66)**, Barnsley, **Deep Barnsley (S71)**, Chesterfield (on Sheffield's fares) and
-  **Doncaster DN1–DN12** (its own fixed fares). The deep zones only differ where they carry their own fare (Liverpool
+  **Doncaster DN1–DN5, DN10, DN11** (its own fixed fares) and **Deep Doncaster DN6–DN9, DN12** (Hatfield,
+  Thorne, Askern, Conisbrough: every Doncaster fare + £10, derived in `QuoteService::rules()`). The deep zones only differ where they carry their own fare (Liverpool
   Airport, 20 Nov: Exec Sheffield/Rotherham/Barnsley £170, S20/Deep Rotherham/Deep Barnsley £175); every other route
   falls back to the base town's fare. Worksop, Mansfield, Matlock/Bakewell = the mileage guide
   (per-vehicle rates in FreeRoamPricer) + drag only when both ends are away. An address with no postcode

@@ -33,7 +33,7 @@ class PricingAccuracySweepTest extends TestCase
     private const BASE_MILES = [
         // ---- home catchment (local fixed fares) ----
         'Sheffield S1' => 1, 'Mosborough' => 8, 'Rotherham S60' => 7, 'Barnsley S70' => 15,
-        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25, 'S62 6AA' => 9, 'S66 8AA' => 10, 'S72 8AA' => 17, 'S71 4AA' => 17,
+        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25, 'DN7 6AA' => 25, 'DN8 5AA' => 27, 'S62 6AA' => 9, 'S66 8AA' => 10, 'S72 8AA' => 17, 'S71 4AA' => 17,
         'Mansfield NG18' => 26, 'Matlock DE4' => 24, 'Meadowhall' => 4,
         // ---- out of area ----
         'Kidderminster' => 114, 'Grimsby' => 70, 'Scunthorpe' => 45, 'Goole' => 38,
@@ -493,5 +493,20 @@ class PricingAccuracySweepTest extends TestCase
         // Bigger vehicles went up by the same £ as Executive (Sheffield V-Class £215 → £235).
         $v = VehicleType::where('slug', 'v-class')->firstOrFail();
         $this->assertEqualsWithDelta(235.0, (float) $quotes->quote('Sheffield S1 2HH', 'Liverpool John Lennon Airport', $v)['price'], 0.01);
+    }
+
+    public function test_deep_doncaster_is_the_doncaster_fare_plus_ten(): void
+    {
+        // Directors, 20 Nov 2026: DN7 (Hatfield) is too far for the town fare.
+        $quotes = app(QuoteService::class);
+        foreach (['Hatfield, Doncaster DN7 6AA', 'Thorne, Doncaster DN8 5AA'] as $address) {
+            $this->assertEqualsWithDelta(330.0, (float) $quotes->quote($address, 'Heathrow Airport', $this->exec())['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(150.0, (float) $quotes->quote($address, 'Manchester Airport', $this->exec())['price'], 0.01, $address);
+            $this->assertEqualsWithDelta(150.0, (float) $quotes->quote('Manchester Airport', $address, $this->exec())['price'], 0.01, $address);
+        }
+        $v = VehicleType::where('slug', 'v-class')->firstOrFail();
+        $this->assertEqualsWithDelta(460.0, (float) $quotes->quote('Hatfield, Doncaster DN7 6AA', 'Heathrow Airport', $v)['price'], 0.01);
+        // Town Doncaster unchanged.
+        $this->assertEqualsWithDelta(320.0, (float) $quotes->quote('Doncaster DN1 1AA', 'Heathrow Airport', $this->exec())['price'], 0.01);
     }
 }

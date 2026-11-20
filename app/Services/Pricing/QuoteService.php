@@ -314,8 +314,30 @@ class QuoteService
     /** The built-in matrix, exposed so the seeder can mirror it into the editable DB. */
     public static function rules(): array
     {
-        return self::RULES;
+        static $rules = null;
+        if ($rules !== null) {
+            return $rules;
+        }
+
+        // Deep Doncaster (DN6, DN7, DN8, DN9, DN12 — Askern, Hatfield, Stainforth, Thorne,
+        // Epworth, Conisbrough) = every Doncaster fare + £10 on every vehicle (directors,
+        // 20 Nov 2026: "DN7 is too far" for the town fare). Derived, so it tracks the table.
+        $rules = self::RULES;
+        foreach (self::RULES as $rule) {
+            if (in_array('doncaster', $rule['zones'], true)) {
+                $rules[] = [
+                    'dests' => $rule['dests'],
+                    'zones' => ['doncaster-deep'],
+                    'prices' => array_map(fn ($p) => $p + self::DEEP_DONCASTER_EXTRA, $rule['prices']),
+                ];
+            }
+        }
+
+        return $rules;
     }
+
+    /** Deep Doncaster's extra over the Doncaster fare, every vehicle (directors, 20 Nov 2026). */
+    public const DEEP_DONCASTER_EXTRA = 10;
 
     /** Pretty display names for the destination keys (for the pricing editor). */
     public static function destinationNames(): array
@@ -343,7 +365,8 @@ class QuoteService
             'barnsley-deep' => ['name' => 'Deep Barnsley', 'prefixes' => ['S71']],
             'chesterfield' => ['name' => 'Chesterfield', 'prefixes' => ['S40', 'S41', 'S42', 'S43', 'S44', 'S45', 'S49']],
             'worksop' => ['name' => 'Worksop', 'prefixes' => ['S80', 'S81']],
-            'doncaster' => ['name' => 'Doncaster', 'prefixes' => ['DN1', 'DN2', 'DN3', 'DN4', 'DN5', 'DN6', 'DN7', 'DN8', 'DN9', 'DN10', 'DN11', 'DN12']],
+            'doncaster' => ['name' => 'Doncaster', 'prefixes' => ['DN1', 'DN2', 'DN3', 'DN4', 'DN5', 'DN10', 'DN11']],
+            'doncaster-deep' => ['name' => 'Deep Doncaster', 'prefixes' => ['DN6', 'DN7', 'DN8', 'DN9', 'DN12']],
             'mansfield' => ['name' => 'Mansfield', 'prefixes' => ['NG18', 'NG19', 'NG20', 'NG21']],
             'matlock' => ['name' => 'Matlock', 'prefixes' => ['DE4']],
         ];
@@ -379,7 +402,7 @@ class QuoteService
         }
 
         foreach ($zones as $zone) { // most specific first (e.g. s20 before sheffield)
-            foreach (self::RULES as $rule) {
+            foreach (self::rules() as $rule) {
                 if (in_array($destKey, $rule['dests'], true) && in_array($zone, $rule['zones'], true)) {
                     return isset($rule['prices'][$slug]) ? (float) $rule['prices'][$slug] : null;
                 }
@@ -599,6 +622,9 @@ class QuoteService
             // (DN14), Scunthorpe/Brigg (DN15–20), Gainsborough (DN21), Retford (DN22),
             // Grimsby/Immingham (DN31–41) — and must NOT get the Doncaster fixed fare.
             // Doncaster fixed fares are back on (directors, 20 Nov 2026).
+            if (in_array($outward, ['DN6', 'DN7', 'DN8', 'DN9', 'DN12'], true)) {
+                return ['doncaster-deep', 'doncaster'];   // Deep Doncaster = Doncaster + £10
+            }
             if (preg_match('/^DN(\d{1,2})$/', $outward, $dn) && (int) $dn[1] >= 1 && (int) $dn[1] <= 12) {
                 return ['doncaster'];
             }

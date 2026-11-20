@@ -323,6 +323,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **20 Nov 2026 (night)** — Deep Doncaster (directors: Darren's DN7 too far for the town fare): DN6, DN7, DN8,
+  DN9, DN12 = every Doncaster fare + £10, all vehicles (derived rules in QuoteService; migration 2026_11_20_000003
+  copies the live Doncaster rows +£10). Doncaster keeps DN1–DN5, DN10, DN11. PDF updated. OPEN: which postcodes
+  join Deep Barnsley (now S71 only; suggested S72, S75, maybe S36).
 - **20 Nov 2026 (late)** — Drag (out-of-area dead mileage) now in BANDS (directors chose "each stretch at its own
   rate"): 0–15 mi free, 15–30 mi £1/mi, 30+ mi £2/mi, rounded to £5. FreeRoamPricer::deadMileageCharge; new
   settings deadmile_band_miles (30) + deadmile_rate2 (2.00) on Settings → Free-roam rates. 40 mi = £35 (was £40);
