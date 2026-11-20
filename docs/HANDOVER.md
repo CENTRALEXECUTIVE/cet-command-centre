@@ -323,6 +323,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **20 Nov 2026 (night, 2)** — Deep Barnsley now S71, S72 (Cudworth, Grimethorpe), S75 (Darton, Mapplewell,
+  Dodworth) — directors. Barnsley keeps S70, S73, S74. Migration 2026_11_20_000004 (zone postcodes only). PDF updated.
 - **20 Nov 2026 (night)** — Deep Doncaster (directors: Darren's DN7 too far for the town fare): DN6, DN7, DN8,
   DN9, DN12 = every Doncaster fare + £10, all vehicles (derived rules in QuoteService; migration 2026_11_20_000003
   copies the live Doncaster rows +£10). Doncaster keeps DN1–DN5, DN10, DN11. PDF updated. OPEN: which postcodes

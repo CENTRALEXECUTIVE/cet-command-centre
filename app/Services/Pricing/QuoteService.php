@@ -129,7 +129,7 @@ class QuoteService
 
         // ---- Liverpool (Airport & Port) ----
         // Liverpool John Lennon — raised (directors, 20 Nov 2026): Sheffield/Rotherham £170,
-        // S20 / Deep Rotherham (S62–S66) / Deep Barnsley (S71) £175, Barnsley £170. The
+        // S20 / Deep Rotherham (S62–S66) / Deep Barnsley (S71, S72, S75) £175, Barnsley £170. The
         // larger vehicles go up by the same £ as Executive on each zone.
         ['dests' => ['liverpool'], 'zones' => ['sheffield', 'rotherham'], 'prices' => ['executive' => 170, 'minibus-8' => 210, 'minibus-8-xl' => 225, 'v-class' => 235]],
         ['dests' => ['liverpool'], 'zones' => ['rotherham-deep'], 'prices' => ['executive' => 175, 'minibus-8' => 215, 'minibus-8-xl' => 230, 'v-class' => 240]],
@@ -361,8 +361,8 @@ class QuoteService
             's20' => ['name' => 'Sheffield S20', 'prefixes' => ['S20']],
             'rotherham' => ['name' => 'Rotherham', 'prefixes' => ['S60', 'S61']],
             'rotherham-deep' => ['name' => 'Deep Rotherham', 'prefixes' => ['S62', 'S63', 'S64', 'S65', 'S66']],
-            'barnsley' => ['name' => 'Barnsley', 'prefixes' => ['S70', 'S72', 'S73', 'S74', 'S75']],
-            'barnsley-deep' => ['name' => 'Deep Barnsley', 'prefixes' => ['S71']],
+            'barnsley' => ['name' => 'Barnsley', 'prefixes' => ['S70', 'S73', 'S74']],
+            'barnsley-deep' => ['name' => 'Deep Barnsley', 'prefixes' => ['S71', 'S72', 'S75']],
             'chesterfield' => ['name' => 'Chesterfield', 'prefixes' => ['S40', 'S41', 'S42', 'S43', 'S44', 'S45', 'S49']],
             'worksop' => ['name' => 'Worksop', 'prefixes' => ['S80', 'S81']],
             'doncaster' => ['name' => 'Doncaster', 'prefixes' => ['DN1', 'DN2', 'DN3', 'DN4', 'DN5', 'DN10', 'DN11']],
@@ -600,7 +600,7 @@ class QuoteService
             if (preg_match('/^S4\d$/', $outward)) {   // Chesterfield: same fares as Sheffield (directors, 11 Nov 2026)
                 return ['sheffield'];
             }
-            // Deep Rotherham (S62–S66) and Deep Barnsley (S71) — dearer on the routes
+            // Deep Rotherham (S62–S66) and Deep Barnsley (S71, S72, S75) — dearer on the routes
             // that carry their own fare (Liverpool, 20 Nov 2026); every other route falls
             // back to the base town's fare.
             if (preg_match('/^S6[2-6]$/', $outward)) {
@@ -609,7 +609,7 @@ class QuoteService
             if (preg_match('/^S6[01]$/', $outward)) {
                 return ['rotherham'];
             }
-            if ($outward === 'S71') {
+            if (in_array($outward, ['S71', 'S72', 'S75'], true)) {
                 return ['barnsley-deep', 'barnsley'];
             }
             if (preg_match('/^S7[0-5]$/', $outward)) {

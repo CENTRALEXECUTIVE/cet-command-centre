@@ -33,7 +33,7 @@ class PricingAccuracySweepTest extends TestCase
     private const BASE_MILES = [
         // ---- home catchment (local fixed fares) ----
         'Sheffield S1' => 1, 'Mosborough' => 8, 'Rotherham S60' => 7, 'Barnsley S70' => 15,
-        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25, 'DN7 6AA' => 25, 'DN8 5AA' => 27, 'S62 6AA' => 9, 'S66 8AA' => 10, 'S72 8AA' => 17, 'S71 4AA' => 17,
+        'Chesterfield S40' => 13, 'Dinnington' => 13, 'Kiveton' => 11, 'Worksop S80' => 20, 'Doncaster DN1' => 20, 'Bawtry DN10' => 25, 'DN7 6AA' => 25, 'DN8 5AA' => 27, 'S62 6AA' => 9, 'S66 8AA' => 10, 'S72 8AA' => 17, 'S75 5AA' => 16, 'S73 0AA' => 15, 'S71 4AA' => 17,
         'Mansfield NG18' => 26, 'Matlock DE4' => 24, 'Meadowhall' => 4,
         // ---- out of area ----
         'Kidderminster' => 114, 'Grimsby' => 70, 'Scunthorpe' => 45, 'Goole' => 38,
@@ -478,7 +478,9 @@ class PricingAccuracySweepTest extends TestCase
             'Rawmarsh, Rotherham S62 6AA' => 175.0,   // Deep Rotherham
             'Maltby, Rotherham S66 8AA' => 175.0,     // Deep Rotherham
             'Barnsley S70 1AA' => 170.0,
-            'Cudworth, Barnsley S72 8AA' => 170.0,
+            'Cudworth, Barnsley S72 8AA' => 175.0,    // Deep Barnsley
+            'Darton, Barnsley S75 5AA' => 175.0,      // Deep Barnsley
+            'Wombwell, Barnsley S73 0AA' => 170.0,
             'Royston, Barnsley S71 4AA' => 175.0,     // Deep Barnsley
         ];
         foreach ($expect as $address => $fare) {
