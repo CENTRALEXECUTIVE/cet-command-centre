@@ -662,7 +662,7 @@
                                 <label class="cet-veh {{ $loop->first ? 'sel' : '' }}"
                                        data-id="{{ $vt->id }}" data-slug="{{ $vt->slug }}"
                                        data-cap-pax="{{ $vt->passenger_capacity }}" data-cap-lug="{{ $vt->luggage_capacity }}"
-                                       data-cap-hand="{{ $vt->handLuggageCapacity() }}"
+                                       data-cap-hand="{{ $vt->handLuggageCapacity() }}" data-cap-space="{{ $vt->luggageSpace() }}"
                                        @if($vt->slug === 'minibus-8-xl') hidden @endif>
                                     <input type="radio" name="vehicle_type_id" value="{{ $vt->id }}" {{ $loop->first ? 'checked' : '' }}>
                                     <div class="cet-veh-img">
@@ -1419,7 +1419,11 @@
                     var capPax = parseInt(card.dataset.capPax, 10) || 0;
                     var capLug = parseInt(card.dataset.capLug, 10) || 0;
                     var capHand = parseInt(card.dataset.capHand, 10) || 0;
-                    var fits = pax <= capPax && suit <= capLug && hand <= capHand;
+                    // A suitcase counts as 1.5 carry-ons, so spare suitcase room takes
+                    // carry-ons (E-Class: 0 cases + 5 carry-ons fits). Same rule as
+                    // VehicleType::fitsLuggage().
+                    var capSpace = parseFloat(card.dataset.capSpace) || (capLug * 1.5 + capHand);
+                    var fits = pax <= capPax && suit <= capLug && (suit * 1.5 + hand) <= capSpace + 1e-9;
                     card.classList.toggle('unfit', !fits);
                     var input = card.querySelector('input'); if (input) input.disabled = !fits;
                     if (fits && !firstFit) firstFit = card;

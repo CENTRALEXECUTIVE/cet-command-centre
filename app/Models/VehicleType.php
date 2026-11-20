@@ -102,6 +102,23 @@ class VehicleType extends Model
     }
 
     /**
+     * Bag "space" the car holds, counting a suitcase as 1.5 carry-ons. The E-Class
+     * (2 suitcases + 2 carry-ons) = 5, so 0 suitcases + 5 carry-ons fits, and so do
+     * 1 suitcase + 3 carry-ons and 2 + 2 (directors, 20 Nov 2026).
+     */
+    public function luggageSpace(): float
+    {
+        return (int) $this->luggage_capacity * 1.5 + $this->handLuggageCapacity();
+    }
+
+    /** Do these bags fit? Never more suitcases than the car takes; spare suitcase room holds carry-ons. */
+    public function fitsLuggage(int $suitcases, int $carryOns): bool
+    {
+        return $suitcases <= (int) $this->luggage_capacity
+            && ($suitcases * 1.5 + $carryOns) <= $this->luggageSpace() + 1e-9;
+    }
+
+    /**
      * Marketing photo for the public booking page, if one has been dropped in at
      * public/images/fleet/{slug}.{webp|png|jpg}. Returns null when there isn't
      * one yet, so the page falls back to a clean car silhouette.

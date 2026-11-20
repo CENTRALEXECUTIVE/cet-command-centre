@@ -318,6 +318,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   TikTok-native text styles (A classic, B viral, C box, D mix — D used), music-free export (trending sound added
   in-app), photo reels keep original colours, new end card (real CENTRAL wordmark). Three Reels ready: prep, fleet,
   wedding (media in gitignored docs/growth/data). Square CET Tips webhook test passed 200 after deploy + key.
+- **20 Nov 2026** — Booking page luggage: a suitcase now counts as 1.5 carry-ons, so spare suitcase room takes
+  carry-ons (VehicleType::fitsLuggage / luggageSpace; same rule in the widget JS). E-Class (2+2): 0 cases + up to
+  5 carry-ons, 1 case + 3, 2 + 2. Was: any 3rd carry-on greyed the E-Class out. Directors' call: 5 carry-ons max.
 - **19 Nov 2026 (late)** — Directors chose photo filter **B · Warm premium** (removes the teal cast, warmer light,
   deeper blacks, soft vignette). Re-made every photo post, story, carousel and photo-slideshow Reel in
   resources/social-media with it (text cards and filmed Reels unchanged). Keep using B for new photos.
