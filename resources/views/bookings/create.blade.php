@@ -1052,6 +1052,12 @@
                 var timer = null, lastKey = '';
 
                 function num(el) { var n = parseInt(el && el.value, 10); return isNaN(n) ? 0 : n; }
+                // Same rule as VehicleType::fitsLuggage: never more suitcases than the car
+                // takes, and a suitcase = 1.5 cabin bags, so spare suitcase room holds cabin
+                // bags (Executive 2+2 takes 3 cabin bags and no suitcases — 21 Nov 2026).
+                function bagsFit(c, suit, hand, n) {
+                    return suit <= c.lug * n && (suit * 1.5 + hand) <= (c.lug * 1.5 + c.hand) * n + 1e-9;
+                }
 
                 // Count via stops with an address + read the ticked priced extras.
                 function extras() {
@@ -1073,7 +1079,7 @@
                     var pax = num(paxEl), suit = num(suitEl), hand = num(handEl), n = cars();
                     cards.forEach(function (card) {
                         var c = caps[card.dataset.id];
-                        var fits = !c || (pax <= c.pax * n && suit <= c.lug * n && hand <= c.hand * n);
+                        var fits = !c || (pax <= c.pax * n && bagsFit(c, suit, hand, n));
                         card.classList.toggle('unfit', !fits);
                         card.title = fits ? '' : 'Too small for ' + pax + ' passengers / ' + (suit + hand) + ' bags';
                     });
@@ -1352,12 +1358,11 @@
                         var c = caps[vehSel.value];
                         if (!c) return;
                         var pax = num(paxEl), suit = num(suitEl), hand = num(handEl), n = cars();
-                        if (pax <= c.pax * n && suit <= c.lug * n && hand <= c.hand * n) return;
+                        if (pax <= c.pax * n && bagsFit(c, suit, hand, n)) return;
                         var name = (names[vehSel.value] || 'This vehicle').replace(/\s*\(up to.*\)$/, '');
                         var why = [];
-                        if (pax > c.pax) why.push(pax + ' passengers (seats ' + c.pax + ')');
-                        if (suit > c.lug) why.push(suit + ' suitcases (holds ' + c.lug + ')');
-                        if (hand > c.hand) why.push(hand + ' cabin bags (holds ' + c.hand + ')');
+                        if (pax > c.pax * n) why.push(pax + ' passengers (seats ' + c.pax * n + ')');
+                        if (!bagsFit(c, suit, hand, n)) why.push(suit + ' suitcases + ' + hand + ' cabin bags');
                         if (!confirm(name + ' is too small for ' + why.join(' and ') + '.\n\nSave this booking anyway?')) {
                             e.preventDefault();
                         }

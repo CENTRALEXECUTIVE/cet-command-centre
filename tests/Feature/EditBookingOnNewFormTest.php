@@ -114,4 +114,16 @@ class EditBookingOnNewFormTest extends TestCase
             ->assertSessionHas('status', fn ($s) => str_contains($s, 'VAT invoice left ON'));
         $this->assertTrue($b->fresh()->vatInvoiceRequested());
     }
+
+    public function test_the_fit_check_lets_cabin_bags_use_spare_suitcase_room(): void
+    {
+        // 21 Nov 2026 (CET-34BE8F): 3 passengers, 0 suitcases, 3 cabin bags showed the
+        // Executive (2 + 2) as "Too small". The form uses the same rule as fitsLuggage now.
+        $v = $this->exec();
+        $b = Booking::factory()->create(['vehicle_type_id' => $v->id, 'quoted_price' => 105]);
+        $html = $this->actingAs(User::factory()->admin()->create())->get(route('bookings.edit', $b))->assertOk()->getContent();
+        $this->assertStringContainsString('function bagsFit(c, suit, hand, n)', $html);
+        $this->assertStringNotContainsString('hand <= c.hand * n', $html);
+        $this->assertTrue($v->fitsLuggage(0, 3));
+    }
 }

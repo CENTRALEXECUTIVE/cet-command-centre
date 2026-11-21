@@ -323,6 +323,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **21 Nov 2026 (2)** — New/Edit booking form greyed Executive as "Too small" for 3 pax + 0 suitcases + 3 cabin
+  bags (CET-34BE8F): the form's JS still checked cabin bags against the cabin-bag count alone. Now uses the same
+  rule as VehicleType::fitsLuggage (suitcase = 1.5 cabin bags; spare suitcase room holds cabin bags) for the card
+  grey-out and the save warning.
 - **21 Nov 2026** — PVT emails were ALL going out from the Ltd (Microsoft 365) mailbox even though Settings showed
   "via Resend": Laravel's Mail::to()->send() overwrites a mailable's ->mailer() with the default before sending,
   so the PVT pick in the 5 booking mailables was ignored (the Settings test used Mail::mailer() directly, so it
