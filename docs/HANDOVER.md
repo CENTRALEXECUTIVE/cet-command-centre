@@ -323,6 +323,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **21 Nov 2026 (3)** — Confirmation email shows refunds (directors, CET-B3411F £72 back after V-Class →
+  Executive): under "Payment received £210 by card" it adds "↩ Refunded: £72.00 to your card · date · reason ·
+  3–5 working days", from meta['refunds'] on any leg of the trip.
 - **21 Nov 2026 (2)** — New/Edit booking form greyed Executive as "Too small" for 3 pax + 0 suitcases + 3 cabin
   bags (CET-34BE8F): the form's JS still checked cabin bags against the cabin-bag count alone. Now uses the same
   rule as VehicleType::fitsLuggage (suitcase = 1.5 cabin bags; spare suitcase room holds cabin bags) for the card

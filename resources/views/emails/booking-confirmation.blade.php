@@ -138,6 +138,18 @@
                 @elseif($lastPaid)
                     <p style="margin:0 0 10px;font-size:15px;color:#1f7a44;font-weight:700">&#10003; Payment received: £{{ number_format((float) $lastPaid->amount, 2) }}{{ $lastPaid->method === 'card' ? ' by card' : '' }}</p>
                 @endif
+                @php
+                    // Money handed back after a change (e.g. V-Class → Executive), on any leg
+                    // of the trip — shown so the updated confirmation explains the refund
+                    // (directors, 21 Nov 2026, CET-B3411F).
+                    $refundLegs = $booking->linked_booking_id || ! empty($trip) ? $booking->invoiceGroupBookings() : collect();
+                    $refunds = collect($refundLegs->isNotEmpty() ? $refundLegs : [$booking])
+                        ->flatMap(fn ($leg) => $leg->liveRefunds())->values();
+                @endphp
+                @foreach($refunds as $r)
+                    <p style="margin:0 0 10px;font-size:15px;color:#12558c;font-weight:700">&#8617; Refunded: £{{ number_format((float) $r['amount'], 2) }}{{ ($r['how'] ?? '') === 'manual' ? '' : ' to your card' }}
+                        <span style="display:block;font-size:13px;font-weight:400;color:#555">{{ \Illuminate\Support\Carbon::parse($r['at'])->timezone(config('app.timezone'))->format('j M Y') }}{{ ! empty($r['reason']) ? ' · '.$r['reason'] : '' }}{{ ($r['how'] ?? '') === 'manual' ? '' : ' · usually back on your card within 3–5 working days' }}</span></p>
+                @endforeach
             @elseif($isCash)
                 @php $cashLeft = ! empty($trip) ? (float) $trip['due'] : (float) ($booking->transactionsAmountDue() ?? 0); @endphp
                 <p style="margin:0 0 10px;font-size:15px;color:#b9770a;font-weight:700">{{ $cashLeft > 0.009 ? 'Pay the driver £'.number_format($cashLeft, 2).' in cash on the day' : 'Pay the driver on the day (cash)' }}</p>

@@ -128,4 +128,16 @@ class RefundDifferenceTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())->get(route('bookings.show', $ret))->assertOk()
             ->assertDontSee('Refund difference')->assertSee('£35.00 due');
     }
+
+    public function test_the_updated_confirmation_shows_the_refund(): void
+    {
+        // Directors, 21 Nov 2026 (CET-B3411F): "in the updated confirmation put the refund in there".
+        $b = $this->paidThenDowngraded();
+        $b->recordLiveRefund(60.0, 'square', 'rf_1', 'Changed from V-Class to Executive', null);
+
+        $html = (new \App\Mail\BookingConfirmationMail($b->fresh(), paid: true, updated: true))->render();
+        $this->assertStringContainsString('Refunded: £60.00 to your card', $html);
+        $this->assertStringContainsString('Changed from V-Class to Executive', $html);
+        $this->assertStringContainsString('Payment received: £175.00 by card', $html);
+    }
 }
