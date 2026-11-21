@@ -333,6 +333,12 @@ class BookingService
                     'booked_by' => $leadName !== '' && strcasecmp($leadName, (string) ($data['customer_name'] ?? '')) !== 0
                         ? ($data['customer_name'] ?? null)
                         : (array_key_exists('lead_name', $data) ? null : ($booking->meta['booked_by'] ?? null)),
+                    // The landing time shown on the booking page ("Lands (customer)") — it
+                    // was never saved on edit, so a re-booked flight kept the OLD time on
+                    // the page while the pickup moved (CET-4DA06B, 21 Nov 2026).
+                    'flight_landing_at' => ! empty($data['flight_landing_at'])
+                        ? \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->toDateTimeString()
+                        : ($booking->meta['flight_landing_at'] ?? null),
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
                     'child_seats' => $childCap,

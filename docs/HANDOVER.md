@@ -323,6 +323,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **21 Nov 2026 (6)** — Edit booking now saves meta['flight_landing_at'] (booking page "Lands (customer)"); a
+  re-booked flight kept showing the old 16:40 while pickup moved to 21:55 (CET-4DA06B). Re-save that booking once.
 - **21 Nov 2026 (5)** — Social: every not-yet-posted caption rewritten (45 titles: Nov plan, Courtyard, December)
   to a short hook + 1–2 plain sentences + a comment question, humanizer style (directors' TikTok tip, @wchan28).
   New Holiday Inn Manchester Airport set (resources/social-media/hotel, warm grade, 4:5): carousel Sun 22 Nov

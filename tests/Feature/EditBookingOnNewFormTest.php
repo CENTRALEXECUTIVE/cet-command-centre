@@ -71,6 +71,7 @@ class EditBookingOnNewFormTest extends TestCase
         $b->refresh();
         $this->assertSame('2026-11-21 21:55', $b->pickup_at->format('Y-m-d H:i')); // landing time = pickup, UK time
         $this->assertSame('KL1025', $b->flight_number);
+        $this->assertSame('2026-11-21 21:55:00', $b->meta['flight_landing_at']); // page shows the NEW landing time
         $this->assertStringContainsString('Leeds Bradford', $b->pickup_address);
         $this->assertSame('LS19 7TU', $b->pickup_postcode);
         $this->assertSame(135.0, $b->fareAmount());
