@@ -323,6 +323,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **21 Nov 2026 (5)** — Social: every not-yet-posted caption rewritten (45 titles: Nov plan, Courtyard, December)
+  to a short hook + 1–2 plain sentences + a comment question, humanizer style (directors' TikTok tip, @wchan28).
+  New Holiday Inn Manchester Airport set (resources/social-media/hotel, warm grade, 4:5): carousel Sun 22 Nov
+  IG/FB/TikTok, LinkedIn Wed 25 Nov, GBP Thu 26 Nov. Migration 2026_11_21_000002 (posted posts untouched).
+  OPEN: directors still haven't posted; scheduling advice given (Meta Business Suite, TikTok Studio, LinkedIn).
 - **21 Nov 2026 (4)** — CET-B3411F refund reason reworded to "Vehicle changed to Executive" (migration
   2026_11_21_000001; Square keeps its original text).
 - **21 Nov 2026 (3)** — Confirmation email shows refunds (directors, CET-B3411F £72 back after V-Class →
