@@ -18,12 +18,12 @@ use Illuminate\Queue\SerializesModels;
  */
 class BookingCancellationMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use \App\Mail\Concerns\PinsMailer, Queueable, SerializesModels;
 
     public function __construct(public Booking $booking)
     {
         if ($name = $this->booking->pvtMailer()) {
-            $this->mailer($name);
+            $this->pinMailer($name);
         }
     }
 

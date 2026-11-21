@@ -323,6 +323,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **21 Nov 2026** — PVT emails were ALL going out from the Ltd (Microsoft 365) mailbox even though Settings showed
+  "via Resend": Laravel's Mail::to()->send() overwrites a mailable's ->mailer() with the default before sending,
+  so the PVT pick in the 5 booking mailables was ignored (the Settings test used Mail::mailer() directly, so it
+  passed). New trait App\Mail\Concerns\PinsMailer makes send() honour the pinned PVT mailer (falls back to the
+  main mailer + log warning only if the PVT send throws). PvtEmailActuallyUsesPvtMailerTest sends for real.
+  Google delegation (gmail.send) for the PVT Workspace was already in place; Resend key saved and in use.
 - **20 Nov 2026 (night, 3)** — CET-4DA06B (return leg repriced £130 → £165 after the trip was paid on the
   outbound) showed "Refund difference £95" while £35 was OWED: overpaidAmount counted the one card payment twice
   (outbound record + return ledger seed, same payment id). Now deduped by payment id, and the refund box never

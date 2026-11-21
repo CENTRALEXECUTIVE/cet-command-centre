@@ -18,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class BookingReceiptMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use \App\Mail\Concerns\PinsMailer, Queueable, SerializesModels;
 
     /**
      * @param  bool|null  $pvt  Whether this invoice is billed by the NON-VAT sister
@@ -35,7 +35,7 @@ class BookingReceiptMail extends Mailable
         // PVT LTD mailer when PVT sending is set up (falls back to the main mailer
         // until then, so nothing breaks before PVT email is live).
         if ($name = $this->booking->pvtMailerFor($this->isPvt())) {
-            $this->mailer($name);
+            $this->pinMailer($name);
         }
     }
 

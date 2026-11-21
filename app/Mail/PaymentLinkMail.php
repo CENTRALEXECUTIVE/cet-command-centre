@@ -16,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class PaymentLinkMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use \App\Mail\Concerns\PinsMailer, Queueable, SerializesModels;
 
     public function __construct(
         public Booking $booking,
@@ -25,7 +25,7 @@ class PaymentLinkMail extends Mailable
     ) {
         // The PVT LTD company sends through its own mailer, kept separate.
         if ($name = $booking->pvtMailer()) {
-            $this->mailer($name);
+            $this->pinMailer($name);
         }
     }
 

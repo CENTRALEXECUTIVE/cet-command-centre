@@ -18,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class OfficeBookingMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use \App\Mail\Concerns\PinsMailer, Queueable, SerializesModels;
 
     /**
      * @param  string  $stage  'new' (a booking has just been created) or
@@ -30,7 +30,7 @@ class OfficeBookingMail extends Mailable
         // it's consistent with the PVT invoice + customer email instead of being sent
         // from the normal VAT-company account. No-op until PVT sending is set up.
         if ($name = $this->booking->pvtMailer()) {
-            $this->mailer($name);
+            $this->pinMailer($name);
         }
     }
 
