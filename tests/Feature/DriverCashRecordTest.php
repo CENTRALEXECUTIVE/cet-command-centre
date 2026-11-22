@@ -84,4 +84,20 @@ class DriverCashRecordTest extends TestCase
         $this->assertStringContainsString('Cash to driver', $html); // the £90 line is tracked
         $this->assertStringContainsString('£115.00', $html); // total
     }
+
+    public function test_pressing_record_again_corrects_the_amount_instead_of_adding_it(): void
+    {
+        // 22 Nov 2026: three taps on a £95 job read "Already recorded £285".
+        $booking = $this->booking();
+        $booking->recordCashCollected(95);
+        $booking->recordCashCollected(95);
+        $booking->recordCashCollected(95);
+        $booking->refresh()->load('payments');
+        $this->assertSame(95.0, $booking->cashCollectedTotal());
+        $this->assertSame(1, $booking->payments->where('method', 'cash')->count());
+
+        // A typo corrected: the new figure replaces the old one.
+        $booking->recordCashCollected(90);
+        $this->assertSame(90.0, $booking->refresh()->load('payments')->cashCollectedTotal());
+    }
 }

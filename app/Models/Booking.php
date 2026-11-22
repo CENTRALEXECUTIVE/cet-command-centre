@@ -5285,6 +5285,24 @@ class Booking extends Model
         if ($amount <= 0) {
             return null;
         }
+        // The driver's figure is THE amount they collected, not an extra amount on
+        // top: pressing Record again corrects it instead of adding it again (three
+        // taps on a £95 job read "£285 recorded", 22 Nov 2026).
+        $existing = $this->payments()->where('method', 'cash')->where('status', 'paid')
+            ->get()->filter(fn ($p) => ($p->meta['source'] ?? null) === 'driver')->sortByDesc('id')->values();
+        if ($existing->isNotEmpty()) {
+            $payment = $existing->first();
+            $existing->slice(1)->each->delete();
+            $payment->forceFill([
+                'amount' => round($amount, 2),
+                'paid_at' => now(),
+                'meta' => array_merge((array) $payment->meta, array_filter(['by' => $by?->id], fn ($v) => $v !== null)),
+            ])->save();
+            $this->load('payments');
+            $this->reconcilePaymentStatusFromTransactions();
+
+            return $payment;
+        }
         $payment = $this->payments()->create([
             'method' => 'cash',
             'amount' => round($amount, 2),

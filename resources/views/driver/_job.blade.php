@@ -223,10 +223,10 @@
                 <input type="number" step="0.01" min="0" name="amount" inputmode="decimal"
                     value="{{ number_format((float) ($booking->cashDueToDriver() ?? 0), 2, '.', '') }}"
                     style="flex:1;padding:11px;border:1px solid #ccc;border-radius:8px;font-size:16px">
-                <button type="submit" class="btn" style="padding:11px 18px;font-size:15px">Record</button>
+                <button type="submit" class="btn" style="padding:11px 18px;font-size:15px">{{ $booking->cashCollectedTotal() > 0 ? 'Update' : 'Record' }}</button>
             </div>
             @if($booking->cashCollectedTotal() > 0)
-                <div class="muted" style="font-size:12px;margin-top:6px">Already recorded: <strong>£{{ number_format($booking->cashCollectedTotal(), 2) }}</strong></div>
+                <div class="muted" style="font-size:12px;margin-top:6px">Recorded: <strong>£{{ number_format($booking->cashCollectedTotal(), 2) }}</strong>. Got it wrong? Type the right amount and tap Update.</div>
             @endif
         </form>
     </div>
