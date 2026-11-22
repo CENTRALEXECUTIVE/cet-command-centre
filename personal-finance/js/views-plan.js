@@ -1,6 +1,6 @@
 // AutoPilot plan, goals, investments, debts, financial freedom, recurring payments.
 import * as C from './calc.js';
-import { lines, meter } from './charts.js';
+import { lines, meter, columns } from './charts.js';
 import * as I from './insights.js';
 import * as H from './halal.js';
 import { ctx, esc, gbp, gbp0, gbpK, pct, niceDate, monthYear, duration, field, select, delBtn, addBtn, catsOf, accountName } from './ui.js';
@@ -56,12 +56,22 @@ export function plan() {
 }
 
 function suggestCard() {
-  const sg = I.suggestBudget(S().transactions);
-  if (!sg.months.length) return '<section class="card highlight"><p class="muted">There is no history in the last three full months yet. Log or import some first.</p></section>';
+  const n = Number(ctx.ui.budgetMonths || 12), basis = ctx.ui.budgetBasis || 'typical';
+  const sg = I.suggestBudget(S().transactions, C.today(), n);
+  if (!sg.months.length) return '<section class="card highlight"><p class="muted">There is no history in those months yet. Log or import some first.</p></section>';
   const list = (rows) => `<ul class="plain">${rows.map((r) => `<li><span>${esc(r.category)}</span><b>${gbp0(r.monthly)}</b></li>`).join('')}</ul>`;
-  return `<section class="card highlight"><div class="card-head"><h2>Your real monthly averages</h2><span class="muted">From ${sg.months.length} full month${sg.months.length > 1 ? 's' : ''} of history</span></div>
-    <div class="grid-2"><div><h3 class="sub-h">Income <span class="muted">${gbp0(C.sum(sg.income, (r) => r.monthly))}</span></h3>${list(sg.income)}</div><div><h3 class="sub-h">Spending <span class="muted">${gbp0(C.sum(sg.expenses, (r) => r.monthly))}</span></h3>${list(sg.expenses)}</div></div>
-    <p class="nudge warn">Using these replaces the income and budget lines in your current plan. Your “give your surplus a job” list is kept.</p>
+  const w = sg.work, spend = C.sum(sg.expenses, (r) => r.monthly), plan = w ? w[basis] : 0;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `<section class="card highlight"><div class="card-head"><h2>Build your plan from real history</h2>
+      <select id="budget-months" class="in round" data-ui="budgetMonths" aria-label="How many months">${[[12, 'Last 12 months'], [6, 'Last 6 months'], [3, 'Last 3 months']].map(([v, l]) => `<option value="${v}" ${n === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${w ? `<p>Your work income changes a lot month to month: from <b>${gbp0(w.min)}</b> to <b>${gbp0(w.max)}</b> over ${sg.months.length} months. Pick which month to plan around:</p>
+    <div class="seg wide" role="radiogroup" aria-label="Plan income on">${[['lean', 'Lean month', w.lean, 'safest: your quietest months'], ['typical', 'Typical month', w.typical, 'the middle month'], ['average', 'Average', w.average, 'busy months pull it up']].map(([v, l, amt, h]) => `<button class="seg-btn ${basis === v ? 'on' : ''}" data-budget-basis="${v}" title="${h}">${l}<small>${gbp0(amt)}</small></button>`).join('')}</div>
+    ${sg.stopped.length ? `<p class="muted small-print">Not counted because it has stopped (nothing paid for 2 months): ${sg.stopped.map((x) => `${esc(x.name)} (last ${niceDate(x.last)})`).join(', ')}. Tax payments are left out too: they come from your tax pot.</p>` : ''}
+    <p class="muted small-print">Planning on a lean month is safest with variable income: in busy months the extra goes to savings instead of being spent.</p>
+    ${columns(sg.perMonth.map((x) => ({ label: MON[+x.month.slice(5) - 1], a: x.work, b: x.spend })), { fmt: (v) => `£${Math.round(v / 1000)}k`, aLabel: 'Work income', bLabel: 'Spent' })}
+    <p><b>Plan:</b> ${gbp0(plan)} in, ${gbp0(spend)} out on average = <b class="${plan - spend < 0 ? 'neg' : 'pos'}">${plan - spend < 0 ? '−' : ''}${gbp0(Math.abs(plan - spend))} a month</b>.</p>` : ''}
+    <div class="grid-2"><div><h3 class="sub-h">All income by category <span class="muted">${gbp0(C.sum(sg.income, (r) => r.monthly))} average</span></h3>${list(sg.income)}</div><div><h3 class="sub-h">Spending <span class="muted">${gbp0(C.sum(sg.expenses, (r) => r.monthly))}</span></h3>${list(sg.expenses)}</div></div>
+    <p class="nudge warn">Using these replaces the income and budget lines in your current plan with your ${n}-month averages (yearly bills are spread across the months). Your “give your surplus a job” list is kept.</p>
     <div class="row-btns"><button class="btn primary" data-action="budget-apply">Use these as my plan</button><button class="btn ghost" data-toggle-ui="budgetSuggest">Cancel</button></div></section>`;
 }
 

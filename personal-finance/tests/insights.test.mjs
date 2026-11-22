@@ -223,3 +223,37 @@ test('applyUpdates removes entries by key', () => {
   assert.deepEqual(I.applyUpdates(s, [{ op: 'removeTransactions', keys: ['k2', 'nope'] }]), ['1 entry removed']);
   assert.deepEqual(s.transactions.map((t) => t.id), ['a']);
 });
+
+test('suggestBudget uses 12 months and gives lean / typical / average work income', () => {
+  const t = [];
+  const amounts = [2500, 3000, 3200, 3400, 3600, 4000, 4200, 4400, 5000, 5600, 6000, 6100];
+  C.lastNMonths(13, NOW).slice(0, 12).forEach((mk, i) => {
+    t.push(tx(mk + '-10', 'income', amounts[i], 'Business', 'Central job'));
+    t.push(tx(mk + '-11', 'income', 50, 'Other', 'Paid back'));
+    t.push(tx(mk + '-12', 'expense', 100, 'Food', 'x'));
+  });
+  t.push(tx(C.monthKey(NOW) + '-01', 'income', 99999, 'Business', 'this month ignored'));
+  t.push(tx('2026-10-04', 'expense', 195, 'Transport', 'Road tax'));
+  const b = I.suggestBudget(t, NOW);
+  assert.equal(b.months.length, 12);
+  assert.equal(b.work.average, Math.round(amounts.reduce((a, c) => a + c, 0) / 12));
+  assert.equal(b.work.typical, 4100);
+  assert.equal(b.work.lean, Math.round((2500 + 3000 + 3200) / 3));
+  assert.deepEqual([b.work.min, b.work.max], [2500, 6100]);
+  assert.equal(b.expenses.find((e) => e.category === 'Transport').monthly, 16, 'yearly road tax spread over 12 months');
+  assert.equal(b.perMonth.length, 12);
+});
+
+test('suggestBudget leaves out income that has stopped and tax payments', () => {
+  const t = [];
+  C.lastNMonths(13, NOW).slice(0, 12).forEach((mk, i) => {
+    t.push(tx(mk + '-10', 'income', 4000, 'Business', 'Central job'));
+    if (i < 6) t.push(tx(mk + '-11', 'income', 1000, '💰 Salary', 'HT SCHOOL RUN'));
+    t.push(tx(mk + '-12', 'expense', 100, 'Food', 'x'));
+  });
+  t.push(tx('2026-07-26', 'expense', 1200, '🧾Taxes', 'Tax bill'));
+  const b = I.suggestBudget(t, NOW);
+  assert.equal(b.work.average, 4000);
+  assert.deepEqual(b.stopped.map((x) => x.name), ['HT SCHOOL RUN']);
+  assert.ok(!b.expenses.some((e) => /Tax/.test(e.category)));
+});

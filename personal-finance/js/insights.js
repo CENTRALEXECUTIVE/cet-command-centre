@@ -239,16 +239,41 @@ export function taxEstimate(state, now = C.today()) {
 }
 
 // ---------- budget suggestions from real spending ----------
-export function suggestBudget(txns, now = C.today(), n = 3) {
+// Averages over the last n full months (12 by default, so yearly bills and busy/quiet
+// months even out). Work income gets extra figures because it swings month to month:
+// typical = median month, lean = average of the quietest quarter of months.
+export function suggestBudget(txns, now = C.today(), n = 12) {
   const months = C.lastNMonths(n + 1, now).slice(0, n);
   const used = months.filter((mk) => txns.some((t) => C.monthKey(t.date) === mk));
   const div = used.length || 1;
+  // An income source (payer) with nothing in the last 60 days has stopped (e.g. a job you gave up).
+  const payer = (t) => String(t.note || t.category || '').trim().toLowerCase();
+  const lastPaid = new Map();
+  for (const t of txns) if (t.type === 'income' && t.category !== 'Other') {
+    const k = payer(t); const e = lastPaid.get(k) || { date: '', name: t.note || t.category, n: 0, months: new Set() };
+    e.n++; e.months.add(C.monthKey(t.date)); if (t.date > e.date) e.date = t.date; lastPaid.set(k, e);
+  }
+  const cutoff = C.addDays(now, -60);
+  // Only regular sources (4+ payments over 3+ months) can "stop"; one-off jobs still count as income.
+  const stopped = [...lastPaid].filter(([, v]) => v.n >= 4 && v.months.size >= 3 && v.date < cutoff && v.date >= C.addMonths(now, -n - 1)).map(([k, v]) => ({ key: k, name: v.name, last: v.date }));
+  const stoppedKeys = new Set(stopped.map((x) => x.key));
+  const counts = (t) => !(t.type === 'income' && stoppedKeys.has(payer(t))) && !(t.type === 'expense' && /tax/i.test(t.category));
   const agg = (type) => {
     const m = new Map();
-    for (const t of txns) { if (t.type !== type || !used.includes(C.monthKey(t.date))) continue; m.set(t.category, (m.get(t.category) || 0) + C.num(t.amount)); }
+    for (const t of txns) { if (t.type !== type || !used.includes(C.monthKey(t.date)) || !counts(t)) continue; m.set(t.category, (m.get(t.category) || 0) + C.num(t.amount)); }
     return [...m].map(([category, total]) => ({ category, monthly: Math.round(total / div) })).filter((x) => x.monthly > 0).sort((a, b) => b.monthly - a.monthly);
   };
-  return { months: used, income: agg('income'), expenses: agg('expense') };
+  const isWork = (t) => t.type === 'income' && t.category !== 'Other' && !stoppedKeys.has(payer(t));
+  const perMonth = used.map((mk) => ({ month: mk, work: C.round2(C.sum(txns.filter((t) => isWork(t) && C.monthKey(t.date) === mk), (t) => t.amount)), spend: C.round2(C.sum(txns.filter((t) => t.type === 'expense' && counts(t) && C.monthKey(t.date) === mk), (t) => t.amount)) }));
+  const vals = perMonth.map((x) => x.work).sort((a, b) => a - b);
+  const q = Math.max(1, Math.round(vals.length / 4));
+  const work = vals.length ? {
+    average: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length),
+    typical: Math.round(vals.length % 2 ? vals[(vals.length - 1) / 2] : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2),
+    lean: Math.round(vals.slice(0, q).reduce((a, b) => a + b, 0) / q),
+    min: Math.round(vals[0]), max: Math.round(vals.at(-1)),
+  } : null;
+  return { months: used, income: agg('income'), expenses: agg('expense'), perMonth, work, stopped };
 }
 
 // ---------- on-device question engine ----------

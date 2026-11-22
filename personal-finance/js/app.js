@@ -244,6 +244,7 @@ app.addEventListener('click', (e) => {
   if (d.toggleUi) { ctx.ui[d.toggleUi] = !ctx.ui[d.toggleUi]; render(); return; }
   if (d.editTx) return openTx(ctx.state.transactions.find((t) => t.id === d.editTx));
   if (d.quick != null) { const q = C.frequentEntries(ctx.state.transactions, 6, C.addMonths(C.today(), -3))[+d.quick]; return openTx(null, { type: q.type, category: q.category, subcategory: q.subcategory, note: q.note, accountId: q.accountId, hint: q.last }); }
+  if (d.budgetBasis) { ctx.ui.budgetBasis = d.budgetBasis; render(); return; }
   if (d.fscope != null) { ctx.ui.fscope = d.fscope; render(); return; }
   if (d.ttab) { ctx.ui.ttab = d.ttab; render(); return; }
   if (d.monthStep) { ctx.ui.month = C.monthKey(C.addMonths(ctx.ui.month + '-01', ctx.ui.ttab === 'monthly' ? 12 * +d.monthStep : +d.monthStep)); render(); return; }
@@ -306,9 +307,10 @@ async function action(a, btn) {
     case 'ask-ai': return askClaude();
     case 'undismiss': s.settings.dismissed = []; commit(); return;
     case 'budget-apply': {
-      const sg = I.suggestBudget(s.transactions);
-      const group = (c) => (/household|bills|rent|mortgage|tax|insur|hagbad/i.test(c) ? 'fixed' : /food|transport|health|business|fuel/i.test(c) ? 'variable' : 'optional');
-      s.budget.income = sg.income.map((r) => ({ id: Store.uid(), name: bare(r.category), amount: r.monthly }));
+      const n = Number(ctx.ui.budgetMonths || 12), basis = ctx.ui.budgetBasis || 'typical';
+      const sg = I.suggestBudget(s.transactions, C.today(), n);
+      const group = (c) => (/household|bills|rent|mortgage|tax|insur|hagbad/i.test(c) ? 'fixed' : /food|transport|health|business|fuel|charity/i.test(c) ? 'variable' : 'optional');
+      s.budget.income = sg.work ? [{ id: Store.uid(), name: `Work income (${{ lean: 'lean', typical: 'typical', average: 'average' }[basis]} month, last ${n} months)`, amount: sg.work[basis] }] : sg.income.map((r) => ({ id: Store.uid(), name: bare(r.category), amount: r.monthly }));
       s.budget.items = sg.expenses.map((r) => ({ id: Store.uid(), group: group(r.category), section: bare(r.category), name: 'Average month', amount: r.monthly, category: r.category }));
       ctx.ui.budgetSuggest = false; commit(); toast('Plan rebuilt from your real averages. Adjust any line.'); return;
     }
