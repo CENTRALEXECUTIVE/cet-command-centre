@@ -329,7 +329,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   on text cards. Readable plates found and blurred on 7 photos (wedding, Christmas markets, two GBP photos).
   Reels re-exported (prep 2.7→13 Mbps from master; fleet/wedding/courtyard re-rendered from source; 6 slideshow
   reels rebuilt from the new cards). Encode settings fixed in .claude/skills/video-edit/scripts/cet_encode.py;
-  renderer saved in .claude/skills/video-edit/cards/. OPEN: plates in fleet + wedding footage reels being blurred.
+  renderer saved in .claude/skills/video-edit/cards/. Then the directors chose the WHITE premium theme (genw.py:
+  black logo, white canvas, gold accents, black contact strip) — all 93 images + 6 slideshow reels redone in it.
+  Fleet + wedding footage reels: every plate now blurred (tracked through the zooms).
 - **22 Nov 2026 (2)** — Driver job offer: the note now shows with any phone number blanked "(number via the
   office)" instead of hiding the whole note (CET-535316 showed "a note is on file" for "Meet & greet required").
 - **22 Nov 2026** — Driver "Record the cash you collected": pressing Record again now CORRECTS the driver's
