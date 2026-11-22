@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import burn_captions_pil as cap  # noqa
 import cet_tiktok_text as tt  # noqa
+import cet_encode as enc  # noqa
 
 W, H, FPS = 1080, 1920, 30
 GOLD = (251, 186, 42, 255)
@@ -90,18 +91,16 @@ def main():
             fc += f"[0:a]volume=0.45,aresample=48000[a]"
             part = tmp / f"part{i}.mp4"
             run(["ffmpeg", "-y", *inputs, "-filter_complex", fc, "-map", f"[{last}]", "-map", "[a]",
-                 "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-r", str(FPS),
-                 "-c:a", "aac", "-b:a", "160k", "-ac", "2", str(part)])
+                 *enc.INTER, "-r", str(FPS), str(part)])
             parts.append(part)
         ec = tmp / "end.png"; tt.end_card_png(ec)
         endv = tmp / "end.mp4"
         run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(ec), "-f", "lavfi", "-t", "2.2", "-i",
-             "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", "-c:v", "libx264",
-             "-preset", "fast", "-crf", "20", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-shortest", str(endv)])
+             "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", *enc.INTER,
+             "-r", str(FPS), "-shortest", str(endv)])
         parts.append(endv)
         lst = tmp / "l.txt"; lst.write_text("".join(f"file '{p}'\n" for p in parts))
-        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c:v", "libx264", "-preset", "medium",
-             "-crf", "24", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)])
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), *enc.FINAL, str(out)])
     print("Done", out)
 
 

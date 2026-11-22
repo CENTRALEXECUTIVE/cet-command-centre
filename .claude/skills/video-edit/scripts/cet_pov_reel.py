@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cet_tiktok_text as tt  # noqa: E402
+import cet_encode as enc  # noqa: E402
 
 W, H = 1080, 1920
 BOLD = str(HERE.parent / "fonts" / "TikTokSans-800.ttf")
@@ -253,13 +254,13 @@ def main(plan_path, out):
             inputs += ["-i", str(tmp / f"c{i}.png")]
             fc += f"[v0];[v0][3:v]overlay=0:0:enable='gte(t,0.12)'"
         run(["ffmpeg", "-y", *inputs, "-filter_complex", fc, "-t", f"{float(s['dur']):.3f}",
-             "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", str(seg)])
+             "-an", *enc.INTER_VIDEO, str(seg)])
         segs.append(seg)
 
     tt.end_card_png(str(tmp / "end.png"))
     end = tmp / "end.mp4"
     run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(tmp / "end.png"), "-vf", f"scale={W}:{H},fps=30,format=yuv420p,fade=t=in:st=0:d=0.35",
-         "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", str(end)])
+         *enc.INTER_VIDEO, str(end)])
     segs.append(end)
 
     lst = tmp / "list.txt"
@@ -271,12 +272,14 @@ def main(plan_path, out):
     if not plan.get("music"):
         # No music: the directors add a trending sound inside TikTok / Instagram / CapCut,
         # where it's licensed (a copyrighted track baked into the file gets muted).
-        run(["ffmpeg", "-y", "-i", str(body), "-c", "copy", out])
+        # One final high-bitrate encode, with a silent stereo track (the apps want audio).
+        run(["ffmpeg", "-y", "-i", str(body), "-f", "lavfi", "-i", enc.SILENCE, "-map", "0:v", "-map", "1:a",
+             "-t", f"{dur:.3f}", *enc.FINAL, out])
         print(out, f"{dur:.1f}s (no music)")
         return
     run(["ffmpeg", "-y", "-i", str(body), "-ss", str(plan.get("music_start", 0)), "-i", plan["music"], "-filter_complex",
          f"[1:a]atrim=0:{dur:.2f},afade=t=in:d=0.4,afade=t=out:st={dur - 1.6:.2f}:d=1.6,volume=0.85[a]",
-         "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", out])
+         "-map", "0:v", "-map", "[a]", "-t", f"{dur:.3f}", *enc.FINAL, out])
     print(out, f"{dur:.1f}s")
 
 

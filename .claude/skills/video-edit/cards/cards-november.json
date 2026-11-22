@@ -1,0 +1,654 @@
+[
+{
+"out": "p01/1.jpg",
+"kind": "text",
+"eyebrow": "Business accounts",
+"head": "One invoice. Your PO on every line.",
+"emph": [
+"po",
+"every",
+"line."
+],
+"list": [
+"VAT invoices from a VAT-registered company",
+"Monthly invoicing, 30-day terms",
+"Or pay by card at booking"
+]
+},
+{
+"out": "p02/1.jpg",
+"kind": "photo",
+"size_kind": "gbp",
+"src": "2026-11-10-photos/1000063897.jpg",
+"cy": 0.6
+},
+{
+"out": "p05/1.jpg",
+"kind": "text",
+"corner": "Illustrative example",
+"eyebrow": "Airport transfer on an account",
+"head": "Your visitor, looked after start to finish.",
+"emph": [
+"looked",
+"after"
+],
+"numbered": true,
+"list": [
+"We track the flight",
+"Driver meets them in arrivals",
+"Booker gets driver details and live tracking",
+"One VAT invoice, PO on the line"
+]
+},
+{
+"out": "p06/1.jpg",
+"kind": "photo",
+"src": "2026-11-12-fleet/1000206612.jpg",
+"eyebrow": "Christmas & New Year",
+"head": "Book your Christmas travel early.",
+"emph": [
+"early."
+],
+"list": [
+"V-Class for up to 7 with bags",
+"Working right through the holidays"
+]
+},
+{
+"out": "p07/1.jpg",
+"kind": "text",
+"eyebrow": "For licensed operators",
+"head": "Operators: cover in both directions.",
+"emph": [
+"cover",
+"in",
+"both",
+"directions."
+],
+"list": [
+"We take cover work from licensed operators",
+"We need partners for V-Class and minibus overflow",
+"Invoiced properly, licensed and DBS-checked drivers"
+],
+"foot": "Operator Licence OP037 \u00b7 Sheffield City Council"
+},
+{
+"out": "p09/1.jpg",
+"kind": "photo",
+"size_kind": "gbp",
+"src": "2026-11-18-courtyard/blur6.jpg",
+"cy": 0.45
+},
+{
+"out": "p10/1.jpg",
+"kind": "text",
+"head": "Which car for which trip?",
+"emph": [
+"trip?"
+],
+"body": [
+"Swipe to choose the right car for your people and bags."
+]
+},
+{
+"out": "p10/2.jpg",
+"kind": "split",
+"src": "2026-11-10-photos/1000063938.jpg",
+"cy": 0.55,
+"head": "Executive saloon",
+"sub": "4 passengers \u00b7 2 bags",
+"blur": [
+[
+835,
+690,
+1020,
+785
+]
+]
+},
+{
+"out": "p10/3.jpg",
+"kind": "text",
+"eyebrow": "More room for bags",
+"head": "Estate",
+"list": [
+"4 passengers",
+"4 bags"
+]
+},
+{
+"out": "p10/4.jpg",
+"kind": "split",
+"src": "2026-11-12-fleet/1000206612.jpg",
+"cy": 0.55,
+"head": "Mercedes V-Class",
+"sub": "7 passengers \u00b7 7 bags"
+},
+{
+"out": "p10/5.jpg",
+"kind": "text",
+"eyebrow": "Groups",
+"head": "Minibus",
+"list": [
+"7 passengers",
+"5 bags"
+]
+},
+{
+"out": "p10/6.jpg",
+"kind": "text",
+"eyebrow": "Bigger groups",
+"head": "Minibus XL",
+"list": [
+"8 passengers",
+"8 bags"
+]
+},
+{
+"out": "p10/7.jpg",
+"kind": "text",
+"head": "Not sure? Message us.",
+"emph": [
+"message",
+"us."
+],
+"body": [
+"Tell us how many people and bags and we'll suggest the right car.",
+"WhatsApp +44 7405 172435"
+]
+},
+{
+"out": "p12/1.jpg",
+"kind": "text",
+"head": "Which airport do you fly from?",
+"emph": [
+"airport"
+],
+"list": [
+"Manchester",
+"Leeds Bradford",
+"East Midlands",
+"Heathrow \u00b7 Gatwick",
+"Liverpool"
+],
+"body": [
+"Tell us in the comments."
+]
+},
+{
+"out": "p13/1.jpg",
+"kind": "photo",
+"src": "2026-11-12-fleet/1000206611.jpg",
+"eyebrow": "Sheffield",
+"head": "After dark, on the phone 24/7.",
+"emph": [
+"24/7."
+],
+"blur": [
+[
+920,
+900,
+1080,
+1010
+]
+]
+},
+{
+"out": "p14/1.jpg",
+"kind": "text",
+"head": "Flight running late?",
+"emph": [
+"late?"
+],
+"body": [
+"Here's what happens. Swipe."
+]
+},
+{
+"out": "p14/2.jpg",
+"kind": "text",
+"num": 1,
+"head": "We track your flight.",
+"emph": [
+"track"
+]
+},
+{
+"out": "p14/3.jpg",
+"kind": "text",
+"num": 2,
+"head": "Your driver adjusts.",
+"emph": [
+"adjusts."
+]
+},
+{
+"out": "p14/4.jpg",
+"kind": "text",
+"num": 3,
+"head": "Met in arrivals.",
+"emph": [
+"arrivals."
+],
+"body": [
+"With meet & greet, your driver is waiting as you walk through."
+]
+},
+{
+"out": "p14/5.jpg",
+"kind": "text",
+"head": "Book online or WhatsApp us.",
+"emph": [
+"whatsapp"
+],
+"body": [
+"+44 7405 172435",
+"0114 399 8242"
+]
+},
+{
+"out": "p16/1.jpg",
+"kind": "text",
+"eyebrow": "For businesses",
+"head": "Visitors to your site, looked after.",
+"emph": [
+"looked",
+"after."
+],
+"list": [
+"Flight tracked, met in arrivals",
+"Booker gets live tracking",
+"Private line between driver and passenger",
+"VAT invoice with your PO"
+]
+},
+{
+"out": "p17/1.jpg",
+"kind": "photo",
+"size_kind": "gbp",
+"src": "2026-11-12-fleet/1000206609.jpg",
+"cy": 0.5,
+"blur": [
+[
+670,
+725,
+790,
+790
+]
+]
+},
+{
+"out": "p18/1.jpg",
+"kind": "text",
+"eyebrow": "Before you open an account",
+"head": "Opening a chauffeur account? Ask these.",
+"emph": [
+"ask",
+"these."
+],
+"body": [
+"Five questions. Swipe."
+]
+},
+{
+"out": "p18/2.jpg",
+"kind": "text",
+"num": 1,
+"eyebrow": "Ask",
+"head": "Is the operator licensed?",
+"emph": [
+"licensed?"
+],
+"body": [
+"We are: Operator Licence OP037, Sheffield City Council."
+]
+},
+{
+"out": "p18/3.jpg",
+"kind": "text",
+"num": 2,
+"eyebrow": "Ask",
+"head": "Are the drivers DBS checked?",
+"emph": [
+"dbs"
+],
+"body": [
+"Ours are council-licensed and enhanced-DBS checked."
+]
+},
+{
+"out": "p18/4.jpg",
+"kind": "text",
+"num": 3,
+"eyebrow": "Ask",
+"head": "Can you issue VAT invoices?",
+"emph": [
+"vat"
+],
+"body": [
+"Yes, with your PO or cost-centre on each journey."
+]
+},
+{
+"out": "p18/5.jpg",
+"kind": "text",
+"num": 4,
+"eyebrow": "Ask",
+"head": "Is the phone answered 24/7?",
+"emph": [
+"24/7?"
+],
+"body": [
+"Ours is: 0114 399 8242."
+]
+},
+{
+"out": "p18/6.jpg",
+"kind": "text",
+"num": 5,
+"eyebrow": "Ask",
+"head": "Can you show insurance?",
+"emph": [
+"insurance?"
+],
+"body": [
+"Any good operator will, without fuss."
+]
+},
+{
+"out": "p18/7.jpg",
+"kind": "text",
+"head": "Talk to us about an account.",
+"emph": [
+"account."
+],
+"body": [
+"admin@centralexecutivetransfers.co.uk",
+"0114 399 8242"
+]
+},
+{
+"out": "p19/1.jpg",
+"kind": "photo",
+"src": "2026-11-10-photos/1000112650.jpg",
+"cx": 0.5,
+"eyebrow": "Party season",
+"head": "Christmas parties: book early.",
+"emph": [
+"early."
+],
+"list": [
+"Everyone there and home together",
+"V-Class for up to 7, minibuses for more"
+],
+"blur": [
+[
+0,
+890,
+140,
+960
+],
+[
+540,
+890,
+700,
+960
+],
+[
+1000,
+890,
+1080,
+960
+]
+]
+},
+{
+"out": "p20/1.jpg",
+"kind": "text",
+"eyebrow": "Staff parties & client evenings",
+"head": "One booking. One invoice.",
+"emph": [
+"one",
+"invoice."
+],
+"list": [
+"V-Class for 7, minibuses for larger groups",
+"Single VAT invoice, PO on each journey",
+"Working through Christmas and New Year"
+]
+},
+{
+"out": "p21/1.jpg",
+"kind": "text",
+"size_kind": "story",
+"top": true,
+"head": "Airport day? Do these 3 things.",
+"emph": [
+"3",
+"things."
+]
+},
+{
+"out": "p21/2.jpg",
+"kind": "text",
+"size_kind": "story",
+"num": 1,
+"head": "Pick the car for your bags.",
+"emph": [
+"bags."
+]
+},
+{
+"out": "p21/3.jpg",
+"kind": "text",
+"size_kind": "story",
+"num": 2,
+"head": "Book your return now.",
+"emph": [
+"return"
+]
+},
+{
+"out": "p21/4.jpg",
+"kind": "text",
+"size_kind": "story",
+"num": 3,
+"head": "Keep your phone on.",
+"emph": [
+"phone"
+],
+"body": [
+"Your driver's details arrive before pickup."
+]
+},
+{
+"out": "p22/1.jpg",
+"kind": "text",
+"size_kind": "gbp",
+"head": "Pay the way that suits you.",
+"emph": [
+"suits",
+"you."
+],
+"list": [
+"Card or secure payment link",
+"Cash",
+"VAT invoice for businesses"
+]
+},
+{
+"out": "p23/1.jpg",
+"kind": "text",
+"head": "Your first booking, step by step.",
+"emph": [
+"step",
+"by",
+"step."
+]
+},
+{
+"out": "p23/2.jpg",
+"kind": "text",
+"num": 1,
+"head": "Get your price online.",
+"emph": [
+"price"
+],
+"body": [
+"Fixed price, quoted up front."
+]
+},
+{
+"out": "p23/3.jpg",
+"kind": "text",
+"num": 2,
+"head": "Confirm and pay your way.",
+"emph": [
+"your",
+"way."
+],
+"body": [
+"Card, payment link or cash."
+]
+},
+{
+"out": "p23/4.jpg",
+"kind": "text",
+"num": 3,
+"head": "Driver details before pickup.",
+"emph": [
+"driver"
+]
+},
+{
+"out": "p23/5.jpg",
+"kind": "text",
+"num": 4,
+"head": "Track your driver live.",
+"emph": [
+"live."
+]
+},
+{
+"out": "p23/6.jpg",
+"kind": "text",
+"head": "Book online or WhatsApp.",
+"emph": [
+"whatsapp."
+],
+"body": [
+"+44 7405 172435",
+"centralexecutivetransfers.co.uk"
+]
+},
+{
+"out": "p25/1.jpg",
+"kind": "text",
+"head": "Where is your work party this year?",
+"emph": [
+"work",
+"party"
+],
+"body": [
+"Tell us in the comments. We'll get everyone there and home."
+]
+},
+{
+"out": "p26/1.jpg",
+"kind": "photo",
+"src": "2026-11-18-courtyard/blur4.jpg",
+"cx": 0.7,
+"eyebrow": "Christmas & New Year",
+"head": "We work right through the holidays.",
+"emph": [
+"holidays."
+],
+"list": [
+"Airport runs, party nights, family trips"
+]
+},
+{
+"out": "p05r/1.jpg",
+"kind": "photo",
+"size_kind": "story",
+"src": "2026-11-12-fleet/1000212915.jpg",
+"head": "5 things before every airport pickup",
+"emph": [
+"5"
+]
+},
+{
+"out": "p05r/2.jpg",
+"kind": "photo",
+"size_kind": "story",
+"src": "2026-11-12-fleet/1000212913.jpg",
+"head": "1. We track your flight",
+"emph": [
+"1."
+],
+"blur": [
+[
+0,
+1200,
+90,
+1320
+]
+]
+},
+{
+"out": "p05r/3.jpg",
+"kind": "photo",
+"size_kind": "story",
+"src": "2026-11-10-photos/1000063895.jpg",
+"head": "2. Clean inside and out",
+"emph": [
+"2."
+]
+},
+{
+"out": "p05r/4.jpg",
+"kind": "photo",
+"size_kind": "story",
+"src": "2026-11-10-photos/1000063892.jpg",
+"head": "3. Fresh water on board",
+"emph": [
+"3."
+],
+"blur": [
+[
+0,
+760,
+120,
+850
+]
+]
+},
+{
+"out": "p05r/5.jpg",
+"kind": "photo",
+"size_kind": "story",
+"src": "2026-11-10-photos/1000063944.jpg",
+"head": "4. Driver details before pickup",
+"emph": [
+"4."
+],
+"blur": [
+[
+200,
+1450,
+420,
+1560
+]
+]
+},
+{
+"out": "p05r/6.jpg",
+"kind": "photo",
+"size_kind": "story",
+"src": "2026-11-10-photos/1000063943.jpg",
+"head": "5. Met in arrivals with meet & greet",
+"emph": [
+"5."
+]
+}
+]

@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import burn_captions_pil as cap  # noqa
 import cet_tiktok_text as tt  # noqa
+import cet_encode as enc  # noqa
 sys.path.insert(0, str(Path(__file__).parent))
 
 W, H, FPS = 1080, 1920, 30
@@ -92,8 +93,7 @@ def main():
             src = Path(b["src"]); sw, sh = cap.get_video_dims(src); o = tmp / f"bg{k}.mp4"
             run(["ffmpeg", "-y", "-ss", str(b["in"]), "-t", str(b["out"] - b["in"]), "-i", str(src),
                  "-vf", f"{cap.crop_filter(sw, sh)},eq=brightness=-0.06:saturation=0.9,fps={FPS},format=yuv420p",
-                 "-af", "volume=0.35,aresample=48000", "-ac", "2", "-c:v", "libx264", "-preset", "fast", "-crf", "20",
-                 "-c:a", "aac", str(o)])
+                 "-af", "volume=0.35,aresample=48000", *enc.INTER, str(o)])
             segs.append(o)
         lst = tmp / "bg.txt"; lst.write_text("".join(f"file '{p}'\n" for p in segs))
         bg = tmp / "bg.mp4"
@@ -113,14 +113,13 @@ def main():
             last = f"v{k}"
         body = tmp / "body.mp4"
         run(["ffmpeg", "-y", *inputs, "-filter_complex", fc.rstrip(";"), "-map", f"[{last}]", "-map", "0:a?",
-             "-t", str(total), "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", str(body)])
+             "-t", str(total), *enc.INTER, str(body)])
         ec = tmp / "end.png"; tt.end_card_png(ec); endv = tmp / "end.mp4"
         run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(ec), "-f", "lavfi", "-t", "2.2", "-i",
-             "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", "-c:v", "libx264",
-             "-preset", "fast", "-crf", "20", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-shortest", str(endv)])
+             "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", *enc.INTER,
+             "-r", str(FPS), "-shortest", str(endv)])
         l2 = tmp / "all.txt"; l2.write_text(f"file '{body}'\nfile '{endv}'\n")
-        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(l2), "-c:v", "libx264", "-preset", "medium",
-             "-crf", "24", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)])
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(l2), *enc.FINAL, str(out)])
     print("Done", out)
 
 

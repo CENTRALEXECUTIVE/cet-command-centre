@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import burn_captions_pil as cap  # noqa: E402
+import cet_encode as enc  # noqa: E402
 
 
 def run(cmd):
@@ -42,8 +43,7 @@ def main():
             src = Path(a.source_video) if a.source_video else edl_path.parent / clip.get("source_video", edl["video"])
             raw = tmp / f"raw_{i}.mp4"
             run(["ffmpeg", "-y", "-ss", str(clip["in_s"]), "-to", str(clip["out_s"]), "-i", str(src),
-                 "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-r", str(cap.FPS),
-                 "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", str(raw)])
+                 *enc.INTER, "-r", str(cap.FPS), str(raw)])
             png = tmp / f"cap_{i}.png"
             text = "" if a.no_captions else clip.get("caption_text", "")
             cap.make_caption_image(text, clip.get("caption_emphasis", []), png)
@@ -54,8 +54,7 @@ def main():
         lst = tmp / "list.txt"
         lst.write_text("".join(f"file '{x}'\n" for x in parts))
         run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
-             "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
-             "-movflags", "+faststart", str(out)])
+             *enc.FINAL, str(out)])
     print(f"Done: {out}")
 
 

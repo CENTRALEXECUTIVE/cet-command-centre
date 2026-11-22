@@ -14,6 +14,9 @@ OR the script reads in_s/out_s from the EDL and cuts from the source video on th
 import json, sys, os, subprocess, argparse, tempfile, shutil
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cet_encode as enc  # noqa: E402
+
 
 W, H = 1080, 1920
 FPS = 30
@@ -115,10 +118,8 @@ def render_clip(clip: dict, clips_dir: Path, source_video: Path | None, tmp_dir:
         "ffmpeg", "-y",
         *in_args,
         "-vf", crop,
-        "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+        *enc.INTER,
         "-r", str(FPS),
-        "-c:a", "aac", "-b:a", "256k",
-        "-movflags", "+faststart",
         str(out)
     ]
     result = subprocess.run(cmd, capture_output=True)
@@ -137,9 +138,7 @@ def concat_clips(rendered_clips: list, tmp_dir: Path) -> Path:
     cmd = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0", "-i", str(list_file),
-        "-c:v", "libx264", "-preset", "fast", "-crf", "20",
-        "-c:a", "aac", "-b:a", "256k",
-        "-movflags", "+faststart",
+        *enc.INTER,
         str(out)
     ]
     result = subprocess.run(cmd, capture_output=True)
@@ -170,7 +169,9 @@ def burn_captions(video_path: Path, edl: dict, output_path: Path):
         cumulative = end
 
     if not filter_parts:
-        shutil.copy(video_path, output_path)
+        # No captions: still give the delivery file its one final high-bitrate encode.
+        subprocess.run(["ffmpeg", "-y", "-i", str(video_path), *enc.FINAL, str(output_path)],
+                       capture_output=True, check=True)
         return
 
     filter_str = ",".join(filter_parts)
@@ -178,9 +179,7 @@ def burn_captions(video_path: Path, edl: dict, output_path: Path):
         "ffmpeg", "-y",
         "-i", str(video_path),
         "-vf", filter_str,
-        "-c:v", "libx264", "-preset", "fast", "-crf", "20",
-        "-c:a", "copy",
-        "-movflags", "+faststart",
+        *enc.FINAL,
         str(output_path)
     ]
     result = subprocess.run(cmd, capture_output=True)

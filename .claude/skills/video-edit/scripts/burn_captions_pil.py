@@ -11,6 +11,9 @@ import json, sys, subprocess, tempfile, argparse
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cet_encode as enc  # noqa: E402
+
 W, H = 1080, 1920
 FONT_PATH = str(Path(__file__).resolve().parent.parent / "fonts" / "TikTokSans_28pt-Medium.ttf")  # CET: bundled font (was macOS Impact)
 FONT_SIZE = 72
@@ -126,9 +129,8 @@ def overlay_caption_on_clip(clip_path: Path, caption_png: Path, out_path: Path):
         "-i", str(clip_path),
         "-i", str(caption_png),
         "-filter_complex", f"[0:v]{vf}[cropped];[cropped][1:v]overlay=0:0",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+        *enc.INTER_VIDEO,
         "-c:a", "copy",
-        "-movflags", "+faststart",
         str(out_path)
     ]
     result = subprocess.run(cmd, capture_output=True)
@@ -189,9 +191,7 @@ def main():
         cmd = [
             "ffmpeg", "-y",
             "-f", "concat", "-safe", "0", "-i", str(list_file),
-            "-c:v", "libx264", "-preset", "fast", "-crf", "20",
-            "-c:a", "aac", "-b:a", "256k",
-            "-movflags", "+faststart",
+            *enc.FINAL,
             str(output_path)
         ]
         result = subprocess.run(cmd, capture_output=True)

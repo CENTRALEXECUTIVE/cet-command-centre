@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cet_tiktok_text as tt  # noqa
+import cet_encode as enc  # noqa
 
 W, H, FPS = 1080, 1920, 30
 
@@ -43,17 +44,15 @@ def main():
             part = tmp / f"p{i}.mp4"
             run(["ffmpeg", "-y", *inputs, "-f", "lavfi", "-t", str(dur), "-i", "anullsrc=r=48000:cl=stereo",
                  "-filter_complex", fc.rstrip(";"), "-map", f"[{last}]", "-map", f"{len(pngs)+1}:a",
-                 "-t", str(dur), "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-r", str(FPS),
-                 "-c:a", "aac", "-b:a", "128k", str(part)])
+                 "-t", str(dur), *enc.INTER, "-r", str(FPS), str(part)])
             parts.append(part)
         ec = tmp / "end.png"; tt.end_card_png(ec); endv = tmp / "end.mp4"
         run(["ffmpeg", "-y", "-loop", "1", "-t", "2.2", "-i", str(ec), "-f", "lavfi", "-t", "2.2", "-i",
-             "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", "-c:v", "libx264",
-             "-preset", "fast", "-crf", "20", "-r", str(FPS), "-c:a", "aac", "-b:a", "128k", "-shortest", str(endv)])
+             "anullsrc=r=48000:cl=stereo", "-vf", "fade=in:st=0:d=0.25,format=yuv420p", *enc.INTER,
+             "-r", str(FPS), "-shortest", str(endv)])
         parts.append(endv)
         lst = tmp / "l.txt"; lst.write_text("".join(f"file '{p}'\n" for p in parts))
-        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c:v", "libx264", "-preset", "medium",
-             "-crf", "23", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(out)])
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), *enc.FINAL, str(out)])
     print("Done", out)
 
 

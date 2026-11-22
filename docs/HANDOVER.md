@@ -323,6 +323,13 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **22 Nov 2026 (3)** — Social media quality redo (directors: videos/images low quality, logo + contact design
+  poor). All 87 cards + 6 stories rebuilt with HTML templates at 1440px, JPEG q92 4:4:4 (were 1080px, 55–90 KB):
+  CENTRAL wordmark + gold "EXECUTIVE TRANSFERS" lockup, gold website pill + WhatsApp/phone icons, photo textures
+  on text cards. Readable plates found and blurred on 7 photos (wedding, Christmas markets, two GBP photos).
+  Reels re-exported (prep 2.7→13 Mbps from master; fleet/wedding/courtyard re-rendered from source; 6 slideshow
+  reels rebuilt from the new cards). Encode settings fixed in .claude/skills/video-edit/scripts/cet_encode.py;
+  renderer saved in .claude/skills/video-edit/cards/. OPEN: plates in fleet + wedding footage reels being blurred.
 - **22 Nov 2026 (2)** — Driver job offer: the note now shows with any phone number blanked "(number via the
   office)" instead of hiding the whole note (CET-535316 showed "a note is on file" for "Meet & greet required").
 - **22 Nov 2026** — Driver "Record the cash you collected": pressing Record again now CORRECTS the driver's

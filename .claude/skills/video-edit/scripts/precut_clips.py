@@ -11,6 +11,9 @@ Usage:
 import json, sys, subprocess, argparse
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cet_encode as enc  # noqa: E402
+
 
 def precut(edl_path: Path, composition_dir: Path):
     edl = json.loads(edl_path.read_text())
@@ -43,9 +46,8 @@ def precut(edl_path: Path, composition_dir: Path):
             "-vf", "scale=-2:1920,crop=1080:1920:(in_w-1080)/2:0,setpts=PTS-STARTPTS",
             "-af", "asetpts=PTS-STARTPTS",
             "-avoid_negative_ts", "make_zero",
-            "-c:v", "libx264", "-g", "1",
+            *enc.INTER, "-g", "1",
             "-movflags", "+faststart",
-            "-c:a", "aac", "-b:a", "256k",
             str(out_file)
         ]
         print(f"  clip_{idx}  {in_s:.2f}s → {clip['out_s']:.2f}s  ({dur:.2f}s)", flush=True)
