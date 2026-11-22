@@ -5504,11 +5504,15 @@ class Booking extends Model
         // this is where waiting-time detail like "waiting at stop for Nathan" and
         // other instructions reach the driver. A note containing a phone number is
         // withheld (it would defeat masking) — the office handles it.
+        // A number is blanked out of the note itself, so the rest of the instruction
+        // still reaches the driver (it used to hide the WHOLE note, e.g. "Meet & greet
+        // required" on CET-535316, because another note source held a number).
         if ($notes = $this->driverReadNotes()) {
+            foreach ($this->notePhoneNumbers() as $num) {
+                $notes = str_replace($num, '(number via the office)', $notes);
+            }
             $lines[] = '';
-            $lines[] = $this->notesContainNumber()
-                ? '📝 Notes: (a note is on file — check with the office)'
-                : '📝 Notes: '.$notes;
+            $lines[] = '📝 Notes: '.$notes;
         }
 
         return implode("\n", $lines);

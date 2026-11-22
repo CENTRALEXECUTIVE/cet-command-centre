@@ -323,6 +323,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **22 Nov 2026 (2)** — Driver job offer: the note now shows with any phone number blanked "(number via the
+  office)" instead of hiding the whole note (CET-535316 showed "a note is on file" for "Meet & greet required").
 - **22 Nov 2026** — Driver "Record the cash you collected": pressing Record again now CORRECTS the driver's
   figure instead of adding another line (3 taps on a £95 job showed £285). Button reads "Update" once recorded.
   Migration 2026_11_22_000001 collapses existing duplicate driver cash lines (same booking + same amount).

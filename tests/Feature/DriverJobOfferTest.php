@@ -249,4 +249,18 @@ class DriverJobOfferTest extends TestCase
         $this->assertSame(130.0, $booking->fresh()->driverPay());
         $this->assertStringContainsString('Fare to you: £130', $booking->fresh()->driverOfferMessage());
     }
+
+    public function test_offer_shows_the_driver_note_with_any_phone_number_blanked(): void
+    {
+        // CET-535316, 22 Nov 2026: "Meet & greet required" was hidden behind "(a note is
+        // on file)" because another note held the passenger's number.
+        $booking = $this->offerJob(['special_requests' => 'Passenger mobile 07700 900456, call on landing']);
+        $booking->forceFill(['meta' => ['payroll' => ['pay' => 95, 'paid' => 0, 'history' => []]]])->save();
+
+        $msg = $booking->fresh()->driverOfferMessage();
+        $this->assertStringNotContainsString('07700 900456', $msg);
+        $this->assertStringNotContainsString('a note is on file', $msg);
+        $this->assertStringContainsString('call on landing', $msg);
+        $this->assertStringContainsString('(number via the office)', $msg);
+    }
 }
