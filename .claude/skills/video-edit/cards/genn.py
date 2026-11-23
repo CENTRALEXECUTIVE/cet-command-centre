@@ -6,6 +6,8 @@ labels, a Cormorant Garamond capitals headline, thin gold rules, quiet footer:
 Usage: genn.py <spec.json>... -> html/ + manifest.json (render with shot.js)."""
 import json, os, sys, html as H
 from PIL import Image, ImageOps, ImageFilter
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'scripts'))
+from cet_soft_blur import soft_blur  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = '/home/user/cet-command-centre'
@@ -66,10 +68,8 @@ def cover(src, W, H, cx, cy, blur, name):
     im = im.resize((int(im.width * r) + 1, int(im.height * r) + 1), Image.LANCZOS)
     x = int((im.width - w) * cx); y = int((im.height - h) * cy)
     im = im.crop((x, y, x + w, y + h))
-    for b in blur or []:
-        b = tuple(int(v * SCALE) for v in b); reg = im.crop(b)
-        s = reg.resize((max(1, reg.width // 14), max(1, reg.height // 14))).resize(reg.size, Image.NEAREST).filter(ImageFilter.GaussianBlur(8))
-        im.paste(s, b)
+    for b in blur or []:  # soft, feathered plate blur (directors: pixel blocks looked unprofessional)
+        soft_blur(im, tuple(int(v * SCALE) for v in b))
     p = f'{HERE}/img/n_{name}.jpg'; im.save(p, quality=95); return p
 
 

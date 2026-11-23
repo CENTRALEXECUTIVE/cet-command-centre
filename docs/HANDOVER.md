@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **23 Nov 2026 — Softer plate blur on all 149 posts.** Directors: the pixel-block blur looked unprofessional. New `scripts/cet_soft_blur.py` (feathered gaussian, keeps the plate's shape, still unreadable) used by `genn.py`. Next: rewrite posts as location/route posts (e.g. Heathrow T3 Upper Class Wing) in the izec style once directors confirm photo locations.
+
 - **23 Nov 2026 — Batch 3 social posts from 9 new photos.** 14 images in `resources/social-media/b3/` (boot with 2 big cases, rear seats/water/USB, E-Class at dawn, hotel entrance), NIGHT theme, all plates blurred (pre-blurred copies b1–b9 in the photo library). Captions/schedule 16–29 Jan 2027 via migration `2026_11_23_000003_social_batch_three` (needs migrate; auto-deploy runs it). `genn.py` gained `band` for wide photos.
 
 - **23 Nov 2026 — Social posts redone in the NIGHT theme (all 135).** Directors rejected the white design; studied competitor (izec) + TikTok design-skill videos (UI/UX Pro Max, Impeccable, Taste). Dark full-bleed photo, Archivo Bold headlines (directors chose C6), solid gold key word, gold Book online button, no phones, plates blurred. VAT story now uses the office-block fleet photo. New `cards/genn.py` + `scripts/cet_snap_reel.py` (TikTok-style fast-cut Reel: ivory title cards, one-word gold caption chips); demo `resources/social-media/prep-snap-reel.mp4`. Open: directors to film a talking-head clip for the split-screen format; decide on scheduled morning/evening briefs.
