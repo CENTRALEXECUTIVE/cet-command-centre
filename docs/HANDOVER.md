@@ -13,6 +13,9 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **23 Nov 2026 (3)** — Reel end card ("Book online or call 0114 399 8242" in cet_tiktok_text.end_card_png) changed to
+  "Book online 24/7"; the 6 slideshow reels re-rendered and the 4 footage reels (prep, fleet, wedding, courtyard) had
+  just that line patched (edit unchanged). No phone number left on any social media image or video.
 - **23 Nov 2026** — Social batch 2 (directors: "use all the photos"): 24 posts / 49 rows, Wed 16 Dec → Fri 15 Jan, from the unused photos (Ghost, The Grand, rainy wedding cars, Sheffield landmarks, fleet, airports) in the gold/black concierge cards. 3 carousels, 2 Stories + 2 music-free Reels, 4 LinkedIn, 4 Google. Migration `2026_11_23_000002_social_batch_two` (needs `migrate`), images `resources/social-media/b2/`, spec `cards-batch2.json`. Plates and bystander faces blurred; book-online CTA only. Open: the shared `cet_photo_reel.py` end card still says "call 0114…" (batch-2 reels skip it; older reels carry it).
 - **9 Nov 2026** — Multi-vehicle bookings: new-booking form has **Vehicles** (1–5, next to Passengers). Price =
   per-vehicle live quote × vehicles (cards show "£330.00 (2 cars)"), seats/luggage checks × vehicles, saved as

@@ -134,7 +134,7 @@ def end_card_png(out):
                         outline=GOLD, width=3)
     d.text(((W - sw) / 2, y + py + 2), site, font=fw, fill=WHITE)
     y += 52 + py * 2 + 40
-    ph = "Book online or call 0114 399 8242"
+    ph = "Book online 24/7"
     d.text(((W - fs.getlength(ph)) / 2, y), ph, font=fs, fill=(196, 190, 176, 255))
     img.save(out)
 
