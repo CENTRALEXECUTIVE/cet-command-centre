@@ -13,6 +13,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **23 Nov 2026 (6)** — Directors chose reel ending C "headlights" (from 4 options: name board, arrivals board,
+  headlights, number plate): all 12 reels now end on templates/end-headlights.mp4 ("Your driver is waiting.").
 - **23 Nov 2026 (5)** — CET-B3411F: (1) notes phone parser was UK-only and cut the passenger's German mobile
   "0049 151 204 22619" to "0049 151 204 22" — now reads international numbers in full (+, 00, up to 15 digits);
   (2) driver job showed the BOOKER (Claire Green) not the passenger: when booked_by + lead_name differ, the

@@ -6,7 +6,7 @@ Final encode uses the house settings (CRF 17, high profile, 14M cap, AAC 48k ste
 import subprocess, sys
 from pathlib import Path
 
-END = Path(__file__).resolve().parent.parent / 'templates' / 'end-nameboard.mp4'
+END = Path(__file__).resolve().parent.parent / 'templates' / 'end-headlights.mp4'
 src, out = sys.argv[1], sys.argv[2]
 cut = sys.argv[3] if len(sys.argv) > 3 else 'none'
 trim = '' if cut == 'none' else f'trim=0:{cut},setpts=PTS-STARTPTS,'

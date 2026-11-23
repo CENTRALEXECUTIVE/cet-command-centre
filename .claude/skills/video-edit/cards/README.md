@@ -29,7 +29,12 @@ Slideshow Reels: `scripts/cet_photo_reel.py spec.json out.mp4` (spec = slide_s +
 final encode settings live in `scripts/cet_encode.py`.
 Sources (photos/footage) are in docs/growth/data/video/ (not in git).
 
-## Reel ending (23 Nov 2026): the name board
+## Reel ending: HEADLIGHTS (directors chose option C, 23 Nov 2026)
+Every Reel ends on `../templates/end-headlights.mp4` (2.8s): black, the Mercedes' headlights flash on at night,
+the CENTRAL logo + gold EXECUTIVE TRANSFERS fade in, then "Your driver is waiting.", the website pill and
+"Book online 24/7". `cet_swap_end.py` uses it. (Earlier option A, the name board, is kept in templates/.)
+
+### Previous: the name board
 Every Reel ends on `../templates/end-nameboard.mp4` (2.8s): a white chauffeur's meet & greet name board with the
 black CENTRAL wordmark rises over a night shot of the car, then "Your driver is waiting." (the sign-off line),
 the website in a gold pill and "Book online 24/7". No phone numbers.
