@@ -28,3 +28,4 @@ yarn-error.log
 # Growth data exports (may contain customer PII) — never commit
 /docs/growth/data/*
 !/docs/growth/data/.gitkeep
+.claude/skills/video-edit/scripts/__pycache__/
