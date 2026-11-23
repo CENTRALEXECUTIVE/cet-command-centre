@@ -127,8 +127,15 @@ def build(s):
         sz = int(sz * 1.08)
     body = []
     if has_photo:
-        p = cover(s['src'], W, Hh, s.get('cx', .5), s.get('cy', .5), s.get('blur'), name)
-        body.append(f'<div class="photo" style="background-image:url(\'file://{p}\')"></div><div class="tone"></div><div class="shade"></div>')
+        band = s.get('band')  # wide photos: keep the whole frame in the top part, text below
+        if band:
+            bh = int(Hh * band); b0 = int(band * 100)
+            p = cover(s['src'], W, bh, s.get('cx', .5), s.get('cy', .5), s.get('blur'), name)
+            body.append(f'<div class="photo" style="bottom:auto;height:{bh}px;background-image:url(\'file://{p}\')"></div><div class="tone" style="bottom:auto;height:{bh}px"></div>'
+                        f'<div class="shade" style="background:linear-gradient(180deg,rgba(13,10,7,.78) 0%,rgba(13,10,7,0) 14%,rgba(13,10,7,0) {b0 - 14}%,#0d0a07 {b0}%)"></div>')
+        else:
+            p = cover(s['src'], W, Hh, s.get('cx', .5), s.get('cy', .5), s.get('blur'), name)
+            body.append(f'<div class="photo" style="background-image:url(\'file://{p}\')"></div><div class="tone"></div><div class="shade"></div>')
     else:
         pool = ['2026-11-18-courtyard/blur1.jpg', '2026-11-18-courtyard/blur3.jpg', '2026-11-18-courtyard/blur5.jpg',
                 '2026-11-18-courtyard/blur6.jpg', '2026-11-12-fleet/1000206606.jpg', '2026-11-12-fleet/1000206609.jpg']

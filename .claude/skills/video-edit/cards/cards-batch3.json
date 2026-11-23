@@ -1,0 +1,182 @@
+[
+ {
+  "out": "b3/01/1.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b1.jpg",
+  "cx": 0.5,
+  "cy": 0.45,
+  "head": "Two big cases? Easy.",
+  "list": [
+   "Both in the boot of an E-Class",
+   "Add your bags when you book online"
+  ],
+  "emph": [
+   "easy."
+  ]
+ },
+ {
+  "out": "b3/01/2.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b2.jpg",
+  "cx": 0.5,
+  "cy": 0.4,
+  "head": "Saloon: 4 people, 2 big cases.",
+  "list": [
+   "More bags? Choose the V-Class for 7 and 7"
+  ],
+  "emph": [
+   "2"
+  ]
+ },
+ {
+  "out": "b3/02/1.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b3.jpg",
+  "cx": 0.55,
+  "head": "Your seat, ready.",
+  "list": [
+   "Fresh water on board",
+   "Clean inside and out before every job"
+  ],
+  "emph": [
+   "ready."
+  ]
+ },
+ {
+  "out": "b3/02/2.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b4.jpg",
+  "cx": 0.4,
+  "head": "Charge on the way.",
+  "list": [
+   "USB ports in the back",
+   "Water in the armrest"
+  ],
+  "emph": [
+   "charge"
+  ]
+ },
+ {
+  "out": "b3/03/1.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b5.jpg",
+  "cx": 0.5,
+  "head": "Early start? We're outside.",
+  "list": [
+   "Collected from your door",
+   "Driver details before pickup"
+  ],
+  "emph": [
+   "outside."
+  ],
+  "band": 0.62
+ },
+ {
+  "out": "b3/04/1.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b7.jpg",
+  "cx": 0.5,
+  "head": "Dropped at the entrance.",
+  "list": [
+   "Hotels, terminals and offices",
+   "Book online, any time"
+  ],
+  "emph": [
+   "entrance."
+  ],
+  "band": 0.62
+ },
+ {
+  "out": "b3/05/1.jpg",
+  "kind": "photo",
+  "src": "2026-11-23-new/b9.jpg",
+  "cx": 0.5,
+  "head": "Business travel, sorted.",
+  "list": [
+   "VAT-registered business accounts",
+   "Monthly invoicing, 30-day terms"
+  ],
+  "emph": [
+   "sorted."
+  ],
+  "band": 0.62
+ },
+ {
+  "out": "b3/06/1.jpg",
+  "kind": "photo",
+  "size_kind": "story",
+  "src": "2026-11-23-new/b6.jpg",
+  "cx": 0.32,
+  "head": "Early start? We're already outside.",
+  "list": [
+   "Book online the night before"
+  ],
+  "emph": [
+   "outside."
+  ]
+ },
+ {
+  "out": "b3/06/2.jpg",
+  "kind": "photo",
+  "size_kind": "story",
+  "src": "2026-11-23-new/b9.jpg",
+  "cx": 0.62,
+  "head": "Waiting at the door.",
+  "list": [
+   "Driver details and a live tracking link before pickup"
+  ],
+  "emph": [
+   "door."
+  ]
+ },
+ {
+  "out": "b3/06/3.jpg",
+  "kind": "photo",
+  "size_kind": "story",
+  "src": "2026-11-23-new/b1.jpg",
+  "cx": 0.5,
+  "cy": 0.5,
+  "head": "Room for the bags.",
+  "list": [
+   "Tell us your luggage when you book"
+  ],
+  "emph": [
+   "bags."
+  ]
+ },
+ {
+  "out": "b3/06/4.jpg",
+  "kind": "photo",
+  "size_kind": "story",
+  "src": "2026-11-23-new/b3.jpg",
+  "cx": 0.6,
+  "head": "Sit back.",
+  "list": [
+   "Fresh water, clean car, tracked flight"
+  ],
+  "emph": [
+   "back."
+  ]
+ },
+ {
+  "out": "b3/07/1.jpg",
+  "kind": "photo",
+  "size_kind": "gbp",
+  "src": "2026-11-23-new/b7.jpg",
+  "cx": 0.5
+ },
+ {
+  "out": "b3/07/2.jpg",
+  "kind": "photo",
+  "size_kind": "gbp",
+  "src": "2026-11-23-new/b8.jpg",
+  "cx": 0.5
+ },
+ {
+  "out": "b3/07/3.jpg",
+  "kind": "photo",
+  "size_kind": "gbp",
+  "src": "2026-11-23-new/b4.jpg",
+  "cx": 0.5
+ }
+]
