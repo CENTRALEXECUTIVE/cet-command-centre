@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **23 Nov 2026 — Social posts redone in the NIGHT theme (all 135).** Directors rejected the white design; studied competitor (izec) + TikTok design-skill videos (UI/UX Pro Max, Impeccable, Taste). Dark full-bleed photo, Archivo Bold headlines (directors chose C6), solid gold key word, gold Book online button, no phones, plates blurred. VAT story now uses the office-block fleet photo. New `cards/genn.py` + `scripts/cet_snap_reel.py` (TikTok-style fast-cut Reel: ivory title cards, one-word gold caption chips); demo `resources/social-media/prep-snap-reel.mp4`. Open: directors to film a talking-head clip for the split-screen format; decide on scheduled morning/evening briefs.
+
 - **23 Nov 2026 — Driver job showed the booker, not the passenger (CET-B3411F).** Editing the booking saved the booker's name as the name override, so My Jobs still said "Claire Green". `Booking::passengerNotBooker()` now swaps any name matching a known booker (booked_by / booker_name / "Booked by X" in calendar notes, whitespace-insensitive) for the passenger (lead_name, else calendar Customer Name). Contact form no longer overwrites a known passenger with the booker. Tests added. No migration.
 - **23 Nov 2026 (6)** — Directors chose reel ending C "headlights" (from 4 options: name board, arrivals board,
   headlights, number plate): all 12 reels now end on templates/end-headlights.mp4 ("Your driver is waiting.").

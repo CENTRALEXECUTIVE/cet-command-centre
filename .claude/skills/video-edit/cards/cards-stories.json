@@ -19,19 +19,25 @@
   "out": "stories/story-2-business.jpg",
   "kind": "photo",
   "size_kind": "story",
-  "src": "2026-11-10-photos/1000063948.jpg",
+  "src": "2026-11-10-photos/1000063936.jpg",
   "head": "VAT-registered business accounts.",
   "list": [
    "Monthly invoicing, 30-day terms",
    "Book online any time"
   ],
-  "cx": 0.5,
+  "cx": 0.55,
   "blur": [
    [
-    350,
-    855,
-    560,
-    915
+    478,
+    1138,
+    828,
+    1245
+   ],
+   [
+    0,
+    1025,
+    125,
+    1078
    ]
   ],
   "emph": [

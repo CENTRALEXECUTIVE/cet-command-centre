@@ -1,4 +1,12 @@
-# CET social graphics (v3, 22 Nov 2026)
+# CET social graphics (v4, 23 Nov 2026)
+
+**Current theme: NIGHT (`genn.py`, 23 Nov 2026)** — directors rejected the white/concierge look.
+Full-bleed photo fading to warm black, white CENTRAL logo, Archivo Bold headlines (directors picked "C6"
+from 7 sans options; they hated Bodoni/serifs) with the key word in solid gold, short ivory line,
+gold "Book online" button + website, fine gold frame. No eyebrow labels, no gradient text (Impeccable rules).
+Text-only cards sit on a blurred, darkened real photo. VAT/account posts use a business photo, not a lone car.
+`python3 genn.py cards-*.json` then `node shot.js`. Reels in the snap style: `scripts/cet_snap_reel.py`.
+
 
 **Current theme: CONCIERGE (`genx.py`, 23 Nov 2026)** — directors said the gold-word/bold look read as AI.
 One typeface (Schibsted Grotesk 400/500, woff2 in ../fonts), sentence case, left aligned, true black on white,
