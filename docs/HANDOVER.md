@@ -13,6 +13,11 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **23 Nov 2026 (5)** — CET-B3411F: (1) notes phone parser was UK-only and cut the passenger's German mobile
+  "0049 151 204 22619" to "0049 151 204 22" — now reads international numbers in full (+, 00, up to 15 digits);
+  (2) driver job showed the BOOKER (Claire Green) not the passenger: when booked_by + lead_name differ, the
+  passenger now always wins in displayName()/displayCustomerName(). Office must re-pick the full number on that
+  booking ("Use this number") and set the name to the passenger.
 - **23 Nov 2026 (4)** — Reel ending redesigned to be memorable (directors: old end card "boring and dry"): the
   meet & greet NAME BOARD with the CENTRAL logo rises over the car at night, then "Your driver is waiting." + website
   pill + "Book online 24/7" (.claude/skills/video-edit/templates/end-nameboard.mp4, applied to all 12 reels with

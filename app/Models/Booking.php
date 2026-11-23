@@ -3197,6 +3197,13 @@ class Booking extends Model
         // stored lead_name (which comes from import). Without this, renaming a
         // booking updated the customer record — and the admin page — but the
         // driver link kept showing the old imported lead_name.
+        // Booked for someone else: the PASSENGER is who the driver meets, never the booker.
+        // (Edit booking saves the booker as the customer name, which used to win here and
+        // put "Claire Green" on the driver's job instead of her passenger — 23 Nov 2026.)
+        if (filled($this->meta['booked_by'] ?? null) && filled($this->meta['lead_name'] ?? null)
+            && strcasecmp(trim((string) $this->meta['booked_by']), trim((string) $this->meta['lead_name'])) !== 0) {
+            return (string) $this->meta['lead_name'];
+        }
         if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
             return $this->customer->name;
         }
@@ -3783,6 +3790,13 @@ class Booking extends Model
     {
         if (filled($this->meta['name_override'] ?? null)) {
             return (string) $this->meta['name_override'];
+        }
+        // Booked for someone else: the PASSENGER is who the driver meets, never the booker.
+        // (Edit booking saves the booker as the customer name, which used to win here and
+        // put "Claire Green" on the driver's job instead of her passenger — 23 Nov 2026.)
+        if (filled($this->meta['booked_by'] ?? null) && filled($this->meta['lead_name'] ?? null)
+            && strcasecmp(trim((string) $this->meta['booked_by']), trim((string) $this->meta['lead_name'])) !== 0) {
+            return (string) $this->meta['lead_name'];
         }
         if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
             return $this->customer->name;
@@ -4518,7 +4532,10 @@ class Booking extends Model
             return [];
         }
 
-        preg_match_all('/(?:\+?44|0)\s?(?:\d[\s-]?){9,10}\d/', $text, $m);
+        // International first (+33…, 0049 151 204 22619 — up to 15 digits, E.164), then UK.
+        // The old UK-only pattern cut a German mobile to "0049 151 204 22" (CET-B3411F,
+        // 23 Nov 2026), so masking would have rung a wrong number.
+        preg_match_all('/(?:\+|00)[1-9](?:[\s-]?\d){6,14}|(?:\+?44|0)\s?(?:\d[\s-]?){9,10}\d/', $text, $m);
         $found = array_map('trim', $m[0] ?? []);
 
         // Keep only matches with at least 10 digits (drop short false positives).
