@@ -514,29 +514,17 @@
   "out": "b2/06/1.jpg",
   "kind": "photo",
   "size_kind": "feed",
-  "src": "2026-11-10-photos/1000206606.jpg",
+  "src": "2026-11-10-photos/1000212914.jpg",
   "head": "Landing late over Christmas?",
   "body": [
    "We track the flight, so your driver knows before you do."
   ],
   "blur": [
    [
-    885,
-    810,
-    1015,
-    900
-   ],
-   [
-    885,
-    810,
-    1015,
-    900
-   ],
-   [
-    885,
-    810,
-    1015,
-    900
+    25,
+    805,
+    230,
+    920
    ]
   ],
   "emph": [

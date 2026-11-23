@@ -28,3 +28,10 @@ headline stay clean (no overlays).
 Slideshow Reels: `scripts/cet_photo_reel.py spec.json out.mp4` (spec = slide_s + slides);
 final encode settings live in `scripts/cet_encode.py`.
 Sources (photos/footage) are in docs/growth/data/video/ (not in git).
+
+## Reel ending (23 Nov 2026): the name board
+Every Reel ends on `../templates/end-nameboard.mp4` (2.8s): a white chauffeur's meet & greet name board with the
+black CENTRAL wordmark rises over a night shot of the car, then "Your driver is waiting." (the sign-off line),
+the website in a gold pill and "Book online 24/7". No phone numbers.
+Put it on any reel: `python3 ../scripts/cet_swap_end.py in.mp4 out.mp4 <old_end_start_s|none>`.
+Re-render the clip: open `../templates/end-nameboard.html` via `end-nameboard-frames.js` (needs bg.jpg) then ffmpeg.

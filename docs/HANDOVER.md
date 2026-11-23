@@ -13,6 +13,10 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- **23 Nov 2026 (4)** — Reel ending redesigned to be memorable (directors: old end card "boring and dry"): the
+  meet & greet NAME BOARD with the CENTRAL logo rises over the car at night, then "Your driver is waiting." + website
+  pill + "Book online 24/7" (.claude/skills/video-edit/templates/end-nameboard.mp4, applied to all 12 reels with
+  scripts/cet_swap_end.py). Audi photo removed from batch 2 (old car, not fleet) — b2/06 now an E-Class at the terminal.
 - **23 Nov 2026 (3)** — Reel end card ("Book online or call 0114 399 8242" in cet_tiktok_text.end_card_png) changed to
   "Book online 24/7"; the 6 slideshow reels re-rendered and the 4 footage reels (prep, fleet, wedding, courtyard) had
   just that line patched (edit unchanged). No phone number left on any social media image or video.

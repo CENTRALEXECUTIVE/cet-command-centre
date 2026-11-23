@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><style>
+@font-face{font-family:G;src:url('file:///home/user/cet-command-centre/.claude/skills/video-edit/fonts/schibsted-grotesk-latin-500-normal.woff2');font-weight:500}
+@font-face{font-family:G;src:url('file:///home/user/cet-command-centre/.claude/skills/video-edit/fonts/schibsted-grotesk-latin-600-normal.woff2');font-weight:600}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;background:#000;overflow:hidden;font-family:G}
+.bg{position:absolute;inset:-110px;background:url('file:///tmp/claude-0/-home-user-cet-command-centre/bb971d96-5fe6-5a20-a3d8-f04261a48b39/scratchpad/endcard/bg.jpg') center/cover;animation:push 2.8s linear both}
+@keyframes push{from{transform:scale(1)}to{transform:scale(1.07)}}
+.shade{position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 46%,rgba(0,0,0,.25),rgba(0,0,0,.78) 72%),linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.25) 45%,rgba(0,0,0,.82))}
+.board{position:absolute;left:50%;top:620px;width:760px;margin-left:-380px;background:#fff;border-radius:10px;padding:74px 0 66px;display:flex;flex-direction:column;align-items:center;gap:26px;
+ box-shadow:0 40px 80px rgba(0,0,0,.55),0 4px 0 rgba(0,0,0,.08) inset;transform-origin:50% 100%;animation:rise .75s cubic-bezier(.2,.9,.25,1.15) both}
+.board img{width:560px}
+.board i{display:block;width:86px;height:4px;background:#FBBA2A;border-radius:2px}
+@keyframes rise{0%{transform:translateY(1300px) rotate(-7deg)}100%{transform:translateY(0) rotate(-2deg)}}
+.line{position:absolute;left:0;right:0;top:1090px;text-align:center;color:#fff;font-weight:600;font-size:70px;letter-spacing:-.02em;animation:fade .5s ease-out .65s both}
+.pill{position:absolute;left:50%;top:1240px;transform:translateX(-50%);border:3px solid #FBBA2A;border-radius:60px;padding:20px 44px;color:#fff;font-weight:600;font-size:42px;white-space:nowrap;animation:fade .5s ease-out 1.0s both}
+.sub{position:absolute;left:0;right:0;top:1372px;text-align:center;color:#F2C14E;font-weight:500;font-size:36px;animation:fade .5s ease-out 1.2s both}
+@keyframes fade{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.pill{animation-name:fadeP}@keyframes fadeP{from{opacity:0;transform:translate(-50%,18px)}to{opacity:1;transform:translate(-50%,0)}}
+</style><div class="bg"></div><div class="shade"></div>
+<div class="board"><img src="file:///home/user/cet-command-centre/.claude/skills/video-edit/fonts/cet-wordmark-black.png"><i></i></div>
+<div class="line">Your driver is waiting.</div>
+<div class="pill">centralexecutivetransfers.co.uk</div>
+<div class="sub">Book online 24/7</div>
