@@ -40,4 +40,34 @@ class InternationalNotesNumberAndPassengerNameTest extends TestCase
         $this->assertSame('Matthias Perez y Schmidt', $b->fresh()->displayName());
         $this->assertSame('Matthias Perez y Schmidt', $b->fresh()->displayCustomerName());
     }
+
+    public function test_an_edit_that_saved_the_bookers_name_still_shows_the_passenger(): void
+    {
+        $c = Customer::factory()->create(['name' => 'Claire  Green']);
+        $b = Booking::factory()->create(['customer_id' => $c->id, 'meta' => [
+            'lead_name' => 'Matthias Perez y Schmidt', 'booked_by' => 'Claire Green', 'name_override' => 'Claire  Green']]);
+
+        $this->assertSame('Matthias Perez y Schmidt', $b->fresh()->displayName());
+        $this->assertSame('Matthias Perez y Schmidt', $b->fresh()->displayCustomerName());
+    }
+
+    public function test_passenger_comes_from_the_calendar_when_lead_name_was_overwritten_with_the_booker(): void
+    {
+        $c = Customer::factory()->create(['name' => 'Claire  Green']);
+        $b = Booking::factory()->create(['customer_id' => $c->id, 'meta' => ['lead_name' => 'Claire Green', 'booked_by' => 'Claire Green']]);
+        \App\Models\CalendarEvent::create([
+            'booking_id' => $b->id, 'calendar_id' => 'cal', 'google_event_id' => 'evt_b3411f', 'title' => '*Matthias LHR (ABDI)*',
+            'description' => "📑 *Booking Confirmation*\n• *Customer Name:* Matthias Perez y Schmidt\n• *Notes:* Booked by Claire Green",
+            'start_at' => $b->pickup_at, 'end_at' => $b->pickup_at->copy()->addHour(), 'sync_status' => 'synced',
+        ]);
+
+        $this->assertSame('Matthias Perez y Schmidt', $b->fresh(['calendarEvent'])->displayName());
+    }
+
+    public function test_a_normal_booking_name_is_unchanged(): void
+    {
+        $c = Customer::factory()->create(['name' => 'Jane Smith']);
+        $b = Booking::factory()->create(['customer_id' => $c->id, 'meta' => ['name_override' => 'Jane Smith-Jones']]);
+        $this->assertSame('Jane Smith-Jones', $b->fresh()->displayName());
+    }
 }

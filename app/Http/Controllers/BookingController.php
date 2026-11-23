@@ -2242,7 +2242,9 @@ class BookingController extends Controller
 
         $meta = $booking->meta ?? [];
         $meta['contact_override'] = trim($data['contact_number']);
-        if (filled($data['lead_name'] ?? null)) {
+        // Never overwrite a known passenger with the booker's own name (CET-B3411F).
+        $isBooker = in_array(Booking::normaliseName($data['lead_name'] ?? ''), $booking->knownBookerNames(), true);
+        if (filled($data['lead_name'] ?? null) && ! ($isBooker && filled($meta['lead_name'] ?? null))) {
             $meta['lead_name'] = trim($data['lead_name']);
         }
         $booking->forceFill(['meta' => $meta])->save();

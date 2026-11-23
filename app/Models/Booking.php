@@ -3189,6 +3189,11 @@ class Booking extends Model
      */
     public function displayName(): string
     {
+        return $this->passengerNotBooker($this->resolveDisplayName());
+    }
+
+    private function resolveDisplayName(): string
+    {
         // A name the office typed on Edit booking always wins (BookingService::updateFromForm).
         if (filled($this->meta['name_override'] ?? null)) {
             return (string) $this->meta['name_override'];
@@ -3201,7 +3206,7 @@ class Booking extends Model
         // (Edit booking saves the booker as the customer name, which used to win here and
         // put "Claire Green" on the driver's job instead of her passenger — 23 Nov 2026.)
         if (filled($this->meta['booked_by'] ?? null) && filled($this->meta['lead_name'] ?? null)
-            && strcasecmp(trim((string) $this->meta['booked_by']), trim((string) $this->meta['lead_name'])) !== 0) {
+            && self::normaliseName($this->meta['booked_by']) !== self::normaliseName($this->meta['lead_name'])) {
             return (string) $this->meta['lead_name'];
         }
         if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
@@ -3788,6 +3793,55 @@ class Booking extends Model
      */
     public function displayCustomerName(): ?string
     {
+        $name = $this->resolveDisplayCustomerName();
+
+        return $name === null ? null : $this->passengerNotBooker($name);
+    }
+
+    /** Lower-case, single-spaced, for comparing names typed slightly differently. */
+    public static function normaliseName(?string $name): string
+    {
+        return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', (string) $name)));
+    }
+
+    /**
+     * The people known to have BOOKED this job for someone else (meta booked_by /
+     * booker_name, or "Booked by X" in the calendar notes). Normalised.
+     */
+    public function knownBookerNames(): array
+    {
+        $names = [$this->meta['booked_by'] ?? null, $this->meta['booker_name'] ?? null];
+        if (preg_match('/booked\s+by[:\s]+([^\n,(*]+)/i', (string) $this->calendarEvent?->description, $m)) {
+            $names[] = $m[1];
+        }
+
+        return array_values(array_filter(array_unique(array_map([self::class, 'normaliseName'], $names))));
+    }
+
+    /**
+     * Booked for someone else: the driver meets the PASSENGER, never the booker. If the
+     * resolved name is the booker (e.g. Edit booking saved the booker's name as an
+     * override, or the contact form re-saved it as lead_name) and a different passenger
+     * is known (lead_name, else the calendar's Customer Name), show the passenger.
+     * CET-B3411F, 23 Nov 2026: My Jobs showed "Claire Green" instead of her passenger.
+     */
+    public function passengerNotBooker(string $name): string
+    {
+        $bookers = $this->knownBookerNames();
+        if ($bookers === [] || ! in_array(self::normaliseName($name), $bookers, true)) {
+            return $name;
+        }
+        foreach ([$this->meta['lead_name'] ?? null, $this->calendarField('Customer Name')] as $candidate) {
+            if (filled($candidate) && ! in_array(self::normaliseName($candidate), $bookers, true)) {
+                return trim((string) $candidate);
+            }
+        }
+
+        return $name;
+    }
+
+    private function resolveDisplayCustomerName(): ?string
+    {
         if (filled($this->meta['name_override'] ?? null)) {
             return (string) $this->meta['name_override'];
         }
@@ -3795,7 +3849,7 @@ class Booking extends Model
         // (Edit booking saves the booker as the customer name, which used to win here and
         // put "Claire Green" on the driver's job instead of her passenger — 23 Nov 2026.)
         if (filled($this->meta['booked_by'] ?? null) && filled($this->meta['lead_name'] ?? null)
-            && strcasecmp(trim((string) $this->meta['booked_by']), trim((string) $this->meta['lead_name'])) !== 0) {
+            && self::normaliseName($this->meta['booked_by']) !== self::normaliseName($this->meta['lead_name'])) {
             return (string) $this->meta['lead_name'];
         }
         if ($this->fieldEdited('customer_name') && filled($this->customer?->name)) {
