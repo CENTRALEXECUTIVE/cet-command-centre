@@ -323,6 +323,12 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "On request", takes all details, no payment; the office gets a "quote request" alert with the guide price
   (meta office_quote_guide). Admin forms still show the full price. QuoteService 'office_quote' flag,
   cet.office_quote_drag_miles (40). Applies to /widget/book and /book.
+- **23 Nov 2026** — Social media redesign #3 "Concierge" (directors: white/gold-word look "looks very AI"): genx.py,
+  Schibsted Grotesk, photo-led, sentence case, no coloured words or caps labels, black logo, one gold square by
+  "Book online". All 93 images + 6 slideshow reels redone. Copy: NO phone numbers (AI phone line coming), NO PO —
+  "VAT-registered business accounts"; every caption now ends "Book online…" (migration 2026_11_23_000001).
+  Door-only Story 2 replaced with a full car photo. A missed half-plate on p05r/5 blurred. Adobe + Canva connectors
+  suggested (directors must connect on claude.ai; no CapCut connector exists). New batch from unused photos: in progress.
 - **22 Nov 2026 (3)** — Social media quality redo (directors: videos/images low quality, logo + contact design
   poor). All 87 cards + 6 stories rebuilt with HTML templates at 1440px, JPEG q92 4:4:4 (were 1080px, 55–90 KB):
   CENTRAL wordmark + gold "EXECUTIVE TRANSFERS" lockup, gold website pill + WhatsApp/phone icons, photo textures

@@ -1,6 +1,12 @@
 # CET social graphics (v3, 22 Nov 2026)
 
-**Current theme: WHITE (`genw.py`)**, chosen by the directors on 22 Nov 2026 ("B, more white"):
+**Current theme: CONCIERGE (`genx.py`, 23 Nov 2026)** — directors said the gold-word/bold look read as AI.
+One typeface (Schibsted Grotesk 400/500, woff2 in ../fonts), sentence case, left aligned, true black on white,
+photo-led (photo top ~70%, white band with headline + short sentence), black CENTRAL logo, one small gold square
+beside "Book online centralexecutivetransfers.co.uk". No phone numbers, no PO, no caps labels, no coloured words.
+Text carousels use hairline rows and a quiet page number (2/7). `python3 genx.py cards-*.json`.
+
+Previous: WHITE (`genw.py`), chosen by the directors on 22 Nov 2026 ("B, more white"):
 white canvas, black CENTRAL wordmark + deep-gold tagline, centred black headlines with gold emphasis,
 photo in the top of the card with the logo on a white tab, black contact strip at the bottom.
 Use `python3 genw.py cards-*.json` instead of gen.py (gen.py = the earlier dark theme).

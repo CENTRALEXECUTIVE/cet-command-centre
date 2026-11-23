@@ -5,31 +5,31 @@
   "size_kind": "story",
   "src": "2026-11-18-courtyard/blur4.jpg",
   "cx": 0.72,
-  "eyebrow": "Hotel pickups \u00b7 Sheffield",
   "head": "Your car is waiting.",
-  "emph": [
-   "waiting."
-  ],
   "list": [
    "Mercedes E-Class",
    "Licensed, DBS-checked chauffeurs",
-   "Phone answered 24/7"
+   "Book online 24/7"
   ]
  },
  {
   "out": "stories/story-2-business.jpg",
   "kind": "photo",
   "size_kind": "story",
-  "src": "2026-11-10-photos/1000063897.jpg",
-  "eyebrow": "For companies",
-  "head": "Business accounts",
-  "emph": [
-   "accounts"
-  ],
+  "src": "2026-11-10-photos/1000063948.jpg",
+  "head": "VAT-registered business accounts.",
   "list": [
-   "VAT invoices",
    "Monthly invoicing, 30-day terms",
-   "Your PO on every journey"
+   "Book online any time"
+  ],
+  "cx": 0.5,
+  "blur": [
+   [
+    350,
+    855,
+    560,
+    915
+   ]
   ]
  },
  {
@@ -37,12 +37,7 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000212915.jpg",
-  "eyebrow": "Airport transfers",
   "head": "Flight late? We already know.",
-  "emph": [
-   "already",
-   "know."
-  ],
   "list": [
    "Every flight tracked",
    "Meet & greet in arrivals",
@@ -54,11 +49,7 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000206612.jpg",
-  "eyebrow": "Groups & families",
   "head": "Up to 7 together.",
-  "emph": [
-   "7"
-  ],
   "list": [
    "Mercedes V-Class",
    "7 passengers, 7 bags",
@@ -70,11 +61,7 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-18-courtyard/blur2.jpg",
-  "eyebrow": "Christmas & New Year",
   "head": "Flying over Christmas? Book early.",
-  "emph": [
-   "early."
-  ],
   "list": [
    "We work right through the holidays",
    "Airport runs and party nights"
@@ -95,11 +82,7 @@
   ],
   "cx": 0.5,
   "cy": 0.5,
-  "eyebrow": "Weddings & occasions",
   "head": "Arrive in style.",
-  "emph": [
-   "style."
-  ],
   "list": [
    "Ribbons on request",
    "Matching cars for the party"

@@ -114,8 +114,8 @@ class SocialStarterPack
     {
         return match ($platform) {
             'tiktok' => $reel['hook'].' '.$reel['body'].' Book at the link in bio.',
-            'instagram' => $reel['hook']."\n\n".$reel['body']."\n\nBook via the link in bio or WhatsApp ".self::WA.'.',
-            default => $reel['hook']."\n\n".$reel['body']."\n\nWhatsApp ".self::WA.', call '.self::PHONE.', or book online.',
+            'instagram' => $reel['hook']."\n\n".$reel['body']."\n\nBook online: link in bio.",
+            default => $reel['hook']."\n\n".$reel['body']."\n\nBook online at centralexecutivetransfers.co.uk",
         };
     }
 

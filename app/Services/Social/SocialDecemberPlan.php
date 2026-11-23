@@ -69,8 +69,8 @@ class SocialDecemberPlan
 
         return match ($platform) {
             'tiktok' => trim(($hook ? $hook.' ' : '').$body.' Book at the link in bio.'),
-            'instagram' => $lead.$body."\n\nBook via the link in bio or WhatsApp ".self::WA.'.',
-            'facebook' => $lead.$body."\n\nWhatsApp ".self::WA.', call '.self::PHONE.', or book online.',
+            'instagram' => $lead.$body."\n\nBook online: link in bio.",
+            'facebook' => $lead.$body."\n\nBook online at centralexecutivetransfers.co.uk",
             'linkedin' => $lead.$body,
             default => $body,
         };
