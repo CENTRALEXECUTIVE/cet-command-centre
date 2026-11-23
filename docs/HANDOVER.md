@@ -13,6 +13,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+
+- **23 Nov 2026 — Driver job showed the booker, not the passenger (CET-B3411F).** Editing the booking saved the booker's name as the name override, so My Jobs still said "Claire Green". `Booking::passengerNotBooker()` now swaps any name matching a known booker (booked_by / booker_name / "Booked by X" in calendar notes, whitespace-insensitive) for the passenger (lead_name, else calendar Customer Name). Contact form no longer overwrites a known passenger with the booker. Tests added. No migration.
 - **23 Nov 2026 (6)** — Directors chose reel ending C "headlights" (from 4 options: name board, arrivals board,
   headlights, number plate): all 12 reels now end on templates/end-headlights.mp4 ("Your driver is waiting.").
 - **23 Nov 2026 (5)** — CET-B3411F: (1) notes phone parser was UK-only and cut the passenger's German mobile
