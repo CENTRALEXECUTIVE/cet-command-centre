@@ -5,21 +5,30 @@
   "size_kind": "story",
   "src": "2026-11-18-courtyard/blur4.jpg",
   "cx": 0.72,
-  "head": "Flying over Christmas?"
+  "head": "Flying over Christmas?",
+  "emph": [
+   "christmas?"
+  ]
  },
  {
   "out": "d01/2.jpg",
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000212915.jpg",
-  "head": "Every flight tracked. Delays covered."
+  "head": "Every flight tracked. Delays covered.",
+  "emph": [
+   "tracked."
+  ]
  },
  {
   "out": "d01/3.jpg",
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000206612.jpg",
-  "head": "Room for the family and the bags."
+  "head": "Room for the family and the bags.",
+  "emph": [
+   "family"
+  ]
  },
  {
   "out": "d01/4.jpg",
@@ -28,6 +37,9 @@
   "head": "Book your Christmas airport run now.",
   "body": [
    "Manchester \u00b7 Leeds Bradford \u00b7 East Midlands \u00b7 Heathrow \u00b7 Gatwick"
+  ],
+  "emph": [
+   "now."
   ]
  },
  {
@@ -38,6 +50,12 @@
    "Flight tracked, met in arrivals",
    "Driver details and live tracking for the booker",
    "VAT invoices from a VAT-registered company"
+  ],
+  "emph": [
+   "book",
+   "their",
+   "cars",
+   "now."
   ]
  },
  {
@@ -46,6 +64,10 @@
   "head": "Party night? Sort the ride first.",
   "body": [
    "Four things that make the night easier. Swipe."
+  ],
+  "emph": [
+   "ride",
+   "first."
   ]
  },
  {
@@ -55,6 +77,9 @@
   "head": "Book before the night.",
   "body": [
    "December weekends fill up first."
+  ],
+  "emph": [
+   "before"
   ]
  },
  {
@@ -64,6 +89,10 @@
   "head": "One car for the group.",
   "body": [
    "A V-Class takes up to 7. Minibuses for more."
+  ],
+  "emph": [
+   "one",
+   "car"
   ]
  },
  {
@@ -73,6 +102,9 @@
   "head": "Set the home time.",
   "body": [
    "Book the ride home when you book the ride there."
+  ],
+  "emph": [
+   "home"
   ]
  },
  {
@@ -82,6 +114,9 @@
   "head": "Agree the pickup point.",
   "body": [
    "The driver's details arrive before pickup."
+  ],
+  "emph": [
+   "pickup"
   ]
  },
  {
@@ -91,7 +126,10 @@
   "body": [
    "centralexecutivetransfers.co.uk"
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "online."
+  ]
  },
  {
   "out": "d04/1.jpg",
@@ -103,6 +141,9 @@
   "list": [
    "There and home together",
    "V-Class for up to 7"
+  ],
+  "emph": [
+   "sorted."
   ]
  },
  {
@@ -111,14 +152,20 @@
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000206609.jpg",
   "cx": 0.62,
-  "head": "Night out in Sheffield?"
+  "head": "Night out in Sheffield?",
+  "emph": [
+   "sheffield?"
+  ]
  },
  {
   "out": "d05/2.jpg",
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000206611.jpg",
-  "head": "Picked up at the door."
+  "head": "Picked up at the door.",
+  "emph": [
+   "door."
+  ]
  },
  {
   "out": "d05/3.jpg",
@@ -126,7 +173,10 @@
   "size_kind": "story",
   "src": "2026-11-18-courtyard/blur1.jpg",
   "cx": 0.4,
-  "head": "Home together, no taxi queue."
+  "head": "Home together, no taxi queue.",
+  "emph": [
+   "together,"
+  ]
  },
  {
   "out": "d05/4.jpg",
@@ -135,6 +185,9 @@
   "head": "Book your party night now.",
   "body": [
    "centralexecutivetransfers.co.uk"
+  ],
+  "emph": [
+   "now."
   ]
  },
  {
@@ -154,6 +207,9 @@
     1080,
     985
    ]
+  ],
+  "emph": [
+   "leave"
   ]
  },
  {
@@ -191,6 +247,9 @@
    "VAT-registered business accounts",
    "Monthly invoicing, 30-day terms",
    "Book online, any time"
+  ],
+  "emph": [
+   "account"
   ]
  },
  {
@@ -212,6 +271,9 @@
     40,
     1000
    ]
+  ],
+  "emph": [
+   "weddings."
   ]
  },
  {
@@ -240,6 +302,9 @@
     1080,
     1052
    ]
+  ],
+  "emph": [
+   "matching"
   ]
  },
  {
@@ -261,6 +326,9 @@
     860,
     1218
    ]
+  ],
+  "emph": [
+   "ribbons"
   ]
  },
  {
@@ -276,6 +344,9 @@
     1010,
     1200
    ]
+  ],
+  "emph": [
+   "date."
   ]
  },
  {
@@ -284,6 +355,10 @@
   "head": "New Year's Eve: plan the ride home.",
   "body": [
    "Swipe before you book the night."
+  ],
+  "emph": [
+   "ride",
+   "home."
   ]
  },
  {
@@ -293,6 +368,9 @@
   "head": "Book early.",
   "body": [
    "New Year's Eve is one of the busiest nights of the year."
+  ],
+  "emph": [
+   "early."
   ]
  },
  {
@@ -302,6 +380,9 @@
   "head": "Choose the car for the group.",
   "body": [
    "Saloon for 4, V-Class for 7, minibus for more."
+  ],
+  "emph": [
+   "group."
   ]
  },
  {
@@ -311,6 +392,9 @@
   "head": "Fix the pickup time.",
   "body": [
    "Pick a time after midnight and stick to it."
+  ],
+  "emph": [
+   "pickup"
   ]
  },
  {
@@ -321,7 +405,11 @@
   "body": [
    "They arrive before pickup, with live tracking."
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "driver",
+   "details."
+  ]
  },
  {
   "out": "d10/6.jpg",
@@ -330,7 +418,10 @@
   "body": [
    "centralexecutivetransfers.co.uk"
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "online."
+  ]
  },
  {
   "out": "d11/1.jpg",
@@ -341,6 +432,9 @@
   "head": "Book your ride home now.",
   "list": [
    "Saloon, V-Class or minibus"
+  ],
+  "emph": [
+   "now."
   ]
  },
  {
@@ -356,6 +450,9 @@
     1080,
     1440
    ]
+  ],
+  "emph": [
+   "saloon:"
   ]
  },
  {
@@ -363,13 +460,19 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000206612.jpg",
-  "head": "V-Class: 7 people, 7 bags."
+  "head": "V-Class: 7 people, 7 bags.",
+  "emph": [
+   "v-class:"
+  ]
  },
  {
   "out": "d12/3.jpg",
   "kind": "text",
   "size_kind": "story",
-  "head": "Bigger group? Minibuses too."
+  "head": "Bigger group? Minibuses too.",
+  "emph": [
+   "minibuses"
+  ]
  },
  {
   "out": "d12/4.jpg",
@@ -379,7 +482,11 @@
   "body": [
    "Add your numbers when you book online."
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "we'll",
+   "pick"
+  ]
  },
  {
   "out": "d13/1.jpg",
@@ -401,6 +508,9 @@
     265,
     770
    ]
+  ],
+  "emph": [
+   "working"
   ]
  },
  {
@@ -430,6 +540,10 @@
   "head": "Thank you to every business that travelled with us this year.",
   "body": [
    "Here's to a busy 2027. If you'd like an account in place for January, get in touch."
+  ],
+  "emph": [
+   "thank",
+   "you"
   ]
  }
 ]

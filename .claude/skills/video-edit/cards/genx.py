@@ -30,15 +30,17 @@ html,body{width:%(W)dpx;height:%(H)dpx;background:#fff;overflow:hidden}
 .page{font-size:%(PG)dpx;color:#6b6b6b;font-weight:500;font-variant-numeric:tabular-nums}
 .band{position:absolute;left:%(M)dpx;right:%(M)dpx;top:%(BT)dpx}
 .mid{position:absolute;left:%(M)dpx;right:%(M2)dpx;top:%(MT)dpx;bottom:%(MB)dpx;display:flex;flex-direction:column;justify-content:center}
-h1{font-weight:500;letter-spacing:-.028em;line-height:1.04;text-wrap:balance;color:#000}
+h1{font-weight:600;letter-spacing:-.03em;line-height:1.04;text-wrap:balance;color:#000}
+h1 em{font-style:normal;color:#A87B0F}
+.gr{width:64px;height:3px;background:#C9971C;margin-top:30px}
 .lead{font-size:%(LS)dpx;line-height:1.38;color:#4a4a4a;margin-top:%(LG)dpx;max-width:%(LW)dpx;text-wrap:pretty}
 .rows{margin-top:%(RG)dpx;border-bottom:1px solid #dcdcdc;max-width:%(LW)dpx}
 .rows div{font-size:%(LS)dpx;color:#2a2a2a;padding:%(RP)dpx 0;border-top:1px solid #dcdcdc;display:flex;gap:22px}
 .rows div b{font-weight:500;color:#9a9a9a;min-width:1.2em;font-variant-numeric:tabular-nums}
-.foot{position:absolute;left:%(M)dpx;right:%(M)dpx;bottom:%(FB)dpx;display:flex;justify-content:space-between;align-items:center}
-.book{display:flex;align-items:center;gap:14px;font-size:%(BS)dpx;color:#000;font-weight:500}
-.book i{width:11px;height:11px;background:#FBBA2A;display:block}
-.book span{color:#6b6b6b;font-weight:400}
+.strip{position:absolute;left:0;right:0;bottom:0;height:%(SH)dpx;background:#000;display:flex;align-items:center;justify-content:center;gap:16px;font-size:%(BS)dpx;color:#fff;font-weight:500}
+.strip span{color:#F2C14E;font-weight:600}
+.strip.tall{align-items:flex-start;padding-top:%(SP)dpx}
+.logorow{position:absolute;left:%(M)dpx;right:%(M)dpx;bottom:%(LB)dpx;display:flex;justify-content:space-between;align-items:center}
 """
 
 
@@ -76,10 +78,13 @@ def sentence(items):
     return ' '.join(out)
 
 
-def foot(W):
-    logo = F + 'cet-wordmark-black.png'
-    return (f'<div class="foot"><img class="logo" src="file://{logo}">'
-            f'<div class="book"><i></i>Book online <span>centralexecutivetransfers.co.uk</span></div></div>')
+def rich(text, emph):
+    emph = [e.lower().strip(',.?!:') for e in emph or []]
+    return ' '.join(f'<em>{H.escape(w)}</em>' if w.strip(',.?!:').lower() in emph else H.escape(w) for w in text.split(' '))
+
+
+def strip(story):
+    return (f'<div class="strip{" tall" if story else ""}">Book online at <span>centralexecutivetransfers.co.uk</span></div>')
 
 
 def build(s, pages):
@@ -91,11 +96,12 @@ def build(s, pages):
         return name, W, Hh, f'<!doctype html><meta charset="utf-8"><style>*{{margin:0}}body{{width:{W}px;height:{Hh}px;background:url(\'file://{p}\') center/cover}}</style>'
 
     m = 64 if not gbp else 60
-    ph = int(Hh * (0.68 if story else 0.70)) if has_photo else 0
+    ph = int(Hh * (0.62 if story else 0.64)) if has_photo else 0
     v = dict(F=F, W=W, H=Hh, M=m, M2=m + (60 if not has_photo else 0), PH=ph, LH=32 if not story else 38,
              PG=22, LS=32 if story else 27, LG=22, LW=860 if not gbp else 900, RG=34, RP=16,
-             BS=21 if not story else 24, FB=(260 if story else (m - 6)),
-             BT=ph + (54 if story else 44), MT=170 if not story else 360, MB=150 if not story else 420)
+             BS=26 if not story else 32, FB=(260 if story else (m - 6)),
+             BT=ph + (54 if story else 44), MT=170 if not story else 360, MB=(104 + 60) if not story else (250 + 120),
+             SH=250 if story else (88 if gbp else 104), SP=64, LB=(250 + 40) if story else 104 + 34)
     if gbp:
         v.update(MT=110, MB=110, LS=24)
     css = CSS % v
@@ -118,7 +124,7 @@ def build(s, pages):
 
     lst = [x for x in s.get('list', []) if x]
     extra = s.get('body', []) + ([s['sub']] if s.get('sub') else [])
-    inner = [f'<h1 style="font-size:{sz}px">{H.escape(head)}</h1>']
+    inner = [f'<h1 style="font-size:{sz}px">{rich(head, s.get("emph"))}</h1>', '<div class="gr"></div>']
     if has_photo:
         txt = sentence(lst + extra)
         if txt:
@@ -140,11 +146,9 @@ def build(s, pages):
             if txt:
                 inner.append(f'<p class="lead">{H.escape(txt)}</p>')
         body.append(f'<div class="mid">{"".join(inner)}</div>')
-    body.append(foot(W) if has_photo or True else '')
-    if not has_photo:
-        # text cards already carry the logo at the top: footer shows only the booking line
-        body[-1] = (f'<div class="foot" style="justify-content:flex-start;border-top:1px solid #dcdcdc;padding-top:24px">'
-                    f'<div class="book"><i></i>Book online <span>centralexecutivetransfers.co.uk</span></div></div>')
+    if has_photo:
+        body.append(f'<div class="logorow"><img class="logo" src="file://{F}cet-wordmark-black.png"></div>')
+    body.append(strip(story))
     return name, W, Hh, f'<!doctype html><meta charset="utf-8"><style>{css}</style><div class="c">{"".join(body)}</div>'
 
 

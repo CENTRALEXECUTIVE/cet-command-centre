@@ -7,6 +7,9 @@
    "Monthly invoicing on 30-day terms",
    "Or pay by card when you book",
    "Book online in a minute"
+  ],
+  "emph": [
+   "vat-registered"
   ]
  },
  {
@@ -27,6 +30,10 @@
    "Driver meets them in arrivals",
    "Booker gets driver details and live tracking",
    "One VAT invoice for the trip"
+  ],
+  "emph": [
+   "looked",
+   "after"
   ]
  },
  {
@@ -37,6 +44,9 @@
   "list": [
    "V-Class for up to 7 with bags",
    "Working right through the holidays"
+  ],
+  "emph": [
+   "early."
   ]
  },
  {
@@ -48,7 +58,13 @@
    "We need partners for V-Class and minibus overflow",
    "Invoiced properly, licensed and DBS-checked drivers"
   ],
-  "foot": "Operator Licence OP037 \u00b7 Sheffield City Council"
+  "foot": "Operator Licence OP037 \u00b7 Sheffield City Council",
+  "emph": [
+   "cover",
+   "in",
+   "both",
+   "directions."
+  ]
  },
  {
   "out": "p09/1.jpg",
@@ -63,6 +79,9 @@
   "head": "Which car for which trip?",
   "body": [
    "Swipe to choose the right car for your people and bags."
+  ],
+  "emph": [
+   "trip?"
   ]
  },
  {
@@ -123,7 +142,11 @@
   "body": [
    "Add your people and bags when you book online and we'll match the car."
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "which",
+   "car?"
+  ]
  },
  {
   "out": "p12/1.jpg",
@@ -138,6 +161,9 @@
   ],
   "body": [
    "Tell us in the comments."
+  ],
+  "emph": [
+   "airport"
   ]
  },
  {
@@ -152,6 +178,9 @@
     1080,
     1010
    ]
+  ],
+  "emph": [
+   "running."
   ]
  },
  {
@@ -160,19 +189,28 @@
   "head": "Flight running late?",
   "body": [
    "Here's what happens. Swipe."
+  ],
+  "emph": [
+   "late?"
   ]
  },
  {
   "out": "p14/2.jpg",
   "kind": "text",
   "num": 1,
-  "head": "We track your flight."
+  "head": "We track your flight.",
+  "emph": [
+   "track"
+  ]
  },
  {
   "out": "p14/3.jpg",
   "kind": "text",
   "num": 2,
-  "head": "Your driver adjusts."
+  "head": "Your driver adjusts.",
+  "emph": [
+   "adjusts."
+  ]
  },
  {
   "out": "p14/4.jpg",
@@ -181,6 +219,9 @@
   "head": "Met in arrivals.",
   "body": [
    "With meet & greet, your driver is waiting as you walk through."
+  ],
+  "emph": [
+   "arrivals."
   ]
  },
  {
@@ -190,7 +231,10 @@
   "body": [
    "centralexecutivetransfers.co.uk"
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "online."
+  ]
  },
  {
   "out": "p16/1.jpg",
@@ -201,6 +245,10 @@
    "Booker gets live tracking",
    "Private line between driver and passenger",
    "VAT invoice from a VAT-registered company"
+  ],
+  "emph": [
+   "looked",
+   "after."
   ]
  },
  {
@@ -224,6 +272,10 @@
   "head": "Opening a chauffeur account? Ask these.",
   "body": [
    "Five questions. Swipe."
+  ],
+  "emph": [
+   "ask",
+   "these."
   ]
  },
  {
@@ -233,6 +285,9 @@
   "head": "Is the operator licensed?",
   "body": [
    "We are: Operator Licence OP037, Sheffield City Council."
+  ],
+  "emph": [
+   "licensed?"
   ]
  },
  {
@@ -242,6 +297,9 @@
   "head": "Are the drivers DBS checked?",
   "body": [
    "Ours are council-licensed and enhanced-DBS checked."
+  ],
+  "emph": [
+   "dbs"
   ]
  },
  {
@@ -252,7 +310,10 @@
   "body": [
    "Yes. We're VAT registered and invoice monthly."
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "vat"
+  ]
  },
  {
   "out": "p18/5.jpg",
@@ -262,7 +323,11 @@
   "body": [
    "Yes. Book online 24/7, and every flight is tracked."
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "any",
+   "time?"
+  ]
  },
  {
   "out": "p18/6.jpg",
@@ -271,6 +336,9 @@
   "head": "Can you show insurance?",
   "body": [
    "Any good operator will, without fuss."
+  ],
+  "emph": [
+   "insurance?"
   ]
  },
  {
@@ -280,7 +348,10 @@
   "body": [
    "centralexecutivetransfers.co.uk"
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "business"
+  ]
  },
  {
   "out": "p19/1.jpg",
@@ -311,6 +382,9 @@
     1080,
     960
    ]
+  ],
+  "emph": [
+   "early."
   ]
  },
  {
@@ -321,6 +395,10 @@
    "V-Class for 7, minibuses for larger groups",
    "One VAT invoice for the whole group",
    "Working through Christmas and New Year"
+  ],
+  "emph": [
+   "one",
+   "invoice."
   ]
  },
  {
@@ -328,21 +406,31 @@
   "kind": "text",
   "size_kind": "story",
   "top": true,
-  "head": "Airport day? Do these 3 things."
+  "head": "Airport day? Do these 3 things.",
+  "emph": [
+   "3",
+   "things."
+  ]
  },
  {
   "out": "p21/2.jpg",
   "kind": "text",
   "size_kind": "story",
   "num": 1,
-  "head": "Pick the car for your bags."
+  "head": "Pick the car for your bags.",
+  "emph": [
+   "bags."
+  ]
  },
  {
   "out": "p21/3.jpg",
   "kind": "text",
   "size_kind": "story",
   "num": 2,
-  "head": "Book your return now."
+  "head": "Book your return now.",
+  "emph": [
+   "return"
+  ]
  },
  {
   "out": "p21/4.jpg",
@@ -353,7 +441,11 @@
   "body": [
    "They arrive before pickup, with live tracking."
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "driver",
+   "details."
+  ]
  },
  {
   "out": "p22/1.jpg",
@@ -364,12 +456,21 @@
    "Card or secure payment link",
    "Cash",
    "VAT invoice for businesses"
+  ],
+  "emph": [
+   "suits",
+   "you."
   ]
  },
  {
   "out": "p23/1.jpg",
   "kind": "text",
-  "head": "Your first booking, step by step."
+  "head": "Your first booking, step by step.",
+  "emph": [
+   "step",
+   "by",
+   "step."
+  ]
  },
  {
   "out": "p23/2.jpg",
@@ -378,6 +479,9 @@
   "head": "Get your price online.",
   "body": [
    "Fixed price, quoted up front."
+  ],
+  "emph": [
+   "price"
   ]
  },
  {
@@ -387,19 +491,29 @@
   "head": "Confirm and pay your way.",
   "body": [
    "Card, payment link or cash."
+  ],
+  "emph": [
+   "your",
+   "way."
   ]
  },
  {
   "out": "p23/4.jpg",
   "kind": "text",
   "num": 3,
-  "head": "Driver details before pickup."
+  "head": "Driver details before pickup.",
+  "emph": [
+   "driver"
+  ]
  },
  {
   "out": "p23/5.jpg",
   "kind": "text",
   "num": 4,
-  "head": "Track your driver live."
+  "head": "Track your driver live.",
+  "emph": [
+   "live."
+  ]
  },
  {
   "out": "p23/6.jpg",
@@ -408,7 +522,10 @@
   "body": [
    "centralexecutivetransfers.co.uk"
   ],
-  "list": []
+  "list": [],
+  "emph": [
+   "online."
+  ]
  },
  {
   "out": "p25/1.jpg",
@@ -416,6 +533,10 @@
   "head": "Where is your work party this year?",
   "body": [
    "Tell us in the comments. We'll get everyone there and home."
+  ],
+  "emph": [
+   "work",
+   "party"
   ]
  },
  {
@@ -426,6 +547,9 @@
   "head": "We work right through the holidays.",
   "list": [
    "Airport runs, party nights, family trips"
+  ],
+  "emph": [
+   "holidays."
   ]
  },
  {
@@ -433,7 +557,10 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-12-fleet/1000212915.jpg",
-  "head": "5 things before every airport pickup"
+  "head": "5 things before every airport pickup",
+  "emph": [
+   "5"
+  ]
  },
  {
   "out": "p05r/2.jpg",
@@ -448,6 +575,9 @@
     90,
     1320
    ]
+  ],
+  "emph": [
+   "1."
   ]
  },
  {
@@ -455,7 +585,10 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-10-photos/1000063895.jpg",
-  "head": "2. Clean inside and out"
+  "head": "2. Clean inside and out",
+  "emph": [
+   "2."
+  ]
  },
  {
   "out": "p05r/4.jpg",
@@ -470,6 +603,9 @@
     120,
     850
    ]
+  ],
+  "emph": [
+   "3."
   ]
  },
  {
@@ -485,6 +621,9 @@
     540,
     1580
    ]
+  ],
+  "emph": [
+   "4."
   ]
  },
  {
@@ -492,6 +631,9 @@
   "kind": "photo",
   "size_kind": "story",
   "src": "2026-11-10-photos/1000063943.jpg",
-  "head": "5. Met in arrivals with meet & greet"
+  "head": "5. Met in arrivals with meet & greet",
+  "emph": [
+   "5."
+  ]
  }
 ]

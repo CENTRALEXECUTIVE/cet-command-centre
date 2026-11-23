@@ -329,6 +329,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
   "VAT-registered business accounts"; every caption now ends "Book online…" (migration 2026_11_23_000001).
   Door-only Story 2 replaced with a full car photo. A missed half-plate on p05r/5 blurred. Adobe + Canva connectors
   suggested (directors must connect on claude.ai; no CapCut connector exists). New batch from unused photos: in progress.
+  Then directors: "keep the colours" — genx.py now has gold emphasis words, a gold rule under headlines and a full-width
+  black strip "Book online at centralexecutivetransfers.co.uk" (site in gold); cleaner font + layout kept.
 - **22 Nov 2026 (3)** — Social media quality redo (directors: videos/images low quality, logo + contact design
   poor). All 87 cards + 6 stories rebuilt with HTML templates at 1440px, JPEG q92 4:4:4 (were 1080px, 55–90 KB):
   CENTRAL wordmark + gold "EXECUTIVE TRANSFERS" lockup, gold website pill + WhatsApp/phone icons, photo textures
