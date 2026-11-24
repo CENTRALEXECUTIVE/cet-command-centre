@@ -20,6 +20,7 @@ class InvoiceController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
+        abort_unless($user->isAdmin() || $user->isCorporateClient(), 403);
 
         $query = Invoice::with('corporateAccount')->orderByDesc('issued_at');
 
@@ -68,6 +69,8 @@ class InvoiceController extends Controller
     private function authoriseAccess(Request $request, Invoice $invoice): void
     {
         $user = $request->user();
+        // Company invoices are for the office and that company only, never drivers.
+        abort_unless($user->isAdmin() || $user->isCorporateClient(), 403);
         if ($user->isCorporateClient()
             && ! $user->corporateAccounts->pluck('id')->contains($invoice->corporate_account_id)) {
             abort(403);

@@ -441,6 +441,8 @@ class DashboardController extends Controller
      */
     public function day(Request $request): View
     {
+        // Every job of the day with customer details: the office only, never drivers.
+        abort_unless($request->user()->isAdmin(), 403);
         $day = ($request->date('date') ?? today())->startOfDay();
 
         return view('dashboard.jobs', ['day' => $day, 'jobs' => $this->dayJobs($day),
