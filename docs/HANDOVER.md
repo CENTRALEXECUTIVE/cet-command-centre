@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **24 Nov 2026 — No reminder nudges for unpaid quote requests.** Directors (CET-04008C, Swindon→Salisbury V-Class): a pending website quote request the customer hasn't paid must not show "Send reminder". New `Booking::scopeReminderWorthy` used by the watchdog reminder alert and the dashboard reminders list. Office bookings unchanged.
+
 - **24 Nov 2026 — Masked-line alerts on every call/text + health report.** Directors: "notify me if there's a call or message". New `Telephony\MaskedActivity::notify` now also pings for switchboard (fallback) CALLS and for calls/texts not linked to a live job (Proxy out-of-session, unmatched SMS). Body-free, 20s dedup. New read-only Claude report `/reports/claude/masking` (counts/timestamps only) so Claude can check Twilio is opening lines and events arrive.
 
 - **24 Nov 2026 — AI phone agent v2: ElevenLabs realtime voice.** Directors said yes; they have a spare Twilio number. ElevenLabs = voice/ears (native Twilio import in their dashboard, no Twilio keys in our app), Command Centre = brain: `Webhooks/VoiceToolsController` tools /webhooks/voice-tools/{time,quote,booking,message} (?secret=, caller_id/conversation_id via ElevenLabs dynamic variables) + post-call webhook /webhooks/elevenlabs (secret or ElevenLabs-Signature HMAC, ELEVENLABS_WEBHOOK_SECRET). Super-admin setup page /phone-calls/setup has the prompt, tools and URLs to paste. Booking requests/messages alert live (ai_call). No migration.

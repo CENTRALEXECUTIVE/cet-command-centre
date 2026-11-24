@@ -161,7 +161,7 @@ class DashboardController extends Controller
             // "miss" their reminder: created due-now, then hidden before anyone
             // sent it. Keep recently-passed pickups visible (last 12h) so a
             // last-minute booking is never lost, without resurfacing ancient ones.
-            ->whereHas('booking', fn ($q) => $q->whereNotIn('status', [
+            ->whereHas('booking', fn ($q) => $q->reminderWorthy()->whereNotIn('status', [
                 BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
             ])->where('pickup_at', '>=', now()->subHours(12)))
             ->with(['booking.customer'])

@@ -2939,6 +2939,19 @@ class Booking extends Model
         ]);
     }
 
+    /**
+     * Jobs worth a customer reminder. Directors (24 Nov 2026): a website QUOTE REQUEST
+     * the customer hasn't paid for yet (still pending) must never prompt "send reminder".
+     * Once it's paid or allocated it's a real job and reminders resume.
+     */
+    public function scopeReminderWorthy(Builder $query): Builder
+    {
+        return $query->whereNot(fn (Builder $q) => $q
+            ->where('status', BookingStatus::Pending->value)
+            ->whereNotNull('meta->quote_request')->where('meta->quote_request', true)
+            ->where(fn (Builder $p) => $p->whereNull('payment_status')->orWhere('payment_status', '!=', 'paid')));
+    }
+
     /** Jobs in a GPS-tracked state — from the Set off tap until Complete. */
     public function scopeTracked(Builder $query): Builder
     {

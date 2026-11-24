@@ -270,7 +270,7 @@ class StatusWatchdog
             // Only for jobs still to run (or only just gone) — never nudge about a
             // reminder for a pickup that's already well in the past. Mirrors the
             // dashboard reminders list so the two always agree.
-            ->whereHas('booking', fn ($q) => $q
+            ->whereHas('booking', fn ($q) => $q->reminderWorthy()
                 ->whereNotIn('status', [
                     BookingStatus::Cancelled->value, BookingStatus::NoShow->value, BookingStatus::Complete->value,
                 ])
