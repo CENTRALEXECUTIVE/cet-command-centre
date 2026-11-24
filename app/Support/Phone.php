@@ -111,6 +111,65 @@ class Phone
     }
 
     /**
+     * Why a phone number looks wrong, in plain words for the customer, or null when it
+     * looks fine. Directors (24 Nov 2026): a website booking came in with 0789456123
+     * (a digit short) and couldn't be reached; ETO stopped the customer to recheck.
+     * Customer forms BLOCK on this; admin forms only warn (the office may know better).
+     * Mirrored in public/js/cet-phone-check.js for the instant check in the browser.
+     */
+    public static function problem(?string $number): ?string
+    {
+        $raw = trim((string) $number);
+        if ($raw === '') {
+            return null;
+        }
+        if (preg_match('/[a-z]/i', $raw)) {
+            return 'Please enter numbers only in the phone number.';
+        }
+        $d = preg_replace('/\D/', '', $raw);
+        $intl = str_starts_with($raw, '+') || str_starts_with($d, '00');
+        if ($intl) {
+            $d = str_starts_with($raw, '+') ? $d : substr($d, 2);
+            if (str_starts_with($d, '44')) {
+                return self::ukProblem('0'.ltrim(substr($d, 2), '0'));
+            }
+
+            return strlen($d) < 8 || strlen($d) > 15
+                ? 'This international number doesn\'t look complete. Please check it, including the country code.'
+                : null;
+        }
+        if (str_starts_with($d, '44') && strlen($d) >= 11) {
+            return self::ukProblem('0'.ltrim(substr($d, 2), '0'));
+        }
+        if (! str_starts_with($d, '0')) {
+            return strlen($d) === 10 && $d[0] === '7'
+                ? null
+                : 'Please check your phone number. UK numbers start with 0, for example 07700 900123. For a number abroad, start with + and the country code.';
+        }
+
+        return self::ukProblem($d);
+    }
+
+    private static function ukProblem(string $n): ?string
+    {
+        $len = strlen($n);
+        $mobile = str_starts_with($n, '07');
+        if ($len < ($mobile ? 11 : 10)) {
+            return $mobile
+                ? 'This mobile number looks too short. UK mobiles have 11 digits, for example 07700 900123. Please check it.'
+                : 'This phone number looks too short. UK numbers have 10 or 11 digits. Please check it.';
+        }
+        if ($len > 11) {
+            return 'This phone number looks too long. UK numbers have 11 digits, for example 07700 900123. Please check it.';
+        }
+        if (preg_match('/^0(\d)\1{8,}$/', $n)) {
+            return 'This phone number doesn\'t look real. Please check it.';
+        }
+
+        return null;
+    }
+
+    /**
      * Normalise what the office typed into the international format ETO used
      * ("+447700900123", "+13478820640"), using the country picked beside the box.
      *

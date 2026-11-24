@@ -129,7 +129,7 @@ class PublicBookingController extends Controller
             'flight_number' => ['nullable', 'string', 'max:32'],
             'customer_name' => ['required', 'string', 'max:120'],
             'customer_email' => ['required', 'email', 'max:160'],
-            'customer_phone' => ['required', 'string', 'max:32'],
+            'customer_phone' => ['required', 'string', 'max:32', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
             'notes' => ['nullable', 'string', 'max:1000'],
             'vat_invoice' => ['nullable', 'boolean'],
             'voucher' => ['nullable', 'string', 'max:40'],

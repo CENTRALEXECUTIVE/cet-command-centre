@@ -13,7 +13,7 @@
             <option value="{{ $iso }}" data-code="{{ $cCode }}" title="{{ $cName }}" @selected($phoneRegion === $iso)>{{ \App\Support\Phone::flag($iso) }} +{{ $cCode }}&nbsp; {{ $cName }}</option>
         @endforeach
     </select>
-    <input id="customer_phone" name="customer_phone" type="tel" inputmode="tel" autocomplete="off"
+    <input id="customer_phone" name="customer_phone" data-phone-check="warn" data-phone-country="customer_phone_country" type="tel" inputmode="tel" autocomplete="off"
            value="{{ $phoneValue }}" placeholder="07… or +1…" style="flex:1 1 auto;min-width:0">
 </div>
 <div class="muted" id="customer_phone_hint" style="font-size:12px;margin-top:4px"></div>

@@ -216,7 +216,7 @@
             <div class="sec-title"><span class="n">3</span> Your details</div>
             <div class="grid two">
                 <div><label class="f">Full name <span class="req">*</span></label><input name="customer_name" value="{{ old('customer_name') }}" required></div>
-                <div><label class="f">Mobile <span class="req">*</span></label><input name="customer_phone" value="{{ old('customer_phone') }}" placeholder="07…" required></div>
+                <div><label class="f">Mobile <span class="req">*</span></label><input name="customer_phone" type="tel" inputmode="tel" data-phone-check="block" value="{{ old('customer_phone') }}" placeholder="07…" required></div>
             </div>
             <div style="margin-top:14px"><label class="f">Email <span class="req">*</span></label>
                 <input type="email" name="customer_email" value="{{ old('customer_email') }}" placeholder="For your confirmation &amp; receipt" required></div>
@@ -270,6 +270,7 @@
     window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";</script>
 <script src="{{ asset('js/cet-forms.js') }}?v=37" defer></script>
+<script src="{{ asset('js/cet-phone-check.js') }}?v=1" defer></script>
 
 <script>
 (function(){

@@ -102,7 +102,7 @@
             <div class="body">
                 <div class="grid grid-2">
                     <div class="field"><label>Passenger (lead) name <span class="req">*</span></label><input name="fields[lead_name]" value="{{ $fields['lead_name'] }}" required></div>
-                    <div class="field"><label>Contact number</label><input type="tel" name="fields[contact_no]" value="{{ $fields['contact_no'] }}" placeholder="07…"></div>
+                    <div class="field"><label>Contact number</label><input type="tel" data-phone-check="warn" name="fields[contact_no]" value="{{ $fields['contact_no'] }}" placeholder="07…"></div>
                     <div class="field"><label>Email</label><input type="email" name="fields[email]" value="{{ $fields['email'] }}"></div>
                     <div class="field"><label>Booked by <span class="sub">— if not the passenger</span></label><input name="fields[booked_by]" value="{{ $fields['booked_by'] }}"></div>
                     <div class="field"><label>Reference <span class="sub">— covering / non-ETO job</span></label><input name="fields[reference]" value="{{ $fields['reference'] ?? '' }}" placeholder="e.g. Ryanhn"></div>

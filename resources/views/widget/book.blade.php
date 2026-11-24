@@ -735,7 +735,7 @@
                                 <input id="b-name" name="customer_name" required></div>
                             <div class="cet-two">
                                 <div class="cet-field"><label for="b-phone">Mobile number</label>
-                                    <input id="b-phone" name="customer_phone" placeholder="07…"></div>
+                                    <input id="b-phone" name="customer_phone" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…"></div>
                                 <div class="cet-field"><label for="b-email">Email</label>
                                     <input id="b-email" name="customer_email" type="email"></div>
                             </div>
@@ -754,7 +754,7 @@
                                     <div class="cet-field"><label for="b-lead-name">Passenger’s full name</label>
                                         <input id="b-lead-name" name="lead_passenger_name" autocomplete="off"></div>
                                     <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile</label>
-                                        <input id="b-lead-phone" name="lead_passenger_phone" placeholder="07…" autocomplete="off"></div>
+                                        <input id="b-lead-phone" name="lead_passenger_phone" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…" autocomplete="off"></div>
                                 </div>
                                 <p class="opt" style="font-size:12px;margin:2px 0 0;color:var(--muted)">This is the <strong>lead passenger</strong> — who the <strong>driver contacts</strong> on the day.</p>
                             </div>
@@ -911,6 +911,7 @@
     {{-- Free Google website translation, driven by the styled switcher in the hero.
          Google's own widget is hidden; our <select> sets the language. --}}
     <div id="google_translate_element" translate="no"></div>
+    <script src="{{ asset('js/cet-phone-check.js') }}?v=1"></script>
     <script>
         window.googleTranslateElementInit = function () {
             try { new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element'); } catch (e) {}
@@ -1227,6 +1228,12 @@
                     email.closest('.cet-field').classList.toggle('bad', !okEmail);
                     if (!okName) { showErr(3, 'Please enter your name.'); nameEl.focus(); return false; }
                     if (!okPhone) { showErr(3, 'Please enter your mobile number.'); phone.focus(); return false; }
+                    // A digit missing / wrong number: stop and ask them to recheck (ETO did this).
+                    var phoneMsg = window.cetPhoneCheck ? window.cetPhoneCheck(phone) : '';
+                    if (phoneMsg) { phone.closest('.cet-field').classList.add('bad'); showErr(3, phoneMsg); phone.focus(); return false; }
+                    var leadPh = document.getElementById('b-lead-phone');
+                    var leadMsg = (leadPh && leadPh.offsetParent !== null && window.cetPhoneCheck) ? window.cetPhoneCheck(leadPh) : '';
+                    if (leadMsg) { leadPh.closest('.cet-field').classList.add('bad'); showErr(3, 'Passenger’s mobile: ' + leadMsg); leadPh.focus(); return false; }
                     if (!okEmail) { showErr(3, 'Please enter your email address.'); email.focus(); return false; }
                     // Flight number is required for airport journeys (arrivals we track).
                     var flightField = document.getElementById('b-flight-field'), flightIn = document.getElementById('b-flight');

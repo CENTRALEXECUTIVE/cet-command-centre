@@ -331,7 +331,7 @@ class BookingWidgetController extends Controller
             'other_flight_number' => ['nullable', 'string', 'max:32'],
             'flight_landing_at' => ['nullable', 'date'],
             'customer_name' => ['required', 'string', 'max:120'],
-            'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email'],
+            'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'submission_token' => ['nullable', 'string', 'max:64'],
@@ -358,7 +358,7 @@ class BookingWidgetController extends Controller
             'accept_privacy' => ['nullable', 'boolean'],
             'booking_for_other' => ['nullable', 'boolean'],
             'lead_passenger_name' => ['nullable', 'string', 'max:120'],
-            'lead_passenger_phone' => ['nullable', 'string', 'max:32'],
+            'lead_passenger_phone' => ['nullable', 'string', 'max:32', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
             // Optional "create an account" at checkout (guests can still book).
             'create_account' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],

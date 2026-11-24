@@ -431,5 +431,6 @@
     })();
 </script>
 @include('partials.picker-js')
+<script src="{{ asset('js/cet-phone-check.js') }}?v=1" defer></script>
 </body>
 </html>

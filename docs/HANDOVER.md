@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **24 Nov 2026 — Phone number recheck (like ETO).** Directors: a web booking came in with 0789456123 (digit missing). `Phone::problem()` (+ mirror `public/js/cet-phone-check.js`): too short/long/not real. Website widget + public book page BLOCK and ask the customer to recheck (customer and passenger mobiles, server-side too). Admin forms (New/Edit booking, Paste a booking) only WARN and still save. International numbers with + are allowed (8–15 digits).
+
 - **24 Nov 2026 — Calendar title uses the TOWN, not the house number.** CET-04008C read "Awais 80"; `CalendarEventBuilder::placeWord()` skips numbered street parts, postcodes and the country (now SALISBURY). Applies to titles built from now on; existing Google events are never edited automatically. Directors suspect CET-04008C is fake (10-digit number 0789456123, same for booker and passenger).
 
 - **24 Nov 2026 — No reminder nudges for unpaid quote requests.** Directors (CET-04008C, Swindon→Salisbury V-Class): a pending website quote request the customer hasn't paid must not show "Send reminder". New `Booking::scopeReminderWorthy` used by the watchdog reminder alert and the dashboard reminders list. Office bookings unchanged.
