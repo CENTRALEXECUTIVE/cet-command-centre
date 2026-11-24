@@ -39,13 +39,33 @@ class PhoneNumberCheckTest extends TestCase
             'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 1,
-            'customer_name' => 'Jo Smith', 'customer_phone' => '0789456123',
+            'customer_first_name' => 'Jo', 'customer_surname' => 'Smith', 'customer_phone' => '0789456123',
         ];
 
-        $this->post(route('widget.book.store'), $payload)->assertSessionHasErrors('customer_phone');
+        $this->post(route('widget.book.store'), $payload)->assertSessionHasErrors(['customer_phone' => 'This mobile number looks too short. UK mobiles have 11 digits, for example 07700 900123. Please check it.']);
         $this->assertSame(0, Booking::count());
 
         $this->post(route('widget.book.store'), ['customer_phone' => '07894561234'] + $payload)->assertOk();
         $this->assertSame(1, Booking::count());
+    }
+
+    public function test_the_website_needs_a_surname(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        $executive = VehicleType::where('slug', 'executive')->first();
+        $payload = [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Manchester Airport',
+            'pickup_at' => now()->addDay()->format('Y-m-d\\TH:i'),
+            'vehicle_type_id' => $executive->id, 'passengers' => 1, 'customer_phone' => '07700900123',
+        ];
+        $this->post(route('widget.book.store'), $payload + ['customer_first_name' => 'Jake', 'customer_surname' => ''])
+            ->assertSessionHasErrors('customer_surname');
+        $this->post(route('widget.book.store'), $payload + ['customer_name' => 'Jake'])
+            ->assertSessionHasErrors(['customer_name' => 'Please enter your first name and surname.']);
+        $this->assertSame(0, Booking::count());
+
+        $this->post(route('widget.book.store'), $payload + ['customer_first_name' => 'Jake', 'customer_surname' => 'Callum'])->assertOk();
+        $this->assertSame('Jake Callum', Booking::first()->customer->name);
     }
 }

@@ -116,7 +116,11 @@ class PublicBookingController extends Controller
         $minLeadHours = (int) config('cet.public_min_lead_hours', 8);
         $minPickup = now()->addHours($minLeadHours);
 
+        \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
+
         $data = $request->validate([
+            'customer_first_name' => ['nullable', 'string', 'max:60'],
+            'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['required', 'string', 'max:12'],
@@ -127,7 +131,7 @@ class PublicBookingController extends Controller
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'flight_number' => ['nullable', 'string', 'max:32'],
-            'customer_name' => ['required', 'string', 'max:120'],
+            'customer_name' => ['required', 'string', 'max:120', \App\Support\FullName::rule()],
             'customer_email' => ['required', 'email', 'max:160'],
             'customer_phone' => ['required', 'string', 'max:32', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -143,7 +147,8 @@ class PublicBookingController extends Controller
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:20'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
-        ], ['customer_phone' => 'phone', 'customer_email' => 'email', 'pickup_postcode' => 'pick-up postcode']);
+        ], ['customer_phone' => 'phone', 'customer_email' => 'email', 'pickup_postcode' => 'pick-up postcode',
+            'customer_surname.required_with' => 'Please enter your surname.']);
 
         $vehicleType = VehicleType::findOrFail($data['vehicle_type_id']);
         $pickupAt = $this->parsePickup($data['pickup_at']);

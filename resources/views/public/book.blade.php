@@ -215,7 +215,12 @@
         <div id="step3" class="hidden" style="margin-top:26px">
             <div class="sec-title"><span class="n">3</span> Your details</div>
             <div class="grid two">
-                <div><label class="f">Full name <span class="req">*</span></label><input name="customer_name" value="{{ old('customer_name') }}" required></div>
+                <div><label class="f">First name <span class="req">*</span></label><input name="customer_first_name" autocomplete="given-name" value="{{ old('customer_first_name') }}" required></div>
+                <div><label class="f">Surname <span class="req">*</span></label><input name="customer_surname" autocomplete="family-name" value="{{ old('customer_surname') }}" required></div>
+            </div>
+            @error('customer_surname')<div style="color:#b3261e;font-size:13px;margin-top:6px">{{ $message }}</div>@enderror
+            @error('customer_name')<div style="color:#b3261e;font-size:13px;margin-top:6px">{{ $message }}</div>@enderror
+            <div class="grid two" style="margin-top:14px">
                 <div><label class="f">Mobile <span class="req">*</span></label><input name="customer_phone" type="tel" inputmode="tel" data-phone-check="block" value="{{ old('customer_phone') }}" placeholder="07…" required></div>
             </div>
             <div style="margin-top:14px"><label class="f">Email <span class="req">*</span></label>

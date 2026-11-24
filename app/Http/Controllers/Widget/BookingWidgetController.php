@@ -314,7 +314,15 @@ class BookingWidgetController extends Controller
         $minLeadHours = (int) config('cet.public_min_lead_hours', 8);
         $minPickup = now()->addHours($minLeadHours);
 
+        // First name + surname boxes -> the single names used everywhere else.
+        \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
+        \App\Support\FullName::merge($request, 'lead_passenger_first_name', 'lead_passenger_surname', 'lead_passenger_name');
+
         $data = $request->validate([
+            'customer_first_name' => ['nullable', 'string', 'max:60'],
+            'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],
+            'lead_passenger_first_name' => ['nullable', 'string', 'max:60'],
+            'lead_passenger_surname' => ['nullable', 'string', 'max:60', 'required_with:lead_passenger_first_name'],
             'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
             'pickup_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['nullable', 'string', 'max:12'],
@@ -330,7 +338,7 @@ class BookingWidgetController extends Controller
             'flight_number' => ['nullable', 'string', 'max:32'],
             'other_flight_number' => ['nullable', 'string', 'max:32'],
             'flight_landing_at' => ['nullable', 'date'],
-            'customer_name' => ['required', 'string', 'max:120'],
+            'customer_name' => ['required', 'string', 'max:120', \App\Support\FullName::rule()],
             'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -357,7 +365,7 @@ class BookingWidgetController extends Controller
             'accept_terms' => ['nullable', 'boolean'],
             'accept_privacy' => ['nullable', 'boolean'],
             'booking_for_other' => ['nullable', 'boolean'],
-            'lead_passenger_name' => ['nullable', 'string', 'max:120'],
+            'lead_passenger_name' => ['nullable', 'string', 'max:120', \App\Support\FullName::rule('Please enter the passenger’s first name and surname.')],
             'lead_passenger_phone' => ['nullable', 'string', 'max:32', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
             // Optional "create an account" at checkout (guests can still book).
             'create_account' => ['nullable', 'boolean'],
@@ -373,7 +381,9 @@ class BookingWidgetController extends Controller
             'utm_content' => ['nullable', 'string', 'max:300'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
-        ], ['customer_phone' => 'phone', 'customer_email' => 'email']);
+        ], ['customer_phone' => 'phone', 'customer_email' => 'email',
+            'customer_surname.required_with' => 'Please enter your surname.',
+            'lead_passenger_surname.required_with' => 'Please enter the passenger’s surname.']);
 
         $journeyType = $data['journey_type'] ?? 'one_way';
         $isHourly = $journeyType === 'hourly';

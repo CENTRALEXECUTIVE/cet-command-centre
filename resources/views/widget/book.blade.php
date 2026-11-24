@@ -731,8 +731,15 @@
 
                         {{-- GUEST / REGISTER — the actual booking contact details. --}}
                         <div id="b-guest-panel">
-                            <div class="cet-field"><label for="b-name">Full name</label>
-                                <input id="b-name" name="customer_name" required></div>
+                            {{-- First name + surname, both required (directors, 24 Nov 2026). The
+                                 server joins them; b-name mirrors the full name for the summary. --}}
+                            <div class="cet-two cet-names">
+                                <div class="cet-field"><label for="b-first">First name</label>
+                                    <input id="b-first" name="customer_first_name" autocomplete="given-name" required></div>
+                                <div class="cet-field"><label for="b-last">Surname</label>
+                                    <input id="b-last" name="customer_surname" autocomplete="family-name" required></div>
+                            </div>
+                            <input type="hidden" id="b-name" name="customer_name">
                             <div class="cet-two">
                                 <div class="cet-field"><label for="b-phone">Mobile number</label>
                                     <input id="b-phone" name="customer_phone" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…"></div>
@@ -751,8 +758,13 @@
                             </label>
                             <div id="b-lead-block" hidden>
                                 <div class="cet-two">
-                                    <div class="cet-field"><label for="b-lead-name">Passenger’s full name</label>
-                                        <input id="b-lead-name" name="lead_passenger_name" autocomplete="off"></div>
+                                    <div class="cet-field"><label for="b-lead-first">Passenger’s first name</label>
+                                        <input id="b-lead-first" name="lead_passenger_first_name" autocomplete="off"></div>
+                                    <div class="cet-field"><label for="b-lead-last">Passenger’s surname</label>
+                                        <input id="b-lead-last" name="lead_passenger_surname" autocomplete="off"></div>
+                                </div>
+                                <input type="hidden" id="b-lead-name" name="lead_passenger_name">
+                                <div class="cet-two">
                                     <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile</label>
                                         <input id="b-lead-phone" name="lead_passenger_phone" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…" autocomplete="off"></div>
                                 </div>
@@ -1219,14 +1231,19 @@
                     var auth = window.__cetAuthState ? window.__cetAuthState() : { onLogin: false };
                     if (auth.onLogin) { showErr(3, 'Please sign in, or choose “Book as guest”.'); return false; }
                     var nameEl = document.getElementById('b-name');
+                    var firstEl = document.getElementById('b-first'), lastEl = document.getElementById('b-last');
                     var phone = document.getElementById('b-phone'), email = document.getElementById('b-email');
-                    var okName = nonEmpty(nameEl);
-                    nameEl.closest('.cet-field').classList.toggle('bad', !okName);
+                    var okFirst = nonEmpty(firstEl), okLast = nonEmpty(lastEl);
+                    firstEl.closest('.cet-field').classList.toggle('bad', !okFirst);
+                    lastEl.closest('.cet-field').classList.toggle('bad', !okLast);
+                    var okName = okFirst && okLast;
+                    if (okName) nameEl.value = (firstEl.value.trim() + ' ' + lastEl.value.trim()).replace(/\s+/g, ' ');
                     // BOTH a mobile number and an email are required.
                     var okPhone = nonEmpty(phone), okEmail = nonEmpty(email);
                     phone.closest('.cet-field').classList.toggle('bad', !okPhone);
                     email.closest('.cet-field').classList.toggle('bad', !okEmail);
-                    if (!okName) { showErr(3, 'Please enter your name.'); nameEl.focus(); return false; }
+                    if (!okFirst) { showErr(3, 'Please enter your first name.'); firstEl.focus(); return false; }
+                    if (!okLast) { showErr(3, 'Please enter your surname.'); lastEl.focus(); return false; }
                     if (!okPhone) { showErr(3, 'Please enter your mobile number.'); phone.focus(); return false; }
                     // A digit missing / wrong number: stop and ask them to recheck (ETO did this).
                     var phoneMsg = window.cetPhoneCheck ? window.cetPhoneCheck(phone) : '';
@@ -1265,9 +1282,11 @@
                         showErr(3, 'Please choose a password of at least 8 characters, or switch to “Book as guest”.'); regPass.focus(); return false;
                     }
                     var elseBox = document.getElementById('b-else'), leadName = document.getElementById('b-lead-name');
-                    if (elseBox && elseBox.checked && leadName && !nonEmpty(leadName)) {
-                        leadName.closest('.cet-field').classList.add('bad');
-                        showErr(3, 'Please enter the passenger’s name.'); leadName.focus(); return false;
+                    var leadFirst = document.getElementById('b-lead-first'), leadLast = document.getElementById('b-lead-last');
+                    if (elseBox && elseBox.checked && leadFirst && leadLast) {
+                        if (!nonEmpty(leadFirst)) { leadFirst.closest('.cet-field').classList.add('bad'); showErr(3, 'Please enter the passenger’s first name.'); leadFirst.focus(); return false; }
+                        if (!nonEmpty(leadLast)) { leadLast.closest('.cet-field').classList.add('bad'); showErr(3, 'Please enter the passenger’s surname.'); leadLast.focus(); return false; }
+                        leadName.value = (leadFirst.value.trim() + ' ' + leadLast.value.trim()).replace(/\s+/g, ' ');
                     }
                     var terms = document.getElementById('b-terms'), privacy = document.getElementById('b-privacy');
                     if ((terms && !terms.checked) || (privacy && !privacy.checked)) {
@@ -1813,7 +1832,7 @@
                     if (regPass) regPass.disabled = !reg;
                     if (createFlag) createFlag.value = reg ? '1' : '';
                     // Name is only required when the guest/register fields are visible.
-                    if (nameEl) { if (which === 'login') nameEl.removeAttribute('required'); else nameEl.setAttribute('required', 'required'); }
+                    ['b-first', 'b-last'].forEach(function (id) { var el = document.getElementById(id); if (el) { if (which === 'login') el.removeAttribute('required'); else el.setAttribute('required', 'required'); } });
                     reportHeight();
                 }
                 if (tabs) tabs.querySelectorAll('button').forEach(function (b) {
@@ -1824,7 +1843,12 @@
                     signedIn = true;
                     if (me) {
                         var ph = document.getElementById('b-phone'), em = document.getElementById('b-email');
-                        if (nameEl && me.name) nameEl.value = me.name;
+                        if (nameEl && me.name) {
+                            nameEl.value = me.name;
+                            var parts = String(me.name).trim().split(/\s+/), fEl = document.getElementById('b-first'), lEl = document.getElementById('b-last');
+                            if (fEl) fEl.value = parts.shift() || '';
+                            if (lEl) lEl.value = parts.join(' ');
+                        }
                         if (ph && me.phone) ph.value = me.phone;
                         if (em && me.email) em.value = me.email;
                     }
@@ -1839,7 +1863,7 @@
                     if (regPassField) regPassField.hidden = true;
                     if (regPass) regPass.disabled = true;
                     if (createFlag) createFlag.value = '';
-                    if (nameEl) nameEl.setAttribute('required', 'required');
+                    ['b-first', 'b-last'].forEach(function (id) { var el = document.getElementById(id); if (el) el.setAttribute('required', 'required'); });
                     // Reveal + select Account payment for a business account.
                     if (account && acctWrap) {
                         if (acctName) acctName.textContent = account.name;
