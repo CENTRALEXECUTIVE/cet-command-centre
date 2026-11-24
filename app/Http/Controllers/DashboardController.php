@@ -439,7 +439,8 @@ class DashboardController extends Controller
     {
         $day = ($request->date('date') ?? today())->startOfDay();
 
-        return view('dashboard.jobs', ['day' => $day, 'jobs' => $this->dayJobs($day)]);
+        return view('dashboard.jobs', ['day' => $day, 'jobs' => $this->dayJobs($day),
+            'awaitingPayment' => Booking::whereDate('pickup_at', $day)->awaitingWebPayment()->orderBy('pickup_at')->get()]);
     }
 
     /**
@@ -536,6 +537,8 @@ class DashboardController extends Controller
             // Cancelled jobs aren't running that day — keep them off the day view so
             // the operator only sees live work (they stay on the booking record).
             ->where('status', '!=', BookingStatus::Cancelled->value)
+            // Unpaid card / quote web bookings aren't jobs yet (directors, 24 Nov 2026).
+            ->notAwaitingWebPayment()
             ->orderBy('pickup_at')
             ->get()
             ->map(fn (Booking $b) => [

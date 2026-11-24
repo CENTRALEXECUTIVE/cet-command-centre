@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **24 Nov 2026 — Unpaid card/quote web bookings off the Jobs list.** Directors: they aren't jobs until paid; cash/account web bookings are. `Booking::scopeAwaitingWebPayment` / `notAwaitingWebPayment`; Jobs day view + dashboard schedule exclude them and show a folded "N website bookings awaiting payment" list. They were never pushed to Google Calendar (the Jobs view IS the office calendar now). Office-made bookings unchanged.
+
 - **24 Nov 2026 — Surname required on website bookings (option A).** Widget + public book page: separate First name / Surname boxes (customer and, when booking for someone else, the passenger), both required; server joins them via `App\Support\FullName::merge` and rejects a one-word name. Office forms unchanged.
 
 - **24 Nov 2026 — Phone number recheck (like ETO).** Directors: a web booking came in with 0789456123 (digit missing). `Phone::problem()` (+ mirror `public/js/cet-phone-check.js`): too short/long/not real. Website widget + public book page BLOCK and ask the customer to recheck (customer and passenger mobiles, server-side too). Admin forms (New/Edit booking, Paste a booking) only WARN and still save. International numbers with + are allowed (8–15 digits).

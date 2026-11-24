@@ -2952,6 +2952,32 @@ class Booking extends Model
             ->where(fn (Builder $p) => $p->whereNull('payment_status')->orWhere('payment_status', '!=', 'paid')));
     }
 
+    /**
+     * Website bookings still waiting for the customer to pay: card (or a quote
+     * request) placed online, still pending and not paid. Directors (24 Nov 2026):
+     * these must stay OFF the jobs list until paid. Cash and account bookings are
+     * real jobs straight away.
+     */
+    public function scopeAwaitingWebPayment(Builder $query): Builder
+    {
+        return $query->where('source', 'web')
+            ->where('status', BookingStatus::Pending->value)
+            ->where(fn (Builder $p) => $p->whereNull('payment_status')->orWhere('payment_status', '!=', 'paid'))
+            ->where(fn (Builder $m) => $m->where('payment_method', 'card')
+                ->orWhere(fn (Builder $q) => $q->whereNotNull('meta->quote_request')->where('meta->quote_request', true)));
+    }
+
+    /** Everything except AwaitingWebPayment (null-safe, so nothing else drops out). */
+    public function scopeNotAwaitingWebPayment(Builder $query): Builder
+    {
+        return $query->whereNotIn('id', fn ($sub) => $sub->select('id')->from('bookings')
+            ->where('source', 'web')
+            ->where('status', BookingStatus::Pending->value)
+            ->where(fn ($p) => $p->whereNull('payment_status')->orWhere('payment_status', '!=', 'paid'))
+            ->where(fn ($m) => $m->where('payment_method', 'card')
+                ->orWhere(fn ($q) => $q->whereNotNull('meta->quote_request')->where('meta->quote_request', true))));
+    }
+
     /** Jobs in a GPS-tracked state — from the Set off tap until Complete. */
     public function scopeTracked(Builder $query): Builder
     {

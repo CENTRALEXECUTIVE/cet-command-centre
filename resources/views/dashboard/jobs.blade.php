@@ -17,6 +17,20 @@
     </div>
     <p class="page-sub"><a href="{{ route('dashboard') }}">← Dashboard</a></p>
 
+    {{-- Website card / quote bookings not paid yet: not jobs until they pay (cash is). --}}
+    @if(($awaitingPayment ?? collect())->isNotEmpty())
+        <details class="card" style="margin-bottom:16px">
+            <summary style="cursor:pointer"><strong>{{ $awaitingPayment->count() }} website {{ $awaitingPayment->count() === 1 ? 'booking' : 'bookings' }} awaiting payment</strong>
+                <span class="muted" style="font-size:13px">· not on the jobs list until paid</span></summary>
+            <ul style="margin:10px 0 0;padding-left:18px">
+                @foreach($awaitingPayment as $w)
+                    <li style="margin-bottom:4px"><a href="{{ route('bookings.show', $w) }}">{{ $w->pickup_at->timezone(config('app.timezone'))->format('H:i') }} · {{ $w->displayName() }} · {{ $w->external_reference ?: $w->reference }}</a>
+                        <span class="muted" style="font-size:12px">{{ ! empty($w->meta['quote_request']) ? 'quote request' : 'card, unpaid' }}</span></li>
+                @endforeach
+            </ul>
+        </details>
+    @endif
+
     {{-- A manual "add to bookings" matched an existing booking — but the match can
          be wrong (a return leg vs its outbound). Let the operator add it anyway as
          a separate booking; that also clears whatever wrongly claimed it. --}}
