@@ -107,6 +107,17 @@ class PublicBookingController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        try {
+            return $this->storeBooking($request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // The customer sees the reason in a red box; the directors get told at once.
+            \App\Support\RejectedBookingAlert::send($request, $e, 'public /book page');
+            throw $e;
+        }
+    }
+
+    private function storeBooking(Request $request): RedirectResponse
+    {
         // Honeypot: a hidden field real customers never fill.
         if (filled($request->input('company'))) {
             return redirect()->route('public.book')->with('booked', 'thanks');

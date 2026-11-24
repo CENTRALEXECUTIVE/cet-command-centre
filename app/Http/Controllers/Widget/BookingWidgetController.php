@@ -304,6 +304,17 @@ class BookingWidgetController extends Controller
      */
     public function store(Request $request): \Illuminate\Http\Response
     {
+        try {
+            return $this->storeBooking($request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // The customer sees the reason in a red box; the directors get told at once.
+            \App\Support\RejectedBookingAlert::send($request, $e, 'website booking widget');
+            throw $e;
+        }
+    }
+
+    private function storeBooking(Request $request): \Illuminate\Http\Response
+    {
         // Anti-spam honeypot: a hidden field real users never fill.
         if (filled($request->input('company'))) {
             return response()->view('widget.book', ['vehicleTypes' => collect(), 'done' => true])

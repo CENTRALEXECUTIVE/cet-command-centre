@@ -73,4 +73,37 @@ class WidgetBookingErrorsShownTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, \App\Models\Booking::count());
     }
+
+    public function test_a_refused_booking_alerts_the_directors_and_emails_the_office(): void
+    {
+        config(['mail.default' => 'array', 'cet.ops_email' => 'office@example.com']);
+        \App\Models\User::factory()->create(['role' => \App\Enums\UserRole::Admin, 'is_super_admin' => true]);
+        $exec = VehicleType::where('slug', 'executive')->first();
+        $at = now()->addDays(20)->format('Y-m-d\TH:i');
+
+        $this->from(route('widget.book'))->post(route('widget.book.store'), [
+            'journey_type' => 'return',
+            'pickup_address' => 'Manchester Airport (MAN), Manchester M90 1QX',
+            'destination_address' => 'Sheffield S1 4QS',
+            'pickup_at' => $at, 'return_pickup_at' => $at,
+            'vehicle_type_id' => $exec->id, 'passengers' => 2,
+            'customer_first_name' => 'Graham', 'customer_surname' => 'Bonner',
+            'customer_phone' => '+1 901 338 4278', 'customer_email' => 'graham@example.com',
+            'flight_number' => 'DL5986', 'flight_landing_at' => $at,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('watchdog_events', ['event_type' => 'web_rejected', 'severity' => 'critical']);
+        $sent = app('mailer')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $sent);
+        $msg = $sent[0]->getOriginalMessage();
+        $this->assertStringContainsString('Website booking refused — Graham Bonner', $msg->getSubject());
+        $this->assertStringContainsString('+1 901 338 4278', $msg->getTextBody());
+        $this->assertStringContainsString('Why it was refused', $msg->getTextBody());
+    }
+
+    public function test_a_good_booking_sends_no_refused_alert(): void
+    {
+        $this->test_a_us_arrival_return_books_when_the_return_is_later();
+        $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'web_rejected']);
+    }
 }
