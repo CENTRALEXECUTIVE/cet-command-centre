@@ -952,3 +952,74 @@ html[data-theme="dark"] .ack-btn { background: transparent; }
     font: inherit; font-size: 15px; line-height: 1; padding: 7px 10px; border-radius: 999px;
     cursor: pointer; flex: none; }
 .theme-toggle:hover { border-color: var(--gold); }
+
+/* =====================================================================
+   Readability pass (24 Nov 2026, full audit). Dark mode used to be patched
+   per component, so newer screens kept LIGHT-mode greys on dark panels.
+   These token overrides fix them everywhere at once; targeted rules below
+   cover inline colours that can't read variables.
+   ===================================================================== */
+html[data-theme="dark"] {
+    --muted: #a7b0bf;          /* was #555 on navy: 2.3:1, now ~7:1 */
+    --gold-dark: #f2c14e;      /* gold links/labels readable on dark */
+    --line: rgba(255, 255, 255, .12);
+}
+/* Booking list cards: secondary lines, ref, edit link. */
+html[data-theme="dark"] .bk-ref,
+html[data-theme="dark"] .bk-route,
+html[data-theme="dark"] .bk-edit,
+html[data-theme="dark"] .bk-card .muted { color: #b4bccb; }
+html[data-theme="dark"] .bk-edit:hover { color: #fff; }
+/* Dispatch board cards were white in dark mode with white times. */
+html[data-theme="dark"] .job-card { background: #151b2c; border-color: rgba(255,255,255,.10); color: #e8ecf4; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+html[data-theme="dark"] .job-card .time, html[data-theme="dark"] .job-card strong { color: #fff; }
+/* Red danger text (inline #b32020) and dark gold (#a86b00 / #8a6d00) on dark panels. */
+html[data-theme="dark"] [style*="#b32020"], html[data-theme="dark"] [style*="#B32020"],
+html[data-theme="dark"] .btn-danger-ghost { color: #ff8f87 !important; }
+html[data-theme="dark"] [style*="#a86b00"], html[data-theme="dark"] [style*="#8a6d00"],
+html[data-theme="dark"] [style*="#b9770a"] { color: #f2c14e !important; }
+/* Sidebar group headings (#6f6f6f on near-black). */
+html[data-theme="dark"] .nav-fold > summary { color: #a7b0bf; }
+/* WhatsApp buttons: brand green with white text was 2:1. Deeper WhatsApp green = 4.6:1. */
+[style*="background:#25D366"], [style*="background: #25D366"], [style*="background:#25d366"] { background: #128C4A !important; }
+/* Badges: slightly deeper amber so "Pending" passes on its pale chip. */
+.badge-pending { color: #6f5600; }
+/* Native date/time pickers: light icons in dark mode. */
+html[data-theme="dark"] input[type="date"], html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="time"] { color-scheme: dark; }
+
+/* Phone header: long titles ("Booking CET-7692CC") wrapped onto 3 lines and the
+   alert icon overlapped them. One line, ellipsis. */
+.topbar-title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .topbar-title { font-size: 15px; } }
+
+/* No sideways scrolling on phones. */
+@media (max-width: 960px) {
+    .ops-main, .timeline-rail, .ops-grid > * { min-width: 0; max-width: 100%; }
+}
+.dash-hero { overflow: hidden; }
+.list-head > div, .list-head form { flex-wrap: wrap; }
+.card, .card * { overflow-wrap: anywhere; }
+.card input, .card select, .card textarea, .card table { overflow-wrap: normal; }
+
+/* Readability pass, part 2: screens with hard-coded light colours. */
+html[data-theme="dark"] .job-card .meta { color: #b4bccb; }
+html[data-theme="dark"] .pw-toggle { color: #e8ecf4; }
+html[data-theme="dark"] .health-pill.off { color: #b4bccb; }
+html[data-theme="dark"] .veh-cap { color: #b4bccb; }
+/* Inline greys used for secondary text. */
+html[data-theme="dark"] [style*="color:#444"], html[data-theme="dark"] [style*="color:#555"],
+html[data-theme="dark"] [style*="color:#666"], html[data-theme="dark"] [style*="color:#6a6a70"],
+html[data-theme="dark"] [style*="color:#777"], html[data-theme="dark"] [style*="color:#888"],
+html[data-theme="dark"] [style*="color: #555"], html[data-theme="dark"] [style*="color: #666"] { color: #b4bccb !important; }
+/* Inline dark greens on dark panels. */
+html[data-theme="dark"] [style*="color:#1f7a44"], html[data-theme="dark"] [style*="color:#1f8c4a"],
+html[data-theme="dark"] [style*="color:#128C4A"], html[data-theme="dark"] .text-success { color: #5fd28f !important; }
+/* Pale inline panels (tips, info boxes) become dark panels with light text. */
+html[data-theme="dark"] [style*="background:#f2f8fe"], html[data-theme="dark"] [style*="background:#f2f2f0"],
+html[data-theme="dark"] [style*="background:#fafafa"], html[data-theme="dark"] [style*="background:#f7f7f5"],
+html[data-theme="dark"] [style*="background:#f6f6f4"], html[data-theme="dark"] [style*="background:#fff;"],
+html[data-theme="dark"] [style*="background: #fff;"], html[data-theme="dark"] [style*="background:#ffffff"] {
+    background: #161c2e !important; color: #e8ecf4;
+}
+html[data-theme="dark"] .cal-cell { background: #151b2c; border-color: rgba(255,255,255,.10); color: #e8ecf4; }

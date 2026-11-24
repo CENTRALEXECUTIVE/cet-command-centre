@@ -14,7 +14,7 @@
                 </p>
             @endif
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <form method="GET" action="{{ route('bookings.index') }}" role="search">
                 <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="🔍 Search ref, ETO, name, phone…"
                        style="width:240px;max-width:52vw;padding:9px 12px;border-radius:10px">

@@ -328,7 +328,8 @@
     <script src="{{ asset('js/cet-alerts.js') }}?v=10" defer></script>
 @endif
 
-@include('partials.cookie-consent')
+{{-- Staff app: essential cookies only and no analytics, so no consent banner over
+     the controls (it covered buttons on phones, 24 Nov 2026 audit). Public pages keep it. --}}
 <script>
     // Light/dark toggle — remembered per device.
     (function () {
