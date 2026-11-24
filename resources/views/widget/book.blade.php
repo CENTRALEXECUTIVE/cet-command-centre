@@ -2191,6 +2191,19 @@
         mnSel.addEventListener('change', function () { sel ? commit() : label(); });
         document.addEventListener('click', function (e) { if (dt.classList.contains('open') && !dt.contains(e.target) && !cal.contains(e.target)) close(); });
 
+        // Keep the visible date in step when the form changes the value itself (the
+        // landing time setting the pickup, a restored value, etc.). Before this the box
+        // kept showing the old date while a different one was sent (24 Nov 2026).
+        el.addEventListener('change', function () {
+            var cur = sel ? (sel.getFullYear() + '-' + pad(sel.getMonth() + 1) + '-' + pad(sel.getDate()) + 'T' + hSel.value + ':' + mnSel.value) : '';
+            if (el.value === cur) return;
+            var d = el.value ? new Date(el.value) : null;
+            if (d && isNaN(d)) return;
+            sel = d;
+            if (sel) { hSel.value = pad(sel.getHours()); mnSel.value = pad(Math.floor(sel.getMinutes() / 5) * 5); viewY = sel.getFullYear(); viewM = sel.getMonth(); }
+            label();
+        });
+
         label();
         if (sel) commit(); // seed the hidden value from the default
     }
