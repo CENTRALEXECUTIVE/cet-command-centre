@@ -559,6 +559,13 @@
                     {{-- STEP 1 — Journey --}}
                     <div class="cet-step" data-step="1">
                         <div class="cet-step-title">📍 Where and when?</div>
+                        @if($errors->any())
+                            <div class="cet-banner show" id="b-server-errors" role="alert" style="background:#fdecea;color:#8a1c14;border:1px solid #f5c2bd">
+                                <strong>We couldn’t complete your booking yet. Please check:</strong>
+                                <ul style="margin:6px 0 0 18px;padding:0">@foreach($errors->all() as $msg)<li>{{ $msg }}</li>@endforeach</ul>
+                                <div style="margin-top:6px">Your details are kept below. Need help? Call +44 7405 172435.</div>
+                            </div>
+                        @endif
                         <div class="cet-banner" id="b-notice"></div>
                         @php $showHourly = (bool) \App\Models\Setting::get('widget_show_hourly', false); @endphp
                         <div class="cet-field"><label for="b-journey">Journey type</label>
@@ -575,25 +582,28 @@
                                 <option value="return">Return</option>
                                 @if($showHourly)<option value="hourly">Hourly hire (as directed)</option>@endif
                             </select>
+                            @if(old('journey_type') && old('journey_type') !== 'one_way')
+                                <script>document.addEventListener('DOMContentLoaded', function () { var b = document.querySelector('#b-journey-seg [data-journey="' + @js(old('journey_type')) + '"]'); if (b) b.click(); });</script>
+                            @endif
                         </div>
                         {{-- Grouped pickup / drop-off with a swap circle (full-width
                              addresses, compact postcode beneath each). --}}
                         <div class="cet-grp">
                             <button type="button" id="b-swap" class="cet-swap-circle" title="Swap pickup and drop-off">⇅</button>
                             <div class="cet-field icon"><label for="b-pickup">Pickup address</label>
-                                <input id="b-pickup" name="pickup_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-pickup-pc" autocomplete="off">
+                                <input id="b-pickup" name="pickup_address" value="{{ old('pickup_address') }}" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-pickup-pc" autocomplete="off">
                                 <button type="button" class="geo" data-geo="#b-pickup" data-geo-pc="#b-pickup-pc" aria-label="Clear address" title="Clear address">✕</button>
                             </div>
                             <div class="cet-field cet-pc">
-                                <input id="b-pickup-pc" name="pickup_postcode" placeholder="Postcode" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
+                                <input id="b-pickup-pc" name="pickup_postcode" value="{{ old('pickup_postcode') }}" placeholder="Postcode" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text">
                             </div>
                             <div id="b-dropoff-row">
                                 <div class="cet-field icon" id="b-dropoff-field"><label for="b-dropoff">Drop-off address</label>
-                                    <input id="b-dropoff" name="destination_address" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
+                                    <input id="b-dropoff" name="destination_address" value="{{ old('destination_address') }}" required placeholder="Start typing — or type your full address" data-places data-postcode-target="#b-dropoff-pc" autocomplete="off">
                                     <button type="button" class="geo" data-geo="#b-dropoff" data-geo-pc="#b-dropoff-pc" aria-label="Clear address" title="Clear address">✕</button>
                                 </div>
                                 <div class="cet-field cet-pc" id="b-dropoff-pc-field">
-                                    <input id="b-dropoff-pc" name="destination_postcode" placeholder="Postcode" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
+                                    <input id="b-dropoff-pc" name="destination_postcode" value="{{ old('destination_postcode') }}" placeholder="Postcode" style="text-transform:uppercase" autocomplete="postal-code" inputmode="text"></div>
                             </div>
                         </div>
                         <div class="cet-field" id="b-stops-field" data-stop-rate="{{ (float) ($sc['stopover'] ?? 0) }}">
@@ -602,10 +612,10 @@
                         </div>
                         <div class="cet-two" id="b-when-row" style="grid-template-columns:1fr">
                             <div class="cet-field"><label for="b-when">Pickup date &amp; time</label>
-                                <input id="b-when" name="pickup_at" type="datetime-local" required></div>
+                                <input id="b-when" name="pickup_at" value="{{ old('pickup_at') }}" type="datetime-local" required></div>
                             <div class="cet-field" id="b-return-field" style="display:none">
                                 <label for="b-return">Return date &amp; time</label>
-                                <input id="b-return" name="return_pickup_at" type="datetime-local">
+                                <input id="b-return" name="return_pickup_at" value="{{ old('return_pickup_at') }}" type="datetime-local">
                             </div>
                         </div>
                         <div class="cet-field" id="b-hours-field" style="display:none">
@@ -735,16 +745,16 @@
                                  server joins them; b-name mirrors the full name for the summary. --}}
                             <div class="cet-two cet-names">
                                 <div class="cet-field"><label for="b-first">First name</label>
-                                    <input id="b-first" name="customer_first_name" autocomplete="given-name" data-name-required="Please enter your first name." required></div>
+                                    <input id="b-first" name="customer_first_name" value="{{ old('customer_first_name') }}" autocomplete="given-name" data-name-required="Please enter your first name." required></div>
                                 <div class="cet-field"><label for="b-last">Surname</label>
-                                    <input id="b-last" name="customer_surname" autocomplete="family-name" data-name-required="Please enter your surname." required></div>
+                                    <input id="b-last" name="customer_surname" value="{{ old('customer_surname') }}" autocomplete="family-name" data-name-required="Please enter your surname." required></div>
                             </div>
                             <input type="hidden" id="b-name" name="customer_name">
                             <div class="cet-two">
                                 <div class="cet-field"><label for="b-phone">Mobile number</label>
-                                    <input id="b-phone" name="customer_phone" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…"></div>
+                                    <input id="b-phone" name="customer_phone" value="{{ old('customer_phone') }}" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…"></div>
                                 <div class="cet-field"><label for="b-email">Email</label>
-                                    <input id="b-email" name="customer_email" type="email"></div>
+                                    <input id="b-email" name="customer_email" value="{{ old('customer_email') }}" type="email"></div>
                             </div>
                             <div class="cet-field" id="b-reg-pass-field" hidden>
                                 <label for="b-reg-pass">Choose a password</label>
@@ -759,14 +769,14 @@
                             <div id="b-lead-block" hidden>
                                 <div class="cet-two">
                                     <div class="cet-field"><label for="b-lead-first">Passenger’s first name</label>
-                                        <input id="b-lead-first" name="lead_passenger_first_name" autocomplete="off" data-name-required="Please enter the passenger’s first name."></div>
+                                        <input id="b-lead-first" name="lead_passenger_first_name" value="{{ old('lead_passenger_first_name') }}" autocomplete="off" data-name-required="Please enter the passenger’s first name."></div>
                                     <div class="cet-field"><label for="b-lead-last">Passenger’s surname</label>
-                                        <input id="b-lead-last" name="lead_passenger_surname" autocomplete="off" data-name-required="Please enter the passenger’s surname."></div>
+                                        <input id="b-lead-last" name="lead_passenger_surname" value="{{ old('lead_passenger_surname') }}" autocomplete="off" data-name-required="Please enter the passenger’s surname."></div>
                                 </div>
                                 <input type="hidden" id="b-lead-name" name="lead_passenger_name">
                                 <div class="cet-two">
                                     <div class="cet-field"><label for="b-lead-phone">Passenger’s mobile</label>
-                                        <input id="b-lead-phone" name="lead_passenger_phone" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…" autocomplete="off"></div>
+                                        <input id="b-lead-phone" name="lead_passenger_phone" value="{{ old('lead_passenger_phone') }}" type="tel" inputmode="tel" data-phone-check="block" placeholder="07…" autocomplete="off"></div>
                                 </div>
                                 <p class="opt" style="font-size:12px;margin:2px 0 0;color:var(--muted)">This is the <strong>lead passenger</strong> — who the <strong>driver contacts</strong> on the day.</p>
                             </div>
@@ -792,11 +802,11 @@
                             <div class="cet-mini-title">✈️ Flight details <span class="opt">— so we can track your flight</span></div>
                             <div class="cet-field" id="b-flight-field" hidden>
                                 <label for="b-flight"><span id="b-flight-label">Flight number</span> <span class="opt" id="b-flight-opt">— for airport journeys (we track it)</span></label>
-                                <input id="b-flight" name="flight_number" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
+                                <input id="b-flight" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
                             </div>
                             <div class="cet-field" id="b-flight-landing-field" hidden>
                                 <label for="b-flight-landing"><span id="b-flight-landing-label">Flight landing time</span> <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
-                                <input id="b-flight-landing" name="flight_landing_at" type="datetime-local">
+                                <input id="b-flight-landing" name="flight_landing_at" value="{{ old('flight_landing_at') }}" type="datetime-local">
                             </div>
                             <div class="cet-field" id="b-flight-other-field" hidden>
                                 <label for="b-flight-other"><span id="b-flight-other-label">🛫 Departure flight number</span> <span class="opt" id="b-flight-other-opt">— optional (the flight you fly out on)</span></label>
@@ -847,7 +857,7 @@
                         </div>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-notes">Extra details <span class="opt">(optional)</span></label>
-                            <textarea id="b-notes" name="notes" rows="2" placeholder="Full address, flat / company / buzzer, terminal, or anything else we should know…"></textarea></div>
+                            <textarea id="b-notes" name="notes" rows="2" placeholder="Full address, flat / company / buzzer, terminal, or anything else we should know…">{{ old('notes') }}</textarea></div>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-heard">How did you hear about us? <span class="opt">(optional)</span></label>
                             <select id="b-heard" name="heard_about">
@@ -1727,12 +1737,18 @@
                     // (The office can still adjust it.) Non-airport returns keep their
                     // own return date & time untouched.
                     // Collecting FROM the airport one-way: the pickup time IS the landing time.
+                    // The landing time belongs to the leg that COLLECTS at the airport:
+                    // pickup is the airport (one-way or the outbound of a return) -> the
+                    // outbound pickup; only when the airport is the DROP-OFF does the flight
+                    // land on the return leg. (24 Nov 2026: a return starting at MAN copied
+                    // the landing time into the return pickup, the server rejected it and the
+                    // customer could never finish the booking.)
                     var whenEl = document.getElementById('b-when');
-                    if (!isAirportReturn() && isAirportPickup() && whenEl && flightLandEl.value) {
+                    if (isAirportPickup() && whenEl && flightLandEl.value) {
                         whenEl.value = flightLandEl.value;
+                        if (typeof build === 'function') { try { build(whenEl); } catch (e) {} }
                         whenEl.dispatchEvent(new Event('change'));
-                    }
-                    if (isAirportReturn() && retEl && flightLandEl.value) {
+                    } else if (isAirportReturn() && isAirportDropoff() && retEl && flightLandEl.value) {
                         retEl.value = flightLandEl.value;
                         if (typeof build === 'function') { try { build(retEl); } catch (e) {} }
                         retEl.dispatchEvent(new Event('change'));
