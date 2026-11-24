@@ -214,7 +214,9 @@
     var retLocs = document.getElementById('return_locations');
     var locSec = document.getElementById('pickup_address') && document.getElementById('pickup_address').closest('.eto-section');
     var retSec = null;
-    if (retDate && retLocs && locSec && !document.querySelector('.bk-return-sec')) {
+    // The form now has its own Return journey step AFTER Passengers & Vehicle
+    // (#return-section, directors 24 Nov 2026), so only build a card if it's missing.
+    if (retDate && retLocs && locSec && !document.querySelector('.bk-return-sec') && !document.getElementById('return-section')) {
         retSec = document.createElement('div');
         retSec.className = 'eto-section bk-return-sec';
         retSec.innerHTML = '<div class="head"><span class="ico">↩</span> Return journey <span class="muted" style="font-weight:500;text-transform:none;letter-spacing:0">(defaults to the reverse)</span></div><div class="body"></div>';

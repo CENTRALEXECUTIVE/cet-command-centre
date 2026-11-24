@@ -24,4 +24,19 @@ class AdminAirportFlightPromptTest extends TestCase
         $this->assertStringContainsString('flightIn.required = false;', $html);
         $this->assertDoesNotMatchRegularExpression('/<input id="flight_number"[^>]*required/', $html);
     }
+
+    public function test_the_return_journey_comes_after_the_outbound_vehicle_and_the_airport_box_fills_itself(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $html = $this->actingAs($admin)->get(route('bookings.create'))->assertOk()->getContent();
+
+        $vehicle = strpos($html, 'Passengers &amp; Vehicle</div>');
+        $return = strpos($html, 'id="return-section"');
+        $this->assertNotFalse($vehicle);
+        $this->assertNotFalse($return);
+        $this->assertGreaterThan($vehicle, $return, 'Return journey must come after Passengers & Vehicle');
+        $this->assertGreaterThan($return, strpos($html, 'id="return_vehicle_type_id"'));
+        $this->assertStringContainsString("!document.getElementById('return-section')", $html);
+        $this->assertStringContainsString('function autoAirport()', $html);
+    }
 }

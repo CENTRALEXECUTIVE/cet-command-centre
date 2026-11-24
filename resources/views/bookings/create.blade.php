@@ -177,99 +177,6 @@
                         <div id="pickup-at-reminder" class="pickup-reminder" role="alert" hidden>⏰ Don't forget: set the pickup date &amp; time</div>
                         @error('pickup_at') <div class="error">{{ $message }}</div> @enderror
                     </div>
-                    <div class="field" id="return_field">
-                        <label for="return_pickup_at">Return pickup date &amp; time</label>
-                        <input id="return_pickup_at" type="datetime-local" name="return_pickup_at" value="{{ old('return_pickup_at') }}">
-                        <div id="return-at-reminder" class="pickup-reminder" role="alert" hidden>⏰ Don't forget: set the return pickup date &amp; time</div>
-                        @error('return_pickup_at') <div class="error">{{ $message }}</div> @enderror
-                    </div>
-                </div>
-
-                {{-- Return-leg addresses. A return defaults to the REVERSE of the outbound;
-                     these are pre-filled with that reverse, so a simple return needs no
-                     typing. Change them only when the return is from/to a different place. --}}
-                <div id="return_locations" style="display:none;border:1px dashed var(--line,#dcdcdc);border-radius:10px;padding:12px;margin:0 0 4px">
-                    <div style="font-weight:700;margin-bottom:8px">↩ Return journey
-                        <span class="muted" style="font-weight:400">— defaults to the reverse; edit if the return is different</span></div>
-                    <div class="field">
-                        <label for="return_pickup_postcode">Return pickup postcode</label>
-                        <input id="return_pickup_postcode" name="return_pickup_postcode" data-postcode-fill="#return_pickup_address" autocomplete="off"
-                               placeholder="e.g. DE45 1SP" value="{{ old('return_pickup_postcode') }}" style="text-transform:uppercase">
-                    </div>
-                    <div class="field">
-                        <label for="return_pickup_address">Return pickup address</label>
-                        <div class="loc-row">
-                            <span class="pin">A</span>
-                            <div class="grow">
-                                <textarea id="return_pickup_address" name="return_pickup_address" data-places data-postcode-target="#return_pickup_postcode" autocomplete="off" placeholder="Where the return journey starts">{{ old('return_pickup_address') }}</textarea>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label for="return_destination_postcode">Return destination postcode</label>
-                        <input id="return_destination_postcode" name="return_destination_postcode" data-postcode-fill="#return_destination_address" autocomplete="off"
-                               placeholder="e.g. S1 2BP" value="{{ old('return_destination_postcode') }}" style="text-transform:uppercase">
-                    </div>
-                    <div class="field" style="margin-bottom:0">
-                        <label for="return_destination_address">Return destination address</label>
-                        <div class="loc-row">
-                            <span class="pin drop">B</span>
-                            <div class="grow">
-                                <textarea id="return_destination_address" name="return_destination_address" data-places data-postcode-target="#return_destination_postcode" autocomplete="off" placeholder="Where the return journey ends">{{ old('return_destination_address') }}</textarea>
-                            </div>
-                        </div>
-                    </div>
-                    {{-- The return leg's own vehicle + price (ETO-style): defaults to the
-                         outbound vehicle and the live quote for the return route; change
-                         either, or type your own return price. --}}
-                    <div class="grid grid-2" style="margin-top:10px">
-                        <div class="field" style="margin-bottom:0">
-                            <label for="return_vehicle_type_id">Return vehicle</label>
-                            <select id="return_vehicle_type_id" name="return_vehicle_type_id">
-                                <option value="">Same as outbound</option>
-                                @foreach($vehicleTypes as $vt)
-                                    <option value="{{ $vt->id }}" @selected((string) old('return_vehicle_type_id') === (string) $vt->id)>{{ $vt->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="field" style="margin-bottom:0">
-                            <label for="return_leg_price">Return price (£)</label>
-                            <input id="return_leg_price" type="number" step="0.01" min="0" inputmode="decimal" value="{{ old('leg_price_return') }}" placeholder="live quote">
-                            <div class="hint" id="return-price-hint" style="margin-top:4px"></div>
-                        </div>
-                    </div>
-                    {{-- The return leg's own party and luggage. They follow the outbound
-                         automatically until the office changes one (the party sometimes
-                         changes on the way back). Blank = same as outbound. --}}
-                    <div class="field" id="return-pax-field" style="margin:12px 0 0">
-                        <label>Return passengers &amp; luggage <span class="muted">(follows the outbound unless you change it)</span></label>
-                        <div class="bk-ret-pax">
-                            <div class="stepper-field">
-                                <span class="lbl">Passengers</span>
-                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
-                                    <input id="return_passengers" type="number" name="return_passengers" min="1" max="60" value="{{ old('return_passengers') }}" data-follow="passengers">
-                                    <button type="button" data-inc>+</button></div>
-                            </div>
-                            <div class="stepper-field">
-                                <span class="lbl">Suitcases</span>
-                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
-                                    <input id="return_suitcases" type="number" name="return_suitcases" min="0" max="30" value="{{ old('return_suitcases') }}" data-follow="suitcases">
-                                    <button type="button" data-inc>+</button></div>
-                            </div>
-                            <div class="stepper-field">
-                                <span class="lbl">Cabin bags</span>
-                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
-                                    <input id="return_hand_luggage" type="number" name="return_hand_luggage" min="0" max="30" value="{{ old('return_hand_luggage') }}" data-follow="hand_luggage">
-                                    <button type="button" data-inc>+</button></div>
-                            </div>
-                        </div>
-                        <button type="button" class="link-btn" id="return-pax-reset" hidden style="margin-top:6px;background:none;border:0;padding:0;color:#1d4ed8;text-decoration:underline;cursor:pointer;font:inherit;font-size:13px">Match the outbound again</button>
-                        @error('return_passengers') <div class="error">{{ $message }}</div> @enderror
-                    </div>
-                    <div class="field" style="margin:10px 0 0">
-                        <label for="return_flight_number">Return flight number <span class="muted">(only if the return collects from an airport)</span></label>
-                        <input id="return_flight_number" name="return_flight_number" value="{{ old('return_flight_number') }}" placeholder="e.g. EZY1234" style="text-transform:uppercase">
-                    </div>
                 </div>
 
                 <div class="field" style="margin-bottom:0">
@@ -277,7 +184,7 @@
                     <select id="airport_id" name="airport_id">
                         <option value="">— Not an airport job —</option>
                         @foreach($airports as $airport)
-                            <option value="{{ $airport->id }}" @selected(old('airport_id')==$airport->id)>
+                            <option value="{{ $airport->id }}" data-code="{{ $airport->code }}" @selected(old('airport_id')==$airport->id)>
                                 {{ $airport->code }} — {{ $airport->name }}
                             </option>
                         @endforeach
@@ -402,6 +309,108 @@
                         <input id="flight_landing_at" type="datetime-local" name="flight_landing_at" value="{{ old('flight_landing_at') }}">
                     </div>
                 </div>
+            </div>
+        </div>
+
+        {{-- ───────────── Return journey ─────────────
+             Directors (24 Nov 2026): the return comes AFTER the outbound vehicle is chosen
+             (it used to sit inside Locations, asking for a return vehicle before the
+             outbound one). Only shown for a Return booking. --}}
+        <div class="eto-section" id="return-section" style="display:none">
+            <div class="head"><span class="ico">↩</span> Return journey</div>
+            <div class="body">
+                <div class="field" id="return_field">
+                        <label for="return_pickup_at">Return pickup date &amp; time</label>
+                        <input id="return_pickup_at" type="datetime-local" name="return_pickup_at" value="{{ old('return_pickup_at') }}">
+                        <div id="return-at-reminder" class="pickup-reminder" role="alert" hidden>⏰ Don't forget: set the return pickup date &amp; time</div>
+                        @error('return_pickup_at') <div class="error">{{ $message }}</div> @enderror
+                </div>
+                {{-- Return-leg addresses. A return defaults to the REVERSE of the outbound;
+                     these are pre-filled with that reverse, so a simple return needs no
+                     typing. Change them only when the return is from/to a different place. --}}
+                <div id="return_locations" style="display:none">
+                    <div class="muted" style="margin:0 0 8px;font-size:13px">Addresses default to the reverse of the outbound; edit them if the return is different.</div>
+                    <div class="field">
+                        <label for="return_pickup_postcode">Return pickup postcode</label>
+                        <input id="return_pickup_postcode" name="return_pickup_postcode" data-postcode-fill="#return_pickup_address" autocomplete="off"
+                               placeholder="e.g. DE45 1SP" value="{{ old('return_pickup_postcode') }}" style="text-transform:uppercase">
+                    </div>
+                    <div class="field">
+                        <label for="return_pickup_address">Return pickup address</label>
+                        <div class="loc-row">
+                            <span class="pin">A</span>
+                            <div class="grow">
+                                <textarea id="return_pickup_address" name="return_pickup_address" data-places data-postcode-target="#return_pickup_postcode" autocomplete="off" placeholder="Where the return journey starts">{{ old('return_pickup_address') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="return_destination_postcode">Return destination postcode</label>
+                        <input id="return_destination_postcode" name="return_destination_postcode" data-postcode-fill="#return_destination_address" autocomplete="off"
+                               placeholder="e.g. S1 2BP" value="{{ old('return_destination_postcode') }}" style="text-transform:uppercase">
+                    </div>
+                    <div class="field" style="margin-bottom:0">
+                        <label for="return_destination_address">Return destination address</label>
+                        <div class="loc-row">
+                            <span class="pin drop">B</span>
+                            <div class="grow">
+                                <textarea id="return_destination_address" name="return_destination_address" data-places data-postcode-target="#return_destination_postcode" autocomplete="off" placeholder="Where the return journey ends">{{ old('return_destination_address') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    {{-- The return leg's own vehicle + price (ETO-style): defaults to the
+                         outbound vehicle and the live quote for the return route; change
+                         either, or type your own return price. --}}
+                    <div class="grid grid-2" style="margin-top:10px">
+                        <div class="field" style="margin-bottom:0">
+                            <label for="return_vehicle_type_id">Return vehicle</label>
+                            <select id="return_vehicle_type_id" name="return_vehicle_type_id">
+                                <option value="">Same as outbound</option>
+                                @foreach($vehicleTypes as $vt)
+                                    <option value="{{ $vt->id }}" @selected((string) old('return_vehicle_type_id') === (string) $vt->id)>{{ $vt->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field" style="margin-bottom:0">
+                            <label for="return_leg_price">Return price (£)</label>
+                            <input id="return_leg_price" type="number" step="0.01" min="0" inputmode="decimal" value="{{ old('leg_price_return') }}" placeholder="live quote">
+                            <div class="hint" id="return-price-hint" style="margin-top:4px"></div>
+                        </div>
+                    </div>
+                    {{-- The return leg's own party and luggage. They follow the outbound
+                         automatically until the office changes one (the party sometimes
+                         changes on the way back). Blank = same as outbound. --}}
+                    <div class="field" id="return-pax-field" style="margin:12px 0 0">
+                        <label>Return passengers &amp; luggage <span class="muted">(follows the outbound unless you change it)</span></label>
+                        <div class="bk-ret-pax">
+                            <div class="stepper-field">
+                                <span class="lbl">Passengers</span>
+                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                                    <input id="return_passengers" type="number" name="return_passengers" min="1" max="60" value="{{ old('return_passengers') }}" data-follow="passengers">
+                                    <button type="button" data-inc>+</button></div>
+                            </div>
+                            <div class="stepper-field">
+                                <span class="lbl">Suitcases</span>
+                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                                    <input id="return_suitcases" type="number" name="return_suitcases" min="0" max="30" value="{{ old('return_suitcases') }}" data-follow="suitcases">
+                                    <button type="button" data-inc>+</button></div>
+                            </div>
+                            <div class="stepper-field">
+                                <span class="lbl">Cabin bags</span>
+                                <div class="stepper" data-stepper><button type="button" data-dec>−</button>
+                                    <input id="return_hand_luggage" type="number" name="return_hand_luggage" min="0" max="30" value="{{ old('return_hand_luggage') }}" data-follow="hand_luggage">
+                                    <button type="button" data-inc>+</button></div>
+                            </div>
+                        </div>
+                        <button type="button" class="link-btn" id="return-pax-reset" hidden style="margin-top:6px;background:none;border:0;padding:0;color:#1d4ed8;text-decoration:underline;cursor:pointer;font:inherit;font-size:13px">Match the outbound again</button>
+                        @error('return_passengers') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="field" style="margin:10px 0 0">
+                        <label for="return_flight_number">Return flight number <span class="muted">(only if the return collects from an airport)</span></label>
+                        <input id="return_flight_number" name="return_flight_number" value="{{ old('return_flight_number') }}" placeholder="e.g. EZY1234" style="text-transform:uppercase">
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -859,6 +868,8 @@
                 var isReturn = journey.value === 'return';
                 var isHourly = journey.value === 'hourly';
                 if (returnField) returnField.style.display = isReturn ? '' : 'none';
+                var retSection = document.getElementById('return-section');
+                if (retSection) retSection.style.display = isReturn ? '' : 'none';
                 if (returnLocations) {
                     returnLocations.style.display = isReturn ? '' : 'none';
                     // Seed the reverse the first time it's shown (unless old() restored
@@ -962,7 +973,34 @@
                     flightIn.classList.toggle('flight-missing', missing);
                     if (flightNeeded) flightNeeded.hidden = !missing;
                 }
+                // Fill the Airport box (driver rotation) from the address, e.g. MAN for
+                // "Manchester Airport (MAN)". Only while it's empty or was filled by us; a
+                // choice the office makes by hand is never overwritten.
+                var AIRPORT_CODES = {
+                    MAN: /\(man\)|manchester\s+airport|\bm90\b/, LHR: /heathrow|\(lhr\)|\btw6\b/, LGW: /gatwick|\(lgw\)|\brh6\s*0/,
+                    STN: /stansted|\(stn\)|\bcm24\b/, LTN: /luton\s+airport|london\s+luton|\(ltn\)|\blu2\s*9/,
+                    EMA: /east\s+midlands\s+airport|\(ema\)|\bde74\s*2/, LBA: /leeds\s+bradford|\(lba\)|\bls19\s*7/,
+                    BHX: /birmingham\s+airport|\(bhx\)|\bb26\s*3/, LPL: /john\s+lennon|liverpool\s+airport|\(lpl\)|\bl24\s*1/
+                };
+                function airportCodeIn(v) {
+                    var t = String(v || '').toLowerCase();
+                    for (var c in AIRPORT_CODES) { if (AIRPORT_CODES[c].test(t)) return c; }
+                    return null;
+                }
+                var airportAuto = false;
+                if (airportSel) airportSel.addEventListener('change', function () { if (!airportSel.dataset.setting) airportAuto = false; });
+                function autoAirport() {
+                    if (!airportSel || (airportSel.value && !airportAuto)) return;
+                    var code = airportCodeIn(pickup && pickup.value) || airportCodeIn(dest && dest.value);
+                    var opt = code ? airportSel.querySelector('option[data-code="' + code + '"]') : null;
+                    var want = opt ? opt.value : '';
+                    if (airportSel.value !== want) {
+                        airportSel.dataset.setting = '1'; airportSel.value = want; airportSel.dispatchEvent(new Event('change')); delete airportSel.dataset.setting;
+                    }
+                    airportAuto = !!want;
+                }
                 function apply() {
+                    autoAirport();
                     var any = isAnyAirport();
                     var arrival = pickupIsAirport();
                     placeFlightFields(arrival);
