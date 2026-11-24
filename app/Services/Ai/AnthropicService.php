@@ -63,6 +63,45 @@ class AnthropicService
     }
 
     /**
+     * Multi-turn call with tools (the phone agent). Returns the raw response body
+     * (content blocks + stop_reason) or null on failure / when unconfigured.
+     *
+     * @param  array<int, array<string, mixed>>  $messages
+     * @param  array<int, array<string, mixed>>  $tools
+     * @return array<string, mixed>|null
+     */
+    public function chat(array $messages, ?string $system = null, array $tools = [], array $options = []): ?array
+    {
+        if (! $this->configured()) {
+            return null;
+        }
+        try {
+            $body = array_filter([
+                'model' => $options['model'] ?? $this->model(),
+                'max_tokens' => $options['max_tokens'] ?? 400,
+                'system' => $system,
+                'messages' => $messages,
+                'tools' => $tools ?: null,
+            ], fn ($v) => $v !== null);
+            $response = Http::withHeaders([
+                'x-api-key' => config('services.anthropic.key'),
+                'anthropic-version' => config('services.anthropic.version', '2023-06-01'),
+                'content-type' => 'application/json',
+            ])->timeout($options['timeout'] ?? 12)
+                ->post(rtrim(config('services.anthropic.base_url'), '/').'/v1/messages', $body);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+            Log::warning('Anthropic chat failed', ['status' => $response->status(), 'body' => $response->body()]);
+        } catch (\Throwable $e) {
+            Log::warning('Anthropic chat exception', ['error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
      * Convenience: request a JSON object back and decode it. Returns null if the
      * model is unavailable or the response is not valid JSON.
      *

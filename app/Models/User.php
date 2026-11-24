@@ -115,6 +115,7 @@ class User extends Authenticatable
         'masked_message' => 'Message on the masked line (directors only)',
         'masked_call' => 'Call on the masked line (directors only)',
         'location_blocked' => 'Driver blocked from a status (wrong place / no location)',
+        'ai_call' => 'AI phone agent: booking request, message or transfer',
     ];
 
     /** Preference defaults: every alert on, critical-only off, chime/alarm off. */

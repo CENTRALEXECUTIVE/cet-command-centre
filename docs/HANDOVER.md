@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **24 Nov 2026 — AI phone agent (v1, Twilio speech + Claude).** Directors' choices: answer + quote + take booking (office confirms via Paste a booking), ring directors when needed (else take a message), new Twilio number, NO texts to callers. `Services/Voice/PhoneAgent` (quotes ONLY via QuoteService+TripPricer like the widget), `Webhooks/AiVoiceController` (/webhooks/ai-voice, /turn, /dial-done, /status, ?secret=), `phone_calls` table (migration 2026_11_24_000001), admin page /phone-calls (sidebar AI phone calls), alert type ai_call. Config cet.ai_voice.* (CET_AI_VOICE_*). Not live until a Twilio number points at it. Open: directors want a human-sounding voice like a TikTok demo; v1 uses Twilio <Say> + <Gather>, so 2-3s gaps. Next step proposed: ElevenLabs/Vapi-style realtime voice calling our tools.
+
 - **23 Nov 2026 — Softer plate blur on all 149 posts.** Directors: the pixel-block blur looked unprofessional. New `scripts/cet_soft_blur.py` (feathered gaussian, keeps the plate's shape, still unreadable) used by `genn.py`. Next: rewrite posts as location/route posts (e.g. Heathrow T3 Upper Class Wing) in the izec style once directors confirm photo locations.
 
 - **23 Nov 2026 — Batch 3 social posts from 9 new photos.** 14 images in `resources/social-media/b3/` (boot with 2 big cases, rear seats/water/USB, E-Class at dawn, hotel entrance), NIGHT theme, all plates blurred (pre-blurred copies b1–b9 in the photo library). Captions/schedule 16–29 Jan 2027 via migration `2026_11_23_000003_social_batch_three` (needs migrate; auto-deploy runs it). `genn.py` gained `band` for wide photos.

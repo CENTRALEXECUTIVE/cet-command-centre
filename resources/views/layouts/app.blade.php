@@ -47,6 +47,7 @@
                 @if($u->isAdmin())
                     <a href="{{ route('assistant.index') }}" class="{{ request()->routeIs('assistant.*') ? 'active' : '' }}">🧑‍💼 My assistant</a>
                     <a href="{{ route('intake.index') }}" class="{{ request()->routeIs('intake.*') ? 'active' : '' }}">📥 Paste a booking</a>
+                    <a href="{{ route('phone-calls.index') }}" class="{{ request()->routeIs('phone-calls.*') ? 'active' : '' }}">☎ AI phone calls</a>
                 @endif
                 @if($u->isAdmin() || $u->isDriver())
                     <a href="{{ route('driver.jobs') }}" class="{{ request()->routeIs('driver.jobs') || request()->routeIs('driver.job') || request()->routeIs('driver.earnings') ? 'active' : '' }}">🚘 My jobs</a>

@@ -344,6 +344,18 @@ return [
     // Shared secret guarding inbound webhooks (e.g. Twilio missed-call).
     'webhook_secret' => env('CET_WEBHOOK_SECRET', ''),
 
+    // AI phone agent (23 Nov 2026). Twilio number -> /webhooks/ai-voice?secret=...
+    // voice: any Twilio <Say> voice (Google.* / Polly.* neural). transfer: numbers to ring
+    // when a caller wants a person (comma separated, +44...); empty = the super-admins' phones.
+    'ai_voice' => [
+        'enabled' => env('CET_AI_VOICE_ENABLED', true),
+        'model' => env('CET_AI_VOICE_MODEL'),
+        'voice' => env('CET_AI_VOICE_VOICE', 'Google.en-GB-Neural2-C'),
+        'agent_name' => env('CET_AI_VOICE_NAME', 'Sophie'),
+        'transfer' => env('CET_AI_VOICE_TRANSFER', ''),
+        'max_turns' => 40,
+    ],
+
     // Flight delay (minutes) that triggers an automatic pickup adjustment, and
     // how many hours BEFORE pickup to start watching a flight. A tighter window
     // means far fewer API calls — enough to stay inside a free flight-data tier.

@@ -426,6 +426,10 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Paste a message → formats it into the exact CET calendar block to copy
         // onto Google Calendar. Never creates a booking (calendar is the origin).
         Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
+        // AI phone agent: calls answered, booking requests to confirm.
+        Route::get('phone-calls', [\App\Http\Controllers\Admin\PhoneCallController::class, 'index'])->name('phone-calls.index');
+        Route::get('phone-calls/{call}', [\App\Http\Controllers\Admin\PhoneCallController::class, 'show'])->name('phone-calls.show');
+        Route::post('phone-calls/{call}/reviewed', [\App\Http\Controllers\Admin\PhoneCallController::class, 'reviewed'])->name('phone-calls.reviewed');
         Route::post('intake/preview', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'preview'])
             ->middleware('throttle:30,1')->name('intake.preview');
         Route::post('intake/store', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'store'])
@@ -590,6 +594,15 @@ Route::post('webhooks/twilio-proxy', [WebhookController::class, 'proxyEvent'])
 Route::post('webhooks/sms', [WebhookController::class, 'sms'])
     ->middleware('throttle:120,1')
     ->name('webhooks.sms');
+// AI phone agent (Twilio voice; secret in the query string).
+Route::post('webhooks/ai-voice', [\App\Http\Controllers\Webhooks\AiVoiceController::class, 'incoming'])
+    ->middleware('throttle:120,1')->name('webhooks.ai-voice');
+Route::post('webhooks/ai-voice/turn', [\App\Http\Controllers\Webhooks\AiVoiceController::class, 'turn'])
+    ->middleware('throttle:300,1')->name('webhooks.ai-voice.turn');
+Route::post('webhooks/ai-voice/dial-done', [\App\Http\Controllers\Webhooks\AiVoiceController::class, 'dialDone'])
+    ->middleware('throttle:120,1')->name('webhooks.ai-voice.dial-done');
+Route::post('webhooks/ai-voice/status', [\App\Http\Controllers\Webhooks\AiVoiceController::class, 'status'])
+    ->middleware('throttle:120,1')->name('webhooks.ai-voice.status');
 Route::post('webhooks/voice', [WebhookController::class, 'voice'])
     ->middleware('throttle:120,1')
     ->name('webhooks.voice');
