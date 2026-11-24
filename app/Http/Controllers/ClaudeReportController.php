@@ -166,6 +166,46 @@ class ClaudeReportController extends Controller
      * contact details. Week by week: bookings, how they came in, new vs returning
      * customers, how they heard about us, and campaign/link tags.
      */
+    /**
+     * Masked-line health for Claude (directors, 24 Nov 2026): is Twilio opening masked
+     * lines and are calls/texts reaching us? Counts and timestamps only: no numbers,
+     * no message content, no customer details.
+     */
+    public function masking(Request $request): JsonResponse
+    {
+        abort_unless(self::tokenMatches($request->bearerToken()), 404);
+        $tz = config('app.timezone', 'Europe/London');
+        $fmt = fn ($t) => $t ? Carbon::parse($t)->timezone($tz)->format('D j M Y H:i') : null;
+        $since = fn (int $d) => now()->subDays($d);
+
+        $events = \App\Models\ProxyEvent::query();
+        $alerts = \App\Models\WatchdogEvent::whereIn('event_type', ['masked_message', 'masked_call']);
+
+        return response()->json([
+            'configured' => [
+                'twilio_account' => filled(config('services.twilio.sid')) && filled(config('services.twilio.token')),
+                'proxy_service' => filled(config('services.twilio.proxy_service_sid')),
+            ],
+            'sessions' => [
+                'open_now' => \App\Models\ProxySession::where('status', 'open')->count(),
+                'opened_last_7_days' => \App\Models\ProxySession::where('opened_at', '>=', $since(7))->count(),
+                'failed_last_7_days' => \App\Models\ProxySession::where('status', 'failed')->where('updated_at', '>=', $since(7))->count(),
+                'last_opened' => $fmt(\App\Models\ProxySession::max('opened_at')),
+            ],
+            'events' => [
+                'last_event' => $fmt((clone $events)->max('occurred_at')),
+                'last_7_days_by_type' => (clone $events)->where('occurred_at', '>=', $since(7))
+                    ->selectRaw('event_type, count(*) as n')->groupBy('event_type')->pluck('n', 'event_type'),
+            ],
+            'alerts_sent' => [
+                'last_message_alert' => $fmt((clone $alerts)->where('event_type', 'masked_message')->max('occurred_at')),
+                'last_call_alert' => $fmt((clone $alerts)->where('event_type', 'masked_call')->max('occurred_at')),
+                'last_30_days' => (clone $alerts)->where('occurred_at', '>=', $since(30))
+                    ->selectRaw('event_type, count(*) as n')->groupBy('event_type')->pluck('n', 'event_type'),
+            ],
+        ]);
+    }
+
     public function sources(Request $request): JsonResponse
     {
         abort_unless(self::tokenMatches($request->bearerToken()), 404);

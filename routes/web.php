@@ -631,6 +631,8 @@ Route::get('reports/claude/booking', [\App\Http\Controllers\ClaudeReportControll
     ->middleware('throttle:30,1')->name('claude.report.booking');
 Route::get('reports/claude/sources', [\App\Http\Controllers\ClaudeReportController::class, 'sources'])
     ->middleware('throttle:30,1')->name('claude.report.sources');
+Route::get('reports/claude/masking', [\App\Http\Controllers\ClaudeReportController::class, 'masking'])
+    ->middleware('throttle:30,1')->name('claude.report.masking');
 Route::post('webhooks/stripe', [WebhookController::class, 'stripe'])
     ->middleware('throttle:120,1')
     ->name('webhooks.stripe');

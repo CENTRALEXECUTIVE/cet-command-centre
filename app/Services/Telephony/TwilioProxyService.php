@@ -297,10 +297,6 @@ class TwilioProxyService
      */
     private function notifyCommunicationActivity(ProxyEvent $event, array $payload): void
     {
-        if (! $event->booking_id) {
-            return;
-        }
-
         $type = strtolower((string) ($payload['interactionType'] ?? ''));
         $inbound = strtolower((string) ($payload['inboundResourceType'] ?? ''));
         $isMessage = str_contains($type, 'message') || in_array($inbound, ['sms', 'message'], true);
@@ -309,6 +305,12 @@ class TwilioProxyService
             || filled($payload['CallStatus'] ?? null);
 
         if (! $isMessage && ! $isCall) {
+            return;
+        }
+        // Not tied to a booking (e.g. out-of-session contact): still tell the directors.
+        if (! $event->booking_id) {
+            MaskedActivity::notify(null, $isMessage ? 'message' : 'call');
+
             return;
         }
         // A text takes priority if an interaction somehow flags both.

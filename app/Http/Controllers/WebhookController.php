@@ -30,6 +30,14 @@ class WebhookController extends Controller
         $from = $request->input('From') ?? $request->input('from');
         $resolved = $from ? $this->masking->resolve($from) : null;
 
+        // Directors: "notify me if there's a call or message" (24 Nov 2026). Body-free,
+        // deduped, best-effort: never blocks the call.
+        try {
+            \App\Services\Telephony\MaskedActivity::notify(is_array($resolved) ? ($resolved['booking'] ?? null) : null, 'call');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('masked-call notify failed', ['error' => $e->getMessage()]);
+        }
+
         return response($this->masking->dialTwiml($resolved), 200)
             ->header('Content-Type', 'text/xml');
     }

@@ -300,6 +300,14 @@ class MaskingService
         // Ping the directors that the driver and customer are texting on the masked
         // line — body-free (we never store or send the content; they open the
         // booking's transcript to read it). Best-effort: must never block the relay.
+        if (! $sent || empty($resolved['booking'])) {
+            // A text that couldn't be matched to a live job still gets a ping (no content).
+            try {
+                \App\Services\Telephony\MaskedActivity::notify(null, 'message');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('masked-message notify failed', ['error' => $e->getMessage()]);
+            }
+        }
         if ($sent && ! empty($resolved['booking'])) {
             try {
                 // $resolved['to'] is who the text is going TO; the SENDER is the other party.
