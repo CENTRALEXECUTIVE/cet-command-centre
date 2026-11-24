@@ -344,6 +344,10 @@ return [
     // Shared secret guarding inbound webhooks (e.g. Twilio missed-call).
     'webhook_secret' => env('CET_WEBHOOK_SECRET', ''),
 
+    // Where staff password-reset links ALSO go for admin accounts (director logins
+    // abdi@/maj@ aren't real mailboxes). 24 Nov 2026.
+    'recovery_email' => env('CET_RECOVERY_EMAIL', 'admin@centralexecutivetransfers.co.uk'),
+
     // AI phone agent (23 Nov 2026). Twilio number -> /webhooks/ai-voice?secret=...
     // voice: any Twilio <Say> voice (Google.* / Polly.* neural). transfer: numbers to ring
     // when a caller wants a person (comma separated, +44...); empty = the super-admins' phones.

@@ -19,6 +19,9 @@
                 <div class="sub">Command Centre &middot; Secure sign in</div>
             </div>
 
+            @if(session('status'))
+                <div class="alert alert-success">{{ session('status') }}</div>
+            @endif
             @if($errors->any())
                 <div class="alert alert-error">{{ $errors->first() }}</div>
             @endif
@@ -46,6 +49,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Sign in</button>
             </form>
+            <p style="text-align:center;margin:14px 0 0"><a href="{{ route('password.request') }}">Forgot password?</a></p>
 
             <p class="hint" style="text-align:center;margin-top:20px">
                 Accounts are issued by CET administrators. Contact the office if you need access.

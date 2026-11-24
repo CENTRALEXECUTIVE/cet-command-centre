@@ -57,6 +57,11 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:10,1');
+    // Forgot password (24 Nov 2026): reset link to the account email + office inbox.
+    Route::get('forgot-password', [\App\Http\Controllers\Auth\StaffPasswordResetController::class, 'request'])->name('password.request');
+    Route::post('forgot-password', [\App\Http\Controllers\Auth\StaffPasswordResetController::class, 'email'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('reset-password/{token}', [\App\Http\Controllers\Auth\StaffPasswordResetController::class, 'edit'])->name('password.reset');
+    Route::post('reset-password', [\App\Http\Controllers\Auth\StaffPasswordResetController::class, 'update'])->middleware('throttle:10,1')->name('password.reset.update');
 });
 
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
