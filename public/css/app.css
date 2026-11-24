@@ -1047,7 +1047,7 @@ html[data-theme="dark"] .btn-ghost, html[data-theme="dark"] .btn-light { backgro
 .bk-day { margin-top: 14px; }
 .bk-ref { white-space: nowrap; }
 @media (max-width: 520px) {
-    .topbar-home { display: none; }           /* Home is already in the bottom bar */
+    .topbar-home { padding: 4px 4px !important; }
     .deck { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
     .kpi { padding: 12px 14px; border-radius: 14px; }
     .kpi-ico { font-size: 15px; }
@@ -1056,3 +1056,5 @@ html[data-theme="dark"] .btn-ghost, html[data-theme="dark"] .btn-light { backgro
 }
 .nav-burger { flex: none; padding: 4px 6px; margin-right: 4px; line-height: 1; }
 @media (max-width: 520px) { #global-search-form { min-width: 70px !important; margin: 0 2px !important; } .alert-bell { margin-right: 0; } }
+/* Driver screens keep a dark header in both modes: menu, Home and title must be light. */
+body.driver-app .nav-burger, body.driver-app .topbar-title, body.driver-app .topbar-home { color: #f3f3f3; }
