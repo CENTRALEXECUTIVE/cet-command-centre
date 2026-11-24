@@ -394,6 +394,7 @@
                     <div class="field" style="margin-bottom:0">
                         <label for="flight_number"><span id="flight-label-text">Flight number</span> <span class="muted" id="flight-hint">(if airport)</span></label>
                         <input id="flight_number" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1234" style="text-transform:uppercase">
+                        <div id="flight-needed" class="flight-needed" hidden>✈ Needed for an airport pickup, so we can track the flight. You can still save without it and add it later.</div>
                         @error('flight_number') <div class="error">{{ $message }}</div> @enderror
                     </div>
                     <div class="field" id="flight-landing-field" style="margin-bottom:0" hidden>
@@ -693,6 +694,11 @@
     </div>{{-- /.smart-form --}}
 
     <style>
+        /* Airport pickup: flight number sits under the pickup time, flagged (never blocks). */
+        #flight-fields.flight-up { border-top: 0 !important; padding-top: 0 !important; margin-top: 0 !important; margin-bottom: 14px; }
+        #flight_number.flight-missing { border-color: #d4a017; box-shadow: 0 0 0 3px rgba(251,186,42,.25); }
+        .flight-needed { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: #8a6100; }
+        html[data-theme="dark"] .flight-needed { color: #f2c14e; }
         /* The native select is driven by the picture cards — keep it in the DOM
            (it submits the value and the JS reads capacities from it) but hidden. */
         .smart-form .veh-select-hidden { position: absolute; width: 1px; height: 1px;
@@ -934,15 +940,38 @@
                 }
                 function isAnyAirport() { return pickupIsAirport() || looksAirport(dest && dest.value) || (airportSel && airportSel.value !== ''); }
 
+                // Airport PICKUP (directors, 24 Nov 2026): the flight number is the very
+                // next thing to fill in, so it moves up to sit straight under the pickup
+                // date & time, flagged as needed. Never blocks saving (the office may not
+                // have the flight to hand); it goes back to its usual place otherwise.
+                var flightFields = document.getElementById('flight-fields');
+                var flightHome = flightFields ? { parent: flightFields.parentNode, next: flightFields.nextSibling } : null;
+                var flightNeeded = document.getElementById('flight-needed');
+                function placeFlightFields(arrival) {
+                    if (!flightFields || !flightHome) return;
+                    var pa = document.getElementById('pickup_at');
+                    var dateRow = pa && pa.closest('.grid');
+                    if (arrival && dateRow && dateRow.nextElementSibling !== flightFields) {
+                        dateRow.parentNode.insertBefore(flightFields, dateRow.nextSibling);
+                        flightFields.classList.add('flight-up');
+                    } else if (!arrival && flightFields.classList.contains('flight-up')) {
+                        flightHome.parent.insertBefore(flightFields, flightHome.next);
+                        flightFields.classList.remove('flight-up');
+                    }
+                    var missing = arrival && !flightIn.value.trim();
+                    flightIn.classList.toggle('flight-missing', missing);
+                    if (flightNeeded) flightNeeded.hidden = !missing;
+                }
                 function apply() {
                     var any = isAnyAirport();
                     var arrival = pickupIsAirport();
+                    placeFlightFields(arrival);
                     if (note) note.hidden = !any;
                     if (landingField) landingField.hidden = !any;
                     // RECOMMENDED on an airport job, never forced — the office (admin)
                     // often doesn't have the flight to hand and can add it later.
                     flightIn.required = false;
-                    if (flightHint) flightHint.textContent = any ? '— recommended for airport jobs' : '(if airport)';
+                    if (flightHint) flightHint.textContent = arrival ? '— needed (airport pickup)' : (any ? '— recommended for airport jobs' : '(if airport)');
                     // Arrival vs departure: picking up FROM an airport tracks the arriving
                     // flight; dropping off TO an airport is a departure flight.
                     if (flightLabel) flightLabel.textContent = !any
@@ -950,7 +979,7 @@
                         : (arrival ? 'Arrival flight number' : 'Departure flight number');
                     if (flightTimeLabel) flightTimeLabel.textContent = arrival ? 'Flight landing time' : 'Flight departure time';
                     if (noteText) noteText.textContent = arrival
-                        ? 'Add the flight number and landing time below so the office can track the flight — meet & greet has been ticked for the arrivals pickup.'
+                        ? 'Add the flight number and landing time (under the pickup time) so the office can track the flight — meet & greet has been ticked for the arrivals pickup.'
                         : 'Add the flight number and landing time below so the office can track the flight.';
                     // Pre-tick meet & greet for an ARRIVAL (airport pickup); untick the
                     // auto-tick if it stops being an arrival, but never fight a manual tick.
@@ -994,6 +1023,7 @@
                     el.addEventListener('blur', apply);
                     el.addEventListener('input', apply);
                 });
+                flightIn.addEventListener('input', function () { placeFlightFields(pickupIsAirport()); });
                 apply();
             })();
 
