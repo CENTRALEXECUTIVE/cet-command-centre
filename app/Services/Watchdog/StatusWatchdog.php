@@ -133,6 +133,79 @@ class StatusWatchdog
         }
 
         $sent += $this->remindersPass();
+        $sent += $this->newBookingRepeatsPass();
+        $sent += $this->awaitingPaymentPass();
+
+        return $sent;
+    }
+
+    /**
+     * Directors (24 Nov 2026): a new website booking pushes 3 times: straight away
+     * (from the widget), then at +2 and +5 minutes, until either director opens it
+     * (meta seen_at, set by the booking page or acknowledging the alert).
+     */
+    private function newBookingRepeatsPass(): int
+    {
+        $sent = 0;
+        $new = Booking::query()->where('source', 'web')
+            ->where('created_at', '>=', now()->subMinutes(15))
+            ->where('status', '!=', BookingStatus::Cancelled->value)
+            ->with('customer')->get()
+            ->filter(fn (Booking $b) => empty($b->meta['seen_at']));
+
+        foreach ($new as $b) {
+            $age = (int) $b->created_at->diffInMinutes(now());
+            $done = \App\Models\JobNudge::where('booking_id', $b->id)->where('nudge_type', 'new_booking_repeat')->count();
+            if (! (($done === 0 && $age >= 2) || ($done === 1 && $age >= 5))) {
+                continue;
+            }
+            $name = $b->displayName() ?: 'a customer';
+            $paid = $b->payment_status === 'paid';
+            $title = ($paid ? '🔔 New PAID booking — ' : ($b->payment_method === 'cash' ? '🔔 New CASH booking — ' : '🔔 New booking, awaiting payment — ')).$name;
+            $sent += (int) $this->admins->send($b, 'new_booking_repeat', 'web_booking', $title,
+                $name.' · '.$b->pickup_at?->timezone(config('app.timezone'))->format('D d M H:i').'. Open it to stop these reminders.',
+                severity: 'info', maxSends: 2, repeatMinutes: 2);
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Unpaid website bookings (card / quote) are never lost: reminders 1h after they
+     * come in, every morning at 9, 24h before pickup and 3h before (urgent) — until
+     * paid or cancelled by a director. Nothing is ever cancelled automatically.
+     */
+    private function awaitingPaymentPass(): int
+    {
+        $sent = 0;
+        $uk = now()->timezone(config('app.timezone'));
+        $rows = Booking::awaitingWebPayment()->where('pickup_at', '>=', now())->with('customer')->get();
+
+        foreach ($rows as $b) {
+            $name = $b->displayName() ?: 'a customer';
+            $when = $b->pickup_at->timezone(config('app.timezone'))->format('D d M H:i');
+            $price = $b->fareGross() ? ' · £'.number_format((float) $b->fareGross(), 2) : '';
+            $body = $name.' · '.$when.$price.'. Still not paid. Call or send the pay link.';
+            $tries = [];
+            if ($b->pickup_at->lte(now()->addHours(3))) {
+                $tries[] = ['unpaid_3h', '🚨 UNPAID, pickup within 3h — '.$name, 'critical'];
+            }
+            if ($b->pickup_at->lte(now()->addHours(24))) {
+                $tries[] = ['unpaid_24h', '💳 Unpaid booking tomorrow — '.$name, 'warning'];
+            }
+            if ((int) $uk->format('G') === 9) {
+                $tries[] = ['unpaid_am_'.$uk->format('Ymd'), '💳 Still awaiting payment — '.$name, 'warning'];
+            }
+            if ($b->created_at->lte(now()->subHour())) {
+                $tries[] = ['unpaid_1h', '💳 Booking still awaiting payment — '.$name, 'warning'];
+            }
+            foreach ($tries as [$type, $title, $sev]) {
+                if ($this->admins->send($b, $type, 'awaiting_payment', $title, $body, severity: $sev, maxSends: 1)) {
+                    $sent++;
+                    break; // one reminder per booking per run
+                }
+            }
+        }
 
         return $sent;
     }

@@ -116,6 +116,7 @@ class User extends Authenticatable
         'masked_call' => 'Call on the masked line (directors only)',
         'location_blocked' => 'Driver blocked from a status (wrong place / no location)',
         'ai_call' => 'AI phone agent: booking request, message or transfer',
+        'awaiting_payment' => 'Website booking still awaiting payment',
     ];
 
     /** Preference defaults: every alert on, critical-only off, chime/alarm off. */

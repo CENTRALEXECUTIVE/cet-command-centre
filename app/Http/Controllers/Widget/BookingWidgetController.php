@@ -811,7 +811,9 @@ class BookingWidgetController extends Controller
                 ? ($officeQuote && $officeGuide ? 'Far from home at both ends: guide £'.number_format((float) $officeGuide, 2).'. Email them a price.' : 'Email them a price.')
                 : 'Confirm it.';
             $this->adminAlerts->notify('web_booking',
-                ($isQuoteRequest ? '💬 New quote request — ' : '🌐 New web booking — ').$name.$typeLabel,
+                ($isQuoteRequest ? '💬 New quote request — '
+                    : ($booking->payment_method === 'cash' ? '✅ New CASH booking — '
+                    : ($booking->payment_method === 'account' ? '✅ New ACCOUNT booking — ' : '🕓 New booking, awaiting payment — '))).$name.$typeLabel,
                 $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
                     .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
                 'info', $booking);

@@ -569,6 +569,11 @@ class BookingController extends Controller
 
     public function show(Request $request, Booking $booking): View|RedirectResponse
     {
+        // A director opened it: stop the "new booking" repeat pushes (24 Nov 2026).
+        if ($request->user()?->isAdmin() && empty($booking->meta['seen_at'])) {
+            $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['seen_at' => now()->toIso8601String()])])->saveQuietly();
+        }
+
         // Drivers never see the full booking (prices, payment, comms) — they get
         // the driver job screen, and only for their own job.
         if ($request->user()->isDriver() && ! $request->user()->isAdmin()) {

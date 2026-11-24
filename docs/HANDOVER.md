@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **24 Nov 2026 — New-booking repeat alerts + never lose unpaid bookings.** Every new WEB booking pushes now (title says PAID / CASH / awaiting payment), then again at +2 and +5 min until a director opens it (booking page sets meta seen_at; acknowledging the alert does too). Unpaid card/quote web bookings: dashboard box "💳 Awaiting payment" (Call / WhatsApp pay link / Mark paid / Open) + pushes (new alert type awaiting_payment) at +1h, 9am daily, 24h and 3h (critical) before pickup. Never auto-cancelled. Watchdog passes `newBookingRepeatsPass` / `awaitingPaymentPass` (needs schedule:run cron).
+
 - **24 Nov 2026 — Unpaid card/quote web bookings off the Jobs list.** Directors: they aren't jobs until paid; cash/account web bookings are. `Booking::scopeAwaitingWebPayment` / `notAwaitingWebPayment`; Jobs day view + dashboard schedule exclude them and show a folded "N website bookings awaiting payment" list. They were never pushed to Google Calendar (the Jobs view IS the office calendar now). Office-made bookings unchanged.
 
 - **24 Nov 2026 — Surname required on website bookings (option A).** Widget + public book page: separate First name / Surname boxes (customer and, when booking for someone else, the passenger), both required; server joins them via `App\Support\FullName::merge` and rejects a one-word name. Office forms unchanged.

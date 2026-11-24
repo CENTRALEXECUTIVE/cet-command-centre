@@ -63,6 +63,13 @@ class AlertsController extends Controller
         if ($event->acknowledged_at === null) {
             $event->forceFill(['acknowledged_at' => now()])->save();
         }
+        // "Seen" on a new-booking alert stops its repeat pushes.
+        if ($event->booking_id && str_starts_with((string) $event->event_type, 'web_booking')) {
+            $b = \App\Models\Booking::find($event->booking_id);
+            if ($b && empty($b->meta['seen_at'])) {
+                $b->forceFill(['meta' => array_merge($b->meta ?? [], ['seen_at' => now()->toIso8601String()])])->saveQuietly();
+            }
+        }
 
         return response()->json([
             'ok' => true,

@@ -50,6 +50,10 @@ class DashboardController extends Controller
             $todaySchedule = $this->dayJobs(today());
 
             return view('dashboard.admin', [
+                // Website card / quote bookings not paid yet: always visible until a
+                // director deals with them (directors, 24 Nov 2026). Never auto-cancelled.
+                'awaitingPayment' => Booking::awaitingWebPayment()->where('pickup_at', '>=', now()->subHours(2))
+                    ->with('customer')->orderBy('pickup_at')->get(),
                 'todayCount' => count($todaySchedule),
                 'pendingCount' => Booking::where('status', BookingStatus::Pending->value)
                     ->where('pickup_at', '>=', today())

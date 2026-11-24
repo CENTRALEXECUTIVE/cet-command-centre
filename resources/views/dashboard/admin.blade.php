@@ -25,6 +25,8 @@
     {{-- Email-feed status lives on the System Health page only — kept off the
          dashboard so it never nags. --}}
 
+    @include('dashboard.partials.awaiting-payment', ['rows' => $awaitingPayment ?? collect()])
+
     {{-- KPI command deck --}}
     <div class="deck">
         <a class="kpi" href="{{ route('jobs.day') }}">
