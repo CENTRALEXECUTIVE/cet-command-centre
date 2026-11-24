@@ -73,6 +73,25 @@ class CalendarEventBuilder
     }
 
     /** *[emoji(s) ]Customer AIRPORT (TAG)* */
+    /**
+     * The WHERE word for the title: the TOWN, never a house number. "80 Pinewood Way,
+     * Salisbury, UK, SP2 9HU" gave "80" (CET-04008C, 24 Nov 2026); now SALISBURY.
+     * Skips parts that start with a number (house + street), postcodes and the country.
+     */
+    public static function placeWord(?string $address): string
+    {
+        $postcode = '/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i';
+        $parts = collect(explode(',', (string) $address))
+            ->map(fn ($p) => trim(preg_replace($postcode, '', $p)))
+            ->filter(fn ($p) => $p !== '' && ! preg_match('/^(uk|united kingdom|england|gb|great britain)$/i', $p));
+        $pick = $parts->first(fn ($p) => ! preg_match('/^\d/', $p)) ?? $parts->first() ?? '';
+        if (preg_match('/^\d/', $pick)) {   // only a numbered street: drop the number
+            $pick = trim(preg_replace('/^[\d\-\/a-z]*\s+/i', '', $pick));
+        }
+
+        return Str::upper(Str::words($pick, 1, '')) ?: 'FREE ROAM';
+    }
+
     private function title(Booking $booking, ?string $moneyEmoji): string
     {
         $name = $booking->meta['lead_name'] ?? $booking->customer?->name ?? 'Customer';
@@ -82,7 +101,7 @@ class CalendarEventBuilder
         $where = $booking->airport?->code
             ?? \App\Support\AirportMatcher::codeFor($booking->pickup_address, $booking->destination_address)
             ?? $booking->meta['where']
-            ?? Str::upper(Str::words($booking->destination_address, 1, ''));
+            ?? self::placeWord($booking->destination_address);
         $tag = $this->tag($booking);
 
         $emojis = trim(($moneyEmoji ?? '').($this->hasChildSeat($booking) ? '🚼' : ''));

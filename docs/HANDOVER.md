@@ -14,6 +14,8 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 
 ## Session log (newest first, one line each)
 
+- **24 Nov 2026 — Calendar title uses the TOWN, not the house number.** CET-04008C read "Awais 80"; `CalendarEventBuilder::placeWord()` skips numbered street parts, postcodes and the country (now SALISBURY). Applies to titles built from now on; existing Google events are never edited automatically. Directors suspect CET-04008C is fake (10-digit number 0789456123, same for booker and passenger).
+
 - **24 Nov 2026 — No reminder nudges for unpaid quote requests.** Directors (CET-04008C, Swindon→Salisbury V-Class): a pending website quote request the customer hasn't paid must not show "Send reminder". New `Booking::scopeReminderWorthy` used by the watchdog reminder alert and the dashboard reminders list. Office bookings unchanged.
 
 - **24 Nov 2026 — Masked-line alerts on every call/text + health report.** Directors: "notify me if there's a call or message". New `Telephony\MaskedActivity::notify` now also pings for switchboard (fallback) CALLS and for calls/texts not linked to a live job (Proxy out-of-session, unmatched SMS). Body-free, 20s dedup. New read-only Claude report `/reports/claude/masking` (counts/timestamps only) so Claude can check Twilio is opening lines and events arrive.
