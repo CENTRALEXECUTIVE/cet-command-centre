@@ -58,6 +58,24 @@
     return msg;
   }
   window.cetPhoneCheck = check;
+
+  // Name boxes (data-name-required="message"): our own red note instead of the
+  // browser's grey bubble, and the box turns red; clears as soon as they type.
+  document.addEventListener('invalid', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute || !t.getAttribute('data-name-required')) return;
+    e.preventDefault();
+    var f = t.closest('.cet-field'); if (f) f.classList.add('bad');
+    var el = note(t); el.textContent = t.getAttribute('data-name-required'); el.style.color = '#b3261e'; el.hidden = false;
+    if (!document.querySelector('.cet-field.bad input:focus')) t.focus();
+  }, true);
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t && t.getAttribute && t.getAttribute('data-name-required') && String(t.value).trim()) {
+      var f = t.closest('.cet-field'); if (f) f.classList.remove('bad');
+      var el = t.parentNode.querySelector('.cet-phone-note'); if (el) el.hidden = true;
+    }
+  });
   document.addEventListener('blur', function (e) {
     if (e.target && e.target.matches && e.target.matches('[data-phone-check]')) check(e.target);
   }, true);
@@ -65,7 +83,10 @@
     var t = e.target;
     if (t && t.matches && t.matches('[data-phone-check]')) {
       var el = t.parentNode.querySelector('.cet-phone-note');
-      if (el && !el.hidden && !problem(t.value)) el.hidden = true;
+      if (!problem(t.value)) {
+        if (el) el.hidden = true;
+        var f = t.closest && t.closest('.cet-field'); if (f) f.classList.remove('bad');
+      }
     }
   });
   // Customer forms (non-AJAX): stop the submit while a blocking number is wrong.

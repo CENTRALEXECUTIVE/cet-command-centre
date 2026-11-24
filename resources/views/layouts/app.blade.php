@@ -431,6 +431,6 @@
     })();
 </script>
 @include('partials.picker-js')
-<script src="{{ asset('js/cet-phone-check.js') }}?v=1" defer></script>
+<script src="{{ asset('js/cet-phone-check.js') }}?v=2" defer></script>
 </body>
 </html>

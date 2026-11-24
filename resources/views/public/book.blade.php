@@ -215,8 +215,8 @@
         <div id="step3" class="hidden" style="margin-top:26px">
             <div class="sec-title"><span class="n">3</span> Your details</div>
             <div class="grid two">
-                <div><label class="f">First name <span class="req">*</span></label><input name="customer_first_name" autocomplete="given-name" value="{{ old('customer_first_name') }}" required></div>
-                <div><label class="f">Surname <span class="req">*</span></label><input name="customer_surname" autocomplete="family-name" value="{{ old('customer_surname') }}" required></div>
+                <div><label class="f">First name <span class="req">*</span></label><input name="customer_first_name" autocomplete="given-name" data-name-required="Please enter your first name." value="{{ old('customer_first_name') }}" required></div>
+                <div><label class="f">Surname <span class="req">*</span></label><input name="customer_surname" autocomplete="family-name" data-name-required="Please enter your surname." value="{{ old('customer_surname') }}" required></div>
             </div>
             @error('customer_surname')<div style="color:#b3261e;font-size:13px;margin-top:6px">{{ $message }}</div>@enderror
             @error('customer_name')<div style="color:#b3261e;font-size:13px;margin-top:6px">{{ $message }}</div>@enderror
@@ -275,7 +275,7 @@
     window.CET_ADDRESSES_URL = "{{ route('public.book.addresses') }}";
         window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";</script>
 <script src="{{ asset('js/cet-forms.js') }}?v=37" defer></script>
-<script src="{{ asset('js/cet-phone-check.js') }}?v=1" defer></script>
+<script src="{{ asset('js/cet-phone-check.js') }}?v=2" defer></script>
 
 <script>
 (function(){

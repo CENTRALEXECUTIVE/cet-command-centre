@@ -735,9 +735,9 @@
                                  server joins them; b-name mirrors the full name for the summary. --}}
                             <div class="cet-two cet-names">
                                 <div class="cet-field"><label for="b-first">First name</label>
-                                    <input id="b-first" name="customer_first_name" autocomplete="given-name" required></div>
+                                    <input id="b-first" name="customer_first_name" autocomplete="given-name" data-name-required="Please enter your first name." required></div>
                                 <div class="cet-field"><label for="b-last">Surname</label>
-                                    <input id="b-last" name="customer_surname" autocomplete="family-name" required></div>
+                                    <input id="b-last" name="customer_surname" autocomplete="family-name" data-name-required="Please enter your surname." required></div>
                             </div>
                             <input type="hidden" id="b-name" name="customer_name">
                             <div class="cet-two">
@@ -759,9 +759,9 @@
                             <div id="b-lead-block" hidden>
                                 <div class="cet-two">
                                     <div class="cet-field"><label for="b-lead-first">Passenger’s first name</label>
-                                        <input id="b-lead-first" name="lead_passenger_first_name" autocomplete="off"></div>
+                                        <input id="b-lead-first" name="lead_passenger_first_name" autocomplete="off" data-name-required="Please enter the passenger’s first name."></div>
                                     <div class="cet-field"><label for="b-lead-last">Passenger’s surname</label>
-                                        <input id="b-lead-last" name="lead_passenger_surname" autocomplete="off"></div>
+                                        <input id="b-lead-last" name="lead_passenger_surname" autocomplete="off" data-name-required="Please enter the passenger’s surname."></div>
                                 </div>
                                 <input type="hidden" id="b-lead-name" name="lead_passenger_name">
                                 <div class="cet-two">
@@ -923,7 +923,7 @@
     {{-- Free Google website translation, driven by the styled switcher in the hero.
          Google's own widget is hidden; our <select> sets the language. --}}
     <div id="google_translate_element" translate="no"></div>
-    <script src="{{ asset('js/cet-phone-check.js') }}?v=1"></script>
+    <script src="{{ asset('js/cet-phone-check.js') }}?v=2"></script>
     <script>
         window.googleTranslateElementInit = function () {
             try { new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element'); } catch (e) {}
