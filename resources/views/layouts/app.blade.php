@@ -149,7 +149,7 @@
                 </a>
                 <form method="GET" action="{{ route('bookings.index') }}" role="search" id="global-search-form"
                       style="flex:1;max-width:340px;margin:0 12px;min-width:110px;position:relative">
-                    <input type="search" id="global-search" name="q" value="{{ request('q') }}" placeholder="🔍 Search anything…  ( / )"
+                    <input type="search" id="global-search" name="q" value="{{ request('q') }}" placeholder="🔍 Search…"
                            aria-label="Search bookings, customers, drivers, vehicles, accounts" autocomplete="off"
                            data-url="{{ route('quick-search') }}"
                            style="width:100%;padding:7px 12px;border:1px solid rgba(128,128,128,.4);border-radius:8px;font-size:13px;background:#fff;color:#111">

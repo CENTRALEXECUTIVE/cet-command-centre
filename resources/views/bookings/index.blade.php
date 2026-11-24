@@ -40,7 +40,10 @@
                    class="bk-tab {{ empty($month) && ($filter ?? 'upcoming') === $key ? 'active' : '' }}">{{ $label }}</a>
             @endforeach
         </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        @php $activeFilters = collect([$statusFilter ?? null, $driverName ?? null, request('from'), request('to')])->filter()->count(); @endphp
+        <details class="bk-filters" @if($activeFilters) open @endif>
+        <summary class="btn btn-ghost">⚙ Filters @if($activeFilters)<span class="bk-day-count">{{ $activeFilters }}</span>@endif</summary>
+        <div class="bk-filters-body">
             {{-- Status filter: pending / completed / cancelled / … --}}
             <form method="GET" action="{{ route('bookings.index') }}" style="display:flex;align-items:center;gap:6px">
                 @if(!empty($q))<input type="hidden" name="q" value="{{ $q }}">@endif
@@ -106,6 +109,11 @@
                 <a href="{{ route('bookings.export', $exportParams) }}" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;white-space:nowrap" title="Download this view as CSV">⬇ Export</a>
             @endif
         </div>
+        </details>
+        <script>
+            // Filters sit open on a desk screen; on a phone they fold behind one button.
+            (function () { var d = document.querySelector('.bk-filters'); if (d && window.matchMedia('(min-width: 721px)').matches) d.open = true; })();
+        </script>
     </div>
     @if(request()->hasAny(['from', 'to']))
         @php

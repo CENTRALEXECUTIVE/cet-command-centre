@@ -13,6 +13,7 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- 24 Nov 2026 (b): Small design polish (directors said keep current layout, no big redesign; Chronograph concept dropped): phone header tidier (menu icon spaced, no duplicate Home icon, search shrinks so Sign out fits), dashboard tiles compact on phones (mobile CSS was being overridden), bookings filters fold behind one "Filters" button on phones (open on desktop / when a filter is set), booking refs no longer split. CSS v33. Open: settings to super-admin only + audit log, director break-glass CLI, logout other devices, uptime monitor, off-site backups, 2FA.
 
 - **24 Nov 2026 — Full UI audit + readability pass.** Playwright audit of 75 staff pages × light/dark at phone width with an automatic contrast scan. Dark mode failures 1000+ → 83 (token overrides in app.css: --muted/--gold-dark/--line for dark, dispatch cards, calendar cells, inline greys/greens/reds, pale inline panels, date pickers). Fixed sideways scroll (dashboard, bookings, settings), one-line phone header title, deeper WhatsApp green, cookie banner removed from the staff app (kept on public/login pages). asset_version 32. Gap audit findings (backups off-site, 2FA, settings audit trail, etc.) reported to directors; not built yet.
 

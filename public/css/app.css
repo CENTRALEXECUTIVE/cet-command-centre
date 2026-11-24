@@ -1028,3 +1028,31 @@ html[data-theme="dark"] .cal-cell { background: #151b2c; border-color: rgba(255,
 html[data-theme="dark"] .btn[style*="#b32020"], html[data-theme="dark"] button[style*="#b32020"],
 html[data-theme="dark"] a.btn[style*="#b32020"] { background: #2a1517 !important; border-color: rgba(255,143,135,.45) !important; }
 html[data-theme="dark"] .btn-ghost, html[data-theme="dark"] .btn-light { background: #1b2133; color: #e8ecf4; border-color: rgba(255,255,255,.14); }
+
+/* ----- Small polish (24 Nov 2026): tidy phone header, compact tiles, folded filters ----- */
+.bk-filters > summary { list-style: none; cursor: pointer; padding: 8px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.bk-filters > summary::-webkit-details-marker { display: none; }
+.bk-filters-body { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+@media (min-width: 721px) { .bk-filters > summary { display: none; } }
+@media (max-width: 720px) {
+    .bk-filters { width: 100%; }
+    .bk-filters[open] > summary { margin-bottom: 10px; }
+    .bk-filters-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+    .bk-filters-body > form { flex-wrap: wrap; min-width: 0; }
+    .bk-filters-body > form:nth-of-type(3) { grid-column: 1 / -1; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .bk-filters-body select, .bk-filters-body input[type=date] { width: 100% !important; min-width: 0; }
+    .bk-filters-body > form > div { min-width: 0; }
+    .bk-filters-body > a.btn { justify-self: start; }
+}
+.bk-day { margin-top: 14px; }
+.bk-ref { white-space: nowrap; }
+@media (max-width: 520px) {
+    .topbar-home { display: none; }           /* Home is already in the bottom bar */
+    .deck { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+    .kpi { padding: 12px 14px; border-radius: 14px; }
+    .kpi-ico { font-size: 15px; }
+    .kpi-n { font-size: 22px; margin-top: 2px; }
+    .kpi-l { font-size: 10.5px; letter-spacing: .3px; }
+}
+.nav-burger { flex: none; padding: 4px 6px; margin-right: 4px; line-height: 1; }
+@media (max-width: 520px) { #global-search-form { min-width: 70px !important; margin: 0 2px !important; } .alert-bell { margin-right: 0; } }
