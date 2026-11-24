@@ -1111,3 +1111,4 @@ html[data-theme="dark"] [style*="color:#b8323b"], html[data-theme="dark"] [style
 html[data-theme="dark"] [style*="color:#8a6100"] { color: #f2c14e !important; }
 /* Booking refs in page titles stay whole. */
 .topbar-title .ref-nb { white-space: nowrap; }
+@media (max-width: 380px) { .topbar-title { font-size: 12px; letter-spacing: -.1px; } .topbar .theme-toggle { width: 32px; height: 32px; } }
