@@ -13,6 +13,7 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- 24 Nov 2026 (e): Fix: driver job details labels were splitting mid-word ("PICKU P") because the readability pass set overflow-wrap:anywhere on every card. Now break-word (wraps at spaces only); only .mono emails/refs may break anywhere. CSS v35.
 - 24 Nov 2026 (d): Security: drivers could open /invoices (all company invoices + PDFs) and /jobs/day (every job of the day with customers) by typing the address. Both now admin (invoices: admin or that corporate client) only. Sidebar was already role-filtered (drivers see Dashboard, My jobs, My documents). Test DriverCannotSeeOfficePagesTest.
 - 24 Nov 2026 (c): Driver job screen fix: header Home icon restored on phones (job screen has no bottom bar), and menu/Home/title are light on the always-dark driver header in light mode (they were invisible). CSS v34.
 - 24 Nov 2026 (b): Small design polish (directors said keep current layout, no big redesign; Chronograph concept dropped): phone header tidier (menu icon spaced, no duplicate Home icon, search shrinks so Sign out fits), dashboard tiles compact on phones (mobile CSS was being overridden), bookings filters fold behind one "Filters" button on phones (open on desktop / when a filter is set), booking refs no longer split. CSS v33. Open: settings to super-admin only + audit log, director break-glass CLI, logout other devices, uptime monitor, off-site backups, 2FA.

@@ -999,8 +999,9 @@ html[data-theme="dark"] input[type="time"] { color-scheme: dark; }
 }
 .dash-hero { overflow: hidden; }
 .list-head > div, .list-head form { flex-wrap: wrap; }
-.card, .card * { overflow-wrap: anywhere; }
+.card, .card * { overflow-wrap: break-word; }   /* wrap long text at spaces; never split a word mid-way */
 .card input, .card select, .card textarea, .card table { overflow-wrap: normal; }
+.card .mono { overflow-wrap: anywhere; }   /* long emails / refs may still break so they never spill off a phone */
 
 /* Readability pass, part 2: screens with hard-coded light colours. */
 html[data-theme="dark"] .job-card .meta { color: #b4bccb; }
