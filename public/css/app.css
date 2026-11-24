@@ -4,7 +4,7 @@
 
 :root {
     --gold: #FBBA2A;
-    --gold-dark: #b7800c;                 /* gold link on white — AA readable */
+    --gold-dark: #8a6100;                 /* gold link on white — 5.5:1, AA readable */
     --black: #0b0b0b;
     --ink: #111111;                       /* body text: near-black on white */
     --muted: #555555;                     /* secondary text still clearly visible */
@@ -182,7 +182,7 @@ tr:last-child td { border-bottom: none; }
 .badge-pending { background: #fff4d6; color: #8a6d00; }
 .badge-allocated { background: #e0ecff; color: #1d4ed8; }
 .badge-accepted { background: #e3f0ff; color: #1e63c7; }
-.badge-en_route { background: #fde9c8; color: #b25e00; }
+.badge-en_route { background: #fde9c8; color: #8a4700; }
 .badge-collected { background: #e7e0ff; color: #5b2bc7; }
 .badge-complete { background: #d9f3e2; color: #1f7a44; }
 .badge-cancelled, .badge-no_show { background: #fbe0e0; color: #b32020; }
@@ -354,8 +354,8 @@ html[data-theme="dark"] .date-today { background: var(--gold); color: #111; bord
 .tap-actions { display: grid; gap: 10px; margin-top: 16px; }
 .tap-actions button { padding: 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
 .tap-accept { background: #1d4ed8; color: #fff; } .tap-go { background: var(--gold); color: var(--black); }
-.tap-collect { background: #5b2bc7; color: #fff; } .tap-complete { background: var(--green); color: #fff; }
-.tap-cancel { background: #fff; color: var(--red); border: 1px solid #f3c2c2 !important; }
+.tap-collect { background: #5b2bc7; color: #fff; } .tap-complete { background: #15803d; color: #fff; }
+.tap-cancel { background: #fff; color: #b32020; border: 1px solid #f3c2c2 !important; }
 .tap-arrive { background: #b25e00; color: #fff; }
 
 /* ----- Driver status badge tint ----- */
@@ -457,7 +457,8 @@ html[data-theme="dark"] .table-modern.table-cards tbody td { border-bottom-color
 .nav-scrim { display: none; }
 
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); transition: transform .2s ease; width: 260px; box-shadow: 2px 0 18px rgba(0,0,0,.35); }
+  .sidebar { transform: translateX(-100%); transition: transform .2s ease, box-shadow .2s ease; width: 260px; box-shadow: none; }
+  .nav-toggle-cb:checked ~ .app-shell .sidebar { box-shadow: 2px 0 18px rgba(0,0,0,.35); }
   .content-area { margin-left: 0; padding-bottom: 66px; } /* room for the tab bar */
   .nav-burger { display: block; }
   .nav-toggle-cb:checked ~ .app-shell .sidebar { transform: translateX(0); }
@@ -974,23 +975,22 @@ html[data-theme="dark"] .bk-edit:hover { color: #fff; }
 html[data-theme="dark"] .job-card { background: #151b2c; border-color: rgba(255,255,255,.10); color: #e8ecf4; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
 html[data-theme="dark"] .job-card .time, html[data-theme="dark"] .job-card strong { color: #fff; }
 /* Red danger text (inline #b32020) and dark gold (#a86b00 / #8a6d00) on dark panels. */
-html[data-theme="dark"] [style*="#b32020"], html[data-theme="dark"] [style*="#B32020"],
-html[data-theme="dark"] .btn-danger-ghost { color: #ff8f87 !important; }
+html[data-theme="dark"] [style*="color:#b32020"], html[data-theme="dark"] [style*="color: #b32020"],
+html[data-theme="dark"] [style*="color:#B32020"], html[data-theme="dark"] .btn-danger-ghost { color: #ff8f87 !important; }
 html[data-theme="dark"] [style*="#a86b00"], html[data-theme="dark"] [style*="#8a6d00"],
 html[data-theme="dark"] [style*="#b9770a"] { color: #f2c14e !important; }
 /* Sidebar group headings (#6f6f6f on near-black). */
 html[data-theme="dark"] .nav-fold > summary { color: #a7b0bf; }
 /* WhatsApp buttons: brand green with white text was 2:1. Deeper WhatsApp green = 4.6:1. */
-[style*="background:#25D366"], [style*="background: #25D366"], [style*="background:#25d366"] { background: #128C4A !important; }
+[style*="background:#25D366"], [style*="background: #25D366"], [style*="background:#25d366"] { background: #0e7a40 !important; }
 /* Badges: slightly deeper amber so "Pending" passes on its pale chip. */
 .badge-pending { color: #6f5600; }
 /* Native date/time pickers: light icons in dark mode. */
 html[data-theme="dark"] input[type="date"], html[data-theme="dark"] input[type="datetime-local"],
 html[data-theme="dark"] input[type="time"] { color-scheme: dark; }
 
-/* Phone header: long titles ("Booking CET-7692CC") wrapped onto 3 lines and the
-   alert icon overlapped them. One line, ellipsis. */
-.topbar-title { min-width: 72px; flex: 1 1 auto; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; word-break: break-word; }
+/* Phone header: long titles wrap to at most two lines, breaking only between words. */
+.topbar-title { min-width: 72px; flex: 1 1 auto; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; overflow-wrap: normal; word-break: normal; }
 @media (max-width: 640px) { .topbar-title { font-size: 14px; } }
 
 /* No sideways scrolling on phones. */
@@ -1001,7 +1001,7 @@ html[data-theme="dark"] input[type="time"] { color-scheme: dark; }
 .list-head > div, .list-head form { flex-wrap: wrap; }
 .card, .card * { overflow-wrap: break-word; }   /* wrap long text at spaces; never split a word mid-way */
 .card input, .card select, .card textarea, .card table { overflow-wrap: normal; }
-.card .mono { overflow-wrap: anywhere; }   /* long emails / refs may still break so they never spill off a phone */
+.card .mono { overflow-wrap: break-word; }
 
 /* Readability pass, part 2: screens with hard-coded light colours. */
 html[data-theme="dark"] .job-card .meta { color: #b4bccb; }
@@ -1014,13 +1014,14 @@ html[data-theme="dark"] [style*="color:#666"], html[data-theme="dark"] [style*="
 html[data-theme="dark"] [style*="color:#777"], html[data-theme="dark"] [style*="color:#888"],
 html[data-theme="dark"] [style*="color: #555"], html[data-theme="dark"] [style*="color: #666"] { color: #b4bccb !important; }
 /* Inline dark greens on dark panels. */
-html[data-theme="dark"] [style*="color:#1f7a44"], html[data-theme="dark"] [style*="color:#1f8c4a"],
-html[data-theme="dark"] [style*="color:#128C4A"], html[data-theme="dark"] .text-success { color: #5fd28f !important; }
+html[data-theme="dark"] [style*="color:#1f7a44"]:not([style*="background:#1f7a44"]):not([style*="border-color:#1f7a44"]),
+html[data-theme="dark"] [style*=";color:#1f7a44"], html[data-theme="dark"] [style*="color:#1f8c4a"]:not([style*="background:#1f8c4a"]),
+html[data-theme="dark"] [style*="color:#128C4A"]:not([style*="background:#128C4A"]), html[data-theme="dark"] .text-success { color: #5fd28f !important; }
 /* Pale inline panels (tips, info boxes) become dark panels with light text. */
 html[data-theme="dark"] [style*="background:#f2f8fe"], html[data-theme="dark"] [style*="background:#f2f2f0"],
 html[data-theme="dark"] [style*="background:#fafafa"], html[data-theme="dark"] [style*="background:#f7f7f5"],
-html[data-theme="dark"] [style*="background:#f6f6f4"], html[data-theme="dark"] [style*="background:#fff;"],
-html[data-theme="dark"] [style*="background: #fff;"], html[data-theme="dark"] [style*="background:#ffffff"] {
+html[data-theme="dark"] [style*="background:#f6f6f4"], html[data-theme="dark"] [style*="background:#fff;"]:not([style*="color:#111"]),
+html[data-theme="dark"] [style*="background: #fff;"]:not([style*="color:#111"]), html[data-theme="dark"] [style*="background:#ffffff"]:not([style*="color:#111"]) {
     background: #161c2e !important; color: #e8ecf4;
 }
 html[data-theme="dark"] .cal-cell { background: #151b2c; border-color: rgba(255,255,255,.10); color: #e8ecf4; }
@@ -1059,3 +1060,54 @@ html[data-theme="dark"] .btn-ghost, html[data-theme="dark"] .btn-light { backgro
 @media (max-width: 520px) { #global-search-form { min-width: 70px !important; margin: 0 2px !important; } .alert-bell { margin-right: 0; } }
 /* Driver screens keep a dark header in both modes: menu, Home and title must be light. */
 body.driver-app .nav-burger, body.driver-app .topbar-title, body.driver-app .topbar-home { color: #f3f3f3; }
+
+/* Night mode: pale status chips get a dark tint so their light text reads. */
+html[data-theme="dark"] [style*="background:#e7f6ec"], html[data-theme="dark"] [style*="background:#d9f3e2"] { background: rgba(31,157,85,.18) !important; }
+html[data-theme="dark"] [style*="background:#fbeaea"], html[data-theme="dark"] [style*="background:#fbe0e0"] { background: rgba(214,69,69,.18) !important; }
+/* Driver screens are always dark: their green/red notes need the light versions in BOTH modes. */
+body.driver-app [style*="color:#1f7a44"]:not([style*="background:#1f7a44"]) { color: #5fd28f !important; }
+body.driver-app [style*="color:#b32020"] { color: #ff8f87 !important; }
+body.driver-app .btn-ghost[style*="#b32020"] { background: #2a1517 !important; border-color: rgba(255,143,135,.45) !important; }
+/* Driver screens are always dark, so they use the night-mode text colours in both modes. */
+body.driver-app { --muted: #a7b0bf; --gold-dark: #f2c14e; --line: rgba(255,255,255,.12); }
+body.driver-app .theme-toggle { color: #f3f3f3; }
+/* Password "Show" button on the dark sign-in style cards. */
+.auth-card .pw-toggle { color: #e8ecf4; opacity: .85; }
+/* Phones: the header search is an icon that opens full width when tapped, so the page
+   title has room and long words in it never split. */
+@media (max-width: 520px) {
+    #global-search-form { flex: 0 0 38px !important; min-width: 38px !important; max-width: 38px !important; margin: 0 !important; }
+    #global-search { padding: 7px 0 7px 9px !important; color: transparent !important; cursor: pointer; }
+    #global-search::placeholder { color: #555; }
+    #global-search:focus { position: fixed; left: 8px; right: 8px; top: 10px; width: auto !important; z-index: 60;
+        padding: 9px 12px !important; color: #111 !important; cursor: text; box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+    #global-search-results { position: fixed !important; top: 58px !important; left: 8px !important; right: 8px; width: auto !important; }
+    .topbar-title { font-size: 13px; }
+    .topbar-user .btn { padding: 6px 8px !important; }
+}
+/* Text beside a radio/checkbox in a flex label may wrap instead of pushing the page wider. */
+label[style*="display:flex"] > span { min-width: 0; }
+/* Booking refs (CET-7692CC) stay on one line, never split at the hyphen. */
+td.mono, a.mono, .ref.mono, .bk-ref, span.mono[class*="ref"] { white-space: nowrap; }
+html[data-theme="dark"] [style*="color:#5f6670"] { color: #b4bccb !important; }
+html[data-theme="dark"] [style*="color:#2a6bb0"] { color: #8db6ff !important; }
+html[data-theme="dark"] [style*="color:#b8860b"] { color: #f2c14e !important; }
+/* ----- Contrast sweep (24 Nov 2026) ----- */
+/* Gold and grey text sitting on white cards in light mode: darker so it reads (dark mode has its own). */
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color:#b8860b"],
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color:var(--gold)"],
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color: var(--gold)"],
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color:var(--gold,"],
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color:#FBBA2A"] { color: #8a6100 !important; }
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color:#888"],
+html:not([data-theme="dark"]) body:not(.driver-app) .card [style*="color:#999"] { color: #5f6670 !important; }
+html:not([data-theme="dark"]) .card .bh-chip { background: #f3f1ea; border-color: #e2ded2; color: #2b2b2b; }
+html:not([data-theme="dark"]) .card .bh-chip.warn { color: #8a6100; }
+/* Night mode: cream panels and the remaining inline reds. */
+html[data-theme="dark"] [style*="background:var(--cream"] { background: #161c2e !important; color: #e8ecf4; }
+html[data-theme="dark"] [style*="color:#b8323b"], html[data-theme="dark"] [style*="color:#c0392b"] { color: #ff8f87 !important; }
+/* Sign-in cards are dark: their links stay bright gold. */
+.auth-card a { color: var(--gold); }
+html[data-theme="dark"] [style*="color:#8a6100"] { color: #f2c14e !important; }
+/* Booking refs in page titles stay whole. */
+.topbar-title .ref-nb { white-space: nowrap; }

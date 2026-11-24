@@ -22,7 +22,7 @@
             'valid'    => ['icon' => '✓', 'colour' => '#1f7a44', 'text' => 'Valid'],
             'expiring' => ['icon' => '!', 'colour' => '#b8860b', 'text' => 'Expiring soon'],
             'expired'  => ['icon' => '✕', 'colour' => '#b32020', 'text' => 'Expired'],
-            'missing'  => ['icon' => '↑', 'colour' => '#888', 'text' => 'Not uploaded'],
+            'missing'  => ['icon' => '↑', 'colour' => '#5f6670', 'text' => 'Not uploaded'],
             'pending'  => ['icon' => '⧗', 'colour' => '#2a6bb0', 'text' => 'Awaiting review'],
             'rejected' => ['icon' => '✕', 'colour' => '#b32020', 'text' => 'Rejected'],
         ];

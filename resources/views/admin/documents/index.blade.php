@@ -24,7 +24,7 @@
                     <td class="muted">{{ $d['reg'] ?: '—' }}</td>
                     <td style="display:flex;gap:6px;flex-wrap:wrap">
                         @if(! $d['user'])
-                            <span class="badge" style="background:#888;color:#fff">No login — sync directory</span>
+                            <span class="badge" style="background:#5f6670;color:#fff">No login — sync directory</span>
                         @else
                             @if($s['expired']) <span class="badge" style="background:#b32020;color:#fff">{{ $s['expired'] }} expired</span> @endif
                             @if($s['pending']) <span class="badge" style="background:#2a6bb0;color:#fff">{{ $s['pending'] }} to review</span> @endif

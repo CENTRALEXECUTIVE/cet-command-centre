@@ -26,7 +26,7 @@
             'valid'    => ['icon' => '✓', 'colour' => '#1f7a44'],
             'expiring' => ['icon' => '!', 'colour' => '#b8860b'],
             'expired'  => ['icon' => '✕', 'colour' => '#b32020'],
-            'missing'  => ['icon' => '↑', 'colour' => '#888'],
+            'missing'  => ['icon' => '↑', 'colour' => '#5f6670'],
             'pending'  => ['icon' => '⧗', 'colour' => '#2a6bb0'],
             'rejected' => ['icon' => '✕', 'colour' => '#b32020'],
         ];
@@ -62,7 +62,7 @@
                         <a href="{{ route('driver.documents.file', $row['document']) }}" style="font-size:13px">View current file</a>
                     @endif
                     <details style="flex:1;min-width:220px">
-                        <summary style="cursor:pointer;font-size:13px;color:var(--gold,#b8860b)">{{ $row['hasFile'] ? 'Replace' : 'Upload' }} document</summary>
+                        <summary style="cursor:pointer;font-size:13px;color:var(--gold-dark);font-weight:600">{{ $row['hasFile'] ? 'Replace' : 'Upload' }} document</summary>
                         <form method="POST" action="{{ route('driver.documents.store') }}" enctype="multipart/form-data" style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
                             @csrf
                             <input type="hidden" name="type" value="{{ $row['type'] }}">

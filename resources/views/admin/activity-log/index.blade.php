@@ -35,7 +35,7 @@
     </form>
 
     @php
-        $actionColor = ['created'=>'#1f8b4c','updated'=>'#b8860b','deleted'=>'#b32020','exported'=>'#555','login'=>'#2b6cb0','logout'=>'#888','erased'=>'#b32020'];
+        $actionColor = ['created'=>'#1a7a42','updated'=>'#8a6100','deleted'=>'#b32020','exported'=>'#555','login'=>'#2b6cb0','logout'=>'#5f6670','erased'=>'#b32020'];
     @endphp
     <div class="card">
         <div class="table-scroll">
@@ -50,7 +50,7 @@
                         <tr>
                             <td data-label="When" style="font-size:13px;white-space:nowrap">{{ $log->created_at?->format('d M Y, H:i') }}</td>
                             <td data-label="Who">{{ $log->user?->name ?? 'System' }}</td>
-                            <td data-label="Action"><span class="badge" style="background:{{ $actionColor[$log->action] ?? '#777' }};color:#fff">{{ ucfirst($log->action) }}</span></td>
+                            <td data-label="Action"><span class="badge" style="background:{{ $actionColor[$log->action] ?? '#5f6670' }};color:#fff">{{ ucfirst($log->action) }}</span></td>
                             <td data-label="What" style="font-size:13px">
                                 @if($isBooking)
                                     <a href="{{ route('bookings.show', $log->auditable_id) }}">Booking #{{ $log->auditable_id }}</a>

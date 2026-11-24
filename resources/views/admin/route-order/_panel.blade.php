@@ -26,7 +26,7 @@
         <a href="{{ route($panelRoute, ['scope' => $scope, 'route' => $t['tag'], 'vehicle' => 'All']) }}"
            class="btn {{ $selected === $t['tag'] ? 'btn-dark' : 'btn-ghost' }}" style="padding:7px 14px;font-size:13px">
             {{ $t['tag'] === 'Free Roam' ? '🧭' : ($t['tag'] === 'Other' ? '📍' : '✈') }} {{ $t['tag'] }}
-            <span class="muted" style="margin-left:4px">{{ $t['count'] }}</span>
+            <span style="margin-left:4px;opacity:.75">{{ $t['count'] }}</span>
         </a>
     @endforeach
 </div>

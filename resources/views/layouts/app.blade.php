@@ -140,7 +140,7 @@
             <label for="nav-toggle" class="nav-burger" aria-label="Menu">&#9776;</label>
             <a href="{{ route('dashboard') }}" class="topbar-home" title="Home" aria-label="Home"
                style="text-decoration:none;font-size:19px;line-height:1;padding:4px 8px;border-radius:8px">🏠</a>
-            <div class="topbar-title">@yield('title', 'CET Command Centre')</div>
+            <div class="topbar-title">{!! preg_replace('/\b([A-Z]{2,4}-[A-Z0-9-]{3,})\b/', '<span class="ref-nb">$1</span>', trim($__env->yieldContent('title', 'CET Command Centre'))) !!}</div>
             @if($u->isAdmin())
                 @php $unackCritical = \App\Models\WatchdogEvent::criticalCount(); @endphp
                 <a href="{{ route('dashboard') }}" class="alert-bell" title="Unacknowledged critical alerts">

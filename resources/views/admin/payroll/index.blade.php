@@ -9,7 +9,7 @@
             <p style="margin:6px 0 0;font-weight:600">
                 <span class="mono">{{ $completedCount }}</span> job{{ $completedCount === 1 ? '' : 's' }} completed ·
                 <span style="color:#1f7a44">{{ $paidCount }} driver paid</span>@if($missingPay->count() > 0) ·
-                <a href="#missing-pay" style="color:#b8860b;text-decoration:none">{{ $missingPay->count() }} still need pay set →</a>@endif
+                <a href="#missing-pay" style="color:#8a6100;text-decoration:none">{{ $missingPay->count() }} still need pay set →</a>@endif
             </p>
             @if($totals['remaining'] > 0)
                 <p class="hint" style="margin:2px 0 0">…plus <a href="{{ route('payroll.index', $periodParam + ['filter' => 'owed']) }}" style="color:#b8860b">£{{ number_format($totals['remaining'], 2) }} still owed</a> on jobs that already have pay set.</p>

@@ -13,7 +13,7 @@
         :root {
             --gold:#FBBA2A; --gold-deep:#E9A413;
             --ink:#0b0b0c; --paper:#ffffff; --cream:#fbfaf6;
-            --line:#e9e7e0; --muted:#6a6a70; --muted-2:#9a9aa2;
+            --line:#e9e7e0; --muted:#6a6a70; --muted-2:#74747c;
             --ok:#1f8b4c; --err:#c02626;
             --shadow:0 24px 60px -24px rgba(0,0,0,.45), 0 8px 24px -12px rgba(0,0,0,.25);
             --radius:16px;

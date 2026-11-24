@@ -36,7 +36,7 @@
             <button type="button" id="test-siren" class="btn btn-dark" style="padding:9px 16px;font-size:14px">🔊 Test the siren (this device)</button>
             <form method="POST" action="{{ route('notifications.test') }}" style="display:inline">
                 @csrf
-                <button type="submit" class="btn btn-primary" style="padding:9px 16px;font-size:14px;background:#b32020;border-color:#b32020">🔔 Fire a full test (siren + push + call)</button>
+                <button type="submit" class="btn btn-primary" style="padding:9px 16px;font-size:14px;background:#b32020;border-color:#b32020;color:#fff">🔔 Fire a full test (siren + push + call)</button>
             </form>
             <form method="POST" action="{{ route('notifications.test-call') }}" style="display:inline">
                 @csrf

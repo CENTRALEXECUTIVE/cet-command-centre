@@ -296,7 +296,7 @@
             $verdictColour = match($rec['verdict']) {
                 'Increase budget' => '#1f7a44',
                 'Reduce/optimise' => '#b32020',
-                default => '#b8860b',
+                default => '#8a6100',
             };
         @endphp
         <div class="card">

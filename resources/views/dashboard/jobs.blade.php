@@ -99,7 +99,7 @@
 
             <div class="muted" style="font-size:13px;margin:4px 0 8px">
                 {{ $job['customer'] }} · {{ $job['vehicle'] }} · Driver: {{ $job['driver'] }}
-                @if($job['ref'] && $job['ref'] !== '—') · <span class="mono">{{ $job['ref'] }}</span> @endif
+                @if($job['ref'] && $job['ref'] !== '—') · <span class="mono" style="white-space:nowrap">{{ $job['ref'] }}</span> @endif
             </div>
             @if(!empty($job['flight']))
                 <div style="margin:0 0 8px">

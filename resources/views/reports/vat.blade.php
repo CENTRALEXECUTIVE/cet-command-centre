@@ -44,7 +44,7 @@
         <div style="display:flex;gap:18px;flex-wrap:wrap">
             <div><div class="muted" style="font-size:12px">VAT invoices</div><div style="{{ $money }};font-size:20px">{{ $data['count'] }}</div></div>
             <div><div class="muted" style="font-size:12px">Net total</div><div style="{{ $money }};font-size:20px">£{{ number_format($data['net'], 2) }}</div></div>
-            <div><div class="muted" style="font-size:12px">VAT total</div><div style="{{ $money }};font-size:20px;color:var(--accent,#b8860b)">£{{ number_format($data['vat'], 2) }}</div></div>
+            <div><div class="muted" style="font-size:12px">VAT total</div><div style="{{ $money }};font-size:20px;color:var(--gold-dark)">£{{ number_format($data['vat'], 2) }}</div></div>
             <div><div class="muted" style="font-size:12px">Gross total</div><div style="{{ $money }};font-size:20px">£{{ number_format($data['gross'], 2) }}</div></div>
             <div><div class="muted" style="font-size:12px">VAT received</div><div style="{{ $money }};font-size:20px;color:#1f7a44">£{{ number_format($data['vat_received'], 2) }}</div></div>
             <div><div class="muted" style="font-size:12px">VAT outstanding</div><div style="{{ $money }};font-size:20px;color:#b32020">£{{ number_format($data['vat_outstanding'], 2) }}</div></div>
@@ -75,7 +75,7 @@
                                 <td style="padding:6px 8px;white-space:nowrap"><a href="{{ route('bookings.show', $r['id']) }}">{{ $r['reference'] }}</a></td>
                                 <td style="padding:6px 8px">{{ $r['company'] }}</td>
                                 <td style="padding:6px 8px;text-align:right;{{ $money }}">£{{ number_format($r['net'], 2) }}</td>
-                                <td style="padding:6px 8px;text-align:right;{{ $money }};color:var(--accent,#b8860b)">£{{ number_format($r['vat'], 2) }}</td>
+                                <td style="padding:6px 8px;text-align:right;{{ $money }};color:var(--gold-dark)">£{{ number_format($r['vat'], 2) }}</td>
                                 <td style="padding:6px 8px;text-align:right;{{ $money }}">£{{ number_format($r['gross'], 2) }}</td>
                                 <td style="padding:6px 8px;white-space:nowrap">
                                     @if($r['paid'])

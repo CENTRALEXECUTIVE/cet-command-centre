@@ -575,7 +575,7 @@
                     <p class="hint" style="margin:6px 0 0">
                         @if($isVatReq)
                             Billed by <strong>Central Executive Transfers Ltd</strong> (VAT) · card via <strong>Square</strong>.
-                            @if($vb)<br>Net £{{ number_format($vb['net'], 2) }} + VAT £{{ number_format($vb['vat'], 2) }} = <strong style="color:var(--accent,#b8860b)">£{{ number_format($vb['gross'], 2) }} to charge</strong>.@endif
+                            @if($vb)<br>Net £{{ number_format($vb['net'], 2) }} + VAT £{{ number_format($vb['vat'], 2) }} = <strong style="color:var(--gold-dark)">£{{ number_format($vb['gross'], 2) }} to charge</strong>.@endif
                         @else
                             Billed by <strong>Central Executive Transfers PVT LTD</strong> (no VAT) · card via <strong>Stripe</strong>.
                         @endif
@@ -2856,7 +2856,7 @@
             }
         </style>
         <details style="margin-top:8px">
-            <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Job type &amp; driver — <span style="color:var(--accent,#b8860b)">{{ $jobType }}</span> <span class="muted" style="font-weight:500">(tap to check / correct)</span></summary>
+            <summary style="cursor:pointer;font-weight:700;padding:8px 0">🔢 Job type &amp; driver — <span style="color:var(--gold-dark)">{{ $jobType }}</span> <span class="muted" style="font-weight:500">(tap to check / correct)</span></summary>
             <div class="card" style="margin-top:8px">
                 <p style="margin:0 0 6px"><strong>Recognised as:</strong> {{ $jobType }}</p>
                 <p class="hint" style="margin:0 0 12px">
@@ -2902,7 +2902,7 @@
 
                 {{-- This job's driver — correctable on any booking. --}}
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-                    <div>This job: <strong style="color:var(--accent,#b8860b)">{{ $booking->assignedDriverLabel() }}</strong></div>
+                    <div>This job: <strong style="color:var(--gold-dark)">{{ $booking->assignedDriverLabel() }}</strong></div>
                     @if(! $booking->status->isTerminal() && $allocatableDrivers->isNotEmpty())
                         <form method="POST" action="{{ route('despatch.reassign', $booking) }}" style="margin:0">
                             @csrf
