@@ -163,4 +163,9 @@ return [
         'credentials' => env('GOOGLE_GMAIL_CREDENTIALS') ?: env('GOOGLE_CALENDAR_CREDENTIALS'),
     ],
 
+    // ElevenLabs realtime voice for the AI phone agent (post-call webhook signing secret).
+    'elevenlabs' => [
+        'webhook_secret' => env('ELEVENLABS_WEBHOOK_SECRET', ''),
+    ],
+
 ];

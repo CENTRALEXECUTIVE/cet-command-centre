@@ -428,6 +428,7 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         Route::get('intake', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'index'])->name('intake.index');
         // AI phone agent: calls answered, booking requests to confirm.
         Route::get('phone-calls', [\App\Http\Controllers\Admin\PhoneCallController::class, 'index'])->name('phone-calls.index');
+        Route::get('phone-calls/setup', [\App\Http\Controllers\Admin\PhoneCallController::class, 'setup'])->name('phone-calls.setup');
         Route::get('phone-calls/{call}', [\App\Http\Controllers\Admin\PhoneCallController::class, 'show'])->name('phone-calls.show');
         Route::post('phone-calls/{call}/reviewed', [\App\Http\Controllers\Admin\PhoneCallController::class, 'reviewed'])->name('phone-calls.reviewed');
         Route::post('intake/preview', [\App\Http\Controllers\Admin\BookingIntakeController::class, 'preview'])
@@ -594,6 +595,12 @@ Route::post('webhooks/twilio-proxy', [WebhookController::class, 'proxyEvent'])
 Route::post('webhooks/sms', [WebhookController::class, 'sms'])
     ->middleware('throttle:120,1')
     ->name('webhooks.sms');
+// AI phone agent, realtime voice (ElevenLabs) tools + post-call transcript.
+Route::post('webhooks/voice-tools/time', [\App\Http\Controllers\Webhooks\VoiceToolsController::class, 'time'])->middleware('throttle:300,1')->name('webhooks.voice-tools.time');
+Route::post('webhooks/voice-tools/quote', [\App\Http\Controllers\Webhooks\VoiceToolsController::class, 'quote'])->middleware('throttle:300,1')->name('webhooks.voice-tools.quote');
+Route::post('webhooks/voice-tools/booking', [\App\Http\Controllers\Webhooks\VoiceToolsController::class, 'booking'])->middleware('throttle:120,1')->name('webhooks.voice-tools.booking');
+Route::post('webhooks/voice-tools/message', [\App\Http\Controllers\Webhooks\VoiceToolsController::class, 'message'])->middleware('throttle:120,1')->name('webhooks.voice-tools.message');
+Route::post('webhooks/elevenlabs', [\App\Http\Controllers\Webhooks\VoiceToolsController::class, 'postCall'])->middleware('throttle:120,1')->name('webhooks.elevenlabs');
 // AI phone agent (Twilio voice; secret in the query string).
 Route::post('webhooks/ai-voice', [\App\Http\Controllers\Webhooks\AiVoiceController::class, 'incoming'])
     ->middleware('throttle:120,1')->name('webhooks.ai-voice');

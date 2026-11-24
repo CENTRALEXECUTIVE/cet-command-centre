@@ -134,9 +134,15 @@ class PhoneAgent
         return $out;
     }
 
-    public function system(PhoneCall $call): string
+    /**
+     * The agent's instructions. $platform 'twilio' = our own loop (date and caller known);
+     * 'elevenlabs' = the realtime voice platform (static prompt: the agent calls
+     * current_time for today's date and receives the caller ID as a tool parameter).
+     */
+    public function system(?PhoneCall $call = null, string $platform = 'twilio'): string
     {
         $now = now()->timezone(config('app.timezone'));
+        $call ??= new PhoneCall;
         $vehicles = VehicleType::where('is_active', true)->orderBy('sort_order')->get()
             ->map(fn ($v) => "- {$v->name} (code {$v->slug}): up to {$v->passenger_capacity} passengers, {$v->luggage_capacity} large cases")
             ->implode("\n");
@@ -148,12 +154,12 @@ class PhoneAgent
             $notes[] = 'Booking request already saved on this call: '.json_encode($call->booking_fields);
         }
         $name = config('cet.ai_voice.agent_name', 'Sophie');
-        $transfer = $this->canTransfer() ? 'You CAN transfer to a director.' : 'Transfer is NOT available right now: take a message instead.';
+        $transfer = $platform === 'elevenlabs' || $this->canTransfer() ? 'You CAN transfer the call to a director.' : 'Transfer is NOT available right now: take a message instead.';
 
         return <<<TXT
 You are {$name}, the virtual phone assistant for Central Executive Transfers Ltd, an executive chauffeur company based in Sheffield (Operator Licence OP037, licensed by Sheffield City Council). You are speaking on a PHONE CALL. Everything you write is read aloud.
 
-Now: {$now->format('l j F Y, H:i')} UK time. Caller ID: {$call->from_number}.
+{$this->clockLine($call, $platform, $now)}
 
 HOW YOU SPEAK
 - British English, warm and calm, like a good hotel concierge. Short sentences. One question at a time.
@@ -185,15 +191,24 @@ TAKING A BOOKING
 - Times are UK local time.
 
 HAND OVER OR TAKE A MESSAGE
-- Transfer (transfer_to_person) when the caller asks for a person, has a complaint, is asking about an existing booking, a lost item, a driver, money or a refund, or whenever you are not sure. {$transfer}
+- Transfer the call to a director when the caller asks for a person, has a complaint, is asking about an existing booking, a lost item, a driver, money or a refund, or whenever you are not sure. {$transfer}
 - If you cannot transfer, use take_message (name, best number, the message) and say the team will call back shortly.
-- When the call is finished, say a short goodbye and call end_call.
+- When the call is finished, say a short goodbye and end the call.
 
 NEVER
 - Invent policies, availability, driver names or times. If you do not know, say the office will confirm.
 - Promise a specific driver or car registration. Share anyone else's booking or details.
 TXT
             .($notes ? "\n\nCALL NOTES\n".implode("\n", $notes) : '');
+    }
+
+    private function clockLine(PhoneCall $call, string $platform, Carbon $now): string
+    {
+        if ($platform === 'elevenlabs') {
+            return 'At the start of the call, call current_time to learn today\'s date and the UK time. Always pass the caller ID ({{system__caller_id}}) and conversation ID ({{system__conversation_id}}) to the tools.';
+        }
+
+        return "Now: {$now->format('l j F Y, H:i')} UK time. Caller ID: {$call->from_number}.";
     }
 
     public function tools(): array

@@ -3,6 +3,7 @@
 
 @section('content')
     <h1 class="page-title">AI phone calls</h1>
+    @if(auth()->user()->isSuperAdmin())<p style="float:right;margin:0"><a href="{{ route('phone-calls.setup') }}">Voice setup</a></p>@endif
     <p class="page-sub">Every call the phone agent answered. Booking requests wait here until you confirm them; nothing is booked or sent to the caller automatically.</p>
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 

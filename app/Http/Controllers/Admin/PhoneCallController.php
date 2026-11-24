@@ -30,6 +30,38 @@ class PhoneCallController extends Controller
         return view('admin.phone-calls.show', ['call' => $call, 'fields' => $this->intakeFields($call)]);
     }
 
+    /** Everything to paste into the ElevenLabs agent (super-admins: shows the webhook secret). */
+    public function setup(Request $request, \App\Services\Voice\PhoneAgent $agent): View
+    {
+        abort_unless($request->user()->isSuperAdmin(), 403);
+        $secret = (string) config('cet.webhook_secret');
+        $schemas = collect($agent->tools())->keyBy('name');
+        $tool = fn (string $name, string $route, string $desc) => [
+            'name' => $name, 'description' => $desc,
+            'url' => route($route, ['secret' => $secret]),
+            'params' => collect($schemas[$name]['input_schema']['properties'] ?? [])
+                ->map(fn ($p, $k) => ['name' => $k, 'type' => $p['type'] ?? 'string', 'description' => $p['description'] ?? '',
+                    'enum' => $p['enum'] ?? null, 'required' => in_array($k, $schemas[$name]['input_schema']['required'] ?? [], true)])
+                ->values()->all(),
+        ];
+        $tools = [
+            ['name' => 'current_time', 'description' => "Today's date and the UK time. Call it at the start of the call and before working out any date.",
+                'url' => route('webhooks.voice-tools.time', ['secret' => $secret]), 'params' => []],
+            $tool('get_quote', 'webhooks.voice-tools.quote', 'Exact price from the company price engine (same as the website). Use before saying ANY price.'),
+            $tool('save_booking_request', 'webhooks.voice-tools.booking', 'Save the booking request for the office to confirm. Only after reading it back and the caller said yes.'),
+            $tool('take_message', 'webhooks.voice-tools.message', 'Take a message for the team to call back.'),
+        ];
+
+        return view('admin.phone-calls.setup', [
+            'prompt' => $agent->system(null, 'elevenlabs'),
+            'firstMessage' => 'Central Executive Transfers, you\'re through to '.config('cet.ai_voice.agent_name', 'Sophie').', the virtual assistant. How can I help?',
+            'tools' => $tools,
+            'transfer' => $agent->transferNumbers(),
+            'postCall' => route('webhooks.elevenlabs', ['secret' => $secret]),
+            'hasSecret' => $secret !== '',
+        ]);
+    }
+
     public function reviewed(Request $request, PhoneCall $call): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
