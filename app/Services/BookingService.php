@@ -80,6 +80,24 @@ class BookingService
                 $this->rotation->allocate($outbound);
             }
 
+            // A rotation driver was put on the job: make it a proper ALLOCATION (push to
+            // the driver, masked line, Accept button, no "unallocated" alarms). It used
+            // to keep the driver but stay "pending" (QA 25 Nov 2026).
+            $actor = $creator->isAdmin() ? $creator
+                : \App\Models\User::where('role', \App\Enums\UserRole::Admin->value)->where('is_active', true)->orderByDesc('is_super_admin')->first();
+            if ($actor) {
+                foreach (array_filter([$outbound, $return ?? null]) as $leg) {
+                    $leg = $leg->fresh();
+                    if ($leg->driver_id && $leg->status === \App\Enums\BookingStatus::Pending) {
+                        try {
+                            app(\App\Services\BookingStatusService::class)->transition($leg, \App\Enums\BookingStatus::Allocated, $actor, note: 'Auto-allocated (rotation)');
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::warning('Rotation allocate transition failed for '.$leg->reference.': '.$e->getMessage());
+                        }
+                    }
+                }
+            }
+
             $this->calendar->buildFor($outbound->refresh());
 
             // Set driver pay to the standard 90% of fare straight away, so a brand
@@ -667,6 +685,17 @@ class BookingService
             ? (trim((string) ($data['return_flight_number'] ?? '')) ?: ($airportPickup ? ($data['flight_number'] ?? null) : null))
             : ($data['flight_number'] ?? null);
 
+        // A return through a DIFFERENT airport (out via Leeds Bradford, back from
+        // Manchester) takes its own airport, not the outbound's (QA 25 Nov 2026: the
+        // return was titled "LBA" while the driver went to MAN).
+        $legAirportId = $data['airport_id'] ?? null;
+        if ($isReturn) {
+            $retCode = \App\Support\AirportMatcher::codeFor($pickupAddress, $destinationAddress);
+            if ($retCode) {
+                $legAirportId = \App\Models\Airport::where('code', $retCode)->where('is_active', true)->value('id') ?? $legAirportId;
+            }
+        }
+
         $booking = Booking::create([
             'reference' => $reference ?? Booking::generateReference(),
             'customer_id' => $customer->id,
@@ -674,7 +703,7 @@ class BookingService
             'cost_code' => $data['cost_code'] ?? null,
             'corporate_reference' => $data['corporate_reference'] ?? null,
             'vehicle_type_id' => $vehicleType->id,
-            'airport_id' => $data['airport_id'] ?? null,
+            'airport_id' => $legAirportId,
             'journey_type' => $data['journey_type'] ?? 'one_way',
             'is_return_leg' => $isReturn,
             'pickup_at' => $pickupAt,

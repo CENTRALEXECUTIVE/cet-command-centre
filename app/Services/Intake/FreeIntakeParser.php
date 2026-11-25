@@ -72,8 +72,13 @@ class FreeIntakeParser
 
         [$suitcases, $hand] = $this->luggage($get('luggage', 'bags'), $labels);
         // Loose "2 Cases" / "3 bags" anywhere when no labelled luggage was found.
-        if ($suitcases === 0 && $hand === 0 && preg_match('/(\d+)\s*(?:cases?|suitcases?|bags?|luggage)\b/i', $text, $m)) {
-            $suitcases = (int) $m[1];
+        if ($suitcases === 0 && $hand === 0) {
+            // Unlabelled lists like "2 large suitcases, 1 cabin bag" (QA 25 Nov 2026:
+            // read as no bags at all): split every luggage mention and sum per type.
+            $frags = array_filter(preg_split('/[,\n;]/', $text), fn ($f) => preg_match('/\d+\s*(?:\w+\s+){0,2}(?:suit\s?cases?|cases?|bags?|luggage|cabin|back\s?packs?|ruck\s?sacks?|holdalls?|carry-?ons?)\b/i', $f));
+            if ($frags) {
+                [$suitcases, $hand] = $this->luggage(implode(',', $frags), []);
+            }
         }
         $payment = $this->payment($get('payment', 'payments', 'payment method'), $text);
 
@@ -152,6 +157,11 @@ class FreeIntakeParser
     {
         // 1–2 digits, on the SAME line as the keyword (no newline between) — so a
         // year at the end of a line can't pair with a "Passenger:" label below it.
+        // Also "Passengers 2" / "Pax: 3" (number AFTER the word — QA 25 Nov 2026).
+        if (preg_match('/\b(?:passengers?|pax|people|adults?|guests?)[ \t]*[:\-]?[ \t]*(\d{1,2})\b(?![:\/.]\d)/i', $text, $m2)
+            && (int) $m2[1] >= 1 && (int) $m2[1] <= 16) {
+            return (int) $m2[1];
+        }
         if (preg_match('/(\d{1,2})[ \t]*(?:customers?|passengers?|people|adults?|pax|persons?|guests?)\b/i', $text, $m)) {
             $n = (int) $m[1];
             if ($n >= 1 && $n <= 16) {
@@ -371,7 +381,7 @@ class FreeIntakeParser
                 if (preg_match('/back\s?pack|ruck\s?sack|hand|cabin|carry|holdall|rucksac/i', $frag)) {
                     $sumHand += $qty;
                     $found = true;
-                } elseif (preg_match('/suit\s?case|\bcase\b|\bbag\b|hold|checked|luggage/i', $frag)) {
+                } elseif (preg_match('/suit\s?cases?|\bcases?\b|\bbags?\b|hold|checked|luggage/i', $frag)) {
                     $sumSuit += $qty;
                     $found = true;
                 }

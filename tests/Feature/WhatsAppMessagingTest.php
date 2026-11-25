@@ -380,6 +380,8 @@ class WhatsAppMessagingTest extends TestCase
     public function test_allocating_a_driver_sends_the_driver_details(): void
     {
         $booking = $this->makeBooking();
+        // Booking creation may already rotation-allocate; start from an unallocated job.
+        $booking->forceFill(['status' => 'pending', 'driver_id' => null])->save();
         $driver = User::factory()->create(['role' => 'driver', 'name' => 'Kash Khan', 'email' => 'kash@cet.test']);
         $vehicle = \App\Models\Vehicle::create([
             'vehicle_type_id' => $booking->vehicle_type_id,
@@ -390,7 +392,7 @@ class WhatsAppMessagingTest extends TestCase
         $admin = User::factory()->admin()->create();
         app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
 
-        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
+        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->latest('id')->first();
         $this->assertNotNull($msg);
         // Falls back to the email local-part when no explicit callsign is set.
         $this->assertStringContainsString('Driver Name: Kash', $msg->body);
@@ -432,13 +434,15 @@ class WhatsAppMessagingTest extends TestCase
     public function test_explicit_callsign_overrides_the_login_name(): void
     {
         $booking = $this->makeBooking();
+        // Booking creation may already rotation-allocate; start from an unallocated job.
+        $booking->forceFill(['status' => 'pending', 'driver_id' => null])->save();
         $driver = User::factory()->create(['role' => 'driver', 'name' => 'Majid Ali', 'email' => 'majid.ali@cet.test']);
         \App\Models\DriverProfile::create(['user_id' => $driver->id, 'callsign' => 'Maj']);
 
         $admin = User::factory()->admin()->create();
         app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
 
-        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
+        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->latest('id')->first();
         $this->assertStringContainsString('Driver Name: Maj', $msg->body);
         $this->assertStringNotContainsString('Majid', $msg->body);
     }
@@ -549,7 +553,7 @@ class WhatsAppMessagingTest extends TestCase
         $admin = User::factory()->admin()->create();
         app(\App\Services\BookingStatusService::class)->allocateDriver($booking, $driver, $admin);
 
-        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->first();
+        $msg = Message::where('booking_id', $booking->id)->where('type', 'driver_details')->latest('id')->first();
         $this->assertNotNull($msg);
         $this->assertStringStartsWith('Hi ', $msg->body);
         $this->assertStringContainsString("Please find your driver's details below:", $msg->body);

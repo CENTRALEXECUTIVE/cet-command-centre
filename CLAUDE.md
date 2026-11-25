@@ -126,6 +126,8 @@ There were no server backups. This must never happen again.
    a calendar event when the user names it explicitly and reconfirms.
 2. **Nothing auto-sends to customers.** All customer WhatsApp messages are
    manual via `wa.me` deep links the operator taps. No paid messaging API.
+   `WhatsAppService::send()` only RECORDS a message (status `manual`): it never
+   delivers it or marks it sent. Only the office's Resend button calls `deliver()`.
 3. **Timezone is UK / `Europe/London` (BST in summer).** ETO's journey times are
    **already UK local** — the same clock shown on the ETO booking screen, the
    confirmation email, and the calendar. Parse them in the app timezone
@@ -344,8 +346,12 @@ Calendar events are built by `App\Services\CalendarEventBuilder`. Key rules:
   sends per type per job (`job_nudges` table). Covers allocated AND accepted.
 - **Admin escalations** (same run, `Watchdog\AdminAlerts`): unallocated ≤2h
   before pickup (critical, every 30 min until allocated), driver unacted 5 min
-  after the 2nd nudge (critical, once), GPS lost >5 min mid-job (warning,
-  once); no-show/cancel and calendar imports push immediately. Per-admin prefs
+  after the 2nd nudge (critical, once), a job left open (en route / arrived /
+  on board) long after it should have finished with no GPS for 30 min →
+  "Job still open" (warning, once; such a stuck job never counts as the driver
+  being busy, so it can't silence the next job's alerts). There is NO separate
+  "GPS lost mid-job" alert (it was removed). A driver declining a job alerts the
+  office (critical within 6h). No-show/cancel and calendar imports push immediately. Per-admin prefs
   in `users.notification_preferences` (super-admin page **Settings →
   Notifications**), incl. a critical-only master switch + optional chime.
 - **Progress pings** (info, fired from `BookingStatusService`, each once): the

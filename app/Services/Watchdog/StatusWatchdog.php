@@ -192,7 +192,7 @@ class StatusWatchdog
                 $tries[] = ['unpaid_3h', '🚨 UNPAID, pickup within 3h — '.$name, 'critical'];
             }
             if ($b->pickup_at->lte(now()->addHours(24))) {
-                $tries[] = ['unpaid_24h', '💳 Unpaid booking tomorrow — '.$name, 'warning'];
+                $tries[] = ['unpaid_24h', '💳 Unpaid booking within 24h — '.$name, 'warning'];
             }
             if ((int) $uk->format('G') === 9) {
                 $tries[] = ['unpaid_am_'.$uk->format('Ymd'), '💳 Still awaiting payment — '.$name, 'warning'];
@@ -200,7 +200,17 @@ class StatusWatchdog
             if ($b->created_at->lte(now()->subHour())) {
                 $tries[] = ['unpaid_1h', '💳 Booking still awaiting payment — '.$name, 'warning'];
             }
+            // Space them out: after any unpaid reminder, wait an hour before the next
+            // non-urgent one, and nothing else once the urgent 3h one has gone (QA 25
+            // Nov 2026: three alerts arrived within minutes for one booking).
+            $previous = JobNudge::where('booking_id', $b->id)->where('recipient_type', 'admin')
+                ->where('nudge_type', 'like', 'unpaid_%')->orderByDesc('sent_at')->get();
+            $urgentSent = $previous->contains('nudge_type', 'unpaid_3h');
+            $recent = $previous->first()?->sent_at?->gt(now()->subHour());
             foreach ($tries as [$type, $title, $sev]) {
+                if ($urgentSent || ($recent && $type !== 'unpaid_3h')) {
+                    continue;
+                }
                 if ($this->admins->send($b, $type, 'awaiting_payment', $title, $body, severity: $sev, maxSends: 1)) {
                     $sent++;
                     break; // one reminder per booking per run

@@ -267,6 +267,11 @@ class BookingIntakeService
             // A named driver in the title tag → assign them; otherwise leave it
             // unallocated for the office to hand to whoever's covering.
             $booking->autoAssignDriverFromCalendarTag();
+            // Driver pay (90% default) whenever a driver was put on it — the job used
+            // to show nothing owed in payroll (QA 25 Nov 2026). Never overwrites a set price.
+            if ($booking->fresh()->driver_id) {
+                $booking->fresh()->applyDefaultDriverPay();
+            }
 
             // Build the CET calendar event so it also lands on Google via the sync.
             $this->calendar->buildFor($booking->fresh(['customer', 'vehicleType', 'airport', 'driver']));

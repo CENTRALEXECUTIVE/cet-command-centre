@@ -292,4 +292,32 @@ class RotationEngineTest extends TestCase
             ->where('vehicle_type_id', $this->executive->id)->first()->next_driver_id;
         $this->assertEquals($stateBefore, $stateAfter);
     }
+
+    public function test_an_office_booking_allocated_by_rotation_is_a_real_allocation(): void
+    {
+        // QA 25 Nov 2026: rotation put a driver on the job but left it "pending".
+        $admin = User::where('role', 'admin')->first() ?? User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), [
+            'customer_name' => 'Jo Bloggs', 'customer_phone' => '07700900123',
+            'vehicle_type_id' => $this->executive->id, 'journey_type' => 'one_way',
+            'pickup_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+            'pickup_address' => 'Manchester Airport (MAN) Terminal 2', 'destination_address' => 'Sheffield S1 2HH',
+            'passengers' => 1, 'payment_method' => 'card', 'privacy_consent' => '1',
+        ])->assertSessionHasNoErrors();
+
+        $b = Booking::latest('id')->first();
+        $this->assertNotNull($b->driver_id);
+        $this->assertSame(BookingStatus::Allocated, $b->status);
+    }
+
+    public function test_rotation_never_auto_assigns_a_driver_with_an_expired_document(): void
+    {
+        $booking = $this->makeBooking($this->executive, 'MAN');
+        $compliance = \Mockery::mock(\App\Services\Compliance\DriverComplianceService::class);
+        $compliance->shouldReceive('blockReason')->andReturn('PHV badge expired');
+        $this->app->instance(\App\Services\Compliance\DriverComplianceService::class, $compliance);
+
+        $this->assertNull(app(RotationService::class)->allocate($booking));
+        $this->assertNull($booking->fresh()->driver_id);
+    }
 }

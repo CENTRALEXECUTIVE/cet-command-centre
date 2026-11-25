@@ -37,14 +37,23 @@
     }
     function detect() {
         var d = international(box.value);
-        if (!d) return;
+        if (!d) {
+            // Typed "+1 …" then corrected to a UK "07…": the country we picked
+            // automatically goes back to the UK (QA 25 Nov 2026: it stayed US and the
+            // number saved as +1770…). A country chosen by hand is left alone.
+            if (sel.dataset.auto === '1' && /^0\d/.test(digits(box.value)) && sel.value !== 'GB') {
+                sel.value = 'GB'; delete sel.dataset.auto;
+            }
+            return;
+        }
         for (var i = 0; i < codes.length; i++) {
             if (d.indexOf(codes[i].code) === 0) {
-                if (sel.options[sel.selectedIndex].dataset.code !== codes[i].code) sel.value = codes[i].iso;
+                if (sel.options[sel.selectedIndex].dataset.code !== codes[i].code) { sel.value = codes[i].iso; sel.dataset.auto = '1'; }
                 return;
             }
         }
     }
+    sel.addEventListener('change', function () { delete sel.dataset.auto; });
     function preview() {
         var v = box.value.trim(), d = digits(v);
         if (d.length < 7) { hint.textContent = ''; return; }

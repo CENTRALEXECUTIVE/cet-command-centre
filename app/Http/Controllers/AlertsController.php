@@ -64,7 +64,8 @@ class AlertsController extends Controller
             $event->forceFill(['acknowledged_at' => now()])->save();
         }
         // "Seen" on a new-booking alert stops its repeat pushes.
-        if ($event->booking_id && str_starts_with((string) $event->event_type, 'web_booking')) {
+        // Includes the +2/+5 min repeats (logged as new_booking_repeat — QA 25 Nov 2026).
+        if ($event->booking_id && (str_starts_with((string) $event->event_type, 'web_booking') || $event->event_type === 'new_booking_repeat')) {
             $b = \App\Models\Booking::find($event->booking_id);
             if ($b && empty($b->meta['seen_at'])) {
                 $b->forceFill(['meta' => array_merge($b->meta ?? [], ['seen_at' => now()->toIso8601String()])])->saveQuietly();

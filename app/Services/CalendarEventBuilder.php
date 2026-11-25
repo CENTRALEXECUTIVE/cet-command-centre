@@ -101,7 +101,8 @@ class CalendarEventBuilder
         $where = $booking->airport?->code
             ?? \App\Support\AirportMatcher::codeFor($booking->pickup_address, $booking->destination_address)
             ?? $booking->meta['where']
-            ?? self::placeWord($booking->destination_address);
+            // Hourly hire has no drop-off ("As directed") — title it HOURLY, not "AS".
+            ?? ($booking->isHourlyHire() ? 'HOURLY' : self::placeWord($booking->destination_address));
         $tag = $this->tag($booking);
 
         $emojis = trim(($moneyEmoji ?? '').($this->hasChildSeat($booking) ? '🚼' : ''));

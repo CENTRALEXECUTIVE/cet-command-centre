@@ -188,8 +188,10 @@ class UserController extends Controller
             return; // corporate clients don't have a driver nickname
         }
         $profile = DriverProfile::firstOrNew(['user_id' => $user->id]);
-        if (! $profile->exists && $nickname === null) {
-            return; // nothing to store and no profile to touch
+        // A DRIVER always gets a profile, nickname or not: without one they never
+        // appeared on the dispatch board (QA 25 Nov 2026). Admins only when needed.
+        if (! $profile->exists && $nickname === null && ! $user->isDriver()) {
+            return;
         }
         $profile->nickname = $nickname;
         $profile->save();

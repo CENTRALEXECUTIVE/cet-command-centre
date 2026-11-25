@@ -154,6 +154,13 @@ class DespatchController extends Controller
         $to = BookingStatus::from($data['status']);
         $this->status->forceTransition($booking, $to, $request->user(), note: 'Admin override from the dispatch board');
 
+        // Back to PENDING = back in the pool: no driver on it (QA 25 Nov 2026 — the
+        // driver stayed attached and saw "Pending — no further action").
+        if ($to === BookingStatus::Pending && $booking->fresh()->driver_id) {
+            $booking->fresh()->forceFill(['driver_id' => null])->save();
+            app(\App\Services\Telephony\TwilioProxyService::class)->closeSession($booking->fresh(), 'returned to pending');
+        }
+
         return back()->with('status', "{$booking->reference} → {$to->label()}.");
     }
 
@@ -212,10 +219,26 @@ class DespatchController extends Controller
                 'note' => "Reassigned from {$from} to {$driver->name}",
                 'created_at' => now(),
             ]);
-            $booking->forceFill(['driver_id' => $driver->id])->save();
+            // An ACCEPTED job goes back to an offer: the new driver never accepted it
+            // (QA 25 Nov 2026: it stayed "Accepted" under someone who'd never seen it).
+            $fill = ['driver_id' => $driver->id];
+            if ($booking->status === BookingStatus::Accepted) {
+                $fill['status'] = BookingStatus::Allocated->value;
+            }
+            $booking->forceFill($fill)->save();
 
             // Fresh masked session for the new driver; the old one dies now.
             app(\App\Services\Telephony\TwilioProxyService::class)->reassignDriver($booking->fresh(['customer']), $driver);
+
+            // Tell the new driver straight away.
+            try {
+                app(\App\Services\Push\WebPushService::class)->sendToUser($driver,
+                    'Job moved to you — '.$booking->pickup_at->timezone(config('app.timezone'))->format('D d M, H:i'),
+                    $booking->reference.' · '.\Illuminate\Support\Str::before((string) $booking->displayPickupAddress(), ','),
+                    ['url' => route('driver.job', $booking), 'tag' => 'job-'.$booking->id]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Reassign push failed: '.$e->getMessage());
+            }
         }
 
         // A human chose this driver — lock it against the calendar-tag reconcile.

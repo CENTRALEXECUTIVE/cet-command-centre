@@ -164,9 +164,20 @@ class RotationService
             // so an airport job advances ITS airport's pointer — never the Free Roam
             // pool, which was making one route look like it moved another.
             $airport = $booking->airport ?? $this->airportFromAddresses($booking) ?? $this->generalPool();
+            if (! $airport) {
+                // No airport and no general pool set up: leave it for the office to
+                // allocate (it used to crash the whole booking — QA 25 Nov 2026).
+                return null;
+            }
             $driver = $this->nextDriverFor($airport, $vehicleType);
 
             if (! $driver) {
+                return null;
+            }
+            // Same compliance gate as a manual allocation: never auto-assign a driver
+            // with an expired required document (QA 25 Nov 2026). The job is left
+            // unallocated so the office sees it and the watchdog chases it.
+            if (app(\App\Services\Compliance\DriverComplianceService::class)->blockReason($driver)) {
                 return null;
             }
 
