@@ -279,7 +279,9 @@ class PublicBookingController extends Controller
             }
         }
 
-        return redirect()->route('public.book.thanks')->with('enquiry', $charge === null);
+        // Reaching here means NO payment was taken (price on request, online payment
+        // off, or the checkout link failed) — never tell them they've paid (24 Nov 2026).
+        return redirect()->route('public.book.thanks')->with('enquiry', true);
     }
 
     /** Post-payment / enquiry landing. Payment is confirmed by the webhook. */
@@ -342,12 +344,6 @@ class PublicBookingController extends Controller
 
     private function resolveCustomer(array $data): Customer
     {
-        return Customer::where('phone', $data['customer_phone'])->first()
-            ?? Customer::where('email', $data['customer_email'])->first()
-            ?? Customer::create([
-                'name' => $data['customer_name'],
-                'phone' => $data['customer_phone'],
-                'email' => $data['customer_email'],
-            ]);
+        return Customer::matchForWebBooking($data['customer_name'], $data['customer_phone'] ?? null, $data['customer_email'] ?? null);
     }
 }

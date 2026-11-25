@@ -326,6 +326,13 @@ class BookingWidgetController extends Controller
         $minPickup = now()->addHours($minLeadHours);
 
         // First name + surname boxes -> the single names used everywhere else.
+        // A postcode typed twice ("M90 1QXM90 1QX") becomes one postcode, not a refusal.
+        foreach (['pickup_postcode', 'destination_postcode'] as $pcField) {
+            $raw = strtoupper(preg_replace('/\s+/', '', (string) $request->input($pcField)));
+            if (strlen($raw) > 8 && preg_match('/^([A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2})\1+$/', $raw, $m)) {
+                $request->merge([$pcField => substr($m[1], 0, -3).' '.substr($m[1], -3)]);
+            }
+        }
         \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
         \App\Support\FullName::merge($request, 'lead_passenger_first_name', 'lead_passenger_surname', 'lead_passenger_name');
 
@@ -392,7 +399,15 @@ class BookingWidgetController extends Controller
             'utm_content' => ['nullable', 'string', 'max:300'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
+            'return_pickup_at.after' => 'Your return pickup must be after your outbound pickup. Please check the return date and time.',
+            'return_pickup_at.required_if' => 'Please choose the date and time for your return journey.',
+            'pickup_postcode.max' => 'Please check the pickup postcode — it looks too long.',
+            'destination_postcode.max' => 'Please check the drop-off postcode — it looks too long.',
+            'customer_email.email' => 'Please check your email address.',
         ], ['customer_phone' => 'phone', 'customer_email' => 'email',
+            'pickup_at' => 'pickup date and time', 'return_pickup_at' => 'return date and time',
+            'pickup_address' => 'pickup address', 'destination_address' => 'drop-off address',
+            'vehicle_type_id' => 'vehicle', 'flight_landing_at' => 'flight landing time',
             'customer_surname.required_with' => 'Please enter your surname.',
             'lead_passenger_surname.required_with' => 'Please enter the passenger’s surname.']);
 
@@ -475,10 +490,18 @@ class BookingWidgetController extends Controller
         // Collecting FROM the airport: the pickup time IS the flight's landing time
         // (UK-local, never converted). The flight is tracked, so the driver adjusts
         // to delays; the customer never has to guess a separate pickup time.
-        if (! $isReturn && filled($data['flight_landing_at'] ?? null)
+        // Same on the outbound of a RETURN that starts at the airport (24 Nov 2026), as long
+        // as it stays before the return pickup; the form keeps the two boxes in step.
+        if (filled($data['flight_landing_at'] ?? null)
             && \App\Support\AirportMatcher::isAirport($data['pickup_address'] ?? null)) {
-            $pickupAt = Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
+            $landing = Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
                 ?: Carbon::parse($data['flight_landing_at'], config('app.timezone'));
+            $returnLimit = $isReturn && filled($data['return_pickup_at'] ?? null)
+                ? (Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone')) ?: null)
+                : null;
+            if (! $returnLimit || $landing->lt($returnLimit)) {
+                $pickupAt = $landing;
+            }
         }
 
         // A guide price from the existing engine, stored for the office. Hourly
@@ -491,6 +514,17 @@ class BookingWidgetController extends Controller
             ? (Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone'))
                 ?: Carbon::parse($data['return_pickup_at']))
             : null;
+        // Return that collects at the airport (home → airport, then airport → home): the
+        // return pickup IS the landing time of the flight we meet (kept after the outbound).
+        if ($returnAt && filled($data['flight_landing_at'] ?? null)
+            && ! \App\Support\AirportMatcher::isAirport($pickupFull)
+            && \App\Support\AirportMatcher::isAirport($destination)) {
+            $landing = Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
+                ?: Carbon::parse($data['flight_landing_at'], config('app.timezone'));
+            if ($landing->gt($pickupAt)) {
+                $returnAt = $landing;
+            }
+        }
 
         // THE price: the same TripPricer the price cards use (and the same per-leg
         // engine as the admin form) — each leg on its own route, own drag and own
@@ -541,7 +575,12 @@ class BookingWidgetController extends Controller
 
         // "Create an account" at checkout — set a login password and sign them in,
         // so next time is faster (and a company contact can book on account).
-        if (! empty($data['create_account']) && filled($data['password'] ?? null) && Customer::passwordLoginAvailable()) {
+        // SECURITY (24 Nov 2026): only ever for a customer record created by THIS booking.
+        // Registering with someone else's phone/email used to set a password on THEIR
+        // account and sign the stranger in as them. An existing customer uses "Forgot
+        // password" on My account instead (that proves they own the email).
+        if (! empty($data['create_account']) && filled($data['password'] ?? null) && Customer::passwordLoginAvailable()
+            && ! $sessionCustomer && $customer->wasRecentlyCreated) {
             $customer->setLoginPassword($data['password']);
             $request->session()->put(CustomerAccountController::SESSION_KEY, $customer->id);
         }
@@ -1195,21 +1234,7 @@ class BookingWidgetController extends Controller
     /** Match a customer by phone (then email), else create one. */
     private function resolveCustomer(array $data): Customer
     {
-        $phone = $data['customer_phone'] ?? null;
-        $email = $data['customer_email'] ?? null;
-
-        if ($phone && $found = Customer::where('phone', $phone)->first()) {
-            return $found;
-        }
-        if (! $phone && $email && $found = Customer::where('email', $email)->first()) {
-            return $found;
-        }
-
-        return Customer::create([
-            'name' => $data['customer_name'],
-            'phone' => $phone ?: null,
-            'email' => $email ?: null,
-        ]);
+        return Customer::matchForWebBooking($data['customer_name'], $data['customer_phone'] ?? null, $data['customer_email'] ?? null);
     }
 
     /**

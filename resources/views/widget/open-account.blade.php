@@ -195,6 +195,6 @@
     window.CET_RESOLVE_URL = "{{ route('public.book.resolve') }}";
     window.CET_REVERSE_URL = "{{ route('public.book.reverse') }}";
 </script>
-<script src="{{ asset('js/cet-forms.js') }}?v=35" defer></script>
+<script src="{{ asset('js/cet-forms.js') }}?v=38" defer></script>
 </body>
 </html>

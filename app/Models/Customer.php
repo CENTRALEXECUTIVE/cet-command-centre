@@ -66,6 +66,34 @@ class Customer extends Model
     }
 
     /** Set (hash) a login password. */
+    /**
+     * Find-or-create the booker for a WEBSITE booking (24 Nov 2026). Same email = same
+     * person. A phone match is only used when it can't send a stranger's confirmation to
+     * someone else: the record has no email (it's then filled in) or none was typed.
+     * A different email on the same phone is treated as a different booker.
+     */
+    public static function matchForWebBooking(string $name, ?string $phone, ?string $email): self
+    {
+        $phone = trim((string) $phone) ?: null;
+        $email = trim((string) $email) ?: null;
+        $emailKey = strtolower((string) $email);
+
+        if ($emailKey !== '' && $found = static::whereRaw('lower(email) = ?', [$emailKey])->first()) {
+            return $found;
+        }
+        if ($phone && $found = static::where('phone', $phone)->first()) {
+            if (blank($found->email) || $emailKey === '') {
+                if ($email && blank($found->email)) {
+                    $found->forceFill(['email' => $email])->save();
+                }
+
+                return $found;
+            }
+        }
+
+        return static::create(['name' => $name, 'phone' => $phone, 'email' => $email]);
+    }
+
     public function setLoginPassword(string $plain): void
     {
         $this->forceFill([

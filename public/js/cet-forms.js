@@ -238,6 +238,19 @@
     function attachPostcodeExtractor(el) {
         var target = document.querySelector(el.dataset.postcodeTarget || '');
         if (!target) return;
+        // A customer often types the postcode again into the box we already filled:
+        // select it on focus so typing replaces it, and collapse "M90 1QXM90 1QX"
+        // back to one postcode (24 Nov 2026: a doubled postcode changed the price
+        // and the booking was refused).
+        if (!target.dataset.pcGuard) {
+            target.dataset.pcGuard = '1';
+            target.addEventListener('focus', function () { try { target.select(); } catch (e) {} });
+            target.addEventListener('blur', function () {
+                var v = String(target.value || '').toUpperCase().replace(/\s+/g, ' ').trim();
+                var m = v.replace(/\s/g, '').match(/^([A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2})\1+$/);
+                if (m) { target.value = m[1].slice(0, -3) + ' ' + m[1].slice(-3); target.dispatchEvent(new Event('change')); }
+            });
+        }
         el.addEventListener('change', function () {
             var pc = extractPostcode(el.value);
             if (pc) { target.value = pc; target.dispatchEvent(new Event('change')); return; }

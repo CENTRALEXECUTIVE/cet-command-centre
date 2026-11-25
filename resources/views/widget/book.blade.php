@@ -585,6 +585,42 @@
                             @if(old('journey_type') && old('journey_type') !== 'one_way')
                                 <script>document.addEventListener('DOMContentLoaded', function () { var b = document.querySelector('#b-journey-seg [data-journey="' + @js(old('journey_type')) + '"]'); if (b) b.click(); });</script>
                             @endif
+                            @if($errors->any())
+                                @php $cetOldInput = collect(session()->getOldInput())->except(['_token', 'password', 'submission_token', 'company'])->all(); @endphp
+                                {{-- After a refusal, put back EVERYTHING the customer chose (passengers,
+                                     luggage, VAT answer, vehicle, stops, seats, payment, terms...), not
+                                     just the text boxes (24 Nov 2026). Never the password. --}}
+                                <script>
+                                document.addEventListener('DOMContentLoaded', function () {
+                                    var old = {!! json_encode($cetOldInput, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!};
+                                    var form = document.getElementById('cet-book'); if (!form || !old) return;
+                                    function fire(el) { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }
+                                    // Choices first (they switch other boxes on), then text.
+                                    Object.keys(old).forEach(function (name) {
+                                        var v = old[name]; if (Array.isArray(v)) return;
+                                        form.querySelectorAll('[name="' + name + '"]').forEach(function (el) {
+                                            if (el.type === 'radio') { if (String(el.value) === String(v)) { el.checked = true; fire(el); var l = el.closest('label'); if (l) l.click(); } }
+                                            else if (el.type === 'checkbox') { var on = v === '1' || v === 1 || v === true || v === 'on'; if (el.checked !== on) { el.checked = on; fire(el); } }
+                                            else if (el.tagName === 'SELECT') { if (v !== null && v !== '') { el.value = String(v); fire(el); } }
+                                        });
+                                    });
+                                    Object.keys(old).forEach(function (name) {
+                                        var v = old[name]; if (Array.isArray(v) || v === null) return;
+                                        form.querySelectorAll('input[name="' + name + '"]:not([type=radio]):not([type=checkbox]):not([type=hidden]), textarea[name="' + name + '"]').forEach(function (el) {
+                                            if (String(el.value) !== String(v)) { el.value = v; fire(el); }
+                                        });
+                                    });
+                                    // Via stops.
+                                    var stops = Array.isArray(old.stops) ? old.stops.filter(function (x) { return String(x || '').trim() !== ''; }) : [];
+                                    var add = document.getElementById('b-add-stop');
+                                    stops.forEach(function (addr, i) {
+                                        var ins = form.querySelectorAll('#b-stops input[name="stops[]"]');
+                                        if (!ins[i] && add) { add.click(); ins = form.querySelectorAll('#b-stops input[name="stops[]"]'); }
+                                        if (ins[i]) { ins[i].value = addr; fire(ins[i]); }
+                                    });
+                                });
+                                </script>
+                            @endif
                         </div>
                         {{-- Grouped pickup / drop-off with a swap circle (full-width
                              addresses, compact postcode beneath each). --}}
@@ -891,7 +927,8 @@
                         <p class="cet-foot" id="b-quote-note" hidden style="margin:6px 0 0;text-align:left">This vehicle is quoted on request — no payment now. Give us your details and we’ll email you a price.</p>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-voucher">Discount code <span class="opt">(optional)</span></label>
-                            <input id="b-voucher" name="voucher" placeholder="" autocomplete="off" style="text-transform:uppercase;max-width:260px"></div>
+                            <input id="b-voucher" name="voucher" placeholder="" autocomplete="off" style="text-transform:uppercase;max-width:260px">
+                            <div id="b-voucher-note" style="font-size:12.5px;font-weight:600;margin-top:6px" hidden></div></div>
 
                         <div class="cet-total" id="b-total">
                             <span class="lbl">Total price</span>
@@ -967,7 +1004,7 @@
         window.CET_LOGIN_URL = "{{ route('widget.login') }}";
         window.CET_ME = {!! json_encode($me ?? null) !!};
         window.CET_ME_ACCOUNT = {!! json_encode($meAccount ?? null) !!};</script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=37" defer></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=38" defer></script>
 
     <script>
         (function () {
@@ -1001,8 +1038,15 @@
             var NOTICE_MSG = 'Sorry — we need at least ' + MIN_LEAD_H + ' hours’ notice for online bookings. '
                 + 'For a journey sooner than that, please call our office on +44 7405 172435 and we’ll be glad to help.';
             function pad2(n){ return (n < 10 ? '0' : '') + n; }
-            function fmtLocal(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes()); }
-            function earliestAllowed(){ var e = new Date(Date.now() + MIN_LEAD_H*3600*1000); e.setMinutes(Math.ceil(e.getMinutes()/15)*15, 0, 0); return e; }
+            // Every time on this form is UK time (Europe/London), whatever the customer's own
+            // computer is set to — a customer in New York or Tokyo was told the wrong notice
+            // window (24 Nov 2026). These helpers turn instants into UK wall-clock text and back.
+            function ukParts(d){ var p = {}; try { new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).forEach(function (x) { p[x.type] = x.value; }); } catch (e) { p = { year: d.getFullYear(), month: pad2(d.getMonth()+1), day: pad2(d.getDate()), hour: pad2(d.getHours()), minute: pad2(d.getMinutes()) }; } if (p.hour === '24') p.hour = '00'; return p; }
+            function fmtLocal(d){ var p = ukParts(d); return p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute; }
+            function ukMs(str){ var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(str || '')); if (!m) return NaN;
+                var guess = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]); var p = ukParts(new Date(guess));
+                var shown = Date.UTC(+p.year, +p.month-1, +p.day, +p.hour, +p.minute); return guess - (shown - guess); }
+            function earliestAllowed(){ var q = 15*60*1000; return new Date(Math.ceil((Date.now() + MIN_LEAD_H*3600*1000) / q) * q); }
             var whenEl = document.getElementById('b-when');
             var retEl = document.getElementById('b-return');
             (function () {
@@ -1015,8 +1059,8 @@
             // True when the chosen pickup is too soon (inside the notice window).
             function tooSoon(){
                 if (!whenEl || !whenEl.value) return false;
-                var picked = new Date(whenEl.value);
-                return !isNaN(picked) && picked.getTime() < earliestAllowed().getTime();
+                var picked = ukMs(whenEl.value);
+                return !isNaN(picked) && picked < earliestAllowed().getTime();
             }
             if (whenEl) { whenEl.addEventListener('change', function () { showNotice(tooSoon()); }); }
 
@@ -1071,6 +1115,10 @@
                 if (whenRow) whenRow.style.gridTemplateColumns = v === 'return' ? '1fr 1fr' : '1fr';
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
                 if (dropRow) dropRow.style.display = v === 'hourly' ? 'none' : '';
+                // Hourly hire has no drop-off: the hidden box must not be required, or the
+                // browser silently refuses to send the form (24 Nov 2026).
+                var dropIn = document.getElementById('b-dropoff');
+                if (dropIn) dropIn.required = v !== 'hourly';
                 var stopsField = document.getElementById('b-stops-field');
                 if (stopsField) stopsField.style.display = v === 'hourly' ? 'none' : '';
                 // No cash bookings on return journeys — hide Cash, force card (or account).
@@ -1201,6 +1249,15 @@
                         if (bad) ok = false;
                     });
                     if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
+                    // A return must be after the outbound (checked here, not only by the server).
+                    if (ok && jt === 'return') {
+                        var rv = document.getElementById('b-return'), wv = document.getElementById('b-when');
+                        if (rv && wv && ukMs(rv.value) <= ukMs(wv.value)) {
+                            var rf = document.getElementById('b-return-field'); if (rf) rf.classList.add('bad');
+                            showErr(1, 'Your return pickup must be after your outbound pickup. Please check the return date and time.');
+                            return false;
+                        }
+                    }
                     // Postcode is required only for a HOME/street pickup that's missing
                     // one — a driver needs it. Airports/venues (residential !== '1') and
                     // addresses that already resolved a postcode are never blocked.
@@ -1402,7 +1459,7 @@
                     html += row('Lands', isNaN(ld) ? val('b-flight-landing')
                         : ld.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+ld.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
                 }
-                var vat = vatOn();
+                var vat = priceVatOn();
                 requote(); // any change to the journey/extras/VAT/code re-prices on the server
                 var priced = lastQuote && !lastQuote.poa && lastQuote.total != null;
                 if (priced) {
@@ -1494,6 +1551,16 @@
                     discount: Number(q.discount || 0), vat: Number(q.vat || 0),
                     surchargeLabel: q.surcharge_label || null
                 } : null;
+                // Tell the customer straight away if their discount code didn't apply
+                // (it used to be noted for the office only, 24 Nov 2026).
+                var vIn = document.getElementById('b-voucher'), vNote = document.getElementById('b-voucher-note');
+                if (vIn && vNote) {
+                    var typed = String(vIn.value || '').trim() !== '';
+                    var bad = typed && q && !q.poa && q.voucher_valid === false;
+                    vNote.hidden = !typed || !q || q.poa;
+                    vNote.textContent = bad ? 'That code isn’t valid, so no discount has been applied.' : 'Code applied.';
+                    vNote.style.color = bad ? '#b3261e' : '#1f7a44';
+                }
             }
 
             // ETO-style extras: +/- steppers, the meet & greet toggle, and a live
@@ -1506,6 +1573,10 @@
                 return '£' + n.toLocaleString('en-GB',{minimumFractionDigits: pence ? 2 : 0, maximumFractionDigits: pence ? 2 : 0});
             }
             function vatOn(){ var y = document.getElementById('b-vat-yes'); return !!(y && y.checked); }
+            // The PRICE includes VAT on a VAT invoice AND on an account booking (accounts are
+            // always invoiced with VAT) — the screen said £105 while the account was billed
+            // £126 (24 Nov 2026). Business details are only asked for on a VAT invoice.
+            function priceVatOn(){ var a = document.getElementById('b-pay-account'); return vatOn() || !!(a && a.checked); }
             // Meet & greet is MANDATORY on an airport arrival (a one-way airport pickup,
             // or any return touching an airport) — the driver waits in arrivals with a
             // name board. It's baked into the price (shown on the vehicle cards and the
@@ -1534,7 +1605,7 @@
                 if (t == null) { el.innerHTML = 'Office to confirm'; return; }
                 var notes = [];
                 if (legs() === 2) notes.push('return — both legs');
-                if (vatOn()) notes.push('inc. VAT');
+                if (priceVatOn()) notes.push('inc. VAT');
                 if (mgFee() > 0) notes.push('incl. meet &amp; greet');
                 el.innerHTML = money(t) + (notes.length ? ' <small>' + notes.join(' · ') + '</small>' : '');
             }
@@ -1756,6 +1827,16 @@
                     fillSummary();
                 });
             }
+            // And the other way round (24 Nov 2026): changing the date of the leg we meet at
+            // the airport moves the landing time with it, so the two can never disagree.
+            (function () {
+                var land = document.getElementById('b-flight-landing');
+                var whenB = document.getElementById('b-when');
+                if (!land) return;
+                function push(v) { if (v && land.value !== v) { land.value = v; land.dispatchEvent(new Event('change')); } }
+                if (whenB) whenB.addEventListener('change', function () { if (isAirportPickup()) push(whenB.value); });
+                if (retEl) retEl.addEventListener('change', function () { if (isAirportReturn() && isAirportDropoff() && !isAirportPickup()) push(retEl.value); });
+            })();
             // Wheelchair / ribbons checkbox extras — highlight + live total.
             ['b-wheelchair', 'b-ribbons'].forEach(function (id) {
                 var el = document.getElementById(id); if (!el) return;
@@ -1819,7 +1900,12 @@
                 var btn = document.getElementById('cet-submit');
                 if (btn) btn.textContent = v === 'card' ? 'Book & pay' : 'Request booking';
             }
-            [payCard, payCash, payAccount].forEach(function (r) { if (r) r.addEventListener('change', syncPay); });
+            [payCard, payCash, payAccount].forEach(function (r) { if (r) r.addEventListener('change', function () {
+                syncPay();
+                // Switching to/from account changes whether the price includes VAT.
+                if (typeof fillSummary === 'function') fillSummary();
+                if (typeof updateTotal === 'function') updateTotal();
+            }); });
             syncPay();
 
             // Book as guest / Sign in / Register tabs. Account payment is only ever
@@ -1995,7 +2081,7 @@
                     child_seats: n('b-child_seats'), booster_seats: n('b-booster_seats'), infant_seats: n('b-infant_seats'),
                     stops: window.__cetCountStops ? window.__cetCountStops() : 0,
                     ribbons: on('b-ribbons') ? 1 : 0, wheelchair: on('b-wheelchair') ? 1 : 0,
-                    vat_invoice: vatOn() ? 1 : 0, voucher: v('b-voucher').trim()
+                    vat_invoice: priceVatOn() ? 1 : 0, voucher: v('b-voucher').trim()
                 };
                 var key = JSON.stringify(body);
                 if (key === pricesFor && Object.keys(priceById).length) { renderPrices(); reportHeight(); return; }
