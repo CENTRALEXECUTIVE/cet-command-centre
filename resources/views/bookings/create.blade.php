@@ -475,15 +475,18 @@
                     <div class="grid grid-2">
                         <div class="field">
                             <label for="corporate_account_id">Corporate account</label>
-                            <select id="corporate_account_id" name="corporate_account_id">
-                                <option value="">— Private booking —</option>
+                            {{-- A company client books for THEIR company: no "private" option and their
+                                 account picked, or the booking vanished from their own list (QA 25 Nov 2026). --}}
+                            @php $isCorpUser = auth()->user()->isCorporateClient(); @endphp
+                            <select id="corporate_account_id" name="corporate_account_id" @if($isCorpUser) required @endif>
+                                @unless($isCorpUser)<option value="">— Private booking —</option>@endunless
                                 @foreach($corporateAccounts as $acc)
                                     <option value="{{ $acc->id }}"
                                         data-cost-code-required="{{ $acc->cost_code_required ? '1' : '0' }}"
                                         data-vat-name="{{ $acc->name }}"
                                         data-vat-number="{{ $acc->vat_number }}"
                                         data-vat-address="{{ preg_replace('/\s*\R\s*/', ', ', trim((string) $acc->billing_address)) }}"
-                                        @selected(old('corporate_account_id')==$acc->id)>{{ $acc->name }}</option>
+                                        @selected(old('corporate_account_id', $isCorpUser && $loop->first ? $acc->id : null)==$acc->id)>{{ $acc->name }}</option>
                                 @endforeach
                             </select>
                         </div>

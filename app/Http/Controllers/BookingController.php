@@ -423,7 +423,10 @@ class BookingController extends Controller
         // is the PVT sister (chauffeurs). This is what drives the PVT email + invoice,
         // so a non-VAT booking is PVT regardless of which card provider is configured —
         // no silent fallback to the main company. Done before the emails go out.
-        $entity = $request->boolean('vat_invoice') ? 'transfers' : 'chauffeurs';
+        // An ACCOUNT booking is always invoiced with VAT, so it's the Ltd too (QA 25 Nov
+        // 2026: account jobs were billed £320 + £64 VAT but stamped to PVT LTD).
+        $isAccount = $request->input('payment_method') === 'account' || filled($request->input('corporate_account_id'));
+        $entity = ($request->boolean('vat_invoice') || $isAccount) ? 'transfers' : 'chauffeurs';
         foreach ($booking->fresh()->invoiceGroupBookings() as $leg) {
             if (($leg->meta['billing_entity'] ?? null) !== $entity) {
                 $leg->forceFill(['meta' => array_merge($leg->meta ?? [], ['billing_entity' => $entity])])->save();
@@ -740,7 +743,7 @@ class BookingController extends Controller
             'customer_phone' => $b->customerContactNumber(),
             'customer_email' => $b->customer?->email,
             'journey_type' => $b->journey_type === 'hourly' ? 'hourly' : 'one_way',
-            'hours' => $m['hours'] ?? 3,
+            'hours' => $b->hourlyHours() ?? $m['hours'] ?? 3,
             'pickup_address' => $b->pickup_address,
             'pickup_postcode' => $b->pickup_postcode,
             'destination_address' => $b->destination_address,

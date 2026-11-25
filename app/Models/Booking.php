@@ -5867,7 +5867,14 @@ class Booking extends Model
     public function paymentLines(): array
     {
         $lines = [];
+        // After the office edits the payment method/price, older calendar copies are
+        // out of date: only the line written by the edit counts (QA 25 Nov 2026).
+        $editedAt = filled($this->meta['payment_edited_at'] ?? null)
+            ? \Illuminate\Support\Carbon::parse($this->meta['payment_edited_at']) : null;
         foreach ($this->calendarEvents as $event) {
+            if ($editedAt && $event->updated_at && $event->updated_at->lt($editedAt)) {
+                continue;
+            }
             $v = $event->descriptionValue('Payment');
             if (filled($v)) {
                 $lines[] = $v;
@@ -6141,7 +6148,14 @@ class Booking extends Model
         // money emoji on a return.) Only the office override above can put cash on a
         // return (the rare collect-on-the-return case).
         if ($this->is_return_leg) {
-            return null;
+            // …unless the outbound collects nothing either: a cash trip that STARTS
+            // with an airport pickup (prepaid arrival). Then the return's cash is
+            // taken on the return, or nobody takes it (QA 25 Nov 2026, CET-5E45DA/B).
+            $outbound = $this->linked_booking_id ? $this->linkedBooking : null;
+            $outboundCollects = $outbound && ! $outbound->isPrepaidAirportPickup();
+            if (! $outbound || $outboundCollects || ($this->payment_method?->value ?? null) !== 'cash') {
+                return null;
+            }
         }
 
         // The business took the money itself (e.g. card tapped in the car), so the
@@ -6324,8 +6338,12 @@ class Booking extends Model
             $this->extraDrivers()
         ));
 
-        if ($this->driverSettledByCustomer()) {
-            return round(($this->cashDueToDriver() ?? 0.0) + $pay + $extras, 2);
+        // A cash job: the driver keeps their PAY out of the cash and hands back the
+        // rest (Cash & pay settles the difference), so the cost is the pay, not cash +
+        // pay (QA 25 Nov 2026: £120 fare, £108 pay showed a £228 cost). With no pay
+        // set yet, the cash they keep is the best measure of the cost.
+        if ($this->driverSettledByCustomer() && $pay <= 0) {
+            return round(($this->cashDueToDriver() ?? 0.0) + $extras, 2);
         }
 
         return round($pay + $extras, 2);

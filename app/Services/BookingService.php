@@ -157,6 +157,8 @@ class BookingService
     public function updateFromForm(Booking $booking, array $data): Booking
     {
         return DB::transaction(function () use ($booking, $data) {
+            $origPayMethod = $booking->payment_method?->value;
+            $origFare = $booking->final_price ?? $booking->quoted_price;
             // Edit now uses the New booking form (20 Nov 2026). Collecting FROM an
             // airport: the flight landing time IS the pickup time (UK-local, as on
             // New booking) — the form keeps the two in step; the landing time wins.
@@ -318,7 +320,7 @@ class BookingService
                 'airport_id' => $data['airport_id'] ?? null,
                 'pickup_at' => $data['pickup_at'],
                 'pickup_address' => $data['pickup_address'],
-                'destination_address' => $data['destination_address'],
+                'destination_address' => filled($data['destination_address'] ?? null) ? $data['destination_address'] : ($booking->destination_address ?: 'As directed'),
                 'flight_number' => $data['flight_number'] ?? null,
             ] + (array_key_exists('pickup_postcode', $data) ? ['pickup_postcode' => $data['pickup_postcode'] ?: null] : [])
               + (array_key_exists('destination_postcode', $data) ? ['destination_postcode' => $data['destination_postcode'] ?: null] : []) + [
@@ -339,6 +341,10 @@ class BookingService
                     'flight_landing_at' => ! empty($data['flight_landing_at'])
                         ? \Illuminate\Support\Carbon::parse($data['flight_landing_at'], config('app.timezone'))->toDateTimeString()
                         : ($booking->meta['flight_landing_at'] ?? null),
+                    // Hourly hire: the hours were never saved on edit (QA 25 Nov 2026).
+                    'hourly_hours' => ($booking->isHourlyHire() && ! empty($data['hours']))
+                        ? max(1, (int) $data['hours'])
+                        : ($booking->meta['hourly_hours'] ?? null),
                     'suitcases' => $suitcases,
                     'hand_luggage' => $handLuggage,
                     'child_seats' => $childCap,
@@ -432,6 +438,24 @@ class BookingService
             if ($typedName !== '' && $typedName !== $priorDisplayName) {
                 $fresh = $booking->fresh();
                 $fresh->forceFill(['meta' => array_merge($fresh->meta ?? [], ['name_override' => $typedName])])->save();
+            }
+
+            // The payment line drives what the DRIVER collects. When the office changes
+            // the payment method or the price, record a fresh line so an old "£77.50
+            // cash pending" can't linger (QA 25 Nov 2026). The calendar is still never
+            // touched on an edit: lines from older calendar copies are ignored instead
+            // (Booking::paymentLines reads payment_edited_at).
+            $after = $booking->fresh();
+            $newFare = $after->final_price ?? $after->quoted_price;
+            if ($after->payment_method?->value !== $origPayMethod || (float) $newFare !== (float) $origFare) {
+                $method = $after->payment_method?->value;
+                $text = $method === 'cash' && $newFare !== null
+                    ? '£'.number_format(max(0, (float) $newFare - $after->depositPaidAmount()), 2).' Cash'
+                    : ($after->fareIsPaid() ? 'Paid' : 'Pending').' ('.($after->payment_method?->label() ?? 'Card').')';
+                $after->forceFill(['meta' => array_merge($after->meta ?? [], [
+                    'payment_text' => $text,
+                    'payment_edited_at' => now()->toDateTimeString(),
+                ])])->save();
             }
 
             return $booking->refresh();

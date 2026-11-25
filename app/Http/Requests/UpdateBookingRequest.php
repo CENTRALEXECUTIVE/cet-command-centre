@@ -53,7 +53,7 @@ class UpdateBookingRequest extends FormRequest
             // Journey
             'pickup_at' => ['required', 'date'],
             'pickup_address' => ['required', 'string', 'max:500'],
-            'destination_address' => ['required', 'string', 'max:500'],
+            'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
             // Same options as the New booking form (Nov 2026).
             'vehicle_count' => ['nullable', 'integer', 'min:1', 'max:5'],
             'meet_greet' => ['nullable', 'boolean'],

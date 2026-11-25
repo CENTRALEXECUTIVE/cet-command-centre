@@ -597,6 +597,28 @@ class BookingTest extends TestCase
         $this->assertFalse($return->fresh()->hasCashToCollect());
     }
 
+    public function test_a_cash_return_that_starts_with_an_airport_pickup_collects_the_return_on_the_return_leg(): void
+    {
+        // QA 25 Nov 2026: MAN -> Sheffield, back to MAN, cash. The arrival is prepaid and the
+        // return leg said "collect nothing", so nobody collected the return's cash.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'return',
+            'pickup_address' => 'Manchester Airport (MAN) Terminal 2',
+            'destination_address' => '10 Fitzwilliam Street, Sheffield S1 4JR',
+            'return_pickup_at' => now()->addDays(5)->format('Y-m-d\TH:i'),
+            'payment_method' => 'cash',
+            'quoted_price' => 200,
+        ]));
+
+        $outbound = Booking::where('is_return_leg', false)->first();
+        $return = Booking::where('is_return_leg', true)->first();
+        $this->assertTrue($outbound->isPrepaidAirportPickup());
+        $this->assertFalse($outbound->fresh()->hasCashToCollect());
+        $this->assertTrue($return->fresh()->hasCashToCollect(), 'somebody must collect the return');
+        $this->assertFalse($return->fresh()->returnLegCollectedOnOutbound());
+    }
+
     public function test_a_cash_airport_return_collects_the_full_fare_on_the_outbound(): void
     {
         $admin = User::factory()->admin()->create();

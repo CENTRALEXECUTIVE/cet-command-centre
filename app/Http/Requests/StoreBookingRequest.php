@@ -29,6 +29,15 @@ class StoreBookingRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        // A company client always books on THEIR OWN account (never private, never
+        // someone else's) — or the booking vanished from their list (QA 25 Nov 2026).
+        $user = $this->user();
+        if ($user && $user->isCorporateClient()) {
+            $mine = $user->corporateAccounts()->where('is_active', true)->pluck('corporate_accounts.id');
+            if ($mine->isNotEmpty() && ! $mine->contains((int) $this->input('corporate_account_id'))) {
+                $this->merge(['corporate_account_id' => $mine->first()]);
+            }
+        }
         if ($this->has('customer_phone')) {
             $this->merge(['customer_phone' => \App\Support\Phone::normalise(
                 $this->input('customer_phone'),
