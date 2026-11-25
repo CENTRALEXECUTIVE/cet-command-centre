@@ -160,7 +160,7 @@ class CustomerAdminPriceParityTest extends TestCase
         // switch that off here so the far routes still compare like-for-like.
         config(['cet.office_quote_drag_miles' => 100000]);
         Mail::fake();
-        $this->withoutMiddleware(ThrottleRequests::class);
+        $this->withoutMiddleware([ThrottleRequests::class, \App\Http\Middleware\ThrottlePerRoute::class]);
         $this->stubDistances();
         $this->stubGateway();
         $this->admin = User::factory()->admin()->create();
