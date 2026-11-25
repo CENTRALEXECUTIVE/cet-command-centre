@@ -5,6 +5,8 @@ description: Produce next week's complete social media pack for Central Executiv
 
 1. Hand the work to the `social-media-manager` agent. Pass on any theme, event or
    offer the user mentioned, and the week's start date (next Monday unless told).
+   No question/poll/"comment below" posts (they reach nobody at our follower count);
+   every designed graphic comes with a ChatGPT image prompt.
 2. The agent must read `docs/growth/BUSINESS_FACTS.md` and the latest pack in
    `docs/growth/social/` so it doesn't repeat itself.
 3. Output: `docs/growth/social/<monday-date>-week.md` (readable calendar) and

@@ -66,6 +66,20 @@ For 5–7 posts across the week:
   "No.1" claims. No competitor bashing.
 - Prices only from BUSINESS_FACTS ("from £X", confirmed).
 - Nothing is posted automatically — the director schedules it.
+- **NO question / engagement-bait posts (directors, 25 Nov 2026).** No "Where are
+  you flying next?", polls, "comment below", "tag a friend" or "which car would you
+  pick?" posts or captions. With a small following they reach nobody and look empty.
+  Every post must work for a stranger who sees it once: show something (the car, the
+  service, a useful tip, proof) and end with a booking CTA. Revisit only when an
+  account passes ~2,000 followers AND the director asks.
+- **Lead with strong visuals.** The directors like the premium style of their
+  business card / brochure mock-ups: black Mercedes E-Class and V-Class at an airport
+  at golden hour, gold (#FBBA2A) and navy, "CET" wordmark, short confident headline
+  (e.g. "Executive Travel. Business Class Service."). For each designed graphic, give a
+  ready-to-paste **ChatGPT image prompt** (size, layout, exact on-image text, brand
+  colours, "no real number plates, no real people's faces") alongside the phone shot
+  brief, so the director can generate it in ChatGPT. Contact details on graphics:
+  0114 399 8242, WhatsApp +44 7405 172435, centralexecutivetransfers.co.uk.
 
 ## Performance loop
 When given analytics, report the top 3 and bottom 3 posts, why, and change next
