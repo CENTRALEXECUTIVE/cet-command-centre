@@ -29,6 +29,7 @@ class StoreBookingRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        \App\Support\UkTime::fixGap($this, ['pickup_at', 'return_pickup_at'], null);
         // A company client always books on THEIR OWN account (never private, never
         // someone else's) — or the booking vanished from their list (QA 25 Nov 2026).
         $user = $this->user();
@@ -78,7 +79,7 @@ class StoreBookingRequest extends FormRequest
 
             // Journey
             'journey_type' => ['required', Rule::in(['one_way', 'return', 'hourly'])],
-            'pickup_at' => ['required', 'date', 'after:now', \App\Support\UkTime::existsRule()],
+            'pickup_at' => ['required', 'date', 'after:now'],
             'pickup_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['nullable', 'string', 'max:16'],
             // Destination isn't needed for hourly hire ("as directed").
@@ -146,7 +147,7 @@ class StoreBookingRequest extends FormRequest
             'wheelchair' => ['nullable', 'boolean'],
 
             // Return leg (paired booking)
-            'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at', \App\Support\UkTime::existsRule()],
+            'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
 
             // Corporate
             'corporate_account_id' => ['nullable', Rule::exists('corporate_accounts', 'id')->where('is_active', true)],

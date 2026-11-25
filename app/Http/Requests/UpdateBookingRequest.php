@@ -27,6 +27,7 @@ class UpdateBookingRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        \App\Support\UkTime::fixGap($this, ['pickup_at'], null);
         if ($this->has('customer_phone')) {
             $this->merge(['customer_phone' => \App\Support\Phone::normalise(
                 $this->input('customer_phone'),
@@ -51,7 +52,7 @@ class UpdateBookingRequest extends FormRequest
             'airport_id' => ['nullable', Rule::exists('airports', 'id')],
 
             // Journey
-            'pickup_at' => ['required', 'date', \App\Support\UkTime::existsRule()],
+            'pickup_at' => ['required', 'date'],
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
             // Same options as the New booking form (Nov 2026).

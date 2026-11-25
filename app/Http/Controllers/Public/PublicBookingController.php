@@ -129,6 +129,8 @@ class PublicBookingController extends Controller
 
         \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
 
+        \App\Support\UkTime::fixGap($request, ['pickup_at']);
+
         $data = $request->validate([
             'customer_first_name' => ['nullable', 'string', 'max:60'],
             'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],
@@ -136,7 +138,7 @@ class PublicBookingController extends Controller
             'destination_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['required', 'string', 'max:12'],
             'destination_postcode' => ['nullable', 'string', 'max:12'],
-            'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s'), \App\Support\UkTime::existsRule()],
+            'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],
             'passengers' => ['required', 'integer', 'min:1', 'max:60'],
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
