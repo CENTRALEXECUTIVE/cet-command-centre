@@ -128,6 +128,7 @@ class StatusWatchdog
             }
             if ($booking->driver_id) {
                 $sent += $this->evaluate($booking);
+                $sent += $this->stuckJobPass($booking);
             }
             $sent += $this->adminPass($booking);
         }
@@ -423,7 +424,9 @@ class StatusWatchdog
         // next to a passenger is unacceptable. In pilot mode (no backup) the whole
         // escalation simply waits until they're free; with a backup enabled it
         // still escalates, just to whoever's free instead of the busy driver.
-        $driverBusy = (bool) $booking->driver?->busyForAlerts();
+        // Busy = held alerts or genuinely on another job (a stuck, forgotten job
+        // doesn't count).
+        $driverBusy = $this->driverBusyElsewhere($booking);
         $backupOn = (bool) config('cet.checkpoint.route_to_backup', false);
 
         if ($booking->checkpointActive()
@@ -931,7 +934,45 @@ class StatusWatchdog
                 BookingStatus::EnRoute->value,
                 BookingStatus::Arrived->value,
                 BookingStatus::Collected->value,
-            ])->exists();
+            ])->get()
+            // A job left open long after it should have finished, with no GPS, is a
+            // forgotten tap, not a driver who's busy (QA 25 Nov 2026: one stuck job
+            // silenced every alert on the driver's next job).
+            ->contains(fn (Booking $other) => ! $this->isStuckOpen($other));
+    }
+
+    /**
+     * An en route / arrived / on-board job that should have finished long ago
+     * (pickup + journey time + 90 min) and has sent no GPS for 30 minutes.
+     */
+    public function isStuckOpen(Booking $booking): bool
+    {
+        if (! in_array($booking->status, [BookingStatus::EnRoute, BookingStatus::Arrived, BookingStatus::Collected], true)
+            || ! $booking->pickup_at) {
+            return false;
+        }
+        $due = $booking->pickup_at->copy()->addMinutes($this->estimatedDurationMinutes($booking) + 90);
+        if (now()->lt($due)) {
+            return false;
+        }
+
+        return ! DriverLocation::where('booking_id', $booking->id)
+            ->where('captured_at', '>=', now()->subMinutes(30))->exists();
+    }
+
+    /** Tell the office about a job left open with no sign of life (once). */
+    private function stuckJobPass(Booking $booking): int
+    {
+        if (! $this->isStuckOpen($booking)) {
+            return 0;
+        }
+        $driver = $booking->driver?->name ?? 'The driver';
+        $mins = (int) $booking->pickup_at->diffInMinutes(now());
+
+        return (int) $this->admins->send($booking, 'admin_stuck_open', 'at_risk',
+            '⚠️ Job still open — '.$booking->reference,
+            $booking->reference.' still shows "'.$booking->status->label().'" '.$mins.' min after pickup and '.$driver.' has sent no GPS for 30 min. Check with them and close it.',
+            'warning', 1);
     }
 
     /* ── Sending & idempotency ────────────────────────────────────────────── */

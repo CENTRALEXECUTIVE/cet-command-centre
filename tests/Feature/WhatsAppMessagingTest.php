@@ -50,10 +50,10 @@ class WhatsAppMessagingTest extends TestCase
     {
         $booking = $this->makeBooking();
 
-        // Immediate confirmation (log transport → marked sent).
+        // Confirmation is written for the office but NEVER auto-sent (CLAUDE.md rule 2).
         $confirmation = Message::where('booking_id', $booking->id)->where('type', 'confirmation')->first();
         $this->assertNotNull($confirmation);
-        $this->assertEquals('sent', $confirmation->status);
+        $this->assertEquals('manual', $confirmation->status);
 
         // A single 24h reminder queued for the future — no 2h second nudge.
         $this->assertDatabaseHas('messages', ['booking_id' => $booking->id, 'type' => 'reminder_24h', 'status' => 'queued']);

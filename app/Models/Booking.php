@@ -4628,11 +4628,43 @@ class Booking extends Model
         // International first (+33…, 0049 151 204 22619 — up to 15 digits, E.164), then UK.
         // The old UK-only pattern cut a German mobile to "0049 151 204 22" (CET-B3411F,
         // 23 Nov 2026), so masking would have rung a wrong number.
-        preg_match_all('/(?:\+|00)[1-9](?:[\s-]?\d){6,14}|(?:\+?44|0)\s?(?:\d[\s-]?){9,10}\d/', $text, $m);
-        $found = array_map('trim', $m[0] ?? []);
+        // QA 25 Nov 2026: also catch "+44 (0) 7700 900999", "(0114) 234 5678",
+        // "07700.900.999" and a bare "7700 900999" — any run of digits with spaces,
+        // dashes, dots or brackets that adds up to 10-15 digits.
+        preg_match_all('/(?:\+|00)?\(?\d[\d\s\-.()]{8,22}\d/', $text, $m);
+        // Keep a leading "(" (it belongs to "(0114)"); drop trailing separators only.
+        $found = array_map(function ($x) {
+            $x = rtrim(ltrim($x), " \t\n-.(");
+            // Drop a bracket that only wraps the number in the sentence: "(0049 …)".
+            while (str_starts_with($x, '(') && substr_count($x, '(') > substr_count($x, ')')) {
+                $x = ltrim(substr($x, 1));
+            }
+            while (str_ends_with($x, ')') && substr_count($x, ')') > substr_count($x, '(')) {
+                $x = rtrim(substr($x, 0, -1));
+            }
+            if (str_starts_with($x, '(') && str_ends_with($x, ')') && substr_count($x, '(') === 1) {
+                $x = trim(substr($x, 1, -1));
+            }
 
-        // Keep only matches with at least 10 digits (drop short false positives).
-        return array_values(array_filter($found, fn ($s) => strlen(preg_replace('/\D/', '', $s)) >= 10));
+            return $x;
+        }, $m[0] ?? []);
+
+        return array_values(array_unique(array_filter($found, function ($s) {
+            $digits = strlen(preg_replace('/\D/', '', $s));
+
+            return $digits >= 10 && $digits <= 15;
+        })));
+    }
+
+    /** Text with every phone number replaced, safe to show a DRIVER (masking). */
+    public function driverSafeText(?string $text): string
+    {
+        $text = (string) $text;
+        foreach ($this->notePhoneNumbers() as $num) {
+            $text = str_replace($num, '(number via the office)', $text);
+        }
+
+        return $text;
     }
 
     /** True when the driver-visible notes contain a phone number (masking risk). */
@@ -6021,6 +6053,13 @@ class Booking extends Model
         if ($this->linked_booking_id && ! $this->is_return_leg) {
             $linked = $this->linkedBooking;
             if ($linked && ! empty($linked->meta['matched_return'])) {
+                return $linked;
+            }
+            // Its own RETURN LEG (a return booked in one go on the office form or the
+            // website, refs …A/…B). The return leg never collects, so its cash MUST be
+            // collected here or nobody takes it (QA 25 Nov 2026: a £60+£60 cash return
+            // showed £60 on the outbound and "collect nothing" on the return).
+            if ($linked && $linked->is_return_leg && (int) $linked->linked_booking_id === (int) $this->id) {
                 return $linked;
             }
         }

@@ -47,7 +47,7 @@
                         @if($phone)<a class="ap-btn" href="tel:{{ \App\Support\Phone::e164($phone) ?? $phone }}">📞 Call</a>@endif
                         @if($wa)<a class="ap-btn" target="_blank" rel="noopener" href="https://wa.me/{{ $wa }}?text={{ rawurlencode($msg) }}">📲 {{ $quote ? 'WhatsApp' : 'WhatsApp pay link' }}</a>@endif
                         @if(! $quote)
-                            <form method="POST" action="{{ route('payments.paid', $b) }}" onsubmit="return confirm('Mark {{ $ref }} as PAID? Only do this if the money has arrived.')">@csrf<button class="ap-btn">✓ Mark paid</button></form>
+                            <form method="POST" action="{{ route('payments.paid', $b) }}" onsubmit="return confirm('Mark {{ \App\Support\JsText::q($ref) }} as PAID? Only do this if the money has arrived.')">@csrf<button class="ap-btn">✓ Mark paid</button></form>
                         @endif
                         <a class="ap-btn ap-open" href="{{ route('bookings.show', $b) }}">Open →</a>
                     </div>

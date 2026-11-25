@@ -97,7 +97,7 @@
                 </div>
                 <button class="btn btn-primary">Save</button>
             </form>
-            <form method="POST" action="{{ route('customers.destroy', $customer) }}" style="margin-top:12px" onsubmit="return confirm('Remove “{{ $customer->name }}” from the directory? Their bookings are kept and this can be undone.')">
+            <form method="POST" action="{{ route('customers.destroy', $customer) }}" style="margin-top:12px" onsubmit="return confirm('Remove “{{ \App\Support\JsText::q($customer->name) }}” from the directory? Their bookings are kept and this can be undone.')">
                 @csrf @method('DELETE')
                 <button class="btn btn-ghost" style="color:#b32020;padding:6px 12px;font-size:13px">Remove customer (junk / not a person)</button>
             </form>

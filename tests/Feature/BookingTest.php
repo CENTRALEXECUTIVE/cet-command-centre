@@ -574,6 +574,29 @@ class BookingTest extends TestCase
         $this->assertFalse($return->fresh()->hasCashToCollect());
     }
 
+    public function test_an_office_cash_return_that_is_not_an_airport_collects_both_legs_on_the_outbound(): void
+    {
+        // QA 25 Nov 2026: Sheffield <-> York cash return showed the outbound's own fare
+        // only, and "collect nothing" on the return, so half the cash was never taken.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'return',
+            'destination_address' => 'The Grand Hotel, York',
+            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'payment_method' => 'cash',
+            'quoted_price' => 120,
+        ]));
+
+        $outbound = Booking::where('is_return_leg', false)->first();
+        $return = Booking::where('is_return_leg', true)->first();
+        $outFare = (float) ($outbound->final_price ?? $outbound->quoted_price);
+        $retFare = (float) ($return->final_price ?? $return->quoted_price);
+        $this->assertGreaterThan(0, $retFare);
+
+        $this->assertSame(round($outFare + $retFare, 2), $outbound->fresh()->cashDueToDriver());
+        $this->assertFalse($return->fresh()->hasCashToCollect());
+    }
+
     public function test_a_cash_airport_return_collects_the_full_fare_on_the_outbound(): void
     {
         $admin = User::factory()->admin()->create();

@@ -229,7 +229,7 @@
                                 @elseif(($b->driverPayRemaining() ?? 0) > 0)
                                     @if(auth()->user()->isAdmin())
                                         <span class="badge" style="background:#8a5a00;color:#fff;cursor:pointer" title="Tap to mark this job paid to the driver"
-                                              onclick="event.preventDefault();event.stopPropagation();if(confirm('Mark £{{ number_format($b->driverPayRemaining(), 2) }} paid to {{ addslashes($b->payrollDriverName()) }} for this job?'))document.getElementById('markpaid-{{ $b->id }}').submit();">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed · tap to pay</span>
+                                              onclick="event.preventDefault();event.stopPropagation();if(confirm('Mark £{{ \App\Support\JsText::q(number_format($b->driverPayRemaining(), 2)) }} paid to {{ addslashes($b->payrollDriverName()) }} for this job?'))document.getElementById('markpaid-{{ $b->id }}').submit();">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed · tap to pay</span>
                                     @else
                                         <span class="badge" style="background:#8a5a00;color:#fff" title="Owed to the driver">💷 £{{ number_format($b->driverPayRemaining(), 0) }} owed</span>
                                     @endif

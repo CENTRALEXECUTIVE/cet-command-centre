@@ -242,10 +242,10 @@
 {{-- Notes from the office for the driver — extra info the customer gave.
      Prominent so it isn't missed. A note containing a phone number is hidden
      entirely (it would defeat number masking) — the office handles it. --}}
-@if($booking->driverReadNotes() && ! $booking->notesContainNumber())
+@if($booking->driverReadNotes())
     <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
         <div style="font-weight:800;font-size:15px">📝 Notes</div>
-        <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverReadNotes()) !!}</p>
+        <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverSafeText($booking->driverReadNotes())) !!}</p>
         @if($booking->driverNotesAcknowledged())
             <div style="font-weight:700;font-size:13px;color:#1f7a44">✓ You’ve confirmed you read these notes</div>
         @else
@@ -375,8 +375,9 @@
         @else
             <tr><th>Contact</th><td><span class="muted">Via the office — tap "Message the office" below</span></td></tr>
         @endif
-        @if($booking->special_requests && ! $booking->notesContainNumber())<tr><th>Special requests</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->special_requests) !!}</td></tr>@endif
-        @if($booking->driverNotes() && ! $booking->notesContainNumber())<tr><th>Notes</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverNotes()) !!}</td></tr>@endif
+        {{-- Numbers are blanked out (masking) but the rest of the note still reaches the driver. --}}
+        @if($booking->special_requests)<tr><th>Special requests</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverSafeText($booking->special_requests)) !!}</td></tr>@endif
+        @if($booking->driverNotes())<tr><th>Notes</th><td style="white-space:pre-wrap">{!! \App\Support\NoteText::linkify($booking->driverSafeText($booking->driverNotes())) !!}</td></tr>@endif
     </table>
 </div>
 
@@ -540,7 +541,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             @foreach($officeSteps as $status)
                 @php $label = $status->value === 'pending' ? 'Send back to Pending' : $status->label(); @endphp
-                <form method="POST" action="{{ $statusUrl }}" onsubmit="return confirm('Office action — set this job to {{ $status->label() }}?')">
+                <form method="POST" action="{{ $statusUrl }}" onsubmit="return confirm('Office action — set this job to {{ \App\Support\JsText::q($status->label()) }}?')">
                     @csrf
                     <input type="hidden" name="status" value="{{ $status->value }}">
                     <button type="submit" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;color:#b32020">{{ $label }}</button>

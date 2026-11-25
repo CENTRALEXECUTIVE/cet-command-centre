@@ -76,7 +76,7 @@
                                 @endif
                                 @if(! $u->isAdmin() && $u->id !== $me && $u->is_active)
                                     <form method="POST" action="{{ route('impersonate.start', $u) }}" style="display:inline;margin-left:8px"
-                                          onsubmit="return confirm('View the app as {{ $u->name }}? You can switch back any time.')">
+                                          onsubmit="return confirm('View the app as {{ \App\Support\JsText::q($u->name) }}? You can switch back any time.')">
                                         @csrf
                                         <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" title="See the app as this user">👀 View as</button>
                                     </form>

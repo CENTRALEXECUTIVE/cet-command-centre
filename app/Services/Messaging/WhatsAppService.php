@@ -52,10 +52,27 @@ class WhatsAppService
             return $message;
         }
 
-        return $this->deliver($message);
+        // NOTHING auto-sends to customers (CLAUDE.md rule 2). Confirmations, driver
+        // details, tracking links, arrived/on-board and flight-change messages are
+        // recorded for the office to send by hand (wa.me), never delivered here and
+        // never marked "sent" (QA 25 Nov 2026: they would have gone out automatically
+        // the day Twilio WhatsApp was connected, and were already shown as "sent").
+        return $this->holdForManualSend($message);
     }
 
-    /** Deliver a queued message now, updating its status. */
+    /** Record the message as written-but-not-sent: the office sends it by hand. */
+    public function holdForManualSend(Message $message): Message
+    {
+        Log::channel(config('logging.default'))->info('[WhatsApp:manual] not auto-sent '.$message->to_address.' :: '.$message->type);
+        $message->update(['status' => 'manual', 'meta' => array_merge((array) ($message->meta ?? []), ['note' => 'Not sent automatically. Send by hand from the office WhatsApp if needed.'])]);
+
+        return $message;
+    }
+
+    /**
+     * Deliver a message now. Only ever called from an explicit OFFICE action (the
+     * "Resend" button) — automatic paths use holdForManualSend().
+     */
     public function deliver(Message $message): Message
     {
         if (blank($message->to_address)) {

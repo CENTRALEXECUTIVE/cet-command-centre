@@ -56,16 +56,17 @@ class WebsiteFormQaFixesTest extends TestCase
         $this->assertTrue($c->checkPassword('GoodPass123'));
     }
 
-    public function test_the_same_email_reuses_the_customer_and_a_phone_only_match_fills_a_missing_email(): void
+    public function test_the_same_email_reuses_the_customer_and_a_phone_only_customer_is_never_given_a_typed_email(): void
     {
         $known = Customer::create(['name' => 'Known', 'phone' => '07700900999', 'email' => 'known@example.com']);
         $this->post(route('widget.book.store'), $this->base(['customer_email' => 'KNOWN@example.com', 'customer_phone' => '07700900555']))->assertOk();
         $this->assertSame($known->id, Booking::latest('id')->first()->customer_id);
 
+        // Never attach a typed email to an existing phone-only customer (account takeover via reset).
         $noEmail = Customer::create(['name' => 'No Email', 'phone' => '07700900777']);
-        $this->post(route('widget.book.store'), $this->base(['customer_phone' => '07700900777', 'customer_email' => 'filled@example.com']))->assertOk();
-        $this->assertSame($noEmail->id, Booking::latest('id')->first()->customer_id);
-        $this->assertSame('filled@example.com', $noEmail->fresh()->email);
+        $this->post(route('widget.book.store'), $this->base(['customer_phone' => '07700900777', 'customer_email' => 'stranger@example.com']))->assertOk();
+        $this->assertNotSame($noEmail->id, Booking::latest('id')->first()->customer_id);
+        $this->assertNull($noEmail->fresh()->email);
     }
 
     public function test_a_postcode_typed_twice_is_accepted_as_one_postcode(): void

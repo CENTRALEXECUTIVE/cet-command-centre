@@ -52,7 +52,7 @@
                             <button type="submit" form="del-{{ $d->id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px;color:#b32020">Remove</button>
                         </div>
                     </form>
-                    <form id="del-{{ $d->id }}" method="POST" action="{{ route('cover-drivers.destroy', $d) }}" onsubmit="return confirm('Remove {{ $d->name }}?')">@csrf @method('DELETE')</form>
+                    <form id="del-{{ $d->id }}" method="POST" action="{{ route('cover-drivers.destroy', $d) }}" onsubmit="return confirm('Remove {{ \App\Support\JsText::q($d->name) }}?')">@csrf @method('DELETE')</form>
                 </div>
             @endforeach
         @endif

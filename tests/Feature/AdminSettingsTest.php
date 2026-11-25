@@ -16,7 +16,7 @@ class AdminSettingsTest extends TestCase
 
     public function test_admin_saves_maps_key_and_it_activates_distance_service(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         config(['services.google_maps.key' => null]);
 
         $this->assertFalse(app(DistanceService::class)->configured());
@@ -30,7 +30,7 @@ class AdminSettingsTest extends TestCase
 
     public function test_admin_can_set_the_masking_numbers_in_app(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         config(['services.twilio_masking.customer_line' => '+447700159929']); // old env value
 
         // The in-app setting overrides the env customer line.
@@ -69,7 +69,7 @@ class AdminSettingsTest extends TestCase
 
     public function test_settings_page_shows_the_twilio_webhook_urls(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         config(['app.url' => 'https://staging.centralexecutivetransfers.co.uk', 'cet.webhook_secret' => 'sek']);
 
         $this->actingAs($admin)->get(route('settings.index'))
@@ -81,7 +81,7 @@ class AdminSettingsTest extends TestCase
 
     public function test_settings_page_shows_active_indicator_for_a_set_line(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         Setting::set('twilio_customer_line', '+447575583899', 'string', 'telephony');
 
         $this->actingAs($admin)->get(route('settings.index'))
@@ -93,5 +93,13 @@ class AdminSettingsTest extends TestCase
     {
         $driver = User::factory()->create(['role' => 'driver']);
         $this->actingAs($driver)->get(route('settings.index'))->assertForbidden();
+    }
+
+    public function test_a_normal_admin_cannot_read_or_change_keys_and_payment_secrets(): void
+    {
+        $plain = User::factory()->admin()->create(['is_super_admin' => false]);
+        $this->actingAs($plain)->get(route('settings.index'))->assertForbidden();
+        $this->actingAs($plain)->put(route('settings.update'), ['stripe_webhook_secret' => 'whsec_attacker'])->assertForbidden();
+        $this->assertNotSame('whsec_attacker', \App\Models\Setting::get('stripe_webhook_secret'));
     }
 }

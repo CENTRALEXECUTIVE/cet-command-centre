@@ -388,7 +388,14 @@ class BookingStatusService
      */
     public function declineJob(Booking $booking, User $driver): Booking
     {
-        return DB::transaction(function () use ($booking, $driver) {
+        // Only an OFFER (allocated) or an accepted job the driver hasn't set off on can be
+        // declined. QA 25 Nov 2026: a completed job went back to Pending with no driver,
+        // and an en-route job was dropped after the customer's tracking link had gone out.
+        if (! in_array($booking->status, [BookingStatus::Allocated, BookingStatus::Accepted], true)) {
+            throw new InvalidArgumentException('This job can’t be declined now — it’s '.strtolower($booking->status->label()).'. Please call the office.');
+        }
+
+        $declined = DB::transaction(function () use ($booking, $driver) {
             $note = "Declined by {$driver->name}";
             $booking->statusHistory()->create([
                 'from_status' => $booking->status->value,
@@ -404,6 +411,22 @@ class BookingStatusService
 
             return $booking;
         });
+
+        // Tell the office straight away: the job needs a new driver.
+        try {
+            $soon = $booking->pickup_at && $booking->pickup_at->lte(now()->addHours(6));
+            app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors(
+                'unallocated',
+                'Driver declined '.$booking->reference,
+                $driver->name.' declined '.$booking->reference.' ('.$booking->pickup_at?->timezone(config('app.timezone'))->format('D d M H:i').'). It needs a new driver.',
+                $soon ? 'critical' : 'warning',
+                $booking,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Decline alert failed: '.$e->getMessage());
+        }
+
+        return $declined;
     }
 
     /**

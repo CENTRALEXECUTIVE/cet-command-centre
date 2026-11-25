@@ -75,7 +75,7 @@
                                     <button class="btn btn-primary" style="padding:8px 16px;font-size:14px">Save</button>
                                 </div>
                             </form>
-                            <form method="POST" action="{{ route('vouchers.destroy', $v) }}" onsubmit="return confirm('Delete {{ $v->code }}?')" style="margin-top:6px">
+                            <form method="POST" action="{{ route('vouchers.destroy', $v) }}" onsubmit="return confirm('Delete {{ \App\Support\JsText::q($v->code) }}?')" style="margin-top:6px">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;color:var(--red)">Delete code</button>
                             </form>

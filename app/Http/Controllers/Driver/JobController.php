@@ -268,7 +268,11 @@ class JobController extends Controller
     public function decline(Request $request, Booking $booking): RedirectResponse
     {
         $this->authoriseOwnership($request, $booking);
-        $this->status->declineJob($booking, $request->user());
+        try {
+            $this->status->declineJob($booking, $request->user());
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('driver.jobs')->with('status', 'Job declined and returned to the office.');
     }

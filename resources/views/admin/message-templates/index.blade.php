@@ -30,7 +30,7 @@
                     @else<span class="badge" style="margin-left:6px">Default</span>@endif
                 </h2>
                 @if($t['customised'])
-                    <form method="POST" action="{{ route('message-templates.update', $key) }}" onsubmit="return confirm('Reset {{ $t['label'] }} to the default wording?')" style="margin:0">
+                    <form method="POST" action="{{ route('message-templates.update', $key) }}" onsubmit="return confirm('Reset {{ \App\Support\JsText::q($t['label']) }} to the default wording?')" style="margin:0">
                         @csrf @method('PUT')
                         <input type="hidden" name="reset" value="1">
                         <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px">Reset to default</button>

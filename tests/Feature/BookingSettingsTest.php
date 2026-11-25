@@ -17,7 +17,7 @@ class BookingSettingsTest extends TestCase
 
     public function test_saving_settings_overrides_config_values(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
 
         $this->actingAs($admin)->put(route('booking-settings.update'), [
             'min_lead_hours' => 12,
@@ -46,7 +46,7 @@ class BookingSettingsTest extends TestCase
 
     public function test_the_page_shows_current_values(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         config(['cet.public_min_lead_hours' => 8]);
 
         $this->actingAs($admin)->get(route('booking-settings.index'))->assertOk()

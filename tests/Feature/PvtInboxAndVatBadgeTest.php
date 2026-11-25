@@ -52,7 +52,7 @@ class PvtInboxAndVatBadgeTest extends TestCase
             'meta' => ['billing_entity' => 'chauffeurs', 'payroll' => ['pay' => 40, 'paid' => 0, 'history' => []]],
         ]);
 
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         $this->actingAs($admin)->get(route('payroll.index', ['driver' => $driver->id]))
             ->assertOk()
             ->assertSee('Paid into Ltd (Tide)')
@@ -69,7 +69,7 @@ class PvtInboxAndVatBadgeTest extends TestCase
         Setting::set('mail_pvt_host', 'smtp.gmail.com', 'string', 'mail');
         Mail::fake();
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->admin()->create(['is_super_admin' => true]))
             ->post(route('settings.test-email'), ['to' => 'me@example.com', 'via' => 'pvt'])
             ->assertRedirect()
             ->assertSessionHas('status', fn ($m) => str_contains($m, 'now switched ON'));
@@ -84,7 +84,7 @@ class PvtInboxAndVatBadgeTest extends TestCase
         config(['mail.default' => 'smtp']);
         Mail::fake();
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->admin()->create(['is_super_admin' => true]))
             ->post(route('settings.test-email'), ['to' => 'me@example.com', 'via' => 'pvt'])
             ->assertRedirect()
             ->assertSessionHas('error', fn ($m) => str_contains($m, 'MAIN email account'));
@@ -94,7 +94,7 @@ class PvtInboxAndVatBadgeTest extends TestCase
 
     public function test_settings_shows_where_non_vat_bookings_send_from(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         $this->actingAs($admin)->get(route('settings.index'))
             ->assertOk()->assertSee('Non-VAT bookings are using the');
 

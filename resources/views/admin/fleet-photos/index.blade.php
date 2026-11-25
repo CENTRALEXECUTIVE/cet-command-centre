@@ -44,7 +44,7 @@
                             <td class="right">
                                 @if($photo)
                                     <form method="POST" action="{{ route('fleet-photos.destroy', $type) }}"
-                                          onsubmit="return confirm('Remove the {{ $type->name }} photo? The booking page will show the silhouette again.')">
+                                          onsubmit="return confirm('Remove the {{ \App\Support\JsText::q($type->name) }} photo? The booking page will show the silhouette again.')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Remove</button>

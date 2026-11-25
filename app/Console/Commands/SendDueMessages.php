@@ -46,8 +46,8 @@ class SendDueMessages extends Command
                 continue;
             }
 
-            $whatsApp->deliver($message);
-            $delivered++;
+            // Never auto-delivered to a customer (CLAUDE.md rule 2): left for the office.
+            $whatsApp->holdForManualSend($message);
         }
 
         $this->info("Refreshed {$due->count()} due message(s); delivered {$delivered}.");

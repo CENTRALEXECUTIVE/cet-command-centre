@@ -285,7 +285,7 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 14px">
                 <a href="{{ route('bookings.cancellation-email.preview', $booking) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px">👁 Preview cancellation email</a>
                 @if($booking->customer?->email)
-                    <form method="POST" action="{{ route('bookings.cancellation-email.send', $booking) }}" onsubmit="return confirm('Send the cancellation email to {{ $booking->customer->email }}?')" style="margin:0">
+                    <form method="POST" action="{{ route('bookings.cancellation-email.send', $booking) }}" onsubmit="return confirm('Send the cancellation email to {{ \App\Support\JsText::q($booking->customer->email) }}?')" style="margin:0">
                         @csrf
                         <button class="btn btn-dark" style="padding:8px 14px">✉ Send cancellation email</button>
                     </form>
@@ -385,13 +385,13 @@
                         <span><a href="{{ route('bookings.show', $d) }}">{{ $d->reference }}</a> — {{ $d->displayCustomerName() }} · {{ $d->pickup_at->format('D d M, H:i') }} · {{ $d->status->label() }}@if($d->driver) · {{ $d->driver->name }}@endif</span>
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                             <form method="POST" action="{{ route('bookings.merge', $booking) }}" style="margin:0"
-                                  onsubmit="return confirm('Merge {{ $d->reference }} into this booking? The other copy is removed. This does NOT touch Google Calendar.')">
+                                  onsubmit="return confirm('Merge {{ \App\Support\JsText::q($d->reference) }} into this booking? The other copy is removed. This does NOT touch Google Calendar.')">
                                 @csrf
                                 <input type="hidden" name="dupe_id" value="{{ $d->id }}">
                                 <button class="btn" style="background:#b32020;color:#fff;padding:7px 14px;font-size:13px">⇄ Merge into this one</button>
                             </form>
                             <form method="POST" action="{{ route('bookings.keep-separate', $booking) }}" style="margin:0"
-                                  onsubmit="return confirm('Mark {{ $d->reference }} as a SEPARATE booking? They stay as two records and won\'t be flagged as duplicates again.')">
+                                  onsubmit="return confirm('Mark {{ \App\Support\JsText::q($d->reference) }} as a SEPARATE booking? They stay as two records and won\'t be flagged as duplicates again.')">
                                 @csrf
                                 <input type="hidden" name="dupe_id" value="{{ $d->id }}">
                                 <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px" title="These are two genuinely different jobs — stop flagging them">Not a duplicate — keep separate</button>
@@ -507,7 +507,7 @@
         <div id="delete-box" class="card" style="display:none;border-left:4px solid #b32020;background:rgba(179,32,32,.06);margin-bottom:16px">
             <strong>Delete this booking?</strong>
             <p class="hint" style="margin:6px 0 10px">It's removed from the Command Centre everywhere (bookings list, dispatch, review). Cancel instead if you just want to call it off but keep the record. The <strong>Google Calendar event is never touched</strong> — remove it by hand if it was pushed there. This is recoverable if you delete one by mistake.</p>
-            <form method="POST" action="{{ route('bookings.destroy', $booking) }}" onsubmit="return confirm('Delete booking {{ $booking->reference }}? It disappears from the Command Centre. The Google Calendar event is NOT removed.')" style="margin:0">
+            <form method="POST" action="{{ route('bookings.destroy', $booking) }}" onsubmit="return confirm('Delete booking {{ \App\Support\JsText::q($booking->reference) }}? It disappears from the Command Centre. The Google Calendar event is NOT removed.')" style="margin:0">
                 @csrf @method('DELETE')
                 <button type="submit" class="btn" style="background:#b32020;color:#fff;padding:9px 16px">Yes, delete booking</button>
                 <button type="button" class="btn btn-ghost" style="padding:9px 16px" onclick="document.getElementById('delete-box').style.display='none'">Keep it</button>
@@ -606,7 +606,7 @@
                 <a href="{{ route('bookings.receipt', ['booking' => $booking, 'v' => now()->format('YmdHis')]) }}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:8px 14px">👁 View PDF</a>
                 <a href="{{ route('bookings.receipt', ['booking' => $booking, 'download' => 1, 'v' => now()->format('YmdHis')]) }}" class="btn btn-ghost" style="padding:8px 14px">⬇ Download</a>
                 <form method="POST" action="{{ route('bookings.receipt.email', $booking) }}" style="margin:0"
-                      onsubmit="return confirm('Email the {{ $docWord }} to {{ $recEmail ?: ($cover ? $cover['name'] : 'the customer') }}?')">
+                      onsubmit="return confirm('Email the {{ \App\Support\JsText::q($docWord) }} to {{ $recEmail ?: ($cover ? $cover['name'] : 'the customer') }}?')">
                     @csrf
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" @disabled(! $recEmail)>✉ Email {{ $cover ? 'to operator' : 'to customer' }}</button>
                 </form>
@@ -858,7 +858,7 @@
                     @if($booking->status->value === $value)
                         <span class="btn" style="padding:8px 14px;font-size:13px;background:#111;color:#FBBA2A;cursor:default" aria-current="true">{{ $icon }} {{ $label }} · now</span>
                     @else
-                        <form method="POST" action="{{ route('despatch.quick-status', $booking) }}" onsubmit="return confirm('Set {{ $booking->reference }} to {{ $label }}?')">
+                        <form method="POST" action="{{ route('despatch.quick-status', $booking) }}" onsubmit="return confirm('Set {{ \App\Support\JsText::q($booking->reference) }} to {{ \App\Support\JsText::q($label) }}?')">
                             @csrf
                             <input type="hidden" name="status" value="{{ $value }}">
                             <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px">{{ $icon }} {{ $label }}</button>
@@ -1185,7 +1185,7 @@
                         @endif
                         <span class="copy-link-done hint" style="color:#1f8b4c"></span>
                         <form method="POST" action="{{ route('bookings.extra-drivers.remove', $booking) }}" style="margin:0;margin-left:auto"
-                              onsubmit="return confirm('Remove Car {{ $carNo }} ({{ $d['name'] }}) from this job?')">
+                              onsubmit="return confirm('Remove Car {{ \App\Support\JsText::q($carNo) }} ({{ \App\Support\JsText::q($d['name']) }}) from this job?')">
                             @csrf
                             <input type="hidden" name="token" value="{{ $d['token'] }}">
                             <button class="btn btn-ghost" style="padding:7px 12px;font-size:13px;color:var(--red)">Remove</button>
@@ -1278,7 +1278,7 @@
             @if($booking->hasExtraDrivers() && $matchTargets->isNotEmpty())
                 <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
                     <form method="POST" action="{{ route('bookings.extra-drivers.copy', $booking) }}"
-                          onsubmit="return confirm('Match these {{ count($booking->extraDrivers()) }} car(s) onto the booking you picked? Each gets its own link.')">
+                          onsubmit="return confirm('Match these {{ \App\Support\JsText::q(count($booking->extraDrivers())) }} car(s) onto the booking you picked? Each gets its own link.')">
                         @csrf
                         <label for="match-target" style="font-weight:600;font-size:14px">↔ Match these cars to another booking</label>
                         <p class="hint" style="margin:4px 0 8px">e.g. the customer's return leg — the same drivers &amp; vehicles get copied over, each with its own link.</p>
@@ -1657,7 +1657,7 @@
                             {{-- Undo a payment recorded by mistake (driver wasn't actually paid).
                                  Reverses just this entry; the driver is owed it again. --}}
                             <form method="POST" action="{{ route('bookings.payroll', $booking) }}" style="margin:0"
-                                  onsubmit="return confirm('Revert this £{{ number_format($h['amount'], 2) }} payment? {{ $booking->payrollDriverName() }} will be owed it again.')">
+                                  onsubmit="return confirm('Revert this £{{ \App\Support\JsText::q(number_format($h['amount'], 2)) }} payment? {{ \App\Support\JsText::q($booking->payrollDriverName()) }} will be owed it again.')">
                                 @csrf
                                 <input type="hidden" name="action" value="undo_payment">
                                 <input type="hidden" name="index" value="{{ $i }}">
@@ -1917,7 +1917,7 @@
                  real via this booking's provider but never marks the booking paid. --}}
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
                 <form method="POST" action="{{ route('bookings.transactions.test-link', $booking) }}" style="margin:0"
-                      onsubmit="return confirm('Create a £1 TEST card link? It charges £1 for real (refund it in {{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square' }}) and will NOT mark this booking paid.')">
+                      onsubmit="return confirm('Create a £1 TEST card link? It charges £1 for real (refund it in {{ \App\Support\JsText::q($booking->billingEntity() === 'chauffeurs' ? 'Stripe' : 'Square') }}) and will NOT mark this booking paid.')">
                     @csrf
                     <button class="btn btn-ghost" style="padding:7px 12px;font-size:12px;border:1px dashed var(--line)">🧪 £1 test card link ({{ $booking->billingEntity() === 'chauffeurs' ? 'Stripe · PVT LTD' : 'Square' }})</button>
                 </form>
@@ -2090,7 +2090,7 @@
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)">
                     <a href="{{ route('bookings.confirmation-email.preview', $booking) }}" target="_blank" rel="noopener" class="btn btn-light" style="padding:8px 14px;font-size:13px">👁 Preview confirmation</a> <a href="{{ route('bookings.confirmation-email.download', $booking) }}" class="btn btn-light" style="padding:8px 14px;font-size:13px" title="Download the confirmation as a PDF to send on WhatsApp or print">⬇ Download PDF</a>
                     @if($booking->customer?->email)
-                        <form method="POST" action="{{ route('bookings.confirmation-email.resend', $booking) }}" onsubmit="return confirm('Re-send the booking confirmation to {{ $booking->customer->email }}?')" style="margin:0">@csrf
+                        <form method="POST" action="{{ route('bookings.confirmation-email.resend', $booking) }}" onsubmit="return confirm('Re-send the booking confirmation to {{ \App\Support\JsText::q($booking->customer->email) }}?')" style="margin:0">@csrf
                             <button class="btn btn-dark" style="padding:8px 14px;font-size:13px">✉ Send confirmation to customer</button>
                         </form>
                     @else
@@ -2434,7 +2434,7 @@
                         <span class="hint" style="margin-left:6px">Back to the CET switchboard lines for this job.</span>
                     @else
                         <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px;color:#b8860b"
-                                onclick="return confirm('Turn masking OFF for {{ $booking->reference }}? The customer and driver will use their real numbers for this job.')">🔓 Unmask this job (use real numbers)</button>
+                                onclick="return confirm('Turn masking OFF for {{ \App\Support\JsText::q($booking->reference) }}? The customer and driver will use their real numbers for this job.')">🔓 Unmask this job (use real numbers)</button>
                         <span class="hint" style="margin-left:6px">For when they already have each other's number — e.g. a return leg.</span>
                     @endif
                 </form>
@@ -2631,7 +2631,7 @@
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
                         <strong style="font-size:13px">{{ ucfirst(str_replace('_',' ',$m->type)) }}</strong>
                         <span class="muted" style="font-size:12px">
-                            <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ $m->status === 'queued' ? 'To send' : ucfirst($m->status) }}</span>
+                            <span class="badge badge-{{ $mstatus[$m->status] ?? 'pending' }}">{{ $m->status === 'queued' ? 'To send' : ($m->status === 'manual' ? 'Not sent (by hand only)' : ucfirst($m->status)) }}</span>
                             @if($m->isScheduledPrompt() && $m->scheduled_for && $m->status !== 'sent') · due {{ $m->scheduled_for->format('D d M, H:i') }}
                             @elseif($m->sent_at) · sent {{ $m->sent_at->format('d M H:i') }}@endif
                         </span>

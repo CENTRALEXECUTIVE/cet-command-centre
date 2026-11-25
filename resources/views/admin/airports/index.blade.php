@@ -58,7 +58,7 @@
                     <form id="air-{{ $a->id }}" method="POST" action="{{ route('airports.update', $a) }}">@csrf @method('PUT')</form>
                     <div class="air-actions">
                         <button form="air-{{ $a->id }}" class="btn btn-primary" style="padding:7px 14px;font-size:13px">Save</button>
-                        <form method="POST" action="{{ route('airports.destroy', $a) }}" onsubmit="return confirm('Delete {{ $a->name }}? (Only possible if no bookings use it.)')" style="margin:0">
+                        <form method="POST" action="{{ route('airports.destroy', $a) }}" onsubmit="return confirm('Delete {{ \App\Support\JsText::q($a->name) }}? (Only possible if no bookings use it.)')" style="margin:0">
                             @csrf @method('DELETE')
                             <button class="btn btn-ghost" style="padding:7px 12px;font-size:13px;color:#b32020">Delete</button>
                         </form>

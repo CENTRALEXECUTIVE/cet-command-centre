@@ -18,7 +18,7 @@ class SquareSettingsTest extends TestCase
 
     public function test_pasting_square_keys_enables_card_payments(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         $this->assertFalse(app(SquareBookingPaymentService::class)->enabled());
 
         $this->actingAs($admin)->put(route('settings.update'), [
@@ -35,7 +35,7 @@ class SquareSettingsTest extends TestCase
 
     public function test_leaving_a_secret_blank_keeps_the_saved_key(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         Setting::set('square_access_token', 'EAAA-existing', 'string', 'payments');
         Setting::set('square_location_id', 'LEXISTING', 'string', 'payments');
 
@@ -51,7 +51,7 @@ class SquareSettingsTest extends TestCase
 
     public function test_the_settings_page_shows_the_square_webhook_url(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         $this->actingAs($admin)->get(route('settings.index'))->assertOk()
             ->assertSee('Square card payments')
             ->assertSee('/webhooks/square');

@@ -13,7 +13,7 @@ class SettingsHubTest extends TestCase
 
     public function test_the_hub_links_the_main_control_areas(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
 
         $this->actingAs($admin)->get(route('settings.hub'))
             ->assertOk()

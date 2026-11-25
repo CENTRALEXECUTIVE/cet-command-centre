@@ -81,7 +81,7 @@
         </div>
     </form>
     @if($user->exists && $user->id !== auth()->id())
-        <form id="deactivate-user" method="POST" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Deactivate {{ $user->name }}?')">@csrf @method('DELETE')</form>
+        <form id="deactivate-user" method="POST" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Deactivate {{ \App\Support\JsText::q($user->name) }}?')">@csrf @method('DELETE')</form>
     @endif
     <script src="{{ asset('js/cet-showpassword.js') }}?v={{ config('cet.asset_version') }}" defer></script>
 @endsection

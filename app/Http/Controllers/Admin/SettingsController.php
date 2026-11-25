@@ -17,6 +17,10 @@ class SettingsController extends Controller
 {
     public function index(): View
     {
+        // Integration + payment keys (Square/Stripe secrets, webhook signing keys): the
+        // two directors only (QA 25 Nov 2026 — any admin could read and change them,
+        // then fake a "paid" webhook).
+        abort_unless(request()->user()?->isSuperAdmin(), 403, 'Only a director can open Settings → keys & payments.');
         $secret = (string) config('cet.webhook_secret');
         $base = rtrim((string) config('app.url'), '/');
         $suffix = $secret !== '' ? '?secret='.$secret : '?secret=YOUR_CET_WEBHOOK_SECRET';
@@ -76,7 +80,7 @@ class SettingsController extends Controller
      */
     public function sendTestEmail(Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->isAdmin(), 403); // a test email is harmless
 
         $data = $request->validate(['to' => ['nullable', 'email'], 'via' => ['nullable', 'in:pvt']]);
         $to = $data['to'] ?? $request->user()->email ?? config('cet.ops_email');
@@ -145,6 +149,7 @@ class SettingsController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isSuperAdmin(), 403, 'Only a director can change keys & payments.');
         $data = $request->validate([
             'google_maps_key' => ['nullable', 'string', 'max:120'],
             'getaddress_key' => ['nullable', 'string', 'max:120'],

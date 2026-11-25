@@ -70,4 +70,16 @@ class InternationalNotesNumberAndPassengerNameTest extends TestCase
         $b = Booking::factory()->create(['customer_id' => $c->id, 'meta' => ['name_override' => 'Jane Smith-Jones']]);
         $this->assertSame('Jane Smith-Jones', $b->fresh()->displayName());
     }
+
+    public function test_every_common_number_format_is_blanked_for_the_driver_but_the_note_stays(): void
+    {
+        foreach (['Call her on +44 (0) 7700 900999 when outside', 'ring (0114) 234 5678 on arrival', 'text 07700.900.999', 'mob: 7700 900999'] as $note) {
+            $b = Booking::factory()->create(['special_requests' => $note]);
+            $safe = $b->driverSafeText($note);
+            $this->assertStringContainsString('(number via the office)', $safe, $note);
+            $this->assertDoesNotMatchRegularExpression('/\d{3}[\s.]?\d{3}/', $safe, $note);
+        }
+        $b = Booking::factory()->create(['special_requests' => 'Flight BA1234 lands 10:30, £120.00 cash, ref CET-7692CC']);
+        $this->assertSame([], $b->notePhoneNumbers());
+    }
 }

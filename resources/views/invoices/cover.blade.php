@@ -110,7 +110,7 @@
                             data-total="{{ number_format($total, 2) }}">💳 Create payment link</button>
                     <button type="submit" class="btn btn-dark" style="padding:8px 14px" formtarget="_self"
                             formaction="{{ route('cover-invoices.email') }}"
-                            onclick="return confirm('Email the combined invoice to {{ $jobs->first()->coverFor()['email'] ?: $operator }}?')">✉ Email to {{ $operator }}</button>
+                            onclick="return confirm('Email the combined invoice to {{ \App\Support\JsText::q($jobs->first()->coverFor()['email'] ?: $operator) }}?')">✉ Email to {{ $operator }}</button>
                     <button type="submit" class="btn btn-success" style="padding:8px 14px;background:#1f7a44;color:#fff;border-color:#1f7a44" formtarget="_self"
                             formaction="{{ route('cover-invoices.mark-paid') }}"
                             onclick="return confirm('Mark the ticked job(s) as PAID? They drop off this list so they can\'t be billed again. (Use ‘Show settled’ to reopen if needed.)')">✅ Mark paid</button>

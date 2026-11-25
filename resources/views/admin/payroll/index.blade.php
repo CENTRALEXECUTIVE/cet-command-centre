@@ -108,7 +108,7 @@
                 </h2>
                 @if($d['remaining'] > 0)
                     <form method="POST" action="{{ route('payroll.mark-driver-paid') }}"
-                          onsubmit="return confirm('Mark ALL of {{ $d['name'] }}\'s outstanding jobs in this period as paid (£{{ number_format($d['remaining'], 2) }})?')" style="margin:0">
+                          onsubmit="return confirm('Mark ALL of {{ \App\Support\JsText::q($d['name']) }}\'s outstanding jobs in this period as paid (£{{ \App\Support\JsText::q(number_format($d['remaining'], 2)) }})?')" style="margin:0">
                         @csrf
                         <input type="hidden" name="payee" value="{{ $d['name'] }}">
                         <input type="hidden" name="from" value="{{ $periodParam['from'] ?? '' }}">

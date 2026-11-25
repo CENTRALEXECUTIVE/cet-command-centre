@@ -32,7 +32,7 @@
                                     <button class="btn btn-light" style="padding:6px 12px;font-size:13px">↩ Restore</button>
                                 </form>
                                 <form method="POST" action="{{ route('bookings.force-destroy', $b->id) }}" style="display:inline"
-                                      onsubmit="return confirm('Permanently delete {{ $b->reference }}? This cannot be undone.')">
+                                      onsubmit="return confirm('Permanently delete {{ \App\Support\JsText::q($b->reference) }}? This cannot be undone.')">
                                     @csrf @method('DELETE')
                                     <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;color:#b32020">Delete forever</button>
                                 </form>

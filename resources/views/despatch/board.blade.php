@@ -131,15 +131,15 @@
                         {{-- One-tap close-out (admin): jump straight to done/no-show/cancelled --}}
                         @unless($b->status->isTerminal())
                             <div class="actions" style="margin-top:4px">
-                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Mark {{ $b->reference }} completed?')">
+                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Mark {{ \App\Support\JsText::q($b->reference) }} completed?')">
                                     @csrf<input type="hidden" name="status" value="complete">
                                     <button class="btn-xs" style="background:#1f7a44;color:#fff" type="submit">✓ Completed</button>
                                 </form>
-                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Mark {{ $b->reference }} as no-show?')">
+                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Mark {{ \App\Support\JsText::q($b->reference) }} as no-show?')">
                                     @csrf<input type="hidden" name="status" value="no_show">
                                     <button class="btn-xs ghost" type="submit">No-show</button>
                                 </form>
-                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Cancel {{ $b->reference }}?')">
+                                <form method="POST" action="{{ route('despatch.quick-status', $b) }}" onsubmit="return confirm('Cancel {{ \App\Support\JsText::q($b->reference) }}?')">
                                     @csrf<input type="hidden" name="status" value="cancelled">
                                     <button class="btn-xs ghost" style="color:#b32020" type="submit">Cancel</button>
                                 </form>
@@ -151,7 +151,7 @@
                                 <summary class="muted" style="font-size:11px;cursor:pointer">⚙ Fix status / driver</summary>
                                 <div class="actions" style="margin-top:6px">
                                     <form method="POST" action="{{ route('despatch.quick-status', $b) }}" style="display:flex;gap:4px"
-                                          onsubmit="return confirm('Override {{ $b->reference }} to the selected status?')">
+                                          onsubmit="return confirm('Override {{ \App\Support\JsText::q($b->reference) }} to the selected status?')">
                                         @csrf
                                         <select name="status" class="inline-select">
                                             @foreach($statuses as $s)

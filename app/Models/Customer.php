@@ -67,10 +67,9 @@ class Customer extends Model
 
     /** Set (hash) a login password. */
     /**
-     * Find-or-create the booker for a WEBSITE booking (24 Nov 2026). Same email = same
-     * person. A phone match is only used when it can't send a stranger's confirmation to
-     * someone else: the record has no email (it's then filled in) or none was typed.
-     * A different email on the same phone is treated as a different booker.
+     * Find-or-create the booker for a WEBSITE booking (24-25 Nov 2026). Same email =
+     * same person. A phone match is only used when no email was typed. Nothing on an
+     * existing customer is ever changed from an anonymous booking.
      */
     public static function matchForWebBooking(string $name, ?string $phone, ?string $email): self
     {
@@ -81,14 +80,12 @@ class Customer extends Model
         if ($emailKey !== '' && $found = static::whereRaw('lower(email) = ?', [$emailKey])->first()) {
             return $found;
         }
-        if ($phone && $found = static::where('phone', $phone)->first()) {
-            if (blank($found->email) || $emailKey === '') {
-                if ($email && blank($found->email)) {
-                    $found->forceFill(['email' => $email])->save();
-                }
-
-                return $found;
-            }
+        // A phone match is reused ONLY when no email was typed. An anonymous booking must
+        // never attach an email to an existing customer: that email could then reset the
+        // account password and see their bookings (QA 25 Nov 2026). A typed email that
+        // isn't on file always makes a separate customer record.
+        if ($phone && $emailKey === '' && $found = static::where('phone', $phone)->first()) {
+            return $found;
         }
 
         return static::create(['name' => $name, 'phone' => $phone, 'email' => $email]);

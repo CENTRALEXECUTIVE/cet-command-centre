@@ -63,7 +63,7 @@
             @if($booking->driverReadNotes())
                 <div class="card" style="border-left:4px solid #FBBA2A;background:rgba(251,186,42,.10);margin-bottom:16px">
                     <div style="font-weight:800;font-size:15px">📝 Notes</div>
-                    <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{{ $booking->driverReadNotes() }}</p>
+                    <p style="margin:6px 0 10px;font-size:15px;white-space:pre-wrap">{{ $booking->driverSafeText($booking->driverReadNotes()) }}</p>
                     @if($booking->extraDriverNotesAcknowledged($token))
                         <div style="font-weight:700;font-size:13px;color:#1f7a44">✓ You’ve confirmed you read these notes</div>
                     @else
@@ -119,8 +119,8 @@
                     <tr><th>Passengers</th><td>{{ ($car['passengers'] ?? null) !== null ? $car['passengers'].' in your car (of '.$booking->passengerCount().' total)' : $booking->passengerCount() }}</td></tr>
                     <tr><th>Luggage</th><td>{{ $booking->luggageBreakdown() }}</td></tr>
                     <tr><th>Contact</th><td><span class="muted">Via the office — tap “Message the office” below</span></td></tr>
-                    @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->special_requests }}</td></tr>@endif
-                    @if($booking->driverNotes())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverNotes() }}</td></tr>@endif
+                    @if($booking->special_requests)<tr><th>Special requests</th><td>{{ $booking->driverSafeText($booking->special_requests) }}</td></tr>@endif
+                    @if($booking->driverNotes())<tr><th>Notes</th><td style="white-space:pre-wrap">{{ $booking->driverSafeText($booking->driverNotes()) }}</td></tr>@endif
                 </table>
             </div>
 
