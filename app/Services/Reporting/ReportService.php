@@ -229,7 +229,9 @@ class ReportService
      */
     public function profit(CarbonInterface $start, CarbonInterface $end): array
     {
-        $jobs = $this->completed($start, $end)->with(['driver', 'corporateAccount'])->get();
+        // Load what driverCost() reads (payment lines, the paired return) in one go —
+        // it was one query per job (1,100+ on the profit page, QA 25 Nov 2026).
+        $jobs = $this->completed($start, $end)->with(['driver', 'corporateAccount', 'customer', 'calendarEvent', 'calendarEvents', 'linkedBooking.calendarEvents', 'linkedBooking.calendarEvent', 'vehicleType'])->get();
 
         $breakdown = function (Collection $group, string $name): array {
             $fares = round($group->sum(fn (Booking $b) => $b->fareAmount() ?? 0), 2);

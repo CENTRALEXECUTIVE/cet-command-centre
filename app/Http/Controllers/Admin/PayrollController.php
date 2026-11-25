@@ -37,7 +37,7 @@ class PayrollController extends Controller
         $day = ($date ? Carbon::createFromFormat('Y-m-d', $date, config('app.timezone')) : now())->startOfDay();
         $end = $day->copy()->endOfDay();
 
-        $jobs = Booking::with(['driver', 'customer'])
+        $jobs = Booking::with(['driver', 'customer', 'tipEntries', 'calendarEvent', 'calendarEvents', 'linkedBooking.calendarEvents'])
             ->whereBetween('pickup_at', [$day, $end])
             ->where(fn ($q) => $q
                 ->whereNotIn('status', [BookingStatus::Cancelled->value, BookingStatus::NoShow->value])
@@ -90,7 +90,7 @@ class PayrollController extends Controller
     private function payrollFor(Carbon $start, Carbon $end): array
     {
 
-        $bookings = Booking::with(['driver.driverProfile.defaultVehicle', 'customer', 'airport'])
+        $bookings = Booking::with(['driver.driverProfile.defaultVehicle', 'customer', 'airport', 'tipEntries', 'calendarEvent', 'calendarEvents', 'linkedBooking.calendarEvents'])
             ->whereBetween('pickup_at', [$start, $end])
             ->where(fn ($q) => $q
                 ->whereNotIn('status', [BookingStatus::Cancelled->value])

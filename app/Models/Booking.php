@@ -2578,7 +2578,7 @@ class Booking extends Model
                     });
                 }
             })
-            ->with('customer')
+            ->with(['customer', 'calendarEvent'])
             ->get()
             ->filter(function (self $b) use ($name, $dropoff, $flight, $myNotDupe, $myKeys) {
                 $bName = \Illuminate\Support\Str::lower(trim((string) ($b->displayCustomerName() ?? '')));
@@ -6385,12 +6385,22 @@ class Booking extends Model
     /** Every tip on this job, cash + card. */
     public function tipsTotal(): float
     {
+        // Use the eager-loaded rows when the page loaded them (payroll lists made one
+        // SUM query per job — QA 25 Nov 2026).
+        if ($this->relationLoaded('tipEntries')) {
+            return round((float) $this->tipEntries->sum('amount'), 2);
+        }
+
         return round((float) $this->tipEntries()->sum('amount'), 2);
     }
 
     /** Tips by method — 'cash' the driver already holds, 'card' the company collected. */
     public function tipsTotalBy(string $method): float
     {
+        if ($this->relationLoaded('tipEntries')) {
+            return round((float) $this->tipEntries->where('method', $method)->sum('amount'), 2);
+        }
+
         return round((float) $this->tipEntries()->where('method', $method)->sum('amount'), 2);
     }
 

@@ -88,7 +88,7 @@ class BookingController extends Controller
     {
         $user = $request->user();
 
-        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent']);
+        $query = Booking::with(['customer', 'vehicleType', 'driver', 'corporateAccount', 'calendarEvent', 'calendarEvents', 'stops', 'linkedBooking']);
 
         // Corporate clients only ever see their own account's bookings.
         if ($user->isCorporateClient()) {
