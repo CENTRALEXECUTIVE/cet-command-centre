@@ -893,7 +893,7 @@
                         </div>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-notes">Extra details <span class="opt">(optional)</span></label>
-                            <textarea id="b-notes" name="notes" rows="2" placeholder="Full address, flat / company / buzzer, terminal, or anything else we should know…">{{ old('notes') }}</textarea></div>
+                            <textarea id="b-notes" name="notes" rows="2" maxlength="1000" placeholder="Full address, flat / company / buzzer, terminal, or anything else we should know…">{{ old('notes') }}</textarea></div>
 
                         <div class="cet-field" style="margin-top:14px"><label for="b-heard">How did you hear about us? <span class="opt">(optional)</span></label>
                             <select id="b-heard" name="heard_about">

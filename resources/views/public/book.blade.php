@@ -226,7 +226,7 @@
             <div style="margin-top:14px"><label class="f">Email <span class="req">*</span></label>
                 <input type="email" name="customer_email" value="{{ old('customer_email') }}" placeholder="For your confirmation &amp; receipt" required></div>
             <div style="margin-top:14px"><label class="f">Notes for your driver <small style="color:var(--muted)">(optional)</small></label>
-                <textarea name="notes" placeholder="Anything we should know">{{ old('notes') }}</textarea></div>
+                <textarea name="notes" maxlength="1000" placeholder="Anything we should know">{{ old('notes') }}</textarea></div>
 
             <div class="sec-title" style="margin-top:22px"><span class="n">+</span> Extras <small style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--muted)">(optional)</small></div>
             @php $sc = $surcharges; @endphp
