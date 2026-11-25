@@ -96,7 +96,7 @@ class AdsSyncService
 
         $count = 0;
         foreach ($rows as $row) {
-            $data = array_combine($header, array_pad($row, count($header), null));
+            $data = array_combine($header, array_slice(array_pad($row, count($header), null), 0, count($header))); // extra cells used to crash (QA 25 Nov 2026)
             $date = trim((string) ($data['date'] ?? ''));
             // Skip blanks and Google's "Total: …" summary rows.
             if ($date === '' || ! preg_match('/\d/', $date) || stripos($date, 'total') !== false) {
@@ -163,7 +163,7 @@ class AdsSyncService
 
         $count = 0;
         foreach ($rows as $row) {
-            $data = array_combine($header, array_pad($row, count($header), null));
+            $data = array_combine($header, array_slice(array_pad($row, count($header), null), 0, count($header))); // extra cells used to crash (QA 25 Nov 2026)
             $keyword = trim((string) ($data['keyword'] ?? ''));
             if ($keyword === '' || stripos($keyword, 'total') !== false) {
                 continue; // blank or Google's "Total:" summary row
@@ -213,7 +213,7 @@ class AdsSyncService
             if (stripos(trim((string) ($row[0] ?? '')), 'total') === 0) {
                 continue; // Google's "Total: …" summary rows
             }
-            $data = array_combine($header, array_pad($row, count($header), null));
+            $data = array_combine($header, array_slice(array_pad($row, count($header), null), 0, count($header))); // extra cells used to crash (QA 25 Nov 2026)
             foreach (array_keys($sum) as $field) {
                 $sum[$field] += $this->num($data[$field] ?? null);
             }

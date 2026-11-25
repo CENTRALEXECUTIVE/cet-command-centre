@@ -263,7 +263,8 @@ class EtoAuditService
             return [];
         }
         $delim = str_contains($lines[0], ';') ? ';' : ',';
-        $header = array_map(fn ($h) => trim($h, "\" \t"), str_getcsv(array_shift($lines), $delim));
+        // Strip a byte-order mark (Excel adds one) or "Journey date" is never found.
+        $header = array_map(fn ($h) => trim(preg_replace('/^\x{FEFF}/u', '', (string) $h), "\" \t"), str_getcsv(array_shift($lines), $delim));
 
         $rows = [];
         foreach ($lines as $line) {

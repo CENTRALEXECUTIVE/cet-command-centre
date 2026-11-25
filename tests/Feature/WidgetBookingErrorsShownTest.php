@@ -106,4 +106,13 @@ class WidgetBookingErrorsShownTest extends TestCase
         $this->test_a_us_arrival_return_books_when_the_return_is_later();
         $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'web_rejected']);
     }
+
+    public function test_an_empty_anonymous_post_never_pages_the_directors(): void
+    {
+        config(['mail.default' => 'array']);
+        \App\Models\User::factory()->create(['role' => \App\Enums\UserRole::Admin, 'is_super_admin' => true]);
+        $this->post(route('widget.book.store'), [])->assertRedirect();
+        $this->assertDatabaseMissing('watchdog_events', ['event_type' => 'web_rejected']);
+        $this->assertCount(0, app('mailer')->getSymfonyTransport()->messages());
+    }
 }

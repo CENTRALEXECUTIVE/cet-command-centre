@@ -173,7 +173,7 @@ class DespatchController extends Controller
         $from = $booking->driver?->name ?? 'unassigned';
 
         // Un-tie: clear the driver and put the job back in the pending pool.
-        if (blank($data['driver_id'])) {
+        if (blank($data['driver_id'] ?? null)) {
             $booking->statusHistory()->create([
                 'from_status' => $booking->status->value,
                 'to_status' => BookingStatus::Pending->value,

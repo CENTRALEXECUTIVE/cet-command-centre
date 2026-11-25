@@ -29,6 +29,16 @@
             <form method="POST" action="{{ route('password.update') }}">
                 @csrf
                 @method('PUT')
+                @unless($forced)
+                <div class="field">
+                    <label for="current_password">Current password</label>
+                    <div class="pw-wrap">
+                        <input id="current_password" type="password" name="current_password" required autocomplete="current-password">
+                        <button type="button" class="pw-toggle" data-target="current_password" aria-label="Show password">Show</button>
+                    </div>
+                    @error('current_password') <div class="error">{{ $message }}</div> @enderror
+                </div>
+                @endunless
                 <div class="field">
                     <label for="password">New password</label>
                     <div class="pw-wrap">

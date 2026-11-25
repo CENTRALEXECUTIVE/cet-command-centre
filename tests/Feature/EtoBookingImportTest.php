@@ -332,4 +332,24 @@ class EtoBookingImportTest extends TestCase
 
         $this->assertSame('2026-06-10 15:30', $booking->fresh()->pickup_at->format('Y-m-d H:i'));
     }
+
+    public function test_a_comma_file_with_a_bom_and_pound_totals_imports_with_the_right_time_and_fare(): void
+    {
+        // QA 25 Nov 2026: comma files imported nothing; a BOM made every pickup "now";
+        // "£125.00" was stored as no fare.
+        $row = ['Journey date' => '14/07/2027 10:00', 'Passenger name' => 'Ann Lee', 'Reference number' => 'BOM123',
+            'Vehicle type' => 'Executive', 'Status' => 'Confirmed', 'Payments' => 'Pending', 'Total' => '£1,250.00',
+            'Phone number' => '+447700900123', 'Email' => 'ann@example.com',
+            'Pickup' => 'Sheffield S1 2HH, UK', 'Dropoff' => 'Leeds LS1 4DY, UK', 'Created at' => '01/07/2027 09:00'];
+        $lines = [implode(',', array_map(fn ($h) => '"'.$h.'"', self::HEADER))];
+        $lines[] = implode(',', array_map(fn ($h) => '"'.($row[$h] ?? ' ').'"', self::HEADER));
+        $path = tempnam(sys_get_temp_dir(), 'eto').'.csv';
+        file_put_contents($path, "\xEF\xBB\xBF".implode("\n", $lines));
+
+        $stats = app(EtoBookingImporter::class)->import($path);
+        $this->assertSame(1, $stats['imported'], json_encode($stats));
+        $b = Booking::where('external_reference', 'BOM123')->first();
+        $this->assertSame('2027-07-14 10:00', $b->pickup_at->timezone(config('app.timezone'))->format('Y-m-d H:i'));
+        $this->assertSame(1250.0, (float) ($b->quoted_price ?? $b->final_price));
+    }
 }

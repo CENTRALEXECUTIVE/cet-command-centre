@@ -48,10 +48,18 @@ class EtoBookingImporter
         $stats = ['imported' => 0, 'updated' => 0, 'duplicates' => 0, 'skipped' => 0, 'errors' => []];
         $line = 0;
 
-        while (($row = fgetcsv($handle, 0, ';')) !== false) {
+        // ETO exports come semicolon- OR comma-delimited: pick by the header line
+        // (QA 25 Nov 2026: a comma file imported nothing, "6 skipped", silently).
+        $first = (string) fgets($handle);
+        $delimiter = substr_count($first, ';') >= substr_count($first, ',') ? ';' : ',';
+        rewind($handle);
+
+        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
             $line++;
             if ($header === null) {
-                $header = array_map(fn ($h) => trim($h), $row);
+                // Strip a byte-order mark too: with it, "Journey date" wasn't found and
+                // every booking got the UPLOAD time as its pickup.
+                $header = array_map(fn ($h) => trim(preg_replace('/^\x{FEFF}/u', '', (string) $h), " \t\""), $row);
 
                 continue;
             }
@@ -98,7 +106,11 @@ class EtoBookingImporter
         return DB::transaction(function () use ($data, $status, $reference) {
             $customer = $this->resolveCustomer($data);
             $vehicleType = $this->resolveVehicleType($data['Vehicle type'] ?? '');
-            $pickupAt = $this->parseDate($data['Journey date'] ?? '') ?? now();
+            $pickupAt = $this->parseDate($data['Journey date'] ?? '');
+            if (! $pickupAt) {
+                // Never invent a pickup time (it used to fall back to "now").
+                throw new \RuntimeException('No readable journey date for '.($reference ?: 'this row').' — not imported.');
+            }
             [$method, $paymentStatus] = $this->mapPayment($data['Payments'] ?? '', $status);
             $total = $this->money($data['Total'] ?? null);
 
@@ -406,7 +418,9 @@ class EtoBookingImporter
 
     private function money(mixed $value): ?float
     {
-        $value = trim((string) $value);
+        // "£125.00", "1,250.00", "125.00 GBP" all read as numbers (they were stored as
+        // no fare at all — QA 25 Nov 2026).
+        $value = preg_replace('/[^\d.\-]/', '', str_replace(',', '', trim((string) $value)));
 
         return $value === '' || ! is_numeric($value) ? null : (float) $value;
     }

@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Role-based access control alias (principle of least privilege).
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
+            // Per-route rate limits (a shared counter refused real web bookings).
+            'throttle' => \App\Http\Middleware\ThrottlePerRoute::class,
         ]);
 
         // Inbound webhooks (shared-secret auth), the cookie-consent beacon, and

@@ -2168,7 +2168,8 @@ class BookingController extends Controller
         ]);
 
         $previousFare = $booking->fareAmount();
-        $booking->forceFill(['final_price' => $data['final_price'] === '' ? null : $data['final_price']])->save();
+        $price = $data['final_price'] ?? null; // missing field = clear the price, never a crash
+        $booking->forceFill(['final_price' => $price === '' ? null : $price])->save();
         $this->stampEdited($booking);
 
         // A corrected price must cascade: recompute the AUTO driver pay (90% of the

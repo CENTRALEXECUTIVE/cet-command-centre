@@ -61,4 +61,20 @@ class ForcedPasswordChangeTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertOk();
     }
+
+    public function test_a_normal_password_change_needs_the_current_password_and_signs_out_other_devices(): void
+    {
+        $user = \App\Models\User::factory()->admin()->create(['password' => 'OldPass123!', 'must_change_password' => false]);
+        \Illuminate\Support\Facades\DB::table('sessions')->insert(['id' => 'other-phone', 'user_id' => $user->id, 'ip_address' => '1.2.3.4', 'user_agent' => 'x', 'payload' => '', 'last_activity' => time()]);
+
+        $this->actingAs($user)->put(route('password.update'), ['password' => 'NewPass456!', 'password_confirmation' => 'NewPass456!'])
+            ->assertSessionHasErrors('current_password');
+        $this->actingAs($user)->put(route('password.update'), ['current_password' => 'wrong', 'password' => 'NewPass456!', 'password_confirmation' => 'NewPass456!'])
+            ->assertSessionHasErrors('current_password');
+
+        $this->actingAs($user)->put(route('password.update'), ['current_password' => 'OldPass123!', 'password' => 'NewPass456!', 'password_confirmation' => 'NewPass456!'])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewPass456!', $user->fresh()->password));
+        $this->assertDatabaseMissing('sessions', ['id' => 'other-phone']);
+    }
 }

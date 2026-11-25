@@ -21,9 +21,23 @@ class RejectedBookingAlert
     public static function send(Request $request, ValidationException $e, string $form): void
     {
         try {
-            // One alert per attempt, and at most one a minute for the same person.
-            $who = strtolower(trim((string) ($request->input('customer_email') ?: $request->input('customer_phone') ?: $request->ip())));
+            // Only a real person we can help: a name AND a phone or email (an empty
+            // anonymous post used to page both directors — QA 25 Nov 2026).
+            $typedName = trim((string) ($request->input('customer_name')
+                ?: trim($request->input('customer_first_name').' '.$request->input('customer_surname'))));
+            $hasContact = filled($request->input('customer_phone')) || filled($request->input('customer_email'));
+            if ($typedName === '' || ! $hasContact) {
+                return;
+            }
+            // At most one a minute for the same person, and 3 per 10 minutes from one
+            // connection whatever details they type.
+            $who = strtolower(trim((string) ($request->input('customer_email') ?: $request->input('customer_phone'))));
             if (! Cache::add('rejected-booking:'.md5($who), 1, 60)) {
+                return;
+            }
+            $ipKey = 'rejected-booking-ip:'.md5((string) $request->ip());
+            Cache::add($ipKey, 0, 600);
+            if (Cache::increment($ipKey) > 3) {
                 return;
             }
 
