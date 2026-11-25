@@ -293,9 +293,10 @@ class RotationEngineTest extends TestCase
         $this->assertEquals($stateBefore, $stateAfter);
     }
 
-    public function test_an_office_booking_allocated_by_rotation_is_a_real_allocation(): void
+    public function test_an_office_booking_keeps_its_rotation_driver_but_stays_pending_for_the_office(): void
     {
-        // QA 25 Nov 2026: rotation put a driver on the job but left it "pending".
+        // Unchanged behaviour (review 25 Nov 2026): rotation suggests the driver; the office
+        // still confirms the allocation, so nothing is pushed to the driver on save.
         $admin = User::where('role', 'admin')->first() ?? User::factory()->admin()->create();
         $this->actingAs($admin)->post(route('bookings.store'), [
             'customer_name' => 'Jo Bloggs', 'customer_phone' => '07700900123',
@@ -307,7 +308,7 @@ class RotationEngineTest extends TestCase
 
         $b = Booking::latest('id')->first();
         $this->assertNotNull($b->driver_id);
-        $this->assertSame(BookingStatus::Allocated, $b->status);
+        $this->assertSame(BookingStatus::Pending, $b->status);
     }
 
     public function test_rotation_never_auto_assigns_a_driver_with_an_expired_document(): void

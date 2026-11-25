@@ -597,10 +597,10 @@ class BookingTest extends TestCase
         $this->assertFalse($return->fresh()->hasCashToCollect());
     }
 
-    public function test_a_cash_return_that_starts_with_an_airport_pickup_collects_the_return_on_the_return_leg(): void
+    public function test_a_return_leg_driver_is_never_told_to_collect_cash(): void
     {
-        // QA 25 Nov 2026: MAN -> Sheffield, back to MAN, cash. The arrival is prepaid and the
-        // return leg said "collect nothing", so nobody collected the return's cash.
+        // Locked rule (CLAUDE.md): the return-leg driver only ever sees "Paid — collect
+        // nothing", even when the outbound is a prepaid cash airport arrival.
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
             'journey_type' => 'return',
@@ -615,8 +615,7 @@ class BookingTest extends TestCase
         $return = Booking::where('is_return_leg', true)->first();
         $this->assertTrue($outbound->isPrepaidAirportPickup());
         $this->assertFalse($outbound->fresh()->hasCashToCollect());
-        $this->assertTrue($return->fresh()->hasCashToCollect(), 'somebody must collect the return');
-        $this->assertFalse($return->fresh()->returnLegCollectedOnOutbound());
+        $this->assertFalse($return->fresh()->hasCashToCollect());
     }
 
     public function test_a_cash_airport_return_collects_the_full_fare_on_the_outbound(): void
@@ -1341,5 +1340,25 @@ class BookingTest extends TestCase
                 'journey_type' => 'one_way',
                 'destination_address' => null,
             ]))->assertSessionHasErrors('destination_address');
+    }
+
+    public function test_a_cancelled_return_leg_is_not_collected_on_the_outbound(): void
+    {
+        // Review 25 Nov 2026: £60 + £60 cash return, the customer cancels only the return.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->validPayload([
+            'journey_type' => 'return',
+            'return_pickup_at' => now()->addDays(5)->format('Y-m-d\TH:i'),
+            'payment_method' => 'cash',
+            'quoted_price' => 120,
+        ]));
+        $outbound = Booking::where('is_return_leg', false)->first();
+        $return = Booking::where('is_return_leg', true)->first();
+        $this->assertStringContainsString('£120', (string) $outbound->fresh()->driverCollectLine());
+
+        $return->forceFill(['status' => \App\Enums\BookingStatus::Cancelled])->save();
+        $line = (string) $outbound->fresh()->driverCollectLine();
+        $this->assertStringContainsString('£60', $line);
+        $this->assertStringNotContainsString('£120', $line);
     }
 }

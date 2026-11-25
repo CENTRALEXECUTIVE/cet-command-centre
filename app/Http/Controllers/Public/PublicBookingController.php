@@ -220,6 +220,7 @@ class PublicBookingController extends Controller
             'quoted_price' => $charge,
             'meta' => array_filter([
                 'web_booking' => true,
+                'contact_override' => $customer->typedPhoneIfDifferent($data['customer_phone'] ?? null),
                 'lead_name' => $data['customer_name'],
                 'pickup_postcode' => strtoupper(trim($data['pickup_postcode'])),
                 'destination_postcode' => strtoupper(trim((string) ($data['destination_postcode'] ?? ''))),

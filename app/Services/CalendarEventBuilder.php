@@ -253,7 +253,7 @@ class CalendarEventBuilder
         // Flight, Meet & Greet, Pickup, Drop-off, Vehicle, Payment, Ref, Notes.
         $add('Date & Time', $booking->pickup_at?->format('d/m/Y – H:i'));
         $add('Customer Name', $meta['lead_name'] ?? $booking->customer?->name);
-        $add('Contact No', $meta['contact_no'] ?? $booking->customer?->phone);
+        $add('Contact No', $meta['contact_no'] ?? ($meta['contact_override'] ?? null) ?: $booking->customer?->phone);
         $add('Passengers', (string) $booking->passengers);
         // Luggage must be descriptive, never a bare number.
         $add('Luggage', $this->luggageText($booking));

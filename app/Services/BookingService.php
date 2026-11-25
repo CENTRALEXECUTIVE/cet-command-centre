@@ -80,24 +80,6 @@ class BookingService
                 $this->rotation->allocate($outbound);
             }
 
-            // A rotation driver was put on the job: make it a proper ALLOCATION (push to
-            // the driver, masked line, Accept button, no "unallocated" alarms). It used
-            // to keep the driver but stay "pending" (QA 25 Nov 2026).
-            $actor = $creator->isAdmin() ? $creator
-                : \App\Models\User::where('role', \App\Enums\UserRole::Admin->value)->where('is_active', true)->orderByDesc('is_super_admin')->first();
-            if ($actor) {
-                foreach (array_filter([$outbound, $return ?? null]) as $leg) {
-                    $leg = $leg->fresh();
-                    if ($leg->driver_id && $leg->status === \App\Enums\BookingStatus::Pending) {
-                        try {
-                            app(\App\Services\BookingStatusService::class)->transition($leg, \App\Enums\BookingStatus::Allocated, $actor, note: 'Auto-allocated (rotation)');
-                        } catch (\Throwable $e) {
-                            \Illuminate\Support\Facades\Log::warning('Rotation allocate transition failed for '.$leg->reference.': '.$e->getMessage());
-                        }
-                    }
-                }
-            }
-
             $this->calendar->buildFor($outbound->refresh());
 
             // Set driver pay to the standard 90% of fare straight away, so a brand
@@ -177,6 +159,7 @@ class BookingService
         return DB::transaction(function () use ($booking, $data) {
             $origPayMethod = $booking->payment_method?->value;
             $origFare = $booking->final_price ?? $booking->quoted_price;
+            $origPaid = $booking->paidTowardsFare(); // keep a deposit that only lives in the payment text
             // Edit now uses the New booking form (20 Nov 2026). Collecting FROM an
             // airport: the flight landing time IS the pickup time (UK-local, as on
             // New booking) — the form keeps the two in step; the landing time wins.
@@ -467,8 +450,10 @@ class BookingService
             $newFare = $after->final_price ?? $after->quoted_price;
             if ($after->payment_method?->value !== $origPayMethod || (float) $newFare !== (float) $origFare) {
                 $method = $after->payment_method?->value;
+                $paidSoFar = max($origPaid, $after->depositPaidAmount());
                 $text = $method === 'cash' && $newFare !== null
-                    ? '£'.number_format(max(0, (float) $newFare - $after->depositPaidAmount()), 2).' Cash'
+                    ? ($paidSoFar > 0 ? 'Deposit £'.number_format($paidSoFar, 2).' Paid, Balance ' : '')
+                        .'£'.number_format(max(0, (float) $newFare - $paidSoFar), 2).' Cash'
                     : ($after->fareIsPaid() ? 'Paid' : 'Pending').' ('.($after->payment_method?->label() ?? 'Card').')';
                 $after->forceFill(['meta' => array_merge($after->meta ?? [], [
                     'payment_text' => $text,

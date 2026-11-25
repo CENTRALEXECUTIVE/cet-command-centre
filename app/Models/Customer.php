@@ -92,6 +92,23 @@ class Customer extends Model
         return static::create(['name' => $name, 'phone' => $phone, 'email' => $email]);
     }
 
+    /**
+     * The phone typed on a web booking when it ISN'T this customer's number on file
+     * (a returning customer with a new mobile, a shared PA email). The booking keeps it
+     * as its own contact so masking, driver details and reminders use what was typed;
+     * the customer record itself is never changed by an anonymous booking (review 25 Nov 2026).
+     */
+    public function typedPhoneIfDifferent(?string $typed): ?string
+    {
+        $typed = trim((string) $typed);
+        if ($typed === '') {
+            return null;
+        }
+        $mine = \App\Support\Phone::variants($this->phone);
+
+        return array_intersect(\App\Support\Phone::variants($typed), $mine) ? null : $typed;
+    }
+
     public function setLoginPassword(string $plain): void
     {
         $this->forceFill([

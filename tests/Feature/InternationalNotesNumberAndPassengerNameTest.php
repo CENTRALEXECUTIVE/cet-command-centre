@@ -76,9 +76,19 @@ class InternationalNotesNumberAndPassengerNameTest extends TestCase
         foreach (['Call her on +44 (0) 7700 900999 when outside', 'ring (0114) 234 5678 on arrival', 'text 07700.900.999', 'mob: 7700 900999'] as $note) {
             $b = Booking::factory()->create(['special_requests' => $note]);
             $safe = $b->driverSafeText($note);
-            $this->assertStringContainsString('(number via the office)', $safe, $note);
+            $this->assertMatchesRegularExpression('/\((number|notes) via the office/', $safe, $note);
             $this->assertDoesNotMatchRegularExpression('/\d{3}[\s.]?\d{3}/', $safe, $note);
         }
+        // Review 25 Nov 2026: two numbers side by side, two lines, or a number next to a
+        // date never reach the driver; a plain date and time still does.
+        foreach (['Mobile 07700900123 07700900456', "Tel 0114 234 5678\n07700 900123", 'Call 07700 900123 12.12.2026'] as $note) {
+            $safe = Booking::factory()->create(['special_requests' => $note])->driverSafeText($note);
+            $this->assertStringNotContainsString('900123', $safe, $note);
+            $this->assertStringNotContainsString('234 5678', $safe, $note);
+            $this->assertStringNotContainsString('900456', $safe, $note);
+        }
+        $date = 'Return on 28.11.2026 14:30';
+        $this->assertSame($date, Booking::factory()->create(['special_requests' => $date])->driverSafeText($date));
         $b = Booking::factory()->create(['special_requests' => 'Flight BA1234 lands 10:30, £120.00 cash, ref CET-7692CC']);
         $this->assertSame([], $b->notePhoneNumbers());
     }

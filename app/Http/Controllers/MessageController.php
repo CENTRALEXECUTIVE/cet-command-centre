@@ -34,6 +34,7 @@ class MessageController extends Controller
         $this->whatsApp->send($to, $data['body'], [
             'type' => 'custom',
             'booking' => $booking,
+            'deliver_now' => true, // the office pressed Send
         ]);
 
         return back()->with('status', 'Message sent.');

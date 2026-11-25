@@ -61,6 +61,13 @@ class WebsiteFormQaFixesTest extends TestCase
         $known = Customer::create(['name' => 'Known', 'phone' => '07700900999', 'email' => 'known@example.com']);
         $this->post(route('widget.book.store'), $this->base(['customer_email' => 'KNOWN@example.com', 'customer_phone' => '07700900555']))->assertOk();
         $this->assertSame($known->id, Booking::latest('id')->first()->customer_id);
+        // Review 25 Nov 2026: the phone they typed is kept on the booking (new mobile),
+        // and the existing customer record is left alone.
+        $b = Booking::latest('id')->first();
+        $this->assertStringContainsString('900555', (string) $b->customerContactNumber());
+        $this->assertSame('07700900999', $known->fresh()->phone);
+        // The same number in another format is not treated as different.
+        $this->assertNull($known->fresh()->typedPhoneIfDifferent('+44 7700 900999'));
 
         // Never attach a typed email to an existing phone-only customer (account takeover via reset).
         $noEmail = Customer::create(['name' => 'No Email', 'phone' => '07700900777']);

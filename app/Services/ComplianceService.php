@@ -110,7 +110,7 @@ class ComplianceService
             $state = $item->status === 'expired' ? 'has EXPIRED' : 'is due';
             $body = "CET compliance alert: {$what} for {$item->reference} {$state} on {$item->due_on->format('d/m/Y')}.";
 
-            $this->whatsApp->send($to, $body, ['type' => 'custom']);
+            $this->whatsApp->send($to, $body, ['type' => 'custom', 'deliver_now' => true]); // to the office's own number
             $item->update(['reminder_sent_at' => now()]);
         }
 

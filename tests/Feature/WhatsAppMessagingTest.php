@@ -932,4 +932,15 @@ class WhatsAppMessagingTest extends TestCase
             'body' => 'Your driver will be 5 minutes early.',
         ]);
     }
+
+    public function test_a_message_the_office_types_and_sends_is_delivered_not_just_recorded(): void
+    {
+        // Review 25 Nov 2026: the office pressing Send is a manual action, so it delivers
+        // as before (automatic messages stay "manual").
+        $admin = \App\Models\User::factory()->admin()->create();
+        $booking = \App\Models\Booking::factory()->create();
+        $this->actingAs($admin)->post(route('bookings.message', $booking), ['body' => 'Running 5 minutes late'])->assertSessionHas('status', 'Message sent.');
+        $m = \App\Models\Message::where('body', 'Running 5 minutes late')->firstOrFail();
+        $this->assertSame('sent', $m->status);
+    }
 }

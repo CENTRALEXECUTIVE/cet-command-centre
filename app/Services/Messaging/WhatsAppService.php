@@ -52,6 +52,12 @@ class WhatsAppService
             return $message;
         }
 
+        // An explicit office action (the office typed and pressed Send) or an internal
+        // alert to the office's own number is delivered as before (review 25 Nov 2026).
+        if (! empty($context['deliver_now'])) {
+            return $this->deliver($message);
+        }
+
         // NOTHING auto-sends to customers (CLAUDE.md rule 2). Confirmations, driver
         // details, tracking links, arrived/on-board and flight-change messages are
         // recorded for the office to send by hand (wa.me), never delivered here and

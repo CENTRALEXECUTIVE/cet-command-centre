@@ -4628,10 +4628,9 @@ class Booking extends Model
         // International first (+33…, 0049 151 204 22619 — up to 15 digits, E.164), then UK.
         // The old UK-only pattern cut a German mobile to "0049 151 204 22" (CET-B3411F,
         // 23 Nov 2026), so masking would have rung a wrong number.
-        // QA 25 Nov 2026: also catch "+44 (0) 7700 900999", "(0114) 234 5678",
-        // "07700.900.999" and a bare "7700 900999" — any run of digits with spaces,
-        // dashes, dots or brackets that adds up to 10-15 digits.
-        preg_match_all('/(?:\+|00)?\(?\d[\d\s\-.()]{8,22}\d/', $text, $m);
+        // (A wider pattern tried on 25 Nov merged two numbers side by side and then
+        // dropped both — reverted. driverSafeText() adds a catch-all for drivers.)
+        preg_match_all('/(?:\+|00)[1-9](?:[\s-]?\d){6,14}|(?:\+?44|0)\s?(?:\d[\s-]?){9,10}\d/', $text, $m);
         // Keep a leading "(" (it belongs to "(0114)"); drop trailing separators only.
         $found = array_map(function ($x) {
             $x = rtrim(ltrim($x), " \t\n-.(");
@@ -4662,6 +4661,13 @@ class Booking extends Model
         $text = (string) $text;
         foreach ($this->notePhoneNumbers() as $num) {
             $text = str_replace($num, '(number via the office)', $text);
+        }
+        // Belt and braces: if ANY run of 9+ digits (spaces, dashes or brackets between)
+        // is still there, hide the whole text rather than risk showing a customer's
+        // number to the driver (review 25 Nov 2026). Dotted numbers (07700.900.999) count;
+        // a date or time (28.11.2026 14:30) doesn't.
+        if (preg_match('/\d(?:[\s\-()]*\d){8,}/', $text) || preg_match('/\d(?:\.?\d){9,}/', $text)) {
+            return '(notes via the office — please call the office)';
         }
 
         return $text;
@@ -6066,7 +6072,8 @@ class Booking extends Model
             // website, refs …A/…B). The return leg never collects, so its cash MUST be
             // collected here or nobody takes it (QA 25 Nov 2026: a £60+£60 cash return
             // showed £60 on the outbound and "collect nothing" on the return).
-            if ($linked && $linked->is_return_leg && (int) $linked->linked_booking_id === (int) $this->id) {
+            if ($linked && $linked->is_return_leg && (int) $linked->linked_booking_id === (int) $this->id
+                && ! in_array($linked->status?->value, ['cancelled', 'no_show', 'declined'], true)) { // a cancelled return isn't collected
                 return $linked;
             }
         }
@@ -6148,14 +6155,7 @@ class Booking extends Model
         // money emoji on a return.) Only the office override above can put cash on a
         // return (the rare collect-on-the-return case).
         if ($this->is_return_leg) {
-            // …unless the outbound collects nothing either: a cash trip that STARTS
-            // with an airport pickup (prepaid arrival). Then the return's cash is
-            // taken on the return, or nobody takes it (QA 25 Nov 2026, CET-5E45DA/B).
-            $outbound = $this->linked_booking_id ? $this->linkedBooking : null;
-            $outboundCollects = $outbound && ! $outbound->isPrepaidAirportPickup();
-            if (! $outbound || $outboundCollects || ($this->payment_method?->value ?? null) !== 'cash') {
-                return null;
-            }
+            return null;
         }
 
         // The business took the money itself (e.g. card tapped in the car), so the
@@ -6199,6 +6199,29 @@ class Booking extends Model
     public function depositAmount(): float
     {
         return round(max(0.0, (float) ($this->meta['deposit']['amount'] ?? 0)), 2);
+    }
+
+    /**
+     * What the customer has already paid towards the fare: a recorded deposit, or on a
+     * cash job the fare minus the cash balance the payment lines leave (so a "Deposit £15
+     * Paid, Balance £135 Cash" from ETO/the calendar counts £15). Used to rewrite the
+     * payment line after an edit without losing a deposit (review 25 Nov 2026).
+     */
+    public function paidTowardsFare(): float
+    {
+        $fare = $this->final_price ?? $this->quoted_price;
+        $paid = $this->depositPaidAmount();
+        if (($this->payment_method?->value ?? null) === 'cash' && $fare !== null) {
+            $paid = max($paid, (float) $fare - $this->parseCashBalance());
+        } else {
+            foreach ($this->paymentLines() as $line) {
+                if (preg_match('/deposit\D*£\s?([\d,]+(?:\.\d{1,2})?)/i', $line, $dep)) {
+                    $paid = max($paid, (float) str_replace(',', '', $dep[1]));
+                }
+            }
+        }
+
+        return round(max(0.0, $paid), 2);
     }
 
     private function parseCashBalance(): float

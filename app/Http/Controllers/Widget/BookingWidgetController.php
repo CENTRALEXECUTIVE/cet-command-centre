@@ -572,6 +572,7 @@ class BookingWidgetController extends Controller
         $sessionCustomer = ($sid = $request->session()->get(CustomerAccountController::SESSION_KEY))
             ? Customer::find($sid) : null;
         $customer = $sessionCustomer ?: $this->resolveCustomer($data);
+        $typedContact = $customer->typedPhoneIfDifferent($data['customer_phone'] ?? null);
 
         // "Create an account" at checkout — set a login password and sign them in,
         // so next time is faster (and a company contact can book on account).
@@ -720,6 +721,7 @@ class BookingWidgetController extends Controller
             'quoted_price' => $quotedPrice,
             'meta' => array_filter([
                 'web_booking' => true,
+                'contact_override' => $typedContact,
                 'lead_name' => $leadName,
                 'booked_by' => $leadName ? $customer->name : null,
                 'suitcases' => (int) ($data['suitcases'] ?? 0),
@@ -801,6 +803,7 @@ class BookingWidgetController extends Controller
                 'quoted_price' => $returnQuoted,
                 'meta' => array_filter([
                     'web_booking' => true,
+                    'contact_override' => $typedContact,
                     'flight_landing_at' => $flightOnReturn ? $flightLandingAt : null,
                     'lead_name' => $leadName,
                     'booked_by' => $leadName ? $customer->name : null,

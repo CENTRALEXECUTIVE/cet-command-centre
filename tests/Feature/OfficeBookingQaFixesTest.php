@@ -75,4 +75,24 @@ class OfficeBookingQaFixesTest extends TestCase
         $this->actingAs($client)->get(route('bookings.show', $b))->assertOk();
         $this->assertSame('transfers', $b->fresh()->billingEntity(), 'account jobs are invoiced with VAT by the Ltd');
     }
+
+    public function test_a_price_edit_keeps_a_deposit_that_only_lives_in_the_payment_text(): void
+    {
+        // Review 25 Nov 2026: "Deposit £15 (Square) Paid, Balance £135 Cash", fare £150.
+        // Editing the fare to £160 must leave £145 to collect, never £160.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post(route('bookings.store'), $this->payload(['quoted_price' => 150]));
+        $b = Booking::latest('id')->first();
+        $b->calendarEvents()->delete();
+        $b->calendarEvents()->create([
+            'calendar_id' => 'cal', 'title' => 'x', 'location' => 'x',
+            'description' => "📑 Booking Confirmation\n• *Payment:* Deposit £15 (Square) Paid, Balance £135 (Cash) Pending, Amount Due £135",
+            'start_at' => now(), 'end_at' => now()->addHour(), 'timezone' => 'Europe/London',
+        ]);
+        $b->calendarEvents()->update(['updated_at' => now()->subDay()]);
+        $this->assertSame(135.0, (float) $b->fresh()->cashDueToDriver());
+
+        $this->actingAs($admin)->put(route('bookings.update', $b), $this->payload(['quoted_price' => 160, 'final_price' => 160]))->assertSessionHasNoErrors();
+        $this->assertSame(145.0, (float) $b->fresh()->cashDueToDriver());
+    }
 }
