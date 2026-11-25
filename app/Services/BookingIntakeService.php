@@ -212,7 +212,7 @@ class BookingIntakeService
             }
 
             $phone = $f['contact_no'] ?: null;
-            $customer = ($phone ? Customer::where('phone', $phone)->first() : null)
+            $customer = ($phone ? (Customer::where('phone', $phone)->first() ?? Customer::whereIn('phone', \App\Support\Phone::variants($phone))->first()) : null)
                 ?? Customer::create(array_filter([
                     'name' => $f['lead_name'] ?: 'Customer',
                     'phone' => $phone,

@@ -51,7 +51,7 @@ class UpdateBookingRequest extends FormRequest
             'airport_id' => ['nullable', Rule::exists('airports', 'id')],
 
             // Journey
-            'pickup_at' => ['required', 'date'],
+            'pickup_at' => ['required', 'date', \App\Support\UkTime::existsRule()],
             'pickup_address' => ['required', 'string', 'max:500'],
             'destination_address' => ['required_unless:journey_type,hourly', 'nullable', 'string', 'max:500'],
             // Same options as the New booking form (Nov 2026).

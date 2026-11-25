@@ -147,10 +147,21 @@
         // Rebuild only the STICKY (critical/warning) toasts; the transient info
         // flashes (driver updates) live in the same container and must survive a
         // 30s re-poll, so we never wipe the whole container here.
-        toasts.querySelectorAll('.alert-toast.sticky').forEach(function (el) { el.remove(); });
-        data.events.forEach(function (e) {
-            if (e.acknowledged) return;
-            if (e.severity !== 'critical' && e.severity !== 'warning') return;
+        toasts.querySelectorAll('.alert-toast.sticky, .alert-toast.more').forEach(function (el) { el.remove(); });
+        // At most 3 pop-ups on screen (critical first); the rest are summed up in one
+        // "+N more" link to the dashboard list — 20 stacked pop-ups covered the page
+        // and blocked buttons (QA 25 Nov 2026).
+        var open = data.events.filter(function (e) {
+            return !e.acknowledged && (e.severity === 'critical' || e.severity === 'warning');
+        }).sort(function (a, b) { return (a.severity === 'critical' ? 0 : 1) - (b.severity === 'critical' ? 0 : 1); });
+        var MAX = 3;
+        if (open.length > MAX) {
+            var more = document.createElement('div');
+            more.className = 'alert-toast more sev-warning';
+            more.innerHTML = '<div class="at-body"><div class="at-title"><a href="/dashboard#alerts">+' + (open.length - MAX) + ' more alert' + (open.length - MAX === 1 ? '' : 's') + ' — open the list</a></div></div>';
+            toasts.appendChild(more);
+        }
+        open.slice(0, MAX).forEach(function (e) {
             var t = document.createElement('div');
             t.className = 'alert-toast sticky sev-' + e.severity;
             t.dataset.alertId = e.id;

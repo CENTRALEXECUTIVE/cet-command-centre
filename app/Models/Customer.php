@@ -84,7 +84,8 @@ class Customer extends Model
         // never attach an email to an existing customer: that email could then reset the
         // account password and see their bookings (QA 25 Nov 2026). A typed email that
         // isn't on file always makes a separate customer record.
-        if ($phone && $emailKey === '' && $found = static::where('phone', $phone)->first()) {
+        if ($phone && $emailKey === '' && $found = (static::where('phone', $phone)->first()
+            ?? static::whereIn('phone', \App\Support\Phone::variants($phone))->first())) { // any stored format
             return $found;
         }
 

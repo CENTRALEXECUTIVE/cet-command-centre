@@ -324,7 +324,7 @@
     <div id="alerts-toasts" aria-live="assertive" aria-label="Live alerts"
          data-feed="{{ route('alerts.feed') }}"
          data-chime="{{ $u->alertPreferences()['chime'] ? '1' : '0' }}"></div>
-    <script src="{{ asset('js/cet-alerts.js') }}?v=10" defer></script>
+    <script src="{{ asset('js/cet-alerts.js') }}?v=11" defer></script>
 @endif
 
 {{-- Staff app: essential cookies only and no analytics, so no consent banner over

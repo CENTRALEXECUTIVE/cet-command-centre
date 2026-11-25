@@ -78,7 +78,7 @@ class StoreBookingRequest extends FormRequest
 
             // Journey
             'journey_type' => ['required', Rule::in(['one_way', 'return', 'hourly'])],
-            'pickup_at' => ['required', 'date', 'after:now'],
+            'pickup_at' => ['required', 'date', 'after:now', \App\Support\UkTime::existsRule()],
             'pickup_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['nullable', 'string', 'max:16'],
             // Destination isn't needed for hourly hire ("as directed").
@@ -146,7 +146,7 @@ class StoreBookingRequest extends FormRequest
             'wheelchair' => ['nullable', 'boolean'],
 
             // Return leg (paired booking)
-            'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
+            'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at', \App\Support\UkTime::existsRule()],
 
             // Corporate
             'corporate_account_id' => ['nullable', Rule::exists('corporate_accounts', 'id')->where('is_active', true)],

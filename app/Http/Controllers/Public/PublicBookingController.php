@@ -136,7 +136,7 @@ class PublicBookingController extends Controller
             'destination_address' => ['required', 'string', 'max:500'],
             'pickup_postcode' => ['required', 'string', 'max:12'],
             'destination_postcode' => ['nullable', 'string', 'max:12'],
-            'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],
+            'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s'), \App\Support\UkTime::existsRule()],
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],
             'passengers' => ['required', 'integer', 'min:1', 'max:60'],
             'suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
