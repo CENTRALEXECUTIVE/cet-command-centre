@@ -321,6 +321,9 @@ class BookingStatusService
     {
         $booking->reconcilePaidStatus();
         $fresh = $booking->fresh();
+        // A first web payment already raises "Web booking PAID" below.
+        $webPaidAlertFires = $fresh->source === 'web' && $fresh->status === BookingStatus::Pending
+            && ($fresh->payment_status ?? null) === 'paid';
 
         // Web bookings: allocation + calendar + web-paid alert (internally guarded
         // to source=web, paid, still pending). The customer email waits until the
@@ -379,7 +382,48 @@ class BookingStatusService
         }
         $this->emailOffice($fresh->fresh(), 'paid');
 
+        if ($emailCustomer && ! $webPaidAlertFires) {
+            $this->alertPaymentReceived($fresh->fresh());
+        }
+
         return $fresh->fresh();
+    }
+
+    /**
+     * Tell the office the moment a CARD payment lands (Stripe/Square, any booking —
+     * office-made or a website balance). 25 Nov 2026: a £105 card-link payment came in
+     * and only an email went; nothing on the dashboard or phone. Once per payment.
+     */
+    private function alertPaymentReceived(Booking $booking): void
+    {
+        $sq = $booking->meta['square_payment'] ?? [];
+        $last = ! empty($sq['history']) ? end($sq['history']) : $sq;
+        $paymentId = $last['id'] ?? null;
+        if (! $paymentId || ($booking->meta['payment_alert_for'] ?? null) === $paymentId) {
+            return;
+        }
+        // Only a FRESH payment (last 2 hours): opening an old booking or the reconcile
+        // sweep must never fire alerts for payments taken days ago.
+        $at = ! empty($last['at']) ? \Illuminate\Support\Carbon::parse($last['at']) : null;
+        if (! $at || $at->lt(now()->subHours(2))) {
+            return;
+        }
+        $booking->forceFill(['meta' => array_merge($booking->meta ?? [], ['payment_alert_for' => $paymentId])])->save();
+
+        $name = $booking->displayCustomerName() ?? $booking->customer?->name ?? 'Customer';
+        $amount = '£'.number_format((float) ($last['amount'] ?? 0), 2);
+        $due = (float) ($booking->transactionsAmountDue() ?? 0);
+        $title = '💳 Payment received — '.$amount.' from '.$name;
+        $body = $name.' paid '.$amount.' by card for '.$booking->reference
+            .($booking->pickup_at ? ' ('.$booking->pickup_at->format('D d M, H:i').')' : '').'. '
+            .($due > 0.009 ? '£'.number_format($due, 2).' still due.' : 'Fully paid.');
+
+        try {
+            \App\Models\WatchdogEvent::log('payment_received', $title, 'info', $booking, null, $body);
+            $this->adminAlerts->notify('payment_received', $title, $body, 'info', $booking);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Payment alert failed for '.$booking->reference.': '.$e->getMessage());
+        }
     }
 
     /**

@@ -117,6 +117,7 @@ class User extends Authenticatable
         'location_blocked' => 'Driver blocked from a status (wrong place / no location)',
         'ai_call' => 'AI phone agent: booking request, message or transfer',
         'awaiting_payment' => 'Website booking still awaiting payment',
+        'payment_received' => 'Card payment received',
         'web_rejected' => 'Website refused a booking (customer needs help)',
     ];
 
