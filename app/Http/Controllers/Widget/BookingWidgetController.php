@@ -336,8 +336,6 @@ class BookingWidgetController extends Controller
         \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
         \App\Support\FullName::merge($request, 'lead_passenger_first_name', 'lead_passenger_surname', 'lead_passenger_name');
 
-        \App\Support\UkTime::fixGap($request, ['pickup_at','return_pickup_at']);
-
         $data = $request->validate([
             'customer_first_name' => ['nullable', 'string', 'max:60'],
             'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],

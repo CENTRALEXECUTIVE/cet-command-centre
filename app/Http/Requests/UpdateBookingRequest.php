@@ -27,7 +27,6 @@ class UpdateBookingRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        \App\Support\UkTime::fixGap($this, ['pickup_at'], null);
         if ($this->has('customer_phone')) {
             $this->merge(['customer_phone' => \App\Support\Phone::normalise(
                 $this->input('customer_phone'),

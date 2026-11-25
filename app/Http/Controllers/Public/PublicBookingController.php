@@ -129,8 +129,6 @@ class PublicBookingController extends Controller
 
         \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
 
-        \App\Support\UkTime::fixGap($request, ['pickup_at']);
-
         $data = $request->validate([
             'customer_first_name' => ['nullable', 'string', 'max:60'],
             'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],

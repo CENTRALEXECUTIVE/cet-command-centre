@@ -29,7 +29,6 @@ class StoreBookingRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        \App\Support\UkTime::fixGap($this, ['pickup_at', 'return_pickup_at'], null);
         // A company client always books on THEIR OWN account (never private, never
         // someone else's) — or the booking vanished from their list (QA 25 Nov 2026).
         $user = $this->user();
