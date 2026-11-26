@@ -297,10 +297,25 @@ class BookingWidgetController extends Controller
         // per 10 minutes, so typing doesn't flood the log).
         $poa = collect($options)->filter(fn ($o) => ! empty($o['poa']))->pluck('id')->all();
         if ($poa && \Illuminate\Support\Facades\Cache::add('attempt-poa:'.md5(strtolower($data['pickup'].'|'.$data['destination'])), 1, now()->addMinutes(10))) {
+            $poaTypes = \App\Models\VehicleType::whereIn('id', $poa)->get(['id', 'name', 'slug']);
             \App\Models\BookingAttempt::record('prices', 'price_on_request', $request, ['details' => [
-                'vehicles' => \App\Models\VehicleType::whereIn('id', $poa)->pluck('name')->all(),
+                'vehicles' => $poaTypes->pluck('name')->all(),
                 'journey_type' => $data['journey_type'] ?? null,
             ]]);
+            // LIVE alert (directors, 26 Nov 2026): a normally-priced car showing "On request"
+            // means a customer is stuck right now. Not for the Rolls-Royce (always on request).
+            $standard = $poaTypes->filter(fn ($v) => in_array($v->slug, ['executive', 'estate', 'v-class', 'minibus-8', 'minibus-8-xl'], true));
+            if ($standard->isNotEmpty()) {
+                try {
+                    app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors('price_on_request',
+                        '⚠ Customer seeing "On request" — '.\Illuminate\Support\Str::limit($data['pickup'], 35).' → '.\Illuminate\Support\Str::limit($data['destination'], 35),
+                        'A website customer is being shown "On request" instead of a price for '.$standard->pluck('name')->implode(', ')
+                            .' ('.\Illuminate\Support\Str::limit($data['pickup'], 80).' → '.\Illuminate\Support\Str::limit($data['destination'], 80)
+                            .($data['pickup_at'] ?? null ? ', '.$data['pickup_at'] : '').'). If they book, their details arrive as a quote request. See Booking log.',
+                        'critical');
+                } catch (\Throwable) {
+                }
+            }
         }
 
         return response()->json(['options' => $options]);

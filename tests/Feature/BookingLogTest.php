@@ -50,4 +50,24 @@ class BookingLogTest extends TestCase
         $driver = User::factory()->create();
         $this->actingAs($driver)->get(route('booking-log.index'))->assertForbidden();
     }
+
+    public function test_a_standard_car_showing_on_request_alerts_the_directors_live_but_rolls_royce_does_not(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        $m = \Mockery::mock(\App\Services\Pricing\DistanceService::class)->makePartial();
+        $m->shouldReceive('configured')->andReturn(true);
+        $m->shouldReceive('resolve')->andReturn(['miles' => 10, 'minutes' => 20, 'source' => 'estimate']);
+        $this->app->instance(\App\Services\Pricing\DistanceService::class, $m);
+
+        // A Rolls-Royce-only "On request" (a normal Sheffield → Rotherham trip) is not alerted.
+        $this->postJson(route('widget.prices'), ['pickup' => 'Sheffield S1 2HH', 'destination' => 'Manchester Airport (MAN)'])->assertOk();
+        $this->assertSame(0, \App\Models\WatchdogEvent::where('event_type', 'price_on_request')->count());
+
+        // An address Google can't place makes the normal cars "On request": alert, once.
+        $this->postJson(route('widget.prices'), ['pickup' => 'Manchester Airport (MAN)', 'destination' => '12 Nowhere Lane'])->assertOk();
+        $this->postJson(route('widget.prices'), ['pickup' => 'Manchester Airport (MAN)', 'destination' => '12 Nowhere Lane'])->assertOk();
+        $ev = \App\Models\WatchdogEvent::where('event_type', 'price_on_request')->get();
+        $this->assertCount(1, $ev);
+        $this->assertSame('critical', $ev->first()->severity);
+    }
 }
