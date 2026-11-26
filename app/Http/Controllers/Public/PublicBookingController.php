@@ -108,10 +108,20 @@ class PublicBookingController extends Controller
     public function store(Request $request): RedirectResponse
     {
         try {
-            return $this->storeBooking($request);
+            $started = now()->subSecond();
+            $response = $this->storeBooking($request);
+            $b = \App\Models\Booking::where('source', 'web')->where('created_at', '>=', $started)->latest('id')->first();
+            \App\Models\BookingAttempt::record('book', $b ? (! empty($b->meta['quote_request']) ? 'quote_request' : 'booked') : 'submitted', $request,
+                $b ? ['booking_id' => $b->id, 'reference' => $b->reference, 'details' => ['price' => $b->quoted_price]] : []);
+
+            return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             // The customer sees the reason in a red box; the directors get told at once.
             \App\Support\RejectedBookingAlert::send($request, $e, 'public /book page');
+            \App\Models\BookingAttempt::record('book', 'refused', $request, ['details' => ['errors' => $e->errors()]]);
+            throw $e;
+        } catch (\Throwable $e) {
+            \App\Models\BookingAttempt::record('book', 'error', $request, ['details' => ['message' => mb_substr($e->getMessage(), 0, 500)]]);
             throw $e;
         }
     }

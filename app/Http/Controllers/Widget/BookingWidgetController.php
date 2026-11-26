@@ -293,6 +293,16 @@ class BookingWidgetController extends Controller
                 ];
             })->values();
 
+        // Silently log any vehicle showing "On request" for this journey (once per route
+        // per 10 minutes, so typing doesn't flood the log).
+        $poa = collect($options)->filter(fn ($o) => ! empty($o['poa']))->pluck('id')->all();
+        if ($poa && \Illuminate\Support\Facades\Cache::add('attempt-poa:'.md5(strtolower($data['pickup'].'|'.$data['destination'])), 1, now()->addMinutes(10))) {
+            \App\Models\BookingAttempt::record('prices', 'price_on_request', $request, ['details' => [
+                'vehicles' => \App\Models\VehicleType::whereIn('id', $poa)->pluck('name')->all(),
+                'journey_type' => $data['journey_type'] ?? null,
+            ]]);
+        }
+
         return response()->json(['options' => $options]);
     }
 
@@ -305,10 +315,21 @@ class BookingWidgetController extends Controller
     public function store(Request $request): \Illuminate\Http\Response
     {
         try {
-            return $this->storeBooking($request);
+            $started = now()->subSecond();
+            $response = $this->storeBooking($request);
+            // Silent log: which booking this submit made (or matched as a repeat click).
+            $b = Booking::where('source', 'web')->where('created_at', '>=', $started)->where('is_return_leg', false)->latest('id')->first();
+            \App\Models\BookingAttempt::record('widget', $b ? (! empty($b->meta['quote_request']) ? 'quote_request' : 'booked') : 'submitted', $request,
+                $b ? ['booking_id' => $b->id, 'reference' => $b->reference, 'details' => ['price' => $b->quoted_price, 'vehicle' => $b->vehicleType?->name]] : []);
+
+            return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             // The customer sees the reason in a red box; the directors get told at once.
             \App\Support\RejectedBookingAlert::send($request, $e, 'website booking widget');
+            \App\Models\BookingAttempt::record('widget', 'refused', $request, ['details' => ['errors' => $e->errors()]]);
+            throw $e;
+        } catch (\Throwable $e) {
+            \App\Models\BookingAttempt::record('widget', 'error', $request, ['details' => ['message' => mb_substr($e->getMessage(), 0, 500)]]);
             throw $e;
         }
     }

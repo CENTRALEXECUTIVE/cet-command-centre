@@ -414,6 +414,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
             ->middleware('throttle:30,1')->name('imports.resync-email');
 
         // ETO reconciliation — reconfirm bookings against the calendar, one ref at a time.
+        // Silent website booking log (every attempt + every "On request" price), read-only.
+        Route::get('booking-log', [\App\Http\Controllers\Admin\BookingLogController::class, 'index'])->name('booking-log.index');
         Route::get('audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
         Route::post('audit', [\App\Http\Controllers\Admin\AuditController::class, 'run'])
             ->middleware('throttle:20,1')->name('audit.run');
