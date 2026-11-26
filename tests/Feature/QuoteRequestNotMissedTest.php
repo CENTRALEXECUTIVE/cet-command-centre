@@ -39,29 +39,4 @@ class QuoteRequestNotMissedTest extends TestCase
         $this->assertStringContainsString('price needed', $ev->title);
         Mail::assertSent(\App\Mail\OfficeBookingMail::class, fn ($m) => str_contains($m->envelope()->subject, 'QUOTE REQUEST'));
     }
-
-    public function test_a_quote_request_from_a_business_account_domain_is_a_vat_job(): void
-    {
-        $this->seed(VehicleTypeSeeder::class);
-        Mail::fake();
-        $acct = \App\Models\CorporateAccount::create(['name' => 'JELD-WEN UK', 'slug' => 'jeld-wen-uk', 'account_code' => 'JELD', 'billing_email' => 'accounts@jeldwen.example', 'is_active' => true]);
-        $rr = VehicleType::where('slug', 'rolls-royce-ghost')->first() ?? VehicleType::where('name', 'like', '%Rolls%')->first();
-
-        $this->post(route('widget.book.store'), [
-            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield S9 1DZ', 'destination_postcode' => 'S9 1DZ',
-            'journey_type' => 'one_way', 'pickup_at' => now()->addDays(10)->format('Y-m-d\TH:i'),
-            'flight_number' => 'BA1234', 'flight_landing_at' => now()->addDays(10)->format('Y-m-d\TH:i'),
-            'vehicle_type_id' => $rr->id, 'passengers' => 1,
-            'customer_first_name' => 'Claire', 'customer_surname' => 'Green',
-            'customer_phone' => '07700900654', 'customer_email' => 'cgreen@jeldwen.example',
-        ])->assertOk();
-
-        $b = \App\Models\Booking::latest('id')->first();
-        $this->assertSame('transfers', $b->meta['billing_entity']);
-        $this->assertSame($acct->id, $b->corporate_account_id);
-
-        // A free-mail address is never matched to a company.
-        $this->assertNull((new \ReflectionMethod(\App\Http\Controllers\Widget\BookingWidgetController::class, 'accountForCompanyDomain'))
-            ->invoke(app(\App\Http\Controllers\Widget\BookingWidgetController::class), 'someone@gmail.com'));
-    }
 }

@@ -196,27 +196,6 @@ class BookingWidgetController extends Controller
     }
 
     /** The account this customer may book on: their linked account, else by email. */
-    /**
-     * The active business account whose contacts / billing email share this email's
-     * COMPANY domain (cgreen@jeldwen.com → JELD-WEN). Never for free-mail domains. Used
-     * only to file a quote request as a VAT job — it grants no account access.
-     */
-    private function accountForCompanyDomain(?string $email): ?CorporateAccount
-    {
-        $domain = strtolower(trim((string) \Illuminate\Support\Str::after((string) $email, '@')));
-        $free = ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'hotmail.co.uk', 'live.com', 'live.co.uk',
-            'yahoo.com', 'yahoo.co.uk', 'icloud.com', 'me.com', 'aol.com', 'btinternet.com', 'sky.com', 'msn.com', 'protonmail.com'];
-        if ($domain === '' || ! str_contains($domain, '.') || in_array($domain, $free, true)) {
-            return null;
-        }
-        $like = '%@'.$domain;
-        $contact = CorporateContact::whereRaw('LOWER(email) LIKE ?', [$like])
-            ->whereHas('corporateAccount', fn ($q) => $q->where('is_active', true))->first();
-
-        return $contact?->corporateAccount
-            ?? CorporateAccount::where('is_active', true)->whereRaw('LOWER(billing_email) LIKE ?', [$like])->first();
-    }
-
     private function resolveAccountFor(Customer $customer): ?CorporateAccount
     {
         if ($customer->corporate_account_id) {
@@ -673,15 +652,6 @@ class BookingWidgetController extends Controller
         if ($isAccount) {
             $needsInvoice = true; // account fares are invoiced with VAT
         }
-        // A QUOTE REQUEST from a known business account (JELD-WEN etc.) is a VAT job for
-        // the Ltd and lands in admin@ — whether or not they ticked "VAT invoice" or signed
-        // in (26 Nov 2026: a JELD-WEN request went to the non-VAT side and was missed).
-        $quoteAccount = (! $isAccount && $isQuoteRequest)
-            ? ($this->resolveAccountFor($customer) ?? $this->accountForCompanyDomain($customer->email))
-            : null;
-        if ($quoteAccount) {
-            $needsInvoice = true;
-        }
 
         // What this leg charges — exactly Booking::amountPayable() (net + VAT per leg).
         $charge = $afterDiscount === null ? null : ($needsInvoice ? $vatService->fromNet($afterDiscount)['gross'] : $afterDiscount);
@@ -728,7 +698,7 @@ class BookingWidgetController extends Controller
         $booking = Booking::create([
             'reference' => $outboundRef,
             'customer_id' => $customer->id,
-            'corporate_account_id' => $account?->id ?? $quoteAccount?->id,
+            'corporate_account_id' => $account?->id,
             'vehicle_type_id' => $vehicleType->id,
             'journey_type' => $journeyType,
             'pickup_at' => $pickupAt,
