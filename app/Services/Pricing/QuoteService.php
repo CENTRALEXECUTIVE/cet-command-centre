@@ -182,7 +182,12 @@ class QuoteService
         $localFar = $destKey !== null ? $this->localEndIsOutOfArea($localText) : false;
         // No full postcode, so the zone is only a town-word / default guess, AND Google
         // couldn't measure how far it really is → don't guess a price: office confirms.
-        if ($destKey !== null && $localFar === null && ! $this->hasFullPostcode($localText) && $this->distance->configured()) {
+        // …unless the address plainly NAMES a home town as its locality ("Leopold Hotel,
+        // Leopold Street, Sheffield, UK"): that is a Sheffield fixed fare, Google or not.
+        // 26 Nov 2026: a JELD-WEN Manchester Airport → Sheffield return became a quote
+        // request because Google didn't answer for a hotel address with no postcode.
+        if ($destKey !== null && $localFar === null && ! $this->hasFullPostcode($localText)
+            && $this->distance->configured() && ! $this->namesHomeTown($localText)) {
             return $this->officeToConfirm();
         }
         if ($destKey !== null && $localFar !== true) {
@@ -680,6 +685,23 @@ class QuoteService
             'basis' => 'Price on request — our office will confirm the price',
             'miles' => null, 'fixed' => false, 'unmeasured' => true,
         ];
+    }
+
+    /**
+     * True when a comma-separated part of the address IS a home town — Google's locality
+     * ("…, Sheffield, UK", "…, Rotherham S60 1AA, UK"). A street like "Sheffield Road,
+     * Birmingham" doesn't count: the part must be the town name alone.
+     */
+    private function namesHomeTown(string $text): bool
+    {
+        foreach (array_map('trim', explode(',', strtolower($text))) as $part) {
+            $part = trim(preg_replace('/\s+[a-z]{1,2}\d[a-z\d]?(\s*\d[a-z]{2})?$/', '', $part));
+            if (in_array($part, ['sheffield', 'rotherham', 'barnsley', 'chesterfield'], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** True when the text holds a full UK postcode (e.g. "DY11 7RA"), not just "S3". */
