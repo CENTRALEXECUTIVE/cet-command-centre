@@ -220,7 +220,7 @@ Never guess a personal address.
 | C06 | Good Travel Management | 4 | Supplier relations | | new | – | Send email 1 | 18 Nov |
 | C07 | Traveleads | 4 | Supplier relations | | new | – | Send email 1 | 18 Nov |
 | C08 | Clarity / Agiito | 4 | Ground transport | | new | – | Find contact, send | 18 Nov |
-| C09 | UKIFS (STEP) | 3 | Procurement | | new | – | Coordinate with A16, send | wk of 23 Nov |
+| C09 | UK Fusion Energy (STEP; was UKIFS) | 3 | Katy Jarvis-Morgan, Site Stakeholder & Engagement | Abdi | replied | 26 Nov: signed supplier form sent | Wait for supplier set-up; then corporate account (UK Fusion Energy Ltd), PO on every job. Chase if silent | 2 Dec |
 | C10 | TJ Morris (Unity DC) | 3 | PA / HR | | new | – | Send after C05 (same project, different buyer) | wk of 23 Nov |
 | C11 | Sumo Digital | 3 | Studio ops | | new | – | Verify 2026 status | wk of 23 Nov |
 | C12 | Woodland Group, iPort | 3 | Site GM office | | new | – | Verify current units | wk of 23 Nov |

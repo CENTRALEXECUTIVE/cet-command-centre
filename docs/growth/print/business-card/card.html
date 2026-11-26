@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Cinzel;src:url(fonts/Cinzel.ttf)}
+@font-face{font-family:Mont;src:url(fonts/Montserrat.ttf)}
+@page{size:91mm 61mm;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff}
+.page{width:91mm;height:61mm;position:relative;overflow:hidden;page-break-after:always;
+  background:radial-gradient(120% 140% at 30% 20%,#16233a 0%,#0b1424 55%,#070d18 100%);color:#f3efe6;font-family:Mont,sans-serif}
+.gold{color:#FBBA2A}
+/* FRONT */
+.front .mark{position:absolute;left:0;right:0;top:15mm;text-align:center}
+.front .cet{font-family:Cinzel;font-weight:600;font-size:27pt;letter-spacing:.32em;padding-left:.32em;line-height:1}
+.front .rule{width:34mm;height:.35mm;margin:2.6mm auto 2.4mm;background:#FBBA2A}
+.front .name{font-size:6.6pt;font-weight:500;letter-spacing:.28em;padding-left:.28em}
+.front .city{font-size:5pt;font-weight:500;letter-spacing:.4em;padding-left:.4em;margin-top:1.2mm;color:#c9c2b2}
+.front .tag{position:absolute;left:0;right:0;bottom:9.5mm;text-align:center;font-family:Cinzel;font-size:6.4pt;letter-spacing:.06em}
+/* BACK */
+.back .head{position:absolute;left:8mm;top:7.5mm}
+.back .head .cet{font-family:Cinzel;font-weight:600;font-size:13pt;letter-spacing:.3em;line-height:1}
+.back .head .rule{width:21mm;height:.3mm;background:#FBBA2A;margin:1.4mm 0 1.2mm}
+.back .head .name{font-size:4.6pt;font-weight:500;letter-spacing:.24em}
+.back ul{list-style:none;position:absolute;left:8mm;top:22.5mm;display:flex;flex-direction:column;gap:1.55mm}
+.back li{display:flex;align-items:center;gap:2.2mm;font-size:6.9pt;font-weight:500;letter-spacing:.01em;white-space:nowrap}
+.back li.em{font-size:5.9pt}
+.back li small{display:block;font-size:4.7pt;font-weight:400;color:#c9c2b2;letter-spacing:.02em;margin-top:.2mm}
+.back svg.i{width:3.2mm;height:3.2mm;flex:none;fill:none;stroke:#FBBA2A;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.back .qr{position:absolute;right:7.5mm;top:16mm;width:18mm;text-align:center}
+.back .qr .tile{background:#fff;border-radius:1.2mm;padding:1.6mm}
+.back .qr img{width:100%;display:block}
+.back .qr p{font-size:4.6pt;font-weight:600;letter-spacing:.22em;margin-top:1.3mm;padding-left:.22em}
+.back .vr{position:absolute;right:28mm;top:17mm;height:24mm;width:.25mm;background:#FBBA2A}
+.back .towns{position:absolute;left:8mm;right:8mm;bottom:7.2mm;border-top:.25mm solid #FBBA2A;padding-top:1.6mm;display:flex;justify-content:space-between;font-size:4.6pt;font-weight:500;letter-spacing:.18em;color:#e6e0d2}
+.back .towns i{font-style:normal;color:#FBBA2A}
+</style></head><body>
+<section class="page front">
+  <div class="mark"><div class="cet">CET</div><div class="rule"></div><div class="name">CENTRAL EXECUTIVE TRANSFERS</div><div class="city">SHEFFIELD</div></div>
+  <div class="tag">Executive Travel. <span class="gold">Business Class Service.</span></div>
+</section>
+<section class="page back">
+  <div class="head"><div class="cet">CET</div><div class="rule"></div><div class="name">CENTRAL EXECUTIVE TRANSFERS</div></div>
+  <ul>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2"/></svg><span>0114 399 8242</span></li>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.4z"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.6-2-1-1 1a4.5 4.5 0 0 1-2.4-2.4l1-1-1-2z"/></svg><span>+44 7405 172435<small>WhatsApp 24/7</small></span></li>
+    <li class="em"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>admin@centralexecutivetransfers.co.uk</span></li>
+    <li><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><span>centralexecutivetransfers.co.uk</span></li>
+  </ul>
+  <div class="vr"></div>
+  <div class="qr"><div class="tile"><img src="qr.svg"></div><p>BOOK ONLINE</p></div>
+  <div class="towns"><span>SHEFFIELD</span><i>|</i><span>ROTHERHAM</span><i>|</i><span>BARNSLEY</span><i>|</i><span>DONCASTER</span><i>|</i><span>CHESTERFIELD</span></div>
+</section>
+</body></html>
