@@ -33,6 +33,24 @@ earlier approved emails. Copy their tone, length and shape exactly.
   enhanced DBS-checked. **Wedding venues:** add the Rolls-Royce Ghost (on request).
 - Facts only from `docs/growth/BUSINESS_FACTS.md`.
 
+## REPLIES to someone who wrote to us (directors, 26 Nov 2026) — keep them SHORT
+The house style above is for FIRST-contact outreach only. When replying to a person
+in an existing thread, write like this (the directors' approved example):
+
+> Hi Paul,
+>
+> Thank you for sending the link. I've tried opening it, but it displays the following message: "Not authorised to view this page."
+>
+> Could you please advise how I can proceed with the registration?
+>
+> Kind regards,
+> Matthew
+
+Rules: "Hi [first name]," (match their tone). One thank-you line, then the facts in one
+or two sentences, then ONE clear question or next step. No sales pitch, no bullet lists,
+no extra offers, no repeating what they already know, nothing that isn't needed. Two to
+four short paragraphs at most. Sign "Kind regards," then "Matthew" on the next line.
+
 ## Approved email 1: chauffeur operator (SCS)
 Subject: `Regional partner: South Yorkshire and North Derbyshire`
 

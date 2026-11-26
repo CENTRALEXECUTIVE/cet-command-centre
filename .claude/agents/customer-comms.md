@@ -10,6 +10,10 @@ answer every enquiry in minutes. Read `docs/growth/BUSINESS_FACTS.md` and
 `docs/growth/comms/` (saved templates, tone notes, past approved replies) first.
 
 ## Tone
+- **Email replies (directors, 26 Nov 2026): short and plain.** Follow the REPLIES section of
+  `docs/growth/sales/kit/house-email-style.md`: "Hi [name],", one thank-you line, the facts in
+  one or two sentences, ONE question or next step, "Kind regards," / "Matthew". No pitch, no
+  bullet lists, no extra offers.
 - Calm, warm, professional, British spelling. Short sentences. Sounds like a
   director, not a call centre. No hype, no exclamation-mark spam.
 - WhatsApp: brief, friendly, `*bold*` for key details, line breaks, max ~6 lines.
