@@ -857,7 +857,9 @@ class BookingWidgetController extends Controller
         try {
             $name = $customer->name;
             $when = $pickupAt->format('D d M, H:i');
-            \App\Models\WatchdogEvent::log('web_booking', 'New web booking request — '.$name, 'info', $booking);
+            // A quote request needs a PRICE from us: it stays on the dashboard as a sticky
+            // warning until someone acknowledges it (26 Nov 2026: a JELD-WEN request was missed).
+            \App\Models\WatchdogEvent::log('web_booking', ($isQuoteRequest ? '💬 Quote request — price needed — ' : 'New web booking request — ').$name, $isQuoteRequest ? 'warning' : 'info', $booking);
             $typeLabel = $isQuoteRequest ? ' ('.$vehicleType->name.' — quote request)'
                 : ($isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : ''));
             $action = $isQuoteRequest
@@ -869,7 +871,7 @@ class BookingWidgetController extends Controller
                     : ($booking->payment_method === 'account' ? '✅ New ACCOUNT booking — ' : '🕓 New booking, awaiting payment — '))).$name.$typeLabel,
                 $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
                     .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
-                'info', $booking);
+                $isQuoteRequest ? 'warning' : 'info', $booking);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('[widget] office alert failed: '.$e->getMessage());
         }
@@ -883,7 +885,13 @@ class BookingWidgetController extends Controller
             \Illuminate\Support\Facades\Cache::put('widget-sub:'.$token, $booking->id, now()->addHours(6));
         }
         \Illuminate\Support\Facades\Cache::put($this->submissionFingerprint($request), $booking->id, now()->addMinutes(20));
-        if ($ops = $booking->officeInbox()) {
+        // A quote request also goes to the MAIN office inbox (admin@), not only the PVT
+        // inbox a non-VAT booking normally uses, so nobody misses that a price is owed.
+        $ops = $booking->officeInbox();
+        if ($isQuoteRequest && ($main = trim((string) config('cet.ops_email'))) !== '') {
+            $ops = array_values(array_unique(array_filter([$ops, $main])));
+        }
+        if ($ops) {
             $bookingId = $booking->id;
             \App\Support\AfterResponse::run(function () use ($ops, $bookingId) {
                 try {

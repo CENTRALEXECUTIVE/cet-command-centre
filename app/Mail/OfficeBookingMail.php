@@ -58,6 +58,7 @@ class OfficeBookingMail extends Mailable
 
         $subject = match (true) {
             $this->stage === 'paid' => 'Payment received — booking '.$ref,
+            ! empty($this->booking->meta['quote_request']) => 'QUOTE REQUEST: price needed — '.$ref.' ('.($this->booking->displayCustomerName() ?? 'website').')',
             $awaiting => 'Incomplete booking (awaiting payment) — '.$ref,
             default => 'New booking '.$ref,
         };
