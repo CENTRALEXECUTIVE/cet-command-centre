@@ -12,6 +12,8 @@ Artisan::command('inspire', function () {
 // whole background layer (deploy, calendar sync, reminders, watchdog, backups) is
 // down; the System Health page and admin banner read it to surface that at once.
 Schedule::command('cet:heartbeat')->everyMinute();
+// 24/7 website price watch: standard journeys must price, else both directors are alerted.
+Schedule::command('cet:price-watch --quiet-ok')->everyFifteenMinutes()->withoutOverlapping(10);
 // Approved outreach emails spaced a few minutes apart (/outreach/batch → "one every 5 minutes").
 Schedule::command('cet:outreach-send-queued')->everyMinute()->withoutOverlapping(5);
 // Daily outreach on autopilot: weekdays from 09:00 UK, the day's batch 5 min apart

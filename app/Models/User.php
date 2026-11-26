@@ -119,6 +119,7 @@ class User extends Authenticatable
         'awaiting_payment' => 'Website booking still awaiting payment',
         'payment_received' => 'Card payment received',
         'web_rejected' => 'Website refused a booking (customer needs help)',
+        'price_watch' => 'Website prices wrong (24/7 price watch)',
     ];
 
     /** Preference defaults: every alert on, critical-only off, chime/alarm off. */
