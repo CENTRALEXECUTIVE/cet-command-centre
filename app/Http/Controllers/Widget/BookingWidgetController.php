@@ -885,13 +885,8 @@ class BookingWidgetController extends Controller
             \Illuminate\Support\Facades\Cache::put('widget-sub:'.$token, $booking->id, now()->addHours(6));
         }
         \Illuminate\Support\Facades\Cache::put($this->submissionFingerprint($request), $booking->id, now()->addMinutes(20));
-        // A quote request also goes to the MAIN office inbox (admin@), not only the PVT
-        // inbox a non-VAT booking normally uses, so nobody misses that a price is owed.
-        $ops = $booking->officeInbox();
-        if ($isQuoteRequest && ($main = trim((string) config('cet.ops_email'))) !== '') {
-            $ops = array_values(array_unique(array_filter([$ops, $main])));
-        }
-        if ($ops) {
+        // admin@ = VAT bookings, the PVT inbox = everyone else (directors, 26 Nov 2026).
+        if ($ops = $booking->officeInbox()) {
             $bookingId = $booking->id;
             \App\Support\AfterResponse::run(function () use ($ops, $bookingId) {
                 try {

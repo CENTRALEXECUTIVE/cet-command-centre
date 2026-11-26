@@ -15,7 +15,7 @@ class QuoteRequestNotMissedTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_quote_request_is_a_sticky_alert_and_emails_the_main_inbox(): void
+    public function test_a_quote_request_is_a_sticky_alert_with_a_clear_email_subject(): void
     {
         $this->seed(VehicleTypeSeeder::class);
         config(['cet.ops_email' => 'admin@example.com']);
@@ -37,7 +37,6 @@ class QuoteRequestNotMissedTest extends TestCase
         $ev = WatchdogEvent::where('booking_id', $b->id)->where('event_type', 'web_booking')->first();
         $this->assertSame('warning', $ev->severity);
         $this->assertStringContainsString('price needed', $ev->title);
-        Mail::assertSent(\App\Mail\OfficeBookingMail::class, fn ($m) => $m->hasTo('admin@example.com')
-            && str_contains($m->envelope()->subject, 'QUOTE REQUEST'));
+        Mail::assertSent(\App\Mail\OfficeBookingMail::class, fn ($m) => str_contains($m->envelope()->subject, 'QUOTE REQUEST'));
     }
 }
