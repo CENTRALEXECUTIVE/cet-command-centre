@@ -97,9 +97,11 @@ class OpenAccountTest extends TestCase
             ->assertSessionHasErrors(['company_name', 'company_address', 'contact_name', 'contact_email', 'contact_phone']);
     }
 
-    public function test_every_outreach_email_carries_the_open_account_link(): void
+    public function test_follow_ups_carry_the_open_account_link_but_first_emails_do_not(): void
     {
-        $html = view('emails.outreach', ['bodyText' => "Dear Team,\n\nHello.\n\nKind regards,", 'sig' => []])->render();
-        $this->assertStringContainsString('centralexecutivetransfers.co.uk/open-account', $html);
+        $follow = (new \App\Mail\OutreachMail('Re: Executive travel', "Dear Team,\n\nHello.\n\nKind regards,"))->render();
+        $this->assertStringContainsString('centralexecutivetransfers.co.uk/open-account', $follow);
+        $first = (new \App\Mail\OutreachMail('Executive travel', "Dear Team,\n\nHello.\n\nKind regards,"))->render();
+        $this->assertStringNotContainsString('open-account', $first);
     }
 }

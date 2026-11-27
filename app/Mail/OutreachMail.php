@@ -45,7 +45,13 @@ class OutreachMail extends Mailable
         return new Content(
             view: 'emails.outreach',
             text: 'emails.outreach-text',
-            with: ['bodyText' => $this->bodyText, 'sig' => (array) config('outreach.batch.signature', [])],
+            with: [
+                'bodyText' => $this->bodyText,
+                'sig' => (array) config('outreach.batch.signature', []),
+                // Follow-ups/replies carry the open-account link; first cold emails keep
+                // just the signature link (fewer links = safer with spam filters).
+                'isFollowUp' => $this->inReplyTo !== null || str_starts_with(strtolower(ltrim($this->subjectLine)), 're:'),
+            ],
         );
     }
 }

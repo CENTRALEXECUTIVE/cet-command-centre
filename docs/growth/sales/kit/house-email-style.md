@@ -8,7 +8,8 @@ earlier approved emails. Copy their tone, length and shape exactly.
 - **Every business email includes the open-an-account link (directors, 27 Nov 2026):**
   "You can open a business account with us here: https://centralexecutivetransfers.co.uk/open-account"
   and mentions that Central Executive Transfers Ltd is VAT registered (reclaimable VAT invoices).
-  The outreach emails the Command Centre sends add the link automatically.
+  The Command Centre adds the link automatically to FOLLOW-UPS and replies; first cold emails
+  keep only the signature link (spam safety). Personal emails to warm contacts include it.
 - **Formal, warm and confident.** "Dear [Name]," — or "Dear [Company] Team," when
   writing to a company without a named contact. Plain British English, no slang,
   no hype words, no em dashes.
