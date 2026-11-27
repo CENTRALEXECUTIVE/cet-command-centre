@@ -8,6 +8,11 @@
     // booking is confirmed. When there's no pay link it's a price-on-request enquiry.
     $awaitingPayment = ! $paid && ! $isCash && ! $isAccount && ! empty($payUrl);
     $isEnquiry = ! $paid && ! $isCash && ! $isAccount && empty($payUrl);
+    // A QUOTE REQUEST (no price yet, e.g. the Rolls-Royce or a far-away trip): the
+    // customer gets every detail like a confirmation, clearly marked "quote requested"
+    // with the vehicle they asked for, and no payment or "confirmed" wording (27 Nov 2026).
+    $isQuote = ! $paid && ! empty($booking->meta['quote_request']) && (float) ($booking->quoted_price ?? 0) <= 0 && ! $payUrl;
+    if ($isQuote) { $awaitingPayment = false; $isEnquiry = false; }
     $contactEmail = $company['email'] ?? 'admin@centralexecutivetransfers.co.uk';
     $row = fn ($k, $v) => $v !== null && $v !== ''
         ? '<tr><td style="padding:4px 14px 4px 0;color:#666;vertical-align:top;white-space:nowrap">'.$k.'</td><td style="padding:4px 0;color:#111">'.e($v).'</td></tr>'
@@ -39,7 +44,16 @@
     @endif
 
     {{-- On hold (unpaid card) vs confirmed (paid / cash / account) vs enquiry --}}
-    @if($awaitingPayment)
+    @if($isQuote)
+        <tr><td style="padding:22px 26px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f8ff;border:1px solid #c9daf5;border-radius:10px">
+                <tr><td style="padding:16px 18px">
+                    <div style="font-size:17px;font-weight:800;color:#12558c;margin-bottom:4px">&#128172; Quote request received</div>
+                    <div style="font-size:14px;color:#2b4a6b">Thank you. We've received your quote request for a <strong>{{ $booking->vehicleLabel() }}</strong> (ref <strong>{{ $ref }}</strong>). Your journey details are below. Our office will email you a price shortly. <strong>This is not a confirmed booking yet</strong> and no payment has been taken.</div>
+                </td></tr>
+            </table>
+        </td></tr>
+    @elseif($awaitingPayment)
         <tr><td style="padding:22px 26px 0">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff6e5;border:1px solid #f1d79a;border-radius:10px">
                 <tr><td style="padding:16px 18px">
@@ -103,7 +117,9 @@
 
         {{-- Payment: what they've just paid + total / paid / remaining, with a line per payment --}}
         <div style="margin-top:14px">
-            @if($paid)
+            @if($isQuote)
+                <p style="margin:0;font-size:15px"><strong>Price:</strong> to be confirmed by our office. No payment has been taken.</p>
+            @elseif($paid)
                 @php
                     // The REAL payment the customer made: the latest online card payment
                     // recorded on this booking (a trip's one payment covers every leg),

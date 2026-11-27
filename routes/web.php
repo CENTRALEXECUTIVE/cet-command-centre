@@ -416,6 +416,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // ETO reconciliation — reconfirm bookings against the calendar, one ref at a time.
         // Silent website booking log (every attempt + every "On request" price), read-only.
         Route::get('booking-log', [\App\Http\Controllers\Admin\BookingLogController::class, 'index'])->name('booking-log.index');
+        Route::get('booking-log/{attempt}', [\App\Http\Controllers\Admin\BookingLogController::class, 'show'])->whereNumber('attempt')->name('booking-log.show');
+        Route::get('booking-log/{attempt}/book', [\App\Http\Controllers\Admin\BookingLogController::class, 'book'])->whereNumber('attempt')->name('booking-log.book');
         // Past customers with company emails, not on an account yet (warm leads), read-only.
         Route::get('business-leads', [\App\Http\Controllers\Admin\BusinessLeadsController::class, 'index'])->name('business-leads.index');
         Route::get('audit', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');

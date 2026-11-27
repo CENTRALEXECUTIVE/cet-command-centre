@@ -44,8 +44,10 @@ class CustomerBookingMailer
         if ($booking->source !== 'web') {
             return false;
         }
-        // Guard 2 — master switch, off by default.
-        if (! self::enabled()) {
+        // Guard 2 — master switch, off by default. A QUOTE REQUEST always gets its
+        // "quote request received" copy (directors, 27 Nov 2026): the customer must have
+        // a record of the vehicle and journey they asked for.
+        if (! self::enabled() && (empty($booking->meta['quote_request']) || (float) ($booking->quoted_price ?? 0) > 0)) {
             return false;
         }
 

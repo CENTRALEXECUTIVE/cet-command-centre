@@ -31,6 +31,14 @@ class BookingAttempt extends Model
                     'vehicle' => \App\Models\VehicleType::whereKey((int) $in['vehicle_type_id'])->value('name'),
                 ]);
             }
+            // Everything the customer typed (never passwords or tokens), so the office can
+            // open the entry, see it all and make the booking from it (27 Nov 2026).
+            $typed = collect($in)->except(['password', 'password_confirmation', '_token', 'submission_token', 'company', 'viewport'])
+                ->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '')
+                ->map(fn ($v) => mb_substr((string) $v, 0, 1000))->all();
+            if ($typed !== []) {
+                $extra['details'] = array_merge((array) ($extra['details'] ?? []), ['form' => $typed]);
+            }
             static::create(array_merge([
                 'form' => $form,
                 'outcome' => $outcome,

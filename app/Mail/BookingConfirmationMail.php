@@ -45,7 +45,9 @@ class BookingConfirmationMail extends Mailable
     {
         return new Envelope(
             from: new \Illuminate\Mail\Mailables\Address($this->booking->senderAddress(), $this->booking->senderName()),
-            subject: ($this->updated ? 'Updated: Central Executive Transfers booking confirmation ' : 'Central Executive Transfers booking confirmation ')
+            subject: (! $this->paid && ! $this->payUrl && ! empty($this->booking->meta['quote_request']) && (float) ($this->booking->quoted_price ?? 0) <= 0
+                ? 'Central Executive Transfers quote request received '
+                : ($this->updated ? 'Updated: Central Executive Transfers booking confirmation ' : 'Central Executive Transfers booking confirmation '))
                 .($this->booking->external_reference ?: $this->booking->reference),
         );
     }

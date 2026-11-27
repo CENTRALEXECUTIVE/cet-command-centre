@@ -55,4 +55,44 @@ class QuoteRequestNotMissedTest extends TestCase
         $b = \App\Models\Booking::latest('id')->first();
         $this->assertSame('critical', WatchdogEvent::where('booking_id', $b->id)->where('event_type', 'web_booking')->value('severity'));
     }
+
+    public function test_the_customer_gets_a_quote_request_email_with_the_vehicle_and_full_details(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        Mail::fake();
+        // Even with automatic customer confirmations switched off, a quote request gets its copy.
+        \App\Models\Setting::set(\App\Services\Messaging\CustomerBookingMailer::SETTING, false, 'boolean', 'widgets');
+        $rr = VehicleType::where('slug', 'rolls-royce-ghost')->first();
+
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Manchester Airport (MAN)', 'destination_address' => 'Sheffield S1 2HH', 'destination_postcode' => 'S1 2HH',
+            'journey_type' => 'one_way', 'pickup_at' => now()->addDays(10)->format('Y-m-d\TH:i'),
+            'flight_number' => 'BA1234', 'flight_landing_at' => now()->addDays(10)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => $rr->id, 'passengers' => 2,
+            'customer_first_name' => 'Quote', 'customer_surname' => 'Customer',
+            'customer_phone' => '07700900322', 'customer_email' => 'quote@example.com',
+        ])->assertOk();
+        app()->terminate();
+
+        Mail::assertSent(\App\Mail\BookingConfirmationMail::class, function ($m) use ($rr) {
+            $html = $m->render();
+
+            return $m->hasTo('quote@example.com')
+                && str_contains($m->envelope()->subject, 'quote request received')
+                && str_contains($html, 'Quote request received')
+                && str_contains($html, $rr->name)
+                && str_contains($html, 'Manchester Airport')
+                && str_contains($html, 'not a confirmed booking')
+                && ! str_contains($html, 'Booking Confirmation:');
+        });
+    }
+
+    public function test_once_priced_the_normal_confirmation_wording_is_used(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        $b = Booking::factory()->create(['source' => 'web', 'quoted_price' => 450, 'meta' => ['quote_request' => true]]);
+        $m = new \App\Mail\BookingConfirmationMail($b, paid: false);
+        $this->assertStringNotContainsString('quote request', $m->envelope()->subject);
+        $this->assertStringNotContainsString('Quote request received', $m->render());
+    }
 }

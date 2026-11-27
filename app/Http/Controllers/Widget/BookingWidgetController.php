@@ -350,7 +350,10 @@ class BookingWidgetController extends Controller
             $response = $this->storeBooking($request);
             // Silent log: which booking this submit made (or matched as a repeat click).
             $b = Booking::where('source', 'web')->where('created_at', '>=', $started)->where('is_return_leg', false)->latest('id')->first();
-            // A repeat click is answered with the booking made moments ago: find it by email.
+            // A repeat click is answered with the booking made moments ago.
+            if (! $b && ($repeat = $request->attributes->get('cet_repeat_of'))) {
+                $b = Booking::find($repeat);
+            }
             if (! $b && filled($email = $request->input('customer_email'))) {
                 $b = Booking::where('source', 'web')->where('is_return_leg', false)->where('created_at', '>=', now()->subMinutes(30))
                     ->whereHas('customer', fn ($q) => $q->whereRaw('LOWER(email) = ?', [strtolower(trim((string) $email))]))
@@ -358,6 +361,18 @@ class BookingWidgetController extends Controller
             }
             \App\Models\BookingAttempt::record('widget', $b ? (! empty($b->meta['quote_request']) ? 'quote_request' : 'booked') : 'submitted', $request,
                 $b ? ['booking_id' => $b->id, 'reference' => $b->reference, 'details' => ['price' => $b->quoted_price, 'vehicle' => $b->vehicleType?->name]] : []);
+            // A press that made NO booking and matched none must never be silent.
+            if (! $b) {
+                try {
+                    app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors('price_on_request',
+                        '⚠ Website booking NOT saved — '.\Illuminate\Support\Str::limit(trim($request->input('customer_first_name').' '.$request->input('customer_surname')), 40),
+                        'A customer pressed Book on the website but no booking was created. Their details are in Booking log: tap it and use "Make booking from this".',
+                        'critical');
+                } catch (\Throwable) {
+                }
+                // Backup: email the office every detail the customer typed (27 Nov 2026).
+                $this->emailUnsavedPress($request);
+            }
 
             return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -368,6 +383,42 @@ class BookingWidgetController extends Controller
         } catch (\Throwable $e) {
             \App\Models\BookingAttempt::record('widget', 'error', $request, ['details' => ['message' => mb_substr($e->getMessage(), 0, 500)]]);
             throw $e;
+        }
+    }
+
+    /**
+     * A website press that saved no booking: email the office EVERYTHING the customer
+     * typed, so the trip can be booked by hand. VAT ticked → admin@, otherwise the PVT
+     * inbox (directors' rule). Never passwords or tokens.
+     */
+    private function emailUnsavedPress(Request $request): void
+    {
+        try {
+            $main = trim((string) config('cet.ops_email')) ?: null;
+            $pvt = \App\Models\Setting::get('mail_pvt_enabled', false)
+                ? trim((string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'))) : '';
+            $to = $request->boolean('vat_invoice') ? $main : ($pvt !== '' ? $pvt : $main);
+            if (! $to) {
+                return;
+            }
+            $fields = collect($request->except(['password', 'password_confirmation', '_token', 'submission_token', 'company', 'viewport']))
+                ->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '');
+            if (filled($fields->get('vehicle_type_id'))) {
+                $fields->put('vehicle', \App\Models\VehicleType::whereKey((int) $fields->get('vehicle_type_id'))->value('name'));
+            }
+            $name = trim($request->input('customer_first_name').' '.$request->input('customer_surname'));
+            $body = "A customer pressed Book on the website but NO booking was saved.\n"
+                ."Everything they typed is below. Book it by hand (Booking log → Make booking from this) and confirm with them.\n\n"
+                .$fields->map(fn ($v, $k) => str_pad(ucfirst(str_replace('_', ' ', $k)).':', 26).$v)->implode("\n");
+            \App\Support\AfterResponse::run(function () use ($to, $name, $body) {
+                try {
+                    \Illuminate\Support\Facades\Mail::raw($body, fn ($m) => $m->to($to)->subject('URGENT: website booking NOT saved — '.($name ?: 'customer')));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[widget] unsaved-press email failed: '.$e->getMessage());
+                }
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[widget] unsaved-press email: '.$e->getMessage());
         }
     }
 
@@ -1024,7 +1075,16 @@ class BookingWidgetController extends Controller
                 for ($i = 0; $i < 20; $i++) {
                     $id = \Illuminate\Support\Facades\Cache::get($key);
                     if (is_int($id) || ctype_digit((string) $id)) {
-                        return Booking::find((int) $id);
+                        // Only the SAME journey, made in the last 30 minutes, counts as a
+                        // repeat (27 Nov 2026: a phone reopened an old copy of the page, its
+                        // code pointed at an earlier booking, and a new trip was never made).
+                        $prior = Booking::find((int) $id);
+                        if ($prior && $this->sameJourney($prior, $request)) {
+                            $request->attributes->set('cet_repeat_of', $prior->id);
+
+                            return $prior;
+                        }
+                        break;
                     }
                     usleep(500000);
                 }
@@ -1036,7 +1096,33 @@ class BookingWidgetController extends Controller
         $id = \Illuminate\Support\Facades\Cache::get($this->submissionFingerprint($request));
         $prior = $id ? Booking::find((int) $id) : null;
 
-        return $prior && $prior->status === \App\Enums\BookingStatus::Pending ? $prior : null;
+        if ($prior && $prior->status === \App\Enums\BookingStatus::Pending && $this->sameJourney($prior, $request)) {
+            $request->attributes->set('cet_repeat_of', $prior->id);
+
+            return $prior;
+        }
+
+        return null;
+    }
+
+    /** Is this submission the same trip as an earlier booking made in the last 30 minutes? */
+    private function sameJourney(Booking $prior, Request $request): bool
+    {
+        if (! $prior->created_at || $prior->created_at->lt(now()->subMinutes(30))) {
+            return false;
+        }
+        $norm = fn ($v) => preg_replace('/[^a-z0-9]/', '', strtolower((string) $v));
+        if ($norm($prior->pickup_address) !== $norm($request->input('pickup_address'))
+            && ! str_starts_with($norm($prior->pickup_address), $norm($request->input('pickup_address')))) {
+            return false;
+        }
+        try {
+            $at = Carbon::parse((string) $request->input('pickup_at'), config('app.timezone'));
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $prior->pickup_at && $prior->pickup_at->format('Y-m-d H:i') === $at->format('Y-m-d H:i');
     }
 
     /** A cache key for everything the customer submitted (ignoring the one-off tokens). */

@@ -23,7 +23,7 @@
         <div style="display:flex;flex-direction:column;gap:10px">
         @foreach($attempts as $a)
             @php
-                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Submitted (repeat press — see their booking)'][$a->outcome] ?? $a->outcome;
+                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Pressed Book — no booking found'][$a->outcome] ?? $a->outcome;
                 $d = (array) ($a->details ?? []);
                 $detail = trim(implode(' · ', array_filter([
                     $d['vehicle'] ?? null,
@@ -41,7 +41,14 @@
                 @if($a->customer_name || $a->contact)<div>{{ $a->customer_name ?? '—' }} <span class="muted" style="font-size:13px;word-break:break-all">{{ $a->contact }}</span></div>@endif
                 <div style="font-size:14px">{{ $a->pickup }} → {{ $a->destination }}@if($a->pickup_at) <span class="muted">· {{ $a->pickup_at }}</span>@endif</div>
                 @if($detail)<div class="muted" style="font-size:13px">{{ \Illuminate\Support\Str::limit($detail, 300) }}</div>@endif
-                @if($a->booking_id)<div><a class="btn" href="{{ route('bookings.show', $a->booking_id) }}">Open booking {{ $a->reference }}</a></div>@endif
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <a class="btn btn-ghost" href="{{ route('booking-log.show', $a) }}">Full details</a>
+                    @if($a->booking_id)
+                        <a class="btn btn-primary" href="{{ route('bookings.show', $a->booking_id) }}">Open booking {{ $a->reference }}</a>
+                    @elseif(in_array($a->outcome, ['submitted', 'refused', 'error', 'price_on_request'], true))
+                        <a class="btn btn-primary" href="{{ route('booking-log.book', $a) }}">➕ Make booking from this</a>
+                    @endif
+                </div>
             </div>
         @endforeach
         </div>

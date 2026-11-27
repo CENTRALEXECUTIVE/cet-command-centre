@@ -128,6 +128,9 @@ There were no server backups. This must never happen again.
    manual via `wa.me` deep links the operator taps. No paid messaging API.
    `WhatsAppService::send()` only RECORDS a message (status `manual`): it never
    delivers it or marks it sent. Only the office's Resend button calls `deliver()`.
+   **Exception (directors, 27 Nov 2026):** a website QUOTE REQUEST (no price yet,
+   e.g. Rolls-Royce) always emails the customer a "Quote request received" copy —
+   the vehicle they chose + full journey details, clearly not a confirmed booking.
 3. **Timezone is UK / `Europe/London` (BST in summer).** ETO's journey times are
    **already UK local** — the same clock shown on the ETO booking screen, the
    confirmation email, and the calendar. Parse them in the app timezone
