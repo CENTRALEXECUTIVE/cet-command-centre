@@ -778,7 +778,7 @@
         window.CET_PRICES_URL = "{{ route('widget.prices') }}";
         window.CET_STRIP_URL = "{{ route('pricing.strip') }}";
     </script>
-    <script src="{{ asset('js/cet-forms.js') }}?v=38"></script>
+    <script src="{{ asset('js/cet-forms.js') }}?v=39"></script>
     @verbatim
     <script>
         (function () {

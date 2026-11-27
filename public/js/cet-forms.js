@@ -128,8 +128,38 @@
         opts = opts || {};
         var minLen = opts.minLen || 3;
         var types = opts.types || el.dataset.placesTypes || '';
-        var fetcher = opts.fetcher || function (q) { return suggest(q, types); };
-        var onPick = opts.onPick || function (text) { el.value = text; el.dispatchEvent(new Event('change')); };
+        // Typed a house/building name first ("23 Brearley Hall, Woodmere…")? Google often
+        // has no match for that, so if the full text finds nothing, search on the street
+        // part instead (after the first comma, or without the first few words). 27 Nov 2026.
+        var baseFetch = opts.fetcher || function (q) { return suggest(q, types); };
+        var fetcher = function (q) {
+            return baseFetch(q).then(function (items) {
+                if (items && items.length) return items;
+                var tries = [];
+                if (q.indexOf(',') > 0) tries.push(q.slice(q.indexOf(',') + 1).trim());
+                var words = q.split(/\s+/);
+                for (var n = 1; n <= 3 && words.length - n >= 2; n++) tries.push(words.slice(n).join(' '));
+                var next = function (i) {
+                    if (i >= tries.length) return Promise.resolve(items || []);
+                    if (tries[i].length < minLen) return next(i + 1);
+                    return baseFetch(tries[i]).then(function (r) { return (r && r.length) ? r : next(i + 1); });
+                };
+                return next(0);
+            });
+        };
+        // Choosing a suggestion KEEPS what Google doesn't know — a flat, house number or
+        // building name typed before the street ("23 Brearley Hall") — instead of wiping it.
+        function keepTyped(typed, text) {
+            var first = (String(text).split(',')[0] || '');
+            var word = (first.match(/[A-Za-z][A-Za-z'-]{2,}/) || [])[0];
+            if (!word) return text;
+            var i = typed.toLowerCase().indexOf(word.toLowerCase());
+            if (i <= 0) return text;
+            var prefix = typed.slice(0, i).replace(/[\s,]+$/, '').trim();
+            if (!prefix || prefix.length > 80 || text.toLowerCase().indexOf(prefix.toLowerCase()) !== -1) return text;
+            return prefix + ', ' + text;
+        }
+        var onPick = opts.onPick || function (text) { el.value = keepTyped(el.value, text); el.dispatchEvent(new Event('change')); };
 
         var menu = document.createElement('div');
         menu.style.cssText = 'position:fixed;z-index:9999;background:#fff;color:#111;border:1px solid rgba(0,0,0,.2);border-radius:8px;max-height:280px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.18)';
