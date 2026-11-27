@@ -2,6 +2,10 @@
 {{-- Directors' chosen look (11 Nov 2026, the Sheffield Forgemasters email): Arial 14px. --}}
 <html><body style="margin:0;padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#111;background:#fff">
 <div style="max-width:620px">{!! nl2br(e($bodyText)) !!}</div>
+{{-- Every business email carries the open-an-account link (directors, 27 Nov 2026). --}}
+@unless(str_contains((string) $bodyText, 'open-account'))
+<div style="max-width:620px;margin-top:14px">You can open a business account with us here: <a href="https://centralexecutivetransfers.co.uk/open-account" style="color:#1a5fd0">centralexecutivetransfers.co.uk/open-account</a></div>
+@endunless
 <div style="margin-top:18px;font-size:14px;line-height:1.5;color:#111">
     <strong>{{ $sig['name'] ?? 'Matthew Green' }}</strong><br>
     <strong>{{ $sig['company'] ?? 'Central Executive Transfers' }}</strong><br>

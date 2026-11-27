@@ -5,6 +5,10 @@ below (SCS, Rolls-Royce and Sheffield DocFest) are the directors' chosen example
 earlier approved emails. Copy their tone, length and shape exactly.
 
 ## The tone
+- **Every business email includes the open-an-account link (directors, 27 Nov 2026):**
+  "You can open a business account with us here: https://centralexecutivetransfers.co.uk/open-account"
+  and mentions that Central Executive Transfers Ltd is VAT registered (reclaimable VAT invoices).
+  The outreach emails the Command Centre sends add the link automatically.
 - **Formal, warm and confident.** "Dear [Name]," — or "Dear [Company] Team," when
   writing to a company without a named contact. Plain British English, no slang,
   no hype words, no em dashes.

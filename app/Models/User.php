@@ -121,6 +121,7 @@ class User extends Authenticatable
         'web_rejected' => 'Website refused a booking (customer needs help)',
         'price_watch' => 'Website prices wrong (24/7 price watch)',
         'price_on_request' => 'A website customer is seeing "On request" (live)',
+        'account_request' => 'New account sign-up (business or personal)',
     ];
 
     /** Preference defaults: every alert on, critical-only off, chime/alarm off. */

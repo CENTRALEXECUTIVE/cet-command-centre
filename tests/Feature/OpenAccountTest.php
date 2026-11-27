@@ -96,4 +96,10 @@ class OpenAccountTest extends TestCase
         $this->post(route('widget.open-account.store'), ['account_type' => 'company'])
             ->assertSessionHasErrors(['company_name', 'company_address', 'contact_name', 'contact_email', 'contact_phone']);
     }
+
+    public function test_every_outreach_email_carries_the_open_account_link(): void
+    {
+        $html = view('emails.outreach', ['bodyText' => "Dear Team,\n\nHello.\n\nKind regards,", 'sig' => []])->render();
+        $this->assertStringContainsString('centralexecutivetransfers.co.uk/open-account', $html);
+    }
 }
