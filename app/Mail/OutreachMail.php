@@ -20,7 +20,17 @@ class OutreachMail extends Mailable
     use Queueable, SerializesModels;
 
     /** $inReplyTo: the Message-ID of the email we're answering, so it threads in their inbox. */
-    public function __construct(public string $subjectLine, public string $bodyText, public ?string $inReplyTo = null) {}
+    /**
+     * $fromName / $signature: a personal email sent as a director (e.g. "Abdi") instead
+     * of the usual Matthew Green outreach name and signature (directors, 27 Nov 2026).
+     */
+    public function __construct(
+        public string $subjectLine,
+        public string $bodyText,
+        public ?string $inReplyTo = null,
+        public ?string $fromName = null,
+        public ?array $signature = null,
+    ) {}
 
     public function headers(): \Illuminate\Mail\Mailables\Headers
     {
@@ -34,7 +44,7 @@ class OutreachMail extends Mailable
         $from = (string) config('mail.from.address');
 
         return new Envelope(
-            from: new Address($from, config('outreach.batch.from_name', 'Matthew Green | Central Executive Transfers')),
+            from: new Address($from, $this->fromName ?? config('outreach.batch.from_name', 'Matthew Green | Central Executive Transfers')),
             replyTo: [new Address($from, 'Central Executive Transfers')],
             subject: $this->subjectLine,
         );
@@ -47,7 +57,7 @@ class OutreachMail extends Mailable
             text: 'emails.outreach-text',
             with: [
                 'bodyText' => $this->bodyText,
-                'sig' => (array) config('outreach.batch.signature', []),
+                'sig' => $this->signature !== null ? array_merge((array) config('outreach.batch.signature', []), $this->signature) : (array) config('outreach.batch.signature', []),
                 // Follow-ups/replies carry the open-account link; first cold emails keep
                 // just the signature link (fewer links = safer with spam filters).
                 'isFollowUp' => $this->inReplyTo !== null || str_starts_with(strtolower(ltrim($this->subjectLine)), 're:'),

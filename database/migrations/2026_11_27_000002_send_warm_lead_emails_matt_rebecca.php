@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Schema;
 /**
  * 27 Nov 2026 (directors, in chat: "send them 2 from admin email as usual"): personal
  * emails to two warm leads — Matt Bruce (Hawsons; met Abdi in person) and Rebecca
- * Fielding (Gradconsult; past customer). Sent once from admin@ in the outreach style +
- * signature. Both are then tracked as prospects (status Emailed) so the normal day-4 /
+ * Fielding (Gradconsult; past customer). Sent once from admin@ AS ABDI (sender name and
+ * signature), not the Matthew Green outreach identity. Both are then tracked as prospects (status Emailed) so the normal day-4 /
  * day-10 follow-ups run and the generic cold Hawsons email never goes. No-op in tests.
  */
 return new class extends Migration
@@ -66,7 +66,10 @@ return new class extends Migration
 
         foreach ($emails as $e) {
             try {
-                Mail::to($e['to'])->send(new OutreachMail($e['subject'], $e['body']));
+                // Personal: sent AS ABDI (sender name + signature), not the Matthew Green outreach identity.
+                Mail::to($e['to'])->send(new OutreachMail($e['subject'], $e['body'], null,
+                    'Abdi | Central Executive Transfers',
+                    ['name' => 'Abdi', 'company' => 'Director, Central Executive Transfers']));
                 $sent++;
             } catch (\Throwable $ex) {
                 Log::warning('[outreach] warm lead email failed for '.$e['to'].': '.$ex->getMessage());
