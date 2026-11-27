@@ -350,3 +350,16 @@ Central Executive Transfers Ltd
 Company No. 15749931 | Operator Licence OP037
 Confidential
 ====================================================
+
+
+FLIGHT DETAILS DON'T MATCH (directors, 27 Nov 2026)
+====================================================
+- NEVER change a booking's date or time, or send a driver on a different day, without the
+  customer's confirmation. Keep the booking exactly as booked until they reply.
+- If the flight number doesn't run on the booked date: message (WhatsApp) and call, keep a
+  screenshot, and change the booking only once the customer confirms.
+- Lesson (Denise, ET728): booked Saturday 28th, ET728 doesn't fly Saturdays, a driver was
+  arranged for Friday on a guess — she actually landed Sunday 29th 08:20. Guessing nearly
+  cost a wasted run. Terms 2.2 put inaccurate details on the customer; 10.6 makes a
+  date change requested >24h before the booked pickup free.
+
