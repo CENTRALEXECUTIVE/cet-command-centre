@@ -1444,8 +1444,8 @@
                 @if($booking->enquirySourceLabel())<tr><th>Source</th><td>{{ $booking->enquirySourceLabel() }}</td></tr>@endif
                 @if($booking->corporateAccount)
                     <tr><th>Account</th><td>{{ $booking->corporateAccount->name }}</td></tr>
-                    @if($booking->cost_code)<tr><th>Cost code</th><td>{{ $booking->cost_code }}</td></tr>@endif
                 @endif
+                @if($booking->cost_code)<tr><th>PO / cost code</th><td><strong>{{ $booking->cost_code }}</strong></td></tr>@endif
                 <tr><th>Payment</th><td>
                     @if($booking->displayPayment())
                         {{ $booking->displayPayment() }}

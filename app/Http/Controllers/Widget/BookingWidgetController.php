@@ -240,6 +240,7 @@ class BookingWidgetController extends Controller
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'stops' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'return_stops' => ['nullable', 'integer', 'min:0', 'max:10'],
             'ribbons' => ['nullable', 'boolean'],
             'wheelchair' => ['nullable', 'boolean'],
             'vat_invoice' => ['nullable', 'boolean'],
@@ -271,6 +272,7 @@ class BookingWidgetController extends Controller
                     'return_destination' => $isReturn ? ($data['return_destination'] ?? null) : null,
                     'meet_greet' => true,
                     'stopovers' => (int) ($data['stops'] ?? 0),
+                    'return_stopovers' => ($isReturn && array_key_exists('return_stops', $data) && $data['return_stops'] !== null) ? (int) $data['return_stops'] : null,
                     'ribbons' => (bool) ($data['ribbons'] ?? false),
                     'wheelchair' => (bool) ($data['wheelchair'] ?? false),
                     'vat' => (bool) ($data['vat_invoice'] ?? false),
@@ -354,6 +356,18 @@ class BookingWidgetController extends Controller
      * the booking log with what was typed; 'abandoned' alerts the office after 15 minutes
      * if no booking arrives from that customer (cet:abandoned-bookings). Never errors.
      */
+    /** A repeat business customer's last VAT details, by COMPANY email only. */
+    public function vatDetails(Request $request): JsonResponse
+    {
+        $email = strtolower(trim((string) $request->query('email')));
+        $domain = str_contains($email, '@') ? substr(strrchr($email, '@'), 1) : '';
+        if ($domain === '' || in_array($domain, \App\Http\Controllers\Admin\BusinessLeadsController::FREE_MAIL, true)) {
+            return response()->json([]);
+        }
+
+        return response()->json(\App\Support\LastVatDetails::forEmail($email));
+    }
+
     public function beacon(Request $request): \Illuminate\Http\Response
     {
         try {
@@ -478,6 +492,9 @@ class BookingWidgetController extends Controller
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:2'],
             'stopovers' => ['nullable', 'integer', 'min:0', 'max:10'],
             'stops' => ['nullable', 'array', 'max:10'],
+            'return_stops' => ['nullable', 'array', 'max:10'],
+            'return_stops.*' => ['nullable', 'string', 'max:500'],
+            'return_stops_set' => ['nullable', 'boolean'],
             'stops.*' => ['nullable', 'string', 'max:500'],
             'wheelchair' => ['nullable', 'boolean'],
             'ribbons' => ['nullable', 'boolean'],
@@ -487,6 +504,7 @@ class BookingWidgetController extends Controller
             'business_name' => ['nullable', 'required_if:vat_invoice,1', 'string', 'max:160'],
             'business_address' => ['nullable', 'required_if:vat_invoice,1', 'string', 'max:500'],
             'business_vat_number' => ['nullable', 'required_if:vat_invoice,1', 'string', 'max:40'],
+            'po_number' => ['nullable', 'string', 'max:60'],
             'payment_method' => ['nullable', Rule::in(['card', 'cash', 'account'])],
             'voucher' => ['nullable', 'string', 'max:40'],
             'accept_terms' => ['nullable', 'boolean'],
@@ -511,7 +529,7 @@ class BookingWidgetController extends Controller
             'msclkid' => ['nullable', 'string', 'max:300'],
             'ref_page' => ['nullable', 'string', 'max:300'],
         ], [
-            'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
+            'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online. For anything sooner, WhatsApp or call us on +44 7405 172435, or email admin@centralexecutivetransfers.co.uk.",
             'return_pickup_at.after' => 'Your return pickup must be after your outbound pickup. Please check the return date and time.',
             'return_pickup_at.required_if' => 'Please choose the date and time for your return journey.',
             'pickup_postcode.max' => 'Please check the pickup postcode — it looks too long.',
@@ -536,6 +554,14 @@ class BookingWidgetController extends Controller
             (array) ($data['stops'] ?? []),
         ), fn ($s) => $s !== ''));
         $data['stopovers'] = count($stops);
+        // The return's own stops (Return page): what the customer left there, which the
+        // form pre-fills with the outbound's stops reversed. An older page that doesn't
+        // send them keeps the old rule: the return calls at the same stops, reversed.
+        $retStops = ($journeyType === 'return')
+            ? (! empty($data['return_stops_set'])
+                ? array_values(array_filter(array_map(fn ($s) => trim((string) $s), (array) ($data['return_stops'] ?? [])), fn ($s) => $s !== ''))
+                : array_values(array_reverse($stops)))
+            : [];
 
         // Flight number AND landing time MUST be provided for airport journeys
         // (arrivals we track): a one-way pickup FROM an airport, or a return touching
@@ -679,6 +705,7 @@ class BookingWidgetController extends Controller
             'pickup' => $pickupFull, 'destination' => $destination, 'pickup_at' => $pickupAt,
             'journey_type' => $journeyType, 'return_pickup_at' => $returnAt,
             'return_pickup' => $retPickup, 'return_destination' => $retDest,
+            'return_stopovers' => $isReturn ? count($retStops) : null,
             'meet_greet' => true,
             'child_seats' => (int) ($data['child_seats'] ?? 0),
             'booster_seats' => (int) ($data['booster_seats'] ?? 0),
@@ -841,6 +868,8 @@ class BookingWidgetController extends Controller
             'reference' => $outboundRef,
             'customer_id' => $customer->id,
             'corporate_account_id' => $account?->id,
+            // PO number / cost code (business bookings) — printed on the invoice.
+            'cost_code' => trim((string) ($data['po_number'] ?? '')) ?: null,
             'vehicle_type_id' => $vehicleType->id,
             'journey_type' => $journeyType,
             'pickup_at' => $pickupAt,
@@ -926,6 +955,7 @@ class BookingWidgetController extends Controller
                 // An account trip bills BOTH legs to the account (the monthly invoice
                 // picks legs up by corporate_account_id) — never a card job.
                 'corporate_account_id' => $account?->id,
+                'cost_code' => trim((string) ($data['po_number'] ?? '')) ?: null,
                 'vehicle_type_id' => $vehicleType->id,
                 'journey_type' => 'return',
                 'is_return_leg' => true,
@@ -960,10 +990,10 @@ class BookingWidgetController extends Controller
                     'child_seats' => $extra['child_seats'] ?: null,
                     'booster_seats' => $extra['booster_seats'] ?: null,
                     'infant_seats' => $extra['infant_seats'] ?: null,
-                    'extra_stops' => $extra['stopovers'] ?: null,
-                    // Via stops are charged on EACH leg (directors, Nov 2026), so the return
-                    // carries them too — in reverse order, as it drives the route back.
-                    'stops' => $stops ? array_values(array_reverse($stops)) : null,
+                    // The return's own stops (each leg pays for its own; default = the
+                    // outbound's stops reversed, as it drives the route back).
+                    'extra_stops' => count($retStops) ?: null,
+                    'stops' => $retStops ?: null,
                     'vat_invoice_requested' => $needsInvoice,
                     'price_ex_vat' => $needsInvoice ?: null,
                     'billing_entity' => $needsInvoice ? 'transfers' : 'chauffeurs',

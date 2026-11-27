@@ -1696,4 +1696,27 @@
     })();
     </script>
     @include('bookings.partials.form-v2')
+<script>
+// Repeat business customer: fill the VAT company details from their last VAT booking
+// when "VAT invoice" is ticked (only empty boxes; the office can still edit). 27 Nov 2026.
+(function () {
+    var vat = document.getElementById('vat_invoice'), email = document.getElementById('customer_email');
+    if (!vat || !email) return;
+    var done = '';
+    function fill() {
+        var e = (email.value || '').trim();
+        if (!vat.checked || e.indexOf('@') < 1 || e === done) return;
+        done = e;
+        fetch(@json(route('customers.vat-details')) + '?email=' + encodeURIComponent(e), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                [['vat_company', 'name'], ['vat_number', 'vat_number'], ['vat_address', 'address']].forEach(function (p) {
+                    var el = document.getElementById(p[0]);
+                    if (el && !el.value.trim() && d && d[p[1]]) { el.value = d[p[1]]; el.dispatchEvent(new Event('input')); }
+                });
+            }).catch(function () {});
+    }
+    vat.addEventListener('change', fill); email.addEventListener('change', fill);
+})();
+</script>
 @endsection

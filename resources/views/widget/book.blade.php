@@ -722,6 +722,13 @@
                             <input id="b-return-pickup" name="return_pickup_address" value="{{ old('return_pickup_address') }}" placeholder="Where we collect you for the return" data-places autocomplete="off"></div>
                         <div class="cet-field" id="b-return-dropoff-field"><label for="b-return-dropoff">Return drop-off address</label>
                             <input id="b-return-dropoff" name="return_destination_address" value="{{ old('return_destination_address') }}" placeholder="Where the return ends" data-places autocomplete="off"></div>
+                        {{-- The return's OWN stops (27 Nov 2026): pre-filled with the outbound's stops
+                             reversed; remove or change them. Each leg is charged for its own stops. --}}
+                        <input type="hidden" name="return_stops_set" value="1">
+                        <div class="cet-field" id="b-ret-stops-field" style="margin-bottom:6px">
+                            <div id="b-ret-stops"></div>
+                            <button type="button" id="b-ret-add-stop" class="cet-addstop">＋ Add a stop <span class="opt">(optional)</span></button>
+                        </div>
                         {{-- The return collects at an AIRPORT → its flight is asked HERE. --}}
                         <div id="b-ret-flight" hidden>
                             <div class="cet-mini-title">🛬 Your return flight</div>
@@ -888,6 +895,8 @@
                                 <textarea id="b-biz-address" name="business_address" rows="2" autocomplete="off" disabled placeholder="Registered / billing address"></textarea></div>
                             <div class="cet-field"><label for="b-biz-vat">VAT number</label>
                                 <input id="b-biz-vat" name="business_vat_number" autocomplete="off" disabled placeholder="e.g. GB123456789" style="text-transform:uppercase"></div>
+                            <div class="cet-field"><label for="b-biz-po">PO number / cost code <span class="opt">(optional)</span></label>
+                                <input id="b-biz-po" name="po_number" autocomplete="off" disabled placeholder="If your company needs one on the invoice"></div>
                         </div>
 
                         {{-- Flight details — a PROMINENT section of its own (not an "extra"),
@@ -1088,7 +1097,7 @@
             // hours, and anything sooner is rejected with the same message as ETO.
             var MIN_LEAD_H = {{ (int) config('cet.public_min_lead_hours', 8) }};
             var NOTICE_MSG = 'Sorry — we need at least ' + MIN_LEAD_H + ' hours’ notice for online bookings. '
-                + 'For a journey sooner than that, please call our office on +44 7405 172435 and we’ll be glad to help.';
+                + 'For a journey sooner than that, WhatsApp or call us on +44 7405 172435, or email admin@centralexecutivetransfers.co.uk, and we’ll be glad to help.';
             function pad2(n){ return (n < 10 ? '0' : '') + n; }
             // Every time on this form is UK time (Europe/London), whatever the customer's own
             // computer is set to — a customer in New York or Tokyo was told the wrong notice
@@ -1279,6 +1288,45 @@
                     if (window.CETattachPlaces) window.CETattachPlaces(input);
                     input.focus(); refresh(); reportHeight();
                 });
+            })();
+
+            // The Return page's own stops (same rows as the outbound's; name return_stops[]).
+            (function () {
+                var wrap = document.getElementById('b-ret-stops');
+                var addBtn = document.getElementById('b-ret-add-stop');
+                if (!wrap || !addBtn) return;
+                var MAX = 6;
+                function refresh() { if (typeof fillSummary === 'function') fillSummary(); addBtn.disabled = wrap.children.length >= MAX; }
+                function addRow(value, focus) {
+                    if (wrap.children.length >= MAX) return;
+                    var row = document.createElement('div'); row.className = 'cet-stop-row';
+                    var pin = document.createElement('span'); pin.className = 'pin'; pin.textContent = '➕';
+                    var input = document.createElement('input');
+                    input.name = 'return_stops[]'; input.placeholder = 'Stop address…'; input.autocomplete = 'off'; input.value = value || '';
+                    input.setAttribute('data-places', ''); input.setAttribute('data-postcode-target', '');
+                    var x = document.createElement('button'); x.type = 'button'; x.className = 'cet-stop-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove stop');
+                    x.addEventListener('click', function () { row.remove(); refresh(); reportHeight(); });
+                    input.addEventListener('input', refresh); input.addEventListener('change', refresh);
+                    row.appendChild(pin); row.appendChild(input); row.appendChild(x);
+                    wrap.appendChild(row);
+                    if (window.CETattachPlaces) window.CETattachPlaces(input);
+                    if (focus) input.focus();
+                    refresh(); reportHeight();
+                }
+                addBtn.addEventListener('click', function () { addRow('', true); });
+                window.__cetCountRetStops = function () {
+                    var n = 0; wrap.querySelectorAll('input[name="return_stops[]"]').forEach(function (i) { if (String(i.value || '').trim() !== '') n++; }); return n;
+                };
+                window.__cetRetStops = function () {
+                    var v = []; wrap.querySelectorAll('input[name="return_stops[]"]').forEach(function (i) { var t = String(i.value || '').trim(); if (t) v.push(t); }); return v;
+                };
+                // First time on the Return page: copy the outbound stops, reversed.
+                var seeded = false;
+                window.__cetSeedRetStops = function () {
+                    if (seeded) return; seeded = true;
+                    var out = []; document.querySelectorAll('#b-stops input[name="stops[]"]').forEach(function (i) { var t = String(i.value || '').trim(); if (t) out.push(t); });
+                    out.reverse().forEach(function (v) { addRow(v, false); });
+                };
             })();
 
             // "Use my current location" buttons on the pickup / drop-off fields —
@@ -1483,6 +1531,7 @@
                     var rp = document.getElementById('b-return-pickup'), rd = document.getElementById('b-return-dropoff');
                     if (rp && !rp.value.trim()) rp.value = full('b-dropoff', 'b-dropoff-pc');
                     if (rd && !rd.value.trim()) rd.value = full('b-pickup', 'b-pickup-pc');
+                    if (window.__cetSeedRetStops) window.__cetSeedRetStops();
                     [['b-ret-pax', 'b-pax'], ['b-ret-suit', 'b-suit'], ['b-ret-hand', 'b-hand']].forEach(function (p) {
                         var r = document.getElementById(p[0]), o = document.getElementById(p[1]);
                         if (r && o && !r.value && o.value !== '') r.value = o.value;
@@ -1577,6 +1626,8 @@
                     var rv = val('b-return'), rd = rv ? new Date(rv) : null;
                     html += row('Return date &amp; time', !rv ? '—' : (isNaN(rd) ? rv : rd.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' · '+rd.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})));
                     html += row('Return pick-up', val('b-return-pickup') || val('b-dropoff') || '—');
+                    var rs = window.__cetRetStops ? window.__cetRetStops() : [];
+                    if (rs.length) html += row(rs.length > 1 ? 'Return stops' : 'Return stop', rs.join(' · '));
                     html += row('Return drop-off', val('b-return-dropoff') || val('b-pickup') || '—');
                     html += row('Return passengers', val('b-ret-pax') || val('b-pax') || '—');
                     html += row('Return suitcases', val('b-ret-suit') || val('b-suit') || '0');
@@ -1974,11 +2025,30 @@
                 var on = vatOn();
                 var block = document.getElementById('b-vat-details');
                 if (block) block.hidden = !on;
-                ['b-biz-name', 'b-biz-address', 'b-biz-vat'].forEach(function (id) {
+                ['b-biz-name', 'b-biz-address', 'b-biz-vat', 'b-biz-po'].forEach(function (id) {
                     var el = document.getElementById(id);
                     if (el) { el.disabled = !on; if (!on) { el.value = ''; el.closest('.cet-field').classList.remove('bad'); } }
                 });
+                if (on) prefillVat();
             }
+            // A repeat business customer: fill their company details from their last VAT
+            // booking (only empty boxes; they can still change them). 27 Nov 2026.
+            var vatPrefilledFor = '';
+            function prefillVat() {
+                var em = form.querySelector('[name="customer_email"]');
+                var email = em ? String(em.value || '').trim() : '';
+                if (!email || email.indexOf('@') < 1 || email === vatPrefilledFor || !(vatYes && vatYes.checked)) return;
+                vatPrefilledFor = email;
+                fetch(@json(route('widget.vat-details')) + '?email=' + encodeURIComponent(email), { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        [['b-biz-name', 'name'], ['b-biz-address', 'address'], ['b-biz-vat', 'vat_number']].forEach(function (p) {
+                            var el = document.getElementById(p[0]);
+                            if (el && !el.disabled && !el.value.trim() && d && d[p[1]]) el.value = d[p[1]];
+                        });
+                    }).catch(function () {});
+            }
+            (function () { var em = form.querySelector('[name="customer_email"]'); if (em) em.addEventListener('change', prefillVat); })();
             [vatYes, vatNo].forEach(function (r) { if (r) r.addEventListener('change', syncVat); });
             // The discount code, the return time and the pickup time all change the price
             // (voucher off the whole trip; each leg's own festive/night surcharge) — re-price.
@@ -2194,6 +2264,7 @@
                     return_destination: jt === 'return' ? v('b-return-dropoff').trim() : '',
                     child_seats: n('b-child_seats'), booster_seats: n('b-booster_seats'), infant_seats: n('b-infant_seats'),
                     stops: window.__cetCountStops ? window.__cetCountStops() : 0,
+                    return_stops: (jt === 'return' && window.__cetCountRetStops) ? window.__cetCountRetStops() : null,
                     ribbons: on('b-ribbons') ? 1 : 0, wheelchair: on('b-wheelchair') ? 1 : 0,
                     vat_invoice: priceVatOn() ? 1 : 0, voucher: v('b-voucher').trim()
                 };

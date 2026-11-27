@@ -294,6 +294,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Customer CRM.
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers-search', [\App\Http\Controllers\CustomerController::class, 'search'])->middleware('throttle:60,1')->name('customers.search');
+        Route::get('customers-vat-details', fn (\Illuminate\Http\Request $r) => response()->json(\App\Support\LastVatDetails::forEmail($r->query('email'))))
+            ->middleware('throttle:60,1')->name('customers.vat-details');
         // The top search box: everything, as you type.
         Route::get('quick-search', [\App\Http\Controllers\Admin\QuickSearchController::class, 'search'])->middleware('throttle:120,1')->name('quick-search');
         Route::get('customers/{customer}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('customers.show');
@@ -737,6 +739,10 @@ Route::post('widget/quote/price', [\App\Http\Controllers\Widget\BookingWidgetCon
 Route::post('widget/book/prices', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'prices'])
     ->middleware('throttle:120,1')->name('widget.prices');
 // Is this email a recognised business account? Reveals the "Account" pay option.
+// Pre-fill a repeat business customer's VAT details from their last VAT booking (company
+// email only — a Gmail/Hotmail address never reveals anything).
+Route::get('widget/book/vat-details', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'vatDetails'])
+    ->middleware('throttle:20,1')->name('widget.vat-details');
 // Silent browser log: a press stopped by a red message, or a form left without booking.
 Route::post('widget/book/beacon', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'beacon'])
     ->middleware('throttle:30,1')->name('widget.beacon');

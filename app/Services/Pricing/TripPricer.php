@@ -66,9 +66,14 @@ class TripPricer
 
         $out = $this->fares->calculate($outPickup, $outDest, $vehicle, $in['pickup_at'],
             $options + ['meet_greet' => $mg && AirportMatcher::isAirport($outPickup)]);
+        // The return's OWN stops when given (Return page, 27 Nov 2026); else the outbound's
+        // (the return drives them back in reverse — directors, Nov 2026).
+        $retOptions = array_key_exists('return_stopovers', $in) && $in['return_stopovers'] !== null
+            ? array_merge($options, ['stopovers' => (int) $in['return_stopovers']])
+            : $options;
         $ret = $isReturn
             ? $this->fares->calculate($retPickup, $retDest, $vehicle, $in['return_pickup_at'] ?? $in['pickup_at'],
-                $options + ['meet_greet' => $mg && AirportMatcher::isAirport($retPickup)])
+                $retOptions + ['meet_greet' => $mg && AirportMatcher::isAirport($retPickup)])
             : null;
 
         $poa = $out['poa'] || ($ret && $ret['poa']);
