@@ -59,4 +59,20 @@ class CorporateAccountApprovalTest extends TestCase
         $this->actingAs(User::factory()->create())->post(route('accounts.approve', $a))->assertForbidden();
         $this->assertFalse($a->fresh()->is_active);
     }
+
+    public function test_customer_and_account_pages_show_account_and_login_status(): void
+    {
+        $a = $this->pending();
+        $c = \App\Models\Customer::create(['name' => 'Sam Contact', 'email' => 'sam@example-works.co.uk', 'phone' => '07700900333']);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('customers.show', $c))->assertOk()
+            ->assertSee('Example Works Ltd')->assertSee("can't book on account yet", false)->assertSee('not set');
+        $this->actingAs($admin)->get(route('accounts.show', $a))->assertOk()->assertSee('Online login')->assertSee('Not yet');
+
+        $a->forceFill(['is_active' => true])->save();
+        $c->setLoginPassword('a-good-password');
+        $this->actingAs($admin)->get(route('customers.show', $c))->assertSee('Active — can book on account');
+        $this->actingAs($admin)->get(route('accounts.show', $a))->assertSee('Can sign in');
+    }
 }

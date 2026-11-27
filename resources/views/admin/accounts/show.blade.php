@@ -57,7 +57,7 @@
             <p class="muted mb-0">No contacts on this account.</p>
         @else
             <table>
-                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Online login</th></tr></thead>
                 <tbody>
                     @foreach($account->contacts->sortByDesc('is_primary') as $c)
                         <tr>
@@ -65,6 +65,14 @@
                             <td class="muted" style="font-size:13px">{{ $c->email ?: '—' }}</td>
                             <td class="muted" style="font-size:13px">{{ $c->phone ?: '—' }}</td>
                             <td class="muted" style="font-size:13px">{{ $c->job_title ?: '—' }}</td>
+                            @php $cust = filled($c->email) ? \App\Models\Customer::whereRaw('LOWER(email) = ?', [strtolower(trim($c->email))])->first() : null; @endphp
+                            <td style="font-size:13px">
+                                @if($cust && $cust->hasPassword())
+                                    ✅ Can sign in
+                                @else
+                                    <span class="muted">Not yet — “Forgot password” on My account</span>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

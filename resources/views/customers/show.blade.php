@@ -8,6 +8,26 @@
         @if($customer->is_vip)<span class="badge" style="background:#FBBA2A;color:#0b0b0b">VIP</span>@endif
     </h1>
     <p class="page-sub">{{ $customer->phone ?? '—' }} @if($customer->email)· {{ $customer->email }}@endif</p>
+    {{-- Business account + online login at a glance (27 Nov 2026). --}}
+    @php
+        $acct = $customer->corporate_account_id ? \App\Models\CorporateAccount::find($customer->corporate_account_id) : null;
+        if (! $acct && filled($customer->email)) {
+            $acct = \App\Models\CorporateContact::whereRaw('LOWER(email) = ?', [strtolower(trim($customer->email))])->first()?->corporateAccount
+                ?? \App\Models\CorporateAccount::whereRaw('LOWER(billing_email) = ?', [strtolower(trim($customer->email))])->first();
+        }
+        $hasLogin = $customer->hasPassword();
+    @endphp
+    <p class="page-sub" style="margin-top:2px">
+        🏢 Business account:
+        @if($acct)
+            <a href="{{ route('accounts.show', $acct) }}">{{ $acct->name }}</a>
+            @if($acct->is_active)<span class="badge" style="background:#e7f6ec;color:#1f7a44">Active — can book on account</span>
+            @else<span class="badge" style="background:#fbeaea;color:#b32020">Pending approval — can't book on account yet</span>@endif
+        @else
+            <span class="muted">none</span>
+        @endif
+        · 🔑 Online login: {!! $hasLogin ? '<strong>set</strong>' : '<span class="muted">not set — they can use “Forgot password” on My account</span>' !!}
+    </p>
 
     @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 
