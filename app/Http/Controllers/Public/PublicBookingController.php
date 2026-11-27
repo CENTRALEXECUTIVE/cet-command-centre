@@ -154,6 +154,14 @@ class PublicBookingController extends Controller
 
         \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
 
+        // A PHONE NUMBER NEVER BLOCKS A BOOKING (directors, 27 Nov 2026): a number that looks
+        // wrong is kept and flagged for the office; every other check stays as it was.
+        $passNotes = [];
+        if (filled($request->input('customer_phone')) && \App\Support\Phone::problem($request->input('customer_phone'))) {
+            $passNotes[] = 'Phone number looked wrong — check it: '.mb_substr((string) $request->input('customer_phone'), 0, 32);
+        }
+        $phoneCheck = fn ($attr, $v, $fail) => null;
+
         $data = $request->validate([
             'customer_first_name' => ['nullable', 'string', 'max:60'],
             'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],
@@ -169,7 +177,7 @@ class PublicBookingController extends Controller
             'flight_number' => ['nullable', 'string', 'max:32'],
             'customer_name' => ['required', 'string', 'max:120', \App\Support\FullName::rule()],
             'customer_email' => ['required', 'email', 'max:160'],
-            'customer_phone' => ['required', 'string', 'max:32', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
+            'customer_phone' => ['required', 'string', 'max:32', $phoneCheck],
             'notes' => ['nullable', 'string', 'max:1000'],
             'vat_invoice' => ['nullable', 'boolean'],
             'voucher' => ['nullable', 'string', 'max:40'],
@@ -245,6 +253,7 @@ class PublicBookingController extends Controller
             'quoted_price' => $charge,
             'meta' => array_filter([
                 'web_booking' => true,
+                'passed_through' => $passNotes ?: null,
                 'contact_override' => $customer->typedPhoneIfDifferent($data['customer_phone'] ?? null),
                 'lead_name' => $data['customer_name'],
                 'pickup_postcode' => strtoupper(trim($data['pickup_postcode'])),

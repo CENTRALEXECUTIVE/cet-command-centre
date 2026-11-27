@@ -71,6 +71,16 @@ class AutoDeploy extends Command
 
         Log::info('Auto-deploy applied', ['from' => $local, 'to' => $remote]);
 
+        // Straight after every deploy: the test customer books through the real website
+        // form (fully undone) and alerts the directors if the deploy broke booking. Run in
+        // a fresh process so it uses the NEW code (27 Nov 2026).
+        try {
+            \Illuminate\Support\Facades\Process::path(base_path())->timeout(120)
+                ->run([PHP_BINARY, 'artisan', 'cet:booking-health-check', '--quiet-ok']);
+        } catch (\Throwable $e) {
+            Log::warning('Auto-deploy: booking health check could not run: '.$e->getMessage());
+        }
+
         return self::SUCCESS;
     }
 }

@@ -132,6 +132,17 @@
         @endif
     </td></tr>
 
+    {{-- Flagged on a website booking (e.g. a phone number that looked wrong): check before confirming --}}
+    @if(! empty($booking->meta['passed_through']) || ! empty($booking->meta['possible_duplicate_of']))
+        <tr><td style="padding:14px 26px 0">
+            <div style="background:#fff1f0;border:1px solid #f3b8b3;border-radius:10px;padding:12px 16px">
+                <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a3241a;font-weight:800;margin-bottom:4px">⚠ Check before confirming</div>
+                @foreach((array) ($booking->meta['passed_through'] ?? []) as $n)<div style="font-size:14px;color:#5c1712">• {{ $n }}</div>@endforeach
+                @if(! empty($booking->meta['possible_duplicate_of']))<div style="font-size:14px;color:#5c1712">• Possible duplicate of {{ $booking->meta['possible_duplicate_of'] }} (pressed Book twice?)</div>@endif
+            </div>
+        </td></tr>
+    @endif
+
     {{-- Notes (office / customer / calendar) — highlighted, because they matter --}}
     @php $notes = $booking->driverReadNotes(); @endphp
     @if(filled($notes))

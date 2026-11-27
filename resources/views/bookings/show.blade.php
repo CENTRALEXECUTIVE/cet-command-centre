@@ -79,6 +79,13 @@
         </div>
         <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
         @php $srcKey = $booking->heardAboutKey(); @endphp
+        @if(! empty($booking->meta['passed_through']))
+            <div class="bh-meta" style="color:#a3241a;font-weight:600">⚠ Check: {{ implode(' · ', (array) $booking->meta['passed_through']) }}</div>
+        @endif
+        @if(! empty($booking->meta['possible_duplicate_of']))
+            @php $dupeOf = \App\Models\Booking::where('reference', $booking->meta['possible_duplicate_of'])->first(); @endphp
+            <div class="bh-meta" style="color:#8a5a00;font-weight:600">⚠ Possible duplicate of @if($dupeOf)<a href="{{ route('bookings.show', $dupeOf) }}">{{ $dupeOf->reference }}</a>@else{{ $booking->meta['possible_duplicate_of'] }}@endif: the customer may have pressed Book twice. Check and cancel one if so.</div>
+        @endif
         @if($srcKey)<div class="bh-meta">Source: {{ \App\Models\Booking::heardAboutLabel($srcKey) }}@if($booking->bookedFromPage()) · booked from {{ $booking->bookedFromPage() }}@endif</div>@endif
     </div>
 

@@ -446,6 +446,16 @@ Hard-won from live incidents. Each has a regression test; keep them green.
 
 ## Resilience (never let a hosting blip take the office down)
 
+- **Website booking rules (directors, 27 Nov 2026 — JELD-WEN failed to book twice):**
+  a LOST booking is far worse than a duplicate. The website NEVER blocks a "repeat press":
+  every press saves; a likely double click is labelled `meta['possible_duplicate_of']`.
+  **A phone number never blocks a booking** (directors, 27 Nov 2026): a number that looks
+  wrong is saved and flagged in `meta['passed_through']`; EVERY other check (notice period,
+  flight details, VAT details, cash on a return, full name) stays as it was. A press that saves
+  nothing or crashes → critical alert + office email (`UnsavedBookingBackup`). A test
+  customer books through the real form every 15 min and after each deploy, fully rolled
+  back (`cet:booking-health-check`). Do not weaken any of these.
+
 - **The app must never crash when Google/DNS is unreachable.** Calendar reads are
   best-effort — `eventsBetween()`/`searchEvents()` catch network errors and return
   what they have. On 21 Sep 2026 a GoDaddy server-DNS outage (couldn't resolve any

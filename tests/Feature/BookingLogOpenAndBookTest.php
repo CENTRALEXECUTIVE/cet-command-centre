@@ -50,14 +50,15 @@ class BookingLogOpenAndBookTest extends TestCase
         $this->assertNotSame('submitted', BookingAttempt::latest('id')->first()->outcome);
     }
 
-    public function test_a_true_double_click_still_makes_one_booking_and_links_it(): void
+    public function test_a_true_double_click_saves_both_and_each_log_entry_opens_its_booking(): void
     {
         $this->seed(VehicleTypeSeeder::class);
         $data = $this->base(['submission_token' => 'tok-1']);
         $this->post(route('widget.book.store'), $data)->assertOk();
         $this->post(route('widget.book.store'), $data)->assertOk();
-        $this->assertSame(1, Booking::where('is_return_leg', false)->count());
-        $this->assertNotNull(BookingAttempt::latest('id')->first()->booking_id);
+        $this->assertSame(2, Booking::where('is_return_leg', false)->count());
+        $this->assertSame(0, BookingAttempt::where('outcome', 'submitted')->count());
+        $this->assertSame(2, BookingAttempt::whereNotNull('booking_id')->count());
     }
 
     public function test_an_entry_opens_in_full_and_prefills_new_booking(): void

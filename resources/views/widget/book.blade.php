@@ -563,7 +563,7 @@
                             <div class="cet-banner show" id="b-server-errors" role="alert" style="background:#fdecea;color:#8a1c14;border:1px solid #f5c2bd">
                                 <strong>We couldn’t complete your booking yet. Please check:</strong>
                                 <ul style="margin:6px 0 0 18px;padding:0">@foreach($errors->all() as $msg)<li>{{ $msg }}</li>@endforeach</ul>
-                                <div style="margin-top:6px">Your details are kept below. Need help? Call +44 7405 172435.</div>
+                                <div style="margin-top:6px">Your details are kept below. Still stuck? Email <a href="mailto:admin@centralexecutivetransfers.co.uk">admin@centralexecutivetransfers.co.uk</a> or WhatsApp <a href="https://wa.me/447405172435" target="_blank" rel="noopener">+44 7405 172435</a> and we’ll book it for you.</div>
                             </div>
                         @endif
                         <div class="cet-banner" id="b-notice"></div>
@@ -947,6 +947,7 @@
                             <button class="cet-btn" type="submit" id="cet-submit">Book now</button>
                         </div>
                         <p class="cet-foot" id="b-pay-note">Pay securely by card to confirm — or choose cash and our office will confirm your journey.</p>
+                        <p class="cet-foot">Having trouble booking? Email <a href="mailto:admin@centralexecutivetransfers.co.uk">admin@centralexecutivetransfers.co.uk</a> or WhatsApp <a href="https://wa.me/447405172435" target="_blank" rel="noopener">+44 7405 172435</a> with your journey and we’ll book it for you.</p>
                     </div>
                 </form>
             </div>

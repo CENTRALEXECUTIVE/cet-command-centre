@@ -348,17 +348,9 @@ class BookingWidgetController extends Controller
         try {
             $started = now()->subSecond();
             $response = $this->storeBooking($request);
-            // Silent log: which booking this submit made (or matched as a repeat click).
+            // Silent log: the booking THIS press made. Every press saves one (27 Nov 2026), so
+            // none found here means something went wrong — and the backup below fires.
             $b = Booking::where('source', 'web')->where('created_at', '>=', $started)->where('is_return_leg', false)->latest('id')->first();
-            // A repeat click is answered with the booking made moments ago.
-            if (! $b && ($repeat = $request->attributes->get('cet_repeat_of'))) {
-                $b = Booking::find($repeat);
-            }
-            if (! $b && filled($email = $request->input('customer_email'))) {
-                $b = Booking::where('source', 'web')->where('is_return_leg', false)->where('created_at', '>=', now()->subMinutes(30))
-                    ->whereHas('customer', fn ($q) => $q->whereRaw('LOWER(email) = ?', [strtolower(trim((string) $email))]))
-                    ->latest('id')->first();
-            }
             if (\App\Support\UnsavedBookingBackup::isSpam($request)) {
                 \App\Models\BookingAttempt::record('widget', 'spam', $request);
 
@@ -407,6 +399,17 @@ class BookingWidgetController extends Controller
         \App\Support\FullName::merge($request, 'customer_first_name', 'customer_surname', 'customer_name');
         \App\Support\FullName::merge($request, 'lead_passenger_first_name', 'lead_passenger_surname', 'lead_passenger_name');
 
+        // A PHONE NUMBER NEVER BLOCKS A BOOKING (directors, 27 Nov 2026 — JELD-WEN failed to
+        // book twice). A number that looks wrong (e.g. a short or foreign one) is kept and
+        // flagged for the office in $passNotes; every other check stays as it was.
+        $passNotes = [];
+        foreach (['customer_phone' => 'Phone number', 'lead_passenger_phone' => 'Passenger phone'] as $field => $label) {
+            if (filled($request->input($field)) && \App\Support\Phone::problem($request->input($field))) {
+                $passNotes[] = $label.' looked wrong — check it: '.mb_substr((string) $request->input($field), 0, 32);
+            }
+        }
+        $phoneCheck = fn ($attr, $v, $fail) => null; // format problems are flagged above, never refused
+
         $data = $request->validate([
             'customer_first_name' => ['nullable', 'string', 'max:60'],
             'customer_surname' => ['nullable', 'string', 'max:60', 'required_with:customer_first_name'],
@@ -428,7 +431,7 @@ class BookingWidgetController extends Controller
             'other_flight_number' => ['nullable', 'string', 'max:32'],
             'flight_landing_at' => ['nullable', 'date'],
             'customer_name' => ['required', 'string', 'max:120', \App\Support\FullName::rule()],
-            'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
+            'customer_phone' => ['nullable', 'string', 'max:32', 'required_without:customer_email', $phoneCheck],
             'customer_email' => ['nullable', 'email', 'max:160', 'required_without:customer_phone'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'submission_token' => ['nullable', 'string', 'max:64'],
@@ -455,7 +458,7 @@ class BookingWidgetController extends Controller
             'accept_privacy' => ['nullable', 'boolean'],
             'booking_for_other' => ['nullable', 'boolean'],
             'lead_passenger_name' => ['nullable', 'string', 'max:120', \App\Support\FullName::rule('Please enter the passenger’s first name and surname.')],
-            'lead_passenger_phone' => ['nullable', 'string', 'max:32', fn ($attr, $v, $fail) => ($m = \App\Support\Phone::problem($v)) ? $fail($m) : null],
+            'lead_passenger_phone' => ['nullable', 'string', 'max:32', $phoneCheck],
             // Optional "create an account" at checkout (guests can still book).
             'create_account' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8', 'max:72'],
@@ -756,15 +759,13 @@ class BookingWidgetController extends Controller
             $customer->forceFill(['corporate_account_id' => $account->id])->save();
         }
 
-        // ONE booking per submission (13 Nov 2026: a customer clicked "Book & pay" six
-        // times while a Microsoft outage stalled the page, and got six return trips).
-        // (a) The form carries a one-off token: a repeat with the same token gets the
-        //     booking already made, never a new one — even if it arrives mid-request.
-        // (b) Belt and braces: exactly the same form again within 20 minutes, still
-        //     pending = the same booking (any different choice books anew).
-        if ($dupe = $this->priorSubmission($request)) {
-            return $this->bookedResponse($dupe, $wantsCard, $isQuoteRequest, $isAccount);
-        }
+        // A LOST BOOKING IS FAR WORSE THAN A DUPLICATE (directors, 27 Nov 2026). Every press
+        // saves a booking — nothing is ever blocked as a "repeat". If it looks like a double
+        // click (same page code or same form, same journey and time, within 30 minutes) it
+        // is saved anyway and marked "possible duplicate of …" for the office to tidy up.
+        // (Replaces the 13 Nov one-booking-per-submission block, which twice swallowed a
+        // JELD-WEN booking and showed the customer "request received" for nothing.)
+        $possibleDupe = $this->possibleDuplicate($request);
 
         // A return trip gets a PAIRED reference — outbound …A, return …B, same base —
         // so the two legs are obviously one trip. A one-way gets a normal reference.
@@ -832,6 +833,8 @@ class BookingWidgetController extends Controller
                 // Flag an on-request (Rolls Royce / POA) enquiry so the office knows
                 // to email a price rather than treat it as a priced booking.
                 'quote_request' => $isQuoteRequest ?: null,
+                'possible_duplicate_of' => $possibleDupe?->reference,
+                'passed_through' => $passNotes ?: null,
                 'office_quote_guide' => $officeGuide,
                 // Google Ads attribution (gclid/utm) — traces the booking back to the
                 // ad that won it; kept for reporting and offline conversion import.
@@ -945,9 +948,11 @@ class BookingWidgetController extends Controller
             $this->adminAlerts->notify('web_booking',
                 ($isQuoteRequest ? '💬 New quote request — '
                     : ($booking->payment_method === 'cash' ? '✅ New CASH booking — '
-                    : ($booking->payment_method === 'account' ? '✅ New ACCOUNT booking — ' : '🕓 New booking, awaiting payment — '))).$name.$typeLabel,
+                    : ($booking->payment_method === 'account' ? '✅ New ACCOUNT booking — ' : '🕓 New booking, awaiting payment — '))).$name.$typeLabel
+                    .($possibleDupe ? ' ⚠ possible duplicate of '.$possibleDupe->reference : ''),
                 $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
-                    .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
+                    .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action
+                    .($passNotes ? ' ⚠ CHECK: '.implode('; ', $passNotes).'.' : ''),
                 'critical', $booking);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('[widget] office alert failed: '.$e->getMessage());
@@ -1022,46 +1027,24 @@ class BookingWidgetController extends Controller
     }
 
     /**
-     * The booking this submission already created, if any: by the form's one-off token
-     * (claimed atomically, so two clicks arriving together can't both create), else the
-     * same customer + pickup time + pickup address booked online in the last 20 minutes
-     * and still pending. Null when it's a genuinely new booking.
+     * An earlier booking this press looks like a repeat of (same page code or exactly the
+     * same form, same journey and pickup time, made in the last 30 minutes) — only ever
+     * used to LABEL the new booking. Never stops it being saved.
      */
-    private function priorSubmission(Request $request): ?Booking
+    private function possibleDuplicate(Request $request): ?Booking
     {
-        $token = (string) $request->input('submission_token', '');
-        if ($token !== '') {
-            $key = 'widget-sub:'.$token;
-            if (! \Illuminate\Support\Facades\Cache::add($key, 'pending', now()->addHours(6))) {
-                // Another click got there first: wait briefly for it to finish.
-                for ($i = 0; $i < 20; $i++) {
-                    $id = \Illuminate\Support\Facades\Cache::get($key);
-                    if (is_int($id) || ctype_digit((string) $id)) {
-                        // Only the SAME journey, made in the last 30 minutes, counts as a
-                        // repeat (27 Nov 2026: a phone reopened an old copy of the page, its
-                        // code pointed at an earlier booking, and a new trip was never made).
-                        $prior = Booking::find((int) $id);
-                        if ($prior && $this->sameJourney($prior, $request)) {
-                            $request->attributes->set('cet_repeat_of', $prior->id);
-
-                            return $prior;
-                        }
-                        break;
-                    }
-                    usleep(500000);
+        try {
+            $ids = array_filter([
+                ($t = (string) $request->input('submission_token', '')) !== '' ? \Illuminate\Support\Facades\Cache::get('widget-sub:'.$t) : null,
+                \Illuminate\Support\Facades\Cache::get($this->submissionFingerprint($request)),
+            ], fn ($id) => is_int($id) || ctype_digit((string) $id));
+            foreach ($ids as $id) {
+                $prior = Booking::find((int) $id);
+                if ($prior && $this->sameJourney($prior, $request)) {
+                    return $prior;
                 }
             }
-        }
-
-        // Exactly the same form (every field the customer filled in) in the last 20
-        // minutes, still pending = the same booking. Any different choice books anew.
-        $id = \Illuminate\Support\Facades\Cache::get($this->submissionFingerprint($request));
-        $prior = $id ? Booking::find((int) $id) : null;
-
-        if ($prior && $prior->status === \App\Enums\BookingStatus::Pending && $this->sameJourney($prior, $request)) {
-            $request->attributes->set('cet_repeat_of', $prior->id);
-
-            return $prior;
+        } catch (\Throwable) {
         }
 
         return null;
@@ -1094,30 +1077,6 @@ class BookingWidgetController extends Controller
         ksort($input);
 
         return 'widget-fp:'.sha1((string) json_encode($input));
-    }
-
-    /** The thank-you / pay-now page for an existing web booking (a repeat submission). */
-    private function bookedResponse(Booking $booking, bool $wantsCard, bool $isQuoteRequest, bool $isAccount): \Illuminate\Http\Response
-    {
-        $legs = $booking->invoiceGroupBookings();
-        $payAmount = round((float) $legs->sum(fn ($b) => (float) ($b->amountPayable() ?? 0)), 2);
-        $payUrl = (! $isAccount && $payAmount > 0 && ! $booking->fareIsPaid() && $this->payments->enabledForBooking($booking))
-            ? URL::temporarySignedRoute('widget.pay', now()->addHours(6), ['booking' => $booking->id])
-            : null;
-
-        return response()
-            ->view('widget.book', [
-                'vehicleTypes' => collect(),
-                'done' => true,
-                'ref' => $booking->reference,
-                'payUrl' => $payUrl,
-                'payWanted' => $wantsCard,
-                'payAmount' => $payAmount ?: null,
-                'quoteRequest' => $isQuoteRequest,
-                'conversionValue' => 0.0,
-                'conversionEvent' => 'booking_repeat',
-            ])
-            ->header('Content-Security-Policy', $this->frameAncestors());
     }
 
     /** Send the customer to Square to pay their fare (signed link from the thanks page). */

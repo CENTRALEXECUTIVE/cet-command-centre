@@ -14,6 +14,8 @@ Artisan::command('inspire', function () {
 Schedule::command('cet:heartbeat')->everyMinute();
 // 24/7 website price watch: standard journeys must price, else both directors are alerted.
 Schedule::command('cet:price-watch --quiet-ok')->everyFifteenMinutes()->withoutOverlapping(10);
+// A test customer books through the real website form every 15 minutes (fully undone).
+Schedule::command('cet:booking-health-check --quiet-ok')->everyFifteenMinutes()->withoutOverlapping(10);
 // Approved outreach emails spaced a few minutes apart (/outreach/batch → "one every 5 minutes").
 Schedule::command('cet:outreach-send-queued')->everyMinute()->withoutOverlapping(5);
 // Daily outreach on autopilot: weekdays from 09:00 UK, the day's batch 5 min apart

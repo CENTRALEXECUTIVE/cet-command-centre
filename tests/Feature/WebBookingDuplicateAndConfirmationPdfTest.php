@@ -33,7 +33,9 @@ class WebBookingDuplicateAndConfirmationPdfTest extends TestCase
         ], $extra);
     }
 
-    public function test_the_same_form_submitted_twice_creates_one_booking(): void
+    // 27 Nov 2026 (directors): a lost booking is far worse than a duplicate. A repeat press
+    // is SAVED and labelled "possible duplicate" — never silently dropped.
+    public function test_the_same_form_submitted_twice_is_saved_and_labelled_a_possible_duplicate(): void
     {
         $this->seed(VehicleTypeSeeder::class);
         $data = $this->payload(['submission_token' => 'tok-abc-123']);
@@ -41,17 +43,25 @@ class WebBookingDuplicateAndConfirmationPdfTest extends TestCase
         $this->post(route('widget.book.store'), $data)->assertOk();
         $this->post(route('widget.book.store'), $data)->assertOk()->assertSee('Booking request received');
 
-        $this->assertSame(1, Booking::where('source', 'web')->count());
+        $legs = Booking::where('source', 'web')->orderBy('id')->get();
+        $this->assertCount(2, $legs);
+        $this->assertSame($legs[0]->reference, $legs[1]->meta['possible_duplicate_of'] ?? null);
+        $this->assertArrayNotHasKey('possible_duplicate_of', array_filter((array) $legs[0]->meta));
+
+        $admin = \App\Models\User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('bookings.show', $legs[1]))->assertOk()
+            ->assertSee('Possible duplicate of')->assertSee($legs[0]->reference);
     }
 
-    public function test_a_repeat_without_a_token_is_still_caught_by_its_details(): void
+    public function test_a_repeat_without_a_token_is_still_labelled_by_its_details(): void
     {
         $this->seed(VehicleTypeSeeder::class);
 
         $this->post(route('widget.book.store'), $this->payload())->assertOk();
         $this->post(route('widget.book.store'), $this->payload())->assertOk();
 
-        $this->assertSame(1, Booking::where('source', 'web')->count());
+        $this->assertSame(2, Booking::where('source', 'web')->count());
+        $this->assertNotNull(Booking::where('source', 'web')->latest('id')->first()->meta['possible_duplicate_of'] ?? null);
     }
 
     public function test_a_genuinely_different_journey_is_still_booked(): void

@@ -30,7 +30,8 @@ class PhoneNumberCheckTest extends TestCase
         $this->assertNull(Phone::problem('0049 151 204 22619'));
     }
 
-    public function test_the_website_refuses_a_number_with_a_digit_missing(): void
+    // Directors, 27 Nov 2026: a phone number never blocks a booking — it's saved and flagged.
+    public function test_a_number_with_a_digit_missing_is_saved_and_flagged_not_refused(): void
     {
         $this->seed(VehicleTypeSeeder::class);
         $executive = VehicleType::where('slug', 'executive')->first();
@@ -42,11 +43,13 @@ class PhoneNumberCheckTest extends TestCase
             'customer_first_name' => 'Jo', 'customer_surname' => 'Smith', 'customer_phone' => '0789456123',
         ];
 
-        $this->post(route('widget.book.store'), $payload)->assertSessionHasErrors(['customer_phone' => 'This mobile number looks too short. UK mobiles have 11 digits, for example 07700 900123. Please check it.']);
-        $this->assertSame(0, Booking::count());
-
-        $this->post(route('widget.book.store'), ['customer_phone' => '07894561234'] + $payload)->assertOk();
+        $this->post(route('widget.book.store'), $payload)->assertOk()->assertSessionHasNoErrors();
         $this->assertSame(1, Booking::count());
+        $this->assertStringContainsString('Phone number looked wrong', implode(' ', Booking::first()->meta['passed_through'] ?? []));
+
+        $this->post(route('widget.book.store'), ['customer_phone' => '07894561234', 'pickup_at' => now()->addDays(2)->format('Y-m-d\\TH:i')] + $payload)->assertOk();
+        $this->assertSame(2, Booking::count());
+        $this->assertEmpty(Booking::latest('id')->first()->meta['passed_through'] ?? null, 'a good number is not flagged');
     }
 
     public function test_the_website_needs_a_surname(): void
