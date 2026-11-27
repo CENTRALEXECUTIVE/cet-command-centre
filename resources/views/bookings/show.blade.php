@@ -78,6 +78,8 @@
             @endif
         </div>
         <div class="bh-meta">Created {{ $booking->created_at->format('D d M Y, H:i') }}@if($booking->createdBy) by {{ $booking->createdBy->name }}@endif</div>
+        @php $srcKey = $booking->heardAboutKey(); @endphp
+        @if($srcKey)<div class="bh-meta">Source: {{ \App\Models\Booking::heardAboutLabel($srcKey) }}@if($booking->bookedFromPage()) · booked from {{ $booking->bookedFromPage() }}@endif</div>@endif
     </div>
 
     @if(session('status'))

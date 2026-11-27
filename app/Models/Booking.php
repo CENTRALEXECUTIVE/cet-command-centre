@@ -775,6 +775,12 @@ class Booking extends Model
         if (filled($m['gclid'] ?? null) || filled($m['gbraid'] ?? null) || filled($m['wbraid'] ?? null)) {
             return 'google_ads';
         }
+        if (filled($m['msclkid'] ?? null)) {
+            return 'microsoft_ads';
+        }
+        if (filled($m['ttclid'] ?? null)) {
+            return 'tiktok';
+        }
         $src = strtolower((string) ($m['utm_source'] ?? ''));
         foreach (['tiktok' => 'tiktok', 'instagram' => 'instagram', 'ig' => 'instagram', 'facebook' => 'facebook',
                   'fb' => 'facebook', 'linkedin' => 'linkedin', 'google' => 'google'] as $needle => $key) {
@@ -782,14 +788,37 @@ class Booking extends Model
                 return $key;
             }
         }
+        // Facebook/Instagram add fbclid to every link click (it can't tell the two apart).
+        if (filled($m['fbclid'] ?? null)) {
+            return 'meta';
+        }
+        // A website booking with no tag at all: plain Google search or typed in directly
+        // (indistinguishable from inside the booking form).
+        if (($this->source ?? null) === 'web') {
+            return 'website';
+        }
 
         return null;
+    }
+
+    /** The website page the booking form was opened from, e.g. "/manchester-airport-transfers". */
+    public function bookedFromPage(): ?string
+    {
+        $p = $this->meta['marketing']['ref_page'] ?? null;
+
+        return is_string($p) && $p !== '' ? $p : null;
     }
 
     /** The heard-about label for reports ("Google Ads" when only the ad click id says so). */
     public static function heardAboutLabel(?string $key): string
     {
-        return $key === 'google_ads' ? 'Google Ads' : (self::HEARD_ABOUT[$key] ?? 'Not asked / unknown');
+        return match ($key) {
+            'google_ads' => 'Google Ads',
+            'microsoft_ads' => 'Microsoft Ads',
+            'meta' => 'Facebook / Instagram (link)',
+            'website' => 'Website (Google search or direct)',
+            default => self::HEARD_ABOUT[$key] ?? 'Not asked / unknown',
+        };
     }
 
     /** Minutes of free waiting the customer gets once the driver is at pickup. */

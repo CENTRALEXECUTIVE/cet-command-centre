@@ -83,13 +83,25 @@ class BookingWidgetController extends Controller
      */
     private function marketingParams(Request $request): array
     {
-        $keys = ['gclid', 'gbraid', 'wbraid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        // + social/Microsoft click ids (26 Nov 2026) and the website page they booked from.
+        $keys = ['gclid', 'gbraid', 'wbraid', 'fbclid', 'ttclid', 'msclkid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref_page'];
 
         $out = [];
         foreach ($keys as $k) {
             $v = trim((string) $request->input($k, ''));
             if ($v !== '' && mb_strlen($v) <= 300) {
                 $out[$k] = $v;
+            }
+        }
+
+        // The page of OUR website the form was opened from (the iframe's referrer), so a
+        // booking shows e.g. "booked from /manchester-airport-transfers". Never another site.
+        if (! isset($out['ref_page']) && $request->isMethod('get')) {
+            $ref = (string) $request->headers->get('referer', '');
+            $host = strtolower((string) parse_url($ref, PHP_URL_HOST));
+            if ($host !== '' && str_ends_with($host, 'centralexecutivetransfers.co.uk') && $host !== strtolower($request->getHost())) {
+                $page = (string) parse_url($ref, PHP_URL_PATH);
+                $out['ref_page'] = mb_substr($page === '' ? '/' : $page, 0, 300);
             }
         }
 
@@ -433,6 +445,10 @@ class BookingWidgetController extends Controller
             'utm_campaign' => ['nullable', 'string', 'max:300'],
             'utm_term' => ['nullable', 'string', 'max:300'],
             'utm_content' => ['nullable', 'string', 'max:300'],
+            'fbclid' => ['nullable', 'string', 'max:300'],
+            'ttclid' => ['nullable', 'string', 'max:300'],
+            'msclkid' => ['nullable', 'string', 'max:300'],
+            'ref_page' => ['nullable', 'string', 'max:300'],
         ], [
             'pickup_at.after_or_equal' => "We need at least {$minLeadHours} hours’ notice to book online — please call the office for anything sooner.",
             'return_pickup_at.after' => 'Your return pickup must be after your outbound pickup. Please check the return date and time.',
