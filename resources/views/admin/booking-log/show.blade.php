@@ -3,7 +3,7 @@
 
 @section('content')
     @php
-        $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Pressed Book — no booking found'][$a->outcome] ?? $a->outcome;
+        $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'blocked' => '🛑 Stopped by a message on the form', 'abandoned' => '👋 Filled in, left without booking', 'spam' => '🤖 Spam bot', 'submitted' => '❔ Pressed Book — no booking found'][$a->outcome] ?? $a->outcome;
         $d = (array) ($a->details ?? []);
         $form = (array) ($d['form'] ?? []);
         $names = [
@@ -53,7 +53,7 @@
             @endforeach
             </tbody>
         </table>
-        @if(! $form && in_array($a->outcome, ['submitted', 'quote_request', 'refused', 'error'], true))
+        @if(! $form && in_array($a->outcome, ['submitted', 'quote_request', 'refused', 'error', 'blocked', 'abandoned'], true))
             <p class="muted" style="font-size:13px;margin-top:10px">This entry was logged before full details were kept (from 27 Nov). Passenger, flight and luggage weren't stored, so check them with the customer.</p>
         @endif
     </div>

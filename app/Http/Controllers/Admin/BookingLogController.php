@@ -19,7 +19,7 @@ class BookingLogController extends Controller
         $filter = $request->query('show', 'problems');
         $q = BookingAttempt::query()->orderByDesc('id');
         if ($filter === 'problems') {
-            $q->whereIn('outcome', ['refused', 'error', 'quote_request', 'price_on_request', 'submitted']);
+            $q->whereIn('outcome', ['refused', 'error', 'quote_request', 'price_on_request', 'submitted', 'blocked', 'abandoned']);
         }
         // Rolls-Royce-only "On request" is normal (always priced by the office): never shown.
         $q->where(fn ($w) => $w->where('outcome', '!=', 'price_on_request')
@@ -108,6 +108,11 @@ class BookingLogController extends Controller
             'quoted_price' => $a->details['price'] ?? null,
             'special_requests' => $notes,
             'voucher' => $f['voucher'] ?? null,
-        ], fn ($v) => $v !== null && $v !== '');
+            'via_stops' => filled($f['stops'] ?? null) ? array_values(array_filter(array_map('trim', explode('|', $f['stops'])))) : null,
+            'child_seats' => $f['child_seats'] ?? null,
+            'booster_seats' => $f['booster_seats'] ?? null,
+            'infant_seats' => $f['infant_seats'] ?? null,
+            'lead_passenger_phone' => $f['lead_passenger_phone'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '' && $v !== []);
     }
 }

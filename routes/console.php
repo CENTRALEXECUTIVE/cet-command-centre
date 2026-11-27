@@ -16,6 +16,8 @@ Schedule::command('cet:heartbeat')->everyMinute();
 Schedule::command('cet:price-watch --quiet-ok')->everyFifteenMinutes()->withoutOverlapping(10);
 // A test customer books through the real website form every 15 minutes (fully undone).
 Schedule::command('cet:booking-health-check --quiet-ok')->everyFifteenMinutes()->withoutOverlapping(10);
+// A website form filled in but left without booking: tell the office after 15 minutes.
+Schedule::command('cet:abandoned-bookings')->everyFiveMinutes()->withoutOverlapping(5);
 // Approved outreach emails spaced a few minutes apart (/outreach/batch → "one every 5 minutes").
 Schedule::command('cet:outreach-send-queued')->everyMinute()->withoutOverlapping(5);
 // Daily outreach on autopilot: weekdays from 09:00 UK, the day's batch 5 min apart

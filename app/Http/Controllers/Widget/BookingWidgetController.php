@@ -343,6 +343,29 @@ class BookingWidgetController extends Controller
      * nothing is auto-sent to the customer, and the calendar is untouched. The
      * office is notified so they can review and confirm it.
      */
+    /**
+     * Silent browser log (27 Nov 2026): a red message that stopped a press ('blocked'),
+     * or details filled in and the page left without booking ('abandoned'). Recorded in
+     * the booking log with what was typed; 'abandoned' alerts the office after 15 minutes
+     * if no booking arrives from that customer (cet:abandoned-bookings). Never errors.
+     */
+    public function beacon(Request $request): \Illuminate\Http\Response
+    {
+        try {
+            $kind = $request->input('beacon_kind') === 'abandoned' ? 'abandoned' : 'blocked';
+            $who = strtolower(trim((string) ($request->input('customer_email') ?: $request->input('customer_phone'))));
+            $dedupe = 'beacon:'.$kind.':'.md5($who.'|'.$request->input('beacon_message').'|'.$request->ip());
+            if (\Illuminate\Support\Facades\Cache::add($dedupe, 1, now()->addMinutes(30))) {
+                \App\Models\BookingAttempt::record('widget', $kind, $request, ['details' => array_filter([
+                    'message' => mb_substr((string) $request->input('beacon_message'), 0, 300) ?: null,
+                ])]);
+            }
+        } catch (\Throwable) {
+        }
+
+        return response()->noContent();
+    }
+
     public function store(Request $request): \Illuminate\Http\Response
     {
         try {

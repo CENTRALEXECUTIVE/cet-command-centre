@@ -1074,7 +1074,30 @@
             function showErr(step, msg) {
                 var box = form.querySelector('[data-err="' + step + '"]');
                 if (box) { box.textContent = msg; box.style.display = msg ? 'block' : 'none'; }
+                if (msg) cetBeacon('blocked', msg, step);
             }
+            // Silent log for the office (27 Nov 2026): a red message that stopped a press,
+            // and a form filled in but left without booking — with what was typed (never
+            // the password), so the office can follow up. Each distinct event sent once.
+            var cetBeaconSent = {};
+            function cetBeacon(kind, msg, step) {
+                try {
+                    var key = kind + '|' + (msg || '');
+                    if (cetBeaconSent[key] || !navigator.sendBeacon) return;
+                    cetBeaconSent[key] = 1;
+                    var fd = new FormData(form);
+                    ['password', '_token', 'submission_token', 'company'].forEach(function (k) { fd.delete(k); });
+                    fd.append('beacon_kind', kind); fd.append('beacon_message', msg || ''); fd.append('beacon_step', step || '');
+                    navigator.sendBeacon(@json(route('widget.beacon')), fd);
+                } catch (e) {}
+            }
+            function cetLeftWithoutBooking() {
+                if (form.dataset.sent === '1') return;
+                var em = form.querySelector('[name="customer_email"]'), ph = form.querySelector('[name="customer_phone"]');
+                if ((em && em.value.trim()) || (ph && ph.value.trim())) cetBeacon('abandoned', '', '');
+            }
+            window.addEventListener('pagehide', cetLeftWithoutBooking);
+            document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') cetLeftWithoutBooking(); });
 
             function goTo(n) {
                 steps.forEach(function (s) { s.hidden = (+s.dataset.step !== n); });
@@ -1315,10 +1338,12 @@
                     if (!okPhone) { showErr(3, 'Please enter your mobile number.'); phone.focus(); return false; }
                     // A digit missing / wrong number: stop and ask them to recheck (ETO did this).
                     var phoneMsg = window.cetPhoneCheck ? window.cetPhoneCheck(phone) : '';
-                    if (phoneMsg) { phone.closest('.cet-field').classList.add('bad'); showErr(3, phoneMsg); phone.focus(); return false; }
+                    // A phone number NEVER blocks a booking (directors, 27 Nov 2026): it's
+                    // highlighted for the customer and flagged for the office, but they can book.
+                    if (phoneMsg) { phone.closest('.cet-field').classList.add('bad'); }
                     var leadPh = document.getElementById('b-lead-phone');
                     var leadMsg = (leadPh && leadPh.offsetParent !== null && window.cetPhoneCheck) ? window.cetPhoneCheck(leadPh) : '';
-                    if (leadMsg) { leadPh.closest('.cet-field').classList.add('bad'); showErr(3, 'Passenger’s mobile: ' + leadMsg); leadPh.focus(); return false; }
+                    if (leadMsg) { leadPh.closest('.cet-field').classList.add('bad'); }
                     if (!okEmail) { showErr(3, 'Please enter your email address.'); email.focus(); return false; }
                     // Flight number is required for airport journeys (arrivals we track).
                     var flightField = document.getElementById('b-flight-field'), flightIn = document.getElementById('b-flight');

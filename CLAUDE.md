@@ -454,7 +454,10 @@ Hard-won from live incidents. Each has a regression test; keep them green.
   flight details, VAT details, cash on a return, full name) stays as it was. A press that saves
   nothing or crashes → critical alert + office email (`UnsavedBookingBackup`). A test
   customer books through the real form every 15 min and after each deploy, fully rolled
-  back (`cet:booking-health-check`). Do not weaken any of these.
+  back (`cet:booking-health-check`). Nothing a customer does goes unrecorded: browser-side
+  blocks and forms left without booking reach the booking log via `widget.beacon`
+  (abandoned → office alert after 15 min, `cet:abandoned-bookings`); a "page expired" (419)
+  press is captured in `bootstrap/app.php`. Do not weaken any of these.
 
 - **The app must never crash when Google/DNS is unreachable.** Calendar reads are
   best-effort — `eventsBetween()`/`searchEvents()` catch network errors and return

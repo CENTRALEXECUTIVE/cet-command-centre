@@ -33,7 +33,9 @@ class BookingAttempt extends Model
             }
             // Everything the customer typed (never passwords or tokens), so the office can
             // open the entry, see it all and make the booking from it (27 Nov 2026).
-            $typed = collect($in)->except(['password', 'password_confirmation', '_token', 'submission_token', 'company', 'viewport'])
+            $typed = collect($in)->except(['password', 'password_confirmation', '_token', 'submission_token', 'company', 'viewport', 'beacon_kind', 'beacon_message', 'beacon_step'])
+                // Lists (e.g. via stops) are kept too, joined with " | ".
+                ->map(fn ($v) => is_array($v) ? implode(' | ', array_filter(array_map(fn ($x) => is_scalar($x) ? trim((string) $x) : '', $v))) : $v)
                 ->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '')
                 ->map(fn ($v) => mb_substr((string) $v, 0, 1000))->all();
             if ($typed !== []) {

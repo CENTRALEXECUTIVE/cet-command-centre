@@ -40,8 +40,26 @@ return Application::configure(basePath: dirname(__DIR__))
             'car/*',
             'tip/*',
             'driver/jobs/*',
+            'widget/book/beacon', // log-only, sent by the browser as the page closes
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // "Page expired" on a website booking press (the security token ran out while the
+        // page sat open): never lose it (27 Nov 2026). Log every detail, alert the directors
+        // and email the office, then send the customer back with their details kept.
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
+            if ($e->getStatusCode() !== 419 || ! ($e->getPrevious() instanceof \Illuminate\Session\TokenMismatchException)) {
+                return null;
+            }
+            $path = trim($request->path(), '/');
+            if (! $request->isMethod('post') || ! in_array($path, ['widget/book', 'book'], true)) {
+                return null;
+            }
+            $form = $path === 'widget/book' ? 'widget' : 'book';
+            \App\Models\BookingAttempt::record($form, 'error', $request, ['details' => ['message' => 'Page expired (security token ran out) — customer asked to press Book again']]);
+            \App\Support\UnsavedBookingBackup::send($request, 'the page had expired');
+
+            return redirect()->back()->withInput($request->except(['password', '_token', 'submission_token']))
+                ->withErrors(['pickup_at' => 'Your booking page had been open a while, so please press Book again — your details are kept below.']);
+        });
     })->create();

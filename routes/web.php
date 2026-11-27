@@ -735,6 +735,9 @@ Route::post('widget/quote/price', [\App\Http\Controllers\Widget\BookingWidgetCon
 Route::post('widget/book/prices', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'prices'])
     ->middleware('throttle:120,1')->name('widget.prices');
 // Is this email a recognised business account? Reveals the "Account" pay option.
+// Silent browser log: a press stopped by a red message, or a form left without booking.
+Route::post('widget/book/beacon', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'beacon'])
+    ->middleware('throttle:30,1')->name('widget.beacon');
 Route::get('widget/book/account-check', [\App\Http\Controllers\Widget\BookingWidgetController::class, 'accountCheck'])
     ->middleware('throttle:60,1')->name('widget.account-check');
 // Sign in from the booking widget (email + password) to book on account.

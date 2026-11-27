@@ -23,7 +23,7 @@
         <div style="display:flex;flex-direction:column;gap:10px">
         @foreach($attempts as $a)
             @php
-                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Pressed Book — no booking found'][$a->outcome] ?? $a->outcome;
+                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'blocked' => '🛑 Stopped by a message on the form', 'abandoned' => '👋 Filled in, left without booking', 'spam' => '🤖 Spam bot', 'submitted' => '❔ Pressed Book — no booking found'][$a->outcome] ?? $a->outcome;
                 $d = (array) ($a->details ?? []);
                 $detail = trim(implode(' · ', array_filter([
                     $d['vehicle'] ?? null,
@@ -45,7 +45,7 @@
                     <a class="btn btn-ghost" href="{{ route('booking-log.show', $a) }}">Full details</a>
                     @if($a->booking_id)
                         <a class="btn btn-primary" href="{{ route('bookings.show', $a->booking_id) }}">Open booking {{ $a->reference }}</a>
-                    @elseif(in_array($a->outcome, ['submitted', 'refused', 'error', 'price_on_request'], true))
+                    @elseif(in_array($a->outcome, ['submitted', 'refused', 'error', 'price_on_request', 'blocked', 'abandoned'], true))
                         <a class="btn btn-primary" href="{{ route('booking-log.book', $a) }}">➕ Make booking from this</a>
                     @endif
                 </div>

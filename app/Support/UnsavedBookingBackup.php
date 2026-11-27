@@ -42,6 +42,7 @@ class UnsavedBookingBackup
                 return;
             }
             $fields = collect($request->except(['password', 'password_confirmation', '_token', 'submission_token', 'company', 'viewport']))
+                ->map(fn ($v) => is_array($v) ? implode(' | ', array_filter(array_map(fn ($x) => is_scalar($x) ? trim((string) $x) : '', $v))) : $v)
                 ->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '');
             if (filled($fields->get('vehicle_type_id'))) {
                 $fields->put('vehicle', \App\Models\VehicleType::whereKey((int) $fields->get('vehicle_type_id'))->value('name'));
