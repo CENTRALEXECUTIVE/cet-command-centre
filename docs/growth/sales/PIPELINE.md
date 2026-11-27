@@ -112,7 +112,7 @@ per journey), `[CONFIRM: commission or referral terms]` for hotels and venues, a
 | P32 | Thornbridge Hall | 3 | Weddings & events | | new | – | Find enquiry inbox, send | wk of 16 Nov |
 | P33 | Sheffield Museums venue hire | 3 | Venue hire team | | new | – | Send via enquiry form / phone | wk of 16 Nov |
 | P34 | Sheffield Chamber of Commerce | 3 | Events team | | new | – | Confirm members' rate, send | wk of 16 Nov |
-| P35 | Hawsons | 2 | Practice manager | | new | – | Find contact; low priority | wk of 23 Nov |
+| P35 | Hawsons | 4 | Matt Bruce (matt.bruce@hawsons.co.uk) — WARM: met Abdi in person (27 Nov) | Abdi | warm-lead | 27 Nov: contact found | Personal email (not the generic batch email); skip/edit Hawsons in Outreach so the generic one doesn't go | 28 Nov |
 
 ### Excluded from Batch B (researched, deliberately not approached)
 | Company | Reason |
