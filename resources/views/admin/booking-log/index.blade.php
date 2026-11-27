@@ -23,10 +23,15 @@
         <div style="display:flex;flex-direction:column;gap:10px">
         @foreach($attempts as $a)
             @php
-                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Submitted'][$a->outcome] ?? $a->outcome;
+                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Submitted (repeat press — see their booking)'][$a->outcome] ?? $a->outcome;
                 $d = (array) ($a->details ?? []);
-                $detail = isset($d['errors']) ? collect($d['errors'])->flatten()->implode(' ')
-                    : ($d['message'] ?? (isset($d['vehicles']) ? implode(', ', $d['vehicles']) : (isset($d['price']) ? '£'.number_format((float) $d['price'], 2).(isset($d['vehicle']) ? ' · '.$d['vehicle'] : '') : '')));
+                $detail = trim(implode(' · ', array_filter([
+                    $d['vehicle'] ?? null,
+                    isset($d['price']) ? '£'.number_format((float) $d['price'], 2) : null,
+                    isset($d['vehicles']) ? 'On request: '.implode(', ', $d['vehicles']) : null,
+                    isset($d['errors']) ? collect($d['errors'])->flatten()->implode(' ') : null,
+                    $d['message'] ?? null,
+                ])));
             @endphp
             <div class="card" style="display:flex;flex-direction:column;gap:6px">
                 <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">

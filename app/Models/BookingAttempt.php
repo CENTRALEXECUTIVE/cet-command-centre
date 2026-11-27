@@ -25,6 +25,12 @@ class BookingAttempt extends Model
             $in = $request?->all() ?? [];
             $name = trim(($in['customer_first_name'] ?? '').' '.($in['customer_surname'] ?? '')) ?: ($in['customer_name'] ?? null);
             $contact = trim(implode(' · ', array_filter([$in['customer_phone'] ?? null, $in['customer_email'] ?? null])));
+            // Always note the vehicle the customer chose, even if no booking was made.
+            if (filled($in['vehicle_type_id'] ?? null) && empty($extra['details']['vehicle'])) {
+                $extra['details'] = array_merge((array) ($extra['details'] ?? []), [
+                    'vehicle' => \App\Models\VehicleType::whereKey((int) $in['vehicle_type_id'])->value('name'),
+                ]);
+            }
             static::create(array_merge([
                 'form' => $form,
                 'outcome' => $outcome,

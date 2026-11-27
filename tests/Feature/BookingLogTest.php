@@ -37,6 +37,7 @@ class BookingLogTest extends TestCase
         $this->post(route('widget.book.store'), $this->base(['customer_phone' => '', 'customer_email' => 'log@example.com', 'pickup_at' => now()->subDay()->format('Y-m-d\TH:i')]));
         $refused = BookingAttempt::latest('id')->first();
         $this->assertSame('refused', $refused->outcome);
+        $this->assertSame('Executive', $refused->details['vehicle'] ?? null, 'the chosen vehicle is always noted');
         $this->assertNotEmpty($refused->details['errors']);
 
         $rr = VehicleType::where('slug', 'rolls-royce-ghost')->first();
