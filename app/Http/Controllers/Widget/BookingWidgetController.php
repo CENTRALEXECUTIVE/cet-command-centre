@@ -234,6 +234,8 @@ class BookingWidgetController extends Controller
             // what store() will charge (computed by the same TripPricer, no JS maths).
             'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
             'return_pickup_at' => ['nullable', 'string', 'max:40'],
+            'return_pickup' => ['nullable', 'string', 'max:500'],
+            'return_destination' => ['nullable', 'string', 'max:500'],
             'child_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'booster_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
             'infant_seats' => ['nullable', 'integer', 'min:0', 'max:20'],
@@ -264,6 +266,9 @@ class BookingWidgetController extends Controller
                     // The return is priced at ITS OWN time; until the customer picks it,
                     // the outbound time stands in (the total refreshes when they do).
                     'return_pickup_at' => $returnAt ?? $pickupAt ?? now(),
+                    // The return can be from / to a different address (its own page).
+                    'return_pickup' => $isReturn ? ($data['return_pickup'] ?? null) : null,
+                    'return_destination' => $isReturn ? ($data['return_destination'] ?? null) : null,
                     'meet_greet' => true,
                     'stopovers' => (int) ($data['stops'] ?? 0),
                     'ribbons' => (bool) ($data['ribbons'] ?? false),
@@ -445,6 +450,13 @@ class BookingWidgetController extends Controller
             'destination_postcode' => ['nullable', 'string', 'max:12'],
             'pickup_at' => ['required', 'date', 'after_or_equal:'.$minPickup->format('Y-m-d H:i:s')],
             'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
+            'return_pickup_address' => ['nullable', 'string', 'max:500'],
+            'return_destination_address' => ['nullable', 'string', 'max:500'],
+            'return_flight_number' => ['nullable', 'string', 'max:32'],
+            'return_flight_landing_at' => ['nullable', 'date'],
+            'return_passengers' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'return_suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'return_hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
             'hours' => ['nullable', 'required_if:journey_type,hourly', 'integer', 'min:1', 'max:24'],
             'vehicle_type_id' => ['required', Rule::exists('vehicle_types', 'id')],
             'passengers' => ['required', 'integer', 'min:1', 'max:60'],
@@ -528,18 +540,41 @@ class BookingWidgetController extends Controller
         // Flight number AND landing time MUST be provided for airport journeys
         // (arrivals we track): a one-way pickup FROM an airport, or a return touching
         // an airport. On a return these can never be missed.
-        $isAirportArrival = $this->isAirportArrival($journeyType, $data['pickup_address'], $data['destination_address'] ?? null);
-        if ($isAirportArrival) {
-            $flightErrors = [];
+        // The return can start somewhere else (its own page, 27 Nov 2026): the return
+        // collection point is the return pickup if given, else the outbound drop-off.
+        $returnFrom = trim((string) ($data['return_pickup_address'] ?? '')) ?: ($data['destination_address'] ?? null);
+        $isAirportArrival = $this->isAirportArrival($journeyType, $data['pickup_address'], $returnFrom);
+        // THE FLIGHT BELONGS TO THE LEG THAT COLLECTS AT THE AIRPORT (directors, 27 Nov
+        // 2026): the outbound's flight is asked on the journey page when the pickup is an
+        // airport; the return's flight on the Return page when the return pickup is one.
+        $outAir = \App\Support\AirportMatcher::isAirport($data['pickup_address'] ?? null);
+        $retAir = $isReturn && \App\Support\AirportMatcher::isAirport($returnFrom);
+        // A page opened before this change sent the return's flight as flight_number.
+        if ($retAir && ! $outAir && blank($data['return_flight_number'] ?? null) && filled($data['flight_number'] ?? null)) {
+            $data['return_flight_number'] = $data['flight_number'];
+            $data['return_flight_landing_at'] = $data['flight_landing_at'] ?? null;
+            $data['flight_number'] = null;
+            $data['flight_landing_at'] = null;
+        }
+        $flightErrors = [];
+        if ($outAir) {
             if (blank($data['flight_number'] ?? null)) {
-                $flightErrors['flight_number'] = 'Please provide the flight number for your airport journey.';
+                $flightErrors['flight_number'] = 'Please provide the flight number for your airport pickup.';
             }
             if (blank($data['flight_landing_at'] ?? null)) {
-                $flightErrors['flight_landing_at'] = 'Please provide your flight’s landing time for your airport journey.';
+                $flightErrors['flight_landing_at'] = 'Please provide your flight’s landing time for your airport pickup.';
             }
-            if ($flightErrors) {
-                throw \Illuminate\Validation\ValidationException::withMessages($flightErrors);
+        }
+        if ($retAir) {
+            if (blank($data['return_flight_number'] ?? null)) {
+                $flightErrors['return_flight_number'] = 'Please provide the flight number for your return airport pickup.';
             }
+            if (blank($data['return_flight_landing_at'] ?? null)) {
+                $flightErrors['return_flight_landing_at'] = 'Please provide the landing time of your return flight.';
+            }
+        }
+        if ($flightErrors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($flightErrors);
         }
 
         // Any airport ARRIVAL (a one-way airport pickup, or any return touching an
@@ -551,7 +586,7 @@ class BookingWidgetController extends Controller
         // applies, even if the box was ticked. Each leg collected at an airport carries
         // it (airport → airport return: both legs) — the same rule as the admin strip.
         $mgOutbound = $isAirportArrival && \App\Support\AirportMatcher::isAirport($data['pickup_address']);
-        $mgReturn = $isReturn && \App\Support\AirportMatcher::isAirport($data['destination_address'] ?? null);
+        $mgReturn = $isReturn && \App\Support\AirportMatcher::isAirport($returnFrom);
         $data['meet_greet'] = $mgOutbound || $mgReturn;
 
         // No cash bookings on a return journey — the customer pays by card (or on
@@ -567,6 +602,10 @@ class BookingWidgetController extends Controller
         $destination = $isHourly
             ? 'As directed (hourly hire)'
             : $this->withPostcode($data['destination_address'], $data['destination_postcode'] ?? null);
+        // Return leg addresses: what the customer set on the Return page, else the
+        // outbound reversed.
+        $retPickup = $isReturn ? (trim((string) ($data['return_pickup_address'] ?? '')) ?: $destination) : null;
+        $retDest = $isReturn ? (trim((string) ($data['return_destination_address'] ?? '')) ?: $pickupFull) : null;
 
         // We can only carry two child/booster/infant seats in total (backstop; the
         // form already caps it). Trim child → booster → infant if it's ever exceeded.
@@ -617,11 +656,9 @@ class BookingWidgetController extends Controller
             : null;
         // Return that collects at the airport (home → airport, then airport → home): the
         // return pickup IS the landing time of the flight we meet (kept after the outbound).
-        if ($returnAt && filled($data['flight_landing_at'] ?? null)
-            && ! \App\Support\AirportMatcher::isAirport($pickupFull)
-            && \App\Support\AirportMatcher::isAirport($destination)) {
-            $landing = Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
-                ?: Carbon::parse($data['flight_landing_at'], config('app.timezone'));
+        if ($returnAt && $retAir && filled($data['return_flight_landing_at'] ?? null)) {
+            $landing = Carbon::createFromFormat('Y-m-d\TH:i', $data['return_flight_landing_at'], config('app.timezone'))
+                ?: Carbon::parse($data['return_flight_landing_at'], config('app.timezone'));
             if ($landing->gt($pickupAt)) {
                 $returnAt = $landing;
             }
@@ -634,6 +671,7 @@ class BookingWidgetController extends Controller
         $trip = $isHourly ? null : app(\App\Services\Pricing\TripPricer::class)->price($vehicleType, [
             'pickup' => $pickupFull, 'destination' => $destination, 'pickup_at' => $pickupAt,
             'journey_type' => $journeyType, 'return_pickup_at' => $returnAt,
+            'return_pickup' => $retPickup, 'return_destination' => $retDest,
             'meet_greet' => true,
             'child_seats' => (int) ($data['child_seats'] ?? 0),
             'booster_seats' => (int) ($data['booster_seats'] ?? 0),
@@ -651,6 +689,10 @@ class BookingWidgetController extends Controller
         $pickupFull = $this->ensurePostcode($pickupFull);
         if (! $isHourly) {
             $destination = $this->ensurePostcode($destination);
+        }
+        if ($isReturn) {
+            $retPickup = $this->ensurePostcode((string) $retPickup);
+            $retDest = $this->ensurePostcode((string) $retDest);
         }
 
         // "On request" vehicle (Rolls Royce / any POA class): no online price and
@@ -710,23 +752,17 @@ class BookingWidgetController extends Controller
             $composedNotes = trim($passengerLine.($composedNotes ? "\n".$composedNotes : ''));
             $returnNotes = trim($passengerLine.($returnNotes ? "\n".$returnNotes : ''));
         }
+        // Each leg's own flight: the one we meet when that leg collects at an airport,
+        // else (optional) the departure flight on the leg that drops at one.
         $flight = strtoupper(trim((string) ($data['flight_number'] ?? ''))) ?: null;
-        // On a return to the airport (home → airport, then airport → home) the flight the
-        // form asks for is the RETURN flight — the one the driver meets. It belongs on the
-        // return leg, not the outbound drop-off (15 Nov 2026: CET-F3979B had no flight).
-        $flightOnReturn = $isReturn
-            && ! \App\Support\AirportMatcher::isAirport($pickupFull)
-            && \App\Support\AirportMatcher::isAirport($destination);
-        // The OTHER flight on a return (optional): the one they fly OUT on. It goes on
-        // the leg that drops at the airport — the opposite leg to the one we meet.
+        $retFlight = strtoupper(trim((string) ($data['return_flight_number'] ?? ''))) ?: null;
         $otherFlight = $isReturn ? (strtoupper(trim((string) ($data['other_flight_number'] ?? ''))) ?: null) : null;
-        // Customer-entered flight landing time (UK-local, like every other clock we
-        // show — never converted; see the timezone rule). Stored for the office.
-        $flightLandingAt = null;
-        if (filled($data['flight_landing_at'] ?? null)) {
-            $flightLandingAt = (Carbon::createFromFormat('Y-m-d\TH:i', $data['flight_landing_at'], config('app.timezone'))
-                ?: Carbon::parse($data['flight_landing_at']))->format('Y-m-d H:i');
-        }
+        $outLegFlight = $flight ?: (\App\Support\AirportMatcher::isAirport($destination) ? $otherFlight : null);
+        $retLegFlight = $retFlight ?: ($isReturn && \App\Support\AirportMatcher::isAirport((string) $retDest) ? $otherFlight : null);
+        // Customer-entered landing times (UK-local, never converted — timezone rule).
+        $toLocal = fn ($v) => filled($v) ? (Carbon::createFromFormat('Y-m-d\TH:i', $v, config('app.timezone')) ?: Carbon::parse($v))->format('Y-m-d H:i') : null;
+        $flightLandingAt = $outAir ? $toLocal($data['flight_landing_at'] ?? null) : null;
+        $retFlightLandingAt = $retAir ? $toLocal($data['return_flight_landing_at'] ?? null) : null;
 
         // Business/VAT invoice → billed by Central Executive Transfers (20% on top,
         // proper VAT invoice); no invoice → the sister company Central Executive
@@ -804,7 +840,7 @@ class BookingWidgetController extends Controller
             'pickup_address' => $pickupFull,
             'destination_address' => $destination,
             'passengers' => $data['passengers'],
-            'flight_number' => $flightOnReturn ? $otherFlight : $flight,
+            'flight_number' => $outLegFlight,
             'special_requests' => $composedNotes,
             'status' => BookingStatus::Pending->value,
             // Account jobs are billed monthly (driver collects nothing). Otherwise no
@@ -827,7 +863,7 @@ class BookingWidgetController extends Controller
                 'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
                 'driver_notes' => $composedNotes,
                 'web_quote_basis' => $quote['basis'],
-                'flight_landing_at' => $flightOnReturn ? null : $flightLandingAt,
+                'flight_landing_at' => $flightLandingAt,
                 'hourly_hours' => $isHourly ? (int) $data['hours'] : null,
                 'meet_greet' => $mgOutbound ?: null,
                 'child_seats' => $extra['child_seats'] ?: null,
@@ -888,10 +924,11 @@ class BookingWidgetController extends Controller
                 'is_return_leg' => true,
                 'linked_booking_id' => $booking->id,
                 'pickup_at' => $returnAt,
-                'pickup_address' => $destination,
-                'destination_address' => $pickupFull,
-                'passengers' => $data['passengers'],
-                'flight_number' => $flightOnReturn ? $flight : $otherFlight, // the flight the driver meets (or flies out on)
+                'pickup_address' => $retPickup,
+                'destination_address' => $retDest,
+                // The return's own passengers/luggage (Return page), else the outbound's.
+                'passengers' => $data['return_passengers'] ?? $data['passengers'],
+                'flight_number' => $retLegFlight, // the flight the driver meets (or flies out on)
                 'special_requests' => $returnNotes,
                 'status' => BookingStatus::Pending->value,
                 // A return leg never collects cash on the day (returns are card-only),
@@ -905,11 +942,11 @@ class BookingWidgetController extends Controller
                 'meta' => array_filter([
                     'web_booking' => true,
                     'contact_override' => $typedContact,
-                    'flight_landing_at' => $flightOnReturn ? $flightLandingAt : null,
+                    'flight_landing_at' => $retFlightLandingAt,
                     'lead_name' => $leadName,
                     'booked_by' => $leadName ? $customer->name : null,
-                    'suitcases' => (int) ($data['suitcases'] ?? 0),
-                    'hand_luggage' => (int) ($data['hand_luggage'] ?? 0),
+                    'suitcases' => (int) ($data['return_suitcases'] ?? $data['suitcases'] ?? 0),
+                    'hand_luggage' => (int) ($data['return_hand_luggage'] ?? $data['hand_luggage'] ?? 0),
                     'driver_notes' => $returnNotes,
                     'meet_greet' => $mgReturn ?: null,
                     'fare_extras_total' => $retExtras ?: null,

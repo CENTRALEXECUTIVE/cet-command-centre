@@ -88,6 +88,8 @@
         .cet-steps .st.done .num { background:var(--ink); color:#fff; }
         .cet-steps .bar { flex:1; height:2px; background:#ececec; border-radius:2px; }
         .cet-steps .bar.fill { background:var(--gold); }
+        .cet-steps [hidden] { display:none !important; }
+        .cet-help a, #b-server-errors a { color:var(--gold); font-weight:600; word-break:break-word; }
         @media (max-width:460px){ .cet-steps .lbl { display:none; } }
 
         .cet-body { padding:10px 20px 14px; }
@@ -518,6 +520,8 @@
             <div class="cet-steps" id="cet-steps">
                 <div class="st active" data-for="1"><span class="num">1</span><span class="lbl">Journey</span></div>
                 <div class="bar"></div>
+                <div class="st" data-for="4" data-ret hidden><span class="num">2</span><span class="lbl">Return</span></div>
+                <div class="bar" data-ret hidden></div>
                 <div class="st" data-for="2"><span class="num">2</span><span class="lbl">Vehicle</span></div>
                 <div class="bar"></div>
                 <div class="st" data-for="3"><span class="num">3</span><span class="lbl">Details</span></div>
@@ -649,9 +653,16 @@
                         <div class="cet-two" id="b-when-row" style="grid-template-columns:1fr">
                             <div class="cet-field"><label for="b-when">Pickup date &amp; time</label>
                                 <input id="b-when" name="pickup_at" value="{{ old('pickup_at') }}" type="datetime-local" required></div>
-                            <div class="cet-field" id="b-return-field" style="display:none">
-                                <label for="b-return">Return date &amp; time</label>
-                                <input id="b-return" name="return_pickup_at" value="{{ old('return_pickup_at') }}" type="datetime-local">
+                        </div>
+                        {{-- The outbound collects at an AIRPORT → its flight is asked HERE (27 Nov 2026). --}}
+                        <div id="b-out-flight" hidden>
+                            <div class="cet-mini-title">🛬 Your flight</div>
+                            <p class="cet-foot" style="text-align:left;margin:-4px 0 8px">We track it and meet you when it lands.</p>
+                            <div class="cet-two">
+                                <div class="cet-field" id="b-flight-field"><label for="b-flight">Flight number</label>
+                                    <input id="b-flight" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase"></div>
+                                <div class="cet-field" id="b-flight-landing-field"><label for="b-flight-landing">Landing time</label>
+                                    <input id="b-flight-landing" name="flight_landing_at" value="{{ old('flight_landing_at') }}" type="datetime-local"></div>
                             </div>
                         </div>
                         <div class="cet-field" id="b-hours-field" style="display:none">
@@ -694,6 +705,53 @@
 
                         <div class="cet-err" data-err="1"></div>
                         <div class="cet-actions">
+                            <button type="button" class="cet-btn" data-next="2">Continue →</button>
+                        </div>
+                    </div>
+
+                    {{-- RETURN STEP (returns only) — its own page: date/time + where from/to (27 Nov 2026). --}}
+                    <div class="cet-step" data-step="4" hidden>
+                        <div class="cet-step-title">↩️ Your return journey</div>
+                        <div class="cet-field" id="b-return-field">
+                            <label for="b-return">Return date &amp; time</label>
+                            <input id="b-return" name="return_pickup_at" value="{{ old('return_pickup_at') }}" type="datetime-local">
+                        </div>
+                        <div class="cet-field" id="b-return-pickup-field"><label for="b-return-pickup">Return pickup address</label>
+                            <input id="b-return-pickup" name="return_pickup_address" value="{{ old('return_pickup_address') }}" placeholder="Where we collect you for the return" data-places autocomplete="off"></div>
+                        <div class="cet-field" id="b-return-dropoff-field"><label for="b-return-dropoff">Return drop-off address</label>
+                            <input id="b-return-dropoff" name="return_destination_address" value="{{ old('return_destination_address') }}" placeholder="Where the return ends" data-places autocomplete="off"></div>
+                        {{-- The return collects at an AIRPORT → its flight is asked HERE. --}}
+                        <div id="b-ret-flight" hidden>
+                            <div class="cet-mini-title">🛬 Your return flight</div>
+                            <p class="cet-foot" style="text-align:left;margin:-4px 0 8px">We track it and meet you when it lands.</p>
+                            <div class="cet-two">
+                                <div class="cet-field" id="b-ret-flight-field"><label for="b-ret-flight-no">Flight number</label>
+                                    <input id="b-ret-flight-no" name="return_flight_number" value="{{ old('return_flight_number') }}" placeholder="e.g. BA1369" autocomplete="off" style="text-transform:uppercase"></div>
+                                <div class="cet-field" id="b-ret-flight-landing-field"><label for="b-ret-flight-landing">Landing time</label>
+                                    <input id="b-ret-flight-landing" name="return_flight_landing_at" value="{{ old('return_flight_landing_at') }}" type="datetime-local"></div>
+                            </div>
+                        </div>
+                        <div class="cet-three">
+                            <div class="cet-field" id="b-ret-pax-field"><label for="b-ret-pax">Passengers</label>
+                                <select id="b-ret-pax" name="return_passengers">
+                                    <option value="" selected disabled>—</option>
+                                    @for($i = 1; $i <= 8; $i++)<option value="{{ $i }}" @selected(old('return_passengers') == $i)>{{ $i }}</option>@endfor
+                                </select></div>
+                            <div class="cet-field" id="b-ret-suit-field"><label for="b-ret-suit">Suitcases</label>
+                                <select id="b-ret-suit" name="return_suitcases">
+                                    <option value="" selected disabled>—</option>
+                                    @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}" @selected(old('return_suitcases') !== null && old('return_suitcases') == $i)>{{ $i }}</option>@endfor
+                                </select></div>
+                            <div class="cet-field" id="b-ret-hand-field"><label for="b-ret-hand">Cabin bags</label>
+                                <select id="b-ret-hand" name="return_hand_luggage">
+                                    <option value="" selected disabled>—</option>
+                                    @for($i = 0; $i <= 8; $i++)<option value="{{ $i }}" @selected(old('return_hand_luggage') !== null && old('return_hand_luggage') == $i)>{{ $i }}</option>@endfor
+                                </select></div>
+                        </div>
+                        <p class="cet-foot" style="margin-top:0">We’ve filled this in from your outbound journey (addresses reversed). Change anything that’s different on the way back.</p>
+                        <div class="cet-err" data-err="4"></div>
+                        <div class="cet-actions">
+                            <button type="button" class="cet-back" data-back="1">← Back</button>
                             <button type="button" class="cet-btn" data-next="2">Continue →</button>
                         </div>
                     </div>
@@ -835,20 +893,11 @@
                              flight and set the pickup to the landing time. Shown only when
                              the journey touches an airport (toggled in applyAirportMeetGreet). --}}
                         <div id="b-flight-section" hidden>
-                            <div class="cet-mini-title">✈️ Flight details <span class="opt">— so we can track your flight</span></div>
-                            <div class="cet-field" id="b-flight-field" hidden>
-                                <label for="b-flight"><span id="b-flight-label">Flight number</span> <span class="opt" id="b-flight-opt">— for airport journeys (we track it)</span></label>
-                                <input id="b-flight" name="flight_number" value="{{ old('flight_number') }}" placeholder="e.g. BA1368" autocomplete="off" style="text-transform:uppercase">
-                            </div>
-                            <div class="cet-field" id="b-flight-landing-field" hidden>
-                                <label for="b-flight-landing"><span id="b-flight-landing-label">Flight landing time</span> <span class="opt" id="b-flight-landing-opt">— when your flight is due to land</span></label>
-                                <input id="b-flight-landing" name="flight_landing_at" value="{{ old('flight_landing_at') }}" type="datetime-local">
-                            </div>
+                            <div class="cet-mini-title">🛫 Departure flight <span class="opt">— optional</span></div>
                             <div class="cet-field" id="b-flight-other-field" hidden>
                                 <label for="b-flight-other"><span id="b-flight-other-label">🛫 Departure flight number</span> <span class="opt" id="b-flight-other-opt">— optional (the flight you fly out on)</span></label>
                                 <input id="b-flight-other" name="other_flight_number" placeholder="e.g. EZY707" autocomplete="off" style="text-transform:uppercase">
                             </div>
-                            <p class="cet-foot" style="text-align:left;margin:2px 0 0">We track your flight and adjust the pickup if it lands early or late — at no extra charge.</p>
                         </div>
 
                         {{-- Extras — just the real add-ons (child seats, wedding ribbons). Meet
@@ -947,7 +996,7 @@
                             <button class="cet-btn" type="submit" id="cet-submit">Book now</button>
                         </div>
                         <p class="cet-foot" id="b-pay-note">Pay securely by card to confirm — or choose cash and our office will confirm your journey.</p>
-                        <p class="cet-foot">Having trouble booking? Email <a href="mailto:admin@centralexecutivetransfers.co.uk">admin@centralexecutivetransfers.co.uk</a> or WhatsApp <a href="https://wa.me/447405172435" target="_blank" rel="noopener">+44 7405 172435</a> with your journey and we’ll book it for you.</p>
+                        <p class="cet-foot cet-help">Having trouble booking? Email <a href="mailto:admin@centralexecutivetransfers.co.uk">admin@centralexecutivetransfers.co.uk</a> or WhatsApp <a href="https://wa.me/447405172435" target="_blank" rel="noopener">+44 7405 172435</a> with your journey and we’ll book it for you.</p>
                     </div>
                 </form>
             </div>
@@ -1099,16 +1148,32 @@
             window.addEventListener('pagehide', cetLeftWithoutBooking);
             document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') cetLeftWithoutBooking(); });
 
+            // Step order: a return gets its own Return page between Journey and Vehicle.
+            function stepOrder() {
+                var j = document.getElementById('b-journey');
+                return (j && j.value === 'return') ? [1, 4, 2, 3] : [1, 2, 3];
+            }
             function goTo(n) {
-                steps.forEach(function (s) { s.hidden = (+s.dataset.step !== n); });
-                stepEls.forEach(function (s) {
-                    var f = +s.dataset.for;
-                    s.classList.toggle('active', f === n);
-                    s.classList.toggle('done', f < n);
-                });
-                bars.forEach(function (b, i) { b.classList.toggle('fill', i < n - 1); });
+                renderSteps(n);
                 try { document.getElementById('cet-widget').scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
                 reportHeight();
+            }
+            function renderSteps(n) {
+                var order = stepOrder(), at = order.indexOf(n);
+                var isRet = order.length === 4;
+                document.querySelectorAll('#cet-steps [data-ret]').forEach(function (el) { el.hidden = !isRet; });
+                steps.forEach(function (s) { s.hidden = (+s.dataset.step !== n); });
+                stepEls.forEach(function (s) {
+                    var f = +s.dataset.for, idx = order.indexOf(f);
+                    var num = s.querySelector('.num'); if (num && idx > -1) num.textContent = idx + 1;
+                    s.classList.toggle('active', f === n);
+                    s.classList.toggle('done', idx > -1 && idx < at);
+                });
+                bars.forEach(function (b) {
+                    var prev = b.previousElementSibling;
+                    while (prev && prev.hidden) prev = prev.previousElementSibling;
+                    b.classList.toggle('fill', !!(prev && prev.classList.contains('done')));
+                });
             }
 
             function nonEmpty(el) { return el && String(el.value || '').trim() !== ''; }
@@ -1133,10 +1198,13 @@
             var dropRow = document.getElementById('b-dropoff-row');
             function toggleJourney() {
                 var v = journeyEl ? journeyEl.value : 'one_way';
-                if (returnField) returnField.style.display = v === 'return' ? '' : 'none';
-                // Date row goes 2-up only when a return is shown (else date is full width).
+                // The return date/time and addresses live on their own Return page now.
                 var whenRow = document.getElementById('b-when-row');
-                if (whenRow) whenRow.style.gridTemplateColumns = v === 'return' ? '1fr 1fr' : '1fr';
+                if (whenRow) whenRow.style.gridTemplateColumns = '1fr';
+                var shown = form.querySelector('.cet-step:not([hidden])');
+                renderSteps(shown ? +shown.dataset.step : 1);
+                // Deferred: the airport word-list is set up further down this script.
+                if (typeof syncFlights === 'function') setTimeout(syncFlights, 0);
                 if (hoursField) hoursField.style.display = v === 'hourly' ? '' : 'none';
                 if (dropRow) dropRow.style.display = v === 'hourly' ? 'none' : '';
                 // Hourly hire has no drop-off: the hidden box must not be required, or the
@@ -1258,12 +1326,34 @@
 
             function validateStep(n) {
                 showErr(n, '');
+                if (n === 4) {
+                    var okR = true, firstR = null;
+                    [['b-return', 'b-return-field'], ['b-return-pickup', 'b-return-pickup-field'], ['b-return-dropoff', 'b-return-dropoff-field'],
+                     ['b-ret-pax', 'b-ret-pax-field'], ['b-ret-suit', 'b-ret-suit-field'], ['b-ret-hand', 'b-ret-hand-field']].forEach(function (p) {
+                        var el = document.getElementById(p[0]), wrap = document.getElementById(p[1]);
+                        var bad = !nonEmpty(el);
+                        if (wrap) wrap.classList.toggle('bad', bad);
+                        if (bad) { okR = false; if (!firstR) firstR = el; }
+                    });
+                    if (!okR) { showErr(4, 'Please fill in your return date, time, addresses, passengers and luggage.'); if (firstR) firstR.focus(); return false; }
+                    if (airportIn(retPickupVal())) {
+                        var rfIn = document.getElementById('b-ret-flight-no'), rlIn = document.getElementById('b-ret-flight-landing');
+                        if (!nonEmpty(rfIn)) { document.getElementById('b-ret-flight-field').classList.add('bad'); showErr(4, 'Please enter the flight number for your return airport pickup.'); rfIn.focus(); return false; }
+                        if (!nonEmpty(rlIn)) { document.getElementById('b-ret-flight-landing-field').classList.add('bad'); showErr(4, 'Please enter the landing time of your return flight.'); return false; }
+                    }
+                    var rv = document.getElementById('b-return'), wv = document.getElementById('b-when');
+                    if (rv && wv && ukMs(rv.value) <= ukMs(wv.value)) {
+                        var rf = document.getElementById('b-return-field'); if (rf) rf.classList.add('bad');
+                        showErr(4, 'Your return pickup must be after your outbound pickup. Please check the return date and time.');
+                        return false;
+                    }
+                    return true;
+                }
                 if (n === 1) {
                     var jt = journeyEl ? journeyEl.value : 'one_way';
                     var ok = true, first = null;
                     var required = [['b-pickup','pickup'],['b-when','date & time'],['b-pax','passengers'],['b-suit','suitcases'],['b-hand','hand luggage']];
                     if (jt !== 'hourly') required.push(['b-dropoff','drop-off']);
-                    if (jt === 'return') required.push(['b-return','return date & time']);
                     if (jt === 'hourly') required.push(['b-hours','hours']);
                     required.forEach(function (p) {
                         var el = document.getElementById(p[0]);
@@ -1273,14 +1363,10 @@
                         if (bad) ok = false;
                     });
                     if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
-                    // A return must be after the outbound (checked here, not only by the server).
-                    if (ok && jt === 'return') {
-                        var rv = document.getElementById('b-return'), wv = document.getElementById('b-when');
-                        if (rv && wv && ukMs(rv.value) <= ukMs(wv.value)) {
-                            var rf = document.getElementById('b-return-field'); if (rf) rf.classList.add('bad');
-                            showErr(1, 'Your return pickup must be after your outbound pickup. Please check the return date and time.');
-                            return false;
-                        }
+                    if (ok && isAirportPickup()) {
+                        var fIn = document.getElementById('b-flight'), lIn = document.getElementById('b-flight-landing');
+                        if (!nonEmpty(fIn)) { document.getElementById('b-flight-field').classList.add('bad'); showErr(1, 'Please enter the flight number for your airport pickup.'); fIn.focus(); return false; }
+                        if (!nonEmpty(lIn)) { document.getElementById('b-flight-landing-field').classList.add('bad'); showErr(1, 'Please enter your flight’s landing time so we can track it.'); return false; }
                     }
                     // Postcode is required only for a HOME/street pickup that's missing
                     // one — a driver needs it. Airports/venues (residential !== '1') and
@@ -1345,18 +1431,6 @@
                     var leadMsg = (leadPh && leadPh.offsetParent !== null && window.cetPhoneCheck) ? window.cetPhoneCheck(leadPh) : '';
                     if (leadMsg) { leadPh.closest('.cet-field').classList.add('bad'); }
                     if (!okEmail) { showErr(3, 'Please enter your email address.'); email.focus(); return false; }
-                    // Flight number is required for airport journeys (arrivals we track).
-                    var flightField = document.getElementById('b-flight-field'), flightIn = document.getElementById('b-flight');
-                    if (flightIn && flightIn.dataset.required === '1' && !nonEmpty(flightIn)) {
-                        if (flightField) flightField.classList.add('bad');
-                        showErr(3, 'Please enter the flight number for your airport journey.'); flightIn.focus(); return false;
-                    }
-                    // Flight landing time is required on airport journeys too.
-                    var landField = document.getElementById('b-flight-landing-field'), landIn = document.getElementById('b-flight-landing');
-                    if (landIn && landIn.dataset.required === '1' && !nonEmpty(landIn)) {
-                        if (landField) landField.classList.add('bad');
-                        showErr(3, 'Please enter your flight’s landing time so we can track it.'); landIn.focus(); return false;
-                    }
                     // Business details are required when a VAT invoice was chosen.
                     if (typeof vatOn === 'function' && vatOn()) {
                         var biz = [['b-biz-name', 'your business name'], ['b-biz-address', 'your business address'], ['b-biz-vat', 'your VAT number']];
@@ -1393,6 +1467,21 @@
 
             // Advance to a step, running that step's setup.
             function proceedTo(next) {
+                if (typeof syncFlights === 'function') setTimeout(syncFlights, 0);
+                if (next === 4) {
+                    // Pre-fill the return as the outbound reversed; the customer can change it.
+                    function full(addrId, pcId) {
+                        var a = ((document.getElementById(addrId) || {}).value || '').trim(), pc = ((document.getElementById(pcId) || {}).value || '').trim();
+                        return (pc && a.toUpperCase().indexOf(pc.toUpperCase()) === -1) ? (a ? a + ', ' + pc : pc) : a;
+                    }
+                    var rp = document.getElementById('b-return-pickup'), rd = document.getElementById('b-return-dropoff');
+                    if (rp && !rp.value.trim()) rp.value = full('b-dropoff', 'b-dropoff-pc');
+                    if (rd && !rd.value.trim()) rd.value = full('b-pickup', 'b-pickup-pc');
+                    [['b-ret-pax', 'b-pax'], ['b-ret-suit', 'b-suit'], ['b-ret-hand', 'b-hand']].forEach(function (p) {
+                        var r = document.getElementById(p[0]), o = document.getElementById(p[1]);
+                        if (r && o && !r.value && o.value !== '') r.value = o.value;
+                    });
+                }
                 goTo(next);
                 if (next === 2) { minibusToggle(); fitVehicles(); loadPrices(); }
                 if (next === 3) { applyAirportMeetGreet(); syncQuoteMode(); fillSummary(); }
@@ -1410,12 +1499,7 @@
                     // (the return uses the same addresses, reversed) before moving on.
                     if (journeyEl) { journeyEl.value = 'return'; toggleJourney(); }
                     closeReturnModal();
-                    var rf = document.getElementById('b-return-field');
-                    var ri = document.getElementById('b-return');
-                    if (rf) rf.style.display = '';
-                    try { (rf || ri).scrollIntoView({ behavior:'smooth', block:'center' }); } catch (e) {}
-                    if (ri) ri.focus();
-                    reportHeight();
+                    proceedTo(4);
                 });
                 if (no) no.addEventListener('click', function () { closeReturnModal(); proceedTo(2); });
             })();
@@ -1425,6 +1509,8 @@
                     var cur = +btn.closest('.cet-step').dataset.step;
                     if (!validateStep(cur)) return;
                     var next = +btn.dataset.next;
+                    // On a return, Journey → Return page → Vehicle.
+                    if (cur === 1 && next === 2 && journeyEl && journeyEl.value === 'return') next = 4;
                     // Leaving the journey step on a one-way trip? Offer a return once.
                     if (cur === 1 && next === 2 && journeyEl && journeyEl.value === 'one_way' && !returnPrompted) {
                         returnPrompted = true;
@@ -1434,7 +1520,12 @@
                 });
             });
             form.querySelectorAll('[data-back]').forEach(function (btn) {
-                btn.addEventListener('click', function () { goTo(+btn.dataset.back); });
+                btn.addEventListener('click', function () {
+                    var back = +btn.dataset.back;
+                    var cur = +btn.closest('.cet-step').dataset.step;
+                    if (cur === 2 && back === 1 && journeyEl && journeyEl.value === 'return') back = 4;
+                    goTo(back);
+                });
             });
 
             // Vehicle card selection + per-card pricing.
@@ -1476,15 +1567,21 @@
                     + row('Passengers', val('b-pax') || '—')
                     + row('Suitcases', val('b-suit') || '0')
                     + row('Hand luggage', val('b-hand') || '0');
+                if (jt === 'return') {
+                    var rv = val('b-return'), rd = rv ? new Date(rv) : null;
+                    html += row('Return date &amp; time', !rv ? '—' : (isNaN(rd) ? rv : rd.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' · '+rd.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})));
+                    html += row('Return pick-up', val('b-return-pickup') || val('b-dropoff') || '—');
+                    html += row('Return drop-off', val('b-return-dropoff') || val('b-pickup') || '—');
+                    html += row('Return passengers', val('b-ret-pax') || val('b-pax') || '—');
+                    html += row('Return suitcases', val('b-ret-suit') || val('b-suit') || '0');
+                    html += row('Return hand luggage', val('b-ret-hand') || val('b-hand') || '0');
+                }
                 var elseBox2 = document.getElementById('b-else');
                 if (elseBox2 && elseBox2.checked && val('b-lead-name')) html += row('Passenger', val('b-lead-name'));
-                if (val('b-flight')) html += row((document.getElementById('b-journey') || {}).value === 'return' ? 'Arrival flight' : 'Flight', val('b-flight').toUpperCase());
+                function lands(id){ var v=val(id), d=new Date(v); return isNaN(d) ? v : d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+                if (isAirportPickup() && val('b-flight')) html += row('Flight (outbound)', val('b-flight').toUpperCase() + (val('b-flight-landing') ? ' · lands ' + lands('b-flight-landing') : ''));
+                if (jt === 'return' && airportIn(retPickupVal()) && val('b-ret-flight-no')) html += row('Flight (return)', val('b-ret-flight-no').toUpperCase() + (val('b-ret-flight-landing') ? ' · lands ' + lands('b-ret-flight-landing') : ''));
                 if (val('b-flight-other')) html += row('Departure flight', val('b-flight-other').toUpperCase());
-                if (val('b-flight-landing')) {
-                    var ld = new Date(val('b-flight-landing'));
-                    html += row('Lands', isNaN(ld) ? val('b-flight-landing')
-                        : ld.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+ld.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
-                }
                 var vat = priceVatOn();
                 requote(); // any change to the journey/extras/VAT/code re-prices on the server
                 var priced = lastQuote && !lastQuote.poa && lastQuote.total != null;
@@ -1532,6 +1629,11 @@
             function fitVehicles() {
                 function num(id){ var el=document.getElementById(id); return el ? (parseInt(el.value,10)||0) : 0; }
                 var pax = num('b-pax'), suit = num('b-suit'), hand = num('b-hand');
+                // A return: the car must fit the bigger of the two legs.
+                var jEl = document.getElementById('b-journey');
+                if (jEl && jEl.value === 'return') {
+                    pax = Math.max(pax, num('b-ret-pax')); suit = Math.max(suit, num('b-ret-suit')); hand = Math.max(hand, num('b-ret-hand'));
+                }
                 var firstFit = null;
                 form.querySelectorAll('.cet-veh').forEach(function (card) {
                     if (card.hidden) return;
@@ -1721,6 +1823,7 @@
             var AIR_STREET = '(?:road|rd|street|lane|avenue|drive|close|crescent|grove|terrace|retail\\s+park|business\\s+park|shopping\\s+park|industrial\\s+estate|trading\\s+estate)\\b';
             var AIR_NAME = new RegExp('(?:^|[^a-z0-9])(?:airport|heathrow|gatwick|london\\s+stansted|stansted\\s+airport|london\\s+luton|luton\\s+airport|manchester\\s+airport|east\\s+midlands\\s+airport|nottingham\\s+east\\s+midlands|leeds\\s+bradford|doncaster\\s+sheffield|robin\\s+hood\\s+airport|liverpool\\s+john\\s+lennon)(?![a-z0-9])(?!\\s+' + AIR_STREET + ')');
             function airportIn(v) {
+                if (typeof AIR_NAME === 'undefined' || !AIR_NAME) return false; // not set up yet (page still loading)
                 var s = String(v || '').toLowerCase();
                 if (AIR_NAME.test(s)) return true;
                 if (/\((man|lhr|lgw|stn|ema|lba|bhx|lpl|huy|ltn|dsa|ncl|edi|gla|brs)\)/.test(s)) return true;
@@ -1758,54 +1861,37 @@
                     mg.checked = arrival;
                 }
 
-                var ff = document.getElementById('b-flight-field');
-                var fe = document.getElementById('b-flight');
-                var flabel = document.getElementById('b-flight-label');
-                var fopt = document.getElementById('b-flight-opt');
-                var lf = document.getElementById('b-flight-landing-field');
-                var le = document.getElementById('b-flight-landing');
-                var llabel = document.getElementById('b-flight-landing-label');
-
-                // Show the whole Flight details section (and its fields) for any airport
-                // journey; require the number + landing for arrivals/returns; a plain
-                // one-way DEPARTURE is optional, no landing.
-                var fsec = document.getElementById('b-flight-section');
-                if (fsec) fsec.hidden = !anyAir;
-                if (ff) ff.hidden = !anyAir;
-                if (fe) fe.dataset.required = arrival ? '1' : '';
-                if (lf) lf.hidden = !arrival;
-                if (le) le.dataset.required = arrival ? '1' : '';
-
-                // A return touching an airport: a second, optional box for the DEPARTURE
-                // flight (the one they fly out on), stored on the leg that drops at the
-                // airport. Plain "Departure" / "Arrival" wording (what their ticket says),
-                // shown in journey order so the flight they take first comes first.
-                var of = document.getElementById('b-flight-other-field');
-                var olabel = document.getElementById('b-flight-other-label');
-                var oopt = document.getElementById('b-flight-other-opt');
-                if (of) of.hidden = !(isReturn && anyAir);
-                if (olabel) olabel.textContent = '🛫 Departure flight number';
-                if (oopt) oopt.textContent = '— optional (the flight you fly out on)';
-                if (of && ff && lf && isReturn && anyAir) {
-                    if (!puAir) { ff.parentNode.insertBefore(of, ff); }        // fly out first, then land
-                    else { lf.parentNode.insertBefore(of, lf.nextSibling); }  // land first, then fly out
-                }
-
-                if (isReturn && anyAir) {
-                    if (flabel) flabel.textContent = '🛬 Arrival flight number';
-                    if (fopt) fopt.textContent = puAir
-                        ? '— required (the flight you land on, we meet you)'
-                        : '— required (the flight you land on coming home, we meet you)';
-                    if (llabel) llabel.textContent = '🛬 Arrival landing time';
-                } else if (puAir) {
-                    if (flabel) flabel.textContent = 'Flight number';
-                    if (fopt) fopt.textContent = '— required (arrival flight we track)';
-                    if (llabel) llabel.textContent = 'Flight landing time';
-                } else if (dpAir) {
-                    if (flabel) flabel.textContent = 'Departure flight number';
-                    if (fopt) fopt.textContent = '— optional';
-                }
+                syncFlights();
             }
+
+            // THE FLIGHT BELONGS TO THE LEG THAT COLLECTS AT THE AIRPORT (27 Nov 2026):
+            // outbound airport pickup → flight on the Journey page; return airport pickup →
+            // flight on the Return page; the optional departure flight on the details page.
+            function retPickupVal() {
+                var r = document.getElementById('b-return-pickup');
+                return (r && r.value.trim()) ? r.value : ((document.getElementById('b-dropoff') || {}).value || '');
+            }
+            function retDropVal() {
+                var r = document.getElementById('b-return-dropoff');
+                return (r && r.value.trim()) ? r.value : ((document.getElementById('b-pickup') || {}).value || '');
+            }
+            function syncFlights() {
+                var isRet = journeyEl && journeyEl.value === 'return';
+                var outAir = isAirportPickup();
+                var retAir = isRet && airportIn(retPickupVal());
+                var ob = document.getElementById('b-out-flight'), rb = document.getElementById('b-ret-flight');
+                if (ob) ob.hidden = !outAir;
+                if (rb) rb.hidden = !retAir;
+                var dropAir = isAirportDropoff() || (isRet && airportIn(retDropVal()));
+                var fsec = document.getElementById('b-flight-section'), of = document.getElementById('b-flight-other-field');
+                if (fsec) fsec.hidden = !dropAir;
+                if (of) of.hidden = !dropAir;
+                reportHeight();
+            }
+            ['b-pickup', 'b-dropoff', 'b-return-pickup', 'b-return-dropoff'].forEach(function (id) {
+                var el = document.getElementById(id); if (!el) return;
+                el.addEventListener('input', syncFlights); el.addEventListener('change', syncFlights);
+            });
 
             // Rolls Royce / any "on request" vehicle: no payment method — it's a
             // request-a-quote (we take details, then email the office/customer a price).
@@ -1826,43 +1912,23 @@
             if (mg) { mg.addEventListener('change', function () { mg.dataset.userset = '1'; }); }
             var flightEl = document.getElementById('b-flight');
             if (flightEl) { flightEl.addEventListener('input', fillSummary); }
-            var flightLandEl = document.getElementById('b-flight-landing');
-            if (flightLandEl) {
-                flightLandEl.addEventListener('change', function () {
-                    // On an airport RETURN the return pickup IS the landing time — so
-                    // copy the flight landing time into the return pickup automatically.
-                    // (The office can still adjust it.) Non-airport returns keep their
-                    // own return date & time untouched.
-                    // Collecting FROM the airport one-way: the pickup time IS the landing time.
-                    // The landing time belongs to the leg that COLLECTS at the airport:
-                    // pickup is the airport (one-way or the outbound of a return) -> the
-                    // outbound pickup; only when the airport is the DROP-OFF does the flight
-                    // land on the return leg. (24 Nov 2026: a return starting at MAN copied
-                    // the landing time into the return pickup, the server rejected it and the
-                    // customer could never finish the booking.)
-                    var whenEl = document.getElementById('b-when');
-                    if (isAirportPickup() && whenEl && flightLandEl.value) {
-                        whenEl.value = flightLandEl.value;
-                        if (typeof build === 'function') { try { build(whenEl); } catch (e) {} }
-                        whenEl.dispatchEvent(new Event('change'));
-                    } else if (isAirportReturn() && isAirportDropoff() && retEl && flightLandEl.value) {
-                        retEl.value = flightLandEl.value;
-                        if (typeof build === 'function') { try { build(retEl); } catch (e) {} }
-                        retEl.dispatchEvent(new Event('change'));
-                    }
-                    fillSummary();
-                });
+            // Each landing time IS that leg's pickup time (and moving the pickup moves the
+            // landing), so the two can never disagree: outbound ⇄ Journey page, return ⇄ Return page.
+            function pairTimes(landId, whenId, isOn) {
+                var land = document.getElementById(landId), when = document.getElementById(whenId);
+                if (!land || !when) return;
+                function copy(from, to) {
+                    if (!isOn() || !from.value || to.value === from.value) return;
+                    to.value = from.value;
+                    if (typeof build === 'function') { try { build(to); } catch (e) {} }
+                    to.dispatchEvent(new Event('change'));
+                }
+                land.addEventListener('change', function () { copy(land, when); fillSummary(); });
+                when.addEventListener('change', function () { copy(when, land); });
             }
-            // And the other way round (24 Nov 2026): changing the date of the leg we meet at
-            // the airport moves the landing time with it, so the two can never disagree.
-            (function () {
-                var land = document.getElementById('b-flight-landing');
-                var whenB = document.getElementById('b-when');
-                if (!land) return;
-                function push(v) { if (v && land.value !== v) { land.value = v; land.dispatchEvent(new Event('change')); } }
-                if (whenB) whenB.addEventListener('change', function () { if (isAirportPickup()) push(whenB.value); });
-                if (retEl) retEl.addEventListener('change', function () { if (isAirportReturn() && isAirportDropoff() && !isAirportPickup()) push(retEl.value); });
-            })();
+            pairTimes('b-flight-landing', 'b-when', function () { return isAirportPickup(); });
+            pairTimes('b-ret-flight-landing', 'b-return', function () { return journeyEl && journeyEl.value === 'return' && airportIn(retPickupVal()); });
+            ['b-flight', 'b-ret-flight-no'].forEach(function (id) { var e = document.getElementById(id); if (e) e.addEventListener('input', fillSummary); });
             // Wheelchair / ribbons checkbox extras — highlight + live total.
             ['b-wheelchair', 'b-ribbons'].forEach(function (id) {
                 var el = document.getElementById(id); if (!el) return;
@@ -1896,7 +1962,7 @@
             [vatYes, vatNo].forEach(function (r) { if (r) r.addEventListener('change', syncVat); });
             // The discount code, the return time and the pickup time all change the price
             // (voucher off the whole trip; each leg's own festive/night surcharge) — re-price.
-            ['b-voucher', 'b-return', 'b-when'].forEach(function (id) {
+            ['b-voucher', 'b-return', 'b-when', 'b-return-pickup', 'b-return-dropoff'].forEach(function (id) {
                 var el = document.getElementById(id); if (!el) return;
                 el.addEventListener('change', fillSummary);
                 el.addEventListener('input', fillSummary);
@@ -2104,6 +2170,8 @@
                 var body = {
                     pickup: pickup, destination: dest, pickup_at: v('b-when'),
                     journey_type: jt, return_pickup_at: jt === 'return' ? v('b-return') : '',
+                    return_pickup: jt === 'return' ? v('b-return-pickup').trim() : '',
+                    return_destination: jt === 'return' ? v('b-return-dropoff').trim() : '',
                     child_seats: n('b-child_seats'), booster_seats: n('b-booster_seats'), infant_seats: n('b-infant_seats'),
                     stops: window.__cetCountStops ? window.__cetCountStops() : 0,
                     ribbons: on('b-ribbons') ? 1 : 0, wheelchair: on('b-wheelchair') ? 1 : 0,
@@ -2326,7 +2394,7 @@
         Array.prototype.forEach.call(document.querySelectorAll('.cet-cal.show'), function (c) { c.classList.remove('show'); if (c.parentNode) c.parentNode.removeChild(c); });
     }
 
-    function init() { ['b-when', 'b-return', 'b-flight-landing'].forEach(function (id) { build(document.getElementById(id)); }); }
+    function init() { ['b-when', 'b-return', 'b-flight-landing', 'b-ret-flight-landing'].forEach(function (id) { build(document.getElementById(id)); }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

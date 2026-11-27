@@ -11,15 +11,18 @@
             <h2>Booking request</h2>
             <p class="hint">Check it, then open it in Paste a booking to see the calendar preview and confirm. Nothing is booked until you do.</p>
             <dl style="display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:12px 0">
-                @foreach(['lead_name' => 'Passenger', 'contact_no' => 'Contact', 'email' => 'Email', 'pickup_at' => 'Pickup time', 'pickup_address' => 'Pickup', 'destination_address' => 'Drop-off', 'flight_number' => 'Flight', 'passengers' => 'Passengers', 'suitcases' => 'Large cases', 'hand_luggage' => 'Hand luggage', 'vehicle' => 'Vehicle', 'payment' => 'Payment', 'price' => 'Quoted', 'booked_by' => 'Booked by', 'notes' => 'Notes'] as $k => $label)
+                @foreach(\App\Models\PhoneCall::BOOKING_LABELS as $k => $label)
                     @if(filled($fields[$k] ?? null))
-                        <dt class="muted">{{ $label }}</dt><dd style="margin:0">{{ $k === 'price' ? '£'.number_format((float) $fields[$k], 2) : $fields[$k] }}</dd>
+                        <dt class="muted">{{ $label }}</dt><dd style="margin:0">{{ $k === 'price' ? '£'.number_format((float) $fields[$k], 2) : (is_bool($fields[$k]) || in_array($k, ['vat_invoice'], true) ? ($fields[$k] ? 'Yes' : 'No') : $fields[$k]) }}</dd>
                     @endif
+                @endforeach
+                @foreach(array_diff_key($fields, \App\Models\PhoneCall::BOOKING_LABELS) as $k => $v)
+                    @if(is_scalar($v) && filled($v))<dt class="muted">{{ ucfirst(str_replace('_', ' ', $k)) }}</dt><dd style="margin:0">{{ $v }}</dd>@endif
                 @endforeach
             </dl>
             <form method="POST" action="{{ route('intake.preview') }}" style="display:inline">
                 @csrf
-                @foreach($fields as $k => $v)<input type="hidden" name="fields[{{ $k }}]" value="{{ $v }}">@endforeach
+                @foreach($call->intakeFields() as $k => $v)<input type="hidden" name="fields[{{ $k }}]" value="{{ $v }}">@endforeach
                 <button class="btn btn-primary">Review and confirm booking</button>
             </form>
         </div>

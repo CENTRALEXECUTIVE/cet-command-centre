@@ -568,8 +568,6 @@ class CustomerAdminPriceParityTest extends TestCase
 
     private function widgetPayload(string $p, string $d, string $jt, VehicleType $vt, array $ex = [], bool $vat = false, ?string $voucher = null, string $when = self::OUT_AT, string $retWhen = self::RET_AT): array
     {
-        $airport = AirportMatcher::isAirport($p) || AirportMatcher::isAirport($d);
-
         return array_filter([
             'journey_type' => $jt,
             'pickup_address' => $p,
@@ -578,8 +576,12 @@ class CustomerAdminPriceParityTest extends TestCase
             'return_pickup_at' => $jt === 'return' ? $retWhen : null,
             'vehicle_type_id' => $vt->id,
             'passengers' => 2, 'suitcases' => 0, 'hand_luggage' => 1,
-            'flight_number' => $airport ? 'BA1234' : null,
-            'flight_landing_at' => $airport ? $when : null,
+            // Each leg's own flight, like the form (27 Nov 2026): the outbound's when it
+            // collects at an airport, the return's when the return collects at one.
+            'flight_number' => AirportMatcher::isAirport($p) ? 'BA1234' : null,
+            'flight_landing_at' => AirportMatcher::isAirport($p) ? $when : null,
+            'return_flight_number' => ($jt === 'return' && AirportMatcher::isAirport($d)) ? 'BA1235' : null,
+            'return_flight_landing_at' => ($jt === 'return' && AirportMatcher::isAirport($d)) ? $retWhen : null,
             'customer_name' => 'Parity Sweep', 'customer_phone' => '07700900111', 'customer_email' => 'sweep@example.com',
             'payment_method' => 'card',
             'child_seats' => $ex['child_seats'] ?? null,

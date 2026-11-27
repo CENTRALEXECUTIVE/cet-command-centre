@@ -50,8 +50,9 @@ class WidgetBookingErrorsShownTest extends TestCase
     public function test_the_landing_time_only_fills_the_return_when_the_airport_is_the_drop_off(): void
     {
         $html = $this->get(route('widget.book'))->getContent();
-        $this->assertStringContainsString('if (isAirportPickup() && whenEl && flightLandEl.value)', $html);
-        $this->assertStringContainsString('else if (isAirportReturn() && isAirportDropoff() && retEl', $html);
+        // Each landing time is paired with ITS leg's pickup time (27 Nov 2026).
+        $this->assertStringContainsString("pairTimes('b-flight-landing', 'b-when', function () { return isAirportPickup(); });", $html);
+        $this->assertStringContainsString("pairTimes('b-ret-flight-landing', 'b-return',", $html);
     }
 
     public function test_a_us_arrival_return_books_when_the_return_is_later(): void

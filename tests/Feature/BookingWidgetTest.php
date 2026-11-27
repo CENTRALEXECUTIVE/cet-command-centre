@@ -427,7 +427,7 @@ class BookingWidgetTest extends TestCase
             'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 1,
             'customer_name' => 'No Flight', 'customer_phone' => '07464905385',
-        ])->assertSessionHasErrors('flight_number');
+        ])->assertSessionHasErrors('return_flight_number'); // asked on the Return page (27 Nov 2026)
     }
 
     public function test_a_flight_number_is_not_required_going_to_the_airport_one_way(): void
@@ -583,7 +583,7 @@ class BookingWidgetTest extends TestCase
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
             'customer_name' => 'No Landing', 'customer_phone' => '07464905385',
             'flight_number' => 'BA1368',
-        ])->assertSessionHasErrors('flight_landing_at');
+        ])->assertSessionHasErrors('return_flight_landing_at'); // the return's flight (27 Nov 2026)
 
         $this->assertSame(0, \App\Models\Booking::count());
     }

@@ -83,7 +83,7 @@ class BookingHealthCheck extends Command
                 'destination_address' => 'Manchester Airport T2, Manchester M90 1QX, UK', 'destination_postcode' => 'M90 1QX',
                 'pickup_at' => $day->copy()->setTime(6, 0)->format('Y-m-d\TH:i'),
                 'return_pickup_at' => $day->copy()->addDays(3)->setTime(18, 30)->format('Y-m-d\TH:i'),
-                'flight_number' => 'BA1234', 'flight_landing_at' => $day->copy()->addDays(3)->setTime(18, 30)->format('Y-m-d\TH:i'),
+                'return_flight_number' => 'BA1234', 'return_flight_landing_at' => $day->copy()->addDays(3)->setTime(18, 30)->format('Y-m-d\TH:i'),
                 'payment_method' => 'card',
             ],
         ];

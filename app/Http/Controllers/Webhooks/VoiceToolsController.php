@@ -48,9 +48,18 @@ class VoiceToolsController extends Controller
         $this->authorise($request);
         $call = $this->call($request);
         $fields = collect($request->except(['secret', 'caller_id', 'conversation_id']))->filter(fn ($v) => $v !== null && $v !== '')->all();
-        [$result] = $this->agent->runTool($call, 'save_booking_request', $fields);
-        $call->save();
-        $alerts->notifyDirectors('ai_call', 'New phone booking request', $this->summary($call, ''), 'warning');
+        // Email the office FIRST (27 Nov 2026 standard): even if saving fails, the
+        // request with every detail the caller gave is already in the inbox.
+        $this->emailOffice('Phone booking request', $call->from_number, $fields, ! empty($fields['vat_invoice']));
+        try {
+            [$result] = $this->agent->runTool($call, 'save_booking_request', $fields);
+            $call->save();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[voice] booking request save failed: '.$e->getMessage());
+            $result = ['saved' => true, 'tell_caller' => 'The office will confirm the booking and send the confirmation shortly.'];
+        }
+        // CRITICAL like a web booking: never muted by "critical only".
+        $alerts->notifyDirectors('ai_call', '📞 New phone booking request', $this->summary($call, ''), 'critical');
 
         return response()->json($result);
     }
@@ -59,9 +68,15 @@ class VoiceToolsController extends Controller
     {
         $this->authorise($request);
         $call = $this->call($request);
-        [$result] = $this->agent->runTool($call, 'take_message', $request->only(['name', 'callback_number', 'message']));
-        $call->save();
-        $alerts->notifyDirectors('ai_call', 'Phone message', $this->summary($call, ''), 'warning');
+        $this->emailOffice('Phone message', $call->from_number, $request->only(['name', 'callback_number', 'message']), false);
+        try {
+            [$result] = $this->agent->runTool($call, 'take_message', $request->only(['name', 'callback_number', 'message']));
+            $call->save();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[voice] message save failed: '.$e->getMessage());
+            $result = ['saved' => true];
+        }
+        $alerts->notifyDirectors('ai_call', '📞 Phone message', $this->summary($call, ''), 'critical');
 
         return response()->json($result);
     }
@@ -99,10 +114,42 @@ class VoiceToolsController extends Controller
         $call->save();
         // Booking requests and messages already alerted live from their tool call.
         if ($call->needs_action && ! $call->booking_fields && ! $call->message) {
-            $alerts->notifyDirectors('ai_call', 'AI phone call needs you', $call->summary, 'warning');
+            $alerts->notifyDirectors('ai_call', '📞 AI phone call needs you', $call->summary, 'critical');
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Email the office every detail the caller gave (VAT → admin@, otherwise the PVT
+     * inbox — the directors' inbox rule). Sent after the response so the caller never
+     * waits; a mail failure is logged, never thrown.
+     */
+    private function emailOffice(string $what, ?string $from, array $fields, bool $vat): void
+    {
+        try {
+            $main = trim((string) config('cet.ops_email')) ?: null;
+            $pvt = \App\Models\Setting::get('mail_pvt_enabled', false)
+                ? trim((string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'))) : '';
+            $to = $vat ? $main : ($pvt !== '' ? $pvt : $main);
+            if (! $to) {
+                return;
+            }
+            $lines = collect($fields)->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '')
+                ->map(fn ($v, $k) => str_pad(ucfirst(str_replace('_', ' ', $k)).':', 24).(is_bool($v) ? ($v ? 'Yes' : 'No') : $v))->implode("\n");
+            $name = (string) ($fields['lead_name'] ?? $fields['name'] ?? 'caller');
+            $body = "{$what} taken by the AI phone agent".($from ? " (caller {$from})" : '').".\n"
+                ."Confirm it in the Command Centre: AI phone calls.\n\n".$lines;
+            \App\Support\AfterResponse::run(function () use ($to, $what, $name, $body) {
+                try {
+                    \Illuminate\Support\Facades\Mail::raw($body, fn ($m) => $m->to($to)->subject($what.' — '.$name));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[voice] office email failed: '.$e->getMessage());
+                }
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[voice] office email: '.$e->getMessage());
+        }
     }
 
     private function summary(PhoneCall $call, string $ai): string

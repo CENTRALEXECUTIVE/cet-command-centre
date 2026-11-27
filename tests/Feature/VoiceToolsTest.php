@@ -84,4 +84,38 @@ class VoiceToolsTest extends TestCase
             ->assertSee('current_time')->assertSee('save_booking_request')->assertSee('NEVER say a price', false)
             ->assertSee('system__caller_id');
     }
+
+    // 27 Nov 2026 standard: phone requests are critical, emailed to the office with every
+    // detail, and nothing the caller said is lost on the way into Paste a booking.
+    public function test_phone_booking_is_critical_emailed_and_keeps_every_detail(): void
+    {
+        config(['cet.ops_email' => 'admin@example.com']);
+        $sent = [];
+        \Illuminate\Support\Facades\Mail::shouldReceive('raw')->andReturnUsing(function ($body, $cb) use (&$sent) {
+            $sent[] = $body;
+        });
+        $admin = User::factory()->create(['role' => UserRole::Admin, 'is_super_admin' => true]);
+        $this->postJson(route('webhooks.voice-tools.booking', ['secret' => 'sek']), [
+            'lead_name' => 'Bill Example', 'contact_no' => '07700900222', 'pickup_at' => '2026-12-07 11:10',
+            'pickup_address' => 'Manchester Airport T2', 'destination_address' => 'Bessemer Park, Sheffield S9 1DZ', 'vehicle' => 'executive',
+            'flight_landing_at' => '2026-12-07 10:40', 'return_pickup_at' => '2026-12-08 15:00', 'child_seats' => 1,
+            'vat_invoice' => true, 'company_name' => 'Example Ltd', 'company_vat_number' => 'GB123', 'company_address' => '1 Test St',
+            'conversation_id' => 'conv9',
+        ])->assertOk();
+        app()->terminate();
+
+        $this->assertDatabaseHas('watchdog_events', ['event_type' => 'ai_call', 'severity' => 'critical']);
+        $this->assertNotEmpty($sent);
+        foreach (['Bill Example', '2026-12-08 15:00', 'GB123', 'Example Ltd', '2026-12-07 10:40'] as $want) {
+            $this->assertStringContainsString($want, $sent[0]);
+        }
+
+        $call = PhoneCall::where('call_sid', 'el-conv9')->first();
+        $notes = $call->intakeFields()['notes'];
+        foreach (['RETURN JOURNEY WANTED', 'Return pickup time: 2026-12-08 15:00', 'Flight lands: 2026-12-07 10:40', 'Child seats: 1', 'VAT number: GB123', 'Company: Example Ltd'] as $want) {
+            $this->assertStringContainsString($want, $notes);
+        }
+        $this->actingAs($admin)->get(route('phone-calls.show', $call))->assertOk()
+            ->assertSee('Return pickup time')->assertSee('GB123')->assertSee('Flight lands');
+    }
 }
