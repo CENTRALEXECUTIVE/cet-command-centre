@@ -111,6 +111,20 @@ class PublicBookingController extends Controller
             $started = now()->subSecond();
             $response = $this->storeBooking($request);
             $b = \App\Models\Booking::where('source', 'web')->where('created_at', '>=', $started)->latest('id')->first();
+            if (\App\Support\UnsavedBookingBackup::isSpam($request)) {
+                \App\Models\BookingAttempt::record('book', 'spam', $request);
+
+                return $response;
+            }
+            // Sent back with a message to fix (e.g. an invalid discount code) = refused, not lost.
+            if (! $b && $request->hasSession() && $request->session()->has('errors')) {
+                \App\Models\BookingAttempt::record('book', 'refused', $request, ['details' => ['errors' => $request->session()->get('errors')->toArray()]]);
+
+                return $response;
+            }
+            if (! $b) {
+                \App\Support\UnsavedBookingBackup::send($request, 'no booking made');
+            }
             \App\Models\BookingAttempt::record('book', $b ? (! empty($b->meta['quote_request']) ? 'quote_request' : 'booked') : 'submitted', $request,
                 $b ? ['booking_id' => $b->id, 'reference' => $b->reference, 'details' => ['price' => $b->quoted_price]] : []);
 
@@ -122,6 +136,7 @@ class PublicBookingController extends Controller
             throw $e;
         } catch (\Throwable $e) {
             \App\Models\BookingAttempt::record('book', 'error', $request, ['details' => ['message' => mb_substr($e->getMessage(), 0, 500)]]);
+            \App\Support\UnsavedBookingBackup::send($request, 'the booking form hit an error');
             throw $e;
         }
     }

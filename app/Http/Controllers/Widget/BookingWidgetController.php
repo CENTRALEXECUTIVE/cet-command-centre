@@ -359,19 +359,16 @@ class BookingWidgetController extends Controller
                     ->whereHas('customer', fn ($q) => $q->whereRaw('LOWER(email) = ?', [strtolower(trim((string) $email))]))
                     ->latest('id')->first();
             }
+            if (\App\Support\UnsavedBookingBackup::isSpam($request)) {
+                \App\Models\BookingAttempt::record('widget', 'spam', $request);
+
+                return $response;
+            }
             \App\Models\BookingAttempt::record('widget', $b ? (! empty($b->meta['quote_request']) ? 'quote_request' : 'booked') : 'submitted', $request,
                 $b ? ['booking_id' => $b->id, 'reference' => $b->reference, 'details' => ['price' => $b->quoted_price, 'vehicle' => $b->vehicleType?->name]] : []);
             // A press that made NO booking and matched none must never be silent.
             if (! $b) {
-                try {
-                    app(\App\Services\Watchdog\AdminAlerts::class)->notifyDirectors('price_on_request',
-                        '⚠ Website booking NOT saved — '.\Illuminate\Support\Str::limit(trim($request->input('customer_first_name').' '.$request->input('customer_surname')), 40),
-                        'A customer pressed Book on the website but no booking was created. Their details are in Booking log: tap it and use "Make booking from this".',
-                        'critical');
-                } catch (\Throwable) {
-                }
-                // Backup: email the office every detail the customer typed (27 Nov 2026).
-                $this->emailUnsavedPress($request);
+                \App\Support\UnsavedBookingBackup::send($request, 'no booking made');
             }
 
             return $response;
@@ -382,43 +379,8 @@ class BookingWidgetController extends Controller
             throw $e;
         } catch (\Throwable $e) {
             \App\Models\BookingAttempt::record('widget', 'error', $request, ['details' => ['message' => mb_substr($e->getMessage(), 0, 500)]]);
+            \App\Support\UnsavedBookingBackup::send($request, 'the booking form hit an error');
             throw $e;
-        }
-    }
-
-    /**
-     * A website press that saved no booking: email the office EVERYTHING the customer
-     * typed, so the trip can be booked by hand. VAT ticked → admin@, otherwise the PVT
-     * inbox (directors' rule). Never passwords or tokens.
-     */
-    private function emailUnsavedPress(Request $request): void
-    {
-        try {
-            $main = trim((string) config('cet.ops_email')) ?: null;
-            $pvt = \App\Models\Setting::get('mail_pvt_enabled', false)
-                ? trim((string) (\App\Models\Setting::get('mail_pvt_from_address') ?: config('cet.company_novat.email'))) : '';
-            $to = $request->boolean('vat_invoice') ? $main : ($pvt !== '' ? $pvt : $main);
-            if (! $to) {
-                return;
-            }
-            $fields = collect($request->except(['password', 'password_confirmation', '_token', 'submission_token', 'company', 'viewport']))
-                ->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '');
-            if (filled($fields->get('vehicle_type_id'))) {
-                $fields->put('vehicle', \App\Models\VehicleType::whereKey((int) $fields->get('vehicle_type_id'))->value('name'));
-            }
-            $name = trim($request->input('customer_first_name').' '.$request->input('customer_surname'));
-            $body = "A customer pressed Book on the website but NO booking was saved.\n"
-                ."Everything they typed is below. Book it by hand (Booking log → Make booking from this) and confirm with them.\n\n"
-                .$fields->map(fn ($v, $k) => str_pad(ucfirst(str_replace('_', ' ', $k)).':', 26).$v)->implode("\n");
-            \App\Support\AfterResponse::run(function () use ($to, $name, $body) {
-                try {
-                    \Illuminate\Support\Facades\Mail::raw($body, fn ($m) => $m->to($to)->subject('URGENT: website booking NOT saved — '.($name ?: 'customer')));
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('[widget] unsaved-press email failed: '.$e->getMessage());
-                }
-            });
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[widget] unsaved-press email: '.$e->getMessage());
         }
     }
 

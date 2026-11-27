@@ -101,27 +101,49 @@ class BookingLogOpenAndBookTest extends TestCase
         $this->assertArrayNotHasKey('password', $a->details['form']);
     }
 
-    public function test_a_press_that_saves_nothing_emails_the_office_every_detail(): void
+    public function test_a_press_that_saves_nothing_alerts_and_emails_the_office_every_detail(): void
     {
         $this->seed(VehicleTypeSeeder::class);
         config(['cet.ops_email' => 'office@example.com']);
-        \Illuminate\Support\Facades\Mail::fake();
         $sent = [];
         \Illuminate\Support\Facades\Mail::shouldReceive('raw')->once()->andReturnUsing(function ($body) use (&$sent) {
             $sent[] = $body;
         });
         $req = \Illuminate\Http\Request::create('/x', 'POST', $this->base(['password' => 'secret123', 'vat_invoice' => '1',
             'lead_passenger_name' => 'Bill Example', 'return_pickup_at' => '2026-12-08T15:00']));
-        $c = app(\App\Http\Controllers\Widget\BookingWidgetController::class);
-        $m = new \ReflectionMethod($c, 'emailUnsavedPress');
-        $m->setAccessible(true);
-        $m->invoke($c, $req);
+        \App\Support\UnsavedBookingBackup::send($req, 'test');
         app()->terminate();
-        $this->assertNotEmpty($sent);
         $this->assertStringContainsString('Bill Example', $sent[0]);
         $this->assertStringContainsString('2026-12-08T15:00', $sent[0]);
         $this->assertStringContainsString('Executive', $sent[0]);
         $this->assertStringNotContainsString('secret123', $sent[0]);
+        $this->assertSame(1, \App\Models\WatchdogEvent::where('severity', 'critical')->where('title', 'like', '%NOT saved%')->count());
+    }
+
+    public function test_a_spam_bot_never_triggers_the_backup_alert(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        \Illuminate\Support\Facades\Mail::fake();
+        $this->post(route('widget.book.store'), $this->base(['company' => 'bot-filled']))->assertOk();
+        $this->assertSame(0, \App\Models\WatchdogEvent::where('title', 'like', '%NOT saved%')->count());
+        $this->assertSame('spam', BookingAttempt::latest('id')->first()->outcome);
+        $this->assertSame(0, Booking::count());
+    }
+
+    public function test_a_crash_on_the_booking_form_alerts_and_emails_the_office(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        config(['cet.ops_email' => 'office@example.com']);
+        \Illuminate\Support\Facades\Mail::fake();
+        \App\Models\Customer::creating(fn () => throw new \RuntimeException('database down'));
+        $this->withoutExceptionHandling();
+        try {
+            $this->post(route('widget.book.store'), $this->base());
+            $this->fail('expected the crash to surface');
+        } catch (\RuntimeException) {
+        }
+        $this->assertSame('error', BookingAttempt::latest('id')->first()->outcome);
+        $this->assertSame(1, \App\Models\WatchdogEvent::where('severity', 'critical')->where('title', 'like', '%NOT saved%')->count());
     }
 
     public function test_rolls_royce_only_on_request_never_shows_in_any_view(): void
