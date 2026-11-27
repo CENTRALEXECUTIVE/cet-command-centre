@@ -73,7 +73,7 @@
                     $inSales = request()->routeIs('enquiries.*', 'customers.*', 'accounts.*', 'invoices.*', 'cover-invoices.*', 'payments.*', 'pricing.*', 'waiting-list.*', 'outreach.*');
                     $inMarketing = request()->routeIs('review.*', 'marketing.*', 'reports.*', 'social.*');
                     $inFleet = request()->routeIs('compliance.*', 'driver-documents.*', 'cover-drivers.*', 'rotation.*', 'route-order.*', 'fleet-photos.*', 'driver.documents*');
-                    $inAdmin = request()->routeIs('imports.*', 'audit.*', 'booking-log.*', 'users.*', 'settings.*', 'gdpr.*');
+                    $inAdmin = request()->routeIs('imports.*', 'audit.*', 'booking-log.*', 'business-leads.*', 'users.*', 'settings.*', 'gdpr.*');
                 @endphp
 
                 <details class="nav-fold" @if($inSales) open @endif>
@@ -121,6 +121,7 @@
                     <summary>Admin &amp; data</summary>
                     <a href="{{ route('imports.index') }}" class="{{ request()->routeIs('imports.*') ? 'active' : '' }}">Imports</a>
                     <a href="{{ route('booking-log.index') }}" class="{{ request()->routeIs('booking-log.*') ? 'active' : '' }}">Booking log</a>
+                    <a href="{{ route('business-leads.index') }}" class="{{ request()->routeIs('business-leads.*') ? 'active' : '' }}">Business leads</a>
                     <a href="{{ route('audit.index') }}" class="{{ request()->routeIs('audit.*') ? 'active' : '' }}">ETO audit</a>
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">Users</a>
                     <a href="{{ route('settings.hub') }}" class="{{ request()->routeIs('settings.*', 'vehicles.*', 'free-roam.*', 'extras.*', 'pricing.*') ? 'active' : '' }}">⚙️ Settings</a>
