@@ -921,7 +921,9 @@ class BookingWidgetController extends Controller
             $when = $pickupAt->format('D d M, H:i');
             // A quote request needs a PRICE from us: it stays on the dashboard as a sticky
             // warning until someone acknowledges it (26 Nov 2026: a JELD-WEN request was missed).
-            \App\Models\WatchdogEvent::log('web_booking', ($isQuoteRequest ? '💬 Quote request — price needed — ' : 'New web booking request — ').$name, $isQuoteRequest ? 'warning' : 'info', $booking);
+            // CRITICAL (directors, 27 Nov 2026: "I didn't get notified"): a new website booking
+            // must never be muted by the "critical only" switch, and stays sticky until Done.
+            \App\Models\WatchdogEvent::log('web_booking', ($isQuoteRequest ? '💬 Quote request — price needed — ' : '🔔 New web booking — ').$name, 'critical', $booking);
             $typeLabel = $isQuoteRequest ? ' ('.$vehicleType->name.' — quote request)'
                 : ($isHourly ? ' (hourly hire)' : ($isReturn ? ' (return)' : ''));
             $action = $isQuoteRequest
@@ -933,7 +935,7 @@ class BookingWidgetController extends Controller
                     : ($booking->payment_method === 'account' ? '✅ New ACCOUNT booking — ' : '🕓 New booking, awaiting payment — '))).$name.$typeLabel,
                 $name.' requested '.$when.$typeLabel.': '.\Illuminate\Support\Str::limit($pickupFull, 30)
                     .' → '.\Illuminate\Support\Str::limit($destination, 30).'. '.$action,
-                $isQuoteRequest ? 'warning' : 'info', $booking);
+                'critical', $booking);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('[widget] office alert failed: '.$e->getMessage());
         }

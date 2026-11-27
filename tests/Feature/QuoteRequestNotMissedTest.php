@@ -35,8 +35,24 @@ class QuoteRequestNotMissedTest extends TestCase
         $b = Booking::latest('id')->first();
         $this->assertNotEmpty($b->meta['quote_request'] ?? null);
         $ev = WatchdogEvent::where('booking_id', $b->id)->where('event_type', 'web_booking')->first();
-        $this->assertSame('warning', $ev->severity);
+        $this->assertSame('critical', $ev->severity); // never muted (27 Nov 2026)
         $this->assertStringContainsString('price needed', $ev->title);
         Mail::assertSent(\App\Mail\OfficeBookingMail::class, fn ($m) => str_contains($m->envelope()->subject, 'QUOTE REQUEST'));
+    }
+
+    public function test_a_normal_website_booking_alert_is_critical_so_it_is_never_muted(): void
+    {
+        $this->seed(VehicleTypeSeeder::class);
+        Mail::fake();
+        $this->post(route('widget.book.store'), [
+            'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
+            'destination_address' => 'Rotherham S60 5WG', 'destination_postcode' => 'S60 5WG',
+            'pickup_at' => now()->addDays(10)->format('Y-m-d\TH:i'),
+            'vehicle_type_id' => VehicleType::where('slug', 'executive')->value('id'), 'passengers' => 1,
+            'customer_first_name' => 'Alert', 'customer_surname' => 'Check',
+            'customer_phone' => '07700900432', 'customer_email' => 'alert@example.com',
+        ])->assertOk();
+        $b = \App\Models\Booking::latest('id')->first();
+        $this->assertSame('critical', WatchdogEvent::where('booking_id', $b->id)->where('event_type', 'web_booking')->value('severity'));
     }
 }

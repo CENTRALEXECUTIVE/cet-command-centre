@@ -166,7 +166,7 @@ class StatusWatchdog
                 : ($paid ? '🔔 New PAID booking — ' : ($b->payment_method === 'cash' ? '🔔 New CASH booking — ' : '🔔 New booking, awaiting payment — '))).$name;
             $sent += (int) $this->admins->send($b, 'new_booking_repeat', 'web_booking', $title,
                 $name.' · '.$b->pickup_at?->timezone(config('app.timezone'))->format('D d M H:i').'. Open it to stop these reminders.',
-                severity: 'info', maxSends: 2, repeatMinutes: 2);
+                severity: 'critical', maxSends: 2, repeatMinutes: 2); // never muted by "critical only"
         }
 
         return $sent;
