@@ -97,7 +97,11 @@ class OfficeBookingMail extends Mailable
                     'booking' => $b,
                     'title' => $isPair ? ($b->is_return_leg ? 'Return journey' : 'Outbound journey') : 'Journey '.($i + 1),
                     'amount' => (float) ($b->amountPayable() ?? 0),
+                    // Ex-VAT fare for the journey line (27 Nov 2026: the office copy showed
+                    // £138 inc. VAT per leg; it should read £115 + VAT at the bottom).
+                    'net' => (float) ($b->vatInvoiceRequested() ? ($b->fareGross() ?? 0) : ($b->amountPayable() ?? 0)),
                 ])->all(),
+                'vat' => round($legs->sum(fn ($b) => (float) $b->vatOnTopAmount()), 2),
                 'total' => $total,
                 'due' => $due,
                 'paid' => round(max(0.0, $total - $due), 2),

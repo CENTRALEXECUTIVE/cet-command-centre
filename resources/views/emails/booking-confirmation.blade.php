@@ -137,8 +137,12 @@
                     if ($cands) {
                         // Same payment split across legs → add the shares; a later payment
                         // (e.g. a balance) → just that one. Never more than the trip's paid total.
-                        $byId = collect($cands)->groupBy(fn ($c) => (string) ($c['id'] ?? ''));
-                        $latestId = collect($cands)->sortByDesc(fn ($c) => (string) ($c['at'] ?? ''))->first()['id'] ?? '';
+                        // The other leg's share of a trip payment is recorded as "<id>-L<leg>",
+                        // so group on the base id: one card payment = one figure (27 Nov 2026:
+                        // a £264 return showed "Payment received: £138" — one leg's share).
+                        $baseId = fn ($c) => preg_replace('/-L\d+$/', '', (string) ($c['id'] ?? ''));
+                        $byId = collect($cands)->groupBy($baseId);
+                        $latestId = $baseId(collect($cands)->sortByDesc(fn ($c) => (string) ($c['at'] ?? ''))->first() ?? []);
                         $group = $byId->get((string) $latestId, collect([$cands[0]]));
                         $lastOnline = $group->first();
                         $lastOnline['amount'] = round($group->sum(fn ($c) => (float) ($c['amount'] ?? 0)), 2);

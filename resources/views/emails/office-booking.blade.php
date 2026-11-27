@@ -96,7 +96,7 @@
             {!! $row('Flight', $b->displayFlightNumber()) !!}
             @if($b->isMeetGreet()){!! $row('Meet &amp; greet', $b->meetGreetLabel() ?: 'Yes') !!}@endif
             {!! $row('Child seats', $b->displayChildSeats()) !!}
-            @if($trip && $leg['amount'] !== null){!! $row('Fare', '£'.number_format($leg['amount'], 2)) !!}@endif
+            @if($trip && $leg['amount'] !== null){!! $row($trip['vat'] > 0 ? 'Fare (excl. VAT)' : 'Fare', '£'.number_format($leg['net'], 2)) !!}@endif
         </table>
     </td></tr>
     @endforeach
@@ -120,8 +120,13 @@
             <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:14px">
                 @foreach($trip['legs'] as $leg)
                     <tr><td style="padding:5px 0;color:#555">{{ $leg['title'] }} — {{ $leg['booking']->pickup_at?->timezone(config('app.timezone'))->format('D d M, H:i') }}</td>
-                        <td align="right" style="padding:5px 0;font-weight:600">£{{ number_format($leg['amount'], 2) }}</td></tr>
+                        <td align="right" style="padding:5px 0;font-weight:600">£{{ number_format($leg['net'], 2) }}</td></tr>
                 @endforeach
+                @if($trip['vat'] > 0)
+                    <tr><td style="padding:8px 0 3px;border-top:1px solid #eee;color:#555">Subtotal (excl. VAT)</td>
+                        <td align="right" style="padding:8px 0 3px;border-top:1px solid #eee;font-weight:600">£{{ number_format($trip['total'] - $trip['vat'], 2) }}</td></tr>
+                    <tr><td style="padding:3px 0;color:#555">VAT (20%)</td><td align="right" style="padding:3px 0;font-weight:600">£{{ number_format($trip['vat'], 2) }}</td></tr>
+                @endif
                 <tr><td style="padding:8px 0 4px;border-top:1px solid #eee;font-weight:800">Total (whole trip)</td>
                     <td align="right" style="padding:8px 0 4px;border-top:1px solid #eee;font-weight:800">£{{ number_format($trip['total'], 2) }}</td></tr>
                 <tr><td style="padding:3px 0;color:#1f7a44">Paid</td><td align="right" style="padding:3px 0;color:#1f7a44;font-weight:700">£{{ number_format($trip['paid'], 2) }}</td></tr>
