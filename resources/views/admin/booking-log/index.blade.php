@@ -19,27 +19,26 @@
     @elseif($attempts->isEmpty())
         <div class="card">Nothing recorded{{ $filter === 'problems' ? ' — no problems' : '' }}.</div>
     @else
-        <div class="card" style="overflow-x:auto;padding:0">
-            <table class="table" style="width:100%;min-width:720px">
-                <thead><tr><th>When</th><th>Result</th><th>Customer</th><th>Journey</th><th>Detail</th></tr></thead>
-                <tbody>
-                @foreach($attempts as $a)
-                    @php
-                        $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Submitted'][$a->outcome] ?? $a->outcome;
-                        $d = (array) ($a->details ?? []);
-                        $detail = isset($d['errors']) ? collect($d['errors'])->flatten()->implode(' ')
-                            : ($d['message'] ?? (isset($d['vehicles']) ? implode(', ', $d['vehicles']) : (isset($d['price']) ? '£'.number_format((float) $d['price'], 2) : '')));
-                    @endphp
-                    <tr>
-                        <td style="white-space:nowrap">{{ $a->created_at?->timezone(config('app.timezone'))->format('D d M H:i') }}<br><small>{{ $a->form }}</small></td>
-                        <td style="white-space:nowrap">{{ $label }}@if($a->booking_id)<br><a href="{{ route('bookings.show', $a->booking_id) }}">{{ $a->reference }}</a>@endif</td>
-                        <td>{{ $a->customer_name ?? '—' }}<br><small>{{ $a->contact }}</small></td>
-                        <td><small>{{ $a->pickup }} → {{ $a->destination }}@if($a->pickup_at)<br>{{ $a->pickup_at }}@endif</small></td>
-                        <td><small>{{ \Illuminate\Support\Str::limit($detail, 220) }}</small></td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
+        {{-- Cards (phone-friendly): every entry shows when, result, customer, journey, detail and a button to the booking. --}}
+        <div style="display:flex;flex-direction:column;gap:10px">
+        @foreach($attempts as $a)
+            @php
+                $label = ['booked' => '✅ Booked', 'quote_request' => '💬 Quote request', 'refused' => '⛔ Refused', 'error' => '❌ Error', 'price_on_request' => '⚠ Showed "On request"', 'submitted' => '❔ Submitted'][$a->outcome] ?? $a->outcome;
+                $d = (array) ($a->details ?? []);
+                $detail = isset($d['errors']) ? collect($d['errors'])->flatten()->implode(' ')
+                    : ($d['message'] ?? (isset($d['vehicles']) ? implode(', ', $d['vehicles']) : (isset($d['price']) ? '£'.number_format((float) $d['price'], 2).(isset($d['vehicle']) ? ' · '.$d['vehicle'] : '') : '')));
+            @endphp
+            <div class="card" style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                    <strong>{{ $label }}</strong>
+                    <span class="muted" style="font-size:13px">{{ $a->created_at?->timezone(config('app.timezone'))->format('D d M H:i') }} · {{ $a->form }}</span>
+                </div>
+                @if($a->customer_name || $a->contact)<div>{{ $a->customer_name ?? '—' }} <span class="muted" style="font-size:13px;word-break:break-all">{{ $a->contact }}</span></div>@endif
+                <div style="font-size:14px">{{ $a->pickup }} → {{ $a->destination }}@if($a->pickup_at) <span class="muted">· {{ $a->pickup_at }}</span>@endif</div>
+                @if($detail)<div class="muted" style="font-size:13px">{{ \Illuminate\Support\Str::limit($detail, 300) }}</div>@endif
+                @if($a->booking_id)<div><a class="btn" href="{{ route('bookings.show', $a->booking_id) }}">Open booking {{ $a->reference }}</a></div>@endif
+            </div>
+        @endforeach
         </div>
         <div style="margin-top:12px">{{ $attempts->links() }}</div>
     @endif

@@ -307,7 +307,11 @@ class BookingWidgetController extends Controller
 
         // Silently log any vehicle showing "On request" for this journey (once per route
         // per 10 minutes, so typing doesn't flood the log).
+        // The Rolls-Royce (and any always-on-request class) is ignored: only a normally
+        // priced car showing "On request" is a problem worth logging (27 Nov 2026).
         $poa = collect($options)->filter(fn ($o) => ! empty($o['poa']))->pluck('id')->all();
+        $poa = \App\Models\VehicleType::whereIn('id', $poa)
+            ->whereIn('slug', ['executive', 'estate', 'v-class', 'minibus-8', 'minibus-8-xl'])->pluck('id')->all();
         if ($poa && \Illuminate\Support\Facades\Cache::add('attempt-poa:'.md5(strtolower($data['pickup'].'|'.$data['destination'])), 1, now()->addMinutes(10))) {
             $poaTypes = \App\Models\VehicleType::whereIn('id', $poa)->get(['id', 'name', 'slug']);
             \App\Models\BookingAttempt::record('prices', 'price_on_request', $request, ['details' => [
@@ -346,6 +350,12 @@ class BookingWidgetController extends Controller
             $response = $this->storeBooking($request);
             // Silent log: which booking this submit made (or matched as a repeat click).
             $b = Booking::where('source', 'web')->where('created_at', '>=', $started)->where('is_return_leg', false)->latest('id')->first();
+            // A repeat click is answered with the booking made moments ago: find it by email.
+            if (! $b && filled($email = $request->input('customer_email'))) {
+                $b = Booking::where('source', 'web')->where('is_return_leg', false)->where('created_at', '>=', now()->subMinutes(30))
+                    ->whereHas('customer', fn ($q) => $q->whereRaw('LOWER(email) = ?', [strtolower(trim((string) $email))]))
+                    ->latest('id')->first();
+            }
             \App\Models\BookingAttempt::record('widget', $b ? (! empty($b->meta['quote_request']) ? 'quote_request' : 'booked') : 'submitted', $request,
                 $b ? ['booking_id' => $b->id, 'reference' => $b->reference, 'details' => ['price' => $b->quoted_price, 'vehicle' => $b->vehicleType?->name]] : []);
 

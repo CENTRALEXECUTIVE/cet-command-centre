@@ -41,9 +41,8 @@ class BookingLogTest extends TestCase
 
         $rr = VehicleType::where('slug', 'rolls-royce-ghost')->first();
         $this->postJson(route('widget.prices'), ['pickup' => 'Manchester Airport (MAN)', 'destination' => 'Sheffield S1 2HH', 'pickup_at' => now()->addDays(10)->format('Y-m-d\TH:i')])->assertOk();
-        if ($rr) {
-            $this->assertSame('price_on_request', BookingAttempt::latest('id')->first()->outcome);
-        }
+        // Only the Rolls-Royce is "On request" here: that's normal, so nothing is logged.
+        $this->assertSame(0, BookingAttempt::where('outcome', 'price_on_request')->count());
 
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->get(route('booking-log.index', ['show' => 'all']))->assertOk()->assertSee('Log Tester');
