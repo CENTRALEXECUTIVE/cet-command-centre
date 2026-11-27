@@ -26,6 +26,16 @@ class DistanceService
 
         if ($this->configured()) {
             $api = $this->queryGoogle($pickup, $destination);
+            // Google couldn't place an address (e.g. a building name it doesn't know in
+            // front of the street — "23 Brearley Hall, Woodmere Drive…")? Retry with just
+            // the postcode of each end before falling back to an estimate (27 Nov 2026).
+            if (! $api) {
+                $p2 = $this->postcodeOnly($pickup);
+                $d2 = $this->postcodeOnly($destination);
+                if ($p2 !== $pickup || $d2 !== $destination) {
+                    $api = $this->queryGoogle($p2, $d2);
+                }
+            }
             if ($api) {
                 return $api + ['source' => 'google'];
             }
@@ -33,6 +43,14 @@ class DistanceService
 
         // Conservative default keeps quoting available without a maps provider.
         return ['miles' => $miles ?? 10.0, 'minutes' => $minutes ?? 25, 'source' => 'estimate'];
+    }
+
+    /** "S41 9TA, UK" when the address holds a full UK postcode, else the address unchanged. */
+    private function postcodeOnly(string $address): string
+    {
+        return preg_match('/\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i', $address, $m)
+            ? strtoupper($m[1].' '.$m[2]).', UK'
+            : $address;
     }
 
     public function configured(): bool
