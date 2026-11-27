@@ -2228,7 +2228,7 @@
     .cet-dt-field { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
         padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--cream);
         font-family:inherit; font-size:14.5px; color:var(--ink); cursor:pointer; text-align:left; }
-    .cet-dt.open .cet-dt-field, .cet-dt-field:focus { outline:none; border-color:var(--gold); background:#fff;
+    .cet-dt.open .cet-dt-field, .cet-dt-field:focus { outline:none; border-color:var(--gold);
         box-shadow:0 0 0 4px rgba(251,186,42,.18); }
     .cet-dt-field .ph { color:#9a9aa2; }
     .cet-dt-field svg { flex:0 0 auto; }
@@ -2260,6 +2260,10 @@
     .cet-cal-time select { padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:#fff;
         font-family:inherit; font-size:14px; font-weight:600; color:#0b0b0c; }
     .cet-cal-time .sep { font-weight:700; color:var(--muted); }
+    .cet-cal-done { display:block; width:100%; margin-top:9px; padding:10px; border:0; border-radius:9px;
+        background:var(--gold); color:#0b0b0c; font-family:inherit; font-size:14.5px; font-weight:800; cursor:pointer; }
+    .cet-cal-done[disabled] { opacity:.45; cursor:default; }
+    .cet-cal-hint { text-align:center; font-size:12px; color:var(--muted-2); margin-top:6px; }
 </style>
 <script defer>
 (function () {
@@ -2306,7 +2310,14 @@
         var mnSel = document.createElement('select'); for (var mn = 0; mn < 60; mn += 5) { var om = document.createElement('option'); om.value = pad(mn); om.textContent = pad(mn); mnSel.appendChild(om); }
         timeRow.appendChild(hSel); timeRow.appendChild(sep); timeRow.appendChild(mnSel);
 
-        cal.appendChild(head); cal.appendChild(grid); cal.appendChild(timeRow);
+        // Stays open until the customer presses Done (27 Nov 2026: it closed on the day tap,
+        // and there was nothing to press after choosing the time).
+        var hint = document.createElement('div'); hint.className = 'cet-cal-hint'; hint.textContent = 'Choose a day, then the time, then press Done.';
+        var done = document.createElement('button'); done.type = 'button'; done.className = 'cet-cal-done'; done.textContent = 'Done ✓';
+        cal.appendChild(head); cal.appendChild(grid); cal.appendChild(timeRow); cal.appendChild(hint); cal.appendChild(done);
+        // Clicks inside the calendar never count as "outside" (a day tap redraws the grid,
+        // so the tapped cell is gone by the time the page-level handler looks at it).
+        cal.addEventListener('click', function (e) { e.stopPropagation(); });
         if (sel) { hSel.value = pad(sel.getHours()); mnSel.value = pad(Math.floor(sel.getMinutes() / 5) * 5); }
 
         function fit() { if (!widget) return; var b = cal.getBoundingClientRect().bottom + (window.pageYOffset || 0); post(Math.max(widget.offsetHeight, b) + 20); }
@@ -2348,12 +2359,17 @@
         }
         function pickDay(d) {
             sel = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hSel.value, 10), parseInt(mnSel.value, 10));
-            render(); commit(); close();
+            render(); commit(); syncDone();
+            hint.textContent = 'Now choose the time, then press Done.';
+            try { hSel.focus(); } catch (e) {}
         }
+        function syncDone() { done.disabled = !sel; }
+        done.addEventListener('click', function () { if (!sel) return; commit(); close(); try { field.focus(); } catch (e) {} });
         function open() {
             closeAll();
             document.body.appendChild(cal); cal.classList.add('show'); dt.classList.add('open');
-            render(); position();
+            render(); position(); syncDone();
+            hint.textContent = sel ? 'Change the day or time, then press Done.' : 'Choose a day, then the time, then press Done.';
             setTimeout(function () { position(); fit(); }, 0);
         }
         function close() {
