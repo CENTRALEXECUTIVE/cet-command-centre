@@ -651,7 +651,8 @@
                             <button type="button" id="b-add-stop" class="cet-addstop">＋ Add a stop <span class="opt">(optional)</span></button>
                         </div>
                         <div class="cet-two" id="b-when-row" style="grid-template-columns:1fr">
-                            <div class="cet-field"><label for="b-when">Pickup date &amp; time</label>
+                            <div class="cet-field"><label for="b-when" id="b-when-label">Pickup date &amp; time</label>
+                                <p class="cet-foot" id="b-when-hint" style="text-align:left;margin:-2px 0 6px" hidden>Your driver will be there when you land. We track the flight, so delays are covered.</p>
                                 <input id="b-when" name="pickup_at" value="{{ old('pickup_at') }}" type="datetime-local" required></div>
                         </div>
                         {{-- The outbound collects at an AIRPORT → its flight is asked HERE (27 Nov 2026). --}}
@@ -713,7 +714,8 @@
                     <div class="cet-step" data-step="4" hidden>
                         <div class="cet-step-title">↩️ Your return journey</div>
                         <div class="cet-field" id="b-return-field">
-                            <label for="b-return">Return date &amp; time</label>
+                            <label for="b-return" id="b-return-label">Return date &amp; time</label>
+                            <p class="cet-foot" id="b-return-hint" style="text-align:left;margin:-2px 0 6px" hidden>Your driver will be there when you land. We track the flight, so delays are covered.</p>
                             <input id="b-return" name="return_pickup_at" value="{{ old('return_pickup_at') }}" type="datetime-local">
                         </div>
                         <div class="cet-field" id="b-return-pickup-field"><label for="b-return-pickup">Return pickup address</label>
@@ -1101,7 +1103,9 @@
             var retEl = document.getElementById('b-return');
             (function () {
                 var earliest = earliestAllowed();
-                if (whenEl) { whenEl.min = fmtLocal(earliest); if (!whenEl.value) whenEl.value = fmtLocal(earliest); }
+                // No pre-filled time (27 Nov 2026): a pre-filled "earliest allowed" time (often
+                // 00:00/01:00) was easy to leave by mistake. The customer always chooses.
+                if (whenEl) { whenEl.min = fmtLocal(earliest); }
                 if (retEl) { retEl.min = fmtLocal(earliest); }
             })();
             var noticeEl = document.getElementById('b-notice');
@@ -1338,6 +1342,7 @@
                     if (!okR) { showErr(4, 'Please fill in your return date, time, addresses, passengers and luggage.'); if (firstR) firstR.focus(); return false; }
                     if (airportIn(retPickupVal())) {
                         var rfIn = document.getElementById('b-ret-flight-no'), rlIn = document.getElementById('b-ret-flight-landing');
+                        var rwIn = document.getElementById('b-return'); if (rlIn && rwIn && rwIn.value) rlIn.value = rwIn.value;
                         if (!nonEmpty(rfIn)) { document.getElementById('b-ret-flight-field').classList.add('bad'); showErr(4, 'Please enter the flight number for your return airport pickup.'); rfIn.focus(); return false; }
                         if (!nonEmpty(rlIn)) { document.getElementById('b-ret-flight-landing-field').classList.add('bad'); showErr(4, 'Please enter the landing time of your return flight.'); return false; }
                     }
@@ -1365,6 +1370,7 @@
                     if (!ok) { showErr(1, 'Please fill in the highlighted journey details.'); if (first) first.focus(); }
                     if (ok && isAirportPickup()) {
                         var fIn = document.getElementById('b-flight'), lIn = document.getElementById('b-flight-landing');
+                        var wIn = document.getElementById('b-when'); if (lIn && wIn && wIn.value) lIn.value = wIn.value;
                         if (!nonEmpty(fIn)) { document.getElementById('b-flight-field').classList.add('bad'); showErr(1, 'Please enter the flight number for your airport pickup.'); fIn.focus(); return false; }
                         if (!nonEmpty(lIn)) { document.getElementById('b-flight-landing-field').classList.add('bad'); showErr(1, 'Please enter your flight’s landing time so we can track it.'); return false; }
                     }
@@ -1882,6 +1888,20 @@
                 var ob = document.getElementById('b-out-flight'), rb = document.getElementById('b-ret-flight');
                 if (ob) ob.hidden = !outAir;
                 if (rb) rb.hidden = !retAir;
+                // ONE box on an airport pickup (27 Nov 2026): the pickup time IS the landing
+                // time, so the date box becomes "Flight landing date & time" and the separate
+                // landing box goes (its hidden value is kept in step for the office).
+                function oneBox(labelId, hintId, landFieldId, on, normal, airport) {
+                    var l = document.getElementById(labelId), h = document.getElementById(hintId), f = document.getElementById(landFieldId);
+                    if (l) l.textContent = on ? airport : normal;
+                    if (h) h.hidden = !on;
+                    if (f) f.hidden = on;
+                }
+                oneBox('b-when-label', 'b-when-hint', 'b-flight-landing-field', outAir, 'Pickup date & time', 'Flight landing date & time');
+                oneBox('b-return-label', 'b-return-hint', 'b-ret-flight-landing-field', retAir, 'Return date & time', 'Return flight landing date & time');
+                function keep(fromId, toId, on) { var a = document.getElementById(fromId), b = document.getElementById(toId); if (on && a && b && a.value && b.value !== a.value) b.value = a.value; }
+                keep('b-when', 'b-flight-landing', outAir);
+                keep('b-return', 'b-ret-flight-landing', retAir);
                 var dropAir = isAirportDropoff() || (isRet && airportIn(retDropVal()));
                 var fsec = document.getElementById('b-flight-section'), of = document.getElementById('b-flight-other-field');
                 if (fsec) fsec.hidden = !dropAir;
@@ -2305,9 +2325,13 @@
         var grid = document.createElement('div'); grid.className = 'cet-cal-grid';
 
         var timeRow = document.createElement('div'); timeRow.className = 'cet-cal-time';
-        var hSel = document.createElement('select'); for (var h = 0; h < 24; h++) { var oh = document.createElement('option'); oh.value = pad(h); oh.textContent = pad(h); hSel.appendChild(oh); }
+        var hSel = document.createElement('select');
+        (function () { var o = document.createElement('option'); o.value = ''; o.textContent = '--'; hSel.appendChild(o); })();
+        for (var h = 0; h < 24; h++) { var oh = document.createElement('option'); oh.value = pad(h); oh.textContent = pad(h); hSel.appendChild(oh); }
         var sep = document.createElement('span'); sep.className = 'sep'; sep.textContent = ':';
-        var mnSel = document.createElement('select'); for (var mn = 0; mn < 60; mn += 5) { var om = document.createElement('option'); om.value = pad(mn); om.textContent = pad(mn); mnSel.appendChild(om); }
+        var mnSel = document.createElement('select');
+        (function () { var o = document.createElement('option'); o.value = ''; o.textContent = '--'; mnSel.appendChild(o); })();
+        for (var mn = 0; mn < 60; mn += 5) { var om = document.createElement('option'); om.value = pad(mn); om.textContent = pad(mn); mnSel.appendChild(om); }
         timeRow.appendChild(hSel); timeRow.appendChild(sep); timeRow.appendChild(mnSel);
 
         // Stays open until the customer presses Done (27 Nov 2026: it closed on the day tap,
@@ -2330,12 +2354,14 @@
             cal.style.top = (r.bottom + (window.pageYOffset || 0) + 6) + 'px';
             cal.style.left = left + 'px';
         }
+        // No time is assumed (27 Nov 2026: a day tap defaulted to 00:00, easy to miss).
+        function timeSet() { return hSel.value !== '' && mnSel.value !== ''; }
         function label() {
             if (!sel) { fieldText.innerHTML = '<span class="ph">Choose date &amp; time</span>'; return; }
-            fieldText.textContent = sel.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + hSel.value + ':' + mnSel.value;
+            fieldText.textContent = sel.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + (hSel.value || '--') + ':' + (mnSel.value || '--');
         }
         function commit() {
-            el.value = sel ? (sel.getFullYear() + '-' + pad(sel.getMonth() + 1) + '-' + pad(sel.getDate()) + 'T' + hSel.value + ':' + mnSel.value) : '';
+            el.value = (sel && timeSet()) ? (sel.getFullYear() + '-' + pad(sel.getMonth() + 1) + '-' + pad(sel.getDate()) + 'T' + hSel.value + ':' + mnSel.value) : '';
             el.dispatchEvent(new Event('change')); label();
         }
         function render() {
@@ -2358,13 +2384,13 @@
             }
         }
         function pickDay(d) {
-            sel = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hSel.value, 10), parseInt(mnSel.value, 10));
+            sel = new Date(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(hSel.value || '0', 10), parseInt(mnSel.value || '0', 10));
             render(); commit(); syncDone();
-            hint.textContent = 'Now choose the time, then press Done.';
+            hint.textContent = timeSet() ? 'Press Done, or change the time.' : 'Now choose the time (hour and minutes), then press Done.';
             try { hSel.focus(); } catch (e) {}
         }
-        function syncDone() { done.disabled = !sel; }
-        done.addEventListener('click', function () { if (!sel) return; commit(); close(); try { field.focus(); } catch (e) {} });
+        function syncDone() { done.disabled = !(sel && timeSet()); }
+        done.addEventListener('click', function () { if (!sel || !timeSet()) return; commit(); close(); try { field.focus(); } catch (e) {} });
         function open() {
             closeAll();
             document.body.appendChild(cal); cal.classList.add('show'); dt.classList.add('open');
@@ -2383,15 +2409,19 @@
         next.addEventListener('click', function () { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); setTimeout(fit, 0); });
         mSel.addEventListener('change', function () { viewM = parseInt(mSel.value, 10); render(); });
         ySel.addEventListener('change', function () { viewY = parseInt(ySel.value, 10); render(); });
-        hSel.addEventListener('change', function () { sel ? commit() : label(); });
-        mnSel.addEventListener('change', function () { sel ? commit() : label(); });
+        function timeChanged() {
+            sel ? commit() : label(); syncDone();
+            if (sel) hint.textContent = timeSet() ? 'Press Done.' : 'Choose the hour and the minutes, then press Done.';
+        }
+        hSel.addEventListener('change', timeChanged);
+        mnSel.addEventListener('change', timeChanged);
         document.addEventListener('click', function (e) { if (dt.classList.contains('open') && !dt.contains(e.target) && !cal.contains(e.target)) close(); });
 
         // Keep the visible date in step when the form changes the value itself (the
         // landing time setting the pickup, a restored value, etc.). Before this the box
         // kept showing the old date while a different one was sent (24 Nov 2026).
         el.addEventListener('change', function () {
-            var cur = sel ? (sel.getFullYear() + '-' + pad(sel.getMonth() + 1) + '-' + pad(sel.getDate()) + 'T' + hSel.value + ':' + mnSel.value) : '';
+            var cur = (sel && timeSet()) ? (sel.getFullYear() + '-' + pad(sel.getMonth() + 1) + '-' + pad(sel.getDate()) + 'T' + hSel.value + ':' + mnSel.value) : '';
             if (el.value === cur) return;
             var d = el.value ? new Date(el.value) : null;
             if (d && isNaN(d)) return;

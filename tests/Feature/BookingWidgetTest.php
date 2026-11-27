@@ -569,23 +569,27 @@ class BookingWidgetTest extends TestCase
         $this->assertSame('BA1368', $ret->flight_number);
     }
 
-    public function test_an_airport_return_requires_a_flight_landing_time(): void
+    // 27 Nov 2026: on an airport pickup the ONE date box is the landing time — the
+    // customer isn't asked twice; a missing separate landing time is taken from it.
+    public function test_an_airport_return_takes_the_landing_time_from_the_return_pickup_time(): void
     {
         $executive = VehicleType::where('slug', 'executive')->first();
+        $ret = now()->addDays(3)->setTime(19, 15);
 
-        // Return touching an airport with a flight number but NO landing time → rejected.
         $this->post(route('widget.book.store'), [
             'journey_type' => 'return',
             'pickup_address' => 'Sheffield S1 2HH', 'pickup_postcode' => 'S1 2HH',
             'destination_address' => 'Manchester Airport',
             'pickup_at' => now()->addDay()->format('Y-m-d\TH:i'),
-            'return_pickup_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            'return_pickup_at' => $ret->format('Y-m-d\TH:i'),
             'vehicle_type_id' => $executive->id, 'passengers' => 2,
-            'customer_name' => 'No Landing', 'customer_phone' => '07464905385',
-            'flight_number' => 'BA1368',
-        ])->assertSessionHasErrors('return_flight_landing_at'); // the return's flight (27 Nov 2026)
+            'customer_name' => 'One Box', 'customer_phone' => '07464905385',
+            'return_flight_number' => 'BA1368',
+        ])->assertOk()->assertSessionHasNoErrors();
 
-        $this->assertSame(0, \App\Models\Booking::count());
+        $leg = \App\Models\Booking::where('is_return_leg', true)->firstOrFail();
+        $this->assertSame('BA1368', $leg->flight_number);
+        $this->assertSame($ret->format('Y-m-d H:i'), $leg->meta['flight_landing_at']);
     }
 
     public function test_a_web_widget_booking_emails_the_office(): void

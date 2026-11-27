@@ -364,6 +364,10 @@ class BookingStatusService
                     $leg->forceFill(['meta' => array_merge($leg->meta ?? [], [
                         'paid_email_sent' => now()->toIso8601String(),
                         'paid_email_for' => $legPaymentId,
+                        // ONE office "Payment received" per trip too (27 Nov 2026: a £264
+                        // return sent the office two, one per leg, two minutes apart).
+                        'office_email_paid_sent' => now()->toIso8601String(),
+                        'office_email_paid_for' => $legPaymentId,
                     ])])->save();
                     $leg->reconcilePaidStatus();
                     // Mark it paid + confirm the web booking, never a customer email.

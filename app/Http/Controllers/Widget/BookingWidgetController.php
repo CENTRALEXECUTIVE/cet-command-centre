@@ -556,6 +556,13 @@ class BookingWidgetController extends Controller
             $data['flight_number'] = null;
             $data['flight_landing_at'] = null;
         }
+        // On an airport pickup the date box IS the landing time (one box on the form).
+        if ($outAir && blank($data['flight_landing_at'] ?? null) && filled($data['pickup_at'] ?? null)) {
+            $data['flight_landing_at'] = $data['pickup_at'];
+        }
+        if ($retAir && blank($data['return_flight_landing_at'] ?? null) && filled($data['return_pickup_at'] ?? null)) {
+            $data['return_flight_landing_at'] = $data['return_pickup_at'];
+        }
         $flightErrors = [];
         if ($outAir) {
             if (blank($data['flight_number'] ?? null)) {

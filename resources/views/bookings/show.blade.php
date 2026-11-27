@@ -1807,6 +1807,12 @@
             <h2 style="margin:0 0 4px">✉ Customer emails</h2>
             <p class="hint" style="margin:0 0 8px">Resend the booking confirmation, or email the customer the updated booking after a change. Preview first — nothing is sent until you press a button.</p>
             @include('bookings.partials.sending-as', ['saMargin' => '0 0 10px'])
+            {{-- At a glance: has the customer been emailed their confirmation? (27 Nov 2026) --}}
+            @if($lastConf)
+                <p style="margin:0 0 10px;font-size:14px;color:#1f7a44;font-weight:600">✓ {{ $lastConf['type'] ?? 'Confirmation' }} emailed to {{ $lastConf['to'] ?? 'the customer' }} on {{ $fmtAt($lastConf['at']) }}@if(!empty($lastConf['leg'])) <span class="muted" style="font-weight:400">(sent from {{ $lastConf['leg'] }})</span>@endif</p>
+            @else
+                <p style="margin:0 0 10px;font-size:14px;color:#8a6d00;font-weight:600">No confirmation has been emailed to the customer yet.</p>
+            @endif
 
             @if($commsBlocked)
                 <p class="hint" style="margin:0;color:#8a6d00">{{ $commsBlocked }}</p>
@@ -1865,7 +1871,7 @@
                                         <div style="margin-top:3px">@if($e['ok'] ?? false)<span class="badge badge-complete">✓ Sent</span>@else<span class="badge badge-cancelled">✗ Failed — not delivered</span>@endif</div></td>
                                     <td>{{ $e['to'] ?? '' }}</td>
                                     <td>{{ $e['from'] ?? '' }}</td>
-                                    <td>{{ $e['subject'] ?? '' }}@if(!empty($e['note']))<div class="muted" style="font-size:11px">{{ $e['note'] }}</div>@endif</td>
+                                    <td>{{ $e['subject'] ?? '' }}@if(!empty($e['leg']))<div class="muted" style="font-size:11px">leg {{ $e['leg'] }}</div>@endif @if(!empty($e['note']))<div class="muted" style="font-size:11px">{{ $e['note'] }}</div>@endif</td>
                                     <td>{{ $e['by'] ?? '' }}</td>
                                     <td>
                                         @if($e['ok'] ?? false)

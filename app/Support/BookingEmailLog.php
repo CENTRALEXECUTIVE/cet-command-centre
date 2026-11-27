@@ -58,7 +58,9 @@ class BookingEmailLog
 
             self::record($booking, [
                 'type' => self::typeFor($event->data),
-                'audience' => ($ops !== '' && strcasecmp($to, $ops) === 0) ? 'office' : 'customer',
+                // Office notices go to admin@ OR the PVT inbox — always "office".
+                'audience' => (($ops !== '' && strcasecmp($to, $ops) === 0)
+                    || class_basename((string) ($event->data['__laravel_mailable'] ?? '')) === 'OfficeBookingMail') ? 'office' : 'customer',
                 'to' => $to,
                 'from' => $addr($email->getFrom()),
                 'subject' => (string) $email->getSubject(),
@@ -160,7 +162,33 @@ class BookingEmailLog
     /** Newest-first entries for the booking page. */
     public static function entries(Booking $booking): array
     {
-        return array_reverse(array_values(array_filter((array) ($booking->meta[self::META_KEY] ?? []), 'is_array')));
+        // The WHOLE trip (27 Nov 2026): a return's confirmation is sent from whichever
+        // leg was paid, so opening the other leg showed "no emails". Both legs' emails
+        // are listed together, newest first, each tagged with its leg reference.
+        $legs = collect([$booking]);
+        try {
+            $group = $booking->invoiceGroupBookings();
+            if ($group->count() > 1) {
+                $legs = $group;
+            }
+        } catch (\Throwable) {
+        }
+        $all = [];
+        foreach ($legs as $leg) {
+            foreach (array_reverse((array) ($leg->meta[self::META_KEY] ?? [])) as $e) { // newest first (ties keep it)
+                if (! is_array($e)) {
+                    continue;
+                }
+                if ($legs->count() > 1) {
+                    $e['leg'] = $leg->external_reference ?: $leg->reference;
+                }
+                $all[$e['id'] ?? uniqid('', true)] = $e;
+            }
+        }
+        $all = array_values($all);
+        usort($all, fn ($a, $b) => strcmp((string) ($b['at'] ?? ''), (string) ($a['at'] ?? '')));
+
+        return $all;
     }
 
     /** The last successful CUSTOMER confirmation entry, or null. */
