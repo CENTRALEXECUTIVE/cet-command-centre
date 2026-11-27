@@ -56,4 +56,50 @@ class CorporateAccountController extends Controller
             'lifetimeValue' => $lifetimeValue,
         ]);
     }
+
+    /**
+     * Approve a business account (27 Nov 2026 — there was no way to switch a self-
+     * registered account on). Turns on "Book on account" for its contacts and emails the
+     * main contact once to say so. Admin-only, a deliberate office action.
+     */
+    public function approve(Request $request, CorporateAccount $account): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $wasActive = (bool) $account->is_active;
+        $account->forceFill(['is_active' => true])->save();
+
+        $emailed = null;
+        if (! $wasActive) {
+            $contact = $account->contacts()->orderByDesc('is_primary')->first();
+            $to = $contact?->email ?: $account->billing_email;
+            if (filled($to)) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($to)->send(new \App\Mail\CustomerNoticeMail(
+                        'Your business account with Central Executive Transfers is approved',
+                        'Account approved',
+                        'Good news'.($contact?->name ? ', '.$contact->name : '').': your business account for '.$account->name.' is now active (account no. '.$account->account_code.').',
+                        [
+                            'When you book online and sign in with your email and password, choose "Account" as the payment — no card needed.',
+                            'Journeys are invoiced monthly with VAT, on '.$account->payment_terms_days.'-day terms.',
+                            'Book here: '.url('/widget/book').' · Manage your bookings: '.url('/my-account'),
+                        ],
+                    ));
+                    $emailed = $to;
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[accounts] approval email failed: '.$e->getMessage());
+                }
+            }
+        }
+
+        return back()->with('status', $account->name.' approved — "Book on account" is on.'.($emailed ? ' Approval emailed to '.$emailed.'.' : ''));
+    }
+
+    /** Suspend a business account: "Book on account" switches off. Nobody is emailed. */
+    public function suspend(Request $request, CorporateAccount $account): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $account->forceFill(['is_active' => false])->save();
+
+        return back()->with('status', $account->name.' suspended — "Book on account" is off. Existing bookings are unchanged.');
+    }
 }

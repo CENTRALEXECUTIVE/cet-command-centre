@@ -288,6 +288,8 @@ Route::middleware(['auth', \App\Http\Middleware\RequirePasswordChange::class])->
         // Business (corporate) accounts — monthly-invoice companies like MEPS.
         Route::get('accounts', [\App\Http\Controllers\Admin\CorporateAccountController::class, 'index'])->name('accounts.index');
         Route::get('accounts/{account}', [\App\Http\Controllers\Admin\CorporateAccountController::class, 'show'])->name('accounts.show');
+        Route::post('accounts/{account}/approve', [\App\Http\Controllers\Admin\CorporateAccountController::class, 'approve'])->name('accounts.approve');
+        Route::post('accounts/{account}/suspend', [\App\Http\Controllers\Admin\CorporateAccountController::class, 'suspend'])->name('accounts.suspend');
 
         // Customer CRM.
         Route::get('customers', [\App\Http\Controllers\CustomerController::class, 'index'])->name('customers.index');

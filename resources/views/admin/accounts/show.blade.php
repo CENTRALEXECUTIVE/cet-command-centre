@@ -14,8 +14,20 @@
                 @endif
             </p>
         </div>
-        <a href="{{ route('accounts.index') }}" class="btn btn-ghost" style="padding:8px 14px">← All accounts</a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @if($account->is_active)
+                <form method="POST" action="{{ route('accounts.suspend', $account) }}" onsubmit="return confirm('Suspend {{ addslashes($account->name) }}? Book on account will switch off.')">
+                    @csrf<button class="btn btn-ghost" style="padding:8px 14px">Suspend</button>
+                </form>
+            @else
+                <form method="POST" action="{{ route('accounts.approve', $account) }}" onsubmit="return confirm('Approve {{ addslashes($account->name) }}? Book on account switches on and the main contact is emailed.')">
+                    @csrf<button class="btn btn-primary" style="padding:8px 14px">✅ Approve account</button>
+                </form>
+            @endif
+            <a href="{{ route('accounts.index') }}" class="btn btn-ghost" style="padding:8px 14px">← All accounts</a>
+        </div>
     </div>
+    @if(session('status'))<div class="card" style="background:#e7f6ec;color:#1f5f3a;margin:10px 0">{{ session('status') }}</div>@endif
 
     <div class="card" style="margin-bottom:14px">
         <table>
