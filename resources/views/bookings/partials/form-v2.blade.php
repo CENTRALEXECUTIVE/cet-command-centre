@@ -228,6 +228,10 @@
         if (sel) sel.addEventListener('change', syncRet);
         syncRet();
     }
+    // The form's own Return journey section is THE Return step (28 Nov 2026: the phone
+    // step "Return" was blank — it only knew the old built-here card, so the return
+    // fields fell through to the last step).
+    if (!retSec) retSec = document.getElementById('return-section');
 
     // Return step: the party/luggage follow the outbound until changed.
     var follows = Array.prototype.slice.call(document.querySelectorAll('[data-follow]'));
