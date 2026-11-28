@@ -13,6 +13,7 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- 28 Nov 2026: Office New booking form: the return flight box is highlighted with a 'Needed' note when the return collects from an airport, and saving without the outbound/return airport flight number asks 'Save without it?' (can still save).
 - 28 Nov 2026 (ll): Office New booking on PHONES: step 2 'Return' was blank — the step wizard (bookings/partials/form-v2) only knew the old built-in return card, so after #return-section was added (24 Nov) the return fields fell through to the last step. retSec now = #return-section. Browser-checked at phone width.
 - 27 Nov 2026 (kk): Pricing safety for building names: fixed fares read the postcode (a '23 Brearley Hall, ' prefix gives the identical fare — test); DistanceService now retries Google with just each end's postcode when the full address can't be placed, before falling back to an estimate.
 - 27 Nov 2026 (jj): Address boxes (website + office, shared public/js/cet-forms.js, v=39): choosing a Google suggestion now KEEPS a house number / building name typed before the street ('23 Brearley Hall, ' + 'Woodmere Drive, Old Whittington, Chesterfield S41 9TA'), and when the full typed text finds nothing it searches the street part (after the first comma / without the first words). Free typing always worked — the pick used to wipe it. Browser-tested.

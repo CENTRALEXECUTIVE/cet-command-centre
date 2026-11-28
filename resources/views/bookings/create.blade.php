@@ -408,6 +408,7 @@
                     <div class="field" style="margin:10px 0 0">
                         <label for="return_flight_number">Return flight number <span class="muted">(only if the return collects from an airport)</span></label>
                         <input id="return_flight_number" name="return_flight_number" value="{{ old('return_flight_number') }}" placeholder="e.g. EZY1234" style="text-transform:uppercase">
+                        <div id="return-flight-needed" class="flight-needed" hidden>✈ Needed: the return collects from the airport, so we can track the flight. You can still save without it and add it later.</div>
                     </div>
                 </div>
 
@@ -708,7 +709,7 @@
     <style>
         /* Airport pickup: flight number sits under the pickup time, flagged (never blocks). */
         #flight-fields.flight-up { border-top: 0 !important; padding-top: 0 !important; margin-top: 0 !important; margin-bottom: 14px; }
-        #flight_number.flight-missing { border-color: #d4a017; box-shadow: 0 0 0 3px rgba(251,186,42,.25); }
+        #flight_number.flight-missing, #return_flight_number.flight-missing { border-color: #d4a017; box-shadow: 0 0 0 3px rgba(251,186,42,.25); }
         .flight-needed { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: #8a6100; }
         html[data-theme="dark"] .flight-needed { color: #f2c14e; }
         /* The native select is driven by the picture cards — keep it in the DOM
@@ -1002,11 +1003,31 @@
                     }
                     airportAuto = !!want;
                 }
+                // The RETURN collects at an airport → its flight number is flagged too
+                // (28 Nov 2026: the office nearly saved a return with no flight).
+                var retFlightIn = document.getElementById('return_flight_number');
+                var retFlightNeeded = document.getElementById('return-flight-needed');
+                function flagReturnFlight() {
+                    if (!retFlightIn) return;
+                    var missing = returnPickupIsAirport() && !retFlightIn.value.trim();
+                    retFlightIn.classList.toggle('flight-missing', missing);
+                    if (retFlightNeeded) retFlightNeeded.hidden = !missing;
+                }
+                // For the save check further down (a separate part of the script).
+                window.cetFlightGaps = function () {
+                    return {
+                        out: pickupIsAirport() && flightIn && !flightIn.value.trim(),
+                        ret: returnPickupIsAirport() && retFlightIn && !retFlightIn.value.trim(),
+                    };
+                };
+                if (retFlightIn) retFlightIn.addEventListener('input', flagReturnFlight);
+                if (retPickupEl) { retPickupEl.addEventListener('input', flagReturnFlight); retPickupEl.addEventListener('change', flagReturnFlight); }
                 function apply() {
                     autoAirport();
                     var any = isAnyAirport();
                     var arrival = pickupIsAirport();
                     placeFlightFields(arrival);
+                    flagReturnFlight();
                     if (note) note.hidden = !any;
                     if (landingField) landingField.hidden = !any;
                     // RECOMMENDED on an airport job, never forced — the office (admin)
@@ -1426,6 +1447,17 @@
                 var formEl = vehSel.form;
                 if (formEl) {
                     formEl.addEventListener('submit', function (e) {
+                        // A leg collecting at an airport with no flight number: ask before
+                        // saving (never blocks — the office may not have it yet).
+                        var gaps = window.cetFlightGaps ? window.cetFlightGaps() : { out: false, ret: false };
+                        var noOut = gaps.out, noRet = gaps.ret;
+                        var rf = document.getElementById('return_flight_number'), flightIn = document.getElementById('flight_number');
+                        if ((noOut || noRet) && !confirm('No flight number for the ' + (noOut && noRet ? 'outbound or return' : (noOut ? 'outbound' : 'return'))
+                                + ' airport pickup.\n\nSave without it? (You can add it later.)')) {
+                            e.preventDefault(); e.stopImmediatePropagation();
+                            var focusEl = noOut ? flightIn : rf; try { focusEl.focus(); } catch (x) {}
+                            return;
+                        }
                         var c = caps[vehSel.value];
                         if (!c) return;
                         var pax = num(paxEl), suit = num(suitEl), hand = num(handEl), n = cars();
