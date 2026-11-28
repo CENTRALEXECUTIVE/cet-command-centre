@@ -702,6 +702,13 @@ class BookingController extends Controller
         // A completed / cancelled booking CAN still be edited — the office needs to
         // correct wrong details (a date, a name) without reverting the status and
         // losing the job's timeline. Editing fields never touches the status history.
+        // Edit opens the WHOLE trip (directors, 28 Nov 2026): a return leg opens
+        // its outbound, with the Return step filled in from this leg.
+        if ($booking->is_return_leg && $booking->linked_booking_id
+            && ($outbound = Booking::find($booking->linked_booking_id)) && ! $outbound->is_return_leg) {
+            return redirect()->route('bookings.edit', $outbound);
+        }
+
         $booking->load(['customer', 'stops']);
 
         // Directors (20 Nov 2026): Edit is the SAME form as New booking — same layout,
@@ -710,7 +717,11 @@ class BookingController extends Controller
         // in as "old input" so every field on the form picks them up; after a failed
         // save the office's own typed values win instead.
         if (! $request->session()->hasOldInput()) {
-            $request->session()->now('_old_input', $this->bookingFormValues($booking));
+            $values = $this->bookingFormValues($booking);
+            if ($ret = $this->returnLegOf($booking)) {
+                $values = array_merge($values, $this->returnFormValues($booking, $ret));
+            }
+            $request->session()->now('_old_input', $values);
         }
 
         return view('bookings.create', $this->formData($request) + [
@@ -720,6 +731,114 @@ class BookingController extends Controller
             'enquiry' => null,
             'prefill' => [],
         ]);
+    }
+
+    /** The return leg paired with this outbound, if any. */
+    private function returnLegOf(Booking $b): ?Booking
+    {
+        if ($b->is_return_leg || ! $b->linked_booking_id) {
+            return null;
+        }
+        $ret = Booking::with(['customer', 'stops'])->find($b->linked_booking_id);
+
+        return $ret && $ret->is_return_leg ? $ret : null;
+    }
+
+    /** The Return step of the form, filled in from the return leg (for Edit). */
+    private function returnFormValues(Booking $out, Booking $ret): array
+    {
+        $r = $this->bookingFormValues($ret);
+        $o = $this->bookingFormValues($out);
+        $fare = fn ($v) => $v !== '' && $v !== null ? (float) $v : null;
+        $outFare = $fare($o['quoted_price']);
+        $retFare = $fare($r['quoted_price']);
+
+        return [
+            'journey_type' => 'return',
+            'return_pickup_at' => $r['pickup_at'],
+            'return_pickup_address' => $r['pickup_address'],
+            'return_pickup_postcode' => $r['pickup_postcode'],
+            'return_destination_address' => $r['destination_address'],
+            'return_destination_postcode' => $r['destination_postcode'],
+            'return_flight_number' => $r['flight_number'],
+            'return_passengers' => $r['passengers'],
+            'return_suitcases' => $r['suitcases'],
+            'return_hand_luggage' => $r['hand_luggage'],
+            'return_vehicle_type_id' => (string) $r['vehicle_type_id'] !== (string) $o['vehicle_type_id'] ? $r['vehicle_type_id'] : '',
+            // The price box is the TRIP total; each leg keeps its own share.
+            'quoted_price' => ($outFare !== null || $retFare !== null) ? number_format(($outFare ?? 0) + ($retFare ?? 0), 2, '.', '') : '',
+            'leg_price_out' => $outFare !== null ? number_format($outFare, 2, '.', '') : '',
+            'leg_price_return' => $retFare !== null ? number_format($retFare, 2, '.', '') : '',
+        ];
+    }
+
+    /**
+     * Split one Edit save of a whole return trip into the outbound's and the
+     * return's own form data. Each leg keeps its own price share, extras and
+     * notes; a shared field (customer, payment, VAT, notes…) only changes on the
+     * return when the office actually changed it on the form.
+     *
+     * @return array{0: array, 1: array}
+     */
+    private function splitTripEdit(Booking $out, ?Booking $ret, array $data): array
+    {
+        $num = fn ($v) => $v !== null && $v !== '' && is_numeric($v) ? round((float) $v, 2) : null;
+        $total = $num($data['quoted_price'] ?? null);
+        $retPrice = $num($data['leg_price_return'] ?? null) ?? ($ret ? $num($ret->fareAmount()) : null);
+        if ($total === null) {
+            $outPrice = $retPrice = null;
+        } elseif ($retPrice === null || $retPrice > $total) {
+            $outPrice = round($total / 2, 2);
+            $retPrice = round($total - $outPrice, 2);
+        } else {
+            $outPrice = round($total - $retPrice, 2);
+        }
+
+        $outData = array_merge($data, ['journey_type' => 'one_way', 'quoted_price' => $outPrice]);
+
+        $before = $this->bookingFormValues($out);
+        $retData = $ret ? $this->bookingFormValues($ret) : $outData;
+        foreach (['customer_name', 'lead_name', 'customer_phone', 'customer_email', 'payment_method',
+            'corporate_account_id', 'cost_code', 'corporate_reference', 'vat_invoice', 'vat_company', 'vat_number',
+            'vat_address', 'child_seats', 'booster_seats', 'infant_seats', 'special_requests', 'driver_notes',
+            'wheelchair', 'ribbon', 'booking_source', 'heard_about'] as $k) {
+            if (! $ret || (string) ($data[$k] ?? '') !== (string) ($before[$k] ?? '')) {
+                $retData[$k] = $data[$k] ?? null;
+            }
+        }
+
+        $airport = fn ($a) => \App\Support\AirportMatcher::isAirport((string) $a);
+        $pickup = trim((string) ($data['return_pickup_address'] ?? '')) ?: $data['destination_address'];
+        $drop = trim((string) ($data['return_destination_address'] ?? '')) ?: $data['pickup_address'];
+        $filled = fn ($k) => ($data['return_'.$k] ?? null) !== null && $data['return_'.$k] !== '';
+
+        $retData = array_merge($retData, [
+            'journey_type' => 'one_way',
+            'pickup_at' => $data['return_pickup_at'],
+            'pickup_address' => $pickup,
+            'pickup_postcode' => $filled('pickup_address') ? ($data['return_pickup_postcode'] ?? null) : ($data['destination_postcode'] ?? null),
+            'destination_address' => $drop,
+            'destination_postcode' => $filled('destination_address') ? ($data['return_destination_postcode'] ?? null) : ($data['pickup_postcode'] ?? null),
+            'flight_number' => $data['return_flight_number'] ?? null,
+            'flight_landing_at' => $airport($pickup) ? $data['return_pickup_at'] : null,
+            'passengers' => $filled('passengers') ? $data['return_passengers'] : ($data['passengers'] ?? null),
+            'suitcases' => $filled('suitcases') ? $data['return_suitcases'] : ($data['suitcases'] ?? null),
+            'hand_luggage' => $filled('hand_luggage') ? $data['return_hand_luggage'] : ($data['hand_luggage'] ?? null),
+            'vehicle_type_id' => $filled('vehicle_type_id') ? $data['return_vehicle_type_id'] : $data['vehicle_type_id'],
+            'quoted_price' => $retPrice,
+        ]);
+        if (! $airport($pickup)) {
+            $retData['meet_greet'] = null;
+        }
+        if (! $ret) {
+            // A brand-new return: no stops, waiting or deposit carried over.
+            $retData['via_stops'] = [];
+            $retData['waiting'] = null;
+            $retData['deposit_amount'] = null;
+            $retData['deposit_paid'] = null;
+        }
+
+        return [$outData, $retData];
     }
 
     /** The booking's current details as New-booking form values (for Edit). */
@@ -792,9 +911,49 @@ class BookingController extends Controller
 
     public function update(UpdateBookingRequest $request, Booking $booking): RedirectResponse
     {
-        $previousFare = $booking->fareAmount();
-        $previousVehicle = $booking->vehicle_type_id;
-        $this->bookings->updateFromForm($booking, $request->validated());
+        $data = $request->validated();
+        $ret = $this->returnLegOf($booking);
+        $tripNote = '';
+
+        // Edit saves the WHOLE trip (directors, 28 Nov 2026): the outbound and the
+        // return are updated together; picking Return on a one-way adds the return.
+        if (($data['journey_type'] ?? null) === 'return' && ! $booking->is_return_leg) {
+            [$outData, $retData] = $this->splitTripEdit($booking, $ret, $data);
+            $isNew = ! $ret;
+            if (! $ret) {
+                $when = Carbon::parse($data['return_pickup_at'], config('app.timezone'));
+                $ret = $this->makeReturnLeg($booking, $when, $data['return_flight_number'] ?? null);
+            }
+            $retPrevFare = $ret->fareAmount();
+            $retPrevVehicle = $ret->vehicle_type_id;
+            $this->bookings->updateFromForm($ret->fresh(), $retData);
+            $this->afterLegEdit($request, $ret->fresh(), $retPrevFare, $retPrevVehicle);
+            $tripNote = $isNew ? " Return leg {$ret->fresh()->reference} added." : " Return leg {$ret->reference} updated too.";
+            $data = $outData;
+        } elseif ($ret && ($data['journey_type'] ?? null) !== 'return') {
+            $tripNote = " The return leg {$ret->reference} was left as it is: cancel it on its own page if it's not needed.";
+        }
+
+        [$payNote, $refundNote, $vatNote] = $this->afterLegEdit($request, $booking, null, null, $data);
+
+        return redirect()
+            ->route('bookings.show', $booking)
+            ->with('status', "Booking {$booking->reference} updated.{$tripNote}{$payNote}{$refundNote}{$vatNote} The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
+    }
+
+    /**
+     * Save one leg's edit (when $data is given) and run the follow-ups: VAT
+     * details, masking line, edit stamp, driver pay. Returns the status notes.
+     *
+     * @return array{0:string,1:string,2:string}
+     */
+    private function afterLegEdit(Request $request, Booking $booking, $previousFare = null, $previousVehicle = null, ?array $data = null): array
+    {
+        if ($data !== null) {
+            $previousFare = $booking->fareAmount();
+            $previousVehicle = $booking->vehicle_type_id;
+            $this->bookings->updateFromForm($booking, $data);
+        }
 
         // VAT invoice (the Edit form is the New booking form now): keep the company
         // details current. Switching VAT OFF moves the job to the other company, so
@@ -852,9 +1011,7 @@ class BookingController extends Controller
         $refundNote = $booking->fresh()->overpaidAmount() > 0.009
             ? ' The customer has paid more than the new price — use "Refund difference" below.' : '';
 
-        return redirect()
-            ->route('bookings.show', $booking)
-            ->with('status', "Booking {$booking->reference} updated.{$payNote}{$refundNote}{$vatNote} The calendar isn't changed automatically — update the Google Calendar event yourself if needed.");
+        return [$payNote, $refundNote, $vatNote];
     }
 
     /**
@@ -1458,7 +1615,16 @@ class BookingController extends Controller
         $when = Carbon::createFromFormat('Y-m-d\TH:i', $data['return_pickup_at'], config('app.timezone'))
             ?: Carbon::parse($data['return_pickup_at'], config('app.timezone'));
 
-        $return = \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $when, $data) {
+        $return = $this->makeReturnLeg($booking, $when, $data['flight_number'] ?? null);
+
+        return redirect()->route('bookings.show', $return)
+            ->with('status', "Return leg {$return->reference} created — pickup and drop-off swapped. Set its price and allocate a driver, then add it to Google Calendar yourself (nothing is pushed automatically).");
+    }
+
+    /** A return leg for a one-way booking: ends swapped, unpriced, unallocated, linked. */
+    private function makeReturnLeg(Booking $booking, Carbon $when, ?string $flight): Booking
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($booking, $when, $flight) {
             $leg = $booking->replicate(['reference', 'external_reference', 'status', 'driver_id', 'linked_booking_id', 'quoted_price', 'final_price']);
             // Match the outbound's reference so the pair reads as one trip: an …A
             // outbound gets the same reference ending B; an older reference without
@@ -1481,7 +1647,7 @@ class BookingController extends Controller
             $leg->destination_address = $booking->pickup_address;
             $leg->destination_postcode = $booking->pickup_postcode;
             $leg->pickup_at = $when;
-            $leg->flight_number = $data['flight_number'] ?? null;
+            $leg->flight_number = $flight;
             // The return is priced and paid separately by the office.
             $leg->quoted_price = null;
             $leg->final_price = null;
@@ -1516,9 +1682,6 @@ class BookingController extends Controller
 
             return $leg;
         });
-
-        return redirect()->route('bookings.show', $return)
-            ->with('status', "Return leg {$return->reference} created — pickup and drop-off swapped. Set its price and allocate a driver, then add it to Google Calendar yourself (nothing is pushed automatically).");
     }
 
     /**

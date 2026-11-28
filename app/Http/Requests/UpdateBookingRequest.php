@@ -90,7 +90,20 @@ class UpdateBookingRequest extends FormRequest
 
             // Same extra fields as the New booking form, now that Edit uses it (20 Nov 2026).
             'lead_name' => ['nullable', 'string', 'max:120'],
-            'journey_type' => ['nullable', Rule::in(['one_way', 'hourly'])],
+            'journey_type' => ['nullable', Rule::in(['one_way', 'return', 'hourly'])],
+            // Edit covers the whole trip (28 Nov 2026): the Return step's fields.
+            'return_pickup_at' => ['nullable', 'required_if:journey_type,return', 'date', 'after:pickup_at'],
+            'return_pickup_address' => ['nullable', 'string', 'max:500'],
+            'return_pickup_postcode' => ['nullable', 'string', 'max:16'],
+            'return_destination_address' => ['nullable', 'string', 'max:500'],
+            'return_destination_postcode' => ['nullable', 'string', 'max:16'],
+            'return_vehicle_type_id' => ['nullable', Rule::exists('vehicle_types', 'id')],
+            'return_flight_number' => ['nullable', 'string', 'max:32'],
+            'return_passengers' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'return_suitcases' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'return_hand_luggage' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'leg_price_out' => ['nullable', 'numeric', 'min:0'],
+            'leg_price_return' => ['nullable', 'numeric', 'min:0'],
             'hours' => ['nullable', 'integer', 'min:1', 'max:24'],
             'pickup_postcode' => ['nullable', 'string', 'max:16'],
             'destination_postcode' => ['nullable', 'string', 'max:16'],

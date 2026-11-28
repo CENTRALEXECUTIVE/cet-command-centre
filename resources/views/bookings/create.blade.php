@@ -106,17 +106,11 @@
                     <label for="journey_type">Journey type <span class="req">*</span></label>
                     <select id="journey_type" name="journey_type" required>
                         <option value="one_way" @selected(old('journey_type','one_way')==='one_way')>One way</option>
-                        @unless($editing ?? null)<option value="return" @selected(old('journey_type')==='return')>Return</option>@endunless
+                        <option value="return" @selected(old('journey_type')==='return')>Return</option>
                         <option value="hourly" @selected(old('journey_type')==='hourly')>Hourly hire (as directed)</option>
                     </select>
-                    @if(($editing ?? null) && ! $editing->linked_booking_id && ! $editing->is_return_leg)<div class="hint"><a href="{{ route('bookings.show', $editing) }}#add-return" style="color:#b8860b;font-weight:600">↩ Add a return journey</a> (opens Create return leg on the booking page)</div>@endif
                     @if(($editing ?? null) && $editing->linked_booking_id && ($otherLeg = \App\Models\Booking::find($editing->linked_booking_id)))
-                        <div class="leg-of-return" style="margin-top:10px;padding:12px 14px;border:2px solid #FBBA2A;border-radius:12px;background:#fff8e6;color:#111">
-                            <strong>↩ This is the {{ $editing->is_return_leg ? 'RETURN' : 'OUTBOUND' }} leg of a return.</strong>
-                            {{ $editing->is_return_leg ? 'Outbound' : 'Return' }}: {{ $otherLeg->reference }} · {{ $otherLeg->pickup_at?->timezone(config('app.timezone'))->format('D j M H:i') }}.
-                            <a href="{{ route('bookings.edit', $otherLeg) }}" style="color:#b8860b;font-weight:700">Edit the {{ $editing->is_return_leg ? 'outbound' : 'return' }} leg →</a>
-                            <div class="hint" style="margin-top:4px">Each leg is its own booking, so you change one leg at a time.</div>
-                        </div>
+                        <div class="hint">Editing the whole trip: {{ $editing->reference }} (outbound) and {{ $otherLeg->reference }} (return). Saving updates both.</div>
                     @endif
                 </div>
 
