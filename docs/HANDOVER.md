@@ -13,6 +13,7 @@ the directors approve every deploy by saying "deploy"). Updated 4 Nov 2026.
 - Only one session should push at a time; fetch right before pushing.
 
 ## Session log (newest first, one line each)
+- 28 Nov 2026: Booking for someone else on the PASSENGER's mobile (Laura books for Matt, CET-CCD4AA): the typed booker name+email now stick. When both differ from the number owner's record, the booking files under the booker (by email or a new record), on create AND edit, and the other leg follows. Edit shows a clear 'This is the OUTBOUND/RETURN leg' box with a link to edit the other leg; a one-way gets 'Add a return journey' (opens Create return leg). Also deployed the phone Confirm-bar fix.
 - 28 Nov 2026: Office form (phone): the Confirm booking bar no longer stays hidden after typing. It comes back when the keyboard closes or on any tap off a box (iPhone kept the box focused).
 - 28 Nov 2026: Office New booking form: the return flight box is highlighted with a 'Needed' note when the return collects from an airport, and saving without the outbound/return airport flight number asks 'Save without it?' (can still save).
 - 28 Nov 2026 (ll): Office New booking on PHONES: step 2 'Return' was blank — the step wizard (bookings/partials/form-v2) only knew the old built-in return card, so after #return-section was added (24 Nov) the return fields fell through to the last step. retSec now = #return-section. Browser-checked at phone width.

@@ -109,7 +109,15 @@
                         @unless($editing ?? null)<option value="return" @selected(old('journey_type')==='return')>Return</option>@endunless
                         <option value="hourly" @selected(old('journey_type')==='hourly')>Hourly hire (as directed)</option>
                     </select>
-                    @if($editing ?? null)<div class="hint">Each leg of a return is its own booking, so you edit one leg at a time{{ $editing->linked_booking_id ? ' (the other leg is '.optional(\App\Models\Booking::find($editing->linked_booking_id))->reference.')' : '' }}.</div>@endif
+                    @if(($editing ?? null) && ! $editing->linked_booking_id && ! $editing->is_return_leg)<div class="hint"><a href="{{ route('bookings.show', $editing) }}#add-return" style="color:#b8860b;font-weight:600">↩ Add a return journey</a> (opens Create return leg on the booking page)</div>@endif
+                    @if(($editing ?? null) && $editing->linked_booking_id && ($otherLeg = \App\Models\Booking::find($editing->linked_booking_id)))
+                        <div class="leg-of-return" style="margin-top:10px;padding:12px 14px;border:2px solid #FBBA2A;border-radius:12px;background:#fff8e6;color:#111">
+                            <strong>↩ This is the {{ $editing->is_return_leg ? 'RETURN' : 'OUTBOUND' }} leg of a return.</strong>
+                            {{ $editing->is_return_leg ? 'Outbound' : 'Return' }}: {{ $otherLeg->reference }} · {{ $otherLeg->pickup_at?->timezone(config('app.timezone'))->format('D j M H:i') }}.
+                            <a href="{{ route('bookings.edit', $otherLeg) }}" style="color:#b8860b;font-weight:700">Edit the {{ $editing->is_return_leg ? 'outbound' : 'return' }} leg →</a>
+                            <div class="hint" style="margin-top:4px">Each leg is its own booking, so you change one leg at a time.</div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="field" id="hours_field" style="display:none">

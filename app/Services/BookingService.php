@@ -199,7 +199,13 @@ class BookingService
                     && Booking::where('customer_id', $customer->id)->where('id', '!=', $booking->id)->exists();
 
                 if ($identityChanged && $sharedByOthers) {
-                    $target = ($newPhone !== '' ? Customer::whereIn('phone', \App\Support\Phone::variants($newPhone))->first() : null)
+                    $byPhone = $newPhone !== '' ? Customer::whereIn('phone', \App\Support\Phone::variants($newPhone))->first() : null;
+                    // The number's owner is someone else (booking for a passenger on
+                    // their mobile): keep the typed booker, found by email or new.
+                    if ($byPhone && ! $this->samePerson($byPhone, $newName, $newEmail)) {
+                        $byPhone = Customer::where('email', $newEmail)->first();
+                    }
+                    $target = $byPhone
                         ?? Customer::create(array_filter([
                             'name' => $newName ?: $customer->name,
                             'phone' => $newPhone ?: null,
@@ -207,6 +213,11 @@ class BookingService
                         ], fn ($v) => $v !== null && $v !== ''));
                     $booking->customer_id = $target->id;
                     $booking->setRelation('customer', $target);
+                    // The other leg of the same trip follows, so both legs show the booker.
+                    if ($booking->linked_booking_id) {
+                        Booking::whereKey($booking->linked_booking_id)->where('customer_id', $customer->id)
+                            ->update(['customer_id' => $target->id]);
+                    }
                 } else {
                     $customer->fill(array_filter([
                         'name' => $data['customer_name'] ?? null,
@@ -528,6 +539,13 @@ class BookingService
             $customer = Customer::where('phone', $phone)->first()
                 ?? Customer::whereIn('phone', \App\Support\Phone::variants($phone))->first();
         }
+        // Booking for someone else on THEIR number (Laura books for Matt, Matt's
+        // mobile): the number belongs to a different person, so file it under the
+        // booker the office typed (matched by email, or a new record). Never swap
+        // the typed booker name/email for the number owner's (28 Nov 2026).
+        if ($customer && ! $this->samePerson($customer, (string) ($data['customer_name'] ?? ''), $email)) {
+            $customer = Customer::where('email', $email)->first();
+        }
         if (! $customer && ! $phone && $email) {
             $customer = Customer::where('email', $email)->first();
         }
@@ -544,6 +562,22 @@ class BookingService
         }
 
         return $customer;
+    }
+
+    /**
+     * Is the typed booker the same person as this customer record? Only a typed
+     * email AND name that both differ count as someone else: no email (or a
+     * matching one) keeps the number's owner, as before.
+     */
+    private function samePerson(Customer $customer, string $name, ?string $email): bool
+    {
+        $email = trim((string) $email);
+        if ($email === '' || strcasecmp($email, (string) $customer->email) === 0) {
+            return true;
+        }
+        $norm = fn ($v) => mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $v)));
+
+        return $norm($name) === '' || $norm($name) === $norm($customer->name);
     }
 
     private function recordPrivacyConsent(Customer $customer, array $data): void

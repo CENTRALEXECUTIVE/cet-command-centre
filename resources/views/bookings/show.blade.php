@@ -777,6 +777,7 @@
             </p>
             @if(! $booking->linked_booking_id && ! $booking->is_return_leg)
                 <div id="return-box" class="card" style="display:none;border-left:4px solid #111;margin-bottom:16px">
+                    <script>if (location.hash === '#add-return') document.addEventListener('DOMContentLoaded', function () { var b = document.getElementById('return-box'); b.style.display = 'block'; b.scrollIntoView({ block: 'center' }); });</script>
                     <form method="POST" action="{{ route('bookings.return-leg', $booking) }}">
                         @csrf
                         <strong>Create the return leg</strong>
