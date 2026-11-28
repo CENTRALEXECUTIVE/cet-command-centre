@@ -440,6 +440,19 @@
                 if (!a || !form.contains(a) || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) bar.classList.remove('bk-hide');
             }, 150);
         });
+        // iPhone keeps a box focused after the keyboard closes, so focusout never
+        // fires and the Confirm bar stayed hidden. Bring it back when the keyboard
+        // closes, or on any tap that isn't on a typing box.
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', function () {
+                if (window.visualViewport.height > window.innerHeight * 0.85) bar.classList.remove('bk-hide');
+            });
+        }
+        document.addEventListener('touchstart', function (e) {
+            var t = e.target;
+            if (t && t.closest && t.closest('input, textarea, select, label')) return;
+            bar.classList.remove('bk-hide');
+        }, { passive: true });
     }
 })();
 </script>
